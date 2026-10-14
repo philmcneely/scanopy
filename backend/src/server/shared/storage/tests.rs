@@ -1175,6 +1175,8 @@ async fn server_side_field_filters_are_valid_sql_against_the_live_schema() {
 #[tokio::test]
 async fn order_fields_are_valid_sql_against_the_live_schema() {
     use crate::server::credentials::handlers::CredentialOrderField;
+    use crate::server::daemon_api_keys::handlers::DaemonApiKeyOrderField;
+    use crate::server::daemon_api_keys::r#impl::base::DaemonApiKey;
     use crate::server::daemons::handlers::DaemonOrderField;
     use crate::server::dependencies::handlers::DependencyOrderField;
     use crate::server::discovery::handlers::DiscoveryOrderField;
@@ -1249,6 +1251,7 @@ async fn order_fields_are_valid_sql_against_the_live_schema() {
     all.extend(failures::<Tag, TagOrderField>(&pool).await);
     all.extend(failures::<Vlan, VlanOrderField>(&pool).await);
     all.extend(failures::<UserApiKey, UserApiKeyOrderField>(&pool).await);
+    all.extend(failures::<DaemonApiKey, DaemonApiKeyOrderField>(&pool).await);
 
     assert!(
         all.is_empty(),

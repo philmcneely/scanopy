@@ -956,6 +956,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/daemon/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Daemon API Key field
+         * @description Every distinct value of one Daemon API Key field across the Daemon API Keys the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_daemon_api_key_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/daemon/{id}": {
         parameters: {
             query?: never;
@@ -8082,6 +8102,11 @@ export interface components {
             /** @description Tags assigned to this entity. */
             tags: string[];
         };
+        /**
+         * @description Fields the daemon API key list can be ordered and grouped by.
+         * @enum {string}
+         */
+        DaemonApiKeyOrderField: "created_at" | "name" | "updated_at" | "site_id" | "is_enabled" | "last_used" | "expires_at";
         DaemonApiKeyResponse: {
             /** @description The stored key record. */
             api_key: components["schemas"]["DaemonApiKey"];
@@ -17284,10 +17309,42 @@ export interface operations {
     list_daemon_api_keys: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
                 /** @description Filter by specific entity IDs (for selective loading) */
                 ids?: string[] | null;
+                /**
+                 * @description `true` returns only keys no daemon is bound to, the ones managed from the API keys page;
+                 *     `false` only keys bound to a daemon. Omit for both.
+                 */
+                unbound?: boolean | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty,
+                 *     matches none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -17407,10 +17464,42 @@ export interface operations {
     export_daemon_api_keys_csv: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
                 /** @description Filter by specific entity IDs (for selective loading) */
                 ids?: string[] | null;
+                /**
+                 * @description `true` returns only keys no daemon is bound to, the ones managed from the API keys page;
+                 *     `false` only keys bound to a daemon. Omit for both.
+                 */
+                unbound?: boolean | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty,
+                 *     matches none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -17429,6 +17518,79 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_daemon_api_key_field_values: {
+        parameters: {
+            query?: {
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Filter by specific entity IDs (for selective loading) */
+                ids?: string[] | null;
+                /**
+                 * @description `true` returns only keys no daemon is bound to, the ones managed from the API keys page;
+                 *     `false` only keys bound to a daemon. Omit for both.
+                 */
+                unbound?: boolean | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty,
+                 *     matches none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["DaemonApiKeyOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Daemon API Key counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };

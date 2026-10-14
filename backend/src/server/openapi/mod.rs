@@ -20,6 +20,7 @@ use crate::server::credentials::r#impl::types::{
     CredentialIntegration, CredentialOsFields, CredentialStability, CredentialTypeDiscriminants,
     UpstreamSupport,
 };
+use crate::server::daemon_api_keys::handlers::DaemonApiKeyOrderField;
 use crate::server::daemon_api_keys::r#impl::base::DaemonApiKey;
 use crate::server::daemons::handlers::DaemonOrderField;
 use crate::server::daemons::r#impl::base::Daemon;
@@ -120,6 +121,7 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         DiscoveryOrderField,
         VlanOrderField,
         UserApiKeyOrderField,
+        DaemonApiKeyOrderField,
         // Derived staleness status. Not a field on any entity (it's computed
         // per-request against the site's window), so nothing else pulls it
         // into the schema — but the frontend must derive its union from here

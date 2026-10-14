@@ -237,15 +237,16 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'daemon_api_keys/components/ApiKeyTab.svelte': {
+		listPath: '/api/v1/auth/daemon',
 		columns: {
 			name: IDENTITY,
-			site_id: YES,
-			is_enabled: BOOLEAN,
+			site_id: server('site_ids'),
+			is_enabled: server('is_enabled'),
 			last_used: DATE,
 			expires_at: DATE,
 			created_at: DATE,
 			updated_at: DATE,
-			tags: SHARED_ARRAY
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } }
 		}
 	},
 	'tags/components/TagTab.svelte': {

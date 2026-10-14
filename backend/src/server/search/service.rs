@@ -75,7 +75,8 @@ fn search_type<'a>(
         E::Invite => listed(&*s.invite_service, scope, query),
         E::Share => listed(&*s.share_service, scope, query),
         E::Site => listed(&*s.site_service, scope, query),
-        E::DaemonApiKey => listed(&*s.daemon_api_key_service, scope, query),
+        // Daemon keys are searched from their own list, not the palette.
+        E::DaemonApiKey => async { Ok(empty()) }.boxed(),
         E::UserApiKey => user_api_keys(s, scope, query).boxed(),
         E::User => users(s, scope, query).boxed(),
         E::Tag => listed(&*s.tag_service, scope, query),

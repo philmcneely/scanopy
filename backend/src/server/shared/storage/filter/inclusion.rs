@@ -28,6 +28,17 @@ impl<T: Storable> StorableFilter<T> {
         self
     }
 
+    /// Rows whose `column` is NULL (`null`) or holds a value (`!null`).
+    pub fn column_is_null(mut self, column: &str, null: bool) -> Self {
+        let col = self.qualify_column(column);
+        self.conditions.push(if null {
+            format!("{col} IS NULL")
+        } else {
+            format!("{col} IS NOT NULL")
+        });
+        self
+    }
+
     /// Rows whose JSONB `column`, followed down `path`, ends at a text value that is one of
     /// `values`. `json_text_in("os", &["family"], …)` compares `os->>'family'`;
     /// `json_text_in("run_type", &["results", "phase"], …)` compares

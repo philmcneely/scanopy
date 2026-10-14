@@ -150,6 +150,7 @@ export const queryKeys = {
 	},
 	apiKeys: {
 		all: ['apiKeys'] as const,
+		fieldValues: () => [...queryKeys.apiKeys.all, 'field-values'] as const,
 		detail: (id: string) => [...queryKeys.apiKeys.all, 'detail', id] as const
 	},
 	userApiKeys: {

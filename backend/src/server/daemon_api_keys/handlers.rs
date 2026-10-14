@@ -6,11 +6,22 @@ use crate::server::{
     daemons::r#impl::base::Daemon,
     shared::{
         api_key_common::{ApiKeyService, ApiKeyType, generate_api_key_for_storage},
-        handlers::traits::{
-            BulkDeleteResponse, CrudHandlers, bulk_delete_handler, delete_handler, update_handler,
+        handlers::{
+            ordering::OrderField,
+            query::{
+                FilterQueryExtractor, OrderDirection, PaginationParams, deserialize_bool_values,
+                on_requested_sites,
+            },
+            traits::{
+                BulkDeleteResponse, CrudHandlers, bulk_delete_handler, delete_handler,
+                update_handler,
+            },
         },
         services::traits::CrudService,
-        storage::{filter::StorableFilter, traits::Entity},
+        storage::{
+            filter::StorableFilter,
+            traits::{Entity, Storable},
+        },
         types::api::{ApiError, ApiErrorResponse, ApiResponse, ApiResult, EmptyApiResponse},
         validation::validate_site_access,
     },
@@ -21,15 +32,133 @@ use axum::{
 };
 use axum_client_ip::ClientIp;
 use axum_extra::{TypedHeader, headers::UserAgent};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 use uuid::Uuid;
 
+// ============================================================================
+// Daemon API Key Ordering
+// ============================================================================
+
+/// Fields the daemon API key list can be ordered and grouped by.
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, Default, utoipa::ToSchema, strum::EnumIter,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum DaemonApiKeyOrderField {
+    #[default]
+    CreatedAt,
+    Name,
+    UpdatedAt,
+    SiteId,
+    IsEnabled,
+    /// Keys never used sort last in both directions.
+    LastUsed,
+    /// Keys that never expire sort last in both directions.
+    ExpiresAt,
+}
+
+impl OrderField for DaemonApiKeyOrderField {
+    fn to_sql(&self) -> &'static str {
+        match self {
+            Self::CreatedAt => "api_keys.created_at",
+            Self::Name => "api_keys.name",
+            Self::UpdatedAt => "api_keys.updated_at",
+            Self::SiteId => "api_keys.site_id",
+            Self::IsEnabled => "api_keys.is_enabled",
+            Self::LastUsed => "api_keys.last_used",
+            Self::ExpiresAt => "api_keys.expires_at",
+        }
+    }
+
+    fn nulls_last(&self) -> bool {
+        matches!(self, Self::LastUsed | Self::ExpiresAt)
+    }
+}
+
+// ============================================================================
+// Daemon API Key Filter Query
+// ============================================================================
+
+/// Query parameters for filtering and ordering daemon API keys.
+#[derive(Deserialize, Default, Debug, Clone, IntoParams)]
+pub struct DaemonApiKeyFilterQuery {
+    /// Filter by site ID. Repeat the parameter to pass several.
+    #[serde(alias = "site_id")]
+    pub site_ids: Option<Vec<Uuid>>,
+    /// Filter by specific entity IDs (for selective loading)
+    pub ids: Option<Vec<Uuid>>,
+    /// `true` returns only keys no daemon is bound to, the ones managed from the API keys page;
+    /// `false` only keys bound to a daemon. Omit for both.
+    pub unbound: Option<bool>,
+    /// Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty,
+    /// matches none.
+    #[serde(default, deserialize_with = "deserialize_bool_values")]
+    pub is_enabled: Option<Vec<bool>>,
+    /// Filter by tag IDs (returns keys that have ANY of the specified tags)
+    pub tag_ids: Option<Vec<Uuid>>,
+    /// Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+    /// tag ids. One entry per tag group the list is filtered by.
+    pub tag_sets: Option<Vec<String>>,
+    /// Free-text search. Case-insensitive substring match against the key's name.
+    pub search: Option<String>,
+    /// Primary ordering field (used for grouping). Always sorts ASC to keep groups together.
+    pub group_by: Option<DaemonApiKeyOrderField>,
+    /// Secondary ordering field (sorting within groups or standalone sort).
+    pub order_by: Option<DaemonApiKeyOrderField>,
+    /// Group by the tag each row holds from this tag group. Takes the place of `group_by`.
+    pub group_by_tag_group: Option<Uuid>,
+    /// Sort by the position of the tag each row holds from this tag group. Takes the place of
+    /// `order_by`.
+    pub order_by_tag_group: Option<Uuid>,
+    /// Direction for order_by field (group_by always uses ASC).
+    pub order_direction: Option<OrderDirection>,
+    /// Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.
+    #[param(minimum = 0, maximum = 1000)]
+    pub limit: Option<u32>,
+    /// Number of results to skip. Default: 0.
+    #[param(minimum = 0)]
+    pub offset: Option<u32>,
+}
+
+impl FilterQueryExtractor for DaemonApiKeyFilterQuery {
+    fn apply_to_filter<T: Storable>(
+        &self,
+        filter: StorableFilter<T>,
+        user_site_ids: &[Uuid],
+        _user_organization_id: Uuid,
+    ) -> StorableFilter<T> {
+        let filter = on_requested_sites(filter, self.site_ids.as_deref(), user_site_ids);
+        let filter = match &self.ids {
+            Some(ids) if !ids.is_empty() => filter.entity_ids(ids),
+            _ => filter,
+        };
+        let filter = match self.unbound {
+            Some(unbound) => filter.column_is_null("daemon_id", unbound),
+            None => filter,
+        };
+        match &self.is_enabled {
+            Some(values) => filter.bool_column_in("is_enabled", values),
+            None => filter,
+        }
+    }
+
+    fn pagination(&self) -> PaginationParams {
+        PaginationParams {
+            limit: self.limit,
+            offset: self.offset,
+        }
+    }
+}
+
 mod generated {
     use super::*;
-    crate::crud_get_all_handler!(DaemonApiKey);
+    crate::crud_list_page_handler!(DaemonApiKey);
     crate::crud_get_by_id_handler!(DaemonApiKey);
     crate::crud_export_csv_handler!(DaemonApiKey);
+    crate::crud_get_field_values_handler!(DaemonApiKey);
 }
 
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
@@ -40,6 +169,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(rotate_key_handler))
         .routes(routes!(bulk_delete_daemon_api_keys))
         .routes(routes!(generated::export_csv))
+        .routes(routes!(generated::get_field_values))
 }
 
 /// Create Daemon API Key

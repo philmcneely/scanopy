@@ -21,6 +21,10 @@ impl Storable for DaemonApiKey {
         "api_keys"
     }
 
+    fn search_predicates() -> &'static [&'static str] {
+        &["api_keys.name ILIKE {}"]
+    }
+
     fn new(base: Self::BaseData) -> Self {
         let now = chrono::Utc::now();
 
