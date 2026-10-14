@@ -13,10 +13,18 @@ use crate::server::{
     shared::{
         api_key_common::{ApiKeyService, ApiKeyType, generate_api_key_for_storage},
         handlers::{
-            query::{FilterQueryExtractor, NoFilterQuery},
-            traits::{BulkDeleteResponse, bulk_delete_handler, delete_handler, get_by_id_handler},
+            list::list_page,
+            ordering::OrderField,
+            query::{
+                FilterQueryExtractor, OrderDirection, PaginationParams, deserialize_bool_values,
+            },
+            traits::{
+                BulkDeleteResponse, ListScope, bulk_delete_handler, delete_handler,
+                get_by_id_handler,
+            },
         },
         services::traits::{CrudService, EventBusService},
+        storage::{filter::StorableFilter, traits::Storable},
         types::api::{
             ApiError, ApiErrorResponse, ApiResponse, ApiResult, EmptyApiResponse,
             PaginatedApiResponse,
@@ -26,6 +34,7 @@ use crate::server::{
         r#impl::{api::UserApiKeyResponse, base::UserApiKey},
         service::UserApiKeyService,
     },
+    users::r#impl::permissions::UserOrgPermissions,
 };
 use axum::{
     Json,
@@ -33,14 +42,127 @@ use axum::{
 };
 use axum_client_ip::ClientIp;
 use axum_extra::{TypedHeader, headers::UserAgent};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 use uuid::Uuid;
 
-// Generated handlers for CSV export
+// ============================================================================
+// User API Key Ordering
+// ============================================================================
+
+/// Fields the user API key list can be ordered and grouped by.
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, Default, utoipa::ToSchema, strum::EnumIter,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum UserApiKeyOrderField {
+    #[default]
+    CreatedAt,
+    Name,
+    UpdatedAt,
+    Permissions,
+    IsEnabled,
+    /// Keys never used sort last in both directions.
+    LastUsed,
+    /// Keys that never expire sort last in both directions.
+    ExpiresAt,
+}
+
+impl OrderField for UserApiKeyOrderField {
+    fn to_sql(&self) -> &'static str {
+        match self {
+            Self::CreatedAt => "user_api_keys.created_at",
+            Self::Name => "user_api_keys.name",
+            Self::UpdatedAt => "user_api_keys.updated_at",
+            Self::Permissions => "user_api_keys.permissions",
+            Self::IsEnabled => "user_api_keys.is_enabled",
+            Self::LastUsed => "user_api_keys.last_used",
+            Self::ExpiresAt => "user_api_keys.expires_at",
+        }
+    }
+
+    fn nulls_last(&self) -> bool {
+        matches!(self, Self::LastUsed | Self::ExpiresAt)
+    }
+}
+
+// ============================================================================
+// User API Key Filter Query
+// ============================================================================
+
+/// Query parameters for filtering and ordering the signed-in user's API keys.
+#[derive(Deserialize, Default, Debug, Clone, IntoParams)]
+pub struct UserApiKeyFilterQuery {
+    /// Only keys limited to one of these roles. Repeat for several.
+    pub permissions: Option<Vec<UserOrgPermissions>>,
+    /// Only keys with access to one of these sites. Repeat for several.
+    #[serde(alias = "site_id")]
+    pub site_ids: Option<Vec<Uuid>>,
+    /// Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
+    /// none.
+    #[serde(default, deserialize_with = "deserialize_bool_values")]
+    pub is_enabled: Option<Vec<bool>>,
+    /// Filter by tag IDs (returns keys that have ANY of the specified tags)
+    pub tag_ids: Option<Vec<Uuid>>,
+    /// Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+    /// tag ids. One entry per tag group the list is filtered by.
+    pub tag_sets: Option<Vec<String>>,
+    /// Free-text search. Case-insensitive substring match against the key's name.
+    pub search: Option<String>,
+    /// Primary ordering field (used for grouping). Always sorts ASC to keep groups together.
+    pub group_by: Option<UserApiKeyOrderField>,
+    /// Secondary ordering field (sorting within groups or standalone sort).
+    pub order_by: Option<UserApiKeyOrderField>,
+    /// Group by the tag each row holds from this tag group. Takes the place of `group_by`.
+    pub group_by_tag_group: Option<Uuid>,
+    /// Sort by the position of the tag each row holds from this tag group. Takes the place of
+    /// `order_by`.
+    pub order_by_tag_group: Option<Uuid>,
+    /// Direction for order_by field (group_by always uses ASC).
+    pub order_direction: Option<OrderDirection>,
+    /// Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.
+    #[param(minimum = 0, maximum = 1000)]
+    pub limit: Option<u32>,
+    /// Number of results to skip. Default: 0.
+    #[param(minimum = 0)]
+    pub offset: Option<u32>,
+}
+
+impl FilterQueryExtractor for UserApiKeyFilterQuery {
+    fn apply_to_filter<T: Storable>(
+        &self,
+        filter: StorableFilter<T>,
+        _user_site_ids: &[Uuid],
+        _user_organization_id: Uuid,
+    ) -> StorableFilter<T> {
+        let filter = match &self.permissions {
+            Some(roles) if !roles.is_empty() => filter.text_column_in(
+                "permissions",
+                &roles.iter().map(|r| r.to_string()).collect::<Vec<_>>(),
+            ),
+            _ => filter,
+        };
+        match &self.is_enabled {
+            Some(values) => filter.bool_column_in("is_enabled", values),
+            None => filter,
+        }
+    }
+
+    fn pagination(&self) -> PaginationParams {
+        PaginationParams {
+            limit: self.limit,
+            offset: self.offset,
+        }
+    }
+}
+
+// Generated handlers for CSV export and filter options
 mod generated {
     use super::*;
     crate::crud_export_csv_handler!(UserApiKey);
+    crate::crud_get_field_values_handler!(UserApiKey);
 }
 
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
@@ -51,6 +173,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(rotate_key_handler))
         .routes(routes!(bulk_delete))
         .routes(routes!(generated::export_csv))
+        .routes(routes!(generated::get_field_values))
 }
 
 /// Get all user API keys for the current user
@@ -59,7 +182,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
     path = "",
     tag = UserApiKey::ENTITY_NAME_PLURAL,
     operation_id = "get_all_user_api_keys",
-    params(NoFilterQuery),
+    params(UserApiKeyFilterQuery),
     responses(
         (status = 200, description = "List of user API keys", body = PaginatedApiResponse<UserApiKey>),
         (status = 401, description = "Not authenticated", body = ApiErrorResponse),
@@ -71,40 +194,11 @@ pub async fn get_all(
     State(state): State<Arc<AppState>>,
     _feature: RequireFeature<ApiKeyFeature>,
     auth: Authorized<IsUser>,
-    query: Query<NoFilterQuery>,
+    Query(query): Query<UserApiKeyFilterQuery>,
 ) -> ApiResult<Json<PaginatedApiResponse<UserApiKey>>> {
-    let user_id = auth.require_user_id()?;
-    let service = &state.services.user_api_key_service;
-
-    let all_keys = service.get_for_user(&user_id).await.map_err(|e| {
-        tracing::error!(
-            user_id = %user_id,
-            error = %e,
-            "Failed to fetch user API keys"
-        );
-        ApiError::internal_error(&e.to_string())
-    })?;
-
-    // Apply pagination in-memory
-    let pagination = query.pagination();
-    let total_count = all_keys.len() as u64;
-    let offset = pagination.effective_offset() as usize;
-    let limit = pagination.effective_limit();
-
-    let keys: Vec<UserApiKey> = match limit {
-        Some(l) => all_keys.into_iter().skip(offset).take(l as usize).collect(),
-        None => all_keys.into_iter().skip(offset).collect(),
-    };
-
-    let limit = limit.unwrap_or(0);
-    let offset = pagination.effective_offset();
-
-    Ok(Json(PaginatedApiResponse::success(
-        keys,
-        total_count,
-        limit,
-        offset,
-    )))
+    // Only the signed-in user's own keys: `UserApiKey::access_filter` scopes by user.
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<UserApiKey>(&state, &scope, &query).await?))
 }
 
 /// Create a new user API key

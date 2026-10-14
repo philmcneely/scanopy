@@ -305,16 +305,17 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'user_api_keys/components/UserApiKeyTab.svelte': {
+		listPath: '/api/v1/auth/keys',
 		columns: {
 			name: IDENTITY,
-			permissions: YES,
-			site_ids: SHARED_ARRAY,
-			is_enabled: BOOLEAN,
+			permissions: server('permissions'),
+			site_ids: { ...SHARED_ARRAY, filter: { param: 'site_ids' } },
+			is_enabled: server('is_enabled'),
 			last_used: DATE,
 			expires_at: DATE,
 			created_at: DATE,
 			updated_at: DATE,
-			tags: SHARED_ARRAY
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } }
 		}
 	},
 	'subnets/components/SubnetTab.svelte': {
@@ -358,6 +359,7 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'vlans/components/VlanTab.svelte': {
+		listPath: '/api/v1/vlans',
 		columns: {
 			vlan_number: { sort: true, group: 'Unique per site', filter: SEARCH },
 			name: IDENTITY,
@@ -365,11 +367,14 @@ const DECISIONS: Record<string, TabDecisions> = {
 			updated_at: DATE,
 			last_seen_at: DATE,
 			description: TEXT,
-			source: YES,
-			site_id: YES,
-			subnet_ids: SHARED_ARRAY,
-			interface_ids: SHARED_ARRAY,
-			tags: SHARED_ARRAY,
+			source: server('sources'),
+			site_id: server('site_ids'),
+			subnet_ids: { ...SHARED_ARRAY, filter: { param: 'subnet_ids' } },
+			interface_ids: {
+				...SHARED_ARRAY,
+				filter: 'Every interface in the organization would be an option'
+			},
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } },
 			first_found_by: FOUND_BY,
 			last_found_by: FOUND_BY
 		}

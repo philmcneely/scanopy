@@ -117,6 +117,7 @@ export const queryKeys = {
 	},
 	vlans: {
 		all: ['vlans'] as const,
+		fieldValues: () => [...queryKeys.vlans.all, 'field-values'] as const,
 		bySite: (siteId: string) => [...queryKeys.vlans.all, 'site', siteId] as const,
 		detail: (id: string) => [...queryKeys.vlans.all, 'detail', id] as const
 	},
@@ -153,6 +154,7 @@ export const queryKeys = {
 	},
 	userApiKeys: {
 		all: ['userApiKeys'] as const,
+		fieldValues: () => [...queryKeys.userApiKeys.all, 'field-values'] as const,
 		detail: (id: string) => [...queryKeys.userApiKeys.all, 'detail', id] as const
 	},
 	tags: {

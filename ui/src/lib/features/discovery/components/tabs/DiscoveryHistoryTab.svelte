@@ -14,8 +14,7 @@
 		useDiscoveryHistoryQuery,
 		useCreateDiscoveryMutation,
 		useUpdateDiscoveryMutation,
-		useBulkDeleteDiscoveriesMutation,
-		type DiscoveryHistoryQueryParams
+		useBulkDeleteDiscoveriesMutation
 	} from '../../queries';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
@@ -73,14 +72,14 @@
 	let isNarrowed = $derived(listQuery !== null && narrowsList(listQuery));
 
 	// Queries
-	const discoveriesQuery = useDiscoveryHistoryQuery(
-		(): DiscoveryHistoryQueryParams => ({
-			limit: pageSize,
-			offset: (currentPage - 1) * pageSize,
-			list: listQuery ?? undefined
-		}),
-		() => isActive
-	);
+	const discoveriesQuery = useDiscoveryHistoryQuery(() => ({
+		limit: pageSize,
+		offset: (currentPage - 1) * pageSize,
+		list: listQuery ?? undefined,
+		// Every tab is mounted at once, so an ungated query would fetch on boot and on every
+		// discovery event for a tab nobody is looking at.
+		enabled: isActive
+	}));
 	// Filter options: the values the run history actually holds. Scoped to history rows the way
 	// the list is, so scheduled configurations add none, and never narrowed by the active filters,
 	// so the options do not shrink as the user filters. Gated like the list.

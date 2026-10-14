@@ -1,0 +1,213 @@
+//! Lists paged through `list_page`, against a database: each group's count covers every page,
+//! filters narrow on the server, and no row outside the caller's sites or organization appears.
+
+use chrono::Utc;
+use uuid::Uuid;
+
+use crate::server::shared::handlers::list::list_page;
+use crate::server::shared::storage::traits::Storage;
+use crate::server::shared::types::api::GroupCount;
+use crate::server::vlans::handlers::{VlanFilterQuery, VlanOrderField};
+use crate::server::vlans::r#impl::base::{Vlan, VlanBase};
+
+use super::{list_scope, organization, site, subnet, test_state, user};
+use crate::server::shared::storage::traits::Storable;
+
+fn counts(groups: Option<&[GroupCount]>) -> Vec<(String, u64)> {
+    groups
+        .expect("a grouped list counts its groups")
+        .iter()
+        .map(|g| (g.value.clone().unwrap_or_default(), g.count))
+        .collect()
+}
+
+fn vlan(site_id: Uuid, organization_id: Uuid, number: u16) -> Vlan {
+    let now = Utc::now();
+    Vlan {
+        id: Uuid::new_v4(),
+        created_at: now,
+        updated_at: now,
+        valid_from: now,
+        last_seen_at: now,
+        base: VlanBase {
+            vlan_number: number,
+            name: format!("vlan-{number}"),
+            site_id,
+            organization_id,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+#[tokio::test]
+async fn a_grouped_vlan_page_counts_every_group_and_stays_in_the_callers_sites() {
+    let (storage, state, _container) = test_state().await;
+
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let (office, lab) = (site(&org.id), site(&org.id));
+    storage.sites.create(&office).await.unwrap();
+    storage.sites.create(&lab).await.unwrap();
+
+    let other_org = organization();
+    storage.organizations.create(&other_org).await.unwrap();
+    let foreign = site(&other_org.id);
+    storage.sites.create(&foreign).await.unwrap();
+
+    for number in [10, 20, 30] {
+        storage
+            .vlans
+            .create(&vlan(office.id, org.id, number))
+            .await
+            .unwrap();
+    }
+    let lab_vlan = vlan(lab.id, org.id, 40);
+    storage.vlans.create(&lab_vlan).await.unwrap();
+    storage
+        .vlans
+        .create(&vlan(foreign.id, other_org.id, 50))
+        .await
+        .unwrap();
+
+    let sites = [office.id, lab.id];
+    let grouped = VlanFilterQuery {
+        group_by: Some(VlanOrderField::SiteId),
+        order_by: Some(VlanOrderField::VlanNumber),
+        limit: Some(2),
+        offset: Some(1),
+        ..Default::default()
+    };
+    let page = list_page::<Vlan>(&state, &list_scope(&sites, org.id), &grouped)
+        .await
+        .unwrap();
+
+    let pagination = &page.meta.pagination;
+    assert_eq!(
+        pagination.total_count, 4,
+        "the other org's VLAN is not counted"
+    );
+    let groups = counts(pagination.group_counts.as_deref());
+    assert_eq!(
+        groups.iter().map(|(_, count)| count).sum::<u64>(),
+        pagination.total_count,
+        "the groups cover every matching row, not the page"
+    );
+    let office_count = groups
+        .iter()
+        .find(|(key, _)| *key == office.id.to_string())
+        .map(|(_, count)| *count);
+    assert_eq!(
+        office_count,
+        Some(3),
+        "a group cut by the page keeps its full size"
+    );
+    assert_eq!(page.data.len(), 2);
+
+    // A site the caller can't see narrows to nothing rather than widening the list.
+    let foreign_site = VlanFilterQuery {
+        site_ids: Some(vec![foreign.id]),
+        ..Default::default()
+    };
+    let page = list_page::<Vlan>(&state, &list_scope(&sites, org.id), &foreign_site)
+        .await
+        .unwrap();
+    assert_eq!(page.meta.pagination.total_count, 0);
+
+    // A subnet filter narrows through the link table.
+    let lab_subnet = subnet(&lab.id);
+    storage.subnets.create(&lab_subnet).await.unwrap();
+    storage
+        .subnet_vlan
+        .link(&lab_subnet.id, &lab_vlan.id)
+        .await
+        .unwrap();
+    let on_subnet = VlanFilterQuery {
+        subnet_ids: Some(vec![lab_subnet.id]),
+        ..Default::default()
+    };
+    let page = list_page::<Vlan>(&state, &list_scope(&sites, org.id), &on_subnet)
+        .await
+        .unwrap();
+    let ids: Vec<Uuid> = page.data.iter().map(|v| v.id).collect();
+    assert_eq!(ids, vec![lab_vlan.id]);
+}
+
+/// A user's API keys list, its CSV export and its filter options hold that user's keys only. The
+/// export once read through the organization-wide default and returned every member's keys.
+#[tokio::test]
+async fn user_api_keys_list_only_the_callers_own() {
+    use crate::server::shared::handlers::traits::{CrudHandlers, ListScope, field_values_filter};
+    use crate::server::shared::services::traits::CrudService;
+    use crate::server::user_api_keys::handlers::{UserApiKeyFilterQuery, UserApiKeyOrderField};
+    use crate::server::user_api_keys::r#impl::base::{UserApiKey, UserApiKeyBase};
+    use crate::server::users::r#impl::permissions::UserOrgPermissions;
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let net = site(&org.id);
+    storage.sites.create(&net).await.unwrap();
+    let (mut me, mut colleague) = (user(&org.id), user(&org.id));
+    me.base.email = email_address::EmailAddress::new_unchecked("me@porto.example");
+    colleague.base.email = email_address::EmailAddress::new_unchecked("colleague@porto.example");
+    storage.users.create(&me).await.unwrap();
+    storage.users.create(&colleague).await.unwrap();
+
+    let key = |owner: Uuid, name: &str| {
+        UserApiKey::new(UserApiKeyBase {
+            name: name.to_string(),
+            user_id: owner,
+            organization_id: org.id,
+            key: Uuid::new_v4().to_string(),
+            is_enabled: true,
+            ..Default::default()
+        })
+    };
+    let mine = key(me.id, "ci");
+    storage.user_api_keys.create(&mine).await.unwrap();
+    storage
+        .user_api_keys
+        .create(&key(colleague.id, "backup"))
+        .await
+        .unwrap();
+
+    let scope = ListScope {
+        user_id: Some(me.id),
+        permissions: Some(UserOrgPermissions::Admin),
+        ..list_scope(&[net.id], org.id)
+    };
+    let query = UserApiKeyFilterQuery::default();
+
+    let page = list_page::<UserApiKey>(&state, &scope, &query)
+        .await
+        .unwrap();
+    let ids: Vec<Uuid> = page.data.iter().map(|k| k.id).collect();
+    assert_eq!(ids, vec![mine.id]);
+
+    let exported = state
+        .services
+        .user_api_key_service
+        .get_all(
+            UserApiKey::list_filter(&state, &query, &scope)
+                .await
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        exported.iter().map(|k| k.id).collect::<Vec<_>>(),
+        vec![mine.id]
+    );
+
+    let options = state
+        .services
+        .user_api_key_service
+        .count_by_group(
+            field_values_filter::<UserApiKey>(&scope, &query, UserApiKeyOrderField::Name),
+            "user_api_keys.name",
+        )
+        .await
+        .unwrap();
+    assert_eq!(options.iter().map(|g| g.count).sum::<u64>(), 1);
+}

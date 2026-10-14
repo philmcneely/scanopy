@@ -73,6 +73,24 @@ const FIELD_VALUES_ENDPOINTS: { [P in FieldValuesPath]: FieldValuesEndpoint<P> }
 					params: { path: { field }, query }
 				})
 			)
+	},
+	'/api/v1/auth/keys/field-values/{field}': {
+		key: queryKeys.userApiKeys.fieldValues,
+		fetch: async (field, query) =>
+			unwrapData(
+				await apiClient.GET('/api/v1/auth/keys/field-values/{field}', {
+					params: { path: { field }, query }
+				})
+			)
+	},
+	'/api/v1/vlans/field-values/{field}': {
+		key: queryKeys.vlans.fieldValues,
+		fetch: async (field, query) =>
+			unwrapData(
+				await apiClient.GET('/api/v1/vlans/field-values/{field}', {
+					params: { path: { field }, query }
+				})
+			)
 	}
 };
 

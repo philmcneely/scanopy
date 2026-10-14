@@ -10,6 +10,7 @@ import { queryKeys } from '$lib/api/query-client';
 import { apiClient } from '$lib/api/client';
 import { unwrapData } from '$lib/api/query-helpers';
 import type { Vlan } from './types/base';
+import { invalidateListPages, useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 
 /**
  * VLANs list. Called with no arguments this is the shared full-list cache, so
@@ -32,6 +33,16 @@ export function useVlansQuery(atGetter?: () => string | undefined) {
 	});
 }
 
+/** One page of the VLANs list, kept apart from the full list other consumers read. */
+export function useVlansListQuery(params: () => ListPageParams) {
+	return useListPageQuery<Vlan>(
+		queryKeys.vlans.all,
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/vlans', { params: { query }, querySerializer }),
+		params
+	);
+}
+
 /**
  * Mutation hook for updating a VLAN
  */
@@ -52,6 +63,7 @@ export function useUpdateVlanMutation() {
 				queryKeys.vlans.all,
 				(old) => old?.map((v) => (v.id === updatedVlan.id ? updatedVlan : v)) ?? []
 			);
+			invalidateListPages(queryClient, queryKeys.vlans.all);
 		}
 	}));
 }

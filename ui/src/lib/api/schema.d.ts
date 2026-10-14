@@ -1,4 +1,20 @@
 export interface paths {
+    "/api/auth/accept-terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["accept_terms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/check-email": {
         parameters: {
             query?: never;
@@ -1026,6 +1042,26 @@ export interface paths {
          * @description Export all User API Keys matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_user_api_keys_csv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/keys/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a User API Key field
+         * @description Every distinct value of one User API Key field across the User API Keys the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_user_api_key_field_values"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3714,6 +3750,26 @@ export interface paths {
          * @description Export all Vlans matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_vlans_csv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vlans/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Vlan field
+         * @description Every distinct value of one Vlan field across the Vlans the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_vlan_field_values"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10886,7 +10942,10 @@ export interface components {
              * @description Production servers.
              */
             active: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Production servers the key covers. `None` is no cap.
+             */
             limit?: number | null;
             /**
              * Format: int32
@@ -10894,7 +10953,10 @@ export interface components {
              *     older than the setting.
              */
             non_production_active: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Non-production servers the key covers. `None` is no cap.
+             */
             non_production_limit: number | null;
         };
         /**
@@ -11424,11 +11486,20 @@ export interface components {
          *     as the cloud records it.
          */
         LicenseInstance: components["schemas"]["LicenseInstanceBase"] & {
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the cloud created the record.
+             */
             readonly created_at: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Id of the cloud's record for this instance.
+             */
             readonly id: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the cloud last changed the record.
+             */
             readonly updated_at: string;
         };
         LicenseInstanceBase: {
@@ -11440,7 +11511,10 @@ export interface components {
              *     displaces one that held the slot meanwhile.
              */
             active_since: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description First check-in.
+             */
             first_seen_at: string;
             /**
              * Format: uuid
@@ -11448,7 +11522,10 @@ export interface components {
              *     servers too old to send it.
              */
             instance_id?: string | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Latest check-in.
+             */
             last_seen_at: string;
             /**
              * @description Source address the cloud observed on the latest check-in. The server
@@ -11464,7 +11541,10 @@ export interface components {
              *     refused.
              */
             non_production?: boolean | null;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Organization whose online key the instance checks in with.
+             */
             organization_id: string;
             /** @description Version the latest check-in reported, as semver text. */
             server_version?: string | null;
@@ -15259,6 +15339,11 @@ export interface components {
             user_id: string;
         };
         /**
+         * @description Fields the user API key list can be ordered and grouped by.
+         * @enum {string}
+         */
+        UserApiKeyOrderField: "created_at" | "name" | "updated_at" | "permissions" | "is_enabled" | "last_used" | "expires_at";
+        /**
          * @description Response for user API key creation/rotation
          *     Contains the full API key record plus the plaintext key (shown only once)
          */
@@ -15301,6 +15386,12 @@ export interface components {
             permissions: components["schemas"]["UserOrgPermissions"];
             /** @description The sites this entity applies to. */
             site_ids: string[];
+            /**
+             * @description Whether the user must accept the current terms before the API serves
+             *     their session. Computed, never stored: set only on the signed-in user's
+             *     own record (`/api/auth/me`, login, accept), false everywhere else.
+             */
+            readonly terms_acceptance_required?: boolean;
             /**
              * Format: date-time
              * @description When the user accepted the terms of service.
@@ -15603,7 +15694,7 @@ export interface components {
             vlan_number: number;
         };
         /** @enum {string} */
-        VlanOrderField: "created_at" | "name" | "vlan_number" | "updated_at";
+        VlanOrderField: "created_at" | "name" | "vlan_number" | "updated_at" | "site_id" | "source" | "last_seen_at";
         /** @description Whether one address woke: whether the scan found it after the magic packets went out. */
         WakeOnLanResult: {
             /** @description The address the magic packets were sent for. */
@@ -15635,6 +15726,35 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    accept_terms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Terms accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_User"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     check_email: {
         parameters: {
             query?: never;
@@ -17457,6 +17577,37 @@ export interface operations {
     get_all_user_api_keys: {
         parameters: {
             query?: {
+                /** @description Only keys limited to one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only keys with access to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
+                 *     none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -17576,6 +17727,37 @@ export interface operations {
     export_user_api_keys_csv: {
         parameters: {
             query?: {
+                /** @description Only keys limited to one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only keys with access to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
+                 *     none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -17594,6 +17776,74 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_user_api_key_field_values: {
+        parameters: {
+            query?: {
+                /** @description Only keys limited to one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only keys with access to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
+                 *     none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["UserApiKeyOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their User API Key counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };
@@ -24611,8 +24861,26 @@ export interface operations {
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
                 offset?: number | null;
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Filter by how the VLAN came to exist (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Filter to VLANs linked to one of these subnets. Repeat for several. */
+                subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns VLANs that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the VLAN must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /**
                  * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
                  *     instant (snapshot view) instead of live state.
@@ -24754,8 +25022,26 @@ export interface operations {
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
                 offset?: number | null;
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Filter by how the VLAN came to exist (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Filter to VLANs linked to one of these subnets. Repeat for several. */
+                subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns VLANs that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the VLAN must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /**
                  * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
                  *     instant (snapshot view) instead of live state.
@@ -24780,6 +25066,79 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_vlan_field_values: {
+        parameters: {
+            query?: {
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["VlanOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["VlanOrderField"];
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Filter by how the VLAN came to exist (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Filter to VLANs linked to one of these subnets. Repeat for several. */
+                subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns VLANs that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the VLAN must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /**
+                 * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
+                 *     instant (snapshot view) instead of live state.
+                 */
+                at?: string | null;
+                /**
+                 * @description Free-text search. Case-insensitive substring match against the VLAN ID,
+                 *     name and description.
+                 */
+                search?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["VlanOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Vlan counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };

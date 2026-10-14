@@ -15,7 +15,7 @@ import { apiClient } from '$lib/api/client';
 import { requireSuccess, unwrapData, unwrapEnvelope } from '$lib/api/query-helpers';
 import type { Discovery } from './types/base';
 import type { components, operations } from '$lib/api/schema';
-import { withListParams } from '$lib/api/list-params';
+import { useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 import type { DiscoveryUpdatePayload } from './types/api';
 import type { Organization } from '../organizations/types';
 import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
@@ -78,18 +78,6 @@ export function useDiscoveriesByIds(idsGetter: () => string[]) {
 }
 
 /**
- * Query parameters for the paginated discovery-history list: the page, and the list's view in
- * the endpoint's own param names (`DataControls`' `onQueryChange`), which is sent as written.
- */
-export type DiscoveryHistoryQueryParams = Pick<
-	NonNullable<operations['get_all_discoveries']['parameters']['query']>,
-	'limit' | 'offset'
-> & { list?: URLSearchParams };
-
-/** Pagination metadata, derived from the generated schema. */
-export type PaginationMeta = components['schemas']['PaginationMeta'];
-
-/**
  * Paginated, server-ordered run history.
  *
  * Separate from `useDiscoveriesQuery` so paginating here doesn't truncate the
@@ -97,35 +85,16 @@ export type PaginationMeta = components['schemas']['PaginationMeta'];
  * history tab used to do by filtering `run_type` in the browser — which only
  * ever worked because the whole table was loaded.
  */
-export function useDiscoveryHistoryQuery(
-	paramsOrGetter: DiscoveryHistoryQueryParams | (() => DiscoveryHistoryQueryParams) = {},
-	// Every tab is mounted at once (inactive ones hidden with CSS), so an ungated
-	// query fetches on app boot and refetches on every discovery SSE invalidation
-	// for a tab nobody is looking at. Gate it on tab activity.
-	enabled: () => boolean = () => true
-) {
-	return createQuery(() => {
-		const params = typeof paramsOrGetter === 'function' ? paramsOrGetter() : paramsOrGetter;
-		const { limit, offset, list } = params;
-
-		return {
-			queryKey: [...queryKeys.discovery.all, 'history', { limit, offset, list: list?.toString() }],
-			enabled: enabled(),
-			queryFn: async (): Promise<{ items: Discovery[]; pagination: PaginationMeta | null }> => {
-				const envelope = unwrapEnvelope(
-					await apiClient.GET('/api/v1/discovery', {
-						params: { query: { limit, offset, historical: true } },
-						querySerializer: withListParams(list)
-					})
-				);
-				return {
-					items: envelope.data,
-					pagination: envelope.meta?.pagination ?? null
-				};
-			},
-			placeholderData: keepPreviousData
-		};
-	});
+export function useDiscoveryHistoryQuery(params: () => ListPageParams) {
+	return useListPageQuery<Discovery>(
+		[...queryKeys.discovery.all, 'history'],
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/discovery', {
+				params: { query: { ...query, historical: true } },
+				querySerializer
+			}),
+		params
+	);
 }
 
 /**

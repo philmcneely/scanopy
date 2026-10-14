@@ -7,12 +7,11 @@
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
 	import { userApiKeyColumns } from './UserApiKeyTab.columns';
-	import type { FieldConfig } from '$lib/shared/components/data/types';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import UserApiKeyModal from './UserApiKeyModal.svelte';
 	import {
-		useUserApiKeysQuery,
+		useUserApiKeysListQuery,
 		useUpdateUserApiKeyMutation,
 		useDeleteUserApiKeyMutation,
 		useBulkDeleteUserApiKeysMutation,
@@ -20,6 +19,7 @@
 	} from '../queries';
 	import type { TabProps } from '$lib/shared/types';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 
 	import {
 		common_edit,
@@ -38,6 +38,9 @@
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
+	import type { components } from '$lib/api/schema';
+
+	type UserApiKeyOrderField = components['schemas']['UserApiKeyOrderField'];
 
 	let { isReadOnly = false }: TabProps = $props();
 
@@ -51,7 +54,8 @@
 
 	// Queries
 	const tagsQuery = useTagsQuery();
-	const userApiKeysQuery = useUserApiKeysQuery({ enabled: () => hasApiAccess });
+	const page = listPageState();
+	const userApiKeysQuery = useUserApiKeysListQuery(() => page.params(hasApiAccess));
 	const sitesQuery = useSitesQuery();
 
 	// Mutations
@@ -61,9 +65,10 @@
 
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
-	let userApiKeysData = $derived(userApiKeysQuery.data ?? []);
+	let userApiKeysData = $derived(userApiKeysQuery.data?.items ?? []);
+	let userApiKeysPagination = $derived(userApiKeysQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
-	let isLoading = $derived(userApiKeysQuery.isPending);
+	let isLoading = $derived(userApiKeysQuery.isPending && !userApiKeysQuery.data);
 
 	let showModal = $state(false);
 	let editingApiKey = $state<UserApiKey | null>(null);
@@ -122,7 +127,7 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('UserApiKey', {});
+		await downloadCsv('UserApiKey', page.listQuery);
 	}
 
 	/** Row actions. */
@@ -138,12 +143,16 @@
 		];
 	}
 
-	const tableDefaults: TableDefaults<string> = { sort: { field: 'name', direction: 'asc' } };
+	const tableDefaults: TableDefaults<UserApiKeyOrderField> = {
+		sort: { field: 'name', direction: 'asc' }
+	};
 
-	const apiKeyFields: FieldConfig<UserApiKey>[] = userApiKeyColumns({
-		sites: () => sitesData,
-		tags: () => tagsData
-	});
+	let apiKeyFields = $derived(
+		userApiKeyColumns({
+			sites: () => sitesData,
+			tags: () => tagsData
+		})
+	);
 </script>
 
 <!-- The page's own actions, last in the table toolbar beside the filter and columns. -->
@@ -163,7 +172,7 @@
 		</EmptyState>
 	{:else if isLoading}
 		<Loading />
-	{:else if userApiKeysData.length === 0}
+	{:else if userApiKeysData.length === 0 && !page.isNarrowed}
 		<EmptyState
 			title={userApiKeys_noApiKeysYet()}
 			subtitle={userApiKeys_noApiKeysSubtitle()}
@@ -184,6 +193,10 @@
 			storageKey="scanopy-user-api-keys-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}
+			serverPagination={userApiKeysPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			getActions={userApiKeyActions}
 			onCsvExport={handleCsvExport}
 		></DataControls>

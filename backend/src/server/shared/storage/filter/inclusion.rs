@@ -1,4 +1,4 @@
-//! Generic "value is one of these" filters over a plain text column or a text leaf inside a JSONB
+//! Generic "value is one of these" filters over a plain text or boolean column, or a text leaf in a JSONB
 //! column, for the field filters a paginated list applies server-side.
 use super::*;
 
@@ -9,6 +9,22 @@ impl<T: Storable> StorableFilter<T> {
     pub fn text_column_in(mut self, column: &str, values: &[String]) -> Self {
         let col = self.qualify_column(column);
         self.push_text_in(col, values.iter().cloned());
+        self
+    }
+
+    /// Rows whose boolean `column` holds one of `values`. Both values match every row with one;
+    /// none matches nothing.
+    pub fn bool_column_in(mut self, column: &str, values: &[bool]) -> Self {
+        let col = self.qualify_column(column);
+        match (values.contains(&true), values.contains(&false)) {
+            (true, true) => self.conditions.push(format!("{col} IS NOT NULL")),
+            (false, false) => self.conditions.push("FALSE".to_string()),
+            (only, _) => {
+                self.conditions
+                    .push(format!("{} = ${}", col, self.values.len() + 1));
+                self.values.push(SqlValue::Bool(only));
+            }
+        }
         self
     }
 

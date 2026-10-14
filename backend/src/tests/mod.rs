@@ -60,6 +60,7 @@ pub mod host_mac_ordering;
 pub mod host_merge_on_discovery;
 pub mod host_naming;
 pub mod interface_neighbor_candidates;
+pub mod list_pages;
 pub mod lldp_resolution;
 pub mod onboarding_milestones;
 pub mod organization_writes;
