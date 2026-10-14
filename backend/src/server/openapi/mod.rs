@@ -54,6 +54,7 @@ use crate::server::subnets::handlers::SubnetOrderField;
 use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::subnets::r#impl::nesting::SubnetResponse;
 use crate::server::tags::groups::base::TagGroup;
+use crate::server::tags::groups::handlers::TagGroupOrderField;
 use crate::server::tags::handlers::TagOrderField;
 use crate::server::tags::r#impl::base::Tag;
 use crate::server::topology::types::base::Topology;
@@ -124,6 +125,7 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         UserApiKeyOrderField,
         DaemonApiKeyOrderField,
         SiteOrderField,
+        TagGroupOrderField,
         // Derived staleness status. Not a field on any entity (it's computed
         // per-request against the site's window), so nothing else pulls it
         // into the schema — but the frontend must derive its union from here

@@ -15159,6 +15159,170 @@
         "summary": "List all tag groups",
         "description": "Returns every tag group in your organization: the system groups (Application, Status) first,\nthen the groups your organization named, by name.",
         "operationId": "get_all_tag_groups",
+        "parameters": [
+          {
+            "name": "system",
+            "in": "query",
+            "description": "Only system groups (`true`), only the organization's own (`false`), or both (repeat it).\nSent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "ordered",
+            "in": "query",
+            "description": "Only groups keeping their tags in a set order (`true`), by name (`false`), or both (repeat\nit). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "entity_types",
+            "in": "query",
+            "description": "Only groups that apply to one of these entity types. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/EntityDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "include_every_entity_type",
+            "in": "query",
+            "description": "`true` also returns groups that apply to every entity type. Set on its own it returns only\nthose.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Only groups holding one of these tags. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/TagGroupOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/TagGroupOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of tag groups",
@@ -41088,6 +41252,17 @@
             "readOnly": true
           }
         }
+      },
+      "TagGroupOrderField": {
+        "type": "string",
+        "description": "Fields the tag groups list can be ordered and grouped by.",
+        "enum": [
+          "created_at",
+          "name",
+          "updated_at",
+          "group_type",
+          "ordered"
+        ]
       },
       "TagGroupType": {
         "type": "string",

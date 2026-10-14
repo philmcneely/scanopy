@@ -14687,6 +14687,11 @@ export interface components {
             readonly scope_computed: boolean;
         };
         /**
+         * @description Fields the tag groups list can be ordered and grouped by.
+         * @enum {string}
+         */
+        TagGroupOrderField: "created_at" | "name" | "updated_at" | "group_type" | "ordered";
+        /**
          * @description What kind of tag group this is.
          *
          *     `Application`, `Status` and `Visibility` are system groups: every organization has exactly one
@@ -24332,7 +24337,39 @@ export interface operations {
     };
     get_all_tag_groups: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Only system groups (`true`), only the organization's own (`false`), or both (repeat it).
+                 *     Sent empty, matches none.
+                 */
+                system?: boolean[] | null;
+                /**
+                 * @description Only groups keeping their tags in a set order (`true`), by name (`false`), or both (repeat
+                 *     it). Sent empty, matches none.
+                 */
+                ordered?: boolean[] | null;
+                /** @description Only groups that apply to one of these entity types. Repeat for several. */
+                entity_types?: components["schemas"]["EntityDiscriminants"][] | null;
+                /**
+                 * @description `true` also returns groups that apply to every entity type. Set on its own it returns only
+                 *     those.
+                 */
+                include_every_entity_type?: boolean | null;
+                /** @description Only groups holding one of these tags. Repeat for several. */
+                tag_ids?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["TagGroupOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["TagGroupOrderField"];
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;

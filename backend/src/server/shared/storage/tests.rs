@@ -1188,6 +1188,8 @@ async fn order_fields_are_valid_sql_against_the_live_schema() {
     use crate::server::sites::handlers::SiteOrderField;
     use crate::server::sites::r#impl::Site;
     use crate::server::subnets::handlers::SubnetOrderField;
+    use crate::server::tags::groups::base::TagGroup;
+    use crate::server::tags::groups::handlers::TagGroupOrderField;
     use crate::server::tags::handlers::TagOrderField;
     use crate::server::user_api_keys::handlers::UserApiKeyOrderField;
     use crate::server::user_api_keys::r#impl::base::UserApiKey;
@@ -1255,6 +1257,7 @@ async fn order_fields_are_valid_sql_against_the_live_schema() {
     all.extend(failures::<UserApiKey, UserApiKeyOrderField>(&pool).await);
     all.extend(failures::<DaemonApiKey, DaemonApiKeyOrderField>(&pool).await);
     all.extend(failures::<Site, SiteOrderField>(&pool).await);
+    all.extend(failures::<TagGroup, TagGroupOrderField>(&pool).await);
 
     assert!(
         all.is_empty(),

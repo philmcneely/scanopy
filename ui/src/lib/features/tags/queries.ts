@@ -10,6 +10,7 @@ import { apiClient } from '$lib/api/client';
 import { requireSuccess, unwrapData } from '$lib/api/query-helpers';
 import type { Tag, TagGroup } from './types/base';
 import type { components } from '$lib/api/schema';
+import { useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 
 // Types for tag assignment operations
 export type EntityDiscriminants = components['schemas']['EntityDiscriminants'];
@@ -129,8 +130,20 @@ export function useBulkDeleteTagsMutation() {
 export function useTagGroupsQuery() {
 	return createQuery(() => ({
 		queryKey: queryKeys.tagGroups.all,
-		queryFn: async () => unwrapData(await apiClient.GET('/api/v1/tag-groups'))
+		// Every group: pickers, labels and the table toolbar read the whole set.
+		queryFn: async () =>
+			unwrapData(await apiClient.GET('/api/v1/tag-groups', { params: { query: { limit: 0 } } }))
 	}));
+}
+
+/** One page of the tag groups list, kept apart from the full set every picker reads. */
+export function useTagGroupsListQuery(params: () => ListPageParams) {
+	return useListPageQuery<TagGroup>(
+		queryKeys.tagGroups.all,
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/tag-groups', { params: { query }, querySerializer }),
+		params
+	);
 }
 
 export function useCreateTagGroupMutation() {

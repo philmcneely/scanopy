@@ -575,3 +575,88 @@ async fn every_documented_site_filter_narrows_the_rows() {
     )
     .await;
 }
+
+/// Tag groups list system groups first, and the "applies to" filter, which a computed scope keeps
+/// out of SQL, narrows in memory with the total it reports.
+#[tokio::test]
+async fn tag_groups_list_system_first_and_filter_scope_in_memory() {
+    use crate::server::shared::entities::EntityDiscriminants;
+    use crate::server::tags::groups::base::{TagGroup, TagGroupBase, TagGroupType};
+    use crate::server::tags::groups::handlers::TagGroupFilterQuery;
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+
+    let custom = TagGroup::new(TagGroupBase {
+        entity_types: Some(vec![EntityDiscriminants::Host]),
+        ..TagGroupBase::new(org.id, "Backup schedule".to_string(), TagGroupType::Custom)
+    });
+    let everywhere = TagGroup::new(TagGroupBase::new(
+        org.id,
+        "Owner".to_string(),
+        TagGroupType::Custom,
+    ));
+    let status = TagGroup::new(TagGroupBase::new(
+        org.id,
+        "Status".to_string(),
+        TagGroupType::Status,
+    ));
+    for group in [&custom, &everywhere, &status] {
+        storage.tag_groups.create(group).await.unwrap();
+    }
+    let scope = list_scope(&[], org.id);
+
+    let all = list_page::<TagGroup>(&state, &scope, &TagGroupFilterQuery::default())
+        .await
+        .unwrap();
+    assert_eq!(
+        all.data.first().map(|g| g.id),
+        Some(status.id),
+        "system groups first"
+    );
+
+    let hosts = list_page::<TagGroup>(
+        &state,
+        &scope,
+        &TagGroupFilterQuery {
+            entity_types: Some(vec![EntityDiscriminants::Host]),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert!(hosts.data.iter().any(|g| g.id == custom.id));
+    assert!(hosts.data.iter().all(|g| g.id != everywhere.id));
+    assert_eq!(hosts.meta.pagination.total_count, hosts.data.len() as u64);
+}
+
+/// Every filter the tag groups list documents narrows the rows. The entity types a group applies
+/// to can be computed in code, so those narrow in the list rather than in this filter.
+#[tokio::test]
+async fn every_documented_tag_group_filter_narrows_the_rows() {
+    use crate::server::shared::handlers::query::narrowing_check::assert_every_param_narrows;
+    use crate::server::tags::groups::handlers::TagGroupFilterQuery;
+
+    let scope = list_scope(&[], Uuid::new_v4());
+    let id = Uuid::new_v4().to_string();
+    assert_every_param_narrows(
+        |query: &TagGroupFilterQuery| query.narrow(&scope).expect("filter builds"),
+        &[
+            ("system", "true"),
+            ("ordered", "true"),
+            ("tag_ids", id.as_str()),
+            ("search", "backup"),
+        ],
+        &[
+            "entity_types",
+            "include_every_entity_type",
+            "limit",
+            "offset",
+            "group_by",
+            "order_by",
+            "order_direction",
+        ],
+    )
+    .await;
+}

@@ -264,14 +264,15 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'tags/components/TagGroupTab.svelte': {
+		listPath: '/api/v1/tag-groups',
 		columns: {
 			name: IDENTITY,
 			description: TEXT,
-			group_type: YES,
-			entity_types: SHARED_ARRAY,
-			ordered: YES,
+			group_type: server('system'),
+			entity_types: { ...SHARED_ARRAY, filter: { param: 'entity_types' } },
+			ordered: server('ordered'),
 			// Each tag is in one group, so filtering by one finds its group.
-			tags: SHARED_ARRAY,
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } },
 			created_at: DATE,
 			updated_at: DATE
 		}
