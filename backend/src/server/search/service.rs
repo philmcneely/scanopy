@@ -202,14 +202,9 @@ async fn daemons(
             .items
             .into_iter()
             .map(|d| {
-                SearchHit::Daemon(DaemonResponse {
-                    id: d.id,
-                    created_at: d.created_at,
-                    updated_at: d.updated_at,
-                    version_status: policy.evaluate(d.base.version.as_ref()),
-                    interfaced_subnet_ids: subnet_ids.get(&d.id).cloned().unwrap_or_default(),
-                    base: d.base,
-                })
+                let version_status = policy.evaluate(d.base.version.as_ref());
+                let interfaced = subnet_ids.get(&d.id).cloned().unwrap_or_default();
+                SearchHit::Daemon(DaemonResponse::new(d, version_status, interfaced))
             })
             .collect(),
         total_count: found.total_count,

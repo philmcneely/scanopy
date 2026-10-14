@@ -352,3 +352,114 @@ async fn every_documented_credential_filter_narrows_the_rows() {
     )
     .await;
 }
+
+/// Daemons sort by version in version order and group and filter by the status the server
+/// derives, in memory, with totals and group counts that cover every row rather than the page.
+#[tokio::test]
+async fn daemons_order_and_filter_on_what_code_derives() {
+    use crate::server::daemons::handlers::{DaemonFilterQuery, DaemonOrderField};
+    use crate::server::daemons::r#impl::api::DaemonHealth;
+    use crate::server::daemons::r#impl::base::Daemon;
+    use crate::server::shared::handlers::query::OrderDirection;
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let net = site(&org.id);
+    storage.sites.create(&net).await.unwrap();
+
+    let maintainer = user(&org.id);
+    storage.users.create(&maintainer).await.unwrap();
+    let current = env!("CARGO_PKG_VERSION");
+    for (name, version, unreachable) in [
+        ("ten", "0.17.10", false),
+        ("nine", "0.17.9", false),
+        ("current", current, false),
+        ("lost", current, true),
+    ] {
+        let daemon_host = super::host(&net.id);
+        storage.hosts.create(&daemon_host).await.unwrap();
+        let mut d = super::daemon(&net.id, &daemon_host.id);
+        d.base.user_id = maintainer.id;
+        d.base.name = name.to_string();
+        d.base.version = Some(version.parse().unwrap());
+        d.base.is_unreachable = unreachable;
+        storage.daemons.create(&d).await.unwrap();
+    }
+    let scope = list_scope(&[net.id], org.id);
+    let names = |page: &crate::server::shared::types::api::PaginatedApiResponse<
+        crate::server::daemons::r#impl::api::DaemonResponse,
+    >| {
+        page.data
+            .iter()
+            .map(|d| d.base.name.clone())
+            .collect::<Vec<_>>()
+    };
+
+    // Whole order: nine, ten, current|lost by name. The page skips one, takes two.
+    let by_version = DaemonFilterQuery {
+        order_by: Some(DaemonOrderField::Version),
+        order_direction: Some(OrderDirection::Asc),
+        limit: Some(2),
+        offset: Some(1),
+        ..Default::default()
+    };
+    let page = list_page::<Daemon>(&state, &scope, &by_version)
+        .await
+        .unwrap();
+    assert_eq!(page.meta.pagination.total_count, 4);
+    assert_eq!(names(&page)[0], "ten", "0.17.10 follows 0.17.9");
+
+    let unreachable = DaemonFilterQuery {
+        statuses: Some(vec![DaemonHealth::Unreachable]),
+        group_by: Some(DaemonOrderField::Status),
+        ..Default::default()
+    };
+    let page = list_page::<Daemon>(&state, &scope, &unreachable)
+        .await
+        .unwrap();
+    assert_eq!(names(&page), vec!["lost"]);
+    assert_eq!(page.meta.pagination.total_count, 1);
+    assert_eq!(
+        counts(page.meta.pagination.group_counts.as_deref()),
+        vec![("unreachable".to_string(), 1)]
+    );
+}
+
+/// Every filter the daemons list documents narrows the rows. `statuses` is derived in code, so
+/// it narrows in the list rather than in this filter.
+#[tokio::test]
+async fn every_documented_daemon_filter_narrows_the_rows() {
+    use crate::server::daemons::handlers::DaemonFilterQuery;
+    use crate::server::shared::handlers::query::narrowing_check::assert_every_param_narrows;
+
+    let site = Uuid::new_v4();
+    let scope = list_scope(&[site, Uuid::new_v4()], Uuid::new_v4());
+    let id = Uuid::new_v4().to_string();
+    let site_param = site.to_string();
+    assert_every_param_narrows(
+        |query: &DaemonFilterQuery| query.narrow(&scope).expect("filter builds"),
+        &[
+            ("site_ids", site_param.as_str()),
+            ("os", "linux"),
+            ("modes", "server_poll"),
+            ("maintainer_ids", id.as_str()),
+            ("versions", "0.17.9"),
+            ("interfaced_subnet_ids", id.as_str()),
+            ("tag_ids", id.as_str()),
+            ("tag_sets", id.as_str()),
+            ("search", "lab"),
+        ],
+        &[
+            "statuses",
+            "limit",
+            "offset",
+            "group_by",
+            "order_by",
+            "order_direction",
+            "group_by_tag_group",
+            "order_by_tag_group",
+        ],
+    )
+    .await;
+}

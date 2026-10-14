@@ -3656,16 +3656,154 @@
         "operationId": "get_daemons",
         "parameters": [
           {
-            "name": "site_id",
+            "name": "site_ids",
             "in": "query",
-            "description": "Filter by site ID",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "statuses",
+            "in": "query",
+            "description": "Only daemons in one of these statuses. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonHealth"
+              }
+            }
+          },
+          {
+            "name": "os",
+            "in": "query",
+            "description": "Only daemons installed on one of these operating systems. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonOs"
+              }
+            }
+          },
+          {
+            "name": "modes",
+            "in": "query",
+            "description": "Only daemons that connect one of these ways. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonMode"
+              }
+            }
+          },
+          {
+            "name": "maintainer_ids",
+            "in": "query",
+            "description": "Only daemons maintained by one of these users. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "versions",
+            "in": "query",
+            "description": "Only daemons running one of these versions. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "interfaced_subnet_ids",
+            "in": "query",
+            "description": "Only daemons with an interface on one of these subnets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns daemons that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and url.",
             "required": false,
             "schema": {
               "type": [
                 "string",
                 "null"
-              ],
-              "format": "uuid"
+              ]
             }
           },
           {
@@ -3698,6 +3836,32 @@
                   "$ref": "#/components/schemas/DaemonOrderField"
                 }
               ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -3899,16 +4063,154 @@
         "operationId": "export_daemons_csv",
         "parameters": [
           {
-            "name": "site_id",
+            "name": "site_ids",
             "in": "query",
-            "description": "Filter by site ID",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "statuses",
+            "in": "query",
+            "description": "Only daemons in one of these statuses. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonHealth"
+              }
+            }
+          },
+          {
+            "name": "os",
+            "in": "query",
+            "description": "Only daemons installed on one of these operating systems. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonOs"
+              }
+            }
+          },
+          {
+            "name": "modes",
+            "in": "query",
+            "description": "Only daemons that connect one of these ways. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonMode"
+              }
+            }
+          },
+          {
+            "name": "maintainer_ids",
+            "in": "query",
+            "description": "Only daemons maintained by one of these users. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "versions",
+            "in": "query",
+            "description": "Only daemons running one of these versions. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "interfaced_subnet_ids",
+            "in": "query",
+            "description": "Only daemons with an interface on one of these subnets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns daemons that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and url.",
             "required": false,
             "schema": {
               "type": [
                 "string",
                 "null"
-              ],
-              "format": "uuid"
+              ]
             }
           },
           {
@@ -3941,6 +4243,32 @@
                   "$ref": "#/components/schemas/DaemonOrderField"
                 }
               ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -3996,6 +4324,311 @@
               "text/csv": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/daemons/field-values/{field}": {
+      "get": {
+        "tags": [
+          "Daemons"
+        ],
+        "summary": "List the values of a Daemon field",
+        "description": "Every distinct value of one Daemon field across the Daemons the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.",
+        "operationId": "get_daemon_field_values",
+        "parameters": [
+          {
+            "name": "field",
+            "in": "path",
+            "description": "The field whose values to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DaemonOrderField"
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "statuses",
+            "in": "query",
+            "description": "Only daemons in one of these statuses. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonHealth"
+              }
+            }
+          },
+          {
+            "name": "os",
+            "in": "query",
+            "description": "Only daemons installed on one of these operating systems. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonOs"
+              }
+            }
+          },
+          {
+            "name": "modes",
+            "in": "query",
+            "description": "Only daemons that connect one of these ways. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonMode"
+              }
+            }
+          },
+          {
+            "name": "maintainer_ids",
+            "in": "query",
+            "description": "Only daemons maintained by one of these users. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "versions",
+            "in": "query",
+            "description": "Only daemons running one of these versions. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "interfaced_subnet_ids",
+            "in": "query",
+            "description": "Only daemons with an interface on one of these subnets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns daemons that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and url.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/DaemonOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/DaemonOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distinct values and their Daemon counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_Vec_GroupCount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -17403,13 +18036,18 @@
                   "created_at",
                   "updated_at",
                   "version_status",
-                  "interfaced_subnet_ids"
+                  "interfaced_subnet_ids",
+                  "health"
                 ],
                 "properties": {
                   "created_at": {
                     "type": "string",
                     "format": "date-time",
                     "description": "When this record was first created."
+                  },
+                  "health": {
+                    "$ref": "#/components/schemas/DaemonHealth",
+                    "description": "The one status the daemon's chip shows, the most severe that applies."
                   },
                   "id": {
                     "type": "string",
@@ -25330,6 +25968,20 @@
           }
         }
       },
+      "DaemonHealth": {
+        "type": "string",
+        "description": "A daemon's status, the most severe that applies, in that order.\n\nUnsupported ranks above Unreachable: a rejected daemon can't connect, so its unreachability is a\nsymptom and the version is the actionable cause. The daemons list sorts and groups by it, and\nfilters on its value, which reads the same in every language.",
+        "enum": [
+          "unsupported",
+          "unreachable",
+          "standby",
+          "awaiting_connection",
+          "deprecated",
+          "outdated",
+          "unknown",
+          "healthy"
+        ]
+      },
       "DaemonHeartbeatPayload": {
         "type": "object",
         "description": "Legacy heartbeat payload for backwards compatibility with pre-v0.14.0 daemons.\nOld daemons call POST /api/daemons/{id}/heartbeat with this payload.",
@@ -25369,7 +26021,12 @@
           "name",
           "last_seen",
           "updated_at",
-          "site_id"
+          "site_id",
+          "os",
+          "mode",
+          "maintainer",
+          "version",
+          "status"
         ]
       },
       "DaemonOs": {
@@ -25520,13 +26177,18 @@
               "created_at",
               "updated_at",
               "version_status",
-              "interfaced_subnet_ids"
+              "interfaced_subnet_ids",
+              "health"
             ],
             "properties": {
               "created_at": {
                 "type": "string",
                 "format": "date-time",
                 "description": "When this record was first created."
+              },
+              "health": {
+                "$ref": "#/components/schemas/DaemonHealth",
+                "description": "The one status the daemon's chip shows, the most severe that applies."
               },
               "id": {
                 "type": "string",
@@ -34342,13 +35004,18 @@
                     "created_at",
                     "updated_at",
                     "version_status",
-                    "interfaced_subnet_ids"
+                    "interfaced_subnet_ids",
+                    "health"
                   ],
                   "properties": {
                     "created_at": {
                       "type": "string",
                       "format": "date-time",
                       "description": "When this record was first created."
+                    },
+                    "health": {
+                      "$ref": "#/components/schemas/DaemonHealth",
+                      "description": "The one status the daemon's chip shows, the most severe that applies."
                     },
                     "id": {
                       "type": "string",

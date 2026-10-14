@@ -219,21 +219,22 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'daemons/components/DaemonTab.svelte': {
+		listPath: '/api/v1/daemons',
 		columns: {
 			name: IDENTITY,
-			site_id: YES,
+			site_id: server('site_ids'),
 			last_seen: DATE,
 			created_at: DATE,
 			updated_at: DATE,
-			host_id: { sort: 'Near-unique', group: 'One daemon per host', filter: SEARCH },
-			status: YES,
-			os: YES,
-			mode: YES,
-			version: YES,
-			maintainer: YES,
+			host_id: none('One daemon per host'),
+			status: server('statuses'),
+			os: server('os'),
+			mode: server('modes'),
+			version: server('versions'),
+			maintainer: server('maintainer_ids'),
 			url: none('Unique per daemon'),
-			interfaced_subnet_ids: SHARED_ARRAY,
-			tags: SHARED_ARRAY
+			interfaced_subnet_ids: { ...SHARED_ARRAY, filter: { param: 'interfaced_subnet_ids' } },
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } }
 		}
 	},
 	'daemon_api_keys/components/ApiKeyTab.svelte': {

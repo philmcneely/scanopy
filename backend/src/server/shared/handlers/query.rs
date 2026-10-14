@@ -470,6 +470,19 @@ where
         .map(Some)
 }
 
+/// Each value's serde name: the text a column holding it stores, for filtering on it.
+pub fn serde_names<V: Serialize>(values: &[V]) -> Vec<String> {
+    values
+        .iter()
+        .filter_map(|value| {
+            serde_json::to_value(value)
+                .ok()?
+                .as_str()
+                .map(str::to_string)
+        })
+        .collect()
+}
+
 /// Rows on the requested sites the caller can see, or on every site they can see when none is
 /// requested. A requested site outside the caller's access narrows the result to nothing; it never
 /// widens it.

@@ -1415,6 +1415,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/daemons/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Daemon field
+         * @description Every distinct value of one Daemon field across the Daemons the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_daemon_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/daemons/provision": {
         parameters: {
             query?: never;
@@ -4263,6 +4283,8 @@ export interface components {
                  * @description When this record was first created.
                  */
                 created_at: string;
+                /** @description The one status the daemon's chip shows, the most severe that applies. */
+                health: components["schemas"]["DaemonHealth"];
                 /**
                  * Format: uuid
                  * @description Server-assigned unique identifier.
@@ -8183,6 +8205,15 @@ export interface components {
             version?: string | null;
         };
         /**
+         * @description A daemon's status, the most severe that applies, in that order.
+         *
+         *     Unsupported ranks above Unreachable: a rejected daemon can't connect, so its unreachability is a
+         *     symptom and the version is the actionable cause. The daemons list sorts and groups by it, and
+         *     filters on its value, which reads the same in every language.
+         * @enum {string}
+         */
+        DaemonHealth: "unsupported" | "unreachable" | "standby" | "awaiting_connection" | "deprecated" | "outdated" | "unknown" | "healthy";
+        /**
          * @description Legacy heartbeat payload for backwards compatibility with pre-v0.14.0 daemons.
          *     Old daemons call POST /api/daemons/{id}/heartbeat with this payload.
          */
@@ -8210,7 +8241,7 @@ export interface components {
          * @description Fields that daemons can be ordered/grouped by.
          * @enum {string}
          */
-        DaemonOrderField: "created_at" | "name" | "last_seen" | "updated_at" | "site_id";
+        DaemonOrderField: "created_at" | "name" | "last_seen" | "updated_at" | "site_id" | "os" | "mode" | "maintainer" | "version" | "status";
         /**
          * @description Operating system a daemon is installed on, as picked when it is created.
          * @enum {string}
@@ -8291,6 +8322,8 @@ export interface components {
              * @description When this record was first created.
              */
             created_at: string;
+            /** @description The one status the daemon's chip shows, the most severe that applies. */
+            health: components["schemas"]["DaemonHealth"];
             /**
              * Format: uuid
              * @description Server-assigned unique identifier.
@@ -12180,6 +12213,8 @@ export interface components {
                  * @description When this record was first created.
                  */
                 created_at: string;
+                /** @description The one status the daemon's chip shows, the most severe that applies. */
+                health: components["schemas"]["DaemonHealth"];
                 /**
                  * Format: uuid
                  * @description Server-assigned unique identifier.
@@ -18769,12 +18804,40 @@ export interface operations {
     get_daemons: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only daemons in one of these statuses. Repeat for several. */
+                statuses?: components["schemas"]["DaemonHealth"][] | null;
+                /** @description Only daemons installed on one of these operating systems. Repeat for several. */
+                os?: components["schemas"]["DaemonOs"][] | null;
+                /** @description Only daemons that connect one of these ways. Repeat for several. */
+                modes?: components["schemas"]["DaemonMode"][] | null;
+                /** @description Only daemons maintained by one of these users. Repeat for several. */
+                maintainer_ids?: string[] | null;
+                /** @description Only daemons running one of these versions. Repeat for several. */
+                versions?: string[] | null;
+                /** @description Only daemons with an interface on one of these subnets. Repeat for several. */
+                interfaced_subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns daemons that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and url. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["DaemonOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
                 order_by?: null | components["schemas"]["DaemonOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
                 order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
@@ -18887,12 +18950,40 @@ export interface operations {
     export_daemons_csv: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only daemons in one of these statuses. Repeat for several. */
+                statuses?: components["schemas"]["DaemonHealth"][] | null;
+                /** @description Only daemons installed on one of these operating systems. Repeat for several. */
+                os?: components["schemas"]["DaemonOs"][] | null;
+                /** @description Only daemons that connect one of these ways. Repeat for several. */
+                modes?: components["schemas"]["DaemonMode"][] | null;
+                /** @description Only daemons maintained by one of these users. Repeat for several. */
+                maintainer_ids?: string[] | null;
+                /** @description Only daemons running one of these versions. Repeat for several. */
+                versions?: string[] | null;
+                /** @description Only daemons with an interface on one of these subnets. Repeat for several. */
+                interfaced_subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns daemons that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and url. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["DaemonOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
                 order_by?: null | components["schemas"]["DaemonOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
                 order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
@@ -18913,6 +19004,79 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_daemon_field_values: {
+        parameters: {
+            query?: {
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only daemons in one of these statuses. Repeat for several. */
+                statuses?: components["schemas"]["DaemonHealth"][] | null;
+                /** @description Only daemons installed on one of these operating systems. Repeat for several. */
+                os?: components["schemas"]["DaemonOs"][] | null;
+                /** @description Only daemons that connect one of these ways. Repeat for several. */
+                modes?: components["schemas"]["DaemonMode"][] | null;
+                /** @description Only daemons maintained by one of these users. Repeat for several. */
+                maintainer_ids?: string[] | null;
+                /** @description Only daemons running one of these versions. Repeat for several. */
+                versions?: string[] | null;
+                /** @description Only daemons with an interface on one of these subnets. Repeat for several. */
+                interfaced_subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns daemons that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and url. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["DaemonOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["DaemonOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["DaemonOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Daemon counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };

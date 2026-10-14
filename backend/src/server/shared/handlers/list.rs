@@ -5,6 +5,7 @@
 //! [`list_page`]. Filtering stays with [`CrudHandlers::list_filter`], so the CSV export and the
 //! list read the same rows for the same query.
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Display;
 
@@ -121,6 +122,64 @@ where
         let _ = (state, ids);
         Ok(HashMap::new())
     }
+
+    /// Whether only code can derive `field` (a daemon's status, a subnet's utilization), so a list
+    /// sorted or grouped by it is ordered here rather than in SQL. Its `to_sql` is then unused.
+    fn is_computed(field: &Self::OrderField) -> bool {
+        let _ = field;
+        false
+    }
+
+    /// The value of a computed `field` for one row. Called only for a field
+    /// [`Self::is_computed`] accepts.
+    fn computed(field: &Self::OrderField, item: &Self::Item) -> Option<Computed> {
+        let _ = (field, item);
+        None
+    }
+
+    /// Whether `query` filters on something only code can derive, so every matching row is
+    /// loaded and [`Self::keep`] decides.
+    fn filters_in_memory(query: &Self::FilterQuery) -> bool {
+        let _ = query;
+        false
+    }
+
+    /// Whether a row passes the filters [`Self::filters_in_memory`] reports.
+    fn keep(query: &Self::FilterQuery, item: &Self::Item) -> bool {
+        let _ = (query, item);
+        true
+    }
+}
+
+/// A row's value for a field only code can derive.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ComputedValue {
+    Number(f64),
+    Text(String),
+}
+
+impl ComputedValue {
+    /// Ascending order; a row with no value sorts after every row with one.
+    fn compare(a: &Option<Self>, b: &Option<Self>) -> Ordering {
+        match (a, b) {
+            (Some(Self::Number(a)), Some(Self::Number(b))) => a.total_cmp(b),
+            (Some(Self::Text(a)), Some(Self::Text(b))) => a.cmp(b),
+            (Some(Self::Number(_)), Some(Self::Text(_))) => Ordering::Less,
+            (Some(Self::Text(_)), Some(Self::Number(_))) => Ordering::Greater,
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        }
+    }
+}
+
+/// How a computed field sorts and groups one row.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Computed {
+    /// What the row sorts by, which also orders its group among the others.
+    pub value: Option<ComputedValue>,
+    /// The key of the row's group in `group_counts`, as the UI's `getGroupValue` gives it.
+    pub group: Option<String>,
 }
 
 /// One page of `T`'s list for this caller and query, with `group_counts` when it is grouped.
@@ -143,6 +202,20 @@ where
         && ordering
             .group_by
             .is_some_and(|field| T::groups_as_tree(&field));
+    let in_memory = T::filters_in_memory(query)
+        || ordering.group_by.is_some_and(|f| T::is_computed(&f))
+        || ordering.order_by.is_some_and(|f| T::is_computed(&f));
+
+    if in_memory {
+        let (items, total_count, group_counts) =
+            memory_page::<T>(state, filter, ordering, query, limit, offset).await?;
+        let response =
+            PaginatedApiResponse::success(items, total_count, limit.unwrap_or(0), offset);
+        return Ok(match group_counts {
+            Some(counts) => response.with_group_counts(counts),
+            None => response,
+        });
+    }
 
     let (rows, total_count, group_counts) = if tree_grouped {
         tree_page::<T>(state, filter, ordering, limit, offset).await?
@@ -239,4 +312,115 @@ where
     rows.sort_by_key(|row| rank.get(&row.id()).copied().unwrap_or(usize::MAX));
 
     Ok((rows, ids.len() as u64, Some(group_counts)))
+}
+/// A page of a list ordered, grouped or filtered by something only code can derive. Every
+/// matching row is loaded and built into its item, so this is for lists that stay small per
+/// organization. The SQL part of the ordering still runs in the database: rows arrive in it, and a
+/// SQL grouping keeps its order while a computed sort orders each group.
+async fn memory_page<T>(
+    state: &AppState,
+    filter: StorableFilter<T>,
+    ordering: ListOrdering<T::OrderField>,
+    query: &T::FilterQuery,
+    limit: Option<u32>,
+    offset: u32,
+) -> ApiResult<(Vec<T::Item>, u64, Option<Vec<GroupCount>>)>
+where
+    T: PaginatedList + ChangeTriggersTopologyStaleness<T> + Default,
+    EntityEnum: From<T>,
+{
+    let computed_group = ordering.group_by.filter(|f| T::is_computed(f));
+    let computed_sort = ordering.order_by.filter(|f| T::is_computed(f));
+    let sql = ListOrdering {
+        group_by: ordering.group_by.filter(|f| !T::is_computed(f)),
+        order_by: ordering.order_by.filter(|f| !T::is_computed(f)),
+        ..ordering
+    };
+    let sql_group = sql.group_sql();
+    let (filter, order) = sql.apply(filter, &T::default_order());
+
+    let service = T::get_service(state);
+    let keyed = service
+        .storage()
+        .get_ordered_values(filter, &order, sql_group.as_slice())
+        .await?;
+    let ids: Vec<Uuid> = keyed.iter().map(|(id, _)| *id).collect();
+    let rank: HashMap<Uuid, usize> = ids.iter().enumerate().map(|(i, id)| (*id, i)).collect();
+    let mut rows = service
+        .get_all(StorableFilter::<T>::new_from_entity_ids(&ids))
+        .await?;
+    rows.sort_by_key(|row| rank.get(&row.id()).copied().unwrap_or(usize::MAX));
+    let sql_groups: Vec<Option<String>> = keyed
+        .into_iter()
+        .map(|(_, values)| values.into_iter().next().flatten())
+        .collect();
+
+    // `items` keeps the order it is given, so each item lines up with its SQL rank and group.
+    let items = T::items(state, rows, query).await?;
+    let mut listed: Vec<(usize, Option<String>, T::Item)> = items
+        .into_iter()
+        .zip(sql_groups)
+        .enumerate()
+        .map(|(rank, (item, group))| (rank, group, item))
+        .filter(|(_, _, item)| T::keep(query, item))
+        .collect();
+
+    // Group order: a SQL grouping's order is the order rows arrived in; a computed one's is its
+    // values'. Sort: a computed field's value in the requested direction, else the SQL order.
+    let first_seen: HashMap<Option<String>, usize> =
+        listed
+            .iter()
+            .fold(HashMap::new(), |mut seen, (rank, group, _)| {
+                seen.entry(group.clone()).or_insert(*rank);
+                seen
+            });
+    let descending = matches!(ordering.direction, Some(OrderDirection::Desc));
+    listed.sort_by(|(rank_a, group_a, a), (rank_b, group_b, b)| {
+        let by_group = match computed_group {
+            Some(field) => ComputedValue::compare(
+                &T::computed(&field, a).and_then(|c| c.value),
+                &T::computed(&field, b).and_then(|c| c.value),
+            ),
+            None => first_seen[group_a].cmp(&first_seen[group_b]),
+        };
+        let by_sort = match computed_sort {
+            Some(field) => {
+                let order = ComputedValue::compare(
+                    &T::computed(&field, a).and_then(|c| c.value),
+                    &T::computed(&field, b).and_then(|c| c.value),
+                );
+                if descending { order.reverse() } else { order }
+            }
+            None => rank_a.cmp(rank_b),
+        };
+        by_group.then(by_sort).then(rank_a.cmp(rank_b))
+    });
+
+    let grouped = ordering.group_by.is_some() || ordering.tag_group.group_by.is_some();
+    let group_counts = grouped.then(|| {
+        let mut counts: Vec<GroupCount> = Vec::new();
+        for (_, sql_group, item) in &listed {
+            let key = match computed_group {
+                Some(field) => T::computed(&field, item).and_then(|c| c.group),
+                None => sql_group.clone(),
+            };
+            match counts.last_mut() {
+                Some(last) if last.value == key => last.count += 1,
+                _ => counts.push(GroupCount {
+                    value: key,
+                    count: 1,
+                }),
+            }
+        }
+        counts
+    });
+
+    let total_count = listed.len() as u64;
+    let page = listed
+        .into_iter()
+        .skip(offset as usize)
+        .take(limit.map_or(usize::MAX, |l| l as usize))
+        .map(|(_, _, item)| item)
+        .collect();
+    Ok((page, total_count, group_counts))
 }

@@ -20,6 +20,7 @@
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import {
 		useDaemonsQuery,
+		useDaemonsListQuery,
 		useDeleteDaemonMutation,
 		useBulkDeleteDaemonsMutation,
 		useRetryDaemonConnectionMutation
@@ -38,6 +39,8 @@
 	import type { TabProps } from '$lib/shared/types';
 	import type { components } from '$lib/api/schema';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import { fieldValueOptions, useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import {
 		common_create,
 		common_confirmBulkDelete,
@@ -58,7 +61,18 @@
 
 	// Queries
 	const tagsQuery = useTagsQuery();
+	// Every daemon, for the sunset banner, the empty state and deep links, which concern the whole
+	// organization rather than the page on screen.
 	const daemonsQuery = useDaemonsQuery();
+	// The page the table shows, paged, filtered and ordered on the server.
+	const page = listPageState();
+	const daemonsPageQuery = useDaemonsListQuery(() => page.params());
+	// Filter options: the values the caller's daemons hold, counted by the server.
+	const DAEMON_FIELD_VALUES = '/api/v1/daemons/field-values/{field}';
+	const siteValuesQuery = useFieldValuesQuery(DAEMON_FIELD_VALUES, 'site_id');
+	const modeValuesQuery = useFieldValuesQuery(DAEMON_FIELD_VALUES, 'mode');
+	const maintainerValuesQuery = useFieldValuesQuery(DAEMON_FIELD_VALUES, 'maintainer');
+	const versionValuesQuery = useFieldValuesQuery(DAEMON_FIELD_VALUES, 'version');
 	const sitesQuery = useSitesQuery();
 	// Shared subnets cache, to resolve each daemon's interfaced subnet ids.
 	const subnetsQuery = useSubnetsQuery();
@@ -70,6 +84,8 @@
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
 	let daemonsData = $derived(daemonsQuery.data ?? []);
+	let pageDaemons = $derived(daemonsPageQuery.data?.items ?? []);
+	let daemonsPagination = $derived(daemonsPageQuery.data?.pagination ?? null);
 
 	// Only the hosts the daemons actually run on. This was an unpaginated
 	// org-wide hosts query (~1.9MB on a few hundred hosts) issued to resolve one
@@ -77,15 +93,19 @@
 	// with every other consumer, so it loaded on pages that never showed a
 	// daemon. Scoped to the ids in hand and read by the host column.
 	let daemonHostIds = $derived([
-		...new Set(daemonsData.map((d) => d.host_id).filter((id): id is string => !!id))
+		...new Set(pageDaemons.map((d) => d.host_id).filter((id): id is string => !!id))
 	]);
 	const daemonHostsQuery = useHostsByIds(() => daemonHostIds);
 	let daemonHosts = $derived(daemonHostsQuery.data ?? []);
 
-	// The users who maintain the daemons, by id: the users list needs Admin, and a daemon's
-	// maintainer is often an admin or the owner, whom it leaves out.
+	// The users who maintain the daemons on the page and the ones the maintainer filter offers, by
+	// id: the users list needs Admin, and a daemon's maintainer is often an admin or the owner,
+	// whom it leaves out.
 	const maintainersQuery = useUsersByIds(() => [
-		...new Set(daemonsData.map((d) => d.user_id).filter((id): id is string => !!id))
+		...new Set([
+			...pageDaemons.map((d) => d.user_id).filter((id): id is string => !!id),
+			...fieldValueOptions(maintainerValuesQuery.data)
+		])
 	]);
 	let maintainers = $derived(maintainersQuery.data ?? []);
 
@@ -102,7 +122,11 @@
 	});
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let subnetsData = $derived((subnetsQuery.data ?? []).filter(isUserManagedSubnet));
-	let isLoading = $derived(daemonsQuery.isPending || sitesQuery.isPending);
+	let isLoading = $derived(
+		(daemonsPageQuery.isPending && !daemonsPageQuery.data) ||
+			daemonsQuery.isPending ||
+			sitesQuery.isPending
+	);
 
 	let showCreateDaemonModal = $state(false);
 	let showDaemonEditor = $state(false);
@@ -266,7 +290,7 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('Daemon', {});
+		await downloadCsv('Daemon', page.listQuery);
 	}
 
 	const tableDefaults: TableDefaults<DaemonOrderField> = {
@@ -287,7 +311,11 @@
 			maintainers: () => maintainers,
 			interfacedSubnets,
 			subnets: () => subnetsData,
-			osCell: () => osCell
+			osCell: () => osCell,
+			siteValues: () => siteValuesQuery.data,
+			modeValues: () => modeValuesQuery.data,
+			maintainerValues: () => maintainerValuesQuery.data,
+			versionValues: () => versionValuesQuery.data
 		})
 	);
 </script>
@@ -332,7 +360,7 @@
 		<DataControls
 			title={common_daemons()}
 			{toolbarActions}
-			items={daemonsData}
+			items={pageDaemons}
 			fields={daemonFields}
 			storageKey="scanopy-daemons-table-state"
 			defaults={tableDefaults}
@@ -341,6 +369,10 @@
 			canEditTags={!isReadOnly}
 			getItemTags={getDaemonTags}
 			getItemId={(item) => item.id}
+			serverPagination={daemonsPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			onCsvExport={handleCsvExport}
 			getActions={daemonActions}
 			entityLabel={common_daemons()}

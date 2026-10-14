@@ -157,6 +157,7 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				is_unreachable: 'status',
 				standby: 'status',
 				version_status: 'status',
+				health: 'status',
 				id: ID,
 				// Decided with Maya, 2026-10-04.
 				api_key_id: excluded("The daemon's key is not a meaningful entity of its own to users"),

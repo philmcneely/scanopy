@@ -25,42 +25,26 @@ import {
 
 export const DAEMON_STATUS_DOCS_URL = 'https://scanopy.net/docs/reference/daemon-status/';
 
-/**
- * A daemon's status, the highest-priority one that applies.
- * Priority: Unsupported > Unreachable > Standby > Awaiting connection > Deprecated > Outdated >
- * Unknown > Healthy
- *
- * Unsupported ranks above Unreachable: a rejected daemon can't connect, so its
- * unreachability is a symptom — the version is the actionable cause. A key rather than its label,
- * so a filter on it holds the same value in every language.
- */
-export const DAEMON_STATUSES = [
-	'unsupported',
-	'unreachable',
-	'standby',
-	'awaiting_connection',
-	'deprecated',
-	'outdated',
-	'unknown',
-	'healthy'
-] as const;
-export type DaemonStatus = (typeof DAEMON_STATUSES)[number];
+/** A daemon's status, the most severe that applies. The server derives it (`DaemonHealth`), so
+ * the list can sort, group and filter on it. */
+export type DaemonStatus = components['schemas']['DaemonHealth'];
+
+/** Every status, for the filter's options. Keyed by the generated type, so a status the server
+ * adds fails to compile until it is listed here. */
+const ALL_STATUSES: Record<DaemonStatus, true> = {
+	unsupported: true,
+	unreachable: true,
+	standby: true,
+	awaiting_connection: true,
+	deprecated: true,
+	outdated: true,
+	unknown: true,
+	healthy: true
+};
+export const DAEMON_STATUSES = Object.keys(ALL_STATUSES) as DaemonStatus[];
 
 export function getDaemonStatus(daemon: Daemon): DaemonStatus {
-	if (daemon.version_status.status === 'Unsupported') return 'unsupported';
-	if (daemon.is_unreachable === true) return 'unreachable';
-	if (daemon.standby === true) return 'standby';
-	if (!daemon.last_seen) return 'awaiting_connection';
-	switch (daemon.version_status.status) {
-		case 'Deprecated':
-			return 'deprecated';
-		case 'Outdated':
-			return 'outdated';
-		case 'Unknown':
-			return 'unknown';
-		default:
-			return 'healthy';
-	}
+	return daemon.health;
 }
 
 /**
