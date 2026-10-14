@@ -40,7 +40,7 @@ function fields(): FieldConfig<Row, RowOrderField>[] {
 		},
 		[
 			{ key: 'description', label: 'Description', type: 'string' },
-			{ key: 'labels', label: 'Labels', type: 'array', sortable: true },
+			{ key: 'labels', label: 'Labels', type: 'array' },
 			// Reserved: the list appends its own editable tags column, so a `tags`
 			// field stays a filter/search input and never becomes a column here.
 			{ key: 'tags', label: 'Tags', type: 'array', filterable: true },
@@ -67,7 +67,7 @@ describe('fieldsToColumns', () => {
 
 		expect(byId.get('name')!.sortable).toBe(true);
 		expect(byId.get('created_at')!.sortable).toBe(true);
-		expect(byId.get('labels')!.sortable).toBe(true);
+		expect(byId.get('labels')!.sortable).toBe(false);
 		expect(byId.get('description')!.sortable).toBe(false);
 	});
 

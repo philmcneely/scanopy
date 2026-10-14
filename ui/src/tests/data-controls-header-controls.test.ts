@@ -21,11 +21,11 @@ import type { FieldConfig } from '$lib/shared/components/data/types';
 type Row = Record<string, unknown>;
 
 const status: FieldConfig<Row> = {
-	key: 'status',
+	orderField: 'status',
 	label: 'Status',
 	type: 'string',
 	filterable: true,
-	groupable: true
+	serverFiltered: true
 };
 const category: FieldConfig<Row> = {
 	key: 'category',
@@ -43,7 +43,7 @@ const hidden: FieldConfig<Row> = {
 	serverFiltered: true
 };
 const site: FieldConfig<Row> = { orderField: 'site_id', label: 'Site', type: 'string' };
-const mode: FieldConfig<Row> = { key: 'mode', label: 'Mode', type: 'string', groupable: true };
+const mode: FieldConfig<Row> = { key: 'mode', label: 'Mode', type: 'string' };
 const description: FieldConfig<Row> = { key: 'description', label: 'Desc', type: 'string' };
 const lastSeen: FieldConfig<Row> = {
 	key: 'last_seen_at',
@@ -61,48 +61,43 @@ function filtersWith(mutate: (state: FilterState) => FilterState | null): Filter
 
 describe('columnControls', () => {
 	it('offers filter and group from the field flags', () => {
-		expect(columnControls('status', FIELDS, false, false)).toMatchObject({
+		expect(columnControls('status', FIELDS, false)).toMatchObject({
 			filter: true,
 			group: true
 		});
-		expect(columnControls('category', FIELDS, false, false)).toMatchObject({
+		expect(columnControls('category', FIELDS, false)).toMatchObject({
 			filter: true,
 			group: false
 		});
-		expect(columnControls('site_id', FIELDS, false, false)).toMatchObject({
+		expect(columnControls('site_id', FIELDS, false)).toMatchObject({
 			filter: false,
 			group: true
 		});
 	});
 
 	it('gives a column with no filter, group or stale toggle no control', () => {
-		expect(columnControls('description', FIELDS, false, false)).toBeNull();
-		expect(columnControls('missing', FIELDS, false, false)).toBeNull();
+		expect(columnControls('description', FIELDS, false)).toBeNull();
+		expect(columnControls('missing', FIELDS, false)).toBeNull();
 	});
 
-	it('drops client-side grouping on a server-paginated list, keeping orderable grouping', () => {
-		expect(columnControls('mode', FIELDS, true, false)).toBeNull();
-		expect(columnControls('site_id', FIELDS, true, false)?.group).toBe(true);
+	it('offers grouping only on a column the server orders', () => {
+		expect(columnControls('mode', FIELDS, false)).toBeNull();
+		expect(columnControls('site_id', FIELDS, false)?.group).toBe(true);
 	});
 
 	it("resolves the appended tags column to the tab's tags field", () => {
-		expect(columnControls('tags', FIELDS, false, false)?.field).toBe(tags);
+		expect(columnControls('tags', FIELDS, false)?.field).toBe(tags);
 	});
 
 	it('puts the stale toggle on its column only when the parent applies staleness', () => {
-		expect(columnControls('last_seen_at', FIELDS, true, true)?.stale).toBe(true);
-		expect(columnControls('last_seen_at', FIELDS, true, false)).toBeNull();
+		expect(columnControls('last_seen_at', FIELDS, true)?.stale).toBe(true);
+		expect(columnControls('last_seen_at', FIELDS, false)).toBeNull();
 	});
 });
 
 describe('columnControlState', () => {
 	const state = (columnId: string, filterState: FilterState, staleOnly = false, group = null) =>
-		columnControlState(
-			columnControls(columnId, FIELDS, false, true)!,
-			filterState,
-			staleOnly,
-			group
-		);
+		columnControlState(columnControls(columnId, FIELDS, true)!, filterState, staleOnly, group);
 
 	it('is inactive with nothing set', () => {
 		expect(state('status', blankFilterState(FIELDS, false))).toEqual({
@@ -140,11 +135,10 @@ describe('columnControlState', () => {
 	it('shows grouping on the grouped column only', () => {
 		const blank = blankFilterState(FIELDS, false);
 		expect(
-			columnControlState(columnControls('status', FIELDS, false, false)!, blank, false, 'status')
+			columnControlState(columnControls('status', FIELDS, false)!, blank, false, 'status')
 		).toEqual({ filtered: false, grouped: true });
 		expect(
-			columnControlState(columnControls('mode', FIELDS, false, false)!, blank, false, 'status')
-				.grouped
+			columnControlState(columnControls('category', FIELDS, false)!, blank, false, 'status').grouped
 		).toBe(false);
 	});
 
@@ -244,18 +238,17 @@ describe('dropHiddenColumnState', () => {
 });
 
 describe('createFilterActions', () => {
-	function setup(serverFields: boolean) {
+	function setup() {
 		const ctx: FilterActionsContext<Row> = {
 			fields: FIELDS,
 			filterState: blankFilterState(FIELDS, false),
-			staleOnly: false,
-			serverFields
+			staleOnly: false
 		};
 		return { ctx, actions: createFilterActions(ctx) };
 	}
 
 	it("clears one column's filter and leaves the others", () => {
-		const { ctx, actions } = setup(false);
+		const { ctx, actions } = setup();
 		actions.toggleString('status', 'up');
 		actions.toggleTag('t1');
 		actions.clearField('status');
@@ -266,7 +259,7 @@ describe('createFilterActions', () => {
 
 	it('clears a server-side boolean to both boxes, not to an empty selection', () => {
 		// An empty selection would read as "show neither" in the query the parent sends.
-		const { ctx, actions } = setup(true);
+		const { ctx, actions } = setup();
 		actions.toggleBoolean('hidden', 'showFalse');
 		actions.clearField('hidden');
 
@@ -275,7 +268,7 @@ describe('createFilterActions', () => {
 	});
 
 	it("clears staleness from its column's clear", () => {
-		const { ctx, actions } = setup(false);
+		const { ctx, actions } = setup();
 		actions.toggleStale();
 		actions.clearField('last_seen_at');
 		expect(ctx.staleOnly).toBe(false);

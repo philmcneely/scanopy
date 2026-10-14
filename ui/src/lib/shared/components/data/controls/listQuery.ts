@@ -1,6 +1,6 @@
 import { tagGroupFieldKey, tagGroupIdOf } from '$lib/features/tags/groupFields';
 import { SEARCH_MAX_LENGTH } from '$lib/shared/components/forms/input/SearchInput.svelte';
-import { getFieldKey, type FieldConfig, type FilterCodec, type TableDefaults } from '../types';
+import { getFieldKey, type FieldConfig, type FilterCodec } from '../types';
 import { parseSortState, type StoredFieldFilter } from './dataControlsStorage';
 import { booleanFilterValues, isFieldFilterActive, type FilterState } from './filtering';
 import type { SortState } from './sorting';
@@ -25,23 +25,14 @@ const ORDER_BY_TAG_GROUP = 'order_by_tag_group';
 const GROUP_BY_TAG_GROUP = 'group_by_tag_group';
 const ORDER_PARAMS = [ORDER_BY, ORDER_DIRECTION, GROUP_BY, ORDER_BY_TAG_GROUP, GROUP_BY_TAG_GROUP];
 
-/** Which parts of the view the server applies. The rest the list applies to the rows it holds. */
+/**
+ * The parts of the view an endpoint may not take. Search, ordering and `serverFiltered` fields
+ * always reach the server; tags and staleness only where the endpoint has them.
+ */
 export interface ServerQuery {
-	search: boolean;
 	tags: boolean;
 	stale: boolean;
-	order: boolean;
-	/** `serverFiltered` fields. */
-	fields: boolean;
 }
-
-export const CLIENT_QUERY: ServerQuery = {
-	search: false,
-	tags: false,
-	stale: false,
-	order: false,
-	fields: false
-};
 
 export interface ListQueryState {
 	sort: SortState;
@@ -50,8 +41,6 @@ export interface ListQueryState {
 	staleOnly: boolean;
 	search: string;
 }
-
-const NO_SORT: SortState = { field: null, direction: 'asc' };
 
 /** The param a field's filter goes in when it takes one. */
 function filterParam<T>(field: FieldConfig<T>): string {
@@ -91,11 +80,7 @@ function encodeFilter<T>(field: FieldConfig<T>, filter: FilterState[string]): [s
 
 function serverApplies<T>(field: FieldConfig<T>, server: ServerQuery): boolean {
 	if (getFieldKey(field) === 'tags') return server.tags;
-	return field.serverFiltered === true && server.fields;
-}
-
-function sameSort(a: SortState, b: SortState): boolean {
-	return a.field === b.field && (a.field === null || a.direction === b.direction);
+	return field.serverFiltered === true;
 }
 
 function orderEntries(sort: SortState, group: string | null): [string, string][] {
@@ -116,13 +101,12 @@ function orderEntries(sort: SortState, group: string | null): [string, string][]
 
 /**
  * The view as params, and the part of it the server applies. Filters, search and staleness are
- * omitted when inactive. The ordering is always in the request when the server orders, since the
- * server doesn't know the tab's default; otherwise only when it differs from that default.
+ * omitted when inactive. The ordering is always in the request, since the server doesn't know the
+ * tab's default.
  */
 export function listParams<T>(
 	state: ListQueryState,
 	fields: FieldConfig<T>[],
-	defaults: TableDefaults,
 	server: ServerQuery
 ): { url: URLSearchParams; request: URLSearchParams } {
 	const url = new URLSearchParams();
@@ -135,7 +119,7 @@ export function listParams<T>(
 	};
 
 	const search = state.search.trim();
-	if (search) add([[SEARCH_PARAM, search]], server.search);
+	if (search) add([[SEARCH_PARAM, search]], true);
 
 	for (const field of fields) {
 		const filter = state.filterState[getFieldKey(field)];
@@ -145,9 +129,7 @@ export function listParams<T>(
 
 	if (state.staleOnly) add([[STALE_PARAM, 'true']], server.stale);
 
-	const isDefault =
-		sameSort(state.sort, defaults.sort ?? NO_SORT) && state.group === (defaults.group ?? null);
-	if (server.order || !isDefault) add(orderEntries(state.sort, state.group), server.order);
+	add(orderEntries(state.sort, state.group), true);
 
 	return { url, request };
 }

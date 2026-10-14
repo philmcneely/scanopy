@@ -30,7 +30,6 @@ export interface ColumnControl<T> {
 export function columnControls<T>(
 	columnId: string,
 	fields: FieldConfig<T>[],
-	serverPaginated: boolean,
 	staleAvailable: boolean
 ): ColumnControl<T> | null {
 	const field = fields.find((f) => getFieldKey(f) === columnId);
@@ -39,7 +38,7 @@ export function columnControls<T>(
 	const control = {
 		field,
 		filter: field.filterable === true,
-		group: isGroupableField(field, serverPaginated),
+		group: isGroupableField(field),
 		stale: staleAvailable && field.staleFilter === true
 	};
 	return control.filter || control.group || control.stale ? control : null;

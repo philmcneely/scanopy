@@ -11,25 +11,21 @@
 	} from './types';
 	import { filterOptionsOf } from './controls/fieldValues';
 	import {
-		sortItems,
 		nextSortState,
-		treeSiblingCompare,
 		sortableFields as sortableFieldsOf,
 		groupableFields as groupableFieldsOf,
 		type SortState
 	} from './controls/sorting';
 	import {
-		matchesSearch,
-		matchesFilters,
 		blankFilterState,
 		hasActiveFilters as hasActiveFiltersOf,
 		activeFilterCount as activeFilterCountOf,
 		type FilterState
 	} from './controls/filtering';
 	import { createFilterActions } from './controls/filterActions';
-	import { guardServerPaginatedConfig, guardTableDefaults } from './controls/devGuards.svelte';
+	import { guardServerFilters, guardTableDefaults } from './controls/devGuards.svelte';
 	import { columnControls, renderedFields, dropHiddenColumnState } from './controls/headerControls';
-	import { paginationView, pageSlice } from './controls/pagination';
+	import { paginationView } from './controls/pagination';
 	import { createChangeTracker } from './controls/changeTracker';
 	import {
 		groupItems as groupItemsBy,
@@ -59,7 +55,6 @@
 		type OrderingChoice
 	} from './controls/dataControlsStorage';
 	import {
-		CLIENT_QUERY,
 		decodeFilters,
 		decodeListParams,
 		hasListParams,
@@ -150,12 +145,12 @@
 		canEditTags = true,
 		getItemTags = null,
 		getItemId,
-		// Server-side pagination (optional)
-		serverPagination = null,
-		onPageChange = null,
-		// Server-side query (optional): the request the parent sends its endpoint, in the endpoint's
-		// own param names. Called once the view is restored and on every change after.
-		onQueryChange = null,
+		// The page the server returned, and how the parent fetches another.
+		serverPagination,
+		onPageChange,
+		// The request the parent sends its endpoint, in the endpoint's own param names. Called once
+		// the view is restored and on every change after.
+		onQueryChange,
 		// Which parts of the view the server applies from that query. Absent: every part.
 		serverQuery = null,
 		// CSV export callback (optional, default behavior)
@@ -190,17 +185,16 @@
 		canEditTags?: boolean;
 		getItemTags?: ((item: T) => string[]) | null;
 		getItemId: (item: T) => string;
-		// Server-side pagination: when provided, pagination is server-controlled
-		// Callback receives both page and pageSize so parent can use in query
-		serverPagination?: PaginationMeta | null;
-		onPageChange?: ((page: number, pageSize: number) => void) | null;
+		// The server's pagination for the page in `items`; null until the first page arrives.
+		// `onPageChange` receives both page and pageSize so the parent can use them in its query.
+		serverPagination: PaginationMeta | null;
+		onPageChange: (page: number, pageSize: number) => void;
 		// Server-side query: search, tags, staleness, ordering and `serverFiltered` fields, as the
 		// endpoint takes them. The same params, plus `page` and `selected`, are the list's URL, so a
 		// link and an API call with this query return the same rows. Server-side because the client
 		// would only ever narrow the page it holds. Search is throttled.
-		onQueryChange?: ((query: URLSearchParams) => void) | null;
-		// The parts of the view the server applies. A list held whole that sends only staleness to
-		// its endpoint passes the rest as false.
+		onQueryChange: (query: URLSearchParams) => void;
+		// The parts of the view the server applies, where an endpoint takes no staleness or tags.
 		serverQuery?: Partial<ServerQuery> | null;
 		// CSV export: default behavior when user clicks export button
 		onCsvExport?: (() => void | Promise<void>) | null;
@@ -222,9 +216,6 @@
 	const tagGroupsQuery = useTagGroupsQuery();
 	let tagGroups = $derived(tagGroupsQuery.data ?? []);
 
-	// Check if using server-side pagination
-	let useServerPagination = $derived(serverPagination !== null && onPageChange !== null);
-
 	/**
 	 * The tab's fields, then one per tag group that applies to the rows, built here so every
 	 * taggable table gets them: hidden until shown, and sorted, filtered and grouped like any other
@@ -238,18 +229,13 @@
 					tags: allTags,
 					entityType,
 					getItemTags,
-					serverPaginated: useServerPagination,
 					cell: canEditTags ? tagGroupCell : undefined
 				})
 			: [])
 	]);
 
-	/** What the server applies from the query. A list without `onQueryChange` applies everything here. */
-	let server = $derived<ServerQuery>(
-		onQueryChange
-			? { search: true, tags: true, stale: true, order: true, fields: true, ...serverQuery }
-			: CLIENT_QUERY
-	);
+	/** What the server applies from the query. */
+	let server = $derived<ServerQuery>({ tags: true, stale: true, ...serverQuery });
 
 	// Bulk tag mutations
 	const bulkAddTagMutation = useBulkAddTagMutation();
@@ -283,7 +269,8 @@
 	let columnOrder = $state<string[]>([]);
 	let columnSizing = $state<Record<string, number>>({});
 
-	// Pagination state
+	// Pagination state. `currentPage` is the page restored from storage or a link, handed to the
+	// parent on mount; after that the server's offset says which page is showing.
 	let currentPage = $state(1);
 	let pageSize = $state<PageSizeOption>(20);
 
@@ -380,7 +367,7 @@
 					filterState: toStoredFilterState(filterState),
 					sortState: ordering.sort,
 					selectedGroupField: ordering.group,
-					currentPage,
+					currentPage: effectiveCurrentPage,
 					pageSize,
 					columnVisibility,
 					columnOrder,
@@ -416,7 +403,7 @@
 		sentSearch = searchQuery;
 
 		// The parent's query has to use the restored page and page size.
-		if (onPageChange && (restoredPageSize || currentPage !== 1)) {
+		if (restoredPageSize || currentPage !== 1) {
 			onPageChange(currentPage, pageSize);
 		}
 
@@ -430,7 +417,7 @@
 					void searchQuery;
 					void filterState;
 					void ordering;
-					void currentPage;
+					void effectiveCurrentPage;
 					void pageSize;
 					void columnVisibility;
 					void columnOrder;
@@ -456,7 +443,7 @@
 
 	// ---- Table columns -------------------------------------------------------
 
-	let allColumns = $derived(fieldsToColumns(fields, useServerPagination));
+	let allColumns = $derived(fieldsToColumns(fields));
 	/**
 	 * Tags are appended by the list itself rather than declared per tab.
 	 *
@@ -483,12 +470,10 @@
 	let columnFields = $derived(renderedFields(fields, renderedColumnIds));
 	let staleAvailable = $derived(server.stale);
 
-	// Under server pagination only server-orderable fields are offered: the
-	// client holds one page, so sorting or grouping it here would describe that
-	// page alone while the pager walks the server's order. Only fields whose
-	// column renders are offered: hiding a column takes its controls too.
-	let groupableFields = $derived(groupableFieldsOf(columnFields, useServerPagination));
-	let sortableFields = $derived(sortableFieldsOf(columnFields, useServerPagination));
+	// Only server-orderable fields whose column renders are offered: the client holds one page, and
+	// hiding a column takes its controls too.
+	let groupableFields = $derived(groupableFieldsOf(columnFields));
+	let sortableFields = $derived(sortableFieldsOf(columnFields));
 
 	// The group and sort actually in force. A choice restored from storage can
 	// name a field this list no longer offers, which then applies nothing rather
@@ -502,39 +487,22 @@
 			: { field: null, direction: sortState.direction }
 	);
 
-	// Apply all filters, sorting, and grouping
-	let processedItems = $derived.by(() => {
-		const serverMode = { tags: server.tags, fields: server.fields };
-
-		const result = items.filter((item) => {
-			// Search is skipped when the parent searches server-side — the rows that
-			// arrived are already the matches.
-			if (!server.search && !matchesSearch(item, fields, searchQuery)) return false;
-			return matchesFilters(item, fields, filterState, serverMode, getItemTags);
-		});
-
-		return sortItems(result, fields, activeSort, server.order, useServerPagination);
-	});
-
 	// Per-group totals across every page, when the server supplied them.
 	let serverGroupCounts = $derived(serverPagination?.group_counts ?? null);
 
 	// Group items by selected field
 	let groupedItems = $derived.by(() => {
 		if (!activeGroupField) {
-			return new SvelteMap([[common_all(), processedItems]]);
+			return new SvelteMap([[common_all(), items]]);
 		}
 
-		// A server-paginated page arrives in the server's group order, which the
-		// cumulative offsets from `serverGroupCounts` are indexed by, so its
-		// buckets keep that order.
-		return groupItemsBy(
-			processedItems,
-			fields,
-			activeGroupField,
-			{ ungrouped: common_ungrouped(), yes: common_yes(), no: common_no() },
-			serverGroupCounts !== null || useServerPagination
-		);
+		// The page arrives in the server's group order, which the cumulative offsets from
+		// `serverGroupCounts` are indexed by, so its buckets keep that order.
+		return groupItemsBy(items, fields, activeGroupField, {
+			ungrouped: common_ungrouped(),
+			yes: common_yes(),
+			no: common_no()
+		});
 	});
 
 	/**
@@ -543,10 +511,10 @@
 	 */
 	let treeEntries = $derived.by(() => {
 		if (!activeTree) return null;
-		const { tree, compare } = activeTree;
+		const tree = activeTree;
 		const entries = new SvelteMap<string, TreeEntry<T>[]>();
 		for (const [name, rows] of groupedItems) {
-			entries.set(name, buildTreeSections(rows, tree, useServerPagination, name, compare));
+			entries.set(name, buildTreeSections(rows, tree, name));
 		}
 		return entries;
 	});
@@ -554,10 +522,7 @@
 	/** The active group field, when its groups are trees. */
 	let activeTree = $derived.by(() => {
 		const field = fields.find((f) => getFieldKey(f) === activeGroupField);
-		// Siblings follow the active sort; with none, the grouped field's own order.
-		return field?.tree
-			? { tree: field.tree, compare: treeSiblingCompare(fields, activeSort, field.compare) }
-			: null;
+		return field?.tree ?? null;
 	});
 
 	/**
@@ -579,8 +544,7 @@
 
 	/**
 	 * How much of a group this page is showing, and how big the group really
-	 * is. Null when the server didn't supply totals — on an unpaginated list
-	 * the rendered count is already the whole group.
+	 * is. Null when the server didn't supply totals.
 	 */
 	function groupRange(groupItems: T[]): GroupSlice | null {
 		if (!serverPagination) return null;
@@ -604,7 +568,7 @@
 				rootRanges: null
 			};
 		});
-		return activeTree ? mergeRootedTrees(groups, activeTree.tree) : groups;
+		return activeTree ? mergeRootedTrees(groups, activeTree) : groups;
 	});
 
 	function toggleSort(fieldKey: string) {
@@ -634,9 +598,6 @@
 		},
 		set staleOnly(next) {
 			staleOnly = next;
-		},
-		get serverFields() {
-			return server.fields;
 		}
 	});
 
@@ -735,38 +696,24 @@
 	let hasActiveSearch = $derived(searchQuery.trim().length > 0);
 	let hasActiveGrouping = $derived(activeGroupField !== null);
 
-	guardServerPaginatedConfig(() => ({
+	guardServerFilters(() => ({
 		fields,
-		serverPaginated: useServerPagination,
-		server: { tags: server.tags, fields: server.fields }
+		server: { tags: server.tags }
 	}));
-	guardTableDefaults(() => ({ fields, defaults, serverPaginated: useServerPagination }));
+	guardTableDefaults(() => ({ fields, defaults }));
 
-	// Every pagination number comes from one resolution of "who is paginating",
-	// so the count and the rows beneath it cannot fall out of step. The server's
-	// total already accounts for search and filters, so there is no
-	// filtered-vs-unfiltered discrepancy left to paper over here.
-	let page = $derived(
-		paginationView(
-			useServerPagination ? serverPagination : null,
-			currentPage,
-			pageSize,
-			processedItems.length
-		)
-	);
+	// Every pagination number comes from the server's metadata, whose total already accounts for
+	// search and filters, so the count and the rows beneath it cannot fall out of step.
+	let page = $derived(paginationView(serverPagination, pageSize, items.length));
 	let effectiveCurrentPage = $derived(page.currentPage);
 	let totalPages = $derived(page.totalPages);
 	let totalCount = $derived(page.totalCount);
 	/** The filters and search match nothing, so the table gives way to an empty state with Clear. */
 	let matchesNothing = $derived(totalCount === 0 && (hasActiveFilters || hasActiveSearch));
 
-	let paginatedItems = $derived(
-		pageSlice(processedItems, effectiveCurrentPage, pageSize, useServerPagination)
-	);
-
 	/** Every row in the order the table renders it: the current page, or each group's rows in turn. */
 	let orderedItems = $derived(
-		hasActiveGrouping ? groupList.flatMap((group) => group.items) : paginatedItems
+		hasActiveGrouping ? groupList.flatMap((group) => group.items) : items
 	);
 
 	// Lets an open entity modal step to the previous or next row with the arrow keys.
@@ -907,7 +854,6 @@
 				search: sentSearch
 			},
 			fields,
-			defaults,
 			server
 		)
 	);
@@ -920,17 +866,13 @@
 		if (changed) resetToFirstPage();
 		if (changed || !queryNotified) {
 			queryNotified = true;
-			onQueryChange?.(viewParams.request);
+			onQueryChange(viewParams.request);
 		}
 	});
 
-	/** Move to a page, through the parent when it paginates. */
+	/** Move to a page: the parent fetches it. */
 	function goToPage(target: number, size: PageSizeOption = pageSize) {
-		if (useServerPagination && onPageChange) {
-			onPageChange(target, size);
-		} else {
-			currentPage = target;
-		}
+		onPageChange(target, size);
 	}
 
 	function handlePageSizeChange(newSize: PageSizeOption) {
@@ -1220,9 +1162,6 @@
 				onClearSelection={selectNone}
 				{clearShortcuts}
 				shortcutsPaused={searchFocused}
-				{useServerPagination}
-				processedCount={processedItems.length}
-				itemCount={items.length}
 				onPrevPage={() => page.canGoPrev && goToPage(effectiveCurrentPage - 1)}
 				onNextPage={() => page.canGoNext && goToPage(effectiveCurrentPage + 1)}
 				onPageSizeChange={handlePageSizeChange}
@@ -1277,7 +1216,7 @@
 			comparing — which is the whole reason to use a table.
 		-->
 		{@render tableFor(
-			hasActiveGrouping ? null : paginatedItems,
+			hasActiveGrouping ? null : items,
 			hasActiveGrouping ? null : tableCaptionText
 		)}
 	{/if}
@@ -1387,7 +1326,7 @@
 {/snippet}
 
 {#snippet headerControl(column: EntityColumn<T>)}
-	{@const control = columnControls(column.id, fields, useServerPagination, staleAvailable)}
+	{@const control = columnControls(column.id, fields, staleAvailable)}
 	{#if control}
 		<ColumnControlsMenu
 			{control}

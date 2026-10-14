@@ -1,11 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import {
-	isGroupableField,
-	isSortableField,
-	serverOrderViolations
-} from '$lib/shared/components/data/controls/sorting';
+import { isGroupableField, isSortableField } from '$lib/shared/components/data/controls/sorting';
 import { serverFilterViolations } from '$lib/shared/components/data/controls/filtering';
 import { columnControls } from '$lib/shared/components/data/controls/headerControls';
 import { getFieldKey, type FieldConfig } from '$lib/shared/components/data/types';
@@ -13,7 +9,6 @@ import {
 	FEATURES,
 	OPENAPI,
 	columnKeys,
-	dataControlsProps,
 	dataControlsServerQuery,
 	dataControlsTabs,
 	tabColumns,
@@ -434,8 +429,6 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 	const { fields: configs, problems: duplicates } = tabFields(tab);
 	if (duplicates.length > 0) return duplicates.map((problem) => `${tab}: ${problem}.`);
 
-	const props = dataControlsProps(tab);
-	const serverPaginated = props.has('serverPagination');
 	const server = dataControlsServerQuery(tab);
 	// The tab's order fields: the columns the server can sort and group by.
 	const variants = new Set(
@@ -443,14 +436,11 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 	);
 	const columns = columnKeys(tab);
 
-	if (serverPaginated && !decided.listPath) {
+	if (!decided.listPath) {
 		problems.push(
-			`${tab}: the tab is server-paginated but DECISIONS["${tab}"] has no listPath. Set it to ` +
+			`${tab}: DECISIONS["${tab}"] has no listPath. Set it to ` +
 				`the path of the GET operation that lists these rows.`
 		);
-	}
-	if (!serverPaginated && decided.listPath) {
-		problems.push(`${tab}: listPath is set but the tab is not server-paginated. Remove listPath.`);
 	}
 	const params = decided.listPath ? listQueryParams(decided.listPath) : undefined;
 	if (decided.listPath && !params) {
@@ -466,27 +456,15 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 		}
 	}
 
-	if (serverPaginated) {
-		for (const column of serverOrderViolations([...configs.values()], true)) {
-			problems.push(
-				`${tab}: display field "${column}" sets sortable or groupable on a server-paginated ` +
-					`list, which would order only the loaded page. Drop the flag, or add an ` +
-					`order field for it.`
-			);
-		}
-		for (const column of serverFilterViolations([...configs.values()], true, {
-			tags: server.tags,
-			fields: server.fields
-		})) {
-			const fix =
-				column === 'tags'
-					? 'Pass onQueryChange to DataControls and send its query, which carries tag_ids'
-					: "Mark it serverFiltered and give it the endpoint's queryParam";
-			problems.push(
-				`${tab}: "${column}" is filterable on a server-paginated list but not filtered by the ` +
-					`server, so it would narrow only the loaded page. ${fix}, or drop filterable.`
-			);
-		}
+	for (const column of serverFilterViolations([...configs.values()], { tags: server.tags })) {
+		const fix =
+			column === 'tags'
+				? 'Pass onQueryChange to DataControls and send its query, which carries tag_ids'
+				: "Mark it serverFiltered and give it the endpoint's queryParam";
+		problems.push(
+			`${tab}: "${column}" is filterable but not filtered by the server, so it would narrow ` +
+				`nothing. ${fix}, or drop filterable.`
+		);
 	}
 
 	for (const [column, decision] of Object.entries(decided.columns)) {
@@ -498,8 +476,8 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 		}
 		const config = configs.get(column);
 		const offered: Record<Capability, boolean> = {
-			sort: config ? isSortableField(config, serverPaginated) : false,
-			group: config ? isGroupableField(config, serverPaginated) : false,
+			sort: config ? isSortableField(config) : false,
+			group: config ? isGroupableField(config) : false,
 			filter: config?.filterable === true
 		};
 
@@ -520,10 +498,10 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 			}
 			const yes = choice === true || typeof choice === 'object';
 
-			if (serverPaginated && yes && capability !== 'filter' && !variants.has(column)) {
+			if (yes && capability !== 'filter' && !variants.has(column)) {
 				problems.push(
 					`${where} is true, but "${column}" is not an order field of the tab and a ` +
-						`server-paginated list ${VERB[capability]} only by order fields. Add the variant to ` +
+						`list ${VERB[capability]} only by order fields. Add the variant to ` +
 						`the backend order-field enum, or record the reason it does not ${capability}.`
 				);
 			} else if (yes && !offered[capability]) {
@@ -539,18 +517,14 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 			}
 
 			if (capability !== 'filter' || !yes) continue;
-			if (serverPaginated && choice === true) {
+			if (choice === true) {
 				problems.push(
-					`${where} is true on a server-paginated tab. Name the query parameter that applies ` +
+					`${where} is true. Name the query parameter that applies ` +
 						`it: { param: '…' } from GET ${decided.listPath}.`
 				);
 			}
 			if (typeof choice === 'object') {
-				if (!serverPaginated) {
-					problems.push(
-						`${where} names param "${choice.param}", but the tab filters client-side. Set it to true.`
-					);
-				} else if (params && !params.has(choice.param)) {
+				if (params && !params.has(choice.param)) {
 					problems.push(
 						`${where} names param "${choice.param}", which is not a query parameter of GET ` +
 							`${decided.listPath}. Use one of: ${[...params].join(', ')}.`
@@ -570,15 +544,13 @@ function headerControlProblems(tab: string): string[] {
 	const { fields, problems: duplicates } = tabFields(tab);
 	if (duplicates.length > 0) return duplicates.map((problem) => `${tab}: ${problem}.`);
 
-	const props = dataControlsProps(tab);
-	const serverPaginated = props.has('serverPagination');
 	const staleWired = dataControlsServerQuery(tab).stale;
 	const configs = [...fields.values()];
 	const problems: string[] = [];
 
 	for (const [column, config] of fields) {
 		const filters = config.filterable === true;
-		const groups = isGroupableField(config, serverPaginated);
+		const groups = isGroupableField(config);
 		if (!filters && !groups) continue;
 
 		if (config.display?.hidden === true) {
@@ -588,7 +560,7 @@ function headerControlProblems(tab: string): string[] {
 			);
 			continue;
 		}
-		const control = columnControls(column, configs, serverPaginated, staleWired);
+		const control = columnControls(column, configs, staleWired);
 		if (control?.filter !== filters || control?.group !== groups) {
 			problems.push(`${tab}: column "${column}" gets no header control for its flags.`);
 		}

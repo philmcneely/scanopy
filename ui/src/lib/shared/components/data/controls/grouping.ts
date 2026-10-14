@@ -39,16 +39,15 @@ export interface GroupLabels {
  * stringified `true`/`false`. The header is only a display key: matching a group
  * to its server total goes through `serverGroupKey`, which reads the raw value.
  *
- * When the server supplied group totals the rows already arrive in the server's
- * group order, so the buckets are left in insertion order — re-sorting here
- * would desync the headers from the cumulative offsets those totals index by.
+ * The rows arrive in the server's group order, so the buckets keep insertion
+ * order: re-sorting here would desync the headers from the cumulative offsets
+ * the server's totals index by.
  */
 export function groupItems<T>(
 	items: T[],
 	fields: FieldConfig<T>[],
 	groupFieldKey: string | null,
-	labels: GroupLabels,
-	preserveOrder: boolean
+	labels: GroupLabels
 ): Map<string, T[]> {
 	if (!groupFieldKey) return new Map();
 
@@ -67,25 +66,7 @@ export function groupItems<T>(
 		groups.get(groupKey)!.push(item);
 	});
 
-	if (preserveOrder) return groups;
-
-	// A field that orders its values (a CIDR, a tag group's tags) orders its groups the same way;
-	// every row of a group holds the same value, so its first row stands for it.
-	// The group of rows with no value comes last, as those rows do in a sort.
-	const compare = field.compare;
-	const missing = (item: T) => {
-		const value = getFieldValue(item, field);
-		return value === null || value === undefined;
-	};
-	return new Map(
-		[...groups.entries()].sort((a, b) => {
-			const [aMissing, bMissing] = [missing(a[1][0]), missing(b[1][0])];
-			if (aMissing !== bMissing) return aMissing ? 1 : -1;
-			return compare
-				? compare(a[1][0], b[1][0]) || a[0].localeCompare(b[0])
-				: a[0].localeCompare(b[0]);
-		})
-	);
+	return groups;
 }
 
 /**
@@ -198,28 +179,19 @@ const PATH_SEPARATOR = String.fromCharCode(0);
 /**
  * One group's rows as the nested sections the tree `tree` describes.
  *
- * Every row with children becomes a section: the row itself, with its children one level in.
- *
- * - With `serverPaginated` the rows keep the order they arrived in, which the server made
- *   parent-first across every page, and nesting comes from `tree.depth`. A row whose ancestors are
- *   on an earlier page starts at the top of the group.
- * - Otherwise every row is in hand, so nesting comes from `tree.parentKey`: a row whose parent is
- *   not in the group (filtered out, say) starts at the top. Siblings are ordered by `compare`
- *   when given, else kept in arrival order. A cycle is cut where it would repeat.
+ * Every row with children becomes a section: the row itself, with its children one level in. The
+ * rows keep the order they arrived in, which the server made parent-first across every page, and
+ * nesting comes from `tree.depth`. A row whose ancestors are on an earlier page starts at the top
+ * of the group.
  *
  * `groupKey` prefixes every section key, so the same row under two groupings keeps two states.
  */
 export function buildTreeSections<T>(
 	items: T[],
 	tree: TreeConfig<T>,
-	serverPaginated: boolean,
-	groupKey: string,
-	compare?: (a: T, b: T) => number
+	groupKey: string
 ): TreeEntry<T>[] {
-	const forest = serverPaginated
-		? forestFromDepths(items, tree)
-		: forestFromParents(items, tree, compare);
-	return forest.map((node) => toEntry(node, 0, groupKey, tree));
+	return forestFromDepths(items, tree).map((node) => toEntry(node, 0, groupKey, tree));
 }
 
 /**
@@ -266,44 +238,12 @@ function descendantCount<T>(node: TreeNode<T>): number {
 	return node.children.reduce((sum, child) => sum + 1 + descendantCount(child), 0);
 }
 
-function forestFromParents<T>(
-	items: T[],
-	tree: TreeConfig<T>,
-	compare?: (a: T, b: T) => number
-): TreeNode<T>[] {
-	const present = new Set(items.map((item) => tree.key(item)));
-	const children = new Map<string | null, T[]>();
-	for (const item of items) {
-		const parent = tree.parentKey(item);
-		const slot = parent !== null && present.has(parent) ? parent : null;
-		if (!children.has(slot)) children.set(slot, []);
-		children.get(slot)!.push(item);
-	}
-	if (compare) {
-		for (const siblings of children.values()) siblings.sort(compare);
-	}
-
-	const seen = new Set<string>();
-	const build = (parent: string | null): TreeNode<T>[] => {
-		const nodes: TreeNode<T>[] = [];
-		for (const item of children.get(parent) ?? []) {
-			const key = tree.key(item);
-			// A key seen twice would be a cycle; stop rather than recurse forever.
-			if (seen.has(key)) continue;
-			seen.add(key);
-			nodes.push({ item, children: build(key) });
-		}
-		return nodes;
-	};
-	return build(null);
-}
-
 function forestFromDepths<T>(items: T[], tree: TreeConfig<T>): TreeNode<T>[] {
 	const roots: TreeNode<T>[] = [];
 	// Open ancestors, deepest last. A row nests under the nearest one shallower than itself.
 	const stack: { depth: number; node: TreeNode<T> }[] = [];
 	for (const item of items) {
-		const depth = tree.depth?.(item) ?? 0;
+		const depth = tree.depth(item);
 		while (stack.length > 0 && stack[stack.length - 1].depth >= depth) stack.pop();
 		const node: TreeNode<T> = { item, children: [] };
 		if (stack.length > 0) stack[stack.length - 1].node.children.push(node);
@@ -311,18 +251,6 @@ function forestFromDepths<T>(items: T[], tree: TreeConfig<T>): TreeNode<T>[] {
 		stack.push({ depth, node });
 	}
 	return roots;
-}
-
-/**
- * Tree fields a server-paginated list cannot draw: without `depth` the client would have to
- * derive depth from the loaded page, which misses any parent on another page.
- */
-export function treeDepthViolations<T>(
-	fields: FieldConfig<T>[],
-	serverPaginated: boolean
-): string[] {
-	if (!serverPaginated) return [];
-	return fields.filter((field) => field.tree && !field.tree.depth).map(getFieldKey);
 }
 
 function groupLabel<T>(value: FieldValue, field: FieldConfig<T>, labels: GroupLabels): string {

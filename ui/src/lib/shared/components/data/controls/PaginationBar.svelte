@@ -41,10 +41,6 @@
 		canGoPrev,
 		canGoNext,
 		groupCount,
-		/** Client-side lists report "N of M loaded"; server-side reports the server's total. */
-		useServerPagination,
-		processedCount,
-		itemCount,
 		onPrevPage,
 		onNextPage,
 		onPageSizeChange,
@@ -67,9 +63,6 @@
 		canGoPrev: boolean;
 		canGoNext: boolean;
 		groupCount: number | null;
-		useServerPagination: boolean;
-		processedCount: number;
-		itemCount: number;
 		onPrevPage: () => void;
 		onNextPage: () => void;
 		onPageSizeChange: (size: PageSizeOption) => void;
@@ -269,17 +262,11 @@
 					total: totalCount,
 					itemLabel: totalCount === 1 ? common_item() : common_items()
 				})}
-			{:else if useServerPagination}
+			{:else}
 				{common_showingTotal({
 					count: totalCount,
 					total: totalCount,
 					itemLabel: totalCount === 1 ? common_item() : common_items()
-				})}
-			{:else}
-				{common_showingTotal({
-					count: processedCount,
-					total: itemCount,
-					itemLabel: itemCount === 1 ? common_item() : common_items()
 				})}
 			{/if}
 			{#if selectedCount > 0}

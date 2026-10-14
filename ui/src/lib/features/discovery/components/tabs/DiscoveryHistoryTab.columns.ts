@@ -213,7 +213,6 @@ export function discoveryHistoryColumns(ctx: DiscoveryHistoryColumnsContext) {
 				key: 'scan_mode',
 				label: discovery_scanMode(),
 				type: 'string',
-				groupable: false,
 				getValue: (item) =>
 					item.discovery_type.type === 'Unified'
 						? isFullScan(item.discovery_type)
