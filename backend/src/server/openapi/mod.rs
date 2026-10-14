@@ -47,6 +47,7 @@ use crate::server::shared::types::field_definition::{
     FieldDefinition, FieldType, InlineFormat, SelectOption,
 };
 use crate::server::shares::r#impl::base::Share;
+use crate::server::sites::handlers::SiteOrderField;
 use crate::server::sites::r#impl::Site;
 use crate::server::snapshots::types::base::Snapshot;
 use crate::server::subnets::handlers::SubnetOrderField;
@@ -122,6 +123,7 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         VlanOrderField,
         UserApiKeyOrderField,
         DaemonApiKeyOrderField,
+        SiteOrderField,
         // Derived staleness status. Not a field on any entity (it's computed
         // per-request against the site's window), so nothing else pulls it
         // into the schema — but the frontend must derive its union from here

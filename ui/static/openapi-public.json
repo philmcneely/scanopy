@@ -13229,6 +13229,155 @@
         "operationId": "get_all_sites",
         "parameters": [
           {
+            "name": "credential_ids",
+            "in": "query",
+            "description": "Only sites with one of these credentials assigned. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "effective_stale_after_hours",
+            "in": "query",
+            "description": "Only sites whose effective staleness window is one of these, in hours. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns sites that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the site's name and the names\nof its daemons, subnets and VLANs.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
@@ -13460,6 +13609,155 @@
         "operationId": "export_sites_csv",
         "parameters": [
           {
+            "name": "credential_ids",
+            "in": "query",
+            "description": "Only sites with one of these credentials assigned. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "effective_stale_after_hours",
+            "in": "query",
+            "description": "Only sites whose effective staleness window is one of these, in hours. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns sites that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the site's name and the names\nof its daemons, subnets and VLANs.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
@@ -13496,6 +13794,235 @@
               "text/csv": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sites/field-values/{field}": {
+      "get": {
+        "tags": [
+          "Sites"
+        ],
+        "summary": "List the values of a Site field",
+        "description": "Every distinct value of one Site field across the Sites the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.",
+        "operationId": "get_site_field_values",
+        "parameters": [
+          {
+            "name": "field",
+            "in": "path",
+            "description": "The field whose values to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SiteOrderField"
+            }
+          },
+          {
+            "name": "credential_ids",
+            "in": "query",
+            "description": "Only sites with one of these credentials assigned. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "effective_stale_after_hours",
+            "in": "query",
+            "description": "Only sites whose effective staleness window is one of these, in hours. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns sites that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the site's name and the names\nof its daemons, subnets and VLANs.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distinct values and their Site counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_Vec_GroupCount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -39606,6 +40133,16 @@
             "description": "Tags assigned to this entity."
           }
         }
+      },
+      "SiteOrderField": {
+        "type": "string",
+        "description": "Fields the sites list can be ordered and grouped by.",
+        "enum": [
+          "created_at",
+          "name",
+          "updated_at",
+          "effective_stale_after_hours"
+        ]
       },
       "SiteSetup": {
         "type": "object",

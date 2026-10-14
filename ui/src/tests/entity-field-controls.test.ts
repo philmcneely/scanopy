@@ -277,17 +277,18 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'sites/components/SitesTab.svelte': {
+		listPath: '/api/v1/sites',
 		columns: {
 			name: IDENTITY,
 			vlans: ownedArray('Each belongs to one site'),
 			daemons: ownedArray('Each belongs to one site'),
 			subnets: ownedArray('Each belongs to one site'),
 			// Credentials are shared across sites.
-			credentials: SHARED_ARRAY,
-			tags: SHARED_ARRAY,
+			credentials: { ...SHARED_ARRAY, filter: { param: 'credential_ids' } },
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } },
 			created_at: DATE,
 			updated_at: DATE,
-			effective_stale_after_hours: YES
+			effective_stale_after_hours: server('effective_stale_after_hours')
 		}
 	},
 	'users/components/UserTab.svelte': {

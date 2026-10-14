@@ -1185,6 +1185,8 @@ async fn order_fields_are_valid_sql_against_the_live_schema() {
     use crate::server::shared::handlers::ordering::{OrderField, apply_ordering};
     use crate::server::shared::handlers::query::OrderDirection;
     use crate::server::shared::storage::filter::StorableFilter;
+    use crate::server::sites::handlers::SiteOrderField;
+    use crate::server::sites::r#impl::Site;
     use crate::server::subnets::handlers::SubnetOrderField;
     use crate::server::tags::handlers::TagOrderField;
     use crate::server::user_api_keys::handlers::UserApiKeyOrderField;
@@ -1252,6 +1254,7 @@ async fn order_fields_are_valid_sql_against_the_live_schema() {
     all.extend(failures::<Vlan, VlanOrderField>(&pool).await);
     all.extend(failures::<UserApiKey, UserApiKeyOrderField>(&pool).await);
     all.extend(failures::<DaemonApiKey, DaemonApiKeyOrderField>(&pool).await);
+    all.extend(failures::<Site, SiteOrderField>(&pool).await);
 
     assert!(
         all.is_empty(),

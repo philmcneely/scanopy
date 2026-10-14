@@ -502,3 +502,76 @@ async fn every_documented_discovery_filter_narrows_the_rows() {
     )
     .await;
 }
+
+/// The sites list holds only the caller's sites, and its search reaches the names of what a
+/// site holds, so a site is found by one of its subnets.
+#[tokio::test]
+async fn sites_list_only_the_callers_and_search_reaches_their_subnets() {
+    use crate::server::sites::handlers::SiteListQuery;
+    use crate::server::sites::r#impl::Site;
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let (mine, hidden) = (site(&org.id), site(&org.id));
+    storage.sites.create(&mine).await.unwrap();
+    storage.sites.create(&hidden).await.unwrap();
+    let mut lab = subnet(&mine.id);
+    lab.base.name = "porto-lab".to_string();
+    storage.subnets.create(&lab).await.unwrap();
+
+    let scope = list_scope(&[mine.id], org.id);
+    let all = list_page::<Site>(&state, &scope, &SiteListQuery::default())
+        .await
+        .unwrap();
+    assert_eq!(
+        all.data.iter().map(|s| s.id).collect::<Vec<_>>(),
+        vec![mine.id],
+        "a site the caller can't reach is not listed"
+    );
+
+    let found = list_page::<Site>(
+        &state,
+        &scope,
+        &SiteListQuery {
+            search: Some("porto".to_string()),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        found.data.iter().map(|s| s.id).collect::<Vec<_>>(),
+        vec![mine.id]
+    );
+}
+
+/// Every filter the sites list documents narrows the rows.
+#[tokio::test]
+async fn every_documented_site_filter_narrows_the_rows() {
+    use crate::server::shared::handlers::query::narrowing_check::assert_every_param_narrows;
+    use crate::server::sites::handlers::SiteListQuery;
+
+    let scope = list_scope(&[Uuid::new_v4()], Uuid::new_v4());
+    let id = Uuid::new_v4().to_string();
+    assert_every_param_narrows(
+        |query: &SiteListQuery| query.narrow(&scope).expect("filter builds"),
+        &[
+            ("credential_ids", id.as_str()),
+            ("effective_stale_after_hours", "24"),
+            ("tag_ids", id.as_str()),
+            ("tag_sets", id.as_str()),
+            ("search", "porto"),
+        ],
+        &[
+            "limit",
+            "offset",
+            "group_by",
+            "order_by",
+            "order_direction",
+            "group_by_tag_group",
+            "order_by_tag_group",
+        ],
+    )
+    .await;
+}

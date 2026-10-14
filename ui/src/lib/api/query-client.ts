@@ -108,6 +108,7 @@ export const queryKeys = {
 	},
 	sites: {
 		all: ['sites'] as const,
+		fieldValues: () => [...queryKeys.sites.all, 'field-values'] as const,
 		detail: (id: string) => [...queryKeys.sites.all, 'detail', id] as const
 	},
 	subnets: {

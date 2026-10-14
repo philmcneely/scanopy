@@ -1,12 +1,16 @@
 use crate::server::shared::extractors::Query;
-use crate::server::shared::handlers::query::NoFilterQuery;
+use crate::server::shared::handlers::list::list_page;
+use crate::server::shared::handlers::ordering::OrderField;
+use crate::server::shared::handlers::query::{
+    FilterQueryExtractor, OrderDirection, PaginationParams,
+};
 use crate::server::shared::handlers::traits::{
-    BulkDeleteResponse, CrudHandlers, bulk_delete_handler, create_handler, delete_handler,
-    get_all_handler, update_handler,
+    BulkDeleteResponse, CrudHandlers, ListScope, bulk_delete_handler, create_handler,
+    delete_handler, update_handler,
 };
 use crate::server::shared::services::traits::{CrudService, EventBusService};
 use crate::server::shared::storage::filter::StorableFilter;
-use crate::server::shared::storage::traits::Entity;
+use crate::server::shared::storage::traits::{Entity, Storable};
 use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::api::PaginatedApiResponse;
 use crate::server::{
@@ -25,19 +29,119 @@ use crate::server::{
 use crate::server::{
     config::AppState,
     shared::types::api::{ApiResponse, ApiResult},
-    sites::r#impl::Site,
+    sites::r#impl::{DEFAULT_STALE_AFTER_HOURS, Site},
 };
 use axum::extract::{Path, State};
 use axum::response::Json;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 use uuid::Uuid;
+
+// ============================================================================
+// Site Ordering
+// ============================================================================
+
+/// The staleness window a site judges by, its own or the server default, in hours.
+static STALE_AFTER_HOURS_SQL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    format!("COALESCE(sites.stale_after_hours, {DEFAULT_STALE_AFTER_HOURS})")
+});
+
+/// Fields the sites list can be ordered and grouped by.
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, Default, utoipa::ToSchema, strum::EnumIter,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SiteOrderField {
+    #[default]
+    CreatedAt,
+    Name,
+    UpdatedAt,
+    /// The staleness window the site judges by, with the server default applied.
+    EffectiveStaleAfterHours,
+}
+
+impl OrderField for SiteOrderField {
+    fn to_sql(&self) -> &'static str {
+        match self {
+            Self::CreatedAt => "sites.created_at",
+            Self::Name => "sites.name",
+            Self::UpdatedAt => "sites.updated_at",
+            Self::EffectiveStaleAfterHours => STALE_AFTER_HOURS_SQL.as_str(),
+        }
+    }
+}
+
+// ============================================================================
+// Site List Query
+// ============================================================================
+
+/// Query parameters for filtering and ordering the sites list.
+#[derive(Deserialize, Default, Debug, Clone, IntoParams)]
+pub struct SiteListQuery {
+    /// Only sites with one of these credentials assigned. Repeat for several.
+    pub credential_ids: Option<Vec<Uuid>>,
+    /// Only sites whose effective staleness window is one of these, in hours. Repeat for
+    /// several.
+    pub effective_stale_after_hours: Option<Vec<i64>>,
+    /// Filter by tag IDs (returns sites that have ANY of the specified tags)
+    pub tag_ids: Option<Vec<Uuid>>,
+    /// Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of
+    /// tag ids. One entry per tag group the list is filtered by.
+    pub tag_sets: Option<Vec<String>>,
+    /// Free-text search. Case-insensitive substring match against the site's name and the names
+    /// of its daemons, subnets and VLANs.
+    pub search: Option<String>,
+    /// Primary ordering field (used for grouping). Always sorts ASC to keep groups together.
+    pub group_by: Option<SiteOrderField>,
+    /// Secondary ordering field (sorting within groups or standalone sort).
+    pub order_by: Option<SiteOrderField>,
+    /// Group by the tag each row holds from this tag group. Takes the place of `group_by`.
+    pub group_by_tag_group: Option<Uuid>,
+    /// Sort by the position of the tag each row holds from this tag group. Takes the place of
+    /// `order_by`.
+    pub order_by_tag_group: Option<Uuid>,
+    /// Direction for order_by field (group_by always uses ASC).
+    pub order_direction: Option<OrderDirection>,
+    /// Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.
+    #[param(minimum = 0, maximum = 1000)]
+    pub limit: Option<u32>,
+    /// Number of results to skip. Default: 0.
+    #[param(minimum = 0)]
+    pub offset: Option<u32>,
+}
+
+impl FilterQueryExtractor for SiteListQuery {
+    fn apply_to_filter<T: Storable>(
+        &self,
+        filter: StorableFilter<T>,
+        _user_site_ids: &[Uuid],
+        _user_organization_id: Uuid,
+    ) -> StorableFilter<T> {
+        match &self.effective_stale_after_hours {
+            Some(hours) if !hours.is_empty() => filter.expr_text_in(
+                STALE_AFTER_HOURS_SQL.as_str(),
+                &hours.iter().map(i64::to_string).collect::<Vec<_>>(),
+            ),
+            _ => filter,
+        }
+    }
+
+    fn pagination(&self) -> PaginationParams {
+        PaginationParams {
+            limit: self.limit,
+            offset: self.offset,
+        }
+    }
+}
 
 // Generated handlers for operations that use generic CRUD logic
 mod generated {
     use super::*;
     // get_all and get_by_id are now custom (below) to hydrate credential_ids
     crate::crud_export_csv_handler!(Site);
+    crate::crud_get_field_values_handler!(Site);
 }
 
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
@@ -46,6 +150,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(get_by_id_site, update_site, delete_site))
         .routes(routes!(bulk_delete_sites))
         .routes(routes!(generated::export_csv))
+        .routes(routes!(generated::get_field_values))
 }
 
 /// List all sites
@@ -53,7 +158,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
     get,
     path = "",
     tag = Site::ENTITY_NAME_PLURAL,
-    params(NoFilterQuery),
+    params(SiteListQuery),
     responses(
         (status = 200, description = "List of sites", body = inline(PaginatedApiResponse<Site>)),
     ),
@@ -62,23 +167,11 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 async fn get_all_sites(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Viewer>,
-    query: Query<NoFilterQuery>,
+    Query(query): Query<SiteListQuery>,
 ) -> ApiResult<Json<PaginatedApiResponse<Site>>> {
-    let mut response = get_all_handler::<Site>(State(state.clone()), auth, query).await?;
-
-    // Hydrate credential_ids from junction table
-    let site_ids: Vec<Uuid> = response.data.iter().map(|n| n.id).collect();
-    let cred_map = state
-        .services
-        .credential_service
-        .get_credential_ids_for_sites(&site_ids)
-        .await
-        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
-    for site in &mut response.data {
-        site.base.credential_ids = Some(cred_map.get(&site.id).cloned().unwrap_or_default());
-    }
-
-    Ok(response)
+    // Sites are scoped to the caller's own sites by `StorableFilter::new_for_access`.
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Site>(&state, &scope, &query).await?))
 }
 
 /// Get a site by ID

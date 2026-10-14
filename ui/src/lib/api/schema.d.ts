@@ -3095,6 +3095,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sites/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Site field
+         * @description Every distinct value of one Site field across the Sites the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_site_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sites/{id}": {
         parameters: {
             query?: never;
@@ -14206,6 +14226,11 @@ export interface components {
             /** @description Tags assigned to this entity. */
             tags: string[];
         };
+        /**
+         * @description Fields the sites list can be ordered and grouped by.
+         * @enum {string}
+         */
+        SiteOrderField: "created_at" | "name" | "updated_at" | "effective_stale_after_hours";
         /** @description Site configuration for setup */
         SiteSetup: {
             /** @description Name for the site created during setup. */
@@ -23460,6 +23485,38 @@ export interface operations {
     get_all_sites: {
         parameters: {
             query?: {
+                /** @description Only sites with one of these credentials assigned. Repeat for several. */
+                credential_ids?: string[] | null;
+                /**
+                 * @description Only sites whose effective staleness window is one of these, in hours. Repeat for
+                 *     several.
+                 */
+                effective_stale_after_hours?: number[] | null;
+                /** @description Filter by tag IDs (returns sites that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /**
+                 * @description Free-text search. Case-insensitive substring match against the site's name and the names
+                 *     of its daemons, subnets and VLANs.
+                 */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["SiteOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["SiteOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -23578,6 +23635,38 @@ export interface operations {
     export_sites_csv: {
         parameters: {
             query?: {
+                /** @description Only sites with one of these credentials assigned. Repeat for several. */
+                credential_ids?: string[] | null;
+                /**
+                 * @description Only sites whose effective staleness window is one of these, in hours. Repeat for
+                 *     several.
+                 */
+                effective_stale_after_hours?: number[] | null;
+                /** @description Filter by tag IDs (returns sites that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /**
+                 * @description Free-text search. Case-insensitive substring match against the site's name and the names
+                 *     of its daemons, subnets and VLANs.
+                 */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["SiteOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["SiteOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -23596,6 +23685,75 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_site_field_values: {
+        parameters: {
+            query?: {
+                /** @description Only sites with one of these credentials assigned. Repeat for several. */
+                credential_ids?: string[] | null;
+                /**
+                 * @description Only sites whose effective staleness window is one of these, in hours. Repeat for
+                 *     several.
+                 */
+                effective_stale_after_hours?: number[] | null;
+                /** @description Filter by tag IDs (returns sites that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /**
+                 * @description Free-text search. Case-insensitive substring match against the site's name and the names
+                 *     of its daemons, subnets and VLANs.
+                 */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["SiteOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["SiteOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["SiteOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Site counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };
