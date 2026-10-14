@@ -18,7 +18,7 @@ use crate::server::credentials::handlers::CredentialOrderField;
 use crate::server::credentials::r#impl::base::Credential;
 use crate::server::credentials::r#impl::types::{
     CredentialIntegration, CredentialOsFields, CredentialStability, CredentialTypeDiscriminants,
-    UpstreamSupport,
+    OsFamily, Target, UpstreamSupport,
 };
 use crate::server::daemon_api_keys::handlers::DaemonApiKeyOrderField;
 use crate::server::daemon_api_keys::r#impl::base::DaemonApiKey;
@@ -171,6 +171,9 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         CredentialTypeDiscriminants,
         // Referenced by the host-list `?sources` filter, for the same reason.
         EntitySourceDiscriminants,
+        // Referenced by the credential-list `?targets` and `?daemon_os` filters, for the same reason.
+        Target,
+        OsFamily,
         // Dynamic form metadata. Travels to the frontend inside the untyped `TypeMetadata.metadata`
         // blob and the scan-settings fixture, so nothing else pulls it into the schema — but the
         // frontend must derive its `field_type` union from here rather than hand-maintaining one.

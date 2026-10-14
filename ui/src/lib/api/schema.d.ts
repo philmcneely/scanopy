@@ -7777,7 +7777,7 @@ export interface components {
          */
         CredentialIntegration: "Snmp" | "Gnmi" | "Docker" | "Podman" | "UnifiController" | "InstantOn" | "Ssh" | "WakeOnLan" | "Proxmox";
         /** @enum {string} */
-        CredentialOrderField: "created_at" | "name" | "updated_at";
+        CredentialOrderField: "created_at" | "name" | "updated_at" | "credential_type" | "integration" | "beta" | "unofficial_api" | "daemon_os";
         /**
          * @description Which fields depend on the credential's Daemon OS. Computed from the field definitions, so the
          *     form places the Daemon OS picker without its own rule: with the one field that depends on it, or
@@ -14654,6 +14654,8 @@ export interface components {
             /** @description Every tag in the group, each once, in the order to list them. */
             tag_ids: string[];
         };
+        /** @enum {string} */
+        Target: "DaemonHost" | "Site" | "Hosts";
         /** @description Request to test reachability of a daemon URL. */
         TestReachabilityRequest: {
             /** @description If true, also perform an HTTP GET to {url}/health after the TCP check */
@@ -18424,12 +18426,46 @@ export interface operations {
     get_all_credentials: {
         parameters: {
             query?: {
-                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). */
-                type?: null | components["schemas"]["CredentialTypeDiscriminants"];
+                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several. */
+                type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
+                /** @description Only credentials of one of these integrations. Repeat for several. */
+                integrations?: components["schemas"]["CredentialIntegration"][] | null;
+                /**
+                 * @description Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).
+                 *     Sent empty, matches none.
+                 */
+                beta?: boolean[] | null;
+                /**
+                 * @description Only credentials whose type reads an unpublished API (`true`), a published one (`false`),
+                 *     or both (repeat it). Sent empty, matches none.
+                 */
+                unofficial_api?: boolean[] | null;
+                /** @description Only credentials whose type can be applied to one of these targets. Repeat for several. */
+                targets?: components["schemas"]["Target"][] | null;
+                /** @description Only file and socket credentials for one of these daemon OS families. Repeat for several. */
+                daemon_os?: components["schemas"]["OsFamily"][] | null;
+                /** @description Only credentials assigned to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns credentials that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the credential must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["CredentialOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
                 order_by?: null | components["schemas"]["CredentialOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
                 order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
@@ -18557,12 +18593,46 @@ export interface operations {
     export_credentials_csv: {
         parameters: {
             query?: {
-                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). */
-                type?: null | components["schemas"]["CredentialTypeDiscriminants"];
+                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several. */
+                type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
+                /** @description Only credentials of one of these integrations. Repeat for several. */
+                integrations?: components["schemas"]["CredentialIntegration"][] | null;
+                /**
+                 * @description Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).
+                 *     Sent empty, matches none.
+                 */
+                beta?: boolean[] | null;
+                /**
+                 * @description Only credentials whose type reads an unpublished API (`true`), a published one (`false`),
+                 *     or both (repeat it). Sent empty, matches none.
+                 */
+                unofficial_api?: boolean[] | null;
+                /** @description Only credentials whose type can be applied to one of these targets. Repeat for several. */
+                targets?: components["schemas"]["Target"][] | null;
+                /** @description Only file and socket credentials for one of these daemon OS families. Repeat for several. */
+                daemon_os?: components["schemas"]["OsFamily"][] | null;
+                /** @description Only credentials assigned to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns credentials that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the credential must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["CredentialOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
                 order_by?: null | components["schemas"]["CredentialOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
                 order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */

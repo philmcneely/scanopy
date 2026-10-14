@@ -12,6 +12,14 @@ impl<T: Storable> StorableFilter<T> {
         self
     }
 
+    /// Rows whose `expr`, read as text, is one of `values`. For a filter on the same expression an
+    /// order field sorts and groups by, so a derived column filters on exactly what it shows.
+    /// `expr` is SQL written in code, never request input; the values are bound.
+    pub fn expr_text_in(mut self, expr: &str, values: &[String]) -> Self {
+        self.push_text_in(format!("({expr})::text"), values.iter().cloned());
+        self
+    }
+
     /// Rows whose boolean `column` holds one of `values`. Both values match every row with one;
     /// none matches nothing.
     pub fn bool_column_in(mut self, column: &str, values: &[bool]) -> Self {

@@ -211,3 +211,144 @@ async fn user_api_keys_list_only_the_callers_own() {
         .unwrap();
     assert_eq!(options.iter().map(|g| g.count).sum::<u64>(), 1);
 }
+
+/// Credentials sort, group and filter on what their type's metadata says, through the SQL built
+/// from that metadata: integration, beta, and the targets a type can be applied to. Another
+/// organization's credentials never appear.
+#[tokio::test]
+async fn credentials_group_and_filter_on_their_types_metadata() {
+    use crate::server::credentials::handlers::{CredentialFilterQuery, CredentialOrderField};
+    use crate::server::credentials::r#impl::base::{Credential, CredentialBase};
+    use crate::server::credentials::r#impl::types::Target;
+    use crate::server::credentials::r#impl::types::{
+        CredentialIntegration, CredentialTypeDiscriminants,
+    };
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let other_org = organization();
+    storage.organizations.create(&other_org).await.unwrap();
+
+    let credential = |organization_id: Uuid, t: CredentialTypeDiscriminants| {
+        Credential::new(CredentialBase {
+            name: format!("{t}"),
+            organization_id,
+            credential_type: t.to_credential_type(),
+            ..Default::default()
+        })
+    };
+    let snmp = credential(org.id, CredentialTypeDiscriminants::SnmpV2c);
+    let gnmi = credential(org.id, CredentialTypeDiscriminants::Gnmi);
+    let docker = credential(org.id, CredentialTypeDiscriminants::DockerSocket);
+    for c in [&snmp, &gnmi, &docker] {
+        storage.credentials.create(c).await.unwrap();
+    }
+    storage
+        .credentials
+        .create(&credential(
+            other_org.id,
+            CredentialTypeDiscriminants::SnmpV3,
+        ))
+        .await
+        .unwrap();
+    let scope = list_scope(&[], org.id);
+
+    let grouped = CredentialFilterQuery {
+        group_by: Some(CredentialOrderField::Integration),
+        ..Default::default()
+    };
+    let page = list_page::<Credential>(&state, &scope, &grouped)
+        .await
+        .unwrap();
+    let mut groups = counts(page.meta.pagination.group_counts.as_deref());
+    groups.sort();
+    assert_eq!(
+        groups,
+        vec![
+            ("Docker".to_string(), 1),
+            ("Gnmi".to_string(), 1),
+            ("Snmp".to_string(), 1)
+        ],
+        "grouped by the integration id the UI groups on, and only this organization's"
+    );
+
+    let ids = |query: CredentialFilterQuery| {
+        let state = &state;
+        let scope = &scope;
+        async move {
+            let mut ids: Vec<Uuid> = list_page::<Credential>(state, scope, &query)
+                .await
+                .unwrap()
+                .data
+                .iter()
+                .map(|c| c.id)
+                .collect();
+            ids.sort();
+            ids
+        }
+    };
+    let mut snmp_and_gnmi = vec![snmp.id, gnmi.id];
+    snmp_and_gnmi.sort();
+
+    assert_eq!(
+        ids(CredentialFilterQuery {
+            integrations: Some(vec![CredentialIntegration::Docker]),
+            ..Default::default()
+        })
+        .await,
+        vec![docker.id]
+    );
+    assert_eq!(
+        ids(CredentialFilterQuery {
+            beta: Some(vec![true]),
+            ..Default::default()
+        })
+        .await,
+        vec![gnmi.id]
+    );
+    // A socket reaches only the daemon's own host; SNMP and gNMI can broadcast to a site.
+    assert_eq!(
+        ids(CredentialFilterQuery {
+            targets: Some(vec![Target::Site]),
+            ..Default::default()
+        })
+        .await,
+        snmp_and_gnmi
+    );
+}
+
+/// Every filter the credentials list documents narrows the rows.
+#[tokio::test]
+async fn every_documented_credential_filter_narrows_the_rows() {
+    use crate::server::credentials::handlers::CredentialFilterQuery;
+    use crate::server::shared::handlers::query::narrowing_check::assert_every_param_narrows;
+
+    let scope = list_scope(&[Uuid::new_v4()], Uuid::new_v4());
+    let id = Uuid::new_v4().to_string();
+    assert_every_param_narrows(
+        |query: &CredentialFilterQuery| query.narrow(&scope).expect("filter builds"),
+        &[
+            ("type", "SnmpV2c"),
+            ("integrations", "Docker"),
+            ("beta", "true"),
+            ("unofficial_api", "true"),
+            ("targets", "Site"),
+            ("daemon_os", "Windows"),
+            ("site_ids", id.as_str()),
+            ("tag_ids", id.as_str()),
+            ("tag_sets", id.as_str()),
+            ("search", "lab"),
+        ],
+        &[
+            "limit",
+            "offset",
+            "group_by",
+            "order_by",
+            "order_direction",
+            "group_by_tag_group",
+            "order_by_tag_group",
+        ],
+    )
+    .await;
+}

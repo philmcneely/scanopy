@@ -343,20 +343,21 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'credentials/components/CredentialsTab.svelte': {
+		listPath: '/api/v1/credentials',
 		columns: {
 			name: IDENTITY,
 			created_at: DATE,
 			updated_at: DATE,
-			daemon_os: YES,
-			credential_type: YES,
-			integration: YES,
-			beta: BOOLEAN,
-			unofficial_api: BOOLEAN,
+			daemon_os: server('daemon_os'),
+			credential_type: server('type'),
+			integration: server('integrations'),
+			beta: server('beta'),
+			unofficial_api: server('unofficial_api'),
 			description: TEXT,
-			assigned_sites: SHARED_ARRAY,
+			assigned_sites: { ...SHARED_ARRAY, filter: { param: 'site_ids' } },
 			assigned_hosts: ownedArray(SEARCH),
-			target: SHARED_ARRAY,
-			tags: SHARED_ARRAY
+			target: { ...SHARED_ARRAY, filter: { param: 'targets' } },
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } }
 		}
 	},
 	'vlans/components/VlanTab.svelte': {

@@ -2766,16 +2766,149 @@
           {
             "name": "type",
             "in": "query",
-            "description": "Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`).",
+            "description": "Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several.",
             "required": false,
             "schema": {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/components/schemas/CredentialTypeDiscriminants"
-                }
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/CredentialTypeDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "integrations",
+            "in": "query",
+            "description": "Only credentials of one of these integrations. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/CredentialIntegration"
+              }
+            }
+          },
+          {
+            "name": "beta",
+            "in": "query",
+            "description": "Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).\nSent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "unofficial_api",
+            "in": "query",
+            "description": "Only credentials whose type reads an unpublished API (`true`), a published one (`false`),\nor both (repeat it). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "targets",
+            "in": "query",
+            "description": "Only credentials whose type can be applied to one of these targets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/Target"
+              }
+            }
+          },
+          {
+            "name": "daemon_os",
+            "in": "query",
+            "description": "Only file and socket credentials for one of these daemon OS families. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/OsFamily"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Only credentials assigned to one of these sites. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns credentials that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the credential must hold one tag from each of. Each entry is a comma-separated\nlist of tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
               ]
             }
           },
@@ -2809,6 +2942,32 @@
                   "$ref": "#/components/schemas/CredentialOrderField"
                 }
               ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -3046,16 +3205,149 @@
           {
             "name": "type",
             "in": "query",
-            "description": "Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`).",
+            "description": "Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several.",
             "required": false,
             "schema": {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/components/schemas/CredentialTypeDiscriminants"
-                }
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/CredentialTypeDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "integrations",
+            "in": "query",
+            "description": "Only credentials of one of these integrations. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/CredentialIntegration"
+              }
+            }
+          },
+          {
+            "name": "beta",
+            "in": "query",
+            "description": "Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).\nSent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "unofficial_api",
+            "in": "query",
+            "description": "Only credentials whose type reads an unpublished API (`true`), a published one (`false`),\nor both (repeat it). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "targets",
+            "in": "query",
+            "description": "Only credentials whose type can be applied to one of these targets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/Target"
+              }
+            }
+          },
+          {
+            "name": "daemon_os",
+            "in": "query",
+            "description": "Only file and socket credentials for one of these daemon OS families. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/OsFamily"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Only credentials assigned to one of these sites. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns credentials that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the credential must hold one tag from each of. Each entry is a comma-separated\nlist of tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
               ]
             }
           },
@@ -3089,6 +3381,32 @@
                   "$ref": "#/components/schemas/CredentialOrderField"
                 }
               ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -23959,7 +24277,12 @@
         "enum": [
           "created_at",
           "name",
-          "updated_at"
+          "updated_at",
+          "credential_type",
+          "integration",
+          "beta",
+          "unofficial_api",
+          "daemon_os"
         ]
       },
       "CredentialOsFields": {
@@ -39292,6 +39615,14 @@
             "description": "Every tag in the group, each once, in the order to list them."
           }
         }
+      },
+      "Target": {
+        "type": "string",
+        "enum": [
+          "DaemonHost",
+          "Site",
+          "Hosts"
+        ]
       },
       "TestReachabilityRequest": {
         "type": "object",

@@ -84,6 +84,33 @@ impl OrderField for NoOrderField {
 }
 
 // ============================================================================
+// Expressions derived from code
+// ============================================================================
+
+/// `CASE expr WHEN 'k' THEN 'v' … END`: a value derived in code (a credential type's integration,
+/// say) as SQL a list can sort, group and filter on. Build `arms` by iterating the enum and calling
+/// its exhaustive match, so the SQL can't drift from the code. Keys and values are identifiers
+/// written in code, never request input, so they are inlined.
+pub fn case_sql<'a>(expr: &str, arms: impl IntoIterator<Item = (&'a str, &'a str)>) -> String {
+    let arms: String = arms
+        .into_iter()
+        .map(|(when, then)| format!(" WHEN '{when}' THEN '{then}'"))
+        .collect();
+    format!("(CASE {expr}{arms} END)")
+}
+
+/// `(expr IN ('a', …))`, a boolean derived in code (whether a credential type is in beta, say), with
+/// the same rules as [`case_sql`]. `FALSE` when no value qualifies.
+pub fn in_sql<'a>(expr: &str, values: impl IntoIterator<Item = &'a str>) -> String {
+    let values: Vec<String> = values.into_iter().map(|v| format!("'{v}'")).collect();
+    if values.is_empty() {
+        "FALSE".to_string()
+    } else {
+        format!("({expr} IN ({}))", values.join(", "))
+    }
+}
+
+// ============================================================================
 // Generic apply_ordering Function
 // ============================================================================
 

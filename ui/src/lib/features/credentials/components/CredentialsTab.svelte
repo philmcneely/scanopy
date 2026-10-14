@@ -2,6 +2,7 @@
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import {
 		useCredentialsQuery,
+		useCredentialsListQuery,
 		useCreateCredentialMutation,
 		useUpdateCredentialMutation,
 		useDeleteCredentialMutation,
@@ -30,6 +31,7 @@
 	} from '$lib/shared/stores/modal-registry';
 	import type { TabProps } from '$lib/shared/types';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { useHostsByIds } from '$lib/features/hosts/queries';
 	import type { Host } from '$lib/features/hosts/types/base';
@@ -79,7 +81,11 @@
 	const organizationQuery = useOrganizationQuery();
 	let organization = $derived(organizationQuery.data);
 
+	// Every credential, for the deep link: it can name one on another page.
 	const credentialsQuery = useCredentialsQuery();
+	// The page the table shows, paged, filtered and ordered on the server.
+	const page = listPageState();
+	const credentialsPageQuery = useCredentialsListQuery(() => page.params());
 	const createCredentialMutation = useCreateCredentialMutation();
 	const updateCredentialMutation = useUpdateCredentialMutation();
 	const deleteCredentialMutation = useDeleteCredentialMutation();
@@ -94,6 +100,8 @@
 
 	// Derived state
 	let credentials = $derived(credentialsQuery.data ?? []);
+	let pageCredentials = $derived(credentialsPageQuery.data?.items ?? []);
+	let credentialsPagination = $derived(credentialsPageQuery.data?.pagination ?? null);
 
 	// Which hosts a credential is assigned to is already on the credential —
 	// `host_assignments` is hydrated from the same `host_credentials` junction
@@ -107,7 +115,7 @@
 	// with every other consumer, so it loaded on pages that never showed a
 	// credential.
 	let assignedHostIds = $derived([
-		...new Set(credentials.flatMap((c) => (c.host_assignments ?? []).map((a) => a.host_id)))
+		...new Set(pageCredentials.flatMap((c) => (c.host_assignments ?? []).map((a) => a.host_id)))
 	]);
 	const assignedHostsQuery = useHostsByIds(() => assignedHostIds);
 	let assignedHostsData = $derived(assignedHostsQuery.data ?? []);
@@ -144,7 +152,7 @@
 		if (applicable) return items;
 		return [{ id: 'not-applicable', label: common_notApplicable(), color: 'Gray' }];
 	}
-	let isLoading = $derived(credentialsQuery.isLoading);
+	let isLoading = $derived(credentialsPageQuery.isPending && !credentialsPageQuery.data);
 
 	// Demo mode check
 	let isDemoOrg = $derived(
@@ -261,14 +269,14 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('Credential', {});
+		await downloadCsv('Credential', page.listQuery);
 	}
 
 	function getCredentialTags(credential: Credential): string[] {
 		return credential.tags;
 	}
 
-	const tableDefaults: TableDefaults<CredentialOrderField | 'credential_type' | 'integration'> = {
+	const tableDefaults: TableDefaults<CredentialOrderField> = {
 		group: 'integration',
 		sort: { field: 'name', direction: 'asc' }
 	};
@@ -298,7 +306,7 @@
 <div class="space-y-6">
 	{#if isLoading}
 		<Loading />
-	{:else if credentials.length === 0}
+	{:else if pageCredentials.length === 0 && !page.isNarrowed}
 		<EmptyState
 			title={common_noEntityYet({ entity: common_credentials() })}
 			subtitle={credentials_emptySubtitle()}
@@ -310,7 +318,7 @@
 			title={common_credentials()}
 			subtitle={credentials_subtitle()}
 			{toolbarActions}
-			items={credentials}
+			items={pageCredentials}
 			fields={credentialFields}
 			{allowBulkDelete}
 			canDeleteItem={(item) => !item.is_default}
@@ -321,6 +329,10 @@
 			canEditTags={allowBulkDelete}
 			getItemTags={getCredentialTags}
 			getItemId={(item) => item.id}
+			serverPagination={credentialsPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			onCsvExport={handleCsvExport}
 			getActions={credentialActions}
 			entityLabel={common_credentials()}
