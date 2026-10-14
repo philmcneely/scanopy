@@ -35,7 +35,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use uuid::Uuid;
 
 /// Whether a group is one every organization has, from `TagGroupType::is_system`.
-static SYSTEM_SQL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+pub(crate) static SYSTEM_SQL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
     let names: Vec<String> = TagGroupType::system().map(|t| t.to_string()).collect();
     in_sql("tag_groups.group_type", names.iter().map(String::as_str))
 });

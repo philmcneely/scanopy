@@ -1,18 +1,23 @@
 import { defineRegistryFields } from '$lib/shared/entity-fields/table';
 import type { EntityLookup } from '$lib/shared/entity-fields';
-import type { components } from '$lib/api/schema';
-import { compareTagsByGroup, groupOf, tagGroupLabel, tagIcon } from '../groups';
+import type { components, operations } from '$lib/api/schema';
+import { fieldValueOptions, type FieldValueCount } from '$lib/shared/api/field-values';
+import { groupOf, tagGroupLabel, tagGroupServerKey, tagIcon } from '../groups';
 import { tagItems } from '../columns';
 import type { Tag, TagGroup } from '../types/base';
 import { common_created, common_updated, tags_tagGroup } from '$lib/paraglide/messages';
 
 type TagOrderField = components['schemas']['TagOrderField'];
+/** The tags list endpoint's query params, which the filters are sent and linked as. */
+type TagListParam = keyof NonNullable<operations['get_all_tags']['parameters']['query']>;
 
 /** What the tag columns read from the tab, each as a getter so values stay live. */
 export interface TagColumnsContext {
 	lookup: () => EntityLookup;
 	tagGroups: () => TagGroup[];
 	applicationGroup: () => string | null;
+	colorValues: () => FieldValueCount[] | undefined;
+	iconValues: () => FieldValueCount[] | undefined;
 }
 
 /**
@@ -20,7 +25,7 @@ export interface TagColumnsContext {
  * sorts. Every TagOrderField value must be listed.
  */
 export function tagColumns(ctx: TagColumnsContext) {
-	return defineRegistryFields<Tag, TagOrderField>(
+	return defineRegistryFields<Tag, TagOrderField, TagListParam>(
 		'Tag',
 		ctx.lookup,
 		{
@@ -36,8 +41,11 @@ export function tagColumns(ctx: TagColumnsContext) {
 				}
 			},
 			color: {
-				searchable: true,
 				filterable: true,
+				serverFiltered: true,
+				queryParam: 'colors',
+				// The colours some tag has.
+				filterOptions: fieldValueOptions(ctx.colorValues()),
 				// A colour name is worth showing in its own colour. Hidden by default: the name column
 				// already draws it, so this column is there to group and filter by.
 				display: {
@@ -54,23 +62,24 @@ export function tagColumns(ctx: TagColumnsContext) {
 			tag_group: {
 				label: tags_tagGroup(),
 				filterable: true,
+				serverFiltered: true,
+				queryParam: 'tag_group_ids',
+				filterOptions: ctx.tagGroups().map((group) => group.id),
 				// A system group reads under its translated name.
 				getValue: (tag) => tagGroupLabel(groupOf(tag, ctx.tagGroups())),
 				getFilterValue: (tag) => tag.tag_group_id ?? null,
 				filterLabel: (id) => tagGroupLabel(ctx.tagGroups().find((group) => group.id === id)) ?? id,
-				// Groups in the server's order, each group's tags in its own order.
-				compare: compareTagsByGroup(ctx.tagGroups())
+				// The server groups in the tag groups list's order, under this key.
+				getGroupValue: (tag) => tagGroupServerKey(groupOf(tag, ctx.tagGroups()))
 			},
-			created_at: { label: common_created(), type: 'date', display: { hiddenByDefault: true } },
-			updated_at: { label: common_updated(), type: 'date', display: { hiddenByDefault: true } }
-		},
-		[
-			{ key: 'description', searchable: true },
-			{
-				// Hidden by default for the same reason as colour: the name column draws the icon.
-				key: 'icon',
+			// Hidden by default for the same reason as colour: the name column draws the icon.
+			icon: {
 				filterable: true,
-				groupable: true,
+				serverFiltered: true,
+				queryParam: 'icons',
+				// The icons some tag has.
+				filterOptions: fieldValueOptions(ctx.iconValues()),
+				getGroupValue: (tag) => tag.icon ?? null,
 				display: {
 					hiddenByDefault: true,
 					getItems: (tag) => {
@@ -78,7 +87,10 @@ export function tagColumns(ctx: TagColumnsContext) {
 						return icon && tag.icon ? [{ id: tag.icon, label: tag.icon, icon }] : [];
 					}
 				}
-			}
-		]
+			},
+			created_at: { label: common_created(), type: 'date', display: { hiddenByDefault: true } },
+			updated_at: { label: common_updated(), type: 'date', display: { hiddenByDefault: true } }
+		},
+		[{ key: 'description' }]
 	);
 }

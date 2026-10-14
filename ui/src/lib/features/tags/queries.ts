@@ -10,7 +10,7 @@ import { apiClient } from '$lib/api/client';
 import { requireSuccess, unwrapData } from '$lib/api/query-helpers';
 import type { Tag, TagGroup } from './types/base';
 import type { components } from '$lib/api/schema';
-import { useListPageQuery, type ListPageParams } from '$lib/api/list-page';
+import { invalidateListPages, useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 
 // Types for tag assignment operations
 export type EntityDiscriminants = components['schemas']['EntityDiscriminants'];
@@ -47,6 +47,7 @@ export function useCreateTagMutation() {
 			return unwrapData(await apiClient.POST('/api/v1/tags', { body: tag }));
 		},
 		onSuccess: (newTag: Tag) => {
+			invalidateListPages(queryClient, queryKeys.tags.all);
 			queryClient.setQueryData<Tag[]>(queryKeys.tags.all, (old) =>
 				old ? [...old, newTag] : [newTag]
 			);
@@ -70,6 +71,7 @@ export function useUpdateTagMutation() {
 			);
 		},
 		onSuccess: (updatedTag: Tag) => {
+			invalidateListPages(queryClient, queryKeys.tags.all);
 			queryClient.setQueryData<Tag[]>(
 				queryKeys.tags.all,
 				(old) => old?.map((t) => (t.id === updatedTag.id ? updatedTag : t)) ?? []
@@ -94,6 +96,7 @@ export function useDeleteTagMutation() {
 			return id;
 		},
 		onSuccess: (id: string) => {
+			invalidateListPages(queryClient, queryKeys.tags.all);
 			queryClient.setQueryData<Tag[]>(
 				queryKeys.tags.all,
 				(old) => old?.filter((t) => t.id !== id) ?? []
@@ -114,6 +117,7 @@ export function useBulkDeleteTagsMutation() {
 			return ids;
 		},
 		onSuccess: (ids: string[]) => {
+			invalidateListPages(queryClient, queryKeys.tags.all);
 			queryClient.setQueryData<Tag[]>(
 				queryKeys.tags.all,
 				(old) => old?.filter((t) => !ids.includes(t.id)) ?? []
@@ -134,6 +138,16 @@ export function useTagGroupsQuery() {
 		queryFn: async () =>
 			unwrapData(await apiClient.GET('/api/v1/tag-groups', { params: { query: { limit: 0 } } }))
 	}));
+}
+
+/** One page of the tags list, kept apart from the full set every picker and label reads. */
+export function useTagsListQuery(params: () => ListPageParams) {
+	return useListPageQuery<Tag>(
+		queryKeys.tags.all,
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/tags', { params: { query }, querySerializer }),
+		params
+	);
 }
 
 /** One page of the tag groups list, kept apart from the full set every picker reads. */
@@ -222,6 +236,7 @@ export function useSetTagOrderMutation() {
 			),
 		onSuccess: (reordered: Tag[]) => {
 			const byId = new Map(reordered.map((tag) => [tag.id, tag]));
+			invalidateListPages(queryClient, queryKeys.tags.all);
 			queryClient.setQueryData<Tag[]>(
 				queryKeys.tags.all,
 				(old) => old?.map((tag) => byId.get(tag.id) ?? tag) ?? []

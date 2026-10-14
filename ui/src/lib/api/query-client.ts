@@ -162,6 +162,7 @@ export const queryKeys = {
 	},
 	tags: {
 		all: ['tags'] as const,
+		fieldValues: () => [...queryKeys.tags.all, 'field-values'] as const,
 		detail: (id: string) => [...queryKeys.tags.all, 'detail', id] as const
 	},
 	tagGroups: {

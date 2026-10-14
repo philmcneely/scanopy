@@ -3512,6 +3512,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tags/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Tag field
+         * @description Every distinct value of one Tag field across the Tags the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_tag_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags/{id}": {
         parameters: {
             query?: never;
@@ -14713,7 +14733,7 @@ export interface components {
          * @description Fields that tags can be ordered/grouped by.
          * @enum {string}
          */
-        TagOrderField: "created_at" | "name" | "color" | "updated_at" | "tag_group";
+        TagOrderField: "created_at" | "name" | "color" | "updated_at" | "tag_group" | "icon";
         /** @description Request body for setting a tag group's tag order */
         TagOrderRequest: {
             /** @description Every tag in the group, each once, in the order to list them. */
@@ -24618,6 +24638,14 @@ export interface operations {
     get_all_tags: {
         parameters: {
             query?: {
+                /** @description Only tags of one of these colours. Repeat for several. */
+                colors?: string[] | null;
+                /** @description Only tags in one of these groups. Repeat for several. */
+                tag_group_ids?: string[] | null;
+                /** @description Only tags with one of these icons. Repeat for several. */
+                icons?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["TagOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
@@ -24838,6 +24866,14 @@ export interface operations {
     export_tags_csv: {
         parameters: {
             query?: {
+                /** @description Only tags of one of these colours. Repeat for several. */
+                colors?: string[] | null;
+                /** @description Only tags in one of these groups. Repeat for several. */
+                tag_group_ids?: string[] | null;
+                /** @description Only tags with one of these icons. Repeat for several. */
+                icons?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["TagOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
@@ -24867,6 +24903,62 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_tag_field_values: {
+        parameters: {
+            query?: {
+                /** @description Only tags of one of these colours. Repeat for several. */
+                colors?: string[] | null;
+                /** @description Only tags in one of these groups. Repeat for several. */
+                tag_group_ids?: string[] | null;
+                /** @description Only tags with one of these icons. Repeat for several. */
+                icons?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["TagOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["TagOrderField"];
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+                /**
+                 * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
+                 *     instant (snapshot view) instead of live state.
+                 */
+                at?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["TagOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Tag counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };

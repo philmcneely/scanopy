@@ -252,15 +252,16 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'tags/components/TagTab.svelte': {
+		listPath: '/api/v1/tags',
 		columns: {
 			name: IDENTITY,
-			color: YES,
+			color: server('colors'),
 			// One group per tag: Application or a named group.
-			tag_group: YES,
+			tag_group: server('tag_group_ids'),
 			created_at: DATE,
 			updated_at: DATE,
 			description: TEXT,
-			icon: { sort: 'An icon name has no useful order', group: true, filter: true }
+			icon: server('icons')
 		}
 	},
 	'tags/components/TagGroupTab.svelte': {

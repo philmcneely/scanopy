@@ -660,3 +660,84 @@ async fn every_documented_tag_group_filter_narrows_the_rows() {
     )
     .await;
 }
+
+/// Tags grouped by tag group come in the order the tag groups list uses, system groups first,
+/// each group keyed as the UI builds it, with tags in no group last.
+#[tokio::test]
+async fn tags_group_by_tag_group_in_the_groups_list_order() {
+    use crate::server::tags::groups::base::{TagGroup, TagGroupBase, TagGroupType};
+    use crate::server::tags::handlers::{TagFilterQuery, TagOrderField};
+    use crate::server::tags::r#impl::base::{Tag, TagBase};
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let custom = TagGroup::new(TagGroupBase::new(
+        org.id,
+        "Backup".to_string(),
+        TagGroupType::Custom,
+    ));
+    let status = TagGroup::new(TagGroupBase::new(
+        org.id,
+        "Status".to_string(),
+        TagGroupType::Status,
+    ));
+    storage.tag_groups.create(&custom).await.unwrap();
+    storage.tag_groups.create(&status).await.unwrap();
+    for (name, group) in [
+        ("nightly", Some(custom.id)),
+        ("active", Some(status.id)),
+        ("loose", None),
+    ] {
+        let tag = Tag::new(TagBase {
+            name: name.to_string(),
+            organization_id: org.id,
+            tag_group_id: group,
+            ..Default::default()
+        });
+        storage.tags.create(&tag).await.unwrap();
+    }
+
+    let page = list_page::<Tag>(
+        &state,
+        &list_scope(&[], org.id),
+        &TagFilterQuery {
+            group_by: Some(TagOrderField::TagGroup),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    let names: Vec<&str> = page.data.iter().map(|t| t.base.name.as_str()).collect();
+    assert_eq!(names, vec!["active", "nightly", "loose"]);
+    assert_eq!(
+        counts(page.meta.pagination.group_counts.as_deref()),
+        vec![
+            (format!("0:Status:status:{}", status.id), 1),
+            (format!("1:Custom:backup:{}", custom.id), 1),
+            (String::new(), 1)
+        ]
+    );
+}
+
+/// Every filter the tags list documents narrows the rows.
+#[tokio::test]
+async fn every_documented_tag_filter_narrows_the_rows() {
+    use crate::server::shared::handlers::query::narrowing_check::assert_every_param_narrows;
+    use crate::server::tags::handlers::TagFilterQuery;
+
+    let scope = list_scope(&[], Uuid::new_v4());
+    let id = Uuid::new_v4().to_string();
+    assert_every_param_narrows(
+        |query: &TagFilterQuery| query.narrow(&scope).expect("filter builds"),
+        &[
+            ("colors", "blue"),
+            ("tag_group_ids", id.as_str()),
+            ("icons", "server"),
+            ("search", "web"),
+            ("at", "2026-01-01T00:00:00Z"),
+        ],
+        &["limit", "offset", "group_by", "order_by", "order_direction"],
+    )
+    .await;
+}
