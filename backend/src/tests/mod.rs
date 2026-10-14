@@ -258,6 +258,22 @@ pub async fn test_services() -> (StorageFactory, ServiceFactory, ContainerAsync<
         .unwrap();
     (storage, services, _container)
 }
+/// [`test_services`] wrapped in an [`AppState`], for code that reads services through the state the
+/// handlers get, such as a list page.
+pub async fn test_state() -> (StorageFactory, AppState, ContainerAsync<GenericImage>) {
+    let (storage, services, _container) = test_services().await;
+    let state = AppState {
+        config: ServerConfig::default(),
+        services,
+        session_store: storage.sessions.clone(),
+        license_service: None,
+        license_issuer: None,
+        pool: storage.pool.clone(),
+        shutdown: tokio_util::sync::CancellationToken::new(),
+    };
+    (storage, state, _container)
+}
+
 pub async fn setup_test_app() -> Router<Arc<AppState>> {
     let config = ServerConfig::default();
 

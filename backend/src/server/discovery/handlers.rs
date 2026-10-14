@@ -15,6 +15,7 @@ use crate::server::{
     shared::{
         extractors::Query,
         handlers::{
+            list::list_page,
             ordering::OrderField,
             query::{FilterQueryExtractor, OrderDirection, PaginationParams},
             traits::{create_handler, update_handler},
@@ -158,22 +159,6 @@ pub struct DiscoveryFilterQuery {
     pub offset: Option<u32>,
 }
 
-impl DiscoveryFilterQuery {
-    /// Build the ORDER BY clause.
-    pub fn apply_ordering(
-        &self,
-        filter: StorableFilter<Discovery>,
-    ) -> (StorableFilter<Discovery>, String) {
-        crate::server::shared::handlers::ordering::apply_ordering(
-            self.group_by,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "discovery.created_at DESC",
-        )
-    }
-}
-
 impl FilterQueryExtractor for DiscoveryFilterQuery {
     fn apply_to_filter<T: Storable>(
         &self,
@@ -257,47 +242,9 @@ async fn get_all_discoveries(
         .organization_id()
         .ok_or_else(ApiError::organization_required)?;
 
-    let base_filter = StorableFilter::<Discovery>::new_from_site_ids(&site_ids);
-    let filter = query.apply_to_filter(base_filter, &site_ids, organization_id);
-
-    // Server-side because the list is paginated: a client-side search would
-    // only ever match the page already loaded.
-    let filter = match query.search.as_deref() {
-        Some(search) if !search.trim().is_empty() => filter.text_search(search),
-        _ => filter,
-    };
-
-    let pagination = query.pagination();
-    let filter = pagination.apply_to_filter(filter);
-    let (filter, order_by) = query.apply_ordering(filter);
-
-    // Grouped lists report each group's full size, not the slice on this page.
-    let group_counts = match query.group_by {
-        Some(group_field) => Some(
-            state
-                .services
-                .discovery_service
-                .count_by_group(filter.clone(), group_field.group_sql())
-                .await?,
-        ),
-        None => None,
-    };
-
-    let result = state
-        .services
-        .discovery_service
-        .get_paginated_ordered(filter, &order_by)
-        .await?;
-
-    let limit = pagination.effective_limit().unwrap_or(0);
-    let offset = pagination.effective_offset();
-
-    let response = PaginatedApiResponse::success(result.items, result.total_count, limit, offset);
-
-    Ok(Json(match group_counts {
-        Some(counts) => response.with_group_counts(counts),
-        None => response,
-    }))
+    Ok(Json(
+        list_page::<Discovery>(&state, &site_ids, organization_id, &query).await?,
+    ))
 }
 
 // Generated handlers for operations that use generic CRUD logic

@@ -2,7 +2,13 @@ use crate::server::{
     config::AppState,
     services::{handlers::ServiceFilterQuery, r#impl::base::Service, service::ServiceService},
     shared::{
-        handlers::traits::CrudHandlers, storage::filter::StorableFilter, types::api::ApiResult,
+        handlers::{
+            list::{ListOrdering, PaginatedList},
+            ordering::TagGroupOrdering,
+            traits::CrudHandlers,
+        },
+        storage::filter::StorableFilter,
+        types::api::ApiResult,
     },
 };
 use async_trait::async_trait;
@@ -41,5 +47,30 @@ impl CrudHandlers for Service {
             }
             None => filter,
         })
+    }
+}
+
+#[async_trait]
+impl PaginatedList for Service {
+    type Item = Service;
+
+    fn ordering(query: &ServiceFilterQuery) -> ListOrdering<Self::OrderField> {
+        ListOrdering {
+            group_by: query.group_by,
+            order_by: query.order_by,
+            direction: query.order_direction,
+            tag_group: TagGroupOrdering {
+                group_by: query.group_by_tag_group,
+                order_by: query.order_by_tag_group,
+            },
+        }
+    }
+
+    async fn items(
+        _state: &AppState,
+        rows: Vec<Service>,
+        _query: &ServiceFilterQuery,
+    ) -> ApiResult<Vec<Service>> {
+        Ok(rows)
     }
 }
