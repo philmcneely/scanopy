@@ -326,21 +326,22 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'subnets/components/SubnetTab.svelte': {
+		listPath: '/api/v1/subnets',
 		columns: {
 			name: IDENTITY,
 			// Groups each range with the ranges nested inside it, not one group per CIDR.
 			cidr: { sort: true, group: true, filter: SEARCH },
-			subnet_type: YES,
-			site_id: YES,
+			subnet_type: server('subnet_types'),
+			site_id: server('site_ids'),
 			created_at: DATE,
 			updated_at: DATE,
 			last_seen_at: DATE,
 			description: TEXT,
-			source: YES,
-			managed_by: YES,
+			source: server('sources'),
+			managed_by: server('managed_by'),
 			first_found_by: FOUND_BY,
 			last_found_by: FOUND_BY,
-			tags: SHARED_ARRAY,
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } },
 			utilization: {
 				sort: true,
 				group: 'A percentage; every value would be its own group',

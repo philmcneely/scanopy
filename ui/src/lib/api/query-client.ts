@@ -113,6 +113,7 @@ export const queryKeys = {
 	},
 	subnets: {
 		all: ['subnets'] as const,
+		fieldValues: () => [...queryKeys.subnets.all, 'field-values'] as const,
 		bySite: (siteId: string) => [...queryKeys.subnets.all, 'site', siteId] as const,
 		detail: (id: string) => [...queryKeys.subnets.all, 'detail', id] as const
 	},

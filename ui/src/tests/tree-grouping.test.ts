@@ -12,7 +12,7 @@ import {
 import { compareByField, treeSiblingCompare } from '$lib/shared/components/data/controls/sorting';
 import type { FieldConfig, TreeConfig } from '$lib/shared/components/data/types';
 import { compareCidr } from '$lib/shared/utils/cidr';
-import { nestedRangeOf, subnetNesting } from '$lib/features/subnets/nesting';
+import { subnetNesting } from '$lib/features/subnets/nesting';
 import type { SubnetResponse } from '$lib/features/subnets/types/base';
 
 interface Range {
@@ -262,13 +262,6 @@ describe('subnetNesting', () => {
 	it('treats a parent missing from the list as no parent', () => {
 		expect(nesting.parentOf(find('orphan'))).toBeNull();
 		expect(nesting.rootOf(find('orphan')).id).toBe('orphan');
-	});
-
-	it('groups a nested subnet under its widest range, and one that nests with nothing under none', () => {
-		expect(nestedRangeOf(find('leaf'), nesting)).toBe('10.10.0.0/16');
-		expect(nestedRangeOf(find('wide'), nesting)).toBe('10.10.0.0/16');
-		expect(nestedRangeOf(find('lone'), nesting)).toBeNull();
-		expect(nestedRangeOf(find('orphan'), nesting)).toBeNull();
 	});
 });
 

@@ -127,6 +127,15 @@ const FIELD_VALUES_ENDPOINTS: { [P in FieldValuesPath]: FieldValuesEndpoint<P> }
 					params: { path: { field }, query }
 				})
 			)
+	},
+	'/api/v1/subnets/field-values/{field}': {
+		key: queryKeys.subnets.fieldValues,
+		fetch: async (field, query) =>
+			unwrapData(
+				await apiClient.GET('/api/v1/subnets/field-values/{field}', {
+					params: { path: { field }, query }
+				})
+			)
 	}
 };
 

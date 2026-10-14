@@ -3237,6 +3237,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/subnets/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Subnet field
+         * @description Every distinct value of one Subnet field across the Subnets the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_subnet_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/subnets/{id}": {
         parameters: {
             query?: never;
@@ -6315,6 +6335,17 @@ export interface components {
         ApiResponse_SubnetResponse: {
             /** @description A subnet together with what is derived from the rest of its site. */
             data?: components["schemas"]["Subnet"] & {
+                /**
+                 * Format: int32
+                 * @description How many ranges this one sits inside: 0 for a range nested in nothing.
+                 */
+                readonly nesting_depth: number;
+                /**
+                 * Format: uuid
+                 * @description The outermost range of the tree this one sits in: itself when it holds others and sits in
+                 *     none. `null` for a range that nests with nothing.
+                 */
+                readonly nesting_root_id: string | null;
                 /**
                  * Format: uuid
                  * @description The most specific other subnet on the same site whose range contains this one. `null` when
@@ -12709,6 +12740,17 @@ export interface components {
             /** @description The page of results. Empty when nothing matched the query. */
             data: (components["schemas"]["Subnet"] & {
                 /**
+                 * Format: int32
+                 * @description How many ranges this one sits inside: 0 for a range nested in nothing.
+                 */
+                readonly nesting_depth: number;
+                /**
+                 * Format: uuid
+                 * @description The outermost range of the tree this one sits in: itself when it holds others and sits in
+                 *     none. `null` for a range that nests with nothing.
+                 */
+                readonly nesting_root_id: string | null;
+                /**
                  * Format: uuid
                  * @description The most specific other subnet on the same site whose range contains this one. `null` when
                  *     none does. Children are the subnets whose parent is this one.
@@ -14625,9 +14667,20 @@ export interface components {
          * @description Fields that subnets can be ordered/grouped by.
          * @enum {string}
          */
-        SubnetOrderField: "created_at" | "name" | "cidr" | "subnet_type" | "updated_at" | "site_id" | "last_seen_at";
+        SubnetOrderField: "created_at" | "name" | "cidr" | "subnet_type" | "updated_at" | "site_id" | "last_seen_at" | "source" | "managed_by" | "utilization";
         /** @description A subnet together with what is derived from the rest of its site. */
         SubnetResponse: components["schemas"]["Subnet"] & {
+            /**
+             * Format: int32
+             * @description How many ranges this one sits inside: 0 for a range nested in nothing.
+             */
+            readonly nesting_depth: number;
+            /**
+             * Format: uuid
+             * @description The outermost range of the tree this one sits in: itself when it holds others and sits in
+             *     none. `null` for a range that nests with nothing.
+             */
+            readonly nesting_root_id: string | null;
             /**
              * Format: uuid
              * @description The most specific other subnet on the same site whose range contains this one. `null` when
@@ -24131,12 +24184,39 @@ export interface operations {
     list_subnets: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by specific entity IDs (for selective loading) */
+                ids?: string[] | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only subnets of one of these types. Repeat for several. */
+                subnet_types?: string[] | null;
+                /** @description Only subnets that came to exist one of these ways (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Only bridge subnets created by one of these container runtimes. Repeat for several. */
+                managed_by?: string[] | null;
+                /**
+                 * @description `true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates
+                 *     (`Subnet::is_user_managed`).
+                 */
+                user_managed?: boolean | null;
+                /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["SubnetOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
                 order_by?: null | components["schemas"]["SubnetOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
                 order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
@@ -24238,12 +24318,39 @@ export interface operations {
     export_subnets_csv: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by specific entity IDs (for selective loading) */
+                ids?: string[] | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only subnets of one of these types. Repeat for several. */
+                subnet_types?: string[] | null;
+                /** @description Only subnets that came to exist one of these ways (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Only bridge subnets created by one of these container runtimes. Repeat for several. */
+                managed_by?: string[] | null;
+                /**
+                 * @description `true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates
+                 *     (`Subnet::is_user_managed`).
+                 */
+                user_managed?: boolean | null;
+                /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["SubnetOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
                 order_by?: null | components["schemas"]["SubnetOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
                 order_direction?: null | components["schemas"]["OrderDirection"];
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
@@ -24280,6 +24387,94 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_subnet_field_values: {
+        parameters: {
+            query?: {
+                /** @description Filter by specific entity IDs (for selective loading) */
+                ids?: string[] | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only subnets of one of these types. Repeat for several. */
+                subnet_types?: string[] | null;
+                /** @description Only subnets that came to exist one of these ways (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Only bridge subnets created by one of these container runtimes. Repeat for several. */
+                managed_by?: string[] | null;
+                /**
+                 * @description `true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates
+                 *     (`Subnet::is_user_managed`).
+                 */
+                user_managed?: boolean | null;
+                /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["SubnetOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["SubnetOrderField"];
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+                /**
+                 * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
+                 *     instant (snapshot view) instead of live state.
+                 */
+                at?: string | null;
+                /**
+                 * @description `true` returns only subnets discovery hasn't observed within their
+                 *     site's staleness window; `false` returns only those it has. Omit for
+                 *     both. Evaluated per row against the subnet's own site's window.
+                 */
+                stale?: boolean | null;
+                /**
+                 * @description Free-text search. Case-insensitive substring match against the subnet's
+                 *     name, CIDR and description.
+                 */
+                search?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["SubnetOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Subnet counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };

@@ -847,3 +847,117 @@ async fn members_list_users_and_invites_the_caller_may_see() {
     expected.sort();
     assert_eq!(exported, expected);
 }
+
+/// Subnets grouped by range nest each range under the ranges containing it, through the generic
+/// tree path: a page cut through a tree keeps every group's full count, each row carries its depth,
+/// and ranges nested in nothing fall in the ungrouped bucket.
+#[tokio::test]
+async fn subnets_group_as_a_nesting_tree_across_pages() {
+    use crate::server::shared::attribution::AttributeSource;
+    use crate::server::subnets::handlers::{SubnetFilterQuery, SubnetOrderField};
+    use crate::server::subnets::r#impl::base::{Subnet, SubnetCidr, SubnetCidrValue};
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let net = site(&org.id);
+    storage.sites.create(&net).await.unwrap();
+
+    let range = |cidr: &str| {
+        let mut s = subnet(&net.id);
+        s.base.name = cidr.to_string();
+        s.base.cidr = SubnetCidr::new(
+            SubnetCidrValue(cidr.parse().unwrap()),
+            AttributeSource::Manual,
+        );
+        s
+    };
+    let wide = range("10.0.0.0/16");
+    let mid = range("10.0.16.0/20");
+    let leaf = range("10.0.16.0/24");
+    let lone = range("192.168.9.0/24");
+    for s in [&leaf, &lone, &mid, &wide] {
+        storage.subnets.create(s).await.unwrap();
+    }
+    let scope = list_scope(&[net.id], org.id);
+    let query = |offset: u32| SubnetFilterQuery {
+        group_by: Some(SubnetOrderField::Cidr),
+        limit: Some(2),
+        offset: Some(offset),
+        ..Default::default()
+    };
+
+    let first = list_page::<Subnet>(&state, &scope, &query(0))
+        .await
+        .unwrap();
+    let second = list_page::<Subnet>(&state, &scope, &query(2))
+        .await
+        .unwrap();
+    let rows: Vec<(String, u32)> = first
+        .data
+        .iter()
+        .chain(&second.data)
+        .map(|s| (s.subnet.base.name.clone(), s.nesting_depth))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            ("192.168.9.0/24".to_string(), 0),
+            ("10.0.0.0/16".to_string(), 0),
+            ("10.0.16.0/20".to_string(), 1),
+            ("10.0.16.0/24".to_string(), 2),
+        ],
+        "a range in no tree first, then each parent directly before the ranges inside it"
+    );
+    // Each row's root is the key the UI matches it to its group by.
+    assert_eq!(first.data[0].nesting_root_id, None);
+    assert_eq!(second.data[1].nesting_root_id, Some(wide.id));
+    let expected = vec![(String::new(), 1), (wide.id.to_string(), 3)];
+    assert_eq!(
+        counts(first.meta.pagination.group_counts.as_deref()),
+        expected
+    );
+    assert_eq!(
+        counts(second.meta.pagination.group_counts.as_deref()),
+        expected
+    );
+}
+
+/// Every filter the subnets list documents narrows the rows.
+#[tokio::test]
+async fn every_documented_subnet_filter_narrows_the_rows() {
+    use crate::server::shared::handlers::query::narrowing_check::assert_every_param_narrows;
+    use crate::server::subnets::handlers::SubnetFilterQuery;
+
+    let site = Uuid::new_v4();
+    let scope = list_scope(&[site, Uuid::new_v4()], Uuid::new_v4());
+    let id = Uuid::new_v4().to_string();
+    let site_param = site.to_string();
+    assert_every_param_narrows(
+        |query: &SubnetFilterQuery| query.narrow(&scope).expect("filter builds"),
+        &[
+            ("ids", id.as_str()),
+            ("site_ids", site_param.as_str()),
+            ("subnet_types", "Lan"),
+            ("sources", "Discovery"),
+            ("managed_by", id.as_str()),
+            ("user_managed", "true"),
+            ("tag_ids", id.as_str()),
+            ("tag_sets", id.as_str()),
+            ("search", "lab"),
+            ("at", "2026-01-01T00:00:00Z"),
+        ],
+        &[
+            "limit",
+            "offset",
+            "group_by",
+            "order_by",
+            "order_direction",
+            "group_by_tag_group",
+            "order_by_tag_group",
+            // Applied after `narrow`, from each site's cutoff.
+            "stale",
+        ],
+    )
+    .await;
+}

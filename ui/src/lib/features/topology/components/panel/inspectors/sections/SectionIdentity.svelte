@@ -162,7 +162,7 @@
 	// Nesting and utilization are derived server-side across the whole site, so they come from the
 	// live subnet list rather than the topology payload. Not in a read-only view: a shared link has
 	// no session to fetch with, and a snapshot's past state would be paired with today's counts.
-	const subnetsQuery = useSubnetsQuery(undefined, undefined, () => !!thisSubnet && !isReadonly);
+	const subnetsQuery = useSubnetsQuery(undefined, () => !!thisSubnet && !isReadonly);
 	let subnetsData = $derived(subnetsQuery.data ?? []);
 	let listedSubnet = $derived(
 		thisSubnet && !isReadonly ? (subnetsData.find((s) => s.id === thisSubnet!.id) ?? null) : null

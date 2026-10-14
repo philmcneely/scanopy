@@ -3,7 +3,6 @@
 	import { isProvisionalCidr } from '$lib/shared/utils/cidr-source';
 	import { cidrContains } from '$lib/shared/utils/cidr';
 	import SubnetUtilization from './SubnetUtilization.svelte';
-	import { subnetNesting } from '../nesting';
 	import SubnetEditModal from './SubnetEditModal/SubnetEditModal.svelte';
 	import ProvisionalRangeModal from './ProvisionalRangeModal.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
@@ -11,7 +10,8 @@
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import type { Subnet, SubnetResponse } from '../types/base';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
-	import { STALE_PARAM } from '$lib/shared/components/data/controls/listQuery';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import { fieldValueOptions, useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import { subnetColumns } from './SubnetTab.columns';
@@ -22,6 +22,8 @@
 	import {
 		isUserManagedSubnet,
 		useSubnetsQuery,
+		useSubnetsByIds,
+		useSubnetsListQuery,
 		useCreateSubnetMutation,
 		useMergeSubnetMutation,
 		useUpdateSubnetMutation,
@@ -61,25 +63,42 @@
 
 	// Queries
 	const tagsQuery = useTagsQuery();
-	// Staleness filter state. Server-side so it applies to the whole set, and
-	// keyed separately from the shared subnets cache.
-	let stale = $state<boolean | null>(null);
-	const subnetsQuery = useSubnetsQuery(undefined, () => stale ?? undefined);
+	const SUBNET_FIELD_VALUES = '/api/v1/subnets/field-values/{field}';
+	// The filter options count only the ranges the list shows.
+	const listedOnly = () => ({ user_managed: true });
 
-	// The list sends only staleness to the endpoint; it filters, searches and orders the rest itself.
-	function handleQueryChange(query: URLSearchParams) {
-		stale = query.get(STALE_PARAM) === 'true' ? true : null;
-	}
+	// One page of the subnets the user curates, paged, filtered, ordered and nested on the server.
+	const page = listPageState();
+	const subnetsQuery = useSubnetsListQuery(() => page.params());
+	// Filter options: the values the listed subnets hold, counted by the server.
+	const siteValuesQuery = useFieldValuesQuery(SUBNET_FIELD_VALUES, 'site_id', listedOnly);
+	const typeValuesQuery = useFieldValuesQuery(SUBNET_FIELD_VALUES, 'subnet_type', listedOnly);
+	const sourceValuesQuery = useFieldValuesQuery(SUBNET_FIELD_VALUES, 'source', listedOnly);
+	const managedByValuesQuery = useFieldValuesQuery(SUBNET_FIELD_VALUES, 'managed_by', listedOnly);
 	const sitesQuery = useSitesQuery();
-	// The container runtimes that manage the bridge subnets, fetched by id.
+	// The container runtimes that manage some subnet, fetched by id: the page's, for its cells, and
+	// every one the filter offers, for their labels.
 	const runtimesQuery = useServicesByIds(() => [
-		...new Set(
-			(subnetsQuery.data ?? [])
+		...new Set([
+			...subnetsData
 				.map((s) => s.virtualization_service_id)
-				.filter((id): id is string => id != null)
-		)
+				.filter((id): id is string => id != null),
+			...fieldValueOptions(managedByValuesQuery.data)
+		])
 	]);
-	const discoveryRunsQuery = useDiscoveriesByIds(() => discoveryRunIds(subnetsQuery.data ?? []));
+	const discoveryRunsQuery = useDiscoveriesByIds(() => discoveryRunIds(subnetsData));
+	// The ranges that head a nesting group on this page but sit on another, so the group header
+	// can name them.
+	const nestingRootsQuery = useSubnetsByIds(() => {
+		const present = new Set(subnetsData.map((s) => s.id));
+		return [
+			...new Set(
+				subnetsData
+					.map((s) => s.nesting_root_id)
+					.filter((id): id is string => id != null && !present.has(id))
+			)
+		];
+	});
 
 	// Mutations
 	const createSubnetMutation = useCreateSubnetMutation();
@@ -90,17 +109,20 @@
 
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
-	let subnetsData = $derived((subnetsQuery.data ?? []).filter(isUserManagedSubnet));
+	let subnetsData = $derived(subnetsQuery.data?.items ?? []);
+	let subnetsPagination = $derived(subnetsQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let runtimesData = $derived(runtimesQuery.data ?? []);
 	let discoveryRunsData = $derived(discoveryRunsQuery.data ?? []);
 
-	let nesting = $derived(subnetNesting(subnetsData));
+	let nestingRoots = $derived(
+		new Map([...subnetsData, ...(nestingRootsQuery.data ?? [])].map((s) => [s.id, s]))
+	);
 
 	function runtimeOf(subnet: Subnet): Service | undefined {
 		return runtimesData.find((s) => s.id === subnet.virtualization_service_id);
 	}
-	let isLoading = $derived(subnetsQuery.isPending);
+	let isLoading = $derived(subnetsQuery.isPending && !subnetsQuery.data);
 
 	let showSubnetEditor = $state(false);
 	let editingSubnet = $state<Subnet | null>(null);
@@ -195,21 +217,24 @@
 	 * assumed ranges it corrects none of them, because folding them into one means deleting rows.
 	 * Offering the merge here is how that gets resolved, one deliberate click at a time.
 	 *
-	 * Searching `subnetsData` rather than the raw query is what keeps the `0.0.0.0/0` catch-alls
-	 * out: they are synthetic, so `isUserManagedSubnet` has already dropped them, and either would
-	 * otherwise "cover" every range on the site.
+	 * The covering range can sit on another page, so this reads the full list, only while a range is
+	 * being resolved. Filtering it through `isUserManagedSubnet` is what keeps the `0.0.0.0/0`
+	 * catch-alls out: they are synthetic, and either would otherwise "cover" every range on the site.
 	 */
+	const allSubnetsQuery = useSubnetsQuery(undefined, () => resolvingSubnet !== null);
 	let coveringSubnet = $derived.by(() => {
 		if (!resolvingSubnet) return null;
 		const target = resolvingSubnet;
 		return (
-			subnetsData.find(
-				(candidate) =>
-					candidate.id !== target.id &&
-					candidate.site_id === target.site_id &&
-					!isProvisionalCidr(candidate) &&
-					cidrContains(candidate.cidr, target.cidr)
-			) ?? null
+			(allSubnetsQuery.data ?? [])
+				.filter(isUserManagedSubnet)
+				.find(
+					(candidate) =>
+						candidate.id !== target.id &&
+						candidate.site_id === target.site_id &&
+						!isProvisionalCidr(candidate) &&
+						cidrContains(candidate.cidr, target.cidr)
+				) ?? null
 		);
 	});
 
@@ -298,7 +323,9 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('Subnet', {});
+		const params = new URLSearchParams(page.listQuery);
+		params.set('user_managed', 'true');
+		await downloadCsv('Subnet', params);
 	}
 
 	const tableDefaults: TableDefaults<SubnetOrderField> = {
@@ -315,10 +342,14 @@
 			sites: () => sitesData,
 			tags: () => tagsData,
 			discoveryRuns: () => discoveryRunsData,
-			nesting: () => nesting,
+			nestingRoots: () => nestingRoots,
 			runtimeOf,
 			runtimes: () => runtimesData,
-			utilizationCell
+			utilizationCell,
+			siteValues: () => siteValuesQuery.data,
+			typeValues: () => typeValuesQuery.data,
+			sourceValues: () => sourceValuesQuery.data,
+			managedByValues: () => managedByValuesQuery.data
 		})
 	);
 </script>
@@ -340,13 +371,7 @@
 	{:else if isLoading}
 		<!-- Loading state -->
 		<Loading />
-	{:else if subnetsData.length === 0 && stale === null}
-		<!--
-			"Nothing configured yet" only when nothing is narrowing the list. `stale` is a
-			server-side filter, so an empty response under it means "no matches", not "no
-			subnets" — and this branch replaces the controls that would let the user clear
-			it. DataControls renders the filtered-empty state instead.
-		-->
+	{:else if subnetsData.length === 0 && !page.isNarrowed}
 		<EmptyState
 			title={common_noEntityYet({ entity: common_subnets() })}
 			subtitle=""
@@ -366,8 +391,9 @@
 			canEditTags={!isReadOnly}
 			getItemTags={getSubnetTags}
 			getItemId={(item) => item.id}
-			onQueryChange={handleQueryChange}
-			serverQuery={{ search: false, tags: false, order: false, fields: false }}
+			serverPagination={subnetsPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
 			onCsvExport={handleCsvExport}
 			getActions={subnetActions}
 			entityLabel={common_subnets()}
