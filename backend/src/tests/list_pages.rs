@@ -463,3 +463,42 @@ async fn every_documented_daemon_filter_narrows_the_rows() {
     )
     .await;
 }
+
+/// Every filter the discovery lists document narrows the rows.
+#[tokio::test]
+async fn every_documented_discovery_filter_narrows_the_rows() {
+    use crate::server::discovery::handlers::DiscoveryFilterQuery;
+    use crate::server::shared::handlers::query::narrowing_check::assert_every_param_narrows;
+
+    let site = Uuid::new_v4();
+    let scope = list_scope(&[site, Uuid::new_v4()], Uuid::new_v4());
+    let id = Uuid::new_v4().to_string();
+    let site_param = site.to_string();
+    assert_every_param_narrows(
+        |query: &DiscoveryFilterQuery| query.narrow(&scope).expect("filter builds"),
+        &[
+            ("site_ids", site_param.as_str()),
+            ("daemon_ids", id.as_str()),
+            ("ids", id.as_str()),
+            ("discovery_types", "Unified"),
+            ("phases", "Complete"),
+            ("historical", "false"),
+            ("search", "nightly"),
+            ("run_types", "Scheduled"),
+            ("legacy", "true"),
+            ("force_full_scan", "true"),
+            ("tag_ids", id.as_str()),
+            ("tag_sets", id.as_str()),
+        ],
+        &[
+            "limit",
+            "offset",
+            "group_by",
+            "order_by",
+            "order_direction",
+            "group_by_tag_group",
+            "order_by_tag_group",
+        ],
+    )
+    .await;
+}

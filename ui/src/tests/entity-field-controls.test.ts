@@ -201,21 +201,22 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'discovery/components/tabs/DiscoveryScheduledTab.svelte': {
+		listPath: '/api/v1/discovery',
 		columns: {
 			name: IDENTITY,
 			created_at: DATE,
 			updated_at: DATE,
-			daemon_id: YES,
-			site_id: YES,
-			discovery_type: YES,
+			daemon_id: server('daemon_ids'),
+			site_id: server('site_ids'),
+			discovery_type: server('discovery_types'),
 			scan_count: { sort: true, group: COUNT, filter: COUNT },
-			force_full_scan: BOOLEAN,
-			legacy: YES,
-			run_type: YES,
+			force_full_scan: server('force_full_scan'),
+			legacy: server('legacy'),
+			run_type: server('run_types'),
 			schedule: none('Cron text'),
 			last_run: DATE,
 			progress: none('Live state of a running scan'),
-			tags: SHARED_ARRAY
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } }
 		}
 	},
 	'daemons/components/DaemonTab.svelte': {

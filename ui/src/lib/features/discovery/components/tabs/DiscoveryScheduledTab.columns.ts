@@ -5,11 +5,14 @@ import {
 	discoveryFields,
 	formatScheduleDisplay,
 	type DiscoveryFieldEntry,
-	type DiscoveryConfigOrderField
+	type DiscoveryConfigOrderField,
+	type DiscoveryListParam,
+	type DiscoverySharedOrderField
 } from '../../queries';
 import type { DisplayConfig } from '$lib/shared/components/data/types';
 import { defineRegistryFields } from '$lib/shared/entity-fields/table';
 import type { EntityLookup } from '$lib/shared/entity-fields';
+import { fieldValueOptions, type FieldValueCount } from '$lib/shared/api/field-values';
 import type { DiscoveryUpdatePayload } from '../../types/api';
 import type { Daemon } from '$lib/features/daemons/types/base';
 import type { Site } from '$lib/features/sites/types';
@@ -35,7 +38,7 @@ import {
  * on every scheduled scan, so it is off by default and serves mostly as a filter
  * and group axis. The audit dates stay available from the column menu.
  */
-const SHARED_FIELD_DISPLAY: Partial<Record<DiscoveryConfigOrderField, DisplayConfig<Discovery>>> = {
+const SHARED_FIELD_DISPLAY: Partial<Record<DiscoverySharedOrderField, DisplayConfig<Discovery>>> = {
 	name: { order: 0 },
 	site_id: { order: 2 },
 	daemon_id: { order: 3 },
@@ -45,11 +48,11 @@ const SHARED_FIELD_DISPLAY: Partial<Record<DiscoveryConfigOrderField, DisplayCon
 };
 
 function withSharedDisplay(
-	shared: Record<DiscoveryConfigOrderField, DiscoveryFieldEntry>
-): Record<DiscoveryConfigOrderField, DiscoveryFieldEntry> {
+	shared: Record<DiscoverySharedOrderField, DiscoveryFieldEntry>
+): Record<DiscoverySharedOrderField, DiscoveryFieldEntry> {
 	const fields = { ...shared };
 	for (const [key, overrides] of Object.entries(SHARED_FIELD_DISPLAY)) {
-		const orderField = key as DiscoveryConfigOrderField;
+		const orderField = key as DiscoverySharedOrderField;
 		fields[orderField] = {
 			...fields[orderField],
 			display: { ...fields[orderField].display, ...overrides }
@@ -68,74 +71,117 @@ export interface DiscoveryScheduledColumnsContext {
 	schedulePaused: () => boolean;
 	getActiveSession: (discovery: Discovery) => DiscoveryUpdatePayload | null;
 	progressCell: () => Snippet<[Discovery, string]>;
+	daemonValues: () => FieldValueCount[] | undefined;
+	siteValues: () => FieldValueCount[] | undefined;
+	typeValues: () => FieldValueCount[] | undefined;
+	runTypeValues: () => FieldValueCount[] | undefined;
 }
 
+/** Every DiscoveryConfigOrderField value is listed; the server sorts, groups and filters each. */
 export function discoveryScheduledColumns(ctx: DiscoveryScheduledColumnsContext) {
-	return defineRegistryFields<Discovery, DiscoveryConfigOrderField>(
+	const shared = withSharedDisplay(discoveryFields(ctx.daemons(), ctx.sites()));
+	const orderable: Record<DiscoveryConfigOrderField, DiscoveryFieldEntry> = {
+		...shared,
+		daemon_id: {
+			...shared.daemon_id,
+			serverFiltered: true,
+			// The daemons some scan runs on.
+			filterOptions: fieldValueOptions(ctx.daemonValues()),
+			// Displayed as a name, but grouped by id on the server.
+			getGroupValue: (item) => item.daemon_id
+		},
+		site_id: {
+			...shared.site_id,
+			serverFiltered: true,
+			// The sites some scan covers.
+			filterOptions: fieldValueOptions(ctx.siteValues()),
+			getGroupValue: (item) => item.site_id
+		},
+		discovery_type: {
+			...shared.discovery_type,
+			serverFiltered: true,
+			// The types some scan has.
+			filterOptions: fieldValueOptions(ctx.typeValues()),
+			getGroupValue: (item) => item.discovery_type.type
+		},
+		scan_count: {
+			label: discovery_completedScans(),
+			type: 'string',
+			// A count: it sorts, but every value would be its own group.
+			groupable: false,
+			getValue: (item) => String(item.scan_count ?? 0),
+			display: { hiddenByDefault: true, align: 'right' }
+		},
+		force_full_scan: {
+			label: discovery_forceFullScan(),
+			type: 'boolean',
+			filterable: true,
+			serverFiltered: true,
+			groupable: true,
+			getGroupValue: (item) => String(item.force_full_scan ?? false),
+			getValue: (item) => item.force_full_scan ?? false,
+			display: { hiddenByDefault: true }
+		},
+		legacy: {
+			label: common_status(),
+			type: 'boolean',
+			filterable: true,
+			serverFiltered: true,
+			groupable: true,
+			// Legacy-ness comes from the backend's own `is_legacy`, which the server also orders and
+			// filters on — a `!== 'Unified'` check flagged Rescan, which is new rather than frozen.
+			getGroupValue: (item) =>
+				String(discoveryTypes.getMetadata(item.discovery_type.type).is_legacy ?? false),
+			getValue: (item) => discoveryTypes.getMetadata(item.discovery_type.type).is_legacy ?? false,
+			display: {
+				getItems: (item) =>
+					discoveryTypes.getMetadata(item.discovery_type.type).is_legacy
+						? [
+								{
+									id: 'legacy',
+									label: common_legacy(),
+									color: 'Yellow',
+									title: discovery_legacyTagTitle()
+								}
+							]
+						: []
+			}
+		},
+		run_type: {
+			label: discovery_runType(),
+			type: 'string',
+			filterable: true,
+			serverFiltered: true,
+			queryParam: 'run_types',
+			// The ways some scan runs.
+			filterOptions: fieldValueOptions(ctx.runTypeValues()),
+			getFilterValue: (item) => item.run_type.type,
+			getGroupValue: (item) => item.run_type.type,
+			display: { order: 1 }
+		},
+		last_run: {
+			label: common_lastRun(),
+			// A date column so it sorts by time. The ISO string rather than a Date, so the cell
+			// renders it as recent activity (a Date renders as a compact date).
+			type: 'date',
+			groupable: false,
+			getValue: (item) =>
+				item.run_type.type !== 'Historical' && item.run_type.last_run
+					? item.run_type.last_run
+					: null,
+			display: { recency: true }
+		}
+	};
+
+	return defineRegistryFields<Discovery, DiscoveryConfigOrderField, DiscoveryListParam>(
 		'Discovery',
 		ctx.lookup,
-		withSharedDisplay(discoveryFields(ctx.daemons(), ctx.sites())),
+		orderable,
 		[
-			{
-				key: 'scan_count',
-				label: discovery_completedScans(),
-				type: 'string',
-				// A count: it sorts, but every value would be its own group.
-				sortable: true,
-				getValue: (item) => String(item.scan_count ?? 0),
-				display: { hiddenByDefault: true, align: 'right' }
-			},
-			{
-				key: 'force_full_scan',
-				label: discovery_forceFullScan(),
-				type: 'boolean',
-				filterable: true,
-				groupable: true,
-				getValue: (item) => item.force_full_scan ?? false,
-				display: { hiddenByDefault: true }
-			},
-			{
-				key: 'legacy',
-				label: common_status(),
-				type: 'string',
-				filterable: true,
-				groupable: true,
-				sortable: true,
-				// Legacy-ness comes from the backend's own `is_legacy`, not a local list —
-				// a `!== 'Unified'` check flagged Rescan, which is new rather than frozen.
-				getValue: (item) =>
-					discoveryTypes.getMetadata(item.discovery_type.type).is_legacy ? common_legacy() : '',
-				getFilterValue: (item) =>
-					discoveryTypes.getMetadata(item.discovery_type.type).is_legacy ? 'legacy' : null,
-				filterLabel: () => common_legacy(),
-				display: {
-					getItems: (item) =>
-						discoveryTypes.getMetadata(item.discovery_type.type).is_legacy
-							? [
-									{
-										id: 'legacy',
-										label: common_legacy(),
-										color: 'Yellow',
-										title: discovery_legacyTagTitle()
-									}
-								]
-							: []
-				}
-			},
-			{
-				key: 'run_type',
-				label: discovery_runType(),
-				searchable: true,
-				filterable: true,
-				groupable: true,
-				sortable: true,
-				display: { order: 1 }
-			},
 			{
 				key: 'schedule',
 				label: common_schedule(),
 				type: 'string',
-				searchable: true,
 				getValue: (item) =>
 					item.run_type.type !== 'Scheduled'
 						? common_manual()
@@ -145,19 +191,6 @@ export function discoveryScheduledColumns(ctx: DiscoveryScheduledColumnsContext)
 								? discovery_schedulePausedFreePlan()
 								: formatScheduleDisplay(item.run_type.cron_schedule, item.run_type.timezone),
 				display: { hiddenByDefault: true }
-			},
-			{
-				key: 'last_run',
-				label: common_lastRun(),
-				// A date column so it sorts by time. The ISO string rather than a Date, so the cell
-				// renders it as recent activity (a Date renders as a compact date).
-				type: 'date',
-				sortable: true,
-				getValue: (item) =>
-					item.run_type.type !== 'Historical' && item.run_type.last_run
-						? item.run_type.last_run
-						: null,
-				display: { recency: true }
 			},
 			{
 				key: 'progress',
@@ -175,14 +208,11 @@ export function discoveryScheduledColumns(ctx: DiscoveryScheduledColumnsContext)
 				key: 'tags',
 				label: common_tags(),
 				type: 'array',
-				searchable: true,
 				filterable: true,
-				getValue: (entity) => {
-					// Return tag names for search/filter display
-					return entity.tags
+				getValue: (entity) =>
+					entity.tags
 						.map((id) => ctx.tags().find((t) => t.id === id)?.name)
-						.filter((name): name is string => !!name);
-				}
+						.filter((name): name is string => !!name)
 			}
 		]
 	);

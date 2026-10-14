@@ -35,7 +35,7 @@ import {
 	discovery_startedAt
 } from '$lib/paraglide/messages';
 
-type DiscoveryOrderField = components['schemas']['DiscoveryOrderField'];
+import type { DiscoveryRunOrderField } from '../../queries';
 /** The discovery list endpoint's query params, which the filters are sent and linked as. */
 type DiscoveryListParam = keyof NonNullable<
 	operations['get_all_discoveries']['parameters']['query']
@@ -61,7 +61,7 @@ export interface DiscoveryHistoryColumnsContext {
 }
 
 export function discoveryHistoryColumns(ctx: DiscoveryHistoryColumnsContext) {
-	return defineRegistryFields<Discovery, DiscoveryOrderField, DiscoveryListParam>(
+	return defineRegistryFields<Discovery, DiscoveryRunOrderField, DiscoveryListParam>(
 		'Discovery',
 		ctx.lookup,
 		{

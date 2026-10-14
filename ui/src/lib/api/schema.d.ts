@@ -8710,7 +8710,7 @@ export interface components {
          * @description Fields that discoveries can be ordered/grouped by.
          * @enum {string}
          */
-        DiscoveryOrderField: "created_at" | "name" | "updated_at" | "daemon_id" | "site_id" | "discovery_type" | "phase" | "started_at" | "finished_at" | "duration" | "warnings";
+        DiscoveryOrderField: "created_at" | "name" | "updated_at" | "daemon_id" | "site_id" | "discovery_type" | "phase" | "started_at" | "finished_at" | "duration" | "warnings" | "run_type" | "last_run" | "scan_count" | "force_full_scan" | "legacy";
         /** @enum {string} */
         DiscoveryPhase: "AwaitingSnapshot" | "Queued" | "Pending" | "Starting" | "Started" | "Scanning" | "Complete" | "Failed" | "Cancelled";
         /**
@@ -19725,6 +19725,35 @@ export interface operations {
                  *     that runs it.
                  */
                 search?: string | null;
+                /**
+                 * @description Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for
+                 *     several.
+                 */
+                run_types?: string[] | null;
+                /**
+                 * @description Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat
+                 *     it). Sent empty, matches none.
+                 */
+                legacy?: boolean[] | null;
+                /**
+                 * @description Only configurations whose next run is forced to a full scan (`true`), not (`false`), or
+                 *     both (repeat it). Sent empty, matches none.
+                 */
+                force_full_scan?: boolean[] | null;
+                /** @description Filter by tag IDs (returns discoveries that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["DiscoveryOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
@@ -19866,6 +19895,35 @@ export interface operations {
                  *     that runs it.
                  */
                 search?: string | null;
+                /**
+                 * @description Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for
+                 *     several.
+                 */
+                run_types?: string[] | null;
+                /**
+                 * @description Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat
+                 *     it). Sent empty, matches none.
+                 */
+                legacy?: boolean[] | null;
+                /**
+                 * @description Only configurations whose next run is forced to a full scan (`true`), not (`false`), or
+                 *     both (repeat it). Sent empty, matches none.
+                 */
+                force_full_scan?: boolean[] | null;
+                /** @description Filter by tag IDs (returns discoveries that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["DiscoveryOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
@@ -19920,6 +19978,35 @@ export interface operations {
                  *     that runs it.
                  */
                 search?: string | null;
+                /**
+                 * @description Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for
+                 *     several.
+                 */
+                run_types?: string[] | null;
+                /**
+                 * @description Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat
+                 *     it). Sent empty, matches none.
+                 */
+                legacy?: boolean[] | null;
+                /**
+                 * @description Only configurations whose next run is forced to a full scan (`true`), not (`false`), or
+                 *     both (repeat it). Sent empty, matches none.
+                 */
+                force_full_scan?: boolean[] | null;
+                /** @description Filter by tag IDs (returns discoveries that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
                 group_by?: null | components["schemas"]["DiscoveryOrderField"];
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */

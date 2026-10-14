@@ -78,6 +78,22 @@ export function useDiscoveriesByIds(idsGetter: () => string[]) {
 }
 
 /**
+ * One page of the scan configurations, the scheduled list. `historical: false` replaces the
+ * browser-side `run_type` filter, which needed every run loaded.
+ */
+export function useScheduledDiscoveriesQuery(params: () => ListPageParams) {
+	return useListPageQuery<Discovery>(
+		[...queryKeys.discovery.all, 'scheduled'],
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/discovery', {
+				params: { query: { ...query, historical: false } },
+				querySerializer
+			}),
+		params
+	);
+}
+
+/**
  * Paginated, server-ordered run history.
  *
  * Separate from `useDiscoveriesQuery` so paginating here doesn't truncate the
@@ -383,8 +399,13 @@ export type DiscoveryOrderField = components['schemas']['DiscoveryOrderField'];
  * One server-orderable discovery field's settings; `defineRegistryFields` supplies the
  * `orderField` from its key, and the entity field registry anything a registry field leaves out.
  */
+/** The discovery list endpoint's query params, which the filters are sent and linked as. */
+export type DiscoveryListParam = keyof NonNullable<
+	operations['get_all_discoveries']['parameters']['query']
+>;
+
 export type DiscoveryFieldEntry = Partial<
-	Omit<OrderableFieldConfig<Discovery, DiscoveryOrderField>, 'orderField'>
+	Omit<OrderableFieldConfig<Discovery, DiscoveryOrderField, DiscoveryListParam>, 'orderField'>
 >;
 
 /**
@@ -399,21 +420,45 @@ export const RUN_RESULT_ORDER_FIELDS = [
 	'warnings'
 ] as const satisfies readonly DiscoveryOrderField[];
 
+/**
+ * The order fields only a scan configuration carries: how and when it runs. A run in the history
+ * has none of them, so the history list leaves them out.
+ */
+export const CONFIG_ONLY_ORDER_FIELDS = [
+	'run_type',
+	'last_run',
+	'scan_count',
+	'force_full_scan',
+	'legacy'
+] as const satisfies readonly DiscoveryOrderField[];
+
 /** The order fields a scan configuration carries. */
 export type DiscoveryConfigOrderField = Exclude<
 	DiscoveryOrderField,
 	(typeof RUN_RESULT_ORDER_FIELDS)[number]
 >;
 
+/** The order fields a completed run carries. */
+export type DiscoveryRunOrderField = Exclude<
+	DiscoveryOrderField,
+	(typeof CONFIG_ONLY_ORDER_FIELDS)[number]
+>;
+
+/** The order fields both lists carry. */
+export type DiscoverySharedOrderField = Exclude<
+	DiscoveryConfigOrderField,
+	(typeof CONFIG_ONLY_ORDER_FIELDS)[number]
+>;
+
 /**
- * The discovery fields that are server order fields on a scan configuration, one per
- * `DiscoveryConfigOrderField`, for `defineRegistryFields`. A new order field fails to compile here
- * until it has an entry, or is added to `RUN_RESULT_ORDER_FIELDS`.
+ * The discovery fields both lists order on, one per `DiscoverySharedOrderField`, for
+ * `defineRegistryFields`. A new order field fails to compile here until it has an entry, or is
+ * added to `RUN_RESULT_ORDER_FIELDS` or `CONFIG_ONLY_ORDER_FIELDS`.
  */
 export const discoveryFields = (
 	daemons: Daemon[],
 	sites: Site[]
-): Record<DiscoveryConfigOrderField, DiscoveryFieldEntry> => ({
+): Record<DiscoverySharedOrderField, DiscoveryFieldEntry> => ({
 	name: {
 		searchable: true,
 		// Identity field: grouping by it would render a header per discovery.
@@ -480,6 +525,9 @@ export const discoveryFields = (
  * This is UI-only state, not server data
  */
 export const cancellingSessions = writable<Map<string, boolean>>(new Map());
+
+/** The discoveries some session update has named, so each one refetches the lists at most once. */
+const sessionDiscoveryIds = new Set<string>();
 
 /**
  * Query hook for fetching active discovery sessions
@@ -745,10 +793,12 @@ class DiscoverySSEManager extends BaseSSEManager<DiscoveryUpdatePayload> {
 				);
 
 				// If this session references a discovery not yet in cache
-				// (e.g. auto-created on daemon registration), refetch discoveries
-				if (update.discovery_id) {
+				// (e.g. auto-created on daemon registration), refetch discoveries. A paged list
+				// holds only its page, so absence from it says nothing: each id refetches once.
+				if (update.discovery_id && !sessionDiscoveryIds.has(update.discovery_id)) {
+					sessionDiscoveryIds.add(update.discovery_id);
 					const discoveries = queryClient.getQueryData<Discovery[]>(queryKeys.discovery.all);
-					if (discoveries && !discoveries.some((d) => d.id === update.discovery_id)) {
+					if (!discoveries?.some((d) => d.id === update.discovery_id)) {
 						queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
 					}
 				}

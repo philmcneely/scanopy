@@ -16,8 +16,10 @@ use crate::server::{
         extractors::Query,
         handlers::{
             list::list_page,
-            ordering::OrderField,
-            query::{FilterQueryExtractor, OrderDirection, PaginationParams},
+            ordering::{OrderField, in_sql},
+            query::{
+                FilterQueryExtractor, OrderDirection, PaginationParams, deserialize_bool_values,
+            },
             traits::ListScope,
             traits::{create_handler, update_handler},
         },
@@ -49,6 +51,7 @@ use const_format::concatcp;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
 use std::{convert::Infallible, sync::Arc};
+use strum::IntoEnumIterator;
 use tokio::sync::broadcast;
 use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -85,7 +88,27 @@ pub enum DiscoveryOrderField {
     Duration,
     /// How many warnings the run recorded. Rows with no results count as zero.
     Warnings,
+    /// How a scan configuration runs: `Scheduled` or `AdHoc`.
+    RunType,
+    /// When a scan configuration last ran. Configurations that never ran sort last.
+    LastRun,
+    /// How many scans a configuration has completed.
+    ScanCount,
+    /// Whether the configuration's next run is forced to a full scan.
+    ForceFullScan,
+    /// Whether the configuration's type is a frozen legacy one, from `DiscoveryType::is_legacy`.
+    Legacy,
 }
+
+/// Whether a discovery's type is a legacy one, built from `DiscoveryType::is_legacy`.
+static LEGACY_SQL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    in_sql(
+        "discovery.discovery_type->>'type'",
+        DiscoveryType::iter()
+            .filter(DiscoveryType::is_legacy)
+            .map(|t| t.id()),
+    )
+});
 
 /// A historical run's start, read out of the JSONB payload as a timestamp so it orders by time
 /// rather than by its text rendering.
@@ -109,13 +132,18 @@ impl OrderField for DiscoveryOrderField {
             Self::Warnings => {
                 "(SELECT COUNT(*) FROM discovery_warnings WHERE discovery_warnings.discovery_id = discovery.id)"
             }
+            Self::RunType => "discovery.run_type->>'type'",
+            Self::LastRun => "(discovery.run_type->>'last_run')::timestamptz",
+            Self::ScanCount => "discovery.scan_count",
+            Self::ForceFullScan => "discovery.force_full_scan",
+            Self::Legacy => LEGACY_SQL.as_str(),
         }
     }
 
     fn nulls_last(&self) -> bool {
         matches!(
             self,
-            Self::Phase | Self::StartedAt | Self::FinishedAt | Self::Duration
+            Self::Phase | Self::StartedAt | Self::FinishedAt | Self::Duration | Self::LastRun
         )
     }
 }
@@ -146,6 +174,27 @@ pub struct DiscoveryFilterQuery {
     /// Free-text search across the discovery's name and the name of the daemon
     /// that runs it.
     pub search: Option<String>,
+    /// Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for
+    /// several.
+    pub run_types: Option<Vec<String>>,
+    /// Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat
+    /// it). Sent empty, matches none.
+    #[serde(default, deserialize_with = "deserialize_bool_values")]
+    pub legacy: Option<Vec<bool>>,
+    /// Only configurations whose next run is forced to a full scan (`true`), not (`false`), or
+    /// both (repeat it). Sent empty, matches none.
+    #[serde(default, deserialize_with = "deserialize_bool_values")]
+    pub force_full_scan: Option<Vec<bool>>,
+    /// Filter by tag IDs (returns discoveries that have ANY of the specified tags)
+    pub tag_ids: Option<Vec<Uuid>>,
+    /// Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated
+    /// list of tag ids. One entry per tag group the list is filtered by.
+    pub tag_sets: Option<Vec<String>>,
+    /// Group by the tag each row holds from this tag group. Takes the place of `group_by`.
+    pub group_by_tag_group: Option<Uuid>,
+    /// Sort by the position of the tag each row holds from this tag group. Takes the place of
+    /// `order_by`.
+    pub order_by_tag_group: Option<Uuid>,
     /// Primary ordering field (used for grouping). Always sorts ASC to keep groups together.
     pub group_by: Option<DiscoveryOrderField>,
     /// Secondary ordering field (sorting within groups or standalone sort).

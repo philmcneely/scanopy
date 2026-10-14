@@ -5870,6 +5870,108 @@
             }
           },
           {
+            "name": "run_types",
+            "in": "query",
+            "description": "Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "legacy",
+            "in": "query",
+            "description": "Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat\nit). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "force_full_scan",
+            "in": "query",
+            "description": "Only configurations whose next run is forced to a full scan (`true`), not (`false`), or\nboth (repeat it). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns discoveries that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated\nlist of tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
             "name": "group_by",
             "in": "query",
             "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
@@ -6211,6 +6313,108 @@
             }
           },
           {
+            "name": "run_types",
+            "in": "query",
+            "description": "Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "legacy",
+            "in": "query",
+            "description": "Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat\nit). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "force_full_scan",
+            "in": "query",
+            "description": "Only configurations whose next run is forced to a full scan (`true`), not (`false`), or\nboth (repeat it). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns discoveries that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated\nlist of tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
             "name": "group_by",
             "in": "query",
             "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
@@ -6428,6 +6632,108 @@
                 "string",
                 "null"
               ]
+            }
+          },
+          {
+            "name": "run_types",
+            "in": "query",
+            "description": "Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "legacy",
+            "in": "query",
+            "description": "Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat\nit). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "force_full_scan",
+            "in": "query",
+            "description": "Only configurations whose next run is forced to a full scan (`true`), not (`false`), or\nboth (repeat it). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns discoveries that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated\nlist of tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -26941,7 +27247,12 @@
           "started_at",
           "finished_at",
           "duration",
-          "warnings"
+          "warnings",
+          "run_type",
+          "last_run",
+          "scan_count",
+          "force_full_scan",
+          "legacy"
         ]
       },
       "DiscoveryPhase": {
