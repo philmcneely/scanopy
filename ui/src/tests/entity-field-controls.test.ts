@@ -294,20 +294,21 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'users/components/UserTab.svelte': {
+		listPath: '/api/v1/users/members',
 		columns: {
 			email: IDENTITY,
-			invite_status: YES,
-			permissions: YES,
-			site_ids: SHARED_ARRAY,
-			oidc_provider: YES,
-			invited_by: YES,
+			invite_status: server('statuses'),
+			permissions: server('permissions'),
+			site_ids: { ...SHARED_ARRAY, filter: { param: 'site_ids' } },
+			oidc_provider: server('auth_methods'),
+			invited_by: server('invited_by'),
 			invite_url: none('Unique per invite'),
 			created_at: DATE,
 			expires_at: DATE,
 			updated_at: DATE,
 			oidc_linked_at: DATE,
 			terms_accepted_at: DATE,
-			email_verified: BOOLEAN
+			email_verified: server('email_verified')
 		}
 	},
 	'user_api_keys/components/UserApiKeyTab.svelte': {

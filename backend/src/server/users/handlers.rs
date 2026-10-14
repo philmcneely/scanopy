@@ -36,6 +36,7 @@ mod generated {
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
     OpenApiRouter::new()
         .routes(routes!(get_all_users))
+        .routes(routes!(crate::server::users::members::list_members))
         .routes(routes!(get_user_by_id, update_user, delete_user))
         .routes(routes!(admin_update_user))
         .routes(routes!(bulk_delete_users))

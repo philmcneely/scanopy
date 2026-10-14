@@ -8,12 +8,7 @@
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import type { FieldConfig } from '$lib/shared/components/data/types';
-	import {
-		useInvitesQuery,
-		formatInviteUrl,
-		useRevokeInviteMutation
-	} from '$lib/features/organizations/queries';
+	import { formatInviteUrl, useRevokeInviteMutation } from '$lib/features/organizations/queries';
 	import { isUser, type User, type UserOrInvite } from '../types';
 	import type { OrganizationInvite } from '$lib/features/organizations/types';
 	import InviteModal from './InviteModal.svelte';
@@ -22,7 +17,16 @@
 	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import UserEditModal from './UserEditModal.svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
-	import { useUsersQuery, useBulkDeleteUsersMutation, useDeleteUserMutation } from '../queries';
+	import {
+		useMembersQuery,
+		useMembersListQuery,
+		useBulkDeleteUsersMutation,
+		useDeleteUserMutation
+	} from '../queries';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import type { components } from '$lib/api/schema';
+
+	type MemberOrderField = components['schemas']['MemberOrderField'];
 	import type { TabProps } from '$lib/shared/types';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
@@ -53,14 +57,21 @@
 		org?.plan?.seat_cents !== undefined && org?.plan?.seat_cents !== null
 	);
 
-	const usersQuery = useUsersQuery();
+	// Every member the caller may see, for the seat count, filter options and deep links; the table
+	// reads its own page.
+	const membersQuery = useMembersQuery();
+	const page = listPageState();
+	const membersPageQuery = useMembersListQuery(() => page.params());
 	const bulkDeleteUsersMutation = useBulkDeleteUsersMutation();
-	const invitesQuery = useInvitesQuery();
 
 	// Derived data
-	let usersData = $derived(usersQuery.data ?? []);
-	let invitesData = $derived(invitesQuery.data ?? []);
-	let isLoading = $derived(usersQuery.isPending);
+	let membersData = $derived(membersQuery.data ?? []);
+	let usersData = $derived(membersData.filter(isUser).map((member) => member.data));
+	let pageMembers = $derived(membersPageQuery.data?.items ?? []);
+	let membersPagination = $derived(membersPageQuery.data?.pagination ?? null);
+	let isLoading = $derived(
+		membersQuery.isPending || (membersPageQuery.isPending && !membersPageQuery.data)
+	);
 
 	// Force Svelte to track metadata reactivity
 	$effect(() => {
@@ -93,13 +104,7 @@
 		}
 	});
 
-	// Combine users and invites into single array
-	let combinedItems = $derived([
-		...usersData.map((user) => ({ type: 'user' as const, data: user, id: user.id })),
-		...invitesData.map((invite) => ({ type: 'invite' as const, data: invite, id: invite.id }))
-	] as UserOrInvite[]);
-
-	let userCount = $derived(combinedItems.filter(isUser).length);
+	let userCount = $derived(usersData.length);
 	let isAtSeatLimit = $derived(seatLimit !== null && userCount >= seatLimit && !canBuyMoreSeats);
 
 	async function handleCreateInvite() {
@@ -206,14 +211,17 @@
 		];
 	}
 
-	const tableDefaults: TableDefaults<string> = { sort: { field: 'email', direction: 'asc' } };
+	const tableDefaults: TableDefaults<MemberOrderField> = {
+		sort: { field: 'email', direction: 'asc' }
+	};
 
-	const userFields: FieldConfig<UserOrInvite>[] = userColumns({
-		currentUser: () => currentUser,
-		users: () => usersData,
-		sites: () => sitesData,
-		inviteUrl: formatInviteUrl
-	});
+	let userFields = $derived(
+		userColumns({
+			members: () => membersData,
+			sites: () => sitesData,
+			inviteUrl: formatInviteUrl
+		})
+	);
 </script>
 
 <!-- The page's own actions, last in the table toolbar beside the filter and columns. -->
@@ -238,7 +246,7 @@
 	<!-- Loading state -->
 	{#if isLoading}
 		<Loading />
-	{:else if combinedItems.length === 0}
+	{:else if pageMembers.length === 0 && !page.isNarrowed}
 		<!-- Empty state -->
 		<EmptyState title={users_noUsersFound()} subtitle={users_noUsersSubtitle()} />
 	{:else}
@@ -246,12 +254,16 @@
 			title={common_users()}
 			subtitle={users_subtitle()}
 			{toolbarActions}
-			items={combinedItems}
+			items={pageMembers}
 			fields={userFields}
 			storageKey="scanopy-users-table-state"
 			defaults={tableDefaults}
 			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}
+			serverPagination={membersPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false, tags: false }}
 			getActions={userActions}
 			onCsvExport={handleCsvExport}
 		></DataControls>

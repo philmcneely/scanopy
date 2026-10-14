@@ -329,8 +329,6 @@ where
     T: PaginatedList + ChangeTriggersTopologyStaleness<T> + Default,
     EntityEnum: From<T>,
 {
-    let computed_group = ordering.group_by.filter(|f| T::is_computed(f));
-    let computed_sort = ordering.order_by.filter(|f| T::is_computed(f));
     let sql = ListOrdering {
         group_by: ordering.group_by.filter(|f| !T::is_computed(f)),
         order_by: ordering.order_by.filter(|f| !T::is_computed(f)),
@@ -357,16 +355,43 @@ where
 
     // `items` keeps the order it is given, so each item lines up with its SQL rank and group.
     let items = T::items(state, rows, query).await?;
-    let mut listed: Vec<(usize, Option<String>, T::Item)> = items
+    let rows: Vec<(Option<String>, T::Item)> = sql_groups
         .into_iter()
-        .zip(sql_groups)
-        .enumerate()
-        .map(|(rank, (item, group))| (rank, group, item))
-        .filter(|(_, _, item)| T::keep(query, item))
+        .zip(items)
+        .filter(|(_, item)| T::keep(query, item))
         .collect();
+    Ok(page_in_memory(
+        rows,
+        &ordering,
+        T::is_computed,
+        T::computed,
+        limit,
+        offset,
+    ))
+}
 
-    // Group order: a SQL grouping's order is the order rows arrived in; a computed one's is its
-    // values'. Sort: a computed field's value in the requested direction, else the SQL order.
+/// Order, group, count and slice rows that only code can fully order. `rows` arrive in the order
+/// to keep wherever the computed ordering ties, each with its SQL group key (`None` when the
+/// grouping is computed or absent). A SQL grouping keeps the order its groups arrived in; a
+/// computed grouping and a computed sort order by their values, the sort in the requested
+/// direction.
+pub fn page_in_memory<I, O: OrderField>(
+    rows: Vec<(Option<String>, I)>,
+    ordering: &ListOrdering<O>,
+    is_computed: impl Fn(&O) -> bool,
+    computed: impl Fn(&O, &I) -> Option<Computed>,
+    limit: Option<u32>,
+    offset: u32,
+) -> (Vec<I>, u64, Option<Vec<GroupCount>>) {
+    let computed_group = ordering.group_by.filter(|f| is_computed(f));
+    let computed_sort = ordering.order_by.filter(|f| is_computed(f));
+    let value = |field: &O, item: &I| computed(field, item).and_then(|c| c.value);
+
+    let mut listed: Vec<(usize, Option<String>, I)> = rows
+        .into_iter()
+        .enumerate()
+        .map(|(rank, (group, item))| (rank, group, item))
+        .collect();
     let first_seen: HashMap<Option<String>, usize> =
         listed
             .iter()
@@ -377,18 +402,12 @@ where
     let descending = matches!(ordering.direction, Some(OrderDirection::Desc));
     listed.sort_by(|(rank_a, group_a, a), (rank_b, group_b, b)| {
         let by_group = match computed_group {
-            Some(field) => ComputedValue::compare(
-                &T::computed(&field, a).and_then(|c| c.value),
-                &T::computed(&field, b).and_then(|c| c.value),
-            ),
+            Some(field) => ComputedValue::compare(&value(&field, a), &value(&field, b)),
             None => first_seen[group_a].cmp(&first_seen[group_b]),
         };
         let by_sort = match computed_sort {
             Some(field) => {
-                let order = ComputedValue::compare(
-                    &T::computed(&field, a).and_then(|c| c.value),
-                    &T::computed(&field, b).and_then(|c| c.value),
-                );
+                let order = ComputedValue::compare(&value(&field, a), &value(&field, b));
                 if descending { order.reverse() } else { order }
             }
             None => rank_a.cmp(rank_b),
@@ -401,7 +420,7 @@ where
         let mut counts: Vec<GroupCount> = Vec::new();
         for (_, sql_group, item) in &listed {
             let key = match computed_group {
-                Some(field) => T::computed(&field, item).and_then(|c| c.group),
+                Some(field) => computed(&field, item).and_then(|c| c.group),
                 None => sql_group.clone(),
             };
             match counts.last_mut() {
@@ -422,5 +441,5 @@ where
         .take(limit.map_or(usize::MAX, |l| l as usize))
         .map(|(_, _, item)| item)
         .collect();
-    Ok((page, total_count, group_counts))
+    (page, total_count, group_counts)
 }

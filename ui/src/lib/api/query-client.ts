@@ -128,6 +128,8 @@ export const queryKeys = {
 	},
 	users: {
 		all: ['users'] as const,
+		// Users and pending invites in one list, full or a page.
+		members: () => [...queryKeys.users.all, 'members'] as const,
 		me: () => [...queryKeys.users.all, 'me'] as const,
 		detail: (id: string) => [...queryKeys.users.all, 'detail', id] as const
 	},

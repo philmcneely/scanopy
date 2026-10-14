@@ -65,6 +65,7 @@ use crate::server::topology::types::views::{
 use crate::server::user_api_keys::handlers::UserApiKeyOrderField;
 use crate::server::user_api_keys::r#impl::base::UserApiKey;
 use crate::server::users::r#impl::base::User;
+use crate::server::users::members::{MemberOrderField, MemberStatus};
 use crate::server::vlans::handlers::VlanOrderField;
 use crate::server::vlans::r#impl::base::Vlan;
 
@@ -126,6 +127,8 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         DaemonApiKeyOrderField,
         SiteOrderField,
         TagGroupOrderField,
+        MemberOrderField,
+        MemberStatus,
         // Derived staleness status. Not a field on any entity (it's computed
         // per-request against the site's window), so nothing else pulls it
         // into the schema — but the frontend must derive its union from here

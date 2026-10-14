@@ -3720,6 +3720,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List members
+         * @description The organization's users and its pending invites in one list, each limited to the ones the
+         *     caller may see: every user and invite for an owner, otherwise the caller themselves, members
+         *     below their role, and invites they created.
+         */
+        get: operations["list_members"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{id}": {
         parameters: {
             query?: never;
@@ -11846,6 +11868,37 @@ export interface components {
             /** @enum {string} */
             type: "container";
         };
+        /** @description One row of the members list: a user, or an invite still waiting to be accepted. */
+        Member: {
+            /**
+             * @description How the user signs in: `<provider>`, `<provider>+password`, `password` or `none`.
+             *     Provider names come from the server's OIDC config.
+             */
+            auth_method: string;
+            data: components["schemas"]["User"];
+            /** Format: uuid */
+            id: string;
+            status: components["schemas"]["MemberStatus"];
+            /** @enum {string} */
+            type: "user";
+        } | {
+            data: components["schemas"]["Invite"];
+            /** Format: uuid */
+            id: string;
+            status: components["schemas"]["MemberStatus"];
+            /** @enum {string} */
+            type: "invite";
+        };
+        /**
+         * @description Fields the members list can be ordered and grouped by. Every one is derived in Rust.
+         * @enum {string}
+         */
+        MemberOrderField: "created_at" | "email" | "invite_status" | "permissions" | "oidc_provider" | "updated_at" | "invited_by" | "expires_at" | "email_verified" | "oidc_linked_at" | "terms_accepted_at";
+        /**
+         * @description A member's place in the organization, as the status column shows it.
+         * @enum {string}
+         */
+        MemberStatus: "pending" | "you" | "user";
         /** @description Request body for merging a subnet into the range that contains it. */
         MergeSubnetRequest: {
             /**
@@ -12557,6 +12610,36 @@ export interface components {
                  */
                 virtualization_service_id?: string | null;
             }[];
+            /** @description Human-readable failure message. Omitted on success. */
+            error?: string | null;
+            /** @description API and server version metadata, plus pagination counters. */
+            meta: components["schemas"]["PaginatedApiMeta"];
+            /** @description `true` when the request succeeded. `false` responses carry `error` instead of `data`. */
+            success: boolean;
+        };
+        /** @description Response type for paginated list endpoints (pagination is always present in meta) */
+        PaginatedApiResponse_Member: {
+            /** @description The page of results. Empty when nothing matched the query. */
+            data: ({
+                /**
+                 * @description How the user signs in: `<provider>`, `<provider>+password`, `password` or `none`.
+                 *     Provider names come from the server's OIDC config.
+                 */
+                auth_method: string;
+                data: components["schemas"]["User"];
+                /** Format: uuid */
+                id: string;
+                status: components["schemas"]["MemberStatus"];
+                /** @enum {string} */
+                type: "user";
+            } | {
+                data: components["schemas"]["Invite"];
+                /** Format: uuid */
+                id: string;
+                status: components["schemas"]["MemberStatus"];
+                /** @enum {string} */
+                type: "invite";
+            })[];
             /** @description Human-readable failure message. Omitted on success. */
             error?: string | null;
             /** @description API and server version metadata, plus pagination counters. */
@@ -25433,6 +25516,62 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    list_members: {
+        parameters: {
+            query?: {
+                /** @description Only members in one of these statuses. Repeat for several. */
+                statuses?: components["schemas"]["MemberStatus"][] | null;
+                /** @description Only members with one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only users assigned one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description `true` also returns admins and owners, who reach every site. Set on its own it returns only
+                 *     those.
+                 */
+                all_sites?: boolean | null;
+                /**
+                 * @description Only users signing in one of these ways (`<provider>`, `<provider>+password`, `password`,
+                 *     `none`). Repeat for several.
+                 */
+                auth_methods?: string[] | null;
+                /** @description Only invites created by one of these users. Repeat for several. */
+                invited_by?: string[] | null;
+                /**
+                 * @description Only users whose email is verified (`true`), unverified (`false`), or both (repeat it).
+                 *     Sent empty, matches none.
+                 */
+                email_verified?: boolean[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the email. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: null | components["schemas"]["MemberOrderField"];
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: null | components["schemas"]["MemberOrderField"];
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: null | components["schemas"]["OrderDirection"];
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Users and pending invites */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedApiResponse_Member"];
                 };
             };
         };

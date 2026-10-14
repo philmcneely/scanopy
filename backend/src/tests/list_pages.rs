@@ -741,3 +741,109 @@ async fn every_documented_tag_filter_narrows_the_rows() {
     )
     .await;
 }
+
+/// The members list holds the users and invites the caller may see, filters and groups on what
+/// the server derives, and the user CSV export holds no more of the organization than it does.
+#[tokio::test]
+async fn members_list_users_and_invites_the_caller_may_see() {
+    use crate::server::invites::r#impl::base::Invite;
+    use crate::server::shared::handlers::traits::{CrudHandlers, ListScope};
+    use crate::server::shared::services::traits::CrudService;
+    use crate::server::users::r#impl::base::User;
+    use crate::server::users::r#impl::permissions::UserOrgPermissions;
+    use crate::server::users::members::{
+        Member, MemberFilterQuery, MemberOrderField, MemberStatus, members_page,
+    };
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let person = |email: &str, role: UserOrgPermissions| {
+        let mut u = user(&org.id);
+        u.base.email = email_address::EmailAddress::new_unchecked(email);
+        u.base.permissions = role;
+        u
+    };
+    let admin = person("admin@porto.example", UserOrgPermissions::Admin);
+    let peer = person("peer@porto.example", UserOrgPermissions::Admin);
+    let member = person("member@porto.example", UserOrgPermissions::Member);
+    for u in [&admin, &peer, &member] {
+        storage.users.create(u).await.unwrap();
+    }
+    let invite = Invite::with_expiration(
+        org.id,
+        "https://example.test/invite".to_string(),
+        admin.id,
+        24,
+        UserOrgPermissions::Member,
+        vec![],
+        None,
+    );
+    storage.invites.create(&invite).await.unwrap();
+
+    let ids = |page: &[Member]| {
+        let mut ids: Vec<Uuid> = page
+            .iter()
+            .map(|m| match m {
+                Member::User { id, .. } | Member::Invite { id, .. } => *id,
+            })
+            .collect();
+        ids.sort();
+        ids
+    };
+    let all = members_page(
+        &state,
+        org.id,
+        admin.id,
+        UserOrgPermissions::Admin,
+        &MemberFilterQuery::default(),
+    )
+    .await
+    .unwrap();
+    let mut expected = vec![admin.id, member.id, invite.id];
+    expected.sort();
+    assert_eq!(ids(&all.data), expected, "a peer admin is not listed");
+
+    let pending = members_page(
+        &state,
+        org.id,
+        admin.id,
+        UserOrgPermissions::Admin,
+        &MemberFilterQuery {
+            statuses: Some(vec![MemberStatus::Pending]),
+            group_by: Some(MemberOrderField::InviteStatus),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(ids(&pending.data), vec![invite.id]);
+    assert_eq!(
+        counts(pending.meta.pagination.group_counts.as_deref()),
+        vec![("pending".to_string(), 1)]
+    );
+
+    // The export reads through `User::access_filter`, the same rule.
+    let scope = ListScope {
+        user_id: Some(admin.id),
+        permissions: Some(UserOrgPermissions::Admin),
+        ..list_scope(&[], org.id)
+    };
+    let mut exported: Vec<Uuid> = state
+        .services
+        .user_service
+        .get_all(
+            User::list_filter(&state, &Default::default(), &scope)
+                .await
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|u| u.id)
+        .collect();
+    exported.sort();
+    let mut expected = vec![admin.id, member.id];
+    expected.sort();
+    assert_eq!(exported, expected);
+}

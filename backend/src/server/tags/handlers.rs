@@ -14,7 +14,7 @@ use crate::server::shared::handlers::query::{
 use crate::server::shared::handlers::traits::{ListScope, create_handler};
 use crate::server::shared::services::traits::{CrudService, EventBusService};
 use crate::server::shared::storage::filter::StorableFilter;
-use crate::server::shared::storage::traits::{Entity, Storable, Storage};
+use crate::server::shared::storage::traits::{Entity, Storable};
 use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::api::{ApiError, ApiErrorResponse, PaginatedApiResponse};
 use crate::server::tags::groups::handlers::SYSTEM_SQL;

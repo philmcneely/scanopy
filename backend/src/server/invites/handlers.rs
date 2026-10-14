@@ -281,11 +281,7 @@ async fn get_invites(
         .list_active_invites(&organization_id)
         .await
         .into_iter()
-        .filter(|i| {
-            i.base.created_by == user_id
-                || i.base.permissions < permissions
-                || permissions == UserOrgPermissions::Owner
-        })
+        .filter(|i| i.is_listed_for(permissions, user_id))
         .collect();
 
     Ok(Json(ApiResponse::success(invites)))
