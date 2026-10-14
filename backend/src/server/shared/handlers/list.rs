@@ -19,7 +19,7 @@ use crate::server::{
         handlers::{
             ordering::{OrderField, TagGroupOrdering},
             query::{FilterQueryExtractor, OrderDirection},
-            traits::CrudHandlers,
+            traits::{CrudHandlers, ListScope},
             tree::{TreePosition, tree_order},
         },
         services::traits::CrudService,
@@ -126,15 +126,14 @@ where
 /// One page of `T`'s list for this caller and query, with `group_counts` when it is grouped.
 pub async fn list_page<T>(
     state: &AppState,
-    site_ids: &[Uuid],
-    organization_id: Uuid,
+    scope: &ListScope,
     query: &T::FilterQuery,
 ) -> ApiResult<PaginatedApiResponse<T::Item>>
 where
     T: PaginatedList + ChangeTriggersTopologyStaleness<T> + Default,
     EntityEnum: From<T>,
 {
-    let filter = T::list_filter(state, query, site_ids, organization_id).await?;
+    let filter = T::list_filter(state, query, scope).await?;
     let pagination = query.pagination();
     let limit = pagination.effective_limit();
     let offset = pagination.effective_offset();

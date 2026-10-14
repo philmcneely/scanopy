@@ -8,6 +8,7 @@ use crate::server::shared::handlers::ordering::OrderField;
 use crate::server::shared::handlers::query::{
     FilterQueryExtractor, OrderDirection, PaginationParams, narrow_by_tags_and_search,
 };
+use crate::server::shared::handlers::traits::ListScope;
 use crate::server::shared::handlers::traits::update_handler;
 use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::storage::filter::StorableFilter;
@@ -359,14 +360,8 @@ async fn get_all_services(
         ServiceFilterQuery,
     >,
 ) -> ApiResult<Json<PaginatedApiResponse<Service>>> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    Ok(Json(
-        list_page::<Service>(&state, &site_ids, organization_id, &query).await?,
-    ))
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Service>(&state, &scope, &query).await?))
 }
 
 /// Create a new service

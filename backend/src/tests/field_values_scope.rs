@@ -46,7 +46,11 @@ async fn field_values_exclude_sites_outside_the_callers_access() {
 
     let field = HostOrderField::Manufacturer;
     let values = |query: HostFilterQuery| {
-        let filter = field_values_filter::<Host>(&[visible.id], org.id, &query, field);
+        let filter = field_values_filter::<Host>(
+            &crate::tests::list_scope(&[visible.id], org.id),
+            &query,
+            field,
+        );
         let services = &services;
         async move {
             services
@@ -97,7 +101,11 @@ async fn service_field_values_exclude_sites_outside_the_callers_access() {
 
     let field = ServiceOrderField::Name;
     let values = |query: ServiceFilterQuery| {
-        let filter = field_values_filter::<Service>(&[visible.id], org.id, &query, field);
+        let filter = field_values_filter::<Service>(
+            &crate::tests::list_scope(&[visible.id], org.id),
+            &query,
+            field,
+        );
         let services = &services;
         async move {
             services
@@ -207,7 +215,11 @@ async fn discovery_field_values_with_historical_count_only_history_rows() {
         .unwrap();
 
     let values = |field: DiscoveryOrderField, query: DiscoveryFilterQuery| {
-        let filter = field_values_filter::<Discovery>(&[net.id], org.id, &query, field);
+        let filter = field_values_filter::<Discovery>(
+            &crate::tests::list_scope(&[net.id], org.id),
+            &query,
+            field,
+        );
         let services = &services;
         async move {
             services
@@ -266,7 +278,11 @@ async fn virtualized_by_name_filter_matches_the_counted_name() {
     storage.hosts.create(&guest).await.unwrap();
 
     let field = HostOrderField::VirtualizedBy;
-    let filter = field_values_filter::<Host>(&[net.id], org.id, &HostFilterQuery::default(), field);
+    let filter = field_values_filter::<Host>(
+        &crate::tests::list_scope(&[net.id], org.id),
+        &HostFilterQuery::default(),
+        field,
+    );
     let counted: Vec<Option<String>> = services
         .host_service
         .count_by_group(filter, field.to_sql())

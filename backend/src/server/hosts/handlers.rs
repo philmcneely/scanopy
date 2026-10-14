@@ -22,6 +22,7 @@ use crate::server::shared::handlers::ordering::OrderField;
 use crate::server::shared::handlers::query::{
     FilterQueryExtractor, OrderDirection, PaginationParams, narrow_by_tags_and_search,
 };
+use crate::server::shared::handlers::traits::ListScope;
 use crate::server::shared::handlers::traits::{
     BulkDeleteResponse, CrudHandlers, bulk_delete_handler, delete_handler,
 };
@@ -400,14 +401,8 @@ async fn get_all_hosts(
     auth: Authorized<Viewer>,
     Query(query): Query<HostFilterQuery>,
 ) -> ApiResult<Json<PaginatedApiResponse<HostResponse>>> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    Ok(Json(
-        list_page::<Host>(&state, &site_ids, organization_id, &query).await?,
-    ))
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Host>(&state, &scope, &query).await?))
 }
 
 /// Get a host by ID
@@ -1326,13 +1321,11 @@ async fn export_hosts_zip(
     auth: Authorized<Viewer>,
     Query(query): Query<HostFilterQuery>,
 ) -> ApiResult<impl IntoResponse> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
+    let scope = ListScope::of(&auth.entity)?;
+    let (site_ids, organization_id) = (scope.site_ids.clone(), scope.organization_id);
 
     // The list's own filter, so the export holds the rows the list showed.
-    let filter = Host::list_filter(&state, &query, &site_ids, organization_id).await?;
+    let filter = Host::list_filter(&state, &query, &scope).await?;
 
     // Get all hosts (no pagination for export)
     let hosts = state.services.host_service.get_all(filter).await?;

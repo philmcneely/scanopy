@@ -5,14 +5,13 @@ use crate::server::{
         handlers::{
             list::{ListOrdering, PaginatedList},
             ordering::TagGroupOrdering,
-            traits::CrudHandlers,
+            traits::{CrudHandlers, ListScope},
         },
         storage::filter::StorableFilter,
         types::api::ApiResult,
     },
 };
 use async_trait::async_trait;
-use uuid::Uuid;
 
 #[async_trait]
 impl CrudHandlers for Service {
@@ -33,16 +32,19 @@ impl CrudHandlers for Service {
     async fn list_filter(
         state: &AppState,
         query: &ServiceFilterQuery,
-        site_ids: &[Uuid],
-        organization_id: Uuid,
+        scope: &ListScope,
     ) -> ApiResult<StorableFilter<Service>> {
-        let filter = query.narrow(site_ids, organization_id)?;
+        let filter = query.narrow(&scope.site_ids, scope.organization_id)?;
 
         // Staleness is per-site, so resolve each accessible site's cutoff and
         // let the filter compare every row against its own.
         Ok(match query.stale {
             Some(stale) => {
-                let cutoffs = state.services.site_service.stale_cutoffs(site_ids).await?;
+                let cutoffs = state
+                    .services
+                    .site_service
+                    .stale_cutoffs(&scope.site_ids)
+                    .await?;
                 filter.stale_by_site(&cutoffs, stale)
             }
             None => filter,

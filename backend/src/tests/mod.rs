@@ -282,3 +282,16 @@ pub async fn setup_test_app() -> Router<Arc<AppState>> {
     let (router, _openapi) = crate::server::shared::handlers::factory::create_router(state.clone());
     router.with_state(state)
 }
+
+/// The scope of a caller who sees `site_ids` in `organization_id`, with no user behind it.
+pub fn list_scope(
+    site_ids: &[Uuid],
+    organization_id: Uuid,
+) -> crate::server::shared::handlers::traits::ListScope {
+    crate::server::shared::handlers::traits::ListScope {
+        site_ids: site_ids.to_vec(),
+        organization_id,
+        user_id: None,
+        permissions: None,
+    }
+}

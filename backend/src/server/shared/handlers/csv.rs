@@ -24,7 +24,7 @@ use axum::{
 };
 use std::sync::Arc;
 
-use super::traits::CrudHandlers;
+use super::traits::{CrudHandlers, ListScope};
 
 /// Export entities to CSV format.
 ///
@@ -40,14 +40,11 @@ where
     T: CrudHandlers + 'static + ChangeTriggersTopologyStaleness<T> + Default + serde::Serialize,
     EntityEnum: From<T>,
 {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-    let user_id = auth.user_id();
+    let scope = ListScope::of(&auth.entity)?;
+    let user_id = scope.user_id;
 
     // The list endpoint's filter, without pagination.
-    let filter = T::list_filter(&state, &query, &site_ids, organization_id).await?;
+    let filter = T::list_filter(&state, &query, &scope).await?;
 
     let service = T::get_service(&state);
 
@@ -64,8 +61,8 @@ where
 
     let source = ServiceSource {
         services: &state.services,
-        site_ids: &site_ids,
-        organization_id,
+        site_ids: &scope.site_ids,
+        organization_id: scope.organization_id,
     };
     let csv_data = entities_csv(&source, T::entity_type(), &entities)
         .await

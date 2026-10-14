@@ -18,6 +18,7 @@ use crate::server::{
             list::list_page,
             ordering::OrderField,
             query::{FilterQueryExtractor, OrderDirection, PaginationParams},
+            traits::ListScope,
             traits::{create_handler, update_handler},
         },
         services::traits::CrudService,
@@ -237,14 +238,8 @@ async fn get_all_discoveries(
     auth: Authorized<Viewer>,
     Query(query): Query<DiscoveryFilterQuery>,
 ) -> ApiResult<Json<PaginatedApiResponse<Discovery>>> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    Ok(Json(
-        list_page::<Discovery>(&state, &site_ids, organization_id, &query).await?,
-    ))
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Discovery>(&state, &scope, &query).await?))
 }
 
 // Generated handlers for operations that use generic CRUD logic

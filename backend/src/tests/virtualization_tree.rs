@@ -10,7 +10,7 @@ use crate::server::shared::handlers::query::OrderDirection;
 use crate::server::shared::storage::traits::Storage;
 use crate::server::shared::types::api::GroupCount;
 
-use super::{host, organization, service, site, test_state};
+use super::{host, list_scope, organization, service, site, test_state};
 
 fn counts(groups: &[GroupCount]) -> Vec<(String, u64)> {
     groups
@@ -61,10 +61,13 @@ async fn a_tree_grouping_places_every_host_under_its_root() {
         include_children: Some(false),
         ..Default::default()
     };
-    let page =
-        list_page::<crate::server::hosts::r#impl::base::Host>(&state, &[net.id], org.id, &query)
-            .await
-            .unwrap();
+    let page = list_page::<crate::server::hosts::r#impl::base::Host>(
+        &state,
+        &list_scope(&[net.id], org.id),
+        &query,
+    )
+    .await
+    .unwrap();
 
     let names: Vec<&str> = page.data.iter().map(|h| h.name.as_str()).collect();
     assert_eq!(
@@ -141,10 +144,13 @@ async fn a_sort_orders_siblings_inside_each_tree() {
         include_children: Some(false),
         ..Default::default()
     };
-    let page =
-        list_page::<crate::server::hosts::r#impl::base::Host>(&state, &[net.id], org.id, &query)
-            .await
-            .unwrap();
+    let page = list_page::<crate::server::hosts::r#impl::base::Host>(
+        &state,
+        &list_scope(&[net.id], org.id),
+        &query,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(page.meta.pagination.total_count, 5);
     let names: Vec<&str> = page.data.iter().map(|h| h.name.as_str()).collect();

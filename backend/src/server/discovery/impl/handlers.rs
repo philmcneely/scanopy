@@ -6,14 +6,13 @@ use crate::server::{
         handlers::{
             list::{ListOrdering, PaginatedList},
             query::narrow_by_tags_and_search,
-            traits::{CrudHandlers, base_list_filter},
+            traits::{CrudHandlers, ListScope, base_list_filter},
         },
         storage::filter::StorableFilter,
         types::api::ApiResult,
     },
 };
 use async_trait::async_trait;
-use uuid::Uuid;
 
 #[async_trait]
 impl CrudHandlers for Discovery {
@@ -33,11 +32,10 @@ impl CrudHandlers for Discovery {
     async fn list_filter(
         _state: &AppState,
         query: &DiscoveryFilterQuery,
-        site_ids: &[Uuid],
-        organization_id: Uuid,
+        scope: &ListScope,
     ) -> ApiResult<StorableFilter<Discovery>> {
         narrow_by_tags_and_search(
-            base_list_filter::<Discovery>(site_ids, organization_id, query),
+            base_list_filter::<Discovery>(scope, query),
             None,
             None,
             query.search.as_deref(),
