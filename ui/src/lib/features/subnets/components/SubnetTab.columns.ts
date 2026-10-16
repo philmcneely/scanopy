@@ -45,7 +45,7 @@ export interface SubnetColumnsContext {
 	tags: () => Tag[];
 	discoveryRuns: () => Discovery[];
 	/** The ranges heading a nesting group, by id, including those on other pages. */
-	nestingRoots: () => ReadonlyMap<string, Pick<Subnet, 'cidr'>>;
+	nestingRoots: () => ReadonlyMap<string, Pick<Subnet, 'cidr' | 'name'>>;
 	/** The container runtime that manages a subnet, if it has one. */
 	runtimeOf: (subnet: Subnet) => Service | undefined;
 	/** The container runtimes that manage some subnet. */
@@ -82,10 +82,11 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 				getGroupValue: (subnet) => subnet.nesting_root_id ?? '',
 				getGroupLabel: (subnet) => {
 					if (!subnet.nesting_root_id) return null;
-					return (
-						ctx.nestingRoots().get(subnet.nesting_root_id)?.cidr ??
-						common_unknownEntity({ entity: entities.getName('Subnet') })
-					);
+					// Named as the root's own row is, so a tree continued from an earlier page reads as
+					// the same tree.
+					const root = ctx.nestingRoots().get(subnet.nesting_root_id);
+					if (!root) return common_unknownEntity({ entity: entities.getName('Subnet') });
+					return root.name || root.cidr;
 				},
 				tree: {
 					key: (subnet) => subnet.id,
