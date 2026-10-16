@@ -85,13 +85,7 @@ impl<'a> PortTurnover<'a> {
         if !ServiceDefinitionExt::is_generic(&claimant.base.service_definition) {
             return true;
         }
-        let container_id = |s: &Service| {
-            s.base
-                .virtualization_metadata
-                .as_ref()
-                .and_then(|v| v.container_id().map(str::to_owned))
-        };
-        match (container_id(claimant), container_id(holder)) {
+        match (container_id_of(claimant), container_id_of(holder)) {
             (Some(new), Some(old)) => {
                 new != old
                     && claimant.base.virtualization_service_id.is_some()
@@ -139,6 +133,15 @@ impl<'a> PortTurnover<'a> {
         }
         Some(holders)
     }
+}
+
+/// The container id a service carries, if it is a container.
+fn container_id_of(service: &Service) -> Option<String> {
+    service
+        .base
+        .virtualization_metadata
+        .as_ref()
+        .and_then(|v| v.container_id().map(str::to_owned))
 }
 
 /// Whether `binding` is a port binding overlapping `claim`.
@@ -232,6 +235,78 @@ impl HostService {
                     .remove_port_bindings(&holder.id, &taken, authentication.clone())
                     .await?;
             }
+        }
+        Ok(())
+    }
+
+    /// Fold into `claimant` the generic placeholders stored for its container, and delete them.
+    ///
+    /// A container the daemon couldn't identify is stored as a generic container. Once a scan
+    /// identifies it, the runtime reports the same container id on the same runtime, so the
+    /// placeholder and the claimant are one container: the claimant takes every binding the
+    /// placeholder held, whatever this scan covered. A placeholder found again in this
+    /// submission is still answering as itself and is left alone.
+    pub(crate) async fn absorb_container_placeholders(
+        &self,
+        turnover: &PortTurnover<'_>,
+        claimant: &mut Service,
+        services: &mut Vec<Service>,
+        authentication: AuthenticatedEntity,
+    ) -> Result<()> {
+        if ServiceDefinitionExt::is_generic(&claimant.base.service_definition)
+            || claimant.base.virtualization_service_id.is_none()
+        {
+            return Ok(());
+        }
+        let Some(container_id) = container_id_of(claimant) else {
+            return Ok(());
+        };
+        let placeholders: Vec<Service> = services
+            .iter()
+            .filter(|s| {
+                s.id != claimant.id
+                    && s.base.source.is_from_discovery()
+                    && ServiceDefinitionExt::is_generic(&s.base.service_definition)
+                    && !ServiceDefinitionExt::is_open_ports(&s.base.service_definition)
+                    && !turnover.present.contains(&s.id)
+                    && s.base.virtualization_service_id == claimant.base.virtualization_service_id
+                    && container_id_of(s).as_deref() == Some(container_id.as_str())
+            })
+            .cloned()
+            .collect();
+
+        for placeholder in placeholders {
+            let mut moved = 0;
+            for binding in &placeholder.base.bindings {
+                let binding_type = binding.base.binding_type;
+                // An address binding conflicts with a port binding on the same address.
+                let held = claimant.base.bindings.iter().any(|b| match binding_type {
+                    BindingType::IPAddress { ip_address_id } => {
+                        b.base.binding_type == binding_type
+                            || b.port_id().is_some()
+                                && bindings_overlap(&Some(ip_address_id), &b.ip_address_id())
+                    }
+                    BindingType::Port { .. } => b.base.binding_type == binding_type,
+                });
+                if !held {
+                    claimant
+                        .base
+                        .bindings
+                        .push(Binding::new_serviceless(binding_type));
+                    moved += 1;
+                }
+            }
+            tracing::info!(
+                service_name = %placeholder.base.name,
+                claimant = %claimant.base.service_definition.name(),
+                container_id = %container_id,
+                moved_binding_count = moved,
+                "Deleting a generic container now identified"
+            );
+            self.service_service
+                .delete(&placeholder.id, authentication.clone())
+                .await?;
+            services.retain(|s| s.id != placeholder.id);
         }
         Ok(())
     }
