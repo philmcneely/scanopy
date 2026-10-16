@@ -90,6 +90,7 @@
 		common_tableCaption,
 		common_tags,
 		common_notAvailableForAllSelected,
+		common_oneRowAtATime,
 		common_noCommonTags,
 		common_commonTags,
 		tags_hotkeyEdit,
@@ -973,7 +974,10 @@
 			selectionActions(
 				rows.map((item) => getActions(item)),
 				runOnSelection,
-				common_notAvailableForAllSelected()
+				{
+					missing: common_notAvailableForAllSelected(),
+					oneRowAtATime: common_oneRowAtATime()
+				}
 			)
 		);
 	});
@@ -1005,7 +1009,7 @@
 			// The delete asks for confirmation, as its button does.
 			const keyed = selectionActionFor(event)!;
 			event.preventDefault();
-			if (!keyed.action.disabled) keyed.action.onClick();
+			if (!keyed.action.unavailable) keyed.action.onClick();
 		} else if (showTagIsland && isPlainKey(event, TAG_SHORTCUT)) {
 			event.preventDefault();
 			bulkTagPicker?.focusInput();
@@ -1077,7 +1081,7 @@
 	{#each selectionToolbarActions as { action, key } (action.label)}
 		<button
 			onclick={action.onClick}
-			disabled={!!action.disabled}
+			disabled={!!action.unavailable}
 			use:tooltip
 			data-tooltip={resolveTooltip(action)}
 			class="{toolbarButtonClass(
@@ -1113,7 +1117,7 @@
 			onSearchFocusChange={(focused) => (searchFocused = focused)}
 			onClearSearch={clearSearch}
 			{entityLabel}
-			actions={toolbarActions}
+			actions={selectedIds.size > 0 ? undefined : toolbarActions}
 			selectionActions={selectionToolbarActions.length > 0 ? selectionToolbar : undefined}
 			{title}
 			{subtitle}

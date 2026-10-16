@@ -69,6 +69,11 @@ describe('isEditableTarget', () => {
 		expect(isEditableTarget(el('DIV', true))).toBe(true);
 	});
 
+	it('is false for a checkbox, so a just-clicked row checkbox leaves list keys working', () => {
+		const checkbox = { tagName: 'INPUT', type: 'checkbox' } as unknown as EventTarget;
+		expect(isEditableTarget(checkbox)).toBe(false);
+	});
+
 	it('is false for everything else', () => {
 		expect(isEditableTarget(el('BUTTON'))).toBe(false);
 		expect(isEditableTarget(null)).toBe(false);

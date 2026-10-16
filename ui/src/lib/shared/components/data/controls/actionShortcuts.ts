@@ -1,9 +1,10 @@
 /**
- * Keys for a row's actions while that one row is selected, when they show in the toolbar.
+ * The selection toolbar's actions, built from the selected rows' own actions, and their keys.
  *
- * The row's delete action takes Delete. Every other action takes the first letter of its label
- * that no earlier action and no list-wide key has claimed: Edit is E, Rescan R, and Consolidate
- * O, since C is Create. An action left with no free letter shows without a key.
+ * The delete action takes Delete, and an action naming a `shortcut` takes it when free. Every
+ * other action takes the first letter of its label that no earlier action and no list-wide key
+ * has claimed: Edit is E, Rescan R, and Consolidate O, since C is Create. An action left with no
+ * free letter shows without a key.
  */
 import type { ActionTone, CardAction } from '../types';
 
@@ -19,47 +20,85 @@ export interface KeyedAction {
 	key: string | null;
 }
 
+/** Why a selection of several rows can't run an action, when no row's own reason applies. */
+export interface SelectionReasons {
+	/** A selected row's type has no such action (an invite selected with users). */
+	missing: string;
+	/** The action has no bulk form, so it runs on one row at a time. */
+	oneRowAtATime: string;
+}
+
+/** The actions a row draws: all but those `unavailable` in the `hidden` state. */
+export function shownActions(actions: CardAction[]): CardAction[] {
+	return actions.filter((action) => action.unavailable?.state !== 'hidden');
+}
+
 /**
  * The toolbar's actions for a selection, from each selected row's own actions (`perRow`).
  *
- * One row: its actions as the row shows them. Several: every action with `onBulk` that any
- * selected row has, the same action across rows matched by label. An action with `onBulk` runs on
- * the whole selection through `runBulk`, and is enabled only when every selected row has it
- * enabled. Disabled, it gives the reason of the first row that blocks it: the row's own wording for
- * one row, its `bulkReason` for several, or `missingReason` when that row doesn't have the action.
+ * One row: the actions the row shows, as it shows them; one with `onBulk` runs through `runBulk`.
+ * Several: every action any selected row shows, the same action across rows matched by label. An
+ * action with `onBulk` runs on the whole selection through `runBulk`, and is available only when
+ * every selected row has it available; otherwise it is disabled with the first blocking row's
+ * `bulkReason ?? reason`, or `reasons.missing` when that row has no such action. An action without
+ * `onBulk` is disabled with `reasons.oneRowAtATime`.
  */
 export function selectionActions(
 	perRow: CardAction[][],
 	runBulk: (action: CardAction) => () => void,
-	missingReason: string
+	reasons: SelectionReasons
 ): CardAction[] {
-	const several = perRow.length > 1;
-	const forSelection = (action: CardAction): CardAction => {
-		const matches = perRow.map((actions) => actions.find((a) => a.label === action.label));
-		const blocker = matches.findIndex((a) => !a || a.disabled);
-		if (blocker === -1) return { ...action, onClick: runBulk(action), disabled: undefined };
-		const blocked = matches[blocker]?.disabled;
-		const reason = !blocked
-			? missingReason
-			: several
-				? (blocked.bulkReason ?? blocked.reason)
-				: blocked.reason;
-		return { ...action, onClick: runBulk(action), disabled: { reason } };
-	};
-
 	if (perRow.length === 1) {
-		return perRow[0].map((action) => (action.onBulk ? forSelection(action) : action));
+		return shownActions(perRow[0]).map((action) =>
+			action.onBulk && !action.unavailable ? { ...action, onClick: runBulk(action) } : action
+		);
 	}
-	const bulk = new Map<string, CardAction>();
-	for (const action of perRow.flat()) {
-		if (action.onBulk && !bulk.has(action.label)) bulk.set(action.label, action);
-	}
-	return [...bulk.values()].map(forSelection);
+
+	return mergeRowOrders(perRow.map(shownActions)).map((action): CardAction => {
+		if (!action.onBulk) {
+			return { ...action, unavailable: { state: 'disabled', reason: reasons.oneRowAtATime } };
+		}
+		const matches = perRow.map((actions) => actions.find((a) => a.label === action.label));
+		const blocker = matches.findIndex((a) => !a || a.unavailable);
+		if (blocker === -1) return { ...action, onClick: runBulk(action), unavailable: undefined };
+		const blocked = matches[blocker]?.unavailable;
+		const reason = blocked ? (blocked.bulkReason ?? blocked.reason) : reasons.missing;
+		return { ...action, unavailable: { state: 'disabled', reason } };
+	});
 }
 
-/** An action's tooltip as it reads in its current state: why it's disabled, or its hint. */
+/**
+ * Every distinct action across the rows, in the rows' own order: an action one row has and an
+ * earlier row lacks goes right after its neighbour in that row, so Enable sits beside Disable. The
+ * delete action goes last.
+ */
+function mergeRowOrders(rows: CardAction[][]): CardAction[] {
+	const merged: CardAction[] = [];
+	const indexOf = (label: string) => merged.findIndex((a) => a.label === label);
+	for (const row of rows) {
+		let after = -1;
+		row.forEach((action, i) => {
+			const at = indexOf(action.label);
+			if (at !== -1) {
+				after = at;
+				return;
+			}
+			// After its predecessor in this row; with none yet placed, before its successor.
+			const next = row
+				.slice(i + 1)
+				.map((a) => indexOf(a.label))
+				.find((j) => j !== -1);
+			const position = after !== -1 ? after + 1 : (next ?? merged.length);
+			merged.splice(position, 0, action);
+			after = position;
+		});
+	}
+	return [...merged.filter((a) => !a.isDelete), ...merged.filter((a) => a.isDelete)];
+}
+
+/** An action's tooltip as it reads in its current state: why it's unavailable, or its hint. */
 export function resolveTooltip(action: CardAction): string | undefined {
-	return action.disabled?.reason ?? action.tooltip;
+	return action.unavailable?.reason ?? action.tooltip;
 }
 
 // Whole class names, so Tailwind's content scan keeps them.
@@ -91,11 +130,15 @@ export function assignActionKeys(
 	reserved: readonly string[] = RESERVED_ACTION_KEYS
 ): KeyedAction[] {
 	const taken = new Set(reserved);
-	return actions.map((action) => {
-		if (action.isDelete && !taken.has(DELETE_KEY)) {
-			taken.add(DELETE_KEY);
-			return { action, key: DELETE_KEY };
-		}
+	// Preferred keys and Delete first, so a label earlier in the row can't take them.
+	const claimed = actions.map((action) => {
+		const key = action.isDelete ? DELETE_KEY : action.shortcut?.toUpperCase();
+		if (!key || taken.has(key)) return null;
+		taken.add(key);
+		return key;
+	});
+	return actions.map((action, i) => {
+		if (claimed[i]) return { action, key: claimed[i] };
 		const letter = [...action.label.toUpperCase()].find(
 			(char) => char >= 'A' && char <= 'Z' && !taken.has(char)
 		);

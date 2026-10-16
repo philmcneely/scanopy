@@ -3,7 +3,7 @@
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { userColumns } from './UserTab.columns';
 	import { Edit, UserX, Trash2 } from 'lucide-svelte';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
@@ -214,16 +214,18 @@
 
 	/** Why the current user can't delete this user, if they can't. The server applies the same rule. */
 	function deleteRefusal(user: User) {
-		if (user.id === currentUser?.id) {
-			return { reason: users_cantDeleteSelf(), bulkReason: users_cantDeleteSelfBulk() };
-		}
-		if (!canManageUser(user)) {
-			return {
-				reason: users_cantDeleteUngrantable(),
-				bulkReason: users_cantDeleteUngrantableBulk()
-			};
-		}
-		return undefined;
+		return (
+			disabledWhen(
+				user.id === currentUser?.id,
+				users_cantDeleteSelf(),
+				users_cantDeleteSelfBulk()
+			) ??
+			disabledWhen(
+				!canManageUser(user),
+				users_cantDeleteUngrantable(),
+				users_cantDeleteUngrantableBulk()
+			)
+		);
 	}
 
 	/** Row actions. A user is edited or deleted; an invite is revoked. */
@@ -240,7 +242,7 @@
 					isDelete: true,
 					onBulk: handleBulkDelete,
 					onClick: () => handleDeleteUser(item.data),
-					disabled: deleteRefusal(item.data)
+					unavailable: deleteRefusal(item.data)
 				});
 			}
 			return actions;
@@ -253,12 +255,11 @@
 				tone: 'danger',
 				onClick: () => handleRevokeInvite(item.data),
 				onBulk: handleBulkRevoke,
-				disabled: canRevoke(item.data)
-					? undefined
-					: {
-							reason: invites_cantRevokeUngrantable(),
-							bulkReason: invites_cantRevokeUngrantableBulk()
-						}
+				unavailable: disabledWhen(
+					!canRevoke(item.data),
+					invites_cantRevokeUngrantable(),
+					invites_cantRevokeUngrantableBulk()
+				)
 			}
 		];
 	}

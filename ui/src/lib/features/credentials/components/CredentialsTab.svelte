@@ -15,7 +15,11 @@
 	import type { CredentialOrderField } from '../types/base';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import type { CardAction, CardFieldItem } from '$lib/shared/components/data/types';
+	import {
+		disabledWhen,
+		type CardAction,
+		type CardFieldItem
+	} from '$lib/shared/components/data/types';
 	import { credentialColumns } from './CredentialsTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import type { Site } from '$lib/features/sites/types';
@@ -186,7 +190,7 @@
 				isDelete: true,
 				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteCredential(credential),
-				disabled: credential.is_default ? { reason: credentials_defaultCantDelete() } : undefined
+				unavailable: disabledWhen(credential.is_default, credentials_defaultCantDelete())
 			}
 		];
 	}

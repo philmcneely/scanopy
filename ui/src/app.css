@@ -213,7 +213,8 @@
 		--cell-py: 0.25rem;
 	}
 
-	.entity-table[data-density='compact'] :is(.btn-icon, .btn-icon-danger) {
+	.entity-table[data-density='compact']
+		:is(.btn-icon, .btn-icon-danger, .btn-icon-info, .btn-icon-warning, .btn-icon-success) {
 		@apply p-1;
 	}
 
@@ -279,7 +280,7 @@
 	}
 
 	.checkbox-card {
-		@apply cursor-pointer rounded text-blue-600 focus:ring-2 focus:ring-blue-500;
+		@apply cursor-pointer rounded text-blue-600 focus:ring-0 focus-visible:ring-2 focus-visible:ring-blue-500;
 		@apply border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700;
 		/* The dark background above (.dark .checkbox-card) outranks the forms plugin's checked
 		   fill, so restate the fill at higher specificity: checked is blue at rest, not only

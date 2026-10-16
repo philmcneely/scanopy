@@ -312,11 +312,9 @@ export function useBulkRetryDaemonConnectionMutation() {
 			requireSuccess(await apiClient.POST('/api/v1/daemons/bulk-retry-connection', { body: ids }));
 			return ids;
 		},
-		onSuccess: (ids: string[]) => {
-			queryClient.setQueryData<Daemon[]>(
-				queryKeys.daemons.all,
-				(old) => old?.map((d) => (ids.includes(d.id) ? { ...d, is_unreachable: false } : d)) ?? []
-			);
+		onSuccess: () => {
+			// Refetch rather than patch: the status the server derives (`health`) changes with it.
+			queryClient.invalidateQueries({ queryKey: queryKeys.daemons.all });
 		}
 	}));
 }
