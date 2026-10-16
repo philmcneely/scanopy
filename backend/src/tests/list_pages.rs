@@ -923,6 +923,94 @@ async fn subnets_group_as_a_nesting_tree_across_pages() {
     );
 }
 
+/// Sorting by a computed field keeps the tree grouping: the trees, not one group per range, and
+/// each tree where it falls in the sort rather than in its root's id order.
+#[tokio::test]
+async fn subnets_stay_grouped_as_trees_under_a_computed_sort() {
+    use crate::server::shared::attribution::AttributeSource;
+    use crate::server::shared::handlers::query::OrderDirection;
+    use crate::server::subnets::handlers::{SubnetFilterQuery, SubnetOrderField};
+    use crate::server::subnets::r#impl::base::{Subnet, SubnetCidr, SubnetCidrValue};
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let net = site(&org.id);
+    storage.sites.create(&net).await.unwrap();
+
+    let range = |cidr: &str, id: Option<Uuid>| {
+        let mut s = subnet(&net.id);
+        if let Some(id) = id {
+            s.id = id;
+        }
+        s.base.name = cidr.to_string();
+        s.base.cidr = SubnetCidr::new(
+            SubnetCidrValue(cidr.parse().unwrap()),
+            AttributeSource::Manual,
+        );
+        s
+    };
+    // Root ids whose text order is the reverse of the address order.
+    let first_root = range("10.0.0.0/16", Some(Uuid::from_u128(u128::MAX - 1)));
+    let first_leaf = range("10.0.1.0/24", None);
+    let second_root = range("10.5.0.0/16", Some(Uuid::from_u128(1)));
+    let second_leaf = range("10.5.1.0/24", None);
+    let lone_a = range("172.16.9.0/24", None);
+    let lone_b = range("192.168.9.0/24", None);
+    for s in [
+        &first_root,
+        &first_leaf,
+        &second_root,
+        &second_leaf,
+        &lone_a,
+        &lone_b,
+    ] {
+        storage.subnets.create(s).await.unwrap();
+    }
+    let scope = list_scope(&[net.id], org.id);
+    let query = |offset: u32| SubnetFilterQuery {
+        group_by: Some(SubnetOrderField::Cidr),
+        order_by: Some(SubnetOrderField::Utilization),
+        order_direction: Some(OrderDirection::Desc),
+        limit: Some(2),
+        offset: Some(offset),
+        ..Default::default()
+    };
+
+    let mut rows = Vec::new();
+    for offset in [0, 2, 4] {
+        let page = list_page::<Subnet>(&state, &scope, &query(offset))
+            .await
+            .unwrap();
+        assert_eq!(
+            counts(page.meta.pagination.group_counts.as_deref()),
+            vec![
+                (String::new(), 2),
+                (first_root.id.to_string(), 2),
+                (second_root.id.to_string(), 2)
+            ],
+            "one group of ranges in no tree, then one group per tree, in address order"
+        );
+        rows.extend(
+            page.data
+                .into_iter()
+                .map(|s| (s.subnet.base.name.clone(), s.nesting_root_id)),
+        );
+    }
+    assert_eq!(
+        rows,
+        vec![
+            ("172.16.9.0/24".to_string(), None),
+            ("192.168.9.0/24".to_string(), None),
+            ("10.0.0.0/16".to_string(), Some(first_root.id)),
+            ("10.0.1.0/24".to_string(), Some(first_root.id)),
+            ("10.5.0.0/16".to_string(), Some(second_root.id)),
+            ("10.5.1.0/24".to_string(), Some(second_root.id)),
+        ],
+        "every row sits in the group its root names, parents before the ranges inside them"
+    );
+}
+
 /// Every filter the subnets list documents narrows the rows.
 #[tokio::test]
 async fn every_documented_subnet_filter_narrows_the_rows() {

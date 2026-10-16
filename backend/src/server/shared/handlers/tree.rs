@@ -66,16 +66,23 @@ pub fn tree_position(
     })
 }
 
-/// A list grouped by tree, in display order: groups by key, each parent first with its subtree
-/// directly under it, and every set of siblings in the order `rows` arrive in, which is the sort.
-/// A row whose parent is not among `rows` (filtered out) is placed as a root of its group.
+/// A list grouped by tree, in display order: rows in no tree first, then each tree where its first
+/// row falls in the sort; each parent first with its subtree directly under it, and every set of
+/// siblings in the order `rows` arrive in, which is the sort. A row whose parent is not among
+/// `rows` (filtered out) is placed as a root of its group.
 ///
 /// `rows` is every matching row in sort order: its id, its group key and its parent.
 pub fn tree_order(rows: &[(Uuid, String, Option<Uuid>)]) -> Vec<Uuid> {
     let present: std::collections::HashSet<Uuid> = rows.iter().map(|(id, _, _)| *id).collect();
     let mut children: std::collections::HashMap<Uuid, Vec<Uuid>> = Default::default();
-    let mut roots: std::collections::BTreeMap<&str, Vec<Uuid>> = Default::default();
+    // Groups in the order their first row arrives, the no-tree group (`""`) ahead of every tree.
+    let mut groups: Vec<&str> = vec![""];
+    let mut listed: std::collections::HashSet<&str> = std::collections::HashSet::from([""]);
+    let mut roots: std::collections::HashMap<&str, Vec<Uuid>> = Default::default();
     for (id, group, parent) in rows {
+        if listed.insert(group.as_str()) {
+            groups.push(group.as_str());
+        }
         match parent.filter(|p| present.contains(p) && p != id) {
             Some(parent) => children.entry(parent).or_default().push(*id),
             None => roots.entry(group.as_str()).or_default().push(*id),
@@ -84,7 +91,7 @@ pub fn tree_order(rows: &[(Uuid, String, Option<Uuid>)]) -> Vec<Uuid> {
 
     let mut ordered = Vec::with_capacity(rows.len());
     let mut seen = std::collections::HashSet::new();
-    for group_roots in roots.values() {
+    for group_roots in groups.iter().filter_map(|group| roots.get(group)) {
         let mut stack: Vec<Uuid> = group_roots.iter().rev().copied().collect();
         while let Some(id) = stack.pop() {
             // A cycle the walk should never meet; stop rather than repeat a row.
@@ -203,5 +210,25 @@ mod tests {
         // `vm` is filtered out: `container` stands in its tree's group on its own.
         let rows = vec![(container, tree.clone(), Some(vm)), (node, tree, None)];
         assert_eq!(tree_order(&rows), vec![container, node]);
+    }
+
+    #[test]
+    fn trees_list_where_their_rows_fall_in_the_sort_not_by_root_id() {
+        // Root ids chosen so their text order is the reverse of the sort.
+        let late = Uuid::from_u128(1);
+        let early = Uuid::from_u128(2);
+        let [early_kid, late_kid, lone] = ids();
+        let rows = vec![
+            (early, early.to_string(), None),
+            (early_kid, early.to_string(), Some(early)),
+            (late, late.to_string(), None),
+            (late_kid, late.to_string(), Some(late)),
+            (lone, String::new(), None),
+        ];
+        assert_eq!(
+            tree_order(&rows),
+            vec![lone, early, early_kid, late, late_kid],
+            "rows in no tree lead; each tree follows where its first row sorts"
+        );
     }
 }
