@@ -787,6 +787,7 @@ async fn create_host(
                 subnets,
                 interfaces_complete,
                 interface_data_complete,
+                port_coverage,
                 superseded_wire_shape,
             } = discovery_request;
 
@@ -817,6 +818,7 @@ async fn create_host(
                     subnets,
                     interfaces_complete,
                     interface_data_complete,
+                    &port_coverage,
                     Some(&scan_ctx),
                     entity,
                     None,

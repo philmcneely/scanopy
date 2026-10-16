@@ -152,6 +152,7 @@ async fn submit(services: &ServiceFactory, s: Submission) -> HostResponse {
             vec![s.subnet],
             true,
             InterfaceDataComplete::default(),
+            &crate::server::ports::r#impl::coverage::PortCoverage::default(),
             None,
             AuthenticatedEntity::System,
             None,

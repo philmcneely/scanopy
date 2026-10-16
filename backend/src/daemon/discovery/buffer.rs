@@ -156,6 +156,7 @@ impl EntityBuffer {
                 existing.ports.extend(host.ports);
                 existing.services.extend(host.services);
                 existing.interfaces.extend(host.interfaces);
+                existing.port_coverage.merge(host.port_coverage);
                 existing
                     .host
                     .base
@@ -187,6 +188,7 @@ impl EntityBuffer {
                     interfaces_complete: true,
                     interface_data_complete: InterfaceDataComplete::default(),
                     // This daemon is this build; it submits the current shape by construction.
+                    port_coverage: Default::default(),
                     superseded_wire_shape: false,
                 };
                 *entry = BufferedEntity::Created {
@@ -443,6 +445,7 @@ mod tests {
             subnets: vec![],
             interfaces_complete: true,
             interface_data_complete: InterfaceDataComplete::default(),
+            port_coverage: Default::default(),
             superseded_wire_shape: false,
         };
         buffer.push_host(host).await;
@@ -503,6 +506,7 @@ mod tests {
                         subnets: vec![],
                         interfaces_complete: true,
                         interface_data_complete: InterfaceDataComplete::default(),
+                        port_coverage: Default::default(),
                         superseded_wire_shape: false,
                     };
                     buf.push_host(host).await;
@@ -951,6 +955,7 @@ mod tests {
             subnets: vec![],
             interfaces_complete: true,
             interface_data_complete: InterfaceDataComplete::default(),
+            port_coverage: Default::default(),
             superseded_wire_shape: false,
         };
         // Set the host ID to match our shared host_id
@@ -1029,6 +1034,7 @@ mod tests {
             subnets: vec![],
             interfaces_complete: true,
             interface_data_complete: InterfaceDataComplete::default(),
+            port_coverage: Default::default(),
             superseded_wire_shape: false,
         };
         let mut host2 = host2;
@@ -1244,6 +1250,7 @@ mod tests {
             subnets: vec![],
             interfaces_complete: true,
             interface_data_complete: InterfaceDataComplete::default(),
+            port_coverage: Default::default(),
             superseded_wire_shape: false,
         };
         let mut host_req = host_req;
@@ -1325,6 +1332,7 @@ mod tests {
                 subnets: vec![],
                 interfaces_complete: true,
                 interface_data_complete: InterfaceDataComplete::default(),
+                port_coverage: Default::default(),
                 superseded_wire_shape: false,
             })
             .await;

@@ -66,7 +66,10 @@ use crate::{
             service::match_existing_interface,
         },
         ip_addresses::r#impl::base::{IPAddress, MacEvidence, MacEvidenceValue},
-        ports::r#impl::base::{Port, PortType},
+        ports::r#impl::{
+            base::{Port, PortType},
+            coverage::PortCoverage,
+        },
         services::{
             definitions::{ServiceDefinitionRegistry, gateway::Gateway},
             r#impl::{
@@ -170,6 +173,46 @@ fn retain_submittable_addresses(ip_addresses: &mut Vec<IPAddress>, interfaces: &
             interface.base.ip_address_id = None;
         }
     }
+}
+
+/// The port bindings a container runtime reported for its containers, as coverage.
+///
+/// The runtime's inventory is authoritative for these tuples: a host port is published to one
+/// container at a time, so a container reported on one has it. It says nothing about any other
+/// port, which is why only reported tuples are covered and nothing is ever released by them.
+fn container_port_coverage(
+    ip_addresses: &[IPAddress],
+    ports: &[Port],
+    services: &[Service],
+) -> PortCoverage {
+    let mut coverage = PortCoverage::default();
+    let containers = services.iter().filter(|s| {
+        s.base
+            .virtualization_metadata
+            .as_ref()
+            .is_some_and(|v| v.container_id().is_some())
+    });
+    for binding in containers.flat_map(|s| s.base.bindings.iter()) {
+        let Some(port) = binding
+            .port_id()
+            .and_then(|id| ports.iter().find(|p| p.id == id))
+        else {
+            continue;
+        };
+        let addresses: Vec<IpAddr> = match binding.ip_address_id() {
+            Some(id) => ip_addresses
+                .iter()
+                .filter(|a| a.id == id)
+                .map(|a| a.base.ip_address)
+                .collect(),
+            None => ip_addresses.iter().map(|a| a.base.ip_address).collect(),
+        };
+        let port_type = port.base.port_type;
+        for address in addresses {
+            coverage.add(address, port_type.protocol(), [port_type.number()]);
+        }
+    }
+    coverage
 }
 
 /// Mutable host state passed to integration execute() methods.
@@ -1480,6 +1523,7 @@ impl DiscoveryOps {
             subnets,
             interfaces_complete,
             interface_data_complete,
+            PortCoverage::default(),
             cancel,
         )
         .await
@@ -1501,12 +1545,14 @@ impl DiscoveryOps {
         subnets: Vec<Subnet>,
         interfaces_complete: bool,
         interface_data_complete: InterfaceDataComplete,
+        mut port_coverage: PortCoverage,
         cancel: &CancellationToken,
     ) -> Result<HostResponse, Error> {
         let mode = self.config_store.get_mode().await?;
         let pending_id = host.id;
         let (mut ip_addresses, mut interfaces) = (ip_addresses, interfaces);
         retain_submittable_addresses(&mut ip_addresses, &mut interfaces);
+        port_coverage.merge(container_port_coverage(&ip_addresses, &ports, &services));
 
         let request = DiscoveryHostRequest {
             host,
@@ -1517,6 +1563,7 @@ impl DiscoveryOps {
             subnets,
             interfaces_complete,
             interface_data_complete,
+            port_coverage,
             // This daemon is this build; it submits the current shape by construction.
             superseded_wire_shape: false,
         };

@@ -402,6 +402,7 @@ impl HostService {
                     // the same host collected.
                     false,
                     InterfaceDataComplete::none(),
+                    &crate::server::ports::r#impl::coverage::PortCoverage::default(),
                 )
                 .await
             {

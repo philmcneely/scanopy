@@ -19,6 +19,7 @@ use crate::server::ip_addresses::r#impl::base::{
     IPAddress, IPAddressBase, MacEvidence, MacEvidenceValue,
 };
 use crate::server::ports::r#impl::base::{Port, PortBase, PortType};
+use crate::server::ports::r#impl::coverage::PortCoverage;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::r#impl::base::{Service, ServiceBase};
 use crate::server::services::r#impl::virtualization::{
@@ -203,6 +204,7 @@ impl<'a> Lab<'a> {
                 vec![],
                 false,
                 InterfaceDataComplete::none(),
+                &PortCoverage::default(),
                 None,
                 AuthenticatedEntity::System,
                 None,
