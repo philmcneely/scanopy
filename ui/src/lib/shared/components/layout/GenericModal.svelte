@@ -16,7 +16,7 @@
 </script>
 
 <script lang="ts">
-	import { untrack, type Snippet } from 'svelte';
+	import { tick, untrack, type Snippet } from 'svelte';
 	import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-svelte';
 	import type { AnyFormApi } from '@tanstack/form-core';
 	import {
@@ -227,6 +227,20 @@
 	}
 
 	let panel = $state<HTMLElement | null>(null);
+
+	// A modal opened over another takes focus, or the keys typed next land in the one beneath, which
+	// no longer answers them. Waits a tick so a field that focuses itself on mount keeps focus.
+	// Closing hands focus back to where it was.
+	$effect(() => {
+		if (!isOpen) return;
+		const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		tick().then(() => {
+			if (panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
+		});
+		return () => {
+			if (previous?.isConnected) previous.focus({ preventScroll: true });
+		};
+	});
 
 	// Left and Right step to the previous and next entity of the on-screen list this modal's
 	// entity belongs to. The ends stop rather than wrap.
@@ -501,7 +515,9 @@
 
 		<!-- Modal content -->
 		<div
-			class="relative {borderless ? '' : 'modal-container'} {sizeClasses[size]} {compactPadding
+			class="relative outline-none {borderless ? '' : 'modal-container'} {sizeClasses[
+				size
+			]} {compactPadding
 				? size === 'full' || size === 'wide' || fixedHeight
 					? 'h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)]'
 					: 'max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)]'
@@ -509,6 +525,7 @@
 					? 'h-[calc(100vh-2rem)] sm:h-[calc(100vh-8rem)]'
 					: 'max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-8rem)]'} flex w-full flex-col"
 			bind:this={panel}
+			tabindex="-1"
 			onpointerdowncapture={captureBaseline}
 			onkeydowncapture={captureBaseline}
 			onfocusin={trackTyping}
