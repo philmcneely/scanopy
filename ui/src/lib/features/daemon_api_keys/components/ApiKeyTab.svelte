@@ -36,7 +36,7 @@
 		daemonApiKeys_provisionOnlyHint
 	} from '$lib/paraglide/messages';
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	// Queries
 	const tagsQuery = useTagsQuery();
@@ -44,14 +44,15 @@
 	const apiKeysQuery = useApiKeysQuery();
 	// The page the table shows: keys no daemon is bound to, paged on the server. A key bound 1:1 to
 	// a daemon is managed from the daemon record, not this tab.
-	const page = listPageState();
+	const page = listPageState(() => isActive);
 	const keysPageQuery = useUnboundApiKeysListQuery(() => page.params());
 	const siteValuesQuery = useFieldValuesQuery(
 		'/api/v1/auth/daemon/field-values/{field}',
 		'site_id',
 		() => ({
 			unbound: true
-		})
+		}),
+		() => isActive
 	);
 	const sitesQuery = useSitesQuery();
 	// Daemons query — also used to determine which API keys are in use

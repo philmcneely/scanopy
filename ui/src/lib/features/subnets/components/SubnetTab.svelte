@@ -55,7 +55,7 @@
 	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 	type SubnetOrderField = components['schemas']['SubnetOrderField'];
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	// Organization query for onboarding state
 	const organizationQuery = useOrganizationQuery();
@@ -68,13 +68,33 @@
 	const listedOnly = () => ({ user_managed: true });
 
 	// One page of the subnets the user curates, paged, filtered, ordered and nested on the server.
-	const page = listPageState();
+	const page = listPageState(() => isActive);
 	const subnetsQuery = useSubnetsListQuery(() => page.params());
 	// Filter options: the values the listed subnets hold, counted by the server.
-	const siteValuesQuery = useFieldValuesQuery(SUBNET_FIELD_VALUES, 'site_id', listedOnly);
-	const typeValuesQuery = useFieldValuesQuery(SUBNET_FIELD_VALUES, 'subnet_type', listedOnly);
-	const sourceValuesQuery = useFieldValuesQuery(SUBNET_FIELD_VALUES, 'source', listedOnly);
-	const managedByValuesQuery = useFieldValuesQuery(SUBNET_FIELD_VALUES, 'managed_by', listedOnly);
+	const siteValuesQuery = useFieldValuesQuery(
+		SUBNET_FIELD_VALUES,
+		'site_id',
+		listedOnly,
+		() => isActive
+	);
+	const typeValuesQuery = useFieldValuesQuery(
+		SUBNET_FIELD_VALUES,
+		'subnet_type',
+		listedOnly,
+		() => isActive
+	);
+	const sourceValuesQuery = useFieldValuesQuery(
+		SUBNET_FIELD_VALUES,
+		'source',
+		listedOnly,
+		() => isActive
+	);
+	const managedByValuesQuery = useFieldValuesQuery(
+		SUBNET_FIELD_VALUES,
+		'managed_by',
+		listedOnly,
+		() => isActive
+	);
 	const sitesQuery = useSitesQuery();
 	// The container runtimes that manage some subnet, fetched by id: the page's, for its cells, and
 	// every one the filter offers, for their labels.

@@ -51,7 +51,7 @@
 	} from '$lib/paraglide/messages';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	let showCredentialEditor = $state(false);
 	let editingCredential: Credential | null = $state(null);
@@ -84,7 +84,7 @@
 	// Every credential, for the deep link: it can name one on another page.
 	const credentialsQuery = useCredentialsQuery();
 	// The page the table shows, paged, filtered and ordered on the server.
-	const page = listPageState();
+	const page = listPageState(() => isActive);
 	const credentialsPageQuery = useCredentialsListQuery(() => page.params());
 	const createCredentialMutation = useCreateCredentialMutation();
 	const updateCredentialMutation = useUpdateCredentialMutation();

@@ -36,7 +36,7 @@
 		daemons_installPromptHosts
 	} from '$lib/paraglide/messages';
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 	import { missingRootIds } from '../virtualization-tree';
 	import {
 		useHostsQuery,
@@ -122,15 +122,55 @@
 	// loaded page would only offer the values on it, and the fixtures and caches would offer values
 	// no host holds. None of these takes the tab's active filters, so the options do not shrink as
 	// the user filters.
-	const siteValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'site_id');
-	const virtualizedByValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'virtualized_by');
-	const sourceValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'source');
-	const osFamilyValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'os_family');
-	const manufacturerValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'manufacturer');
-	const modelValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'model');
-	const sysLocationValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'sys_location');
+	const siteValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'site_id',
+		undefined,
+		() => isActive
+	);
+	const virtualizedByValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'virtualized_by',
+		undefined,
+		() => isActive
+	);
+	const sourceValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'source',
+		undefined,
+		() => isActive
+	);
+	const osFamilyValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'os_family',
+		undefined,
+		() => isActive
+	);
+	const manufacturerValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'manufacturer',
+		undefined,
+		() => isActive
+	);
+	const modelValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'model',
+		undefined,
+		() => isActive
+	);
+	const sysLocationValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'sys_location',
+		undefined,
+		() => isActive
+	);
 	// Every service belongs to a host, so the services' names are the names some host runs.
-	const serviceNameValuesQuery = useFieldValuesQuery(SERVICE_FIELD_VALUES, 'name');
+	const serviceNameValuesQuery = useFieldValuesQuery(
+		SERVICE_FIELD_VALUES,
+		'name',
+		undefined,
+		() => isActive
+	);
 
 	// Selective service lookup - only fetches services needed for virtualization display
 	// Extract service IDs from visible hosts for "Virtualized By" field

@@ -5,8 +5,11 @@ import { narrowsList } from './controls/listQuery';
  * A server-paginated list's state: the page the table is on, its size, and the list's view as
  * the endpoint's params. `DataControls` sets these through `onPageChange` and `onQueryChange`;
  * the tab's list query reads them through `params`.
+ *
+ * Every tab mounts at app load, so `isActive` holds a hidden tab's page query until the tab is
+ * opened. Fetched at once, every list's page and filter options run past the rate limit's burst.
  */
-export function listPageState(initialPageSize = 20) {
+export function listPageState(isActive: () => boolean, initialPageSize = 20) {
 	let pageSize = $state(initialPageSize);
 	let currentPage = $state(1);
 	// Search, filters and ordering. Null until DataControls has restored the view; the query is
@@ -20,7 +23,7 @@ export function listPageState(initialPageSize = 20) {
 				limit: pageSize,
 				offset: (currentPage - 1) * pageSize,
 				list: listQuery ?? undefined,
-				enabled
+				enabled: enabled && isActive()
 			};
 		},
 		/** The view as last sent, for an export of the same rows. */
