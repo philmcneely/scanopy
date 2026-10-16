@@ -1158,6 +1158,16 @@ impl HostService {
                 &live_service_ids,
             );
 
+            // A container now identified takes over the generic placeholder stored for it, before
+            // the placeholder's bindings count as conflicts.
+            self.absorb_container_placeholders(
+                &turnover,
+                &mut reassigned,
+                &mut existing_services_for_match,
+                authentication.clone(),
+            )
+            .await?;
+
             // Check for binding conflicts with other services (DB + batch)
             let (valid_bindings, conflicting_bindings) = self
                 .service_service

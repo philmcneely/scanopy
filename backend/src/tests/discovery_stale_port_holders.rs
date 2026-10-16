@@ -163,6 +163,38 @@ async fn a_swapped_container_takes_the_published_port() {
     );
 }
 
+/// A container stored as a generic placeholder, now identified: the runtime reports the same
+/// container id, so it is one container. The identified service takes every binding the
+/// placeholder held, including ones this scan didn't report or cover, and the placeholder goes.
+#[tokio::test]
+async fn an_identified_container_takes_everything_its_placeholder_held() {
+    let (storage, services, _container) = test_services().await;
+    let lab = Lab::new(&services, &storage).await;
+    let (lan, bridge, p3001) = (lab.lan_ip(), lab.bridge_ip("172.17.0.5"), lab.tcp(3001));
+    let runtime = lab.runtime(&lan);
+    let placeholder = lab.container_as(
+        "Docker Container",
+        "kuma",
+        &runtime,
+        vec![(&p3001, &lan), (&p3001, &bridge)],
+    );
+    lab.scan(vec![lan, bridge], vec![p3001], vec![runtime, placeholder])
+        .await;
+
+    let (lan, bridge, p3001) = (lab.lan_ip(), lab.bridge_ip("172.17.0.5"), lab.tcp(3001));
+    let runtime = lab.runtime(&lan);
+    let mut kuma = lab.container_as("UptimeKuma", "kuma", &runtime, vec![(&p3001, &lan)]);
+    kuma.base.name = "Uptime Kuma".to_string();
+    lab.scan(vec![lan, bridge], vec![p3001], vec![runtime, kuma])
+        .await;
+
+    assert_eq!(lab.named("kuma").await, None);
+    assert_eq!(
+        lab.ports_named("Uptime Kuma").await,
+        Some(vec![at(3001, "172.17.0.5"), at_lan(3001)])
+    );
+}
+
 /// A generic port-only match is weaker evidence than a stored identification and takes nothing,
 /// covered or not.
 #[tokio::test]
