@@ -237,6 +237,9 @@ pub enum ErrorCode {
     /// The org's subscription ended and it has not chosen a paid plan since,
     /// so the app is read-only for it
     BillingPlanLapsed,
+    /// A cloud org has not chosen a plan yet, so only the Settings routes
+    /// are open to it
+    BillingPlanRequired,
     /// Cannot leave an air-gapped key until the current licence period ends
     BillingAirGappedKeyStillCurrent,
     /// Cannot change plan while an air-gapped key is still current. The key
@@ -435,6 +438,7 @@ impl ErrorCode {
             Self::BillingPlanLapsed => {
                 "Your plan has lapsed. Choose a paid plan in Settings to make changes again."
             }
+            Self::BillingPlanRequired => "Choose a plan in Settings to use Scanopy.",
             Self::BillingAirGappedKeyStillCurrent => {
                 "Your air-gapped key is still valid. You can switch back to an online key once the current license period ends."
             }
@@ -505,6 +509,7 @@ impl ErrorCode {
             | Self::BillingWebhookSignatureInvalid
             | Self::BillingSelfHostedPlanLocked
             | Self::BillingPlanLapsed
+            | Self::BillingPlanRequired
             | Self::BillingAirGappedKeyStillCurrent
             | Self::RateLimitExceeded
             | Self::DatabaseError => None,

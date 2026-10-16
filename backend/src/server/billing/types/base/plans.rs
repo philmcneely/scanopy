@@ -95,19 +95,6 @@ impl Hash for BillingPlan {
     }
 }
 
-impl Default for BillingPlan {
-    /// The conservative fallback plan. Self-hosted org provisioning uses the
-    /// license-resolved plan (`license::service::self_hosted_plan`), which falls
-    /// back to this whenever no valid license applies. `default()` also backstops
-    /// `Option<BillingPlan>::unwrap_or_default()` for rows with no plan set, where
-    /// Community (the least-privileged self-hosted plan) is the safe choice.
-    fn default() -> Self {
-        use crate::server::billing::plans::get_community_plan;
-
-        get_community_plan()
-    }
-}
-
 impl BillingPlan {
     pub fn to_yearly(&self, discount: f32) -> Self {
         let mut yearly_config = self.config();

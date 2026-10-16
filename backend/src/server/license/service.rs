@@ -13,7 +13,7 @@ use super::online::{
     ENTITLEMENT_PATH, EntitlementRequest, EntitlementResponse, InstanceUsage, SERVER_VERSION_HEADER,
 };
 use super::types::{LicenseKeyType, LicenseStatus};
-use crate::server::billing::plans::plan_for_license;
+use crate::server::billing::plans::{get_community_plan, plan_for_license};
 use crate::server::billing::types::base::BillingPlan;
 use crate::server::metrics::dependency::{Dependency, observe_http};
 use crate::server::organizations::service::OrganizationService;
@@ -92,7 +92,7 @@ impl LicenseState {
 pub async fn self_hosted_plan(license_service: Option<&LicenseService>) -> BillingPlan {
     match license_service {
         Some(license_service) => license_service.effective_plan().await,
-        None => BillingPlan::default(),
+        None => get_community_plan(),
     }
 }
 
@@ -211,12 +211,12 @@ impl LicenseService {
     }
 
     /// The plan the current license entitles: the licensed tier when `Valid`,
-    /// otherwise the Community default. An invalid or expired license also
+    /// otherwise Community. An invalid or expired license also
     /// locks the server via the license-guard middleware.
     pub async fn effective_plan(&self) -> BillingPlan {
         match &self.state.read().await.status {
             LicenseStatus::Valid(claims) => plan_for_license(claims),
-            _ => BillingPlan::default(),
+            _ => get_community_plan(),
         }
     }
 
@@ -692,7 +692,7 @@ mod tests {
         let status = service.current_status().await;
         assert!(matches!(status, LicenseStatus::Pending));
         assert!(status.is_locked());
-        assert_eq!(service.effective_plan().await, BillingPlan::default());
+        assert_eq!(service.effective_plan().await, get_community_plan());
         assert!(service.entitlement_at().await.is_none());
     }
 
@@ -868,7 +868,7 @@ mod tests {
         let org = orgs
             .create(
                 Organization::new(OrganizationBase {
-                    plan: Some(BillingPlan::default()),
+                    plan: Some(get_community_plan()),
                     ..Default::default()
                 }),
                 AuthenticatedEntity::System,

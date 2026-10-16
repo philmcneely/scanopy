@@ -8,7 +8,7 @@ export type CreateInviteRequest = components['schemas']['CreateInviteRequest'];
 
 export function isBillingPlanActive(organization: Organization): boolean {
 	const type = organization.plan?.type;
-	// No plan selected yet — the hard-gate must trigger.
+	// No plan selected yet: the plan picker opens and the app locks to Settings.
 	if (type == null) return false;
 	// Non-Stripe plans (Demo / Community / CommercialSelfHosted) have no
 	// Stripe lifecycle, so they're considered active by definition.
@@ -58,6 +58,17 @@ export function isSelfHostedPlanLocked(
 	isCloudDeployment: boolean
 ): boolean {
 	return isCloudDeployment && organization != null && hasLicensedPlan(organization);
+}
+
+/**
+ * The org is a cloud sign-up that hasn't chosen a plan yet. The backend opens
+ * only the Settings routes to it until it does, so the app is locked to Settings.
+ */
+export function isPlanUnchosen(
+	organization: Organization | null | undefined,
+	isCloudDeployment: boolean
+): boolean {
+	return isCloudDeployment && organization != null && organization.plan == null;
 }
 
 /**

@@ -75,9 +75,9 @@
 	}: {
 		subView?: 'main' | 'edit';
 		onClose: () => void;
-		/** When false (hard-gated modal), the main-view Close button is hidden so
-		 * the gate can't be escaped from this tab. The edit sub-view keeps its
-		 * Back/Save footer. */
+		/** When false (Settings is held open by a billing lock), the main-view
+		 * Close button is hidden so the lock can't be escaped from this tab. The
+		 * edit sub-view keeps its Back/Save footer. */
 		dismissible?: boolean;
 	} = $props();
 
@@ -106,8 +106,9 @@
 	let org = $derived(organizationQuery.data);
 	let isOwner = $derived(currentUser?.permissions === 'Owner');
 	let isDemoOrg = $derived(billingPlans.getMetadata(org?.plan?.type ?? null).is_demo === true);
-	// Reset and populate-demo hit main-app routes, which stay locked on a licensed plan.
-	let isLicensedPlan = $derived(org != null && hasLicensedPlan(org));
+	// Reset and populate-demo hit main-app routes, which stay locked on a licensed
+	// plan and until a plan is chosen.
+	let mainAppRoutesLocked = $derived(org != null && (org.plan == null || hasLicensedPlan(org)));
 
 	// TanStack Form
 	const form = createForm(() => ({
@@ -282,7 +283,7 @@
 					</InfoCard>
 
 					{#if isOwner}
-						{#if !isLicensedPlan}
+						{#if !mainAppRoutesLocked}
 							{#if isDemoOrg}
 								<!-- Populate Demo Data (only for Demo orgs) -->
 								<InfoCard>
