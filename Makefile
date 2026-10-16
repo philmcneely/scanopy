@@ -54,7 +54,8 @@ help:
 	@echo "  make format         - Format all code"
 	@echo "  make generate-types  - Generate TypeScript types from Rust"
 	@echo "  make generate-messages - Generate i18n message functions from messages/*.json"
-	@echo "  make generate-fixtures - Regenerate billing-plans.json and features.json from backend"
+	@echo "  make generate-fixtures - Regenerate ui/src/lib/data/*.json and logos from backend; skipped when backend/ is unchanged"
+	@echo "  make generate-fixtures FORCE=1 - Regenerate everything and re-download every logo"
 	@echo "  make generate-schema - Generate database schema diagram (requires tbls)"
 	@echo "  make issue-license  - Issue a signed Scanopy license key (requires LICENSE_SECRET_CMD + LICENSE_SECRET_REF env vars; PLAN defaults to standard, DAYS to 365)"
 	@echo "  make new-terms-update - Create a terms update file (cloud emails users notice of it); prompts for the effective date and documents"
@@ -424,12 +425,34 @@ generate-messages:
 	cd ui && npx paraglide-js compile --outdir ./src/lib/paraglide --silent
 	@echo "Messages generated successfully"
 
-generate-fixtures:
+# The generator links the whole backend crate, which also embeds files outside src/ (assets/,
+# build.rs, Cargo.lock), so every file under backend/ counts as an input. A change anywhere reruns
+# it; the rerun rewrites only fixtures whose content changed and fetches only new or moved logos.
+# The stamp lives in the gitignored output dir, so deleting that dir forces a run, as does a
+# missing logo cache record. The stamp is taken before the run, so an input edited mid-run
+# triggers one more run next time.
+FIXTURE_STAMP := ui/src/lib/data/.fixtures-stamp
+LOGO_CACHE_RECORDS := ui/static/logos/services/.logo-cache.json ui/static/logos/os-families/.logo-cache.json
+FIXTURE_INPUTS = $(shell find backend -path backend/target -prune -o -type f -print) \
+	ui/scripts/generate-meta-messages.js messages/en.json
+
+ifeq ($(FORCE),1)
+.PHONY: $(FIXTURE_STAMP)
+endif
+ifneq ($(words $(wildcard $(LOGO_CACHE_RECORDS))),2)
+.PHONY: $(FIXTURE_STAMP)
+endif
+
+generate-fixtures: $(FIXTURE_STAMP)
+	@echo "✅ Metadata fixtures in ui/src/lib/data/ are up to date"
+
+$(FIXTURE_STAMP): $(FIXTURE_INPUTS)
 	@echo "Generating metadata fixtures from backend..."
-	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo run --bin generate-fixtures
+	@mkdir -p $(@D) && touch $@.next
+	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo run --bin generate-fixtures $(if $(filter 1,$(FORCE)),-- --force)
 	@echo "Syncing meta_* i18n keys into en.json..."
 	cd ui && node scripts/generate-meta-messages.js
-	@echo "✅ Generated all metadata fixtures in ui/src/lib/data/"
+	@mv $@.next $@
 
 refresh-vendored-data:
 	@echo "Refreshing vendored data assets (oui.csv)..."

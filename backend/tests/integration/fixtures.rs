@@ -44,7 +44,7 @@ pub async fn generate_fixtures() {
         .expect("Failed to get parent directory")
         .join("ui/src/lib/data");
     tokio::task::spawn_blocking(move || {
-        generate_ui_data_fixtures(&ui_data_dir);
+        generate_ui_data_fixtures(&ui_data_dir, false);
     })
     .await
     .expect("Failed to generate UI data fixtures");
