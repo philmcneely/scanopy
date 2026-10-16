@@ -60,7 +60,7 @@
 
 	type DaemonOrderField = components['schemas']['DaemonOrderField'];
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	// Queries
 	const tagsQuery = useTagsQuery();
@@ -68,14 +68,34 @@
 	// organization rather than the page on screen.
 	const daemonsQuery = useDaemonsQuery();
 	// The page the table shows, paged, filtered and ordered on the server.
-	const page = listPageState();
+	const page = listPageState(() => isActive);
 	const daemonsPageQuery = useDaemonsListQuery(() => page.params());
 	// Filter options: the values the caller's daemons hold, counted by the server.
 	const DAEMON_FIELD_VALUES = '/api/v1/daemons/field-values/{field}';
-	const siteValuesQuery = useFieldValuesQuery(DAEMON_FIELD_VALUES, 'site_id');
-	const modeValuesQuery = useFieldValuesQuery(DAEMON_FIELD_VALUES, 'mode');
-	const maintainerValuesQuery = useFieldValuesQuery(DAEMON_FIELD_VALUES, 'maintainer');
-	const versionValuesQuery = useFieldValuesQuery(DAEMON_FIELD_VALUES, 'version');
+	const siteValuesQuery = useFieldValuesQuery(
+		DAEMON_FIELD_VALUES,
+		'site_id',
+		undefined,
+		() => isActive
+	);
+	const modeValuesQuery = useFieldValuesQuery(
+		DAEMON_FIELD_VALUES,
+		'mode',
+		undefined,
+		() => isActive
+	);
+	const maintainerValuesQuery = useFieldValuesQuery(
+		DAEMON_FIELD_VALUES,
+		'maintainer',
+		undefined,
+		() => isActive
+	);
+	const versionValuesQuery = useFieldValuesQuery(
+		DAEMON_FIELD_VALUES,
+		'version',
+		undefined,
+		() => isActive
+	);
 	const sitesQuery = useSitesQuery();
 	// Shared subnets cache, to resolve each daemon's interfaced subnet ids.
 	const subnetsQuery = useSubnetsQuery();

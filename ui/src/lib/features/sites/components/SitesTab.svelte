@@ -26,7 +26,7 @@
 		sites_confirmDelete
 	} from '$lib/paraglide/messages';
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 	import {
 		useSitesQuery,
 		useSitesListQuery,
@@ -60,11 +60,13 @@
 	const tagsQuery = useTagsQuery();
 	// Every site, for the plan's site count and deep links; the table reads its own page.
 	const sitesQuery = useSitesQuery();
-	const page = listPageState();
+	const page = listPageState(() => isActive);
 	const sitesPageQuery = useSitesListQuery(() => page.params());
 	const staleWindowValuesQuery = useFieldValuesQuery(
 		'/api/v1/sites/field-values/{field}',
-		'effective_stale_after_hours'
+		'effective_stale_after_hours',
+		undefined,
+		() => isActive
 	);
 	// What each site contains, resolved here for the table's columns.
 	const daemonsQuery = useDaemonsQuery();

@@ -78,7 +78,7 @@
 			.map(String)
 	);
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	// Organization query for onboarding state
 	const organizationQuery = useOrganizationQuery();
@@ -102,10 +102,12 @@
 
 	// Queries
 	const tagsQuery = useTagsQuery();
+	// Held until the tab is opened: every tab mounts at app load.
 	const servicesQuery = useServicesQuery((): ServicesQueryParams => ({
 		limit: pageSize,
 		offset: (currentPage - 1) * pageSize,
-		list: listQuery ?? undefined
+		list: listQuery ?? undefined,
+		enabled: isActive
 	}));
 	const sitesQuery = useSitesQuery();
 	const portsQuery = usePortsQuery();
@@ -116,12 +118,42 @@
 	// Filter options: the values the caller's services actually hold, counted by the server.
 	// None of these takes the tab's active filters, so the options do not shrink as the user
 	// filters.
-	const hostValuesQuery = useFieldValuesQuery(SERVICE_FIELD_VALUES, 'host');
-	const siteValuesQuery = useFieldValuesQuery(SERVICE_FIELD_VALUES, 'site_id');
-	const definitionValuesQuery = useFieldValuesQuery(SERVICE_FIELD_VALUES, 'service_definition');
-	const containerizedByValuesQuery = useFieldValuesQuery(SERVICE_FIELD_VALUES, 'containerized_by');
-	const matchConfidenceValuesQuery = useFieldValuesQuery(SERVICE_FIELD_VALUES, 'match_confidence');
-	const sourceValuesQuery = useFieldValuesQuery(SERVICE_FIELD_VALUES, 'source');
+	const hostValuesQuery = useFieldValuesQuery(
+		SERVICE_FIELD_VALUES,
+		'host',
+		undefined,
+		() => isActive
+	);
+	const siteValuesQuery = useFieldValuesQuery(
+		SERVICE_FIELD_VALUES,
+		'site_id',
+		undefined,
+		() => isActive
+	);
+	const definitionValuesQuery = useFieldValuesQuery(
+		SERVICE_FIELD_VALUES,
+		'service_definition',
+		undefined,
+		() => isActive
+	);
+	const containerizedByValuesQuery = useFieldValuesQuery(
+		SERVICE_FIELD_VALUES,
+		'containerized_by',
+		undefined,
+		() => isActive
+	);
+	const matchConfidenceValuesQuery = useFieldValuesQuery(
+		SERVICE_FIELD_VALUES,
+		'match_confidence',
+		undefined,
+		() => isActive
+	);
+	const sourceValuesQuery = useFieldValuesQuery(
+		SERVICE_FIELD_VALUES,
+		'source',
+		undefined,
+		() => isActive
+	);
 	// The runtimes containerizing the visible services. Rarely on the same page as the services
 	// they run, so fetched by id.
 	const runtimesQuery = useServicesByIds(() => [

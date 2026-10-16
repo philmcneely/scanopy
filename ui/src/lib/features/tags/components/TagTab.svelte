@@ -43,7 +43,7 @@
 
 	type TagOrderField = components['schemas']['TagOrderField'];
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	let showTagEditor = $state(false);
 	let editingTag: Tag | null = $state(null);
@@ -78,11 +78,16 @@
 
 	// Every tag, for the empty state and deep links; the table reads its own page.
 	const tagsQuery = useTagsQuery();
-	const page = listPageState();
+	const page = listPageState(() => isActive);
 	const tagsPageQuery = useTagsListQuery(() => page.params());
 	const TAG_FIELD_VALUES = '/api/v1/tags/field-values/{field}';
-	const colorValuesQuery = useFieldValuesQuery(TAG_FIELD_VALUES, 'color');
-	const iconValuesQuery = useFieldValuesQuery(TAG_FIELD_VALUES, 'icon');
+	const colorValuesQuery = useFieldValuesQuery(
+		TAG_FIELD_VALUES,
+		'color',
+		undefined,
+		() => isActive
+	);
+	const iconValuesQuery = useFieldValuesQuery(TAG_FIELD_VALUES, 'icon', undefined, () => isActive);
 	const tagGroupsQuery = useTagGroupsQuery();
 	let tagGroups = $derived(tagGroupsQuery.data ?? []);
 	let applicationGroup = $derived(applicationGroupId(tagGroups));

@@ -44,7 +44,7 @@
 
 	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	const VLAN_FIELD_VALUES = '/api/v1/vlans/field-values/{field}';
 
@@ -72,11 +72,21 @@
 
 	// Queries
 	// One page of VLANs, paged, filtered and ordered on the server.
-	const page = listPageState();
+	const page = listPageState(() => isActive);
 	const vlansQuery = useVlansListQuery(() => page.params());
 	// Filter options: the values the caller's VLANs hold, counted by the server.
-	const siteValuesQuery = useFieldValuesQuery(VLAN_FIELD_VALUES, 'site_id');
-	const sourceValuesQuery = useFieldValuesQuery(VLAN_FIELD_VALUES, 'source');
+	const siteValuesQuery = useFieldValuesQuery(
+		VLAN_FIELD_VALUES,
+		'site_id',
+		undefined,
+		() => isActive
+	);
+	const sourceValuesQuery = useFieldValuesQuery(
+		VLAN_FIELD_VALUES,
+		'source',
+		undefined,
+		() => isActive
+	);
 	const sitesQuery = useSitesQuery();
 	// Shared full-list subnets cache — used to resolve the hydrated `subnet_ids`
 	// on each VLAN into names.

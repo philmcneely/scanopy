@@ -31,7 +31,7 @@
 	import { shortcutLabel } from '$lib/shared/utils/shortcuts';
 	import { getFieldValue } from '../controls/fieldValues';
 	import { iconButtonClass, resolveTooltip } from '../controls/actionShortcuts';
-	import type { RenderGroup, TreeCell, TreeEntry } from '../controls/grouping';
+	import type { RenderGroup, TreeCell, TreeContinuation, TreeEntry } from '../controls/grouping';
 	import type { SortState } from '../controls/sorting';
 	import type { CardAction, GroupSlice } from '../types';
 	import {
@@ -543,12 +543,18 @@
 <!-- `rootRanges` holds the merged group's roots' own page ranges; only the top level has any. -->
 {#snippet treeEntries(entries: TreeEntry<T>[], rootRanges: Map<string, GroupSlice> | null)}
 	{#each entries as entry (entryKey(entry))}
-		{@const row = rowById.get(getItemId(entry.item))}
-		{#if entry.type === 'row'}
+		{#if entry.type === 'continued'}
+			{@render continuationRow(entry)}
+			{#if !collapsed.has(entry.key)}
+				{@render treeEntries(entry.entries, null)}
+			{/if}
+		{:else if entry.type === 'row'}
+			{@const row = rowById.get(getItemId(entry.item))}
 			{#if row}
 				{@render bodyRow(row, entry.depth, { section: null, range: null })}
 			{/if}
 		{:else}
+			{@const row = rowById.get(getItemId(entry.item))}
 			{#if row}
 				{@render bodyRow(row, entry.depth, {
 					section: entry,
@@ -560,6 +566,43 @@
 			{/if}
 		{/if}
 	{/each}
+{/snippet}
+
+<!-- The head of a tree whose root row is on another page: the root's name, standing in for its
+     row so this page's rows of the tree nest under it. Not a row of the page, so it has no
+     checkbox or actions. -->
+{#snippet continuationRow(entry: TreeContinuation<T>)}
+	{@const isCollapsed = collapsed.has(entry.key)}
+	<tr class="border-t" style="border-color: var(--color-border)">
+		<th
+			scope="rowgroup"
+			colspan={spannedColumns}
+			class="px-[var(--cell-px)] py-[var(--cell-py)] text-left font-medium"
+		>
+			<button
+				type="button"
+				onclick={() => onToggleCollapse(entry.key)}
+				aria-expanded={!isCollapsed}
+				class="text-secondary pin-content flex w-max items-center gap-1.5 text-sm"
+			>
+				{#if isCollapsed}
+					<ChevronRight class="h-4 w-4" aria-hidden="true" />
+				{:else}
+					<ChevronDown class="h-4 w-4" aria-hidden="true" />
+				{/if}
+				<span>{entry.label}</span>
+				{#if entry.range}
+					<span class="text-tertiary text-xs font-normal">
+						{common_groupTotalShowing({
+							total: entry.range.total,
+							start: entry.range.start,
+							end: entry.range.end
+						})}
+					</span>
+				{/if}
+			</button>
+		</th>
+	</tr>
 {/snippet}
 
 <!-- A tree row's chevron, or the same width of space for a row with no children, so names line

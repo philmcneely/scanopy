@@ -55,7 +55,7 @@
 		users_cantDeleteUngrantableBulk
 	} from '$lib/paraglide/messages';
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	// Query
 	const currentUserQuery = useCurrentUserQuery();
@@ -71,7 +71,7 @@
 	// Every member the caller may see, for the seat count, filter options and deep links; the table
 	// reads its own page.
 	const membersQuery = useMembersQuery();
-	const page = listPageState();
+	const page = listPageState(() => isActive);
 	const membersPageQuery = useMembersListQuery(() => page.params());
 	const bulkDeleteUsersMutation = useBulkDeleteUsersMutation();
 

@@ -85,8 +85,8 @@
 	const tagsQuery = useTagsQuery();
 	// One page of the scan configurations, paged, filtered and ordered on the server. Gated on
 	// `isActive`, like the history tab: every tab is mounted at once.
-	const page = listPageState();
-	const discoveriesQuery = useScheduledDiscoveriesQuery(() => page.params(isActive));
+	const page = listPageState(() => isActive);
+	const discoveriesQuery = useScheduledDiscoveriesQuery(() => page.params());
 	// Filter options: the values the scan configurations hold, scoped the way the list is.
 	const DISCOVERY_FIELD_VALUES = '/api/v1/discovery/field-values/{field}';
 	const configScope = () => ({ historical: false });

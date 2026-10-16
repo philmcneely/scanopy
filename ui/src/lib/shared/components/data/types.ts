@@ -220,6 +220,11 @@ export interface TreeConfig<T> {
 	/** The row's depth as the server computed it. */
 	depth: (item: T) => number;
 	/**
+	 * The identity of the row at the top of this row's tree (the row itself when it heads one), or
+	 * `null` for a row in no tree. Tells a tree whose root is on another page from a lone row.
+	 */
+	rootKey: (item: T) => string | null;
+	/**
 	 * The header of the one group that collects every tree under a real root ("Virtualized",
 	 * "Nested"), set apart from the rows outside any tree. Each root row inside it carries its own
 	 * chevron and count.

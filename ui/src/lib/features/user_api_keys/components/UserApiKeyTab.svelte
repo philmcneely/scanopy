@@ -42,7 +42,7 @@
 
 	type UserApiKeyOrderField = components['schemas']['UserApiKeyOrderField'];
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	// Check if plan has api_access feature before querying
 	const organizationQuery = useOrganizationQuery();
@@ -54,7 +54,7 @@
 
 	// Queries
 	const tagsQuery = useTagsQuery();
-	const page = listPageState();
+	const page = listPageState(() => isActive);
 	const userApiKeysQuery = useUserApiKeysListQuery(() => page.params(hasApiAccess));
 	const sitesQuery = useSitesQuery();
 

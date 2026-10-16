@@ -91,6 +91,7 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 					key: (subnet) => subnet.id,
 					parentKey: (subnet) => subnet.parent_subnet_id ?? null,
 					depth: (subnet) => subnet.nesting_depth,
+					rootKey: (subnet) => subnet.nesting_root_id ?? null,
 					rootsLabel: () => common_nested()
 				},
 				display: { order: 3, getItems: cidrSourceItems() }

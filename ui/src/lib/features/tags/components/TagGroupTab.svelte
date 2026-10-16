@@ -35,7 +35,7 @@
 		tags_systemGroupFixedBulk
 	} from '$lib/paraglide/messages';
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	let showEditor = $state(false);
 	let editingGroup: TagGroup | null = $state(null);
@@ -68,7 +68,7 @@
 	const tagsQuery = useTagsQuery();
 	// Every group, for the tag chips' group labels and deep links; the table reads its own page.
 	const tagGroupsQuery = useTagGroupsQuery();
-	const page = listPageState();
+	const page = listPageState(() => isActive);
 	const groupsPageQuery = useTagGroupsListQuery(() => page.params());
 	const createMutation = useCreateTagGroupMutation();
 	const updateMutation = useUpdateTagGroupMutation();
