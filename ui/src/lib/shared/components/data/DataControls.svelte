@@ -405,6 +405,7 @@
 
 		// Set up reactive save (debounced)
 		let saveTimeout: ReturnType<typeof setTimeout>;
+		let savePending = false;
 
 		const unsubscribe = $effect.root(() => {
 			$effect(() => {
@@ -421,13 +422,19 @@
 
 					// Debounce saves
 					clearTimeout(saveTimeout);
-					saveTimeout = setTimeout(saveState, 100);
+					savePending = true;
+					saveTimeout = setTimeout(() => {
+						savePending = false;
+						saveState();
+					}, 100);
 				}
 			});
 		});
 
 		return () => {
 			clearTimeout(saveTimeout);
+			// Save a change still in its debounce, or a remount would restore the view before it.
+			if (savePending) saveState();
 			unsubscribe();
 		};
 	});

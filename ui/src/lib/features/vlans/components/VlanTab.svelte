@@ -208,7 +208,7 @@
 	{:else if isLoading}
 		<!-- Loading state -->
 		<Loading />
-	{:else if vlansData.length === 0 && !page.isNarrowed}
+	{:else if page.isEmpty(vlansQuery)}
 		<!-- Empty state: no CTA, there is nothing to create -->
 		<EmptyState
 			title={common_noEntityYet({ entity: common_vlans() })}

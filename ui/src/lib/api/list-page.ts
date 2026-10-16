@@ -66,6 +66,24 @@ export function useListPageQuery<T>(
 	});
 }
 
+/** What `listIsEmpty` reads from a list page query. */
+export interface ListPageQueryState {
+	data?: { items: unknown[] };
+	isPlaceholderData: boolean;
+}
+
+/**
+ * Whether a list holds no rows at all, so its tab shows "none yet" in place of the table.
+ *
+ * Decided only from a response for the view on screen. While a changed view's request is in
+ * flight, the previous page stays up as placeholder data; judged against the new view, a
+ * filtered-empty page would read as "none yet" the moment a filter is cleared. The tab would then
+ * unmount the table before it saved the cleared view, and remount it with the old filter.
+ */
+export function listIsEmpty(query: ListPageQueryState, narrowed: boolean): boolean {
+	return !query.isPlaceholderData && !narrowed && (query.data?.items.length ?? 0) === 0;
+}
+
 /**
  * Refetch every loaded page of an entity's list. For a write that patches the entity's full-list
  * cache in place, which the pages, under their own keys, do not read.

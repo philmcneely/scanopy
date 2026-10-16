@@ -299,7 +299,7 @@
 	<!-- Loading state -->
 	{#if isLoading}
 		<Loading />
-	{:else if pageMembers.length === 0 && !page.isNarrowed}
+	{:else if page.isEmpty(membersPageQuery)}
 		<!-- Empty state -->
 		<EmptyState title={users_noUsersFound()} subtitle={users_noUsersSubtitle()} />
 	{:else}
