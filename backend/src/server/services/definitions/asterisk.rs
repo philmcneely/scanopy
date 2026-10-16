@@ -12,7 +12,7 @@ impl ServiceDefinition for Asterisk {
         "Asterisk"
     }
     fn description(&self) -> &'static str {
-        "PBX and VoIP server"
+        "PBX and VoIP phone server"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Telephony

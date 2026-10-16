@@ -123,6 +123,7 @@ impl ClientProbe {
             | Self::Telnet
             | Self::Rtsp
             | Self::Nut
+            | Self::EpicsCa
             | Self::ZabbixAgent
             | Self::CheckMkAgent
             | Self::Ldap

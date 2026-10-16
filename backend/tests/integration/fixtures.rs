@@ -35,10 +35,6 @@ pub async fn generate_fixtures() {
         .await
         .expect("Failed to generate daemon config fixture");
 
-    generate_services_json()
-        .await
-        .expect("Failed to generate services json");
-
     // Generate all UI data fixtures (billing plans, features, credential types, etc.)
     // Run in spawn_blocking because generate_ui_data_fixtures uses reqwest::blocking::Client
     // internally (for logo downloads), which creates its own tokio runtime. Dropping that
@@ -269,34 +265,6 @@ async fn generate_daemon_config_fixture() -> Result<(), Box<dyn std::error::Erro
     std::fs::write(&fixture_path, output.stdout)?;
 
     println!("✅ Generated daemon_config.json from test daemon");
-    Ok(())
-}
-
-async fn generate_services_json() -> Result<(), Box<dyn std::error::Error>> {
-    let services: Vec<serde_json::Value> = ServiceDefinitionRegistry::all_service_definitions()
-        .iter()
-        .filter_map(|s| {
-            if s.can_be_manually_added() {
-                Some(serde_json::json!({
-                    "logo_url": s.logo_url(),
-                    "name": s.name(),
-                    "description": s.description(),
-                    "discovery_pattern": s.discovery_pattern().to_string(),
-                    "category": s.category(),
-                    "color": s.color(),
-                    "icon": s.icon(),
-                    "logo_needs_white_background": s.logo_needs_white_background()
-                }))
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let json_string = serde_json::to_string_pretty(&services)?;
-    let json_path = std::path::Path::new("../ui/static/services.json");
-    tokio::fs::write(json_path, json_string).await?;
-
     Ok(())
 }
 

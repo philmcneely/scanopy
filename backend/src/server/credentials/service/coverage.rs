@@ -18,7 +18,6 @@ use super::*;
 use crate::server::credentials::r#impl::types::CredentialIntegration;
 use crate::server::services::r#impl::base::Service;
 use crate::server::shared::types::metadata::HasId;
-use strum::IntoEnumIterator;
 
 /// When each site's credentials were last tried: the start of the scan that tried them. A site
 /// with no entry has not been scanned since, so its site-wide credentials are untried.
@@ -36,10 +35,8 @@ impl FoundIntegration {
     /// The integration this service is the service of, when that integration prompts for a
     /// credential where it is found.
     pub fn from_service(service: &Service) -> Option<Self> {
-        let definition = ServiceDefinition::name(&*service.base.service_definition);
-        CredentialIntegration::iter()
+        CredentialIntegration::for_service(&*service.base.service_definition)
             .filter(CredentialIntegration::prompts_when_found)
-            .find(|i| ServiceDefinition::name(&*i.service()) == definition)
             .map(|integration| Self {
                 host_id: service.base.host_id,
                 site_id: service.base.site_id,
@@ -223,6 +220,7 @@ impl CredentialService {
 mod tests {
     use super::*;
     use chrono::Duration;
+    use strum::IntoEnumIterator;
 
     fn found(host_id: Uuid, site_id: Uuid, integration: CredentialIntegration) -> FoundIntegration {
         FoundIntegration {

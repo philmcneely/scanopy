@@ -129,7 +129,7 @@ jobs:
       - name: Copy fixtures to website repo
         run: |
           mkdir -p website/src/lib/fixtures/
-          cp ui/static/services.json website/src/lib/fixtures/
+          cp ui/src/lib/data/services.json website/src/lib/fixtures/
           cp ui/src/lib/data/features.json website/src/lib/fixtures/
           cp ui/src/lib/data/billing-plans.json website/src/lib/fixtures/
           cp ui/src/lib/data/integrations.json website/src/lib/fixtures/

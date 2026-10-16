@@ -13,7 +13,7 @@ impl ServiceDefinition for InstantOnAccessPoint {
         "Instant On Access Point"
     }
     fn description(&self) -> &'static str {
-        "HPE Networking Instant On wireless access point"
+        "HPE Networking (formerly Aruba) Instant On wireless access point"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkAccess

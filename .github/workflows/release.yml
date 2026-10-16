@@ -87,7 +87,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add backend/Cargo.toml backend/Cargo.lock ui/package.json ui/package-lock.json
-          git add backend/src/tests/scanopy.sql backend/src/tests/daemon_config.json ui/static/services.json ui/static/schema.mermaid ui/static/schema-er.mermaid ui/static/entity-metadata.json
+          git add backend/src/tests/scanopy.sql backend/src/tests/daemon_config.json ui/static/schema.mermaid ui/static/schema-er.mermaid ui/static/entity-metadata.json
           git add backend/tests/integration/compat/fixtures/
           git add backend/assets/oui.csv
 

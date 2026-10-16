@@ -764,6 +764,7 @@ impl TypeMetadataProvider for ClientProbe {
             Self::Telnet => "Telnet",
             Self::Rtsp => "RTSP",
             Self::Nut => "NUT",
+            Self::EpicsCa => "EPICS Channel Access",
             Self::ZabbixAgent => "Zabbix agent",
             Self::CheckMkAgent => "Checkmk agent",
             Self::Smb => "SMB",

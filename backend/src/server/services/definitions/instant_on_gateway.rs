@@ -12,7 +12,7 @@ impl ServiceDefinition for InstantOnGateway {
         "Instant On Gateway"
     }
     fn description(&self) -> &'static str {
-        "HPE Networking Instant On gateway"
+        "HPE Networking (formerly Aruba) Instant On gateway"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkAccess

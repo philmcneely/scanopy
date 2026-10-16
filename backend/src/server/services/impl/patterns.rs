@@ -220,6 +220,8 @@ pub enum ClientProbe {
     Rtsp,
     /// A NUT server answered its text protocol rather than an error of another shape.
     Nut,
+    /// An EPICS Channel Access server answered a `CA_PROTO_VERSION` header with its own.
+    EpicsCa,
     /// A Zabbix agent answered a passive check with its `ZBXD` header.
     ZabbixAgent,
     /// A Check_MK agent dumped its section list, which opens `<<<check_mk>>>`.
@@ -317,6 +319,7 @@ impl ClientProbe {
             | Self::Telnet
             | Self::Rtsp
             | Self::Nut
+            | Self::EpicsCa
             | Self::ZabbixAgent
             | Self::CheckMkAgent
             | Self::Smb

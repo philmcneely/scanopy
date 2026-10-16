@@ -13,7 +13,7 @@ impl ServiceDefinition for SIPServer {
         "SIP Server"
     }
     fn description(&self) -> &'static str {
-        "Session initiation protocol"
+        "Session Initiation Protocol server for VoIP phone calls"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Telephony

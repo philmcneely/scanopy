@@ -121,6 +121,13 @@ impl CredentialIntegration {
         }
     }
 
+    /// The integration whose service is this definition. At most one: no two integrations share
+    /// a service (`integration_and_service_grouping_agree`).
+    pub fn for_service(definition: &dyn ServiceDefinition) -> Option<Self> {
+        let name = ServiceDefinition::name(definition);
+        Self::iter().find(|i| ServiceDefinition::name(&*i.service()) == name)
+    }
+
     pub fn credential_category(&self) -> CredentialCategory {
         match self {
             Self::Snmp | Self::Gnmi => CredentialCategory::NetworkMonitoring,
