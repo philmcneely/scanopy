@@ -197,7 +197,9 @@
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteSubnet(subnet)
 			}
 		);
@@ -386,7 +388,6 @@
 			fields={subnetFields}
 			storageKey="scanopy-subnets-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			entityType="Subnet"
 			canEditTags={!isReadOnly}
 			getItemTags={getSubnetTags}

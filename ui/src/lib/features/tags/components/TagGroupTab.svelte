@@ -118,7 +118,9 @@
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDelete(group)
 			}
 		];
@@ -165,9 +167,7 @@
 			{toolbarActions}
 			items={pageGroups}
 			{fields}
-			allowBulkDelete={canManage}
 			storageKey="scanopy-tag-groups-table-state"
-			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}
 			serverPagination={groupsPagination}
 			onPageChange={page.onPageChange}

@@ -9,7 +9,7 @@
 	import OsTag from '$lib/features/hosts/components/OsTag.svelte';
 	import { hostOsOfDaemonOs } from '$lib/features/hosts/host-os';
 	import CreateDaemonModal from './CreateDaemonModal/CreateDaemonModal.svelte';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import type { ActionTone, CardAction } from '$lib/shared/components/data/types';
 	import { daemonColumns } from './DaemonTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
@@ -49,7 +49,7 @@
 		common_delete,
 		common_edit,
 		common_noEntityYet,
-		common_update,
+		common_upgrade,
 		daemons_retryConnection,
 		daemons_sunsetBannerTitle,
 		daemons_sunsetBannerBody
@@ -169,16 +169,16 @@
 	 * Escalate the upgrade affordance by lifecycle stage: a scheduled or active
 	 * sunset is a warning/danger action, a plain newer release is neutral-info.
 	 */
-	function upgradeButtonClass(daemon: Daemon): string {
+	function upgradeTone(daemon: Daemon): ActionTone | undefined {
 		switch (daemon.version_status.status) {
 			case 'Unsupported':
-				return 'btn-icon-danger';
+				return 'danger';
 			case 'Deprecated':
-				return 'btn-icon-warning';
+				return 'warning';
 			case 'Outdated':
-				return 'btn-icon-info';
+				return 'info';
 			default:
-				return 'btn-icon';
+				return undefined;
 		}
 	}
 
@@ -207,16 +207,18 @@
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteDaemon(daemon)
 			}
 		];
 
 		if (hasUpdateAvailable && (daemon.is_unreachable !== true || sunsetDate !== null)) {
 			actions.push({
-				label: common_update(),
+				label: common_upgrade(),
 				icon: ArrowBigUp,
-				class: upgradeButtonClass(daemon),
+				tone: upgradeTone(daemon),
 				onClick: () => handleOpenUpgrade(daemon)
 			});
 		}
@@ -227,8 +229,9 @@
 			actions.push({
 				label: daemons_retryConnection(),
 				icon: RefreshCw,
-				class: 'btn-icon-info',
+				tone: 'info',
 				onClick: () => retryConnectionMutation.mutate(daemon.id),
+				onBulk: (ids) => ids.forEach((id) => retryConnectionMutation.mutate(id)),
 				disabled: retryConnectionMutation.isPending
 			});
 		}
@@ -364,7 +367,6 @@
 			fields={daemonFields}
 			storageKey="scanopy-daemons-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			entityType="Daemon"
 			canEditTags={!isReadOnly}
 			getItemTags={getDaemonTags}

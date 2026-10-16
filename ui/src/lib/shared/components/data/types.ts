@@ -45,11 +45,25 @@ export interface TagProps {
 	onclick?: () => void;
 }
 
+/** An action's colour. Omitted, it renders neutral. The row and the toolbar both render from it. */
+export type ActionTone = 'danger' | 'warning' | 'success' | 'info';
+
 export interface CardAction {
 	label: string;
 	icon: IconComponent; // Svelte component
-	class?: string;
+	tone?: ActionTone;
+	/**
+	 * This action deletes the row. A row can be deleted from the toolbar exactly when its actions
+	 * include an enabled one, and Delete Selected stands in for it there.
+	 */
+	isDelete?: boolean;
 	onClick: () => void;
+	/**
+	 * Runs the action on every selected row, given their ids. With it, the action shows in the
+	 * toolbar for a selection of any size and runs there through this; without it, the toolbar
+	 * shows the action only while its one row is selected.
+	 */
+	onBulk?: (ids: string[]) => Promise<unknown> | void;
 	disabled?: boolean;
 	tooltip?: string | ((disabled: boolean) => string | null);
 	animation?: string;

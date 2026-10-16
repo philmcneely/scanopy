@@ -89,7 +89,7 @@
 		common_ungrouped,
 		common_tableCaption,
 		common_tags,
-		common_delete,
+		common_notAvailableForAllSelected,
 		common_noCommonTags,
 		common_commonTags,
 		tags_hotkeyEdit,
@@ -123,8 +123,10 @@
 	} from './controls/listShortcuts';
 	import {
 		assignActionKeys,
-		isDangerAction,
 		matchesActionKey,
+		resolveTooltip,
+		selectionActions,
+		toolbarButtonClass,
 		type KeyedAction
 	} from './controls/actionShortcuts';
 	import type { components } from '$lib/api/schema';
@@ -138,9 +140,6 @@
 		items = $bindable([]),
 		fields: tabFields = $bindable([]),
 		storageKey = null,
-		onBulkDelete = null,
-		allowBulkDelete = true,
-		canDeleteItem = null,
 		entityType = null,
 		canEditTags = true,
 		getItemTags = null,
@@ -174,11 +173,6 @@
 		items: T[];
 		fields: FieldConfig<T>[];
 		storageKey?: string | null;
-		onBulkDelete?: ((ids: string[]) => Promise<void>) | null;
-		allowBulkDelete?: boolean;
-		// Whether one row may be deleted. Bulk delete is offered only while every selected row may
-		// be; the selection stays available for tagging. Absent: every row may be deleted.
-		canDeleteItem?: ((item: T) => boolean) | null;
 		entityType?: EntityDiscriminants | null;
 		// Whether the user may add and remove tags here. `entityType` names what the rows are; this
 		// gates editing them.
@@ -274,7 +268,7 @@
 	let currentPage = $state(1);
 	let pageSize = $state<PageSizeOption>(20);
 
-	// Bulk selection state (always enabled when onBulkDelete is provided)
+	// Bulk selection state
 	let selectedIds = new SvelteSet<string>();
 
 	// Load state from localStorage
@@ -655,17 +649,16 @@
 		selectedIds.clear();
 	}
 
-	// Handle bulk delete
-	async function handleBulkDelete() {
-		const deleted = await runBulkAction(
-			'Bulk delete',
-			selectedIds,
-			Boolean(allowBulkDelete && onBulkDelete),
-			(ids) => onBulkDelete!(ids)
-		);
-		// Only on success: a failed delete leaves the rows, so clearing here
-		// would drop the selection the user still needs to retry.
-		if (deleted) selectedIds.clear();
+	/** Runs a row action's `onBulk` on the selection. */
+	function runOnSelection(action: CardAction) {
+		return async () => {
+			const done = await runBulkAction(action.label, selectedIds, Boolean(action.onBulk), (ids) =>
+				Promise.resolve(action.onBulk!(ids))
+			);
+			// A delete clears the selection, its rows being gone. Only on success: a failed delete
+			// leaves the rows, and the user still needs the selection to retry.
+			if (done && action.isDelete) selectedIds.clear();
+		};
 	}
 
 	function bulkTagAction(description: string, mutate: typeof bulkAddTagMutation) {
@@ -786,12 +779,11 @@
 		}
 	}
 
-	let showSelection = $derived(Boolean(onBulkDelete) || hasBulkTagging);
-	// Bulk delete is offered only while the selection holds no row that can't be deleted.
-	let selectionDeletable = $derived(
-		!canDeleteItem ||
-			items.filter((item) => selectedIds.has(getItemId(item))).every((item) => canDeleteItem(item))
+	// Rows are selectable when the selection has something to act on: tags, or a bulk row action.
+	let hasBulkActions = $derived(
+		items.some((item) => getActions?.(item).some((action) => action.onBulk) ?? false)
 	);
+	let showSelection = $derived(hasBulkActions || hasBulkTagging);
 
 	let tableCaptionText = $derived(
 		common_tableCaption({
@@ -970,18 +962,19 @@
 		selection: keyLabel('Escape')
 	};
 
-	let canBulkDelete = $derived(
-		Boolean(allowBulkDelete && onBulkDelete) && selectedIds.size > 0 && selectionDeletable
-	);
-
-	// With exactly one row selected, its own actions (Edit, Rescan, ...) also show in the toolbar,
-	// each with a key. Its delete action is left out while Delete Selected already covers it.
-	let singleRowActions = $derived.by((): KeyedAction[] => {
-		if (!getActions || selectedIds.size !== 1) return [];
-		const item = items.find((i) => selectedIds.has(getItemId(i)));
-		if (!item) return [];
-		const actions = getActions(item).filter((a) => !(canBulkDelete && isDangerAction(a)));
-		return assignActionKeys(actions);
+	// The selection's actions in the toolbar, each with a key, built from the selected rows' own
+	// actions: one row's actions as its row shows them, or the bulk actions for several.
+	let selectionToolbarActions = $derived.by((): KeyedAction[] => {
+		if (!getActions || selectedIds.size === 0) return [];
+		const rows = items.filter((item) => selectedIds.has(getItemId(item)));
+		if (rows.length === 0) return [];
+		return assignActionKeys(
+			selectionActions(
+				rows.map((item) => getActions(item)),
+				runOnSelection,
+				common_notAvailableForAllSelected()
+			)
+		);
 	});
 
 	// Toolbar controls (CreateButton) take their own keys through this.
@@ -990,8 +983,8 @@
 		isPaused: () => searchFocused
 	});
 
-	function singleRowActionFor(event: KeyboardEvent): KeyedAction | undefined {
-		return singleRowActions.find(({ key }) => key !== null && matchesActionKey(event, key));
+	function selectionActionFor(event: KeyboardEvent): KeyedAction | undefined {
+		return selectionToolbarActions.find(({ key }) => key !== null && matchesActionKey(event, key));
 	}
 
 	function handleListShortcut(event: KeyboardEvent) {
@@ -1007,8 +1000,9 @@
 			// Cmd/Ctrl+A selects every row on the page instead of the page's text.
 			event.preventDefault();
 			visibleIds(orderedItems, getItemId).forEach((id) => selectedIds.add(id));
-		} else if (singleRowActionFor(event)) {
-			const keyed = singleRowActionFor(event)!;
+		} else if (selectionActionFor(event)) {
+			// The delete asks for confirmation, as its button does.
+			const keyed = selectionActionFor(event)!;
 			event.preventDefault();
 			if (!keyed.action.disabled) keyed.action.onClick();
 		} else if (showTagIsland && isPlainKey(event, TAG_SHORTCUT)) {
@@ -1017,15 +1011,6 @@
 		} else if (showSelection && selectedIds.size > 0 && plain && event.key === 'Escape') {
 			event.preventDefault();
 			selectNone();
-		} else if (
-			canBulkDelete &&
-			plain &&
-			!event.shiftKey &&
-			(event.key === 'Delete' || event.key === 'Backspace')
-		) {
-			// The page's delete asks for confirmation, as the button does.
-			event.preventDefault();
-			handleBulkDelete();
 		} else if (matchesNothing && isPlainKey(event, CLEAR_ALL_KEY)) {
 			event.preventDefault();
 			clearAllNarrowing();
@@ -1086,18 +1071,16 @@
 
 <svelte:window onkeydown={handleListShortcut} onclick={handleClickOutside} />
 
-<!-- With rows selected: the one selected row's own actions, then Delete for the selection. -->
+<!-- With rows selected: the selection's actions, as their rows show them. -->
 {#snippet selectionToolbar()}
-	{#each singleRowActions as { action, key } (action.label)}
-		{@const tip =
-			typeof action.tooltip === 'function' ? action.tooltip(!!action.disabled) : action.tooltip}
+	{#each selectionToolbarActions as { action, key } (action.label)}
 		<button
 			onclick={action.onClick}
 			disabled={action.disabled}
-			title={tip ?? undefined}
-			class="{isDangerAction(action)
-				? 'btn-danger'
-				: 'btn-secondary'} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+			title={resolveTooltip(action)}
+			class="{toolbarButtonClass(
+				action.tone
+			)} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{action.label}
 			{#if key}
@@ -1110,17 +1093,6 @@
 			{/if}
 		</button>
 	{/each}
-	{#if canBulkDelete}
-		<button onclick={handleBulkDelete} class="btn-danger toolbar-control flex items-center gap-2">
-			{common_delete()}
-			<span
-				class="inline-flex transition-opacity {searchFocused ? 'opacity-40' : ''}"
-				title={searchFocused ? common_shortcutsPausedInSearch() : undefined}
-			>
-				<KbdKey key={keyLabel('Delete')} size="xs" tone="inherit" />
-			</span>
-		</button>
-	{/if}
 {/snippet}
 
 <div bind:this={rootRef} class="space-y-4">
@@ -1140,7 +1112,7 @@
 			onClearSearch={clearSearch}
 			{entityLabel}
 			actions={toolbarActions}
-			selectionActions={canBulkDelete || singleRowActions.length > 0 ? selectionToolbar : undefined}
+			selectionActions={selectionToolbarActions.length > 0 ? selectionToolbar : undefined}
 			{title}
 			{subtitle}
 		/>

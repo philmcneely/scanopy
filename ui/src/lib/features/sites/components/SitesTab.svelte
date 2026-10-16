@@ -125,28 +125,24 @@
 		}
 	});
 
-	let allowBulkDelete = $derived(
+	let canManageSites = $derived(
 		!isReadOnly && currentUser
 			? permissions.getMetadata(currentUser.permissions).manage_org_entities
 			: false
 	);
 
-	let canManageSites = $derived(
-		!isReadOnly &&
-			currentUser &&
-			permissions.getMetadata(currentUser.permissions).manage_org_entities
-	);
-
 	/** Row actions. */
 	function siteActions(site: Site): CardAction[] {
-		if (!allowBulkDelete) return [];
+		if (!canManageSites) return [];
 
 		return [
 			{ label: common_edit(), icon: Edit, onClick: () => handleEditSite(site) },
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteSite(site)
 			}
 		];
@@ -270,11 +266,9 @@
 			{toolbarActions}
 			items={pageSites}
 			fields={siteFields}
-			onBulkDelete={handleBulkDelete}
 			entityType="Site"
-			canEditTags={allowBulkDelete}
+			canEditTags={canManageSites}
 			getItemTags={getSiteTags}
-			{allowBulkDelete}
 			storageKey="scanopy-sites-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}

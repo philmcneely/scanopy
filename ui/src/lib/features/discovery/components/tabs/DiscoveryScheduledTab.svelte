@@ -208,6 +208,13 @@
 		cancelDiscoveryMutation.mutate(sessionId);
 	}
 
+	function handleBulkCancel(ids: string[]) {
+		for (const discovery of discoveriesData) {
+			const sessionId = ids.includes(discovery.id) ? getActiveSession(discovery)?.session_id : null;
+			if (sessionId) handleCancelDiscovery(sessionId);
+		}
+	}
+
 	function handleToggleEnabled(discovery: Discovery) {
 		if (discovery.run_type.type !== 'Scheduled') return;
 		updateDiscoveryMutation.mutate({
@@ -273,6 +280,7 @@
 				label: common_run(),
 				icon: Play,
 				onClick: () => handleDiscoveryRun(discovery),
+				onBulk: (ids) => ids.forEach((id) => initiateDiscoveryMutation.mutate(id)),
 				disabled: running,
 				tooltip: running ? discovery_alreadyRunning() : undefined
 			});
@@ -281,7 +289,7 @@
 				actions.push({
 					label: isEnabled ? common_disable() : common_enable(),
 					icon: Power,
-					class: isEnabled ? 'btn-icon-success' : 'btn-icon',
+					tone: isEnabled ? 'success' : undefined,
 					onClick: () => handleToggleEnabled(discovery),
 					disabled: running,
 					tooltip: running
@@ -298,15 +306,18 @@
 			actions.push({
 				label: common_cancel(),
 				icon: Ban,
-				class: 'btn-icon-warning',
-				onClick: () => handleCancelDiscovery(session.session_id!)
+				tone: 'warning',
+				onClick: () => handleCancelDiscovery(session.session_id!),
+				onBulk: handleBulkCancel
 			});
 		}
 
 		actions.push({
 			label: common_delete(),
 			icon: Trash2,
-			class: 'btn-icon-danger',
+			tone: 'danger',
+			isDelete: true,
+			onBulk: handleBulkDelete,
 			onClick: () => handleDeleteDiscovery(discovery),
 			disabled: running,
 			tooltip: running ? discovery_cannotDeleteWhileRunning() : undefined
@@ -421,7 +432,6 @@
 			{toolbarActions}
 			items={discoveriesData}
 			{fields}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			storageKey="scanopy-discovery-scans-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}

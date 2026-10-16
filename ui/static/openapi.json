@@ -17055,7 +17055,7 @@
             }
           },
           "403": {
-            "description": "Cannot delete users with higher permissions",
+            "description": "Cannot delete yourself, or a user whose role you could not grant",
             "content": {
               "application/json": {
                 "schema": {
@@ -17289,7 +17289,7 @@
             }
           },
           "403": {
-            "description": "Cannot delete user with higher permissions",
+            "description": "Cannot delete yourself, or a user whose role you could not grant",
             "content": {
               "application/json": {
                 "schema": {

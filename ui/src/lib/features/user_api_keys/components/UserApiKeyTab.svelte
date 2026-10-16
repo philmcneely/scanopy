@@ -137,7 +137,9 @@
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
+				onBulk: isReadOnly ? undefined : handleBulkDelete,
 				onClick: () => handleDelete(apiKey)
 			}
 		];
@@ -186,7 +188,6 @@
 			{toolbarActions}
 			items={userApiKeysData}
 			fields={apiKeyFields}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			entityType="UserApiKey"
 			canEditTags={!isReadOnly}
 			getItemTags={getUserApiKeyTags}

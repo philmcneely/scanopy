@@ -14,7 +14,8 @@
 		useDiscoveryHistoryQuery,
 		useCreateDiscoveryMutation,
 		useUpdateDiscoveryMutation,
-		useBulkDeleteDiscoveriesMutation
+		useBulkDeleteDiscoveriesMutation,
+		useDeleteDiscoveryMutation
 	} from '../../queries';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
@@ -31,11 +32,13 @@
 		closeModal,
 		resolveModalDeepLink
 	} from '$lib/shared/stores/modal-registry';
-	import { Info } from 'lucide-svelte';
+	import { Info, Trash2 } from 'lucide-svelte';
 	import { useTagGroupsQuery, useTagsQuery } from '$lib/features/tags/queries';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import { runOutcomeTag, type OutcomeTag } from '../../utils/outcome';
 	import {
+		common_confirmDeleteName,
+		common_delete,
 		common_details,
 		common_none,
 		daemons_installPromptDiscoveries,
@@ -117,6 +120,7 @@
 	const createDiscoveryMutation = useCreateDiscoveryMutation();
 	const updateDiscoveryMutation = useUpdateDiscoveryMutation();
 	const bulkDeleteDiscoveriesMutation = useBulkDeleteDiscoveriesMutation();
+	const deleteDiscoveryMutation = useDeleteDiscoveryMutation();
 
 	// Derived data
 	let discoveriesData = $derived(discoveriesQuery.data?.items ?? []);
@@ -193,6 +197,12 @@
 		closeModal();
 	}
 
+	function handleDeleteDiscovery(discovery: Discovery) {
+		if (confirm(common_confirmDeleteName({ name: discovery.name }))) {
+			deleteDiscoveryMutation.mutate(discovery.id);
+		}
+	}
+
 	async function handleBulkDelete(ids: string[]) {
 		if (confirm(discovery_confirmDeleteHistorical({ count: ids.length }))) {
 			await bulkDeleteDiscoveriesMutation.mutateAsync(ids);
@@ -225,7 +235,23 @@
 
 	/** Row actions. */
 	function discoveryActions(discovery: Discovery): CardAction[] {
-		return [{ label: common_details(), icon: Info, onClick: () => handleEditDiscovery(discovery) }];
+		const details: CardAction = {
+			label: common_details(),
+			icon: Info,
+			onClick: () => handleEditDiscovery(discovery)
+		};
+		if (isReadOnly) return [details];
+		return [
+			details,
+			{
+				label: common_delete(),
+				icon: Trash2,
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
+				onClick: () => handleDeleteDiscovery(discovery)
+			}
+		];
 	}
 
 	// Related entities the registry's discovery fields read: the daemon, the site.
@@ -291,7 +317,6 @@
 			title={discovery_historyTitle()}
 			items={discoveriesData}
 			{fields}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			storageKey="scanopy-discovery-historical-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}

@@ -194,7 +194,9 @@
 				actions.push({
 					label: common_delete(),
 					icon: Trash2,
-					class: 'btn-icon-danger',
+					tone: 'danger',
+					isDelete: true,
+					onBulk: handleBulkDelete,
 					onClick: () => handleDeleteUser(item.data)
 				});
 			}
@@ -205,7 +207,7 @@
 			{
 				label: common_revoke(),
 				icon: UserX,
-				class: 'btn-icon-danger',
+				tone: 'danger',
 				onClick: () => handleRevokeInvite(item.data)
 			}
 		];
@@ -258,7 +260,6 @@
 			fields={userFields}
 			storageKey="scanopy-users-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}
 			serverPagination={membersPagination}
 			onPageChange={page.onPageChange}
