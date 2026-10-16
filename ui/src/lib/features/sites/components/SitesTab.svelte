@@ -7,7 +7,6 @@
 	import SiteEditModal from './SiteEditModal.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import type { FieldConfig } from '$lib/shared/components/data/types';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
 	import { Trash2, Edit } from 'lucide-svelte';
@@ -30,6 +29,7 @@
 	let { isReadOnly = false }: TabProps = $props();
 	import {
 		useSitesQuery,
+		useSitesListQuery,
 		useCreateSiteMutation,
 		useUpdateSiteMutation,
 		useDeleteSiteMutation,
@@ -41,6 +41,11 @@
 	import { useVlansQuery } from '$lib/features/vlans/queries';
 	import { useDependenciesQuery } from '$lib/features/dependencies/queries';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import { useFieldValuesQuery } from '$lib/shared/api/field-values';
+	import type { components } from '$lib/api/schema';
+
+	type SiteOrderField = components['schemas']['SiteOrderField'];
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
 
 	// Queries
@@ -53,7 +58,14 @@
 	let canBuyMore = $derived(org?.plan?.site_cents !== undefined && org?.plan?.site_cents !== null);
 
 	const tagsQuery = useTagsQuery();
+	// Every site, for the plan's site count and deep links; the table reads its own page.
 	const sitesQuery = useSitesQuery();
+	const page = listPageState();
+	const sitesPageQuery = useSitesListQuery(() => page.params());
+	const staleWindowValuesQuery = useFieldValuesQuery(
+		'/api/v1/sites/field-values/{field}',
+		'effective_stale_after_hours'
+	);
 	// What each site contains, resolved here for the table's columns.
 	const daemonsQuery = useDaemonsQuery();
 	const subnetsQuery = useSubnetsQuery();
@@ -79,13 +91,17 @@
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
 	let sitesData = $derived(sitesQuery.data ?? []);
+	let pageSites = $derived(sitesPageQuery.data?.items ?? []);
+	let sitesPagination = $derived(sitesPageQuery.data?.pagination ?? null);
 	let daemonsData = $derived(daemonsQuery.data ?? []);
 	// Narrowed once, here: both the per-site subnet column and the daemon chips
 	// below must show the same list the Subnets and Daemons tabs do.
 	let subnetsData = $derived((subnetsQuery.data ?? []).filter(isUserManagedSubnet));
 	let vlansData = $derived(vlansQuery.data ?? []);
 	let credentialsData = $derived(credentialsQuery.data ?? []);
-	let isLoading = $derived(sitesQuery.isPending);
+	let isLoading = $derived(
+		sitesQuery.isPending || (sitesPageQuery.isPending && !sitesPageQuery.data)
+	);
 	let isAtSiteLimit = $derived(siteLimit !== null && sitesData.length >= siteLimit && !canBuyMore);
 	let isNearSiteLimit = $derived(
 		siteLimit !== null && sitesData.length >= siteLimit - 2 && !isAtSiteLimit && !canBuyMore
@@ -189,19 +205,22 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('Site', {});
+		await downloadCsv('Site', page.listQuery);
 	}
 
-	const tableDefaults: TableDefaults<string> = { sort: { field: 'name', direction: 'asc' } };
+	const tableDefaults: TableDefaults<SiteOrderField> = {
+		sort: { field: 'name', direction: 'asc' }
+	};
 
-	let siteFields = $derived<FieldConfig<Site>[]>(
+	let siteFields = $derived(
 		siteColumns({
 			tags: () => tagsData,
 			daemons: () => daemonsData,
 			daemonHosts: () => daemonHosts,
 			subnets: () => subnetsData,
 			vlans: () => vlansData,
-			credentials: () => credentialsData
+			credentials: () => credentialsData,
+			staleWindowValues: () => staleWindowValuesQuery.data
 		})
 	);
 </script>
@@ -249,7 +268,7 @@
 		<DataControls
 			title={common_sites()}
 			{toolbarActions}
-			items={sitesData}
+			items={pageSites}
 			fields={siteFields}
 			onBulkDelete={handleBulkDelete}
 			entityType="Site"
@@ -259,6 +278,10 @@
 			storageKey="scanopy-sites-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}
+			serverPagination={sitesPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			onCsvExport={handleCsvExport}
 			getActions={siteActions}
 			entityLabel={common_sites()}

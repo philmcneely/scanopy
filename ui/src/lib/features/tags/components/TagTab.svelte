@@ -2,6 +2,7 @@
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import {
 		useTagsQuery,
+		useTagsListQuery,
 		useTagGroupsQuery,
 		useCreateTagMutation,
 		useUpdateTagMutation,
@@ -25,6 +26,8 @@
 	import { applicationGroupId } from '../groups';
 	import type { components } from '$lib/api/schema';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import { useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
 	import {
 		common_confirmBulkDelete,
@@ -73,7 +76,13 @@
 	);
 	let isNonOwnerInDemo = $derived(isDemoOrg && currentUser?.permissions !== 'Owner');
 
+	// Every tag, for the empty state and deep links; the table reads its own page.
 	const tagsQuery = useTagsQuery();
+	const page = listPageState();
+	const tagsPageQuery = useTagsListQuery(() => page.params());
+	const TAG_FIELD_VALUES = '/api/v1/tags/field-values/{field}';
+	const colorValuesQuery = useFieldValuesQuery(TAG_FIELD_VALUES, 'color');
+	const iconValuesQuery = useFieldValuesQuery(TAG_FIELD_VALUES, 'icon');
 	const tagGroupsQuery = useTagGroupsQuery();
 	let tagGroups = $derived(tagGroupsQuery.data ?? []);
 	let applicationGroup = $derived(applicationGroupId(tagGroups));
@@ -84,7 +93,9 @@
 
 	// Derived state
 	let tags = $derived(tagsQuery.data ?? []);
-	let isLoading = $derived(tagsQuery.isLoading);
+	let pageTags = $derived(tagsPageQuery.data?.items ?? []);
+	let tagsPagination = $derived(tagsPageQuery.data?.pagination ?? null);
+	let isLoading = $derived(tagsQuery.isLoading || (tagsPageQuery.isPending && !tagsPageQuery.data));
 
 	let canManage = $derived(
 		!isReadOnly &&
@@ -155,7 +166,7 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('Tag', {});
+		await downloadCsv('Tag', page.listQuery);
 	}
 
 	const tableDefaults: TableDefaults<TagOrderField> = {
@@ -169,7 +180,9 @@
 		tagColumns({
 			lookup: () => lookup,
 			tagGroups: () => tagGroups,
-			applicationGroup: () => applicationGroup
+			applicationGroup: () => applicationGroup,
+			colorValues: () => colorValuesQuery.data,
+			iconValues: () => iconValuesQuery.data
 		})
 	);
 </script>
@@ -196,13 +209,17 @@
 			title={common_tags()}
 			subtitle={tags_subtitle()}
 			{toolbarActions}
-			items={tags}
+			items={pageTags}
 			fields={tagFields}
 			{allowBulkDelete}
 			storageKey="scanopy-tags-table-state"
 			defaults={tableDefaults}
 			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}
+			serverPagination={tagsPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			onCsvExport={handleCsvExport}
 			getActions={tagActions}
 			entityLabel={common_tags()}

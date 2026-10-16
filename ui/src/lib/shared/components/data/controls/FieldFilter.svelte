@@ -96,8 +96,7 @@
 	<div class="text-secondary text-sm font-medium">{field.label}</div>
 
 	{#if showStale}
-		<!-- Server-side: the list is server-paginated, so filtering
-		     client-side would only filter the loaded page. -->
+		<!-- Server-side: the list holds one page, so only the server can filter by staleness. -->
 		<label class="flex cursor-pointer items-center gap-2">
 			<input
 				type="checkbox"

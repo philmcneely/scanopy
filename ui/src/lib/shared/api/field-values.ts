@@ -73,6 +73,69 @@ const FIELD_VALUES_ENDPOINTS: { [P in FieldValuesPath]: FieldValuesEndpoint<P> }
 					params: { path: { field }, query }
 				})
 			)
+	},
+	'/api/v1/auth/daemon/field-values/{field}': {
+		key: queryKeys.apiKeys.fieldValues,
+		fetch: async (field, query) =>
+			unwrapData(
+				await apiClient.GET('/api/v1/auth/daemon/field-values/{field}', {
+					params: { path: { field }, query }
+				})
+			)
+	},
+	'/api/v1/auth/keys/field-values/{field}': {
+		key: queryKeys.userApiKeys.fieldValues,
+		fetch: async (field, query) =>
+			unwrapData(
+				await apiClient.GET('/api/v1/auth/keys/field-values/{field}', {
+					params: { path: { field }, query }
+				})
+			)
+	},
+	'/api/v1/daemons/field-values/{field}': {
+		key: queryKeys.daemons.fieldValues,
+		fetch: async (field, query) =>
+			unwrapData(
+				await apiClient.GET('/api/v1/daemons/field-values/{field}', {
+					params: { path: { field }, query }
+				})
+			)
+	},
+	'/api/v1/sites/field-values/{field}': {
+		key: queryKeys.sites.fieldValues,
+		fetch: async (field, query) =>
+			unwrapData(
+				await apiClient.GET('/api/v1/sites/field-values/{field}', {
+					params: { path: { field }, query }
+				})
+			)
+	},
+	'/api/v1/tags/field-values/{field}': {
+		key: queryKeys.tags.fieldValues,
+		fetch: async (field, query) =>
+			unwrapData(
+				await apiClient.GET('/api/v1/tags/field-values/{field}', {
+					params: { path: { field }, query }
+				})
+			)
+	},
+	'/api/v1/vlans/field-values/{field}': {
+		key: queryKeys.vlans.fieldValues,
+		fetch: async (field, query) =>
+			unwrapData(
+				await apiClient.GET('/api/v1/vlans/field-values/{field}', {
+					params: { path: { field }, query }
+				})
+			)
+	},
+	'/api/v1/subnets/field-values/{field}': {
+		key: queryKeys.subnets.fieldValues,
+		fetch: async (field, query) =>
+			unwrapData(
+				await apiClient.GET('/api/v1/subnets/field-values/{field}', {
+					params: { path: { field }, query }
+				})
+			)
 	}
 };
 

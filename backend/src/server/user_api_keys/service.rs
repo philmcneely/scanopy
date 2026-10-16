@@ -96,18 +96,20 @@ impl UserApiKeyService {
 
         let filter = StorableFilter::<UserApiKey>::new_from_user_id(user_id);
         let mut keys = self.storage.get_all(filter).await?;
-
-        // Batch hydrate site_ids
-        let key_ids: Vec<Uuid> = keys.iter().map(|k| k.id).collect();
-        let site_map = self.site_access_storage.get_for_keys(&key_ids).await?;
-
-        for key in &mut keys {
-            key.base.site_ids = site_map.get(&key.id).cloned().unwrap_or_default();
-        }
-
+        self.hydrate_site_ids(&mut keys).await?;
         self.bulk_hydrate_tags(&mut keys, None).await?;
 
         Ok(keys)
+    }
+
+    /// Fill each key's `site_ids` from the site-access junction.
+    pub async fn hydrate_site_ids(&self, keys: &mut [UserApiKey]) -> Result<()> {
+        let key_ids: Vec<Uuid> = keys.iter().map(|k| k.id).collect();
+        let site_map = self.site_access_storage.get_for_keys(&key_ids).await?;
+        for key in keys {
+            key.base.site_ids = site_map.get(&key.id).cloned().unwrap_or_default();
+        }
+        Ok(())
     }
 
     /// Validate that the requested permissions don't exceed the user's permissions

@@ -18,7 +18,7 @@
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import {
-		useDiscoveriesQuery,
+		useScheduledDiscoveriesQuery,
 		useCreateDiscoveryMutation,
 		useUpdateDiscoveryMutation,
 		useDeleteDiscoveryMutation,
@@ -39,6 +39,8 @@
 	import type { components } from '$lib/api/schema';
 	import type { TabProps } from '$lib/shared/types';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import { useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import {
@@ -75,9 +77,37 @@
 
 	// Queries
 	const tagsQuery = useTagsQuery();
-	// Gated on `isActive` — see the matching comment in DiscoveryHistoryTab. Both
-	// subscribers must be gated for the query to actually go inactive.
-	const discoveriesQuery = useDiscoveriesQuery(() => isActive);
+	// One page of the scan configurations, paged, filtered and ordered on the server. Gated on
+	// `isActive`, like the history tab: every tab is mounted at once.
+	const page = listPageState();
+	const discoveriesQuery = useScheduledDiscoveriesQuery(() => page.params(isActive));
+	// Filter options: the values the scan configurations hold, scoped the way the list is.
+	const DISCOVERY_FIELD_VALUES = '/api/v1/discovery/field-values/{field}';
+	const configScope = () => ({ historical: false });
+	const daemonValuesQuery = useFieldValuesQuery(
+		DISCOVERY_FIELD_VALUES,
+		'daemon_id',
+		configScope,
+		() => isActive
+	);
+	const siteValuesQuery = useFieldValuesQuery(
+		DISCOVERY_FIELD_VALUES,
+		'site_id',
+		configScope,
+		() => isActive
+	);
+	const typeValuesQuery = useFieldValuesQuery(
+		DISCOVERY_FIELD_VALUES,
+		'discovery_type',
+		configScope,
+		() => isActive
+	);
+	const runTypeValuesQuery = useFieldValuesQuery(
+		DISCOVERY_FIELD_VALUES,
+		'run_type',
+		configScope,
+		() => isActive
+	);
 	const daemonsQuery = useDaemonsQuery();
 	const sitesQuery = useSitesQuery();
 
@@ -94,7 +124,8 @@
 
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
-	let discoveriesData = $derived(discoveriesQuery.data ?? []);
+	let discoveriesData = $derived(discoveriesQuery.data?.items ?? []);
+	let discoveriesPagination = $derived(discoveriesQuery.data?.pagination ?? null);
 	let daemonsData = $derived(daemonsQuery.data ?? []);
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let sessionsList = $derived(sessionsQuery.data ?? []);
@@ -114,7 +145,9 @@
 	// them — and with no daemons the by-ids query is disabled, which in TanStack
 	// means it stays `isPending` forever.
 	let isLoading = $derived(
-		discoveriesQuery.isPending || daemonsQuery.isPending || sessionsQuery.isPending
+		(discoveriesQuery.isPending && !discoveriesQuery.data) ||
+			daemonsQuery.isPending ||
+			sessionsQuery.isPending
 	);
 
 	// Build lookup: discovery_id -> session (server always enriches discovery_id)
@@ -211,7 +244,9 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('Discovery', {});
+		const params = new URLSearchParams(page.listQuery);
+		params.set('historical', 'false');
+		await downloadCsv('Discovery', params);
 	}
 
 	/**
@@ -312,7 +347,11 @@
 			scheduleLapsed: () => scheduleLapsed,
 			schedulePaused: () => schedulePaused,
 			getActiveSession,
-			progressCell: () => progressCell
+			progressCell: () => progressCell,
+			daemonValues: () => daemonValuesQuery.data,
+			siteValues: () => siteValuesQuery.data,
+			typeValues: () => typeValuesQuery.data,
+			runTypeValues: () => runTypeValuesQuery.data
 		})
 	);
 </script>
@@ -368,7 +407,7 @@
 		<PreDaemonEmptyState title={daemons_installPromptDiscoveries()} {isReadOnly} />
 	{:else if isLoading}
 		<Loading />
-	{:else if discoveriesData.length === 0}
+	{:else if discoveriesData.length === 0 && !page.isNarrowed}
 		<!-- Empty state -->
 		<EmptyState
 			title={discovery_noScheduledSessions()}
@@ -380,14 +419,16 @@
 		<DataControls
 			title={common_scans()}
 			{toolbarActions}
-			items={discoveriesData.filter(
-				(d) => d.run_type.type == 'AdHoc' || d.run_type.type == 'Scheduled'
-			)}
+			items={discoveriesData}
 			{fields}
 			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			storageKey="scanopy-discovery-scans-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}
+			serverPagination={discoveriesPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			entityType="Discovery"
 			canEditTags={!isReadOnly}
 			getItemTags={(item) => item.tags}

@@ -1,8 +1,7 @@
 import type { Snippet } from 'svelte';
 import { lastSeenItems } from '$lib/shared/utils/freshness';
 import { cidrSourceItems } from '$lib/shared/utils/cidr-source';
-import { compareCidr } from '$lib/shared/utils/cidr';
-import { nestedRangeOf, utilizationRatio, type SubnetNesting } from '../nesting';
+import { utilizationRatio } from '../nesting';
 import type { Subnet, SubnetResponse } from '../types/base';
 import { entityRef } from '$lib/shared/components/data/types';
 import { defineRegistryFields } from '$lib/shared/entity-fields/table';
@@ -14,7 +13,8 @@ import type { Service } from '$lib/features/services/types/base';
 import type { Site } from '$lib/features/sites/types';
 import type { Tag } from '$lib/features/tags/types/base';
 import type { Discovery } from '$lib/features/discovery/types/base';
-import type { components } from '$lib/api/schema';
+import type { components, operations } from '$lib/api/schema';
+import { fieldValueOptions, type FieldValueCount } from '$lib/shared/api/field-values';
 import {
 	common_nested,
 	common_created,
@@ -25,15 +25,18 @@ import {
 	common_lastFoundBy,
 	common_tags,
 	common_unknownSite,
+	common_unknownEntity,
 	common_updated,
 	subnets_managedBy,
 	subnets_subnetType,
 	common_utilization
 } from '$lib/paraglide/messages';
-import { concepts, entitySources, subnetTypes } from '$lib/shared/stores/metadata';
+import { concepts, entities, entitySources, subnetTypes } from '$lib/shared/stores/metadata';
 import { entitySourceItems } from '$lib/shared/utils/entity-source';
 
 type SubnetOrderField = components['schemas']['SubnetOrderField'];
+/** The subnet list endpoint's query params, which the filters are sent and linked as. */
+type SubnetListParam = keyof NonNullable<operations['list_subnets']['parameters']['query']>;
 
 /** What the subnet columns read from the tab, each as a getter so values stay live. */
 export interface SubnetColumnsContext {
@@ -41,14 +44,18 @@ export interface SubnetColumnsContext {
 	sites: () => Site[];
 	tags: () => Tag[];
 	discoveryRuns: () => Discovery[];
-	/** How the loaded subnets nest inside one another. */
-	nesting: () => SubnetNesting;
+	/** The ranges heading a nesting group, by id, including those on other pages. */
+	nestingRoots: () => ReadonlyMap<string, Pick<Subnet, 'cidr'>>;
 	/** The container runtime that manages a subnet, if it has one. */
 	runtimeOf: (subnet: Subnet) => Service | undefined;
-	/** The container runtimes that manage the loaded subnets. */
+	/** The container runtimes that manage some subnet. */
 	runtimes: () => Service[];
 	/** The utilization column's cell. */
 	utilizationCell: Snippet<[SubnetResponse, string]>;
+	siteValues: () => FieldValueCount[] | undefined;
+	typeValues: () => FieldValueCount[] | undefined;
+	sourceValues: () => FieldValueCount[] | undefined;
+	managedByValues: () => FieldValueCount[] | undefined;
 }
 
 /**
@@ -56,7 +63,7 @@ export interface SubnetColumnsContext {
  * Every SubnetOrderField value must be listed.
  */
 export function subnetColumns(ctx: SubnetColumnsContext) {
-	return defineRegistryFields<SubnetResponse, SubnetOrderField>(
+	return defineRegistryFields<SubnetResponse, SubnetOrderField, SubnetListParam>(
 		'Subnet',
 		ctx.lookup,
 		{
@@ -68,16 +75,22 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 			},
 			cidr: {
 				searchable: true,
-				// Groups each range with every range nested inside it, as nested sections. A subnet
-				// that nests with nothing falls in the ungrouped bucket rather than heading a
-				// group of one.
-				getGroupLabel: (subnet) => nestedRangeOf(subnet, ctx.nesting()),
-				// Address order, not text order, which is also the tree order: each range sorts
-				// directly before the ranges inside it.
-				compare: (a, b) => compareCidr(a.cidr, b.cidr),
+				// Groups each range with every range nested inside it, as nested sections. The server
+				// groups, orders and counts by the outermost range's id ('' for a range that nests
+				// with nothing, which falls in the ungrouped bucket rather than heading a group of
+				// one), in address order, each range directly before the ranges inside it.
+				getGroupValue: (subnet) => subnet.nesting_root_id ?? '',
+				getGroupLabel: (subnet) => {
+					if (!subnet.nesting_root_id) return null;
+					return (
+						ctx.nestingRoots().get(subnet.nesting_root_id)?.cidr ??
+						common_unknownEntity({ entity: entities.getName('Subnet') })
+					);
+				},
 				tree: {
 					key: (subnet) => subnet.id,
 					parentKey: (subnet) => subnet.parent_subnet_id ?? null,
+					depth: (subnet) => subnet.nesting_depth,
 					rootsLabel: () => common_nested()
 				},
 				display: { order: 3, getItems: cidrSourceItems() }
@@ -86,10 +99,12 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 				label: subnets_subnetType(),
 				searchable: true,
 				filterable: true,
-				// Every type the backend defines.
-				filterOptions: subnetTypes.getItems().map((type) => type.id),
+				serverFiltered: true,
+				queryParam: 'subnet_types',
+				// The types some subnet has.
+				filterOptions: fieldValueOptions(ctx.typeValues()),
 				filterLabel: (id) => subnetTypes.getName(id),
-				getFilterValue: (subnet) => subnet.subnet_type,
+				getGroupValue: (subnet) => subnet.subnet_type,
 				display: {
 					order: 4,
 					getItems: (subnet) => [
@@ -106,71 +121,80 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 				type: 'string',
 				searchable: true,
 				filterable: true,
-				queryParam: 'site_id',
-				getFilterValue: (item) => item.site_id,
+				serverFiltered: true,
+				queryParam: 'site_ids',
+				// The sites some subnet is on.
+				filterOptions: fieldValueOptions(ctx.siteValues()),
 				filterLabel: (id) => ctx.sites().find((n) => n.id === id)?.name ?? common_unknownSite(),
-				groupable: true,
+				// Displayed as a name, but grouped by id on the server.
+				getGroupValue: (item) => item.site_id,
 				getValue: (item) =>
 					ctx.sites().find((n) => n.id == item.site_id)?.name || common_unknownSite(),
 				display: { order: 2, getItems: (item) => siteItems(item.site_id, ctx.sites()) }
 			},
-			created_at: { label: common_created(), type: 'date', display: { hiddenByDefault: true } },
-			updated_at: { label: common_updated(), type: 'date', display: { hiddenByDefault: true } },
+			created_at: {
+				label: common_created(),
+				type: 'date',
+				groupable: false,
+				display: { hiddenByDefault: true }
+			},
+			updated_at: {
+				label: common_updated(),
+				type: 'date',
+				groupable: false,
+				display: { hiddenByDefault: true }
+			},
 			last_seen_at: {
 				label: common_lastSeen(),
 				type: 'date',
+				// Identity-like: one header per timestamp.
+				groupable: false,
 				staleFilter: true,
 				display: {
 					recency: true,
 					order: 1,
 					getItems: lastSeenItems(ctx.sites, 'Subnet')
 				}
-			}
-		},
-		[
-			{
-				key: 'utilization',
+			},
+			utilization: {
 				label: common_utilization(),
 				type: 'string',
-				sortable: true,
+				// Ordered by the server, which derives it across the whole site; a share per row
+				// would group into a header per value.
+				groupable: false,
 				getValue: (subnet) => `${Math.round(utilizationRatio(subnet) * 100)}%`,
-				compare: (a, b) => utilizationRatio(a) - utilizationRatio(b),
 				display: { order: 5, cell: ctx.utilizationCell }
 			},
-			{
-				key: 'description',
-				searchable: true,
-				display: { hiddenByDefault: true }
-			},
-			{
-				key: 'source',
+			source: {
 				label: common_source(),
 				type: 'string',
 				filterable: true,
-				groupable: true,
-				sortable: true,
-				// Every source the backend can stamp.
-				filterOptions: entitySources.getItems().map((source) => source.id),
+				serverFiltered: true,
+				queryParam: 'sources',
+				// The sources some subnet was stamped with.
+				filterOptions: fieldValueOptions(ctx.sourceValues()),
 				filterLabel: (id) => entitySources.getName(id),
-				getFilterValue: (subnet) => subnet.source.type,
+				// The server groups on the raw `source.type`.
+				getGroupValue: (subnet) => subnet.source.type,
 				getValue: (subnet) => entitySources.getName(subnet.source.type),
 				display: {
 					hiddenByDefault: true,
 					getItems: (subnet) => entitySourceItems(subnet.source)
 				}
 			},
-			{
+			managed_by: {
 				// The container runtime that created this bridge network. Only bridge subnets have one.
-				key: 'managed_by',
 				label: subnets_managedBy(),
 				type: 'string',
-				searchable: true,
 				filterable: true,
-				groupable: true,
-				sortable: true,
-				getValue: (subnet) => ctx.runtimeOf(subnet)?.name ?? null,
-				getFilterValue: (subnet) => ctx.runtimeOf(subnet)?.id ?? null,
+				serverFiltered: true,
+				queryParam: 'managed_by',
+				// The runtimes that created some subnet.
+				filterOptions: fieldValueOptions(ctx.managedByValues()),
 				filterLabel: (id) => ctx.runtimes().find((s) => s.id === id)?.name ?? id,
+				// Displayed as the runtime's name, but grouped by its id on the server.
+				getGroupValue: (subnet) => subnet.virtualization_service_id ?? null,
+				getValue: (subnet) => ctx.runtimeOf(subnet)?.name ?? null,
 				display: {
 					hiddenByDefault: true,
 					getItems: (subnet) => {
@@ -186,6 +210,13 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 						];
 					}
 				}
+			}
+		},
+		[
+			{
+				key: 'description',
+				searchable: true,
+				display: { hiddenByDefault: true }
 			},
 			{
 				key: 'first_found_by',

@@ -60,6 +60,7 @@ pub mod host_mac_ordering;
 pub mod host_merge_on_discovery;
 pub mod host_naming;
 pub mod interface_neighbor_candidates;
+pub mod list_pages;
 pub mod lldp_resolution;
 pub mod onboarding_milestones;
 pub mod org_provisioning;
@@ -259,6 +260,22 @@ pub async fn test_services() -> (StorageFactory, ServiceFactory, ContainerAsync<
         .unwrap();
     (storage, services, _container)
 }
+/// [`test_services`] wrapped in an [`AppState`], for code that reads services through the state the
+/// handlers get, such as a list page.
+pub async fn test_state() -> (StorageFactory, AppState, ContainerAsync<GenericImage>) {
+    let (storage, services, _container) = test_services().await;
+    let state = AppState {
+        config: ServerConfig::default(),
+        services,
+        session_store: storage.sessions.clone(),
+        license_service: None,
+        license_issuer: None,
+        pool: storage.pool.clone(),
+        shutdown: tokio_util::sync::CancellationToken::new(),
+    };
+    (storage, state, _container)
+}
+
 pub async fn setup_test_app() -> Router<Arc<AppState>> {
     let config = ServerConfig::default();
 
@@ -266,4 +283,17 @@ pub async fn setup_test_app() -> Router<Arc<AppState>> {
 
     let (router, _openapi) = crate::server::shared::handlers::factory::create_router(state.clone());
     router.with_state(state)
+}
+
+/// The scope of a caller who sees `site_ids` in `organization_id`, with no user behind it.
+pub fn list_scope(
+    site_ids: &[Uuid],
+    organization_id: Uuid,
+) -> crate::server::shared::handlers::traits::ListScope {
+    crate::server::shared::handlers::traits::ListScope {
+        site_ids: site_ids.to_vec(),
+        organization_id,
+        user_id: None,
+        permissions: None,
+    }
 }

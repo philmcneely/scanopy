@@ -1,72 +1,31 @@
 import type { FieldConfig, TableDefaults } from '../types';
 import { serverFilterViolations, type ServerFilterMode } from './filtering';
-import { defaultOrderingViolations, serverOrderViolations } from './sorting';
-import { treeDepthViolations } from './grouping';
+import { defaultOrderingViolations } from './sorting';
 
 /**
- * Fail loudly on field config a server-paginated list cannot honour.
+ * Fail loudly on a filter the server does not apply.
  *
  * Call during component init. Dev/test only, so it never reaches a user.
  */
-export function guardServerPaginatedConfig<T>(
-	get: () => { fields: FieldConfig<T>[]; serverPaginated: boolean; server: ServerFilterMode }
+export function guardServerFilters<T>(
+	get: () => { fields: FieldConfig<T>[]; server: ServerFilterMode }
 ) {
-	// A filterable field nobody handles server-side is always a bug on a
-	// server-paginated list: the client holds one page, so filtering here
-	// narrows that page while `total_count` keeps describing the whole match
-	// set — the list reads "62 of 1550" and pages through the wrong rows. The
-	// rule is documented on `FieldConfig.serverFiltered`; this makes it fail
-	// loudly instead of silently, at the one place that sees every field's
-	// resolved config.
+	// A filterable field the server ignores is always a bug: the client holds one page, so the
+	// filter would narrow nothing while the user believes it applies. The rule is documented on
+	// `FieldConfig.serverFiltered`; this makes it fail loudly instead of silently, at the one place
+	// that sees every field's resolved config.
 	$effect(() => {
 		if (!import.meta.env.DEV) return;
 
-		const { fields, serverPaginated, server } = get();
-		const offenders = serverFilterViolations(fields, serverPaginated, server);
+		const { fields, server } = get();
+		const offenders = serverFilterViolations(fields, server);
 		if (offenders.length === 0) return;
 
 		throw new Error(
 			`DataControls: ${offenders.join(', ')} ${offenders.length === 1 ? 'is' : 'are'} ` +
-				`filterable on a server-paginated list but filtered client-side, which narrows ` +
-				`only the loaded page while the count describes every match. Mark the field ` +
-				`serverFiltered and give it the endpoint's queryParam, or drop its filterable flag.`
-		);
-	});
-
-	// The same failure for ordering: a display field opted into client-side
-	// sorting or grouping would reorder or bucket only the loaded page while the
-	// pager walks the server's order. Such a field is never offered under server
-	// pagination, so the flag is dead config that reads as a promise; this makes
-	// it fail loudly.
-	$effect(() => {
-		if (!import.meta.env.DEV) return;
-
-		const { fields, serverPaginated } = get();
-		const offenders = serverOrderViolations(fields, serverPaginated);
-		if (offenders.length === 0) return;
-
-		throw new Error(
-			`DataControls: ${offenders.join(', ')} ${offenders.length === 1 ? 'is' : 'are'} ` +
-				`sortable or groupable client-side on a server-paginated list, which would order ` +
-				`only the loaded page. Add the field to the backend's OrderField, or drop its ` +
-				`sortable and groupable flags.`
-		);
-	});
-
-	// A tree field on a server-paginated list must carry the server's depth: a parent can sit on
-	// another page, so deriving depth from the loaded rows would flatten every row whose parent
-	// is not on this one.
-	$effect(() => {
-		if (!import.meta.env.DEV) return;
-
-		const { fields, serverPaginated } = get();
-		const offenders = treeDepthViolations(fields, serverPaginated);
-		if (offenders.length === 0) return;
-
-		throw new Error(
-			`DataControls: ${offenders.join(', ')} ${offenders.length === 1 ? 'draws' : 'draw'} a ` +
-				`tree on a server-paginated list without tree.depth. Return each row's depth from ` +
-				`the server and pass it as tree.depth.`
+				`filterable but not filtered by the server, so the filter would narrow nothing. ` +
+				`Mark the field serverFiltered and give it the endpoint's queryParam, or drop its ` +
+				`filterable flag.`
 		);
 	});
 }
@@ -77,13 +36,13 @@ export function guardServerPaginatedConfig<T>(
  * Call during component init. Dev/test only, so it never reaches a user.
  */
 export function guardTableDefaults<T>(
-	get: () => { fields: FieldConfig<T>[]; defaults: TableDefaults; serverPaginated: boolean }
+	get: () => { fields: FieldConfig<T>[]; defaults: TableDefaults }
 ) {
 	$effect(() => {
 		if (!import.meta.env.DEV) return;
 
-		const { fields, defaults, serverPaginated } = get();
-		const offenders = defaultOrderingViolations(fields, defaults, serverPaginated);
+		const { fields, defaults } = get();
+		const offenders = defaultOrderingViolations(fields, defaults);
 		if (offenders.length === 0) return;
 
 		throw new Error(

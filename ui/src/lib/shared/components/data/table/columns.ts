@@ -79,14 +79,8 @@ export function clampColumnWidth(width: unknown): number | null {
  *
  * Fields marked `display.hidden` produce nothing — they exist only to drive a
  * filter (a port number, say) and have no value worth a column of its own.
- *
- * `serverPaginated` limits header sorting to server-orderable fields, the same
- * rule the sort control applies.
  */
-export function fieldsToColumns<T>(
-	fields: FieldConfig<T>[],
-	serverPaginated = false
-): EntityColumn<T>[] {
+export function fieldsToColumns<T>(fields: FieldConfig<T>[]): EntityColumn<T>[] {
 	return (
 		fields
 			// A `tags` field still drives search and the filter panel, but the list
@@ -99,7 +93,7 @@ export function fieldsToColumns<T>(
 					label: field.label,
 					field,
 					display,
-					sortable: isSortableField(field, serverPaginated),
+					sortable: isSortableField(field),
 					align: display.align ?? 'left',
 					width: display.width,
 					primary: display.primary === true

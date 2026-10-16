@@ -14,17 +14,21 @@ import { queryKeys } from '$lib/api/query-client';
 import { apiClient } from '$lib/api/client';
 import { requireSuccess, unwrapData } from '$lib/api/query-helpers';
 import type { Credential } from './types/base';
+import { invalidateListPages, useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 
 /**
  * A credential's assignments live in the site/host junction tables, so any
  * credential mutation can change `Site.credential_ids` / `Host.credential_assignments`.
- * Invalidate those caches so the Sites/Hosts views reflect changes without a reload.
+ * Invalidate those caches so the Sites/Hosts views reflect changes without a reload, and the
+ * credentials page so its page reflects the write.
  */
 function invalidateAssignmentTargets(queryClient: QueryClient): void {
 	queryClient.invalidateQueries({ queryKey: queryKeys.sites.all });
 	queryClient.invalidateQueries({ queryKey: queryKeys.hosts.all });
 	// Home's integration nudges re-check coverage against current assignments.
 	queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+	// The credentials page reads its own page query, which the writes to the full list miss.
+	invalidateListPages(queryClient, queryKeys.credentials.all);
 }
 
 /**
@@ -41,6 +45,16 @@ export function useCredentialsQuery() {
 			);
 		}
 	}));
+}
+
+/** One page of the credentials list, kept apart from the full list pickers read. */
+export function useCredentialsListQuery(params: () => ListPageParams) {
+	return useListPageQuery<Credential>(
+		queryKeys.credentials.all,
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/credentials', { params: { query }, querySerializer }),
+		params
+	);
 }
 
 /**

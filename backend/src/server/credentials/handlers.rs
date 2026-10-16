@@ -1,20 +1,25 @@
 use crate::server::auth::middleware::permissions::{Admin, Authorized, Viewer};
 use crate::server::credentials::r#impl::base::Credential;
 use crate::server::credentials::r#impl::mapping::Target;
-use crate::server::credentials::r#impl::types::CredentialTypeDiscriminants;
+use crate::server::credentials::r#impl::types::{
+    CredentialIntegration, CredentialStability, CredentialTypeDiscriminants, OsFamily,
+    UpstreamSupport,
+};
 use crate::server::credentials::service::CredentialService;
 use crate::server::daemons::r#impl::base::Daemon;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::shared::handlers::ordering::OrderField;
+use crate::server::shared::handlers::list::{ListOrdering, PaginatedList, list_page};
+use crate::server::shared::handlers::ordering::{OrderField, TagGroupOrdering, case_sql, in_sql};
 use crate::server::shared::handlers::query::{
-    FilterQueryExtractor, OrderDirection, PaginationParams,
+    FilterQueryExtractor, OrderDirection, PaginationParams, deserialize_bool_values,
+    narrow_by_tags_and_search,
 };
 use crate::server::shared::handlers::traits::{
-    BulkDeleteResponse, CrudHandlers, bulk_delete_handler, create_handler, delete_handler,
-    get_by_id_handler, update_handler,
+    BulkDeleteResponse, CrudHandlers, ListScope, base_list_filter, bulk_delete_handler,
+    create_handler, delete_handler, get_by_id_handler, update_handler,
 };
 use crate::server::shared::services::traits::CrudService;
-use crate::server::shared::storage::filter::StorableFilter;
+use crate::server::shared::storage::filter::{Junction, StorableFilter};
 use crate::server::shared::storage::traits::{Entity, Storable};
 use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::api::{
@@ -25,16 +30,242 @@ use crate::server::{
     config::AppState,
     shared::types::api::{ApiResponse, ApiResult},
 };
+use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
     response::Json,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+use strum::IntoEnumIterator;
 use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 use uuid::Uuid;
 
+/// The credential type's tag inside the `credential_type` JSONB.
+const CREDENTIAL_TYPE_SQL: &str = "credentials.credential_type->>'type'";
+
+/// The integration each credential type belongs to, from `CredentialTypeDiscriminants::integration`.
+static INTEGRATION_SQL: LazyLock<String> = LazyLock::new(|| {
+    let arms: Vec<(&str, &str)> = CredentialTypeDiscriminants::iter()
+        .map(|t| (t.into(), t.integration().into()))
+        .collect();
+    case_sql(CREDENTIAL_TYPE_SQL, arms)
+});
+
+/// Whether the credential's type is in beta, from `CredentialTypeDiscriminants::stability`.
+static BETA_SQL: LazyLock<String> = LazyLock::new(|| {
+    in_sql(
+        CREDENTIAL_TYPE_SQL,
+        CredentialTypeDiscriminants::iter()
+            .filter(|t| t.stability() == CredentialStability::Beta)
+            .map(Into::into),
+    )
+});
+
+/// Whether the credential's type reads an API its vendor doesn't publish, from
+/// `CredentialTypeDiscriminants::upstream_support`.
+static UNOFFICIAL_API_SQL: LazyLock<String> = LazyLock::new(|| {
+    in_sql(
+        CREDENTIAL_TYPE_SQL,
+        CredentialTypeDiscriminants::iter()
+            .filter(|t| t.upstream_support() == UpstreamSupport::Undocumented)
+            .map(Into::into),
+    )
+});
+
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, Default, utoipa::ToSchema, strum::EnumIter,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CredentialOrderField {
+    #[default]
+    CreatedAt,
+    Name,
+    UpdatedAt,
+    /// The credential type, e.g. `SnmpV2c`.
+    CredentialType,
+    /// The integration the type is a transport of, e.g. `Docker` for its socket and its proxy.
+    Integration,
+    /// Whether the type is in beta.
+    Beta,
+    /// Whether the type reads an API its vendor doesn't publish.
+    UnofficialApi,
+    /// The daemon OS a file or socket credential is for. Credentials with none sort last.
+    DaemonOs,
+}
+
+impl OrderField for CredentialOrderField {
+    fn to_sql(&self) -> &'static str {
+        match self {
+            Self::CreatedAt => "credentials.created_at",
+            Self::Name => "credentials.name",
+            Self::UpdatedAt => "credentials.updated_at",
+            Self::CredentialType => CREDENTIAL_TYPE_SQL,
+            Self::Integration => INTEGRATION_SQL.as_str(),
+            Self::Beta => BETA_SQL.as_str(),
+            Self::UnofficialApi => UNOFFICIAL_API_SQL.as_str(),
+            // Stored as a JSON string; unwrapped so it groups and filters as the bare family.
+            Self::DaemonOs => "(credentials.daemon_os::jsonb #>> '{}')",
+        }
+    }
+
+    fn nulls_last(&self) -> bool {
+        matches!(self, Self::DaemonOs)
+    }
+}
+
+// ============================================================================
+// Credential Filter Query
+// ============================================================================
+
+#[derive(Deserialize, Default, Debug, Clone, IntoParams)]
+pub struct CredentialFilterQuery {
+    /// Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several.
+    #[serde(rename = "type")]
+    pub credential_type: Option<Vec<CredentialTypeDiscriminants>>,
+    /// Only credentials of one of these integrations. Repeat for several.
+    pub integrations: Option<Vec<CredentialIntegration>>,
+    /// Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).
+    /// Sent empty, matches none.
+    #[serde(default, deserialize_with = "deserialize_bool_values")]
+    pub beta: Option<Vec<bool>>,
+    /// Only credentials whose type reads an unpublished API (`true`), a published one (`false`),
+    /// or both (repeat it). Sent empty, matches none.
+    #[serde(default, deserialize_with = "deserialize_bool_values")]
+    pub unofficial_api: Option<Vec<bool>>,
+    /// Only credentials whose type can be applied to one of these targets. Repeat for several.
+    pub targets: Option<Vec<Target>>,
+    /// Only file and socket credentials for one of these daemon OS families. Repeat for several.
+    pub daemon_os: Option<Vec<OsFamily>>,
+    /// Only credentials assigned to one of these sites. Repeat for several.
+    pub site_ids: Option<Vec<Uuid>>,
+    /// Filter by tag IDs (returns credentials that have ANY of the specified tags)
+    pub tag_ids: Option<Vec<Uuid>>,
+    /// Tag sets the credential must hold one tag from each of. Each entry is a comma-separated
+    /// list of tag ids. One entry per tag group the list is filtered by.
+    pub tag_sets: Option<Vec<String>>,
+    /// Free-text search. Case-insensitive substring match against the name and description.
+    pub search: Option<String>,
+    /// Primary ordering field (used for grouping). Always sorts ASC to keep groups together.
+    pub group_by: Option<CredentialOrderField>,
+    /// Secondary ordering field (sorting within groups or standalone sort).
+    pub order_by: Option<CredentialOrderField>,
+    /// Group by the tag each row holds from this tag group. Takes the place of `group_by`.
+    pub group_by_tag_group: Option<Uuid>,
+    /// Sort by the position of the tag each row holds from this tag group. Takes the place of
+    /// `order_by`.
+    pub order_by_tag_group: Option<Uuid>,
+    /// Direction for order_by field (group_by always uses ASC).
+    pub order_direction: Option<OrderDirection>,
+    /// Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.
+    #[param(minimum = 0, maximum = 1000)]
+    pub limit: Option<u32>,
+    /// Number of results to skip. Default: 0.
+    #[param(minimum = 0)]
+    pub offset: Option<u32>,
+}
+
+/// The links between sites and the credentials assigned to them.
+const SITE_CREDENTIALS: Junction = Junction {
+    table: "site_credentials",
+    own_column: "credential_id",
+    other_column: "site_id",
+    has_history: false,
+};
+
+/// `values` as the text a boolean expression reads as.
+fn bool_texts(values: &[bool]) -> Vec<String> {
+    values.iter().map(bool::to_string).collect()
+}
+
+impl CredentialFilterQuery {
+    /// Everything the credentials list narrows by: the organization, the type and its metadata,
+    /// the daemon OS, assigned sites, tags and search.
+    pub fn narrow(&self, scope: &ListScope) -> ApiResult<StorableFilter<Credential>> {
+        let filter = narrow_by_tags_and_search(
+            base_list_filter::<Credential>(scope, self),
+            self.tag_ids.as_deref(),
+            self.tag_sets.as_deref(),
+            self.search.as_deref(),
+        )?;
+        let filter = match &self.integrations {
+            Some(integrations) if !integrations.is_empty() => {
+                let ids: Vec<String> = integrations
+                    .iter()
+                    .map(|i| <&str>::from(i).to_string())
+                    .collect();
+                filter.expr_text_in(INTEGRATION_SQL.as_str(), &ids)
+            }
+            _ => filter,
+        };
+        let filter = match &self.beta {
+            Some(values) => filter.expr_text_in(BETA_SQL.as_str(), &bool_texts(values)),
+            None => filter,
+        };
+        let filter = match &self.unofficial_api {
+            Some(values) => filter.expr_text_in(UNOFFICIAL_API_SQL.as_str(), &bool_texts(values)),
+            None => filter,
+        };
+        let filter = match &self.targets {
+            Some(targets) if !targets.is_empty() => {
+                // A target is a property of the type, so this is the types that offer one.
+                let types: Vec<&str> = CredentialTypeDiscriminants::iter()
+                    .filter(|t| {
+                        t.to_credential_type()
+                            .targets()
+                            .iter()
+                            .any(|target| targets.contains(target))
+                    })
+                    .map(Into::into)
+                    .collect();
+                filter.json_text_in("credential_type", &["type"], &types)
+            }
+            _ => filter,
+        };
+        let filter = match &self.daemon_os {
+            Some(families) if !families.is_empty() => {
+                let ids: Vec<String> = families
+                    .iter()
+                    .map(|f| <&str>::from(f).to_string())
+                    .collect();
+                filter.expr_text_in(CredentialOrderField::DaemonOs.to_sql(), &ids)
+            }
+            _ => filter,
+        };
+        Ok(match &self.site_ids {
+            Some(ids) if !ids.is_empty() => filter.linked_to(SITE_CREDENTIALS, ids),
+            _ => filter,
+        })
+    }
+}
+
+impl FilterQueryExtractor for CredentialFilterQuery {
+    fn apply_to_filter<T: Storable>(
+        &self,
+        filter: StorableFilter<T>,
+        _user_site_ids: &[Uuid],
+        _user_organization_id: Uuid,
+    ) -> StorableFilter<T> {
+        match &self.credential_type {
+            // The JSONB tag is the variant name, which is what `IntoStaticStr` yields.
+            Some(types) if !types.is_empty() => {
+                let ids: Vec<&str> = types.iter().map(|t| (*t).into()).collect();
+                filter.json_text_in("credential_type", &["type"], &ids)
+            }
+            _ => filter,
+        }
+    }
+
+    fn pagination(&self) -> PaginationParams {
+        PaginationParams {
+            limit: self.limit,
+            offset: self.offset,
+        }
+    }
+}
+
+#[async_trait]
 impl CrudHandlers for Credential {
     type Service = CredentialService;
     type FilterQuery = CredentialFilterQuery;
@@ -47,90 +278,40 @@ impl CrudHandlers for Credential {
     fn search_order() -> Option<Self::OrderField> {
         Some(Self::OrderField::Name)
     }
-}
 
-// ============================================================================
-// Credential Ordering
-// ============================================================================
-
-#[derive(
-    Serialize, Deserialize, Debug, Clone, Copy, Default, utoipa::ToSchema, strum::EnumIter,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum CredentialOrderField {
-    #[default]
-    CreatedAt,
-    Name,
-    UpdatedAt,
-}
-
-impl OrderField for CredentialOrderField {
-    fn to_sql(&self) -> &'static str {
-        match self {
-            Self::CreatedAt => "credentials.created_at",
-            Self::Name => "credentials.name",
-            Self::UpdatedAt => "credentials.updated_at",
-        }
+    async fn list_filter(
+        _state: &AppState,
+        query: &CredentialFilterQuery,
+        scope: &ListScope,
+    ) -> ApiResult<StorableFilter<Credential>> {
+        query.narrow(scope)
     }
 }
 
-// ============================================================================
-// Credential Filter Query
-// ============================================================================
+#[async_trait]
+impl PaginatedList for Credential {
+    type Item = Credential;
 
-#[derive(Deserialize, Default, Debug, Clone, IntoParams)]
-pub struct CredentialFilterQuery {
-    /// Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`).
-    #[serde(rename = "type")]
-    pub credential_type: Option<CredentialTypeDiscriminants>,
-    /// Primary ordering field (used for grouping). Always sorts ASC to keep groups together.
-    pub group_by: Option<CredentialOrderField>,
-    /// Secondary ordering field (sorting within groups or standalone sort).
-    pub order_by: Option<CredentialOrderField>,
-    /// Direction for order_by field (group_by always uses ASC).
-    pub order_direction: Option<OrderDirection>,
-    /// Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.
-    #[param(minimum = 0, maximum = 1000)]
-    pub limit: Option<u32>,
-    /// Number of results to skip. Default: 0.
-    #[param(minimum = 0)]
-    pub offset: Option<u32>,
-}
-
-impl CredentialFilterQuery {
-    pub fn apply_ordering(
-        &self,
-        filter: StorableFilter<Credential>,
-    ) -> (StorableFilter<Credential>, String) {
-        crate::server::shared::handlers::ordering::apply_ordering(
-            self.group_by,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "credentials.created_at ASC",
-        )
-    }
-}
-
-impl FilterQueryExtractor for CredentialFilterQuery {
-    fn apply_to_filter<T: Storable>(
-        &self,
-        mut filter: StorableFilter<T>,
-        _user_site_ids: &[Uuid],
-        _user_organization_id: Uuid,
-    ) -> StorableFilter<T> {
-        if let Some(cred_type) = self.credential_type {
-            // The JSONB tag is the variant name, which is what `IntoStaticStr` yields.
-            filter = filter.json_field_eq("credential_type", "type", cred_type.into());
+    fn ordering(query: &CredentialFilterQuery) -> ListOrdering<CredentialOrderField> {
+        ListOrdering {
+            group_by: query.group_by,
+            order_by: query.order_by,
+            direction: query.order_direction,
+            tag_group: TagGroupOrdering {
+                group_by: query.group_by_tag_group,
+                order_by: query.order_by_tag_group,
+            },
         }
-        filter
     }
 
-    fn pagination(&self) -> PaginationParams {
-        PaginationParams {
-            limit: self.limit,
-            offset: self.offset,
-        }
+    /// Each credential with its site and host assignments.
+    async fn items(
+        state: &AppState,
+        mut rows: Vec<Credential>,
+        _query: &CredentialFilterQuery,
+    ) -> ApiResult<Vec<Credential>> {
+        hydrate_assignments(state, &mut rows).await?;
+        Ok(rows)
     }
 }
 
@@ -472,34 +653,8 @@ async fn get_all_credentials(
         CredentialFilterQuery,
     >,
 ) -> ApiResult<Json<PaginatedApiResponse<Credential>>> {
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(|| ApiError::forbidden("Organization context required"))?;
-
-    let base_filter = StorableFilter::<Credential>::new_from_org_id(&organization_id);
-
-    let pagination = query.pagination();
-    let filter = pagination.apply_to_filter(base_filter);
-    let filter = query.apply_to_filter(filter, &auth.site_ids(), organization_id);
-    let (filter, order_by) = query.apply_ordering(filter);
-
-    let mut result = state
-        .services
-        .credential_service
-        .get_paginated_ordered(filter, &order_by)
-        .await?;
-
-    hydrate_assignments(&state, &mut result.items).await?;
-
-    let limit = pagination.effective_limit().unwrap_or(0);
-    let offset = pagination.effective_offset();
-
-    Ok(Json(PaginatedApiResponse::success(
-        result.items,
-        result.total_count,
-        limit,
-        offset,
-    )))
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Credential>(&state, &scope, &query).await?))
 }
 
 /// Create a new Credential

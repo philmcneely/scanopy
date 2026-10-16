@@ -97,6 +97,7 @@ export function useCreateInviteMutation() {
 			queryClient.setQueryData<OrganizationInvite[]>(queryKeys.invites.all, (old) =>
 				old ? [...old, newInvite] : [newInvite]
 			);
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.members() });
 		}
 	}));
 }
@@ -121,6 +122,7 @@ export function useRevokeInviteMutation() {
 				queryKeys.invites.all,
 				(old) => old?.filter((i) => i.id !== id) ?? []
 			);
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.members() });
 		}
 	}));
 }

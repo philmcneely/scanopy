@@ -3,11 +3,12 @@ use crate::server::auth::middleware::permissions::{Authorized, IsDaemon, Member,
 use crate::server::ip_addresses::r#impl::base::IPAddress;
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::extractors::Query;
+use crate::server::shared::handlers::list::list_page;
 use crate::server::shared::handlers::ordering::OrderField;
 use crate::server::shared::handlers::query::{
-    FilterQueryExtractor, OrderDirection, PaginationParams,
+    FilterQueryExtractor, OrderDirection, PaginationParams, on_requested_sites,
 };
-use crate::server::shared::handlers::traits::{CrudHandlers, update_handler};
+use crate::server::shared::handlers::traits::{CrudHandlers, ListScope, update_handler};
 use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::services::traits::EventBusService;
 use crate::server::shared::storage::filter::StorableFilter;
@@ -15,7 +16,7 @@ use crate::server::shared::storage::traits::{Entity, Storable};
 use crate::server::shared::types::api::{
     ApiError, ApiErrorResponse, ApiJson, ApiResponse, ApiResult, PaginatedApiResponse,
 };
-use crate::server::shared::types::entities::EntitySource;
+use crate::server::shared::types::entities::{EntitySource, EntitySourceDiscriminants};
 use crate::server::shared::validation::validate_read_access;
 use crate::server::sites::r#impl::Site;
 use crate::server::{
@@ -44,25 +45,45 @@ pub enum SubnetOrderField {
     #[default]
     CreatedAt,
     Name,
+    /// The range, in address order. Grouping by it nests each range under the ranges that
+    /// contain it, one group per outermost range.
     Cidr,
     SubnetType,
     UpdatedAt,
     SiteId,
     /// Sort by when discovery last observed the subnet. Surfaces stale assets.
     LastSeenAt,
+    /// How the subnet came to exist (`source.type`).
+    Source,
+    /// The container runtime that created a bridge subnet. Other subnets have none and sort last.
+    ManagedBy,
+    /// How full the range is, its nested ranges' addresses included. Derived in code, so it
+    /// orders in memory.
+    Utilization,
 }
+
+/// The range as an address, so `10.0.2.0/24` sorts before `10.0.16.0/20`. Stored as JSON text.
+const CIDR_SQL: &str = "((subnets.cidr::jsonb #>> '{}')::cidr)";
 
 impl OrderField for SubnetOrderField {
     fn to_sql(&self) -> &'static str {
         match self {
             Self::CreatedAt => "subnets.created_at",
             Self::Name => "subnets.name",
-            Self::Cidr => "subnets.cidr",
+            Self::Cidr => CIDR_SQL,
             Self::SubnetType => "subnets.subnet_type",
             Self::UpdatedAt => "subnets.updated_at",
             Self::SiteId => "subnets.site_id",
             Self::LastSeenAt => "subnets.last_seen_at",
+            Self::Source => "subnets.source->>'type'",
+            Self::ManagedBy => "subnets.virtualization_service_id",
+            // Never read: utilization is computed.
+            Self::Utilization => "subnets.id",
         }
+    }
+
+    fn nulls_last(&self) -> bool {
+        matches!(self, Self::ManagedBy)
     }
 }
 
@@ -73,12 +94,34 @@ impl OrderField for SubnetOrderField {
 /// Query parameters for filtering and ordering subnets.
 #[derive(Deserialize, Default, Debug, Clone, IntoParams)]
 pub struct SubnetFilterQuery {
-    /// Filter by site ID
-    pub site_id: Option<Uuid>,
+    /// Filter by specific entity IDs (for selective loading)
+    pub ids: Option<Vec<Uuid>>,
+    /// Filter by site ID. Repeat the parameter to pass several.
+    #[serde(alias = "site_id")]
+    pub site_ids: Option<Vec<Uuid>>,
+    /// Only subnets of one of these types. Repeat for several.
+    pub subnet_types: Option<Vec<String>>,
+    /// Only subnets that came to exist one of these ways (`source.type`). Repeat for several.
+    pub sources: Option<Vec<EntitySourceDiscriminants>>,
+    /// Only bridge subnets created by one of these container runtimes. Repeat for several.
+    pub managed_by: Option<Vec<Uuid>>,
+    /// `true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates
+    /// (`Subnet::is_user_managed`).
+    pub user_managed: Option<bool>,
+    /// Filter by tag IDs (returns subnets that have ANY of the specified tags)
+    pub tag_ids: Option<Vec<Uuid>>,
+    /// Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list
+    /// of tag ids. One entry per tag group the list is filtered by.
+    pub tag_sets: Option<Vec<String>>,
     /// Primary ordering field (used for grouping). Always sorts ASC to keep groups together.
     pub group_by: Option<SubnetOrderField>,
     /// Secondary ordering field (sorting within groups or standalone sort).
     pub order_by: Option<SubnetOrderField>,
+    /// Group by the tag each row holds from this tag group. Takes the place of `group_by`.
+    pub group_by_tag_group: Option<Uuid>,
+    /// Sort by the position of the tag each row holds from this tag group. Takes the place of
+    /// `order_by`.
+    pub order_by_tag_group: Option<Uuid>,
     /// Direction for order_by field (group_by always uses ASC).
     pub order_direction: Option<OrderDirection>,
     /// Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.
@@ -99,22 +142,6 @@ pub struct SubnetFilterQuery {
     pub search: Option<String>,
 }
 
-impl SubnetFilterQuery {
-    /// Build the ORDER BY clause.
-    pub fn apply_ordering(
-        &self,
-        filter: StorableFilter<Subnet>,
-    ) -> (StorableFilter<Subnet>, String) {
-        crate::server::shared::handlers::ordering::apply_ordering(
-            self.group_by,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "subnets.created_at ASC",
-        )
-    }
-}
-
 impl FilterQueryExtractor for SubnetFilterQuery {
     fn apply_to_filter<T: Storable>(
         &self,
@@ -122,15 +149,29 @@ impl FilterQueryExtractor for SubnetFilterQuery {
         user_site_ids: &[Uuid],
         _user_organization_id: Uuid,
     ) -> StorableFilter<T> {
-        let filter = match self.site_id {
-            Some(id) if user_site_ids.contains(&id) => filter.site_ids(&[id]),
-            Some(_) => filter.site_ids(&[]), // User doesn't have access - return empty
-            None => filter.site_ids(user_site_ids),
+        let filter = match &self.ids {
+            Some(ids) if !ids.is_empty() => filter.entity_ids(ids),
+            _ => filter,
         };
-        // Here rather than in the list handler so the CSV export, which shares
-        // this extractor, exports exactly the rows the search found.
-        match self.search.as_deref() {
-            Some(search) if !search.trim().is_empty() => filter.text_search(search),
+        let filter = on_requested_sites(filter, self.site_ids.as_deref(), user_site_ids);
+        let filter = match &self.subnet_types {
+            Some(types) if !types.is_empty() => filter.text_column_in("subnet_type", types),
+            _ => filter,
+        };
+        let filter = match &self.sources {
+            Some(sources) if !sources.is_empty() => filter.source_type_in(sources),
+            _ => filter,
+        };
+        let filter = match &self.managed_by {
+            Some(ids) if !ids.is_empty() => filter.expr_text_in(
+                &format!("{}.virtualization_service_id", T::table_name()),
+                &ids.iter().map(Uuid::to_string).collect::<Vec<_>>(),
+            ),
+            _ => filter,
+        };
+        // Here so the field values, which share this extractor, count only the ranges listed.
+        match self.user_managed {
+            Some(true) => filter.user_managed(),
             _ => filter,
         }
     }
@@ -141,6 +182,10 @@ impl FilterQueryExtractor for SubnetFilterQuery {
             offset: self.offset,
         }
     }
+
+    fn at(&self) -> Option<chrono::DateTime<chrono::Utc>> {
+        self.at
+    }
 }
 
 // Generated handlers for most CRUD operations
@@ -149,6 +194,7 @@ mod generated {
     crate::crud_delete_handler!(Subnet);
     crate::crud_bulk_delete_handler!(Subnet);
     crate::crud_export_csv_handler!(Subnet);
+    crate::crud_get_field_values_handler!(Subnet);
 }
 
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
@@ -158,6 +204,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(merge_subnet))
         .routes(routes!(generated::bulk_delete))
         .routes(routes!(generated::export_csv))
+        .routes(routes!(generated::get_field_values))
 }
 
 /// Get subnet by ID
@@ -230,7 +277,7 @@ async fn get_subnet_by_id(
 async fn get_all_subnets(
     state: State<Arc<AppState>>,
     auth: Authorized<Or<Viewer, IsDaemon>>,
-    query: Query<SubnetFilterQuery>,
+    Query(query): Query<SubnetFilterQuery>,
 ) -> ApiResult<Json<PaginatedApiResponse<SubnetResponse>>> {
     let site_ids = auth.site_ids();
     let organization_id = auth.organization_id();
@@ -261,50 +308,15 @@ async fn get_all_subnets(
             )))
         }
         _ => {
-            // Users/API keys - use standard filter with query params
-            let org_id = organization_id.ok_or_else(ApiError::organization_required)?;
-            let base_filter = StorableFilter::<Subnet>::new_from_site_ids(&site_ids);
-            let filter = query
-                .apply_to_filter(base_filter, &site_ids, org_id)
-                .live_or_as_of(query.at);
-
-            // Staleness is per-site, so resolve each accessible site's
-            // cutoff and let the filter compare every row against its own.
-            let filter = match query.stale {
-                Some(stale) => {
-                    let cutoffs = state.services.site_service.stale_cutoffs(&site_ids).await?;
-                    filter.stale_by_site(&cutoffs, stale)
-                }
-                None => filter,
+            // Users and API keys read one page of the list.
+            let organization_id = organization_id.ok_or_else(ApiError::organization_required)?;
+            let scope = ListScope {
+                site_ids,
+                organization_id,
+                user_id: entity.user_id(),
+                permissions: entity.permissions(),
             };
-
-            // Apply pagination
-            let pagination = query.pagination();
-            let filter = pagination.apply_to_filter(filter);
-
-            // Apply ordering
-            let (filter, order_by) = query.apply_ordering(filter);
-
-            let result = state
-                .services
-                .subnet_service
-                .get_paginated_ordered(filter, &order_by)
-                .await?;
-
-            let items = state
-                .services
-                .subnet_service
-                .with_usage(result.items, query.at)
-                .await?;
-
-            let limit = pagination.effective_limit().unwrap_or(0);
-            let offset = pagination.effective_offset();
-            Ok(Json(PaginatedApiResponse::success(
-                items,
-                result.total_count,
-                limit,
-                offset,
-            )))
+            Ok(Json(list_page::<Subnet>(&state, &scope, &query).await?))
         }
     }
 }

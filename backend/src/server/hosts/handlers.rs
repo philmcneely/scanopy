@@ -17,10 +17,12 @@ use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::events::traits::{Event, OrgScope};
 use crate::server::shared::events::types::BillingOperation;
 use crate::server::shared::extractors::Query;
+use crate::server::shared::handlers::list::list_page;
 use crate::server::shared::handlers::ordering::OrderField;
 use crate::server::shared::handlers::query::{
-    FilterQueryExtractor, OrderDirection, PaginationParams, parse_tag_sets,
+    FilterQueryExtractor, OrderDirection, PaginationParams, narrow_by_tags_and_search,
 };
+use crate::server::shared::handlers::traits::ListScope;
 use crate::server::shared::handlers::traits::{
     BulkDeleteResponse, CrudHandlers, bulk_delete_handler, delete_handler,
 };
@@ -44,9 +46,6 @@ use crate::server::{
         api::{CreateHostRequest, DiscoveryHostRequest, HostResponse, UpdateHostRequest},
         base::{HOST_MAC_JOIN, Host, PRIMARY_INTERFACE_JOIN},
         legacy::{HostCreateRequestBody, HostCreateResponse, LegacyHostWithServicesResponse},
-        virtualization_tree::{
-            VIRTUALIZATION_TREE_GROUP_SQL, VIRTUALIZATION_TREE_JOIN, VIRTUALIZATION_TREE_ORDER_SQL,
-        },
     },
     shared::types::api::{ApiError, ApiResponse, ApiResult, PaginatedApiResponse},
 };
@@ -128,29 +127,6 @@ impl OrderField for HostOrderField {
             Self::Model => "hosts.model",
             Self::SysLocation => "hosts.sys_location",
             Self::OsFamily => "hosts.os->>'family'",
-        }
-    }
-
-    /// Grouping by Virtualized By groups each host under the top of its virtualization chain,
-    /// parent first, while sorting and filter options stay on the immediate service's name.
-    fn group_sql(&self) -> &'static str {
-        match self {
-            Self::VirtualizedBy => VIRTUALIZATION_TREE_GROUP_SQL,
-            _ => self.to_sql(),
-        }
-    }
-
-    fn group_join_sql(&self) -> Option<&'static str> {
-        match self {
-            Self::VirtualizedBy => Some(VIRTUALIZATION_TREE_JOIN.as_str()),
-            _ => self.join_sql(),
-        }
-    }
-
-    fn group_order_sql(&self) -> Option<&'static str> {
-        match self {
-            Self::VirtualizedBy => Some(VIRTUALIZATION_TREE_ORDER_SQL),
-            _ => None,
         }
     }
 
@@ -280,67 +256,14 @@ impl HostFilterQuery {
         // host list as empty-shell duplicates.
         let filter = filter.live_or_as_of(self.at);
 
-        let filter = match &self.tag_ids {
-            Some(tag_ids) if !tag_ids.is_empty() => {
-                filter.has_any_tags(tag_ids, EntityDiscriminants::Host)
-            }
-            _ => filter,
-        };
-        let filter = filter.has_tags_from_each(
-            &parse_tag_sets(self.tag_sets.as_deref())?,
-            EntityDiscriminants::Host,
-        );
-
-        // Server-side because the list is paginated: a client-side search would
-        // only ever match the page already loaded.
-        let filter = match self.search.as_deref() {
-            Some(search) if !search.trim().is_empty() => filter.text_search(search),
-            _ => filter,
-        };
+        let filter = narrow_by_tags_and_search(
+            filter,
+            self.tag_ids.as_deref(),
+            self.tag_sets.as_deref(),
+            self.search.as_deref(),
+        )?;
 
         Ok(self.apply_field_filters(filter))
-    }
-
-    /// Build the ORDER BY clause and apply any required JOINs to the filter.
-    /// Returns: (modified_filter, order_by_sql)
-    pub fn apply_ordering(&self, filter: StorableFilter<Host>) -> (StorableFilter<Host>, String) {
-        crate::server::shared::handlers::ordering::TagGroupOrdering {
-            group_by: self.group_by_tag_group,
-            order_by: self.order_by_tag_group,
-        }
-        .apply(
-            EntityDiscriminants::Host,
-            self.group_by,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "hosts.created_at ASC",
-        )
-    }
-
-    /// Whether the list is grouped by virtualization tree and sorted by a field. SQL orders a tree
-    /// group by its path, which leaves no room for the sort, so the handler builds that order with
-    /// `HostService::get_all_host_responses_tree_ordered` instead.
-    pub fn sorts_inside_virtualization_trees(&self) -> bool {
-        self.group_by_tag_group.is_none()
-            && matches!(self.group_by, Some(HostOrderField::VirtualizedBy))
-            && (self.order_by.is_some() || self.order_by_tag_group.is_some())
-    }
-
-    /// [`Self::apply_ordering`] without the grouping: the sort alone, with its JOINs.
-    pub fn apply_sort_only(&self, filter: StorableFilter<Host>) -> (StorableFilter<Host>, String) {
-        crate::server::shared::handlers::ordering::TagGroupOrdering {
-            group_by: None,
-            order_by: self.order_by_tag_group,
-        }
-        .apply(
-            EntityDiscriminants::Host,
-            None,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "hosts.created_at ASC",
-        )
     }
 
     /// Apply the field filters the Hosts tab offers.
@@ -478,89 +401,8 @@ async fn get_all_hosts(
     auth: Authorized<Viewer>,
     Query(query): Query<HostFilterQuery>,
 ) -> ApiResult<Json<PaginatedApiResponse<HostResponse>>> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    let filter = Host::list_filter(&state, &query, &site_ids, organization_id).await?;
-
-    // Apply pagination
-    let pagination = query.pagination();
-    let filter = pagination.apply_to_filter(filter);
-
-    // Apply ordering and JOINs
-    let tree_sorted = query.sorts_inside_virtualization_trees();
-    let (filter, order_by) = if tree_sorted {
-        query.apply_sort_only(filter.join(&VIRTUALIZATION_TREE_JOIN))
-    } else {
-        query.apply_ordering(filter)
-    };
-
-    // Grouped lists report each group's full size, not the slice of it that
-    // landed on this page. Runs against the same filter — including the JOIN
-    // `apply_ordering` just added, which the group expression may reference.
-    let group_sql = match (query.group_by_tag_group, query.group_by) {
-        (Some(_), _) => {
-            Some(crate::server::shared::handlers::ordering::TagGroupOrdering::GROUP_SQL)
-        }
-        (None, Some(group_field)) => Some(group_field.group_sql()),
-        (None, None) => None,
-    };
-    let group_counts = match group_sql {
-        Some(group_sql) => Some(
-            state
-                .services
-                .host_service
-                .count_by_group(filter.clone(), group_sql)
-                .await?,
-        ),
-        None => None,
-    };
-
-    let host_service = &state.services.host_service;
-    let include_children = query.include_children.unwrap_or(true);
-    let mut result = if tree_sorted {
-        host_service
-            .get_all_host_responses_tree_ordered(
-                filter,
-                &order_by,
-                pagination.effective_limit(),
-                pagination.effective_offset(),
-                query.at,
-                include_children,
-            )
-            .await?
-    } else {
-        host_service
-            .get_all_host_responses_paginated(filter, &order_by, query.at, include_children)
-            .await?
-    };
-
-    // Hydrate credential assignments from junction table
-    let host_ids: Vec<Uuid> = result.items.iter().map(|h| h.id).collect();
-    let cred_map = state
-        .services
-        .credential_service
-        .get_credential_assignments_for_hosts(&host_ids)
-        .await
-        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
-    for host in &mut result.items {
-        if let Some(assignments) = cred_map.get(&host.id) {
-            host.credential_assignments = assignments.clone();
-        }
-    }
-
-    // Get effective pagination values for response metadata
-    let limit = pagination.effective_limit().unwrap_or(0);
-    let offset = pagination.effective_offset();
-
-    let response = PaginatedApiResponse::success(result.items, result.total_count, limit, offset);
-
-    Ok(Json(match group_counts {
-        Some(counts) => response.with_group_counts(counts),
-        None => response,
-    }))
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Host>(&state, &scope, &query).await?))
 }
 
 /// Get a host by ID
@@ -1479,13 +1321,11 @@ async fn export_hosts_zip(
     auth: Authorized<Viewer>,
     Query(query): Query<HostFilterQuery>,
 ) -> ApiResult<impl IntoResponse> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
+    let scope = ListScope::of(&auth.entity)?;
+    let (site_ids, organization_id) = (scope.site_ids.clone(), scope.organization_id);
 
     // The list's own filter, so the export holds the rows the list showed.
-    let filter = Host::list_filter(&state, &query, &site_ids, organization_id).await?;
+    let filter = Host::list_filter(&state, &query, &scope).await?;
 
     // Get all hosts (no pagination for export)
     let hosts = state.services.host_service.get_all(filter).await?;

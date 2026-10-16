@@ -17,8 +17,6 @@ import {
 	type TagGroup
 } from '$lib/features/tags/types/base';
 import { getFieldKey, isOrderableField } from '$lib/shared/components/data/types';
-import { groupItems } from '$lib/shared/components/data/controls/grouping';
-import { sortItems } from '$lib/shared/components/data/controls/sorting';
 
 function group(
 	id: string,
@@ -138,17 +136,14 @@ describe('tag group table columns', () => {
 		{ id: 'new', tags: ['planned', 'production'] },
 		{ id: 'live', tags: ['active'] }
 	];
-	const fieldsFor = (serverPaginated: boolean) =>
-		tagGroupFields<Row>({
-			groups,
-			tags,
-			entityType: 'Service',
-			getItemTags: (row) => row.tags,
-			serverPaginated
-		});
+	const fields = tagGroupFields<Row>({
+		groups,
+		tags,
+		entityType: 'Service',
+		getItemTags: (row) => row.tags
+	});
 
 	it('adds one hidden column per group that applies to the entity type', () => {
-		const fields = fieldsFor(false);
 		expect(fields.map((f) => tagGroupIdOf(getFieldKey(f)))).toEqual([
 			'Application',
 			'Status',
@@ -157,30 +152,14 @@ describe('tag group table columns', () => {
 		expect(fields.every((f) => f.display?.hiddenByDefault)).toBe(true);
 	});
 
-	it("sorts and groups rows in the group's tag order, rows without a tag last", () => {
-		const status = fieldsFor(false)[1];
-		const sorted = (direction: 'asc' | 'desc') =>
-			sortItems(rows, [status], { field: getFieldKey(status), direction }).map((r) => r.id);
-		expect(sorted('asc')).toEqual(['new', 'live', 'retired', 'untagged']);
-		expect(sorted('desc')).toEqual(['retired', 'live', 'new', 'untagged']);
-		const grouped = groupItems(
-			rows,
-			[status],
-			getFieldKey(status),
-			{ ungrouped: '—', yes: 'yes', no: 'no' },
-			false
-		);
-		expect([...grouped.keys()]).toEqual(['planned', 'active', 'decommissioned', '—']);
-	});
-
-	it('is server-orderable on a server-paged list, keyed the way the server groups', () => {
-		const status = fieldsFor(true)[1];
+	it('is server-orderable, keyed the way the server groups', () => {
+		const status = fields[1];
 		expect(isOrderableField(status)).toBe(true);
 		expect(status.serverFiltered).toBe(true);
 		expect(status.getGroupValue!(rows[2])).toBe('0000000001:planned:planned');
 		expect(status.getGroupValue!(rows[1])).toBeNull();
 		// An unordered group's tags key at position 0, so the name orders them.
-		const application = fieldsFor(true)[0];
+		const application = fields[0];
 		expect(application.getGroupValue!({ id: 'x', tags: ['web'] })).toBe('0000000000:web:web');
 	});
 });
@@ -191,8 +170,7 @@ describe('tag-group filters as tag_sets', () => {
 		groups,
 		tags,
 		entityType: 'Service',
-		getItemTags: (row) => row.tags,
-		serverPaginated: true
+		getItemTags: (row) => row.tags
 	});
 	const [, status, environment] = fields;
 
@@ -211,8 +189,7 @@ describe('tag-group filters as tag_sets', () => {
 				search: ''
 			},
 			fields,
-			{},
-			{ search: true, tags: true, stale: true, order: false, fields: true }
+			{ tags: true, stale: true }
 		);
 		expect(request.getAll('tag_sets')).toEqual(['planned,active', 'production']);
 

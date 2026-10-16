@@ -12,7 +12,9 @@ use crate::{
         },
         daemons::r#impl::{
             base::{Daemon, DaemonBase, DaemonMode, DaemonOs},
-            version::{DaemonVersionStatus, DeprecationSeverity, DeprecationWarning},
+            version::{
+                DaemonVersionStatus, DeprecationSeverity, DeprecationWarning, VersionHealthStatus,
+            },
         },
         discovery::r#impl::types::DiscoveryType,
         shared::events::traits::{DiscoveryScope, Event},
@@ -538,6 +540,81 @@ pub struct DaemonResponse {
     #[serde(default)]
     #[schema(required)]
     pub interfaced_subnet_ids: Vec<Uuid>,
+    /// The one status the daemon's chip shows, the most severe that applies.
+    pub health: DaemonHealth,
+}
+
+impl DaemonResponse {
+    /// The response for `daemon`, with its health derived from its record and version status.
+    pub fn new(
+        daemon: Daemon,
+        version_status: DaemonVersionStatus,
+        interfaced_subnet_ids: Vec<Uuid>,
+    ) -> Self {
+        Self {
+            health: DaemonHealth::of(&daemon.base, &version_status),
+            id: daemon.id,
+            created_at: daemon.created_at,
+            updated_at: daemon.updated_at,
+            base: daemon.base,
+            version_status,
+            interfaced_subnet_ids,
+        }
+    }
+}
+
+/// A daemon's status, the most severe that applies, in that order.
+///
+/// Unsupported ranks above Unreachable: a rejected daemon can't connect, so its unreachability is a
+/// symptom and the version is the actionable cause. The daemons list sorts and groups by it, and
+/// filters on its value, which reads the same in every language.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    PartialEq,
+    Eq,
+    strum::EnumIter,
+    strum::IntoStaticStr,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DaemonHealth {
+    Unsupported,
+    Unreachable,
+    Standby,
+    AwaitingConnection,
+    Deprecated,
+    Outdated,
+    Unknown,
+    Healthy,
+}
+
+impl DaemonHealth {
+    /// The status `daemon` is in, given its version status.
+    pub fn of(daemon: &DaemonBase, version: &DaemonVersionStatus) -> Self {
+        if version.status == VersionHealthStatus::Unsupported {
+            return Self::Unsupported;
+        }
+        if daemon.is_unreachable {
+            return Self::Unreachable;
+        }
+        if daemon.standby {
+            return Self::Standby;
+        }
+        if daemon.last_seen.is_none() {
+            return Self::AwaitingConnection;
+        }
+        match version.status {
+            VersionHealthStatus::Deprecated => Self::Deprecated,
+            VersionHealthStatus::Outdated => Self::Outdated,
+            VersionHealthStatus::Unknown => Self::Unknown,
+            VersionHealthStatus::Current | VersionHealthStatus::Unsupported => Self::Healthy,
+        }
+    }
 }
 
 /// Request to pre-provision a daemon (either mode) before it is installed.
@@ -888,5 +965,36 @@ mod scanned_payload_tests {
         json.as_object_mut().unwrap().remove("scanned");
         let parsed: DiscoveryUpdatePayload = serde_json::from_value(json).unwrap();
         assert!(parsed.scanned.is_none());
+    }
+}
+
+#[cfg(test)]
+mod health_tests {
+    use super::*;
+    use crate::server::daemons::r#impl::version::DaemonVersionPolicy;
+
+    /// A rejected version is the actionable cause, so it outranks the unreachability it causes;
+    /// a daemon that never checked in is awaiting connection whatever its version says.
+    #[test]
+    fn the_most_severe_status_wins() {
+        let policy = DaemonVersionPolicy::default();
+        let mut base = DaemonBase {
+            version: Some("0.1.0".parse().unwrap()),
+            is_unreachable: true,
+            last_seen: Some(Utc::now()),
+            ..Default::default()
+        };
+        let status = policy.evaluate(base.version.as_ref());
+        assert_eq!(status.status, VersionHealthStatus::Unsupported);
+        assert_eq!(DaemonHealth::of(&base, &status), DaemonHealth::Unsupported);
+
+        base.version = Some(env!("CARGO_PKG_VERSION").parse().unwrap());
+        base.is_unreachable = false;
+        base.last_seen = None;
+        let status = policy.evaluate(base.version.as_ref());
+        assert_eq!(
+            DaemonHealth::of(&base, &status),
+            DaemonHealth::AwaitingConnection
+        );
     }
 }

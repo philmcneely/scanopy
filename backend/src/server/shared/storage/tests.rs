@@ -1175,6 +1175,8 @@ async fn server_side_field_filters_are_valid_sql_against_the_live_schema() {
 #[tokio::test]
 async fn order_fields_are_valid_sql_against_the_live_schema() {
     use crate::server::credentials::handlers::CredentialOrderField;
+    use crate::server::daemon_api_keys::handlers::DaemonApiKeyOrderField;
+    use crate::server::daemon_api_keys::r#impl::base::DaemonApiKey;
     use crate::server::daemons::handlers::DaemonOrderField;
     use crate::server::dependencies::handlers::DependencyOrderField;
     use crate::server::discovery::handlers::DiscoveryOrderField;
@@ -1183,8 +1185,14 @@ async fn order_fields_are_valid_sql_against_the_live_schema() {
     use crate::server::shared::handlers::ordering::{OrderField, apply_ordering};
     use crate::server::shared::handlers::query::OrderDirection;
     use crate::server::shared::storage::filter::StorableFilter;
+    use crate::server::sites::handlers::SiteOrderField;
+    use crate::server::sites::r#impl::Site;
     use crate::server::subnets::handlers::SubnetOrderField;
+    use crate::server::tags::groups::base::TagGroup;
+    use crate::server::tags::groups::handlers::TagGroupOrderField;
     use crate::server::tags::handlers::TagOrderField;
+    use crate::server::user_api_keys::handlers::UserApiKeyOrderField;
+    use crate::server::user_api_keys::r#impl::base::UserApiKey;
     use crate::server::vlans::handlers::VlanOrderField;
     use crate::tests::setup_test_db;
     use sqlx::{Executor, PgPool};
@@ -1246,6 +1254,10 @@ async fn order_fields_are_valid_sql_against_the_live_schema() {
     all.extend(failures::<Subnet, SubnetOrderField>(&pool).await);
     all.extend(failures::<Tag, TagOrderField>(&pool).await);
     all.extend(failures::<Vlan, VlanOrderField>(&pool).await);
+    all.extend(failures::<UserApiKey, UserApiKeyOrderField>(&pool).await);
+    all.extend(failures::<DaemonApiKey, DaemonApiKeyOrderField>(&pool).await);
+    all.extend(failures::<Site, SiteOrderField>(&pool).await);
+    all.extend(failures::<TagGroup, TagGroupOrderField>(&pool).await);
 
     assert!(
         all.is_empty(),

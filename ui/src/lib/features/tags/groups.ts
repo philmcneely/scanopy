@@ -132,6 +132,17 @@ export function compareTagsByGroup(groups: TagGroup[]) {
 	};
 }
 
+/**
+ * The key a server-paged tags list groups a tag under by its tag group: `0` for a system group or
+ * `1`, the group's type, its lowercased name, then its id. It matches the server's
+ * `TAG_GROUP_KEY_SQL`, which orders groups the way the tag groups list does, so a group finds its
+ * total in `group_counts`.
+ */
+export function tagGroupServerKey(group: TagGroup | null | undefined): string | null {
+	if (!group) return null;
+	return `${isSystemGroup(group) ? 0 : 1}:${group.group_type}:${group.name.toLowerCase()}:${group.id}`;
+}
+
 /** A group's tags, in its order. */
 export function tagsInGroup(tags: Tag[], groupId: string): Tag[] {
 	return tags.filter((tag) => tag.tag_group_id === groupId).sort(compareTagOrder);

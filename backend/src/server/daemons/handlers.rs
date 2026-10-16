@@ -5,7 +5,7 @@ use crate::server::auth::middleware::permissions::{
 };
 use crate::server::credentials::r#impl::mapping::IntegrationTarget;
 use crate::server::daemons::r#impl::api::{
-    DaemonDiscoveryRequest, DaemonHeartbeatPayload, ProvisionDaemonRequest,
+    DaemonDiscoveryRequest, DaemonHealth, DaemonHeartbeatPayload, ProvisionDaemonRequest,
     ProvisionDaemonResponse, ProvisionEligibility, TestReachabilityRequest,
     TestReachabilityResponse,
 };
@@ -15,13 +15,19 @@ use crate::server::openapi::tags as api_tags;
 use crate::server::shared::api_key_common::hash_api_key;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::extractors::Query;
+use crate::server::shared::handlers::list::list_page;
 use crate::server::shared::handlers::ordering::OrderField;
 use crate::server::shared::handlers::query::{
     FilterQueryExtractor, OrderDirection, PaginationParams,
 };
-use crate::server::shared::handlers::traits::{CrudHandlers, update_handler};
+use crate::server::shared::handlers::query::{
+    narrow_by_tags_and_search, on_requested_sites, serde_names,
+};
+use crate::server::shared::handlers::traits::{
+    CrudHandlers, ListScope, base_list_filter, update_handler,
+};
 use crate::server::shared::services::traits::CrudService;
-use crate::server::shared::storage::filter::StorableFilter;
+use crate::server::shared::storage::filter::{Junction, StorableFilter};
 use crate::server::shared::storage::traits::{Entity, Storable};
 use crate::server::shared::trusted_ca::TrustedCaBundle;
 use crate::server::shared::types::api::ApiErrorResponse;
@@ -78,6 +84,17 @@ pub enum DaemonOrderField {
     LastSeen,
     UpdatedAt,
     SiteId,
+    /// The OS the daemon is installed on. Daemons that never reported one sort last.
+    Os,
+    /// How the daemon connects.
+    Mode,
+    /// The user who maintains the daemon.
+    Maintainer,
+    /// The daemon's version, in version order rather than text order: 0.17.10 after 0.17.9.
+    Version,
+    /// The status the daemon's chip shows, most severe first. Derived in code
+    /// ([`DaemonHealth::of`]), so it orders and groups in memory.
+    Status,
 }
 
 impl OrderField for DaemonOrderField {
@@ -88,7 +105,19 @@ impl OrderField for DaemonOrderField {
             Self::LastSeen => "daemons.last_seen",
             Self::UpdatedAt => "daemons.updated_at",
             Self::SiteId => "daemons.site_id",
+            // Both are stored as JSON strings; unwrapped so they group and filter as the bare value.
+            Self::Os => "(daemons.os::jsonb #>> '{}')",
+            Self::Mode => "(daemons.mode::jsonb #>> '{}')",
+            Self::Maintainer => "daemons.user_id",
+            // What the version filter's options count. The list orders it in memory.
+            Self::Version => "daemons.version",
+            // Never read: the status is computed.
+            Self::Status => "daemons.id",
         }
+    }
+
+    fn nulls_last(&self) -> bool {
+        matches!(self, Self::Os | Self::Version)
     }
 }
 
@@ -99,12 +128,37 @@ impl OrderField for DaemonOrderField {
 /// Query parameters for filtering and ordering daemons.
 #[derive(Deserialize, Default, Debug, Clone, IntoParams)]
 pub struct DaemonFilterQuery {
-    /// Filter by site ID
-    pub site_id: Option<Uuid>,
+    /// Filter by site ID. Repeat the parameter to pass several.
+    #[serde(alias = "site_id")]
+    pub site_ids: Option<Vec<Uuid>>,
+    /// Only daemons in one of these statuses. Repeat for several.
+    pub statuses: Option<Vec<DaemonHealth>>,
+    /// Only daemons installed on one of these operating systems. Repeat for several.
+    pub os: Option<Vec<DaemonOs>>,
+    /// Only daemons that connect one of these ways. Repeat for several.
+    pub modes: Option<Vec<DaemonMode>>,
+    /// Only daemons maintained by one of these users. Repeat for several.
+    pub maintainer_ids: Option<Vec<Uuid>>,
+    /// Only daemons running one of these versions. Repeat for several.
+    pub versions: Option<Vec<String>>,
+    /// Only daemons with an interface on one of these subnets. Repeat for several.
+    pub interfaced_subnet_ids: Option<Vec<Uuid>>,
+    /// Filter by tag IDs (returns daemons that have ANY of the specified tags)
+    pub tag_ids: Option<Vec<Uuid>>,
+    /// Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list
+    /// of tag ids. One entry per tag group the list is filtered by.
+    pub tag_sets: Option<Vec<String>>,
+    /// Free-text search. Case-insensitive substring match against the name and url.
+    pub search: Option<String>,
     /// Primary ordering field (used for grouping). Always sorts ASC to keep groups together.
     pub group_by: Option<DaemonOrderField>,
     /// Secondary ordering field (sorting within groups or standalone sort).
     pub order_by: Option<DaemonOrderField>,
+    /// Group by the tag each row holds from this tag group. Takes the place of `group_by`.
+    pub group_by_tag_group: Option<Uuid>,
+    /// Sort by the position of the tag each row holds from this tag group. Takes the place of
+    /// `order_by`.
+    pub order_by_tag_group: Option<Uuid>,
     /// Direction for order_by field (group_by always uses ASC).
     pub order_direction: Option<OrderDirection>,
     /// Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.
@@ -115,19 +169,52 @@ pub struct DaemonFilterQuery {
     pub offset: Option<u32>,
 }
 
+/// The subnets each daemon has an interface on.
+const DAEMON_SUBNETS: Junction = Junction {
+    table: "daemon_interfaced_subnets",
+    own_column: "daemon_id",
+    other_column: "subnet_id",
+    has_history: false,
+};
+
 impl DaemonFilterQuery {
-    /// Build the ORDER BY clause.
-    pub fn apply_ordering(
-        &self,
-        filter: StorableFilter<Daemon>,
-    ) -> (StorableFilter<Daemon>, String) {
-        crate::server::shared::handlers::ordering::apply_ordering(
-            self.group_by,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "daemons.created_at ASC",
-        )
+    /// Everything the daemons list narrows by in SQL: access, sites, OS, mode, maintainer,
+    /// version, interfaced subnets, tags and search. Status, derived in code, is applied by the
+    /// list itself.
+    pub fn narrow(&self, scope: &ListScope) -> ApiResult<StorableFilter<Daemon>> {
+        let filter = narrow_by_tags_and_search(
+            base_list_filter::<Daemon>(scope, self),
+            self.tag_ids.as_deref(),
+            self.tag_sets.as_deref(),
+            self.search.as_deref(),
+        )?;
+        let filter = match &self.os {
+            Some(os) if !os.is_empty() => {
+                filter.expr_text_in(DaemonOrderField::Os.to_sql(), &serde_names(os))
+            }
+            _ => filter,
+        };
+        let filter = match &self.modes {
+            Some(modes) if !modes.is_empty() => {
+                filter.expr_text_in(DaemonOrderField::Mode.to_sql(), &serde_names(modes))
+            }
+            _ => filter,
+        };
+        let filter = match &self.maintainer_ids {
+            Some(ids) if !ids.is_empty() => {
+                let ids: Vec<String> = ids.iter().map(Uuid::to_string).collect();
+                filter.expr_text_in(DaemonOrderField::Maintainer.to_sql(), &ids)
+            }
+            _ => filter,
+        };
+        let filter = match &self.versions {
+            Some(versions) if !versions.is_empty() => filter.text_column_in("version", versions),
+            _ => filter,
+        };
+        Ok(match &self.interfaced_subnet_ids {
+            Some(ids) if !ids.is_empty() => filter.linked_to(DAEMON_SUBNETS, ids),
+            _ => filter,
+        })
     }
 }
 
@@ -138,11 +225,7 @@ impl FilterQueryExtractor for DaemonFilterQuery {
         user_site_ids: &[Uuid],
         _user_organization_id: Uuid,
     ) -> StorableFilter<T> {
-        match self.site_id {
-            Some(id) if user_site_ids.contains(&id) => filter.site_ids(&[id]),
-            Some(_) => filter.site_ids(&[]), // User doesn't have access - return empty
-            None => filter.site_ids(user_site_ids),
-        }
+        on_requested_sites(filter, self.site_ids.as_deref(), user_site_ids)
     }
 
     fn pagination(&self) -> PaginationParams {
@@ -159,6 +242,7 @@ mod generated {
     crate::crud_delete_handler!(Daemon);
     crate::crud_bulk_delete_handler!(Daemon);
     crate::crud_export_csv_handler!(Daemon);
+    crate::crud_get_field_values_handler!(Daemon);
 }
 
 /// Returns a conflict error when trying to delete a daemon with active discovery sessions.
@@ -676,6 +760,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(get_upgrade_command))
         .routes(routes!(bulk_delete_daemons))
         .routes(routes!(generated::export_csv))
+        .routes(routes!(generated::get_field_values))
         .routes(routes!(provision_daemon))
         .routes(routes!(get_provision_eligibility))
         .routes(routes!(retry_connection))
@@ -714,63 +799,10 @@ pub fn create_internal_router() -> OpenApiRouter<Arc<AppState>> {
 async fn get_all(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Viewer>,
-    query: Query<DaemonFilterQuery>,
+    Query(query): Query<DaemonFilterQuery>,
 ) -> ApiResult<Json<PaginatedApiResponse<DaemonResponse>>> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    // Apply site filter and pagination
-    let base_filter = StorableFilter::<Daemon>::new_from_site_ids(&site_ids);
-    let filter = query.apply_to_filter(base_filter, &site_ids, organization_id);
-    let pagination = query.pagination();
-    let filter = pagination.apply_to_filter(filter);
-
-    // Apply ordering
-    let (filter, order_by) = query.apply_ordering(filter);
-
-    let result = state
-        .services
-        .daemon_service
-        .get_paginated_ordered(filter, &order_by)
-        .await?;
-
-    // Batch-load interfaced subnets from the junction to avoid N+1.
-    let daemon_ids: Vec<Uuid> = result.items.iter().map(|d| d.id).collect();
-    let subnet_ids_map = state
-        .services
-        .daemon_service
-        .get_interfaced_subnet_ids_batch(&daemon_ids)
-        .await;
-
-    let policy = DaemonVersionPolicy::default();
-    let responses: Vec<DaemonResponse> = result
-        .items
-        .into_iter()
-        .map(|d| {
-            let version_status = policy.evaluate(d.base.version.as_ref());
-            let interfaced_subnet_ids = subnet_ids_map.get(&d.id).cloned().unwrap_or_default();
-            DaemonResponse {
-                id: d.id,
-                created_at: d.created_at,
-                updated_at: d.updated_at,
-                base: d.base,
-                version_status,
-                interfaced_subnet_ids,
-            }
-        })
-        .collect();
-
-    let limit = pagination.effective_limit().unwrap_or(0);
-    let offset = pagination.effective_offset();
-
-    Ok(Json(PaginatedApiResponse::success(
-        responses,
-        result.total_count,
-        limit,
-        offset,
-    )))
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Daemon>(&state, &scope, &query).await?))
 }
 
 /// Get Daemon by ID
@@ -827,14 +859,11 @@ async fn get_by_id(
         .get_interfaced_subnet_ids(&daemon.id)
         .await;
 
-    Ok(Json(ApiResponse::success(DaemonResponse {
-        id: daemon.id,
-        created_at: daemon.created_at,
-        updated_at: daemon.updated_at,
-        base: daemon.base,
+    Ok(Json(ApiResponse::success(DaemonResponse::new(
+        daemon,
         version_status,
         interfaced_subnet_ids,
-    })))
+    ))))
 }
 
 /// Register a new Daemon
@@ -1312,15 +1341,8 @@ async fn provision_daemon(
     // endpoint (which fills in the key returned below). That keeps a display-only regenerate
     // from re-minting the key.
     Ok(Json(ApiResponse::success(ProvisionDaemonResponse {
-        daemon: DaemonResponse {
-            id: created_daemon.id,
-            created_at: created_daemon.created_at,
-            updated_at: created_daemon.updated_at,
-            base: created_daemon.base,
-            version_status,
-            // Freshly provisioned; interfaced subnets populate on first heartbeat.
-            interfaced_subnet_ids: Vec::new(),
-        },
+        // Freshly provisioned; interfaced subnets populate on first heartbeat.
+        daemon: DaemonResponse::new(created_daemon, version_status, Vec::new()),
         daemon_api_key: plaintext,
     })))
 }

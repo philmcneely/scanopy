@@ -18,8 +18,9 @@ use crate::server::credentials::handlers::CredentialOrderField;
 use crate::server::credentials::r#impl::base::Credential;
 use crate::server::credentials::r#impl::types::{
     CredentialIntegration, CredentialOsFields, CredentialStability, CredentialTypeDiscriminants,
-    UpstreamSupport,
+    OsFamily, Target, UpstreamSupport,
 };
+use crate::server::daemon_api_keys::handlers::DaemonApiKeyOrderField;
 use crate::server::daemon_api_keys::r#impl::base::DaemonApiKey;
 use crate::server::daemons::handlers::DaemonOrderField;
 use crate::server::daemons::r#impl::base::Daemon;
@@ -46,12 +47,14 @@ use crate::server::shared::types::field_definition::{
     FieldDefinition, FieldType, InlineFormat, SelectOption,
 };
 use crate::server::shares::r#impl::base::Share;
+use crate::server::sites::handlers::SiteOrderField;
 use crate::server::sites::r#impl::Site;
 use crate::server::snapshots::types::base::Snapshot;
 use crate::server::subnets::handlers::SubnetOrderField;
 use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::subnets::r#impl::nesting::SubnetResponse;
 use crate::server::tags::groups::base::TagGroup;
+use crate::server::tags::groups::handlers::TagGroupOrderField;
 use crate::server::tags::handlers::TagOrderField;
 use crate::server::tags::r#impl::base::Tag;
 use crate::server::topology::types::base::Topology;
@@ -59,8 +62,10 @@ use crate::server::topology::types::views::{
     DependencyMemberType, InspectorSection, ViewElementConfig, ViewElementOrder,
     ViewHandleStrategy, ViewInspectorConfig, ViewLayoutAlgorithm, ViewLayoutConfig, ViewRootOrder,
 };
+use crate::server::user_api_keys::handlers::UserApiKeyOrderField;
 use crate::server::user_api_keys::r#impl::base::UserApiKey;
 use crate::server::users::r#impl::base::User;
+use crate::server::users::members::{MemberOrderField, MemberStatus};
 use crate::server::vlans::handlers::VlanOrderField;
 use crate::server::vlans::r#impl::base::Vlan;
 
@@ -118,6 +123,12 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         CredentialOrderField,
         DiscoveryOrderField,
         VlanOrderField,
+        UserApiKeyOrderField,
+        DaemonApiKeyOrderField,
+        SiteOrderField,
+        TagGroupOrderField,
+        MemberOrderField,
+        MemberStatus,
         // Derived staleness status. Not a field on any entity (it's computed
         // per-request against the site's window), so nothing else pulls it
         // into the schema — but the frontend must derive its union from here
@@ -167,6 +178,9 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         CredentialTypeDiscriminants,
         // Referenced by the host-list `?sources` filter, for the same reason.
         EntitySourceDiscriminants,
+        // Referenced by the credential-list `?targets` and `?daemon_os` filters, for the same reason.
+        Target,
+        OsFamily,
         // Dynamic form metadata. Travels to the frontend inside the untyped `TypeMetadata.metadata`
         // blob and the scan-settings fixture, so nothing else pulls it into the schema — but the
         // frontend must derive its `field_type` union from here rather than hand-maintaining one.

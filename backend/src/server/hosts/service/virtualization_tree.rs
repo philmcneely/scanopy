@@ -1,34 +1,87 @@
-//! Placing hosts in their virtualization trees for the response, the Rust half of
-//! [`virtualization_tree`](crate::server::hosts::r#impl::virtualization_tree).
+//! Where hosts sit in their virtualization trees, for the host list's tree grouping and the
+//! placement every host response carries.
+//!
+//! A host's parent is the host running the service that virtualizes it
+//! (`hosts.virtualization_service_id` → `services.host_id`). Chains nest: a Proxmox node runs a
+//! VM, which runs a Docker engine, which runs a macvlan container with an address of its own. The
+//! walk follows live services and live hosts only.
 use super::*;
-use crate::server::hosts::r#impl::virtualization_tree::{DEPTH_CAP, tree_position};
+use crate::server::shared::handlers::tree::{DEPTH_CAP, TreePosition, tree_position};
+use crate::server::shared::storage::traits::Storage;
 
 impl HostService {
     /// Fill each response's `virtualization_parent_host_id`, `virtualization_root_host_id` and
     /// `virtualization_depth`.
-    ///
-    /// Reads live services and live hosts only, as the SQL does: one services and one hosts query
-    /// per level of ancestors (at most [`DEPTH_CAP`]), and one grouped count for whether a host
-    /// with no parent runs anything.
     pub(crate) async fn place_in_virtualization_trees(
         &self,
         responses: &mut [HostResponse],
     ) -> Result<()> {
-        if responses.is_empty() {
-            return Ok(());
+        let positions = self
+            .virtualization_tree_positions(
+                responses
+                    .iter()
+                    .map(|r| (r.id, r.virtualization_service_id))
+                    .collect(),
+            )
+            .await?;
+        for response in responses.iter_mut() {
+            let position = positions.get(&response.id);
+            response.virtualization_parent_host_id = position.and_then(|p| p.parent_id);
+            response.virtualization_root_host_id = position.map(|p| p.root_id);
+            response.virtualization_depth = position.map(|p| p.depth).unwrap_or(0);
         }
+        Ok(())
+    }
+
+    /// Where each of `host_ids` sits in its virtualization tree, for a list grouped by it. Reads
+    /// only each host's virtualizing service, not the whole row.
+    pub(crate) async fn tree_positions_of(
+        &self,
+        host_ids: &[Uuid],
+    ) -> Result<HashMap<Uuid, TreePosition>> {
+        let runs_under = self
+            .storage()
+            .get_ordered_values(
+                StorableFilter::<Host>::new_from_entity_ids(host_ids),
+                "hosts.id ASC",
+                &["hosts.virtualization_service_id"],
+            )
+            .await?
+            .into_iter()
+            .map(|(id, values)| {
+                let service = values
+                    .into_iter()
+                    .next()
+                    .flatten()
+                    .and_then(|v| v.parse().ok());
+                (id, service)
+            })
+            .collect();
+        self.virtualization_tree_positions(runs_under).await
+    }
+
+    /// Where each host sits, given each host and the service it runs under. A host in no tree has
+    /// no entry.
+    ///
+    /// One services and one hosts query per level of ancestors (at most [`DEPTH_CAP`]), and one
+    /// grouped count for whether a host with no parent runs anything.
+    async fn virtualization_tree_positions(
+        &self,
+        hosts: Vec<(Uuid, Option<Uuid>)>,
+    ) -> Result<HashMap<Uuid, TreePosition>> {
+        if hosts.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let listed: Vec<Uuid> = hosts.iter().map(|(id, _)| *id).collect();
 
         // Every host met so far, with the service it runs under.
-        let mut runs_under: HashMap<Uuid, Option<Uuid>> = responses
-            .iter()
-            .map(|r| (r.id, r.virtualization_service_id))
-            .collect();
+        let mut runs_under: HashMap<Uuid, Option<Uuid>> = hosts.into_iter().collect();
         // Resolved parent links: host → the live host it runs under.
         let mut parent_of: HashMap<Uuid, Uuid> = HashMap::new();
         // Which host each live service runs on, for every service looked up.
         let mut service_host: HashMap<Uuid, Uuid> = HashMap::new();
 
-        let mut frontier: Vec<Uuid> = responses.iter().map(|r| r.id).collect();
+        let mut frontier: Vec<Uuid> = listed.clone();
         for _ in 0..DEPTH_CAP {
             let service_ids: Vec<Uuid> = frontier
                 .iter()
@@ -86,27 +139,26 @@ impl HostService {
             frontier = fetched;
         }
 
-        let roots_to_check: Vec<Uuid> = responses
+        let roots_to_check: Vec<Uuid> = listed
             .iter()
-            .filter(|r| !parent_of.contains_key(&r.id))
-            .map(|r| r.id)
+            .filter(|id| !parent_of.contains_key(id))
+            .copied()
             .collect();
         let runs_others = self
             .hosts_running_other_hosts(&roots_to_check, &runs_under)
             .await?;
 
-        for response in responses.iter_mut() {
-            let position = tree_position(
-                response.id,
-                |id| parent_of.get(&id).copied(),
-                runs_others.contains(&response.id),
-            );
-            response.virtualization_parent_host_id = position.and_then(|p| p.parent_host_id);
-            response.virtualization_root_host_id = position.map(|p| p.root_host_id);
-            response.virtualization_depth = position.map(|p| p.depth).unwrap_or(0);
-        }
-
-        Ok(())
+        Ok(listed
+            .into_iter()
+            .filter_map(|id| {
+                tree_position(
+                    id,
+                    |id| parent_of.get(&id).copied(),
+                    runs_others.contains(&id),
+                )
+                .map(|position| (id, position))
+            })
+            .collect())
     }
 
     /// Which of `host_ids` have another live host running under one of their live services.
@@ -134,7 +186,7 @@ impl HostService {
         let service_ids: Vec<Uuid> = host_of.keys().copied().collect();
 
         // Scoped by `service_ids`, which are services on hosts the caller already holds. Not
-        // narrowed by site, matching the SQL, which follows a guest wherever it sits.
+        // narrowed by site: a guest makes its host a root wherever the guest sits.
         let guests_per_service = self
             .count_by_group(
                 StorableFilter::<Host>::new()

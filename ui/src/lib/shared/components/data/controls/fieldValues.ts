@@ -40,9 +40,8 @@ export function filterLabelOf<T>(field: FieldConfig<T>, value: string): string {
  * field supplies them, else the distinct filter values across `items`.
  *
  * Array-typed fields are flattened, so a "tags" field offers each individual tag as an option
- * rather than one option per combination. Reading the loaded items is only meaningful for lists
- * holding every row: on a server-paginated list it would only ever see the loaded page, which is
- * why `FieldConfig.filterOptions` exists.
+ * rather than one option per combination. The loaded items are one page, so a field whose options
+ * other pages hold supplies `FieldConfig.filterOptions`.
  */
 export function filterOptionsOf<T>(items: T[], field: FieldConfig<T>): string[] {
 	const values = new Set<string>(field.filterOptions);

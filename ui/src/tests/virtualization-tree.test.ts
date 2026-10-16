@@ -72,13 +72,11 @@ describe('virtualization tree grouping', () => {
 			}
 		];
 
-		const groups = groupItems(
-			page,
-			fields,
-			'virtualized_by',
-			{ ungrouped: '-', yes: 'Yes', no: 'No' },
-			true
-		);
+		const groups = groupItems(page, fields, 'virtualized_by', {
+			ungrouped: '-',
+			yes: 'Yes',
+			no: 'No'
+		});
 		expect([...groups.entries()].map(([name, rows]) => [name, rows.map((r) => r.id)])).toEqual([
 			['Not virtualized', ['printer']],
 			['pve-01', ['docker-vm', 'pihole']]
@@ -86,7 +84,7 @@ describe('virtualization tree grouping', () => {
 	});
 
 	it('heads a section with the guest that runs others, even when its root is on another page', () => {
-		const entries = buildTreeSections([vm, container], virtualizationTree, true, 'pve-01');
+		const entries = buildTreeSections([vm, container], virtualizationTree, 'pve-01');
 		expect(entries).toEqual([
 			{
 				type: 'section',

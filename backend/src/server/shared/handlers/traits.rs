@@ -1,6 +1,9 @@
 use crate::server::shared::extractors::Query;
 use crate::server::{
-    auth::middleware::permissions::{Authorized, Member, Viewer},
+    auth::middleware::{
+        auth::AuthenticatedEntity,
+        permissions::{Authorized, Member, Viewer},
+    },
     config::AppState,
     shared::{
         entities::{ChangeTriggersTopologyStaleness, Entity as EntityEnum},
@@ -14,6 +17,7 @@ use crate::server::{
             validate_entity, validate_read_access, validate_update_access,
         },
     },
+    users::r#impl::permissions::UserOrgPermissions,
 };
 use async_trait::async_trait;
 use axum::{
@@ -28,6 +32,33 @@ use std::fmt::Display;
 use std::sync::Arc;
 use utoipa::ToSchema;
 use uuid::Uuid;
+
+/// Who is reading a list, which decides the rows it may hold: the caller's sites and organization,
+/// and for lists of the caller's own things (their API keys) or ruled by their role (the users
+/// list), the user and their permissions.
+#[derive(Debug, Clone)]
+pub struct ListScope {
+    pub site_ids: Vec<Uuid>,
+    pub organization_id: Uuid,
+    /// The signed-in user, or the user an API key belongs to.
+    pub user_id: Option<Uuid>,
+    pub permissions: Option<UserOrgPermissions>,
+}
+
+impl ListScope {
+    /// The scope of `entity`. Lists are organization data, so a caller with no organization is
+    /// refused.
+    pub fn of(entity: &AuthenticatedEntity) -> ApiResult<Self> {
+        Ok(Self {
+            site_ids: entity.site_ids(),
+            organization_id: entity
+                .organization_id()
+                .ok_or_else(ApiError::organization_required)?,
+            user_id: entity.user_id(),
+            permissions: entity.permissions(),
+        })
+    }
+}
 
 /// Trait for creating standard CRUD handlers for an entity
 #[async_trait]
@@ -56,6 +87,15 @@ where
         None
     }
 
+    /// Every row of this entity the caller may list, before any query narrows it: site-keyed
+    /// entities on the caller's sites, the sites themselves narrowed to those, everything else
+    /// across the caller's organization. An entity whose rows belong to a user, or are shown by
+    /// role, narrows further here, so the list, its CSV export and its filter options all hold
+    /// only those rows.
+    fn access_filter(scope: &ListScope) -> StorableFilter<Self> {
+        StorableFilter::new_for_access(&scope.site_ids, &scope.organization_id)
+    }
+
     /// The rows a list request narrows to, before pagination and ordering.
     ///
     /// Every reader of a list's query builds its filter here, so the CSV export returns the rows
@@ -65,14 +105,13 @@ where
     async fn list_filter(
         state: &AppState,
         query: &Self::FilterQuery,
-        site_ids: &[Uuid],
-        organization_id: Uuid,
+        scope: &ListScope,
     ) -> ApiResult<StorableFilter<Self>>
     where
         Self: 'static,
     {
         let _ = state;
-        Ok(base_list_filter::<Self>(site_ids, organization_id, query))
+        Ok(base_list_filter::<Self>(scope, query))
     }
 
     /// Get entity name for error messages (e.g., "Group", "Site")
@@ -154,16 +193,12 @@ where
 ///
 /// Shared by `get_all_handler` and `get_field_values_handler`, so the values offered for a field
 /// can never come from rows the list itself would not show.
-pub fn base_list_filter<T>(
-    site_ids: &[Uuid],
-    organization_id: Uuid,
-    query: &T::FilterQuery,
-) -> StorableFilter<T>
+pub fn base_list_filter<T>(scope: &ListScope, query: &T::FilterQuery) -> StorableFilter<T>
 where
     T: CrudHandlers + 'static + ChangeTriggersTopologyStaleness<T> + Default,
     EntityEnum: From<T>,
 {
-    let mut base_filter = StorableFilter::<T>::new_for_access(site_ids, &organization_id);
+    let mut base_filter = T::access_filter(scope);
 
     // SCD2 entities: hide closed historical copies from frontend-facing GETs.
     // When the query carries an `at` timestamp (snapshot view), read as-of that
@@ -173,7 +208,7 @@ where
     }
 
     // Apply entity-specific filters
-    query.apply_to_filter(base_filter, site_ids, organization_id)
+    query.apply_to_filter(base_filter, &scope.site_ids, scope.organization_id)
 }
 
 /// Every distinct value of one order field across the rows the caller can list, with how many
@@ -189,12 +224,8 @@ where
     T: CrudHandlers + 'static + ChangeTriggersTopologyStaleness<T> + Default,
     EntityEnum: From<T>,
 {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    let filter = field_values_filter::<T>(&site_ids, organization_id, &query, field);
+    let scope = ListScope::of(&auth.entity)?;
+    let filter = field_values_filter::<T>(&scope, &query, field);
 
     let counts = T::get_service(&state)
         .count_by_group(filter, field.to_sql())
@@ -206,8 +237,7 @@ where
 /// The filter `get_field_values_handler` counts under: the list's base filter plus the JOIN the
 /// field's expression reads from.
 pub fn field_values_filter<T>(
-    site_ids: &[Uuid],
-    organization_id: Uuid,
+    scope: &ListScope,
     query: &T::FilterQuery,
     field: T::OrderField,
 ) -> StorableFilter<T>
@@ -215,7 +245,7 @@ where
     T: CrudHandlers + 'static + ChangeTriggersTopologyStaleness<T> + Default,
     EntityEnum: From<T>,
 {
-    let filter = base_list_filter::<T>(site_ids, organization_id, query);
+    let filter = base_list_filter::<T>(scope, query);
     match field.join_sql() {
         Some(join) => filter.join(join),
         None => filter,
@@ -231,13 +261,10 @@ where
     T: CrudHandlers + 'static + ChangeTriggersTopologyStaleness<T> + Default,
     EntityEnum: From<T>,
 {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-    let user_id = auth.user_id();
+    let scope = ListScope::of(&auth.entity)?;
+    let user_id = scope.user_id;
 
-    let filter = T::list_filter(&state, &query, &site_ids, organization_id).await?;
+    let filter = T::list_filter(&state, &query, &scope).await?;
 
     // Apply pagination
     let pagination = query.pagination();

@@ -19,6 +19,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::server::discovery_warnings::r#impl::base::RangeEvidence;
+use crate::server::shared::handlers::tree::{TreePosition, tree_position};
 use crate::server::subnets::r#impl::base::{Subnet, SubnetCidrValue};
 
 impl SubnetCidrValue {
@@ -57,6 +58,13 @@ pub struct SubnetResponse {
     /// none does. Children are the subnets whose parent is this one.
     #[schema(read_only)]
     pub parent_subnet_id: Option<Uuid>,
+    /// How many ranges this one sits inside: 0 for a range nested in nothing.
+    #[schema(read_only)]
+    pub nesting_depth: u32,
+    /// The outermost range of the tree this one sits in: itself when it holds others and sits in
+    /// none. `null` for a range that nests with nothing.
+    #[schema(read_only, required)]
+    pub nesting_root_id: Option<Uuid>,
     /// For a range Scanopy assumed from what LLDP/CDP neighbours published, the far ends it was
     /// drawn around and the devices that saw them. `null` for every other range, and for an
     /// assumed one no scan created.
@@ -105,6 +113,26 @@ pub fn parents(subnets: &[Subnet]) -> HashMap<Uuid, Option<Uuid>> {
         .collect()
 }
 
+/// Where each of `ids` sits in its site's nesting tree, for a list grouped by range. A range that
+/// nests in nothing and holds nothing is in no tree.
+///
+/// `site_subnets` must hold every live subnet on the sites `ids` belong to.
+pub fn positions(ids: &[Uuid], site_subnets: &[Subnet]) -> HashMap<Uuid, TreePosition> {
+    let parent_of = parents(site_subnets);
+    let has_children: std::collections::HashSet<Uuid> =
+        parent_of.values().flatten().copied().collect();
+    ids.iter()
+        .filter_map(|id| {
+            tree_position(
+                *id,
+                |id| parent_of.get(&id).copied().flatten(),
+                has_children.contains(id),
+            )
+            .map(|position| (*id, position))
+        })
+        .collect()
+}
+
 /// The response for each of `targets`, derived against every subnet on their sites.
 ///
 /// `site_subnets` must hold every live subnet on the sites `targets` belong to (it may include
@@ -116,6 +144,8 @@ pub fn responses(
     own_used: &HashMap<Uuid, u64>,
 ) -> Vec<SubnetResponse> {
     let parent_of = parents(site_subnets);
+    let has_children: std::collections::HashSet<Uuid> =
+        parent_of.values().flatten().copied().collect();
 
     let mut used: HashMap<Uuid, u64> = HashMap::new();
     for subnet in site_subnets {
@@ -141,11 +171,18 @@ pub fn responses(
                 .unwrap_or_else(|| own_used.get(&subnet.id).copied().unwrap_or(0));
             let usable_addresses = subnet.base.cidr.value().usable_addresses();
             let parent_subnet_id = parent_of.get(&subnet.id).copied().flatten();
+            let position = tree_position(
+                subnet.id,
+                |id| parent_of.get(&id).copied().flatten(),
+                has_children.contains(&subnet.id),
+            );
             SubnetResponse {
                 subnet,
                 used_addresses,
                 usable_addresses,
                 parent_subnet_id,
+                nesting_depth: position.map_or(0, |p| p.depth),
+                nesting_root_id: position.map(|p| p.root_id),
                 range_evidence: None,
             }
         })

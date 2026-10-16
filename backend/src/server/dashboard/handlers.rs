@@ -117,14 +117,7 @@ async fn get_dashboard_summary(
         .map(|d| {
             let version_status = policy.evaluate(d.base.version.as_ref());
             let interfaced_subnet_ids = subnet_ids_map.get(&d.id).cloned().unwrap_or_default();
-            DaemonResponse {
-                id: d.id,
-                created_at: d.created_at,
-                updated_at: d.updated_at,
-                base: d.base,
-                version_status,
-                interfaced_subnet_ids,
-            }
+            DaemonResponse::new(d, version_status, interfaced_subnet_ids)
         })
         .collect();
 

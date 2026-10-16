@@ -3,6 +3,7 @@
 	import {
 		useTagsQuery,
 		useTagGroupsQuery,
+		useTagGroupsListQuery,
 		useCreateTagGroupMutation,
 		useUpdateTagGroupMutation,
 		useDeleteTagGroupMutation,
@@ -13,7 +14,8 @@
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import type { TagGroup } from '../types/base';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
-	import type { CardAction, FieldConfig } from '$lib/shared/components/data/types';
+	import type { CardAction } from '$lib/shared/components/data/types';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 	import { Trash2, Edit } from 'lucide-svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
@@ -62,7 +64,10 @@
 	);
 
 	const tagsQuery = useTagsQuery();
+	// Every group, for the tag chips' group labels and deep links; the table reads its own page.
 	const tagGroupsQuery = useTagGroupsQuery();
+	const page = listPageState();
+	const groupsPageQuery = useTagGroupsListQuery(() => page.params());
 	const createMutation = useCreateTagGroupMutation();
 	const updateMutation = useUpdateTagGroupMutation();
 	const deleteMutation = useDeleteTagGroupMutation();
@@ -71,7 +76,9 @@
 
 	let tags = $derived(tagsQuery.data ?? []);
 	let groups = $derived(tagGroupsQuery.data ?? []);
-	let isLoading = $derived(tagGroupsQuery.isLoading);
+	let pageGroups = $derived(groupsPageQuery.data?.items ?? []);
+	let groupsPagination = $derived(groupsPageQuery.data?.pagination ?? null);
+	let isLoading = $derived(groupsPageQuery.isPending && !groupsPageQuery.data);
 
 	let canManage = $derived(
 		!isReadOnly &&
@@ -134,7 +141,7 @@
 		}
 	}
 
-	let fields = $derived<FieldConfig<TagGroup>[]>(
+	let fields = $derived(
 		tagGroupColumns({
 			tags: () => tags,
 			groups: () => groups
@@ -156,12 +163,16 @@
 			title={tags_tagGroups()}
 			subtitle={tags_tagGroupsSubtitle()}
 			{toolbarActions}
-			items={groups}
+			items={pageGroups}
 			{fields}
 			allowBulkDelete={canManage}
 			storageKey="scanopy-tag-groups-table-state"
 			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}
+			serverPagination={groupsPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			getActions={actions}
 			entityLabel={tags_tagGroups()}
 		></DataControls>

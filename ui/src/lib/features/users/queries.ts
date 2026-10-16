@@ -6,7 +6,8 @@ import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-qu
 import { queryKeys } from '$lib/api/query-client';
 import { apiClient } from '$lib/api/client';
 import { requireSuccess, unwrapData } from '$lib/api/query-helpers';
-import type { User } from './types';
+import type { User, UserOrInvite } from './types';
+import { useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 
 /**
  * Query hook for fetching all users
@@ -95,6 +96,7 @@ export function useUpdateUserAsAdminMutation() {
 			);
 		},
 		onSuccess: (updatedUser: User) => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.members() });
 			queryClient.setQueryData<User[]>(
 				queryKeys.users.all,
 				(old) => old?.map((u) => (u.id === updatedUser.id ? updatedUser : u)) ?? []
@@ -119,6 +121,7 @@ export function useDeleteUserMutation() {
 			return id;
 		},
 		onSuccess: (id: string) => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.members() });
 			queryClient.setQueryData<User[]>(
 				queryKeys.users.all,
 				(old) => old?.filter((u) => u.id !== id) ?? []
@@ -139,10 +142,30 @@ export function useBulkDeleteUsersMutation() {
 			return ids;
 		},
 		onSuccess: (ids: string[]) => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.members() });
 			queryClient.setQueryData<User[]>(
 				queryKeys.users.all,
 				(old) => old?.filter((u) => !ids.includes(u.id)) ?? []
 			);
 		}
 	}));
+}
+
+/** Every user and pending invite the caller may see, for counts and filter options. */
+export function useMembersQuery() {
+	return createQuery(() => ({
+		queryKey: [...queryKeys.users.members(), 'all'],
+		queryFn: async () =>
+			unwrapData(await apiClient.GET('/api/v1/users/members', { params: { query: { limit: 0 } } }))
+	}));
+}
+
+/** One page of the members list: users and pending invites, paged on the server. */
+export function useMembersListQuery(params: () => ListPageParams) {
+	return useListPageQuery<UserOrInvite>(
+		queryKeys.users.members(),
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/users/members', { params: { query }, querySerializer }),
+		params
+	);
 }

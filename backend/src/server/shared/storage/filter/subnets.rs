@@ -2,10 +2,11 @@
 use super::*;
 
 use crate::server::shared::types::metadata::HasId;
-use crate::server::subnets::r#impl::{base::Subnet, types::SubnetType};
+use crate::server::subnets::r#impl::types::SubnetType;
 
-impl StorableFilter<Subnet> {
-    /// SQL form of [`Subnet::is_user_managed`] — the subnets that belong to the
+/// Generic over the row type so the shared query extractor can apply it; it reads subnet columns.
+impl<T: Storable> StorableFilter<T> {
+    /// SQL form of [`Subnet::is_user_managed`](crate::server::subnets::r#impl::base::Subnet::is_user_managed) — the subnets that belong to the
     /// inventory the user curates, which is what the management lists show and
     /// what the dashboard's subnet count counts.
     ///
@@ -13,7 +14,7 @@ impl StorableFilter<Subnet> {
     /// counted whatever category they gave it. Counting the fabricated rows while
     /// the lists omitted them is the discrepancy reported in GH #677.
     ///
-    /// This mirrors [`Subnet::is_user_managed`] — the two must be changed
+    /// This mirrors [`Subnet::is_user_managed`](crate::server::subnets::r#impl::base::Subnet::is_user_managed) — the two must be changed
     /// together, the same convention [`Self::stale_by_site`] follows with
     /// [`DiscoveryTracked::freshness`](crate::server::shared::storage::snapshot::DiscoveryTracked::freshness).
     /// The category list itself is not restated here: it is bound from

@@ -75,7 +75,8 @@ fn search_type<'a>(
         E::Invite => listed(&*s.invite_service, scope, query),
         E::Share => listed(&*s.share_service, scope, query),
         E::Site => listed(&*s.site_service, scope, query),
-        E::DaemonApiKey => listed(&*s.daemon_api_key_service, scope, query),
+        // Daemon keys are searched from their own list, not the palette.
+        E::DaemonApiKey => async { Ok(empty()) }.boxed(),
         E::UserApiKey => user_api_keys(s, scope, query).boxed(),
         E::User => users(s, scope, query).boxed(),
         E::Tag => listed(&*s.tag_service, scope, query),
@@ -201,14 +202,9 @@ async fn daemons(
             .items
             .into_iter()
             .map(|d| {
-                SearchHit::Daemon(DaemonResponse {
-                    id: d.id,
-                    created_at: d.created_at,
-                    updated_at: d.updated_at,
-                    version_status: policy.evaluate(d.base.version.as_ref()),
-                    interfaced_subnet_ids: subnet_ids.get(&d.id).cloned().unwrap_or_default(),
-                    base: d.base,
-                })
+                let version_status = policy.evaluate(d.base.version.as_ref());
+                let interfaced = subnet_ids.get(&d.id).cloned().unwrap_or_default();
+                SearchHit::Daemon(DaemonResponse::new(d, version_status, interfaced))
             })
             .collect(),
         total_count: found.total_count,

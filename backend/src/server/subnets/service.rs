@@ -1,5 +1,6 @@
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event};
+use crate::server::shared::handlers::tree::TreePosition;
 use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
@@ -29,6 +30,7 @@ use anyhow::{Error, Result};
 use async_trait::async_trait;
 use chrono::Utc;
 use cidr::IpCidr;
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -113,6 +115,26 @@ impl SubnetService {
                     "Could not report a corrected subnet range"
                 );
             });
+    }
+
+    /// Where each of `ids` sits in its site's nesting tree, against every live subnet on the
+    /// sites they belong to.
+    pub async fn tree_positions_of(&self, ids: &[Uuid]) -> Result<HashMap<Uuid, TreePosition>> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let listed = self
+            .storage
+            .get_all(StorableFilter::<Subnet>::new_from_entity_ids(ids))
+            .await?;
+        let mut site_ids: Vec<Uuid> = listed.iter().map(|s| s.base.site_id).collect();
+        site_ids.sort();
+        site_ids.dedup();
+        let site_subnets = self
+            .storage
+            .get_all(StorableFilter::<Subnet>::new_from_site_ids(&site_ids).live())
+            .await?;
+        Ok(nesting::positions(ids, &site_subnets))
     }
 
     /// `subnets` with their nesting and utilization, live or as of `at`.

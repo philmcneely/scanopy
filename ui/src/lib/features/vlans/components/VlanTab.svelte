@@ -9,7 +9,9 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { isUserManagedSubnet, useSubnetsQuery } from '$lib/features/subnets/queries';
-	import { useUpdateVlanMutation, useVlansQuery } from '../queries';
+	import { useUpdateVlanMutation, useVlansListQuery } from '../queries';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import { useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import VlanEditModal from './VlanEditModal.svelte';
 	import { Edit } from 'lucide-svelte';
 	import type { CardAction } from '$lib/shared/components/data/types';
@@ -35,6 +37,8 @@
 
 	let { isReadOnly = false }: TabProps = $props();
 
+	const VLAN_FIELD_VALUES = '/api/v1/vlans/field-values/{field}';
+
 	let showVlanEditor = $state(false);
 	let editingVlan: Vlan | null = $state(null);
 
@@ -58,20 +62,28 @@
 	let onboarding = $derived((organizationQuery.data?.onboarding ?? []) as OnboardingOperation[]);
 
 	// Queries
-	const vlansQuery = useVlansQuery();
+	// One page of VLANs, paged, filtered and ordered on the server.
+	const page = listPageState();
+	const vlansQuery = useVlansListQuery(() => page.params());
+	// Filter options: the values the caller's VLANs hold, counted by the server.
+	const siteValuesQuery = useFieldValuesQuery(VLAN_FIELD_VALUES, 'site_id');
+	const sourceValuesQuery = useFieldValuesQuery(VLAN_FIELD_VALUES, 'source');
 	const sitesQuery = useSitesQuery();
 	// Shared full-list subnets cache — used to resolve the hydrated `subnet_ids`
 	// on each VLAN into names.
 	const subnetsQuery = useSubnetsQuery();
 	const tagsQuery = useTagsQuery();
-	const discoveryRunsQuery = useDiscoveriesByIds(() => discoveryRunIds(vlansQuery.data ?? []));
+	const discoveryRunsQuery = useDiscoveriesByIds(() =>
+		discoveryRunIds(vlansQuery.data?.items ?? [])
+	);
 	// The interfaces serving each VLAN, named by the hydrated `interface_ids`.
 	const interfacesQuery = useInterfacesByIds(() => [
-		...new Set((vlansQuery.data ?? []).flatMap((vlan) => vlan.interface_ids ?? []))
+		...new Set((vlansQuery.data?.items ?? []).flatMap((vlan) => vlan.interface_ids ?? []))
 	]);
 
 	// Derived data
-	let vlansData = $derived(vlansQuery.data ?? []);
+	let vlansData = $derived(vlansQuery.data?.items ?? []);
+	let vlansPagination = $derived(vlansQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let discoveryRunsData = $derived(discoveryRunsQuery.data ?? []);
 	let interfacesData = $derived(interfacesQuery.data ?? []);
@@ -79,7 +91,7 @@
 	let subnetsById = $derived(
 		new Map((subnetsQuery.data ?? []).filter(isUserManagedSubnet).map((s) => [s.id, s]))
 	);
-	let isLoading = $derived(vlansQuery.isPending);
+	let isLoading = $derived(vlansQuery.isPending && !vlansQuery.data);
 
 	const updateVlanMutation = useUpdateVlanMutation();
 
@@ -114,7 +126,7 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('Vlan', {});
+		await downloadCsv('Vlan', page.listQuery);
 	}
 
 	const tableDefaults: TableDefaults<VlanOrderField> = {
@@ -135,8 +147,11 @@
 		vlanColumns({
 			lookup: () => lookup,
 			sites: () => sitesData,
+			subnets: () => [...subnetsById.values()],
 			tags: () => tagsData,
-			discoveryRuns: () => discoveryRunsData
+			discoveryRuns: () => discoveryRunsData,
+			siteValues: () => siteValuesQuery.data,
+			sourceValues: () => sourceValuesQuery.data
 		})
 	);
 </script>
@@ -149,7 +164,7 @@
 	{:else if isLoading}
 		<!-- Loading state -->
 		<Loading />
-	{:else if vlansData.length === 0}
+	{:else if vlansData.length === 0 && !page.isNarrowed}
 		<!-- Empty state: no CTA, there is nothing to create -->
 		<EmptyState
 			title={common_noEntityYet({ entity: common_vlans() })}
@@ -166,6 +181,10 @@
 			canEditTags={!isReadOnly}
 			getItemTags={getVlanTags}
 			getItemId={(item) => item.id}
+			serverPagination={vlansPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			onCsvExport={handleCsvExport}
 			getActions={vlanActions}
 			entityLabel={common_vlans()}

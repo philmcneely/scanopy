@@ -377,3 +377,38 @@ async fn a_type_pages_past_its_first_page_without_overlap() {
         "together the pages return every match"
     );
 }
+
+/// Daemon API keys are searched from their own list only: the palette never offers one, even
+/// when its name matches.
+#[tokio::test]
+async fn daemon_api_keys_are_not_offered() {
+    use crate::server::daemon_api_keys::r#impl::base::{DaemonApiKey, DaemonApiKeyBase};
+
+    let (storage, services, _container) = test_services().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let net = site(&org.id);
+    storage.sites.create(&net).await.unwrap();
+    let member = user(&org.id);
+    storage.users.create(&member).await.unwrap();
+    storage
+        .daemon_api_keys
+        .create(&DaemonApiKey::new(DaemonApiKeyBase {
+            name: "lisbon daemon".to_string(),
+            site_id: net.id,
+            key: Uuid::new_v4().to_string(),
+            ..Default::default()
+        }))
+        .await
+        .unwrap();
+
+    let found = global_search(
+        &services,
+        &scope(org.id, vec![net.id], member.id, UserOrgPermissions::Admin),
+        &query("lisbon", vec![]),
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(ids_of(&found, EntityDiscriminants::DaemonApiKey).is_empty());
+}

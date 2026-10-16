@@ -7,6 +7,7 @@ import { queryKeys } from '$lib/api/query-client';
 import { apiClient } from '$lib/api/client';
 import { requireSuccess, unwrapData } from '$lib/api/query-helpers';
 import type { Subnet, SubnetResponse } from './types/base';
+import { useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 
 /**
  * Query hook for fetching all subnets
@@ -19,23 +20,54 @@ import type { Subnet, SubnetResponse } from './types/base';
  */
 export function useSubnetsQuery(
 	atGetter?: () => string | undefined,
-	staleGetter?: () => boolean | undefined,
 	enabledGetter?: () => boolean
 ) {
 	return createQuery(() => {
 		const at = atGetter?.();
-		const stale = staleGetter?.();
-		const baseKey = at ? [...queryKeys.subnets.all, 'asOf', at] : queryKeys.subnets.all;
 		return {
-			queryKey: stale === undefined ? baseKey : [...baseKey, 'stale', stale],
+			queryKey: at ? [...queryKeys.subnets.all, 'asOf', at] : queryKeys.subnets.all,
 			enabled: enabledGetter?.() ?? true,
 			queryFn: async () => {
 				return unwrapData(
 					await apiClient.GET('/api/v1/subnets', {
-						params: { query: { limit: 0, at, stale } }
+						params: { query: { limit: 0, at } }
 					})
 				);
 			}
+		};
+	});
+}
+
+/**
+ * One page of the subnets list, paged, filtered, ordered and nested on the server.
+ * `user_managed: true` replaces the browser-side `isUserManagedSubnet` filter, which needed every
+ * subnet loaded.
+ */
+export function useSubnetsListQuery(params: () => ListPageParams) {
+	return useListPageQuery<SubnetResponse>(
+		queryKeys.subnets.all,
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/subnets', {
+				params: { query: { ...query, user_managed: true } },
+				querySerializer
+			}),
+		params
+	);
+}
+
+/** The subnets with these ids, such as the ranges heading a nesting group that sit on another page. */
+export function useSubnetsByIds(idsGetter: () => string[]) {
+	return createQuery(() => {
+		const ids = idsGetter();
+		return {
+			queryKey: [...queryKeys.subnets.all, 'byIds', ids],
+			queryFn: async (): Promise<SubnetResponse[]> => {
+				if (ids.length === 0) return [];
+				return unwrapData(
+					await apiClient.GET('/api/v1/subnets', { params: { query: { ids, limit: 0 } } })
+				);
+			},
+			enabled: ids.length > 0
 		};
 	});
 }

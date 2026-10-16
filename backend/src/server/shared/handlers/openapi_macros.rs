@@ -321,6 +321,47 @@ macro_rules! crud_get_all_handler {
     };
 }
 
+/// Generates an OpenAPI-annotated list handler that delegates to `list_page::<T>`: one page of
+/// the entity's list, ordered, grouped and counted on the server. The route, tag and operation id
+/// are those `crud_get_all_handler!` gives, so moving an entity onto it keeps its API.
+#[macro_export]
+macro_rules! crud_list_page_handler {
+    ($entity:ty) => {
+        type __ListFilterQuery = <$entity as $crate::server::shared::handlers::traits::CrudHandlers>::FilterQuery;
+        type __ListPageResponse = $crate::server::shared::types::api::PaginatedApiResponse<
+            <$entity as $crate::server::shared::handlers::list::PaginatedList>::Item,
+        >;
+        const __LIST_TAG: &str = <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL;
+        const __LIST_OP_ID: &str = const_format::concatcp!("list_", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
+        const __LIST_SUMMARY: &str = const_format::concatcp!("List all ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
+        const __LIST_RESP_DESC: &str = const_format::concatcp!("List of ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
+
+        #[utoipa::path(
+            get,
+            path = "",
+            tag = __LIST_TAG,
+            operation_id = __LIST_OP_ID,
+            summary = __LIST_SUMMARY,
+            params(__ListFilterQuery),
+            responses(
+                (status = 200, description = __LIST_RESP_DESC, body = inline(__ListPageResponse)),
+            ),
+            security(("user_api_key" = []), ("session" = []))
+        )]
+        pub async fn get_all(
+            axum::extract::State(state): axum::extract::State<std::sync::Arc<$crate::server::config::AppState>>,
+            auth: $crate::server::auth::middleware::permissions::Authorized<$crate::server::auth::middleware::permissions::Viewer>,
+            $crate::server::shared::extractors::Query(query): $crate::server::shared::extractors::Query<__ListFilterQuery>,
+        ) -> $crate::server::shared::types::api::ApiResult<axum::response::Json<__ListPageResponse>> {
+            let scope = $crate::server::shared::handlers::traits::ListScope::of(&auth.entity)?;
+            Ok(axum::response::Json(
+                $crate::server::shared::handlers::list::list_page::<$entity>(&state, &scope, &query)
+                    .await?,
+            ))
+        }
+    };
+}
+
 /// Generates an OpenAPI-annotated field-values handler that delegates to
 /// `get_field_values_handler::<T>`: every distinct value of one of the entity's order fields,
 /// with its row count, under the same filters the list takes.

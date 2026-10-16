@@ -1,15 +1,17 @@
 import { lastSeenItems } from '$lib/shared/utils/freshness';
 import { defineRegistryFields } from '$lib/shared/entity-fields/table';
 import type { EntityLookup } from '$lib/shared/entity-fields';
-import { siteItems } from '$lib/features/sites/columns';
 import { entitySources } from '$lib/shared/stores/metadata';
 import { entitySourceItems } from '$lib/shared/utils/entity-source';
 import { tagNames } from '$lib/features/tags/columns';
 import { discoveryRunItems } from '$lib/features/discovery/columns';
 import type { Site } from '$lib/features/sites/types';
+import type { Subnet } from '$lib/features/subnets/types/base';
 import type { Tag } from '$lib/features/tags/types/base';
 import type { Discovery } from '$lib/features/discovery/types/base';
 import type { Vlan, VlanOrderField } from '../types/base';
+import type { operations } from '$lib/api/schema';
+import { fieldValueOptions, type FieldValueCount } from '$lib/shared/api/field-values';
 import {
 	common_created,
 	common_firstFoundBy,
@@ -27,16 +29,23 @@ import {
 export interface VlanColumnsContext {
 	lookup: () => EntityLookup;
 	sites: () => Site[];
+	/** Every subnet a VLAN can be filtered by. */
+	subnets: () => Subnet[];
 	tags: () => Tag[];
 	discoveryRuns: () => Discovery[];
+	siteValues: () => FieldValueCount[] | undefined;
+	sourceValues: () => FieldValueCount[] | undefined;
 }
 
+/** The VLAN list endpoint's query params, which the filters are sent and linked as. */
+type VlanListParam = keyof NonNullable<operations['get_all_vlans']['parameters']['query']>;
+
 /**
- * Columns from the entity field registry; this adds how each one searches, filters and sorts.
- * Every VlanOrderField value must be listed.
+ * Columns from the entity field registry; this adds how each one searches, filters, sorts and
+ * groups. Every VlanOrderField value must be listed.
  */
 export function vlanColumns(ctx: VlanColumnsContext) {
-	return defineRegistryFields<Vlan, VlanOrderField>(
+	return defineRegistryFields<Vlan, VlanOrderField, VlanListParam>(
 		'Vlan',
 		ctx.lookup,
 		{
@@ -51,53 +60,59 @@ export function vlanColumns(ctx: VlanColumnsContext) {
 				groupable: false,
 				display: { primary: true, width: 220 }
 			},
-			created_at: { label: common_created(), type: 'date', display: { hiddenByDefault: true } },
-			updated_at: { label: common_updated(), type: 'date', display: { hiddenByDefault: true } }
-		},
-		[
-			{ key: 'description', searchable: true },
-			{
-				key: 'source',
+			site_id: {
+				label: common_site(),
+				type: 'string',
+				filterable: true,
+				serverFiltered: true,
+				queryParam: 'site_ids',
+				// The sites some VLAN is on.
+				filterOptions: fieldValueOptions(ctx.siteValues()),
+				filterLabel: (id) => ctx.sites().find((n) => n.id === id)?.name ?? common_unknownSite(),
+				// Displayed as a name, but grouped by id on the server.
+				getGroupValue: (item) => item.site_id,
+				getValue: (item) =>
+					ctx.sites().find((n) => n.id == item.site_id)?.name || common_unknownSite()
+			},
+			source: {
 				label: common_source(),
 				type: 'string',
 				filterable: true,
-				groupable: true,
-				sortable: true,
-				// Every source the backend can stamp.
-				filterOptions: entitySources.getItems().map((source) => source.id),
+				serverFiltered: true,
+				queryParam: 'sources',
+				// The sources some VLAN was stamped with.
+				filterOptions: fieldValueOptions(ctx.sourceValues()),
 				filterLabel: (id) => entitySources.getName(id),
-				getFilterValue: (vlan) => vlan.source?.type ?? null,
+				// The server groups on the raw `source.type`.
+				getGroupValue: (vlan) => vlan.source?.type ?? null,
 				getValue: (vlan) => (vlan.source ? entitySources.getName(vlan.source.type) : null),
 				display: {
 					hiddenByDefault: true,
 					getItems: (vlan) => (vlan.source ? entitySourceItems(vlan.source) : [])
 				}
 			},
-			{
-				key: 'site_id',
-				label: common_site(),
-				type: 'string',
-				searchable: true,
-				filterable: true,
-				queryParam: 'site_id',
-				getFilterValue: (item) => item.site_id,
-				filterLabel: (id) => ctx.sites().find((n) => n.id === id)?.name ?? common_unknownSite(),
-				groupable: true,
-				sortable: true,
-				getValue: (item) =>
-					ctx.sites().find((n) => n.id == item.site_id)?.name || common_unknownSite(),
-				display: { getItems: (item) => siteItems(item.site_id, ctx.sites()) }
-			},
-			{ key: 'subnet_ids', searchable: true, filterable: true },
-			{ key: 'interface_ids', searchable: true, filterable: true },
-			{
-				// Not in VlanOrderField, so display-only with client-side sorting.
-				key: 'last_seen_at',
+			last_seen_at: {
 				label: common_lastSeen(),
 				type: 'date',
-				sortable: true,
+				// Identity-like: one header per timestamp.
+				groupable: false,
 				display: { recency: true, getItems: lastSeenItems(ctx.sites, 'Vlan') }
 			},
+			created_at: { label: common_created(), type: 'date', display: { hiddenByDefault: true } },
+			updated_at: { label: common_updated(), type: 'date', display: { hiddenByDefault: true } }
+		},
+		[
+			{ key: 'description', searchable: true },
+			{
+				key: 'subnet_ids',
+				filterable: true,
+				serverFiltered: true,
+				queryParam: 'subnet_ids',
+				filterOptions: ctx.subnets().map((subnet) => subnet.id)
+			},
+			// Not filterable: a VLAN is served by many interfaces, and the options would be every
+			// interface in the organization.
+			{ key: 'interface_ids' },
 			{
 				key: 'first_found_by',
 				label: common_firstFoundBy(),

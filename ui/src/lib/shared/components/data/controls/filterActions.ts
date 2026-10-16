@@ -19,17 +19,14 @@ export interface FilterActionsContext<T> {
 	readonly fields: FieldConfig<T>[];
 	filterState: FilterState;
 	staleOnly: boolean;
-	/** The server applies `serverFiltered` fields. */
-	readonly serverFields: boolean;
 }
 
 export type FilterActions = ReturnType<typeof createFilterActions>;
 
 /** Every way a user changes a filter, shared by the table's column headers so they edit one selection. */
 export function createFilterActions<T>(ctx: FilterActionsContext<T>) {
-	/** Whether the server, not the client pass, acts on this field's filter. */
+	/** Whether the field is a `serverFiltered` one rather than the tags filter. */
 	function isServerFiltered(fieldKey: string): boolean {
-		if (!ctx.serverFields) return false;
 		return ctx.fields.find((f) => getFieldKey(f) === fieldKey)?.serverFiltered === true;
 	}
 

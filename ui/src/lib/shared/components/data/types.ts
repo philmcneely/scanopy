@@ -182,18 +182,16 @@ export interface DisplayConfig<T> {
  * its children, which sit one level in beneath it, as deep as the tree goes. See
  * `buildTreeSections`.
  *
- * - On a list holding every row, the nesting comes from `parentKey` (siblings by the field's
- *   `compare`, else in the current sort). A row whose parent is filtered out starts at the top.
- * - On a server-paginated list a parent can sit on another page, so it can't be derived here.
- *   The server must return each group's rows parent-first, and `depth` is required.
+ * A parent can sit on another page, so nesting can't be derived from the loaded rows: the server
+ * returns each group's rows parent-first, with each row's `depth`.
  */
 export interface TreeConfig<T> {
 	/** The row's identity, as `parentKey` refers to it. */
 	key: (item: T) => string;
-	/** The identity of the row this one nests under, or `null` for a top-level row. */
+	/** The identity of the row this one nests under, or `null` for a row nested in nothing. */
 	parentKey: (item: T) => string | null;
-	/** The row's depth as the server computed it. Required on a server-paginated list. */
-	depth?: (item: T) => number;
+	/** The row's depth as the server computed it. */
+	depth: (item: T) => number;
 	/**
 	 * The header of the one group that collects every tree under a real root ("Virtualized",
 	 * "Nested"), set apart from the rows outside any tree. Each root row inside it carries its own
@@ -234,10 +232,8 @@ export interface BaseFieldConfig<T, Q extends string = string> {
 	/** 'include' (default): checked values shown. 'exclude': checked values hidden. */
 	filterMode?: 'include' | 'exclude';
 	/**
-	 * The server applies this filter, through the query `onQueryChange` hands the parent, so the
-	 * client-side pass leaves it alone. Required for any filter on a server-paginated list:
-	 * filtering the loaded rows would only ever narrow the page in hand, silently hiding matches on
-	 * every other page.
+	 * The server applies this filter, through the query `onQueryChange` hands the parent. Required
+	 * for any filter: the list holds one page, so a filter the server ignores would narrow nothing.
 	 */
 	serverFiltered?: boolean;
 	/**
@@ -260,13 +256,13 @@ export interface BaseFieldConfig<T, Q extends string = string> {
 	 * one, "not virtualized" as a flag in another. Absent, the values go in `queryParam`, repeated.
 	 */
 	filterCodec?: FilterCodec;
-	/** The values a filter offers, when they can't be read off the loaded items (server pagination). */
+	/** The values a filter offers, when they can't be read off the loaded page. */
 	filterOptions?: string[];
 	/**
 	 * The raw value the server groups this item under, when it differs from
 	 * what `getValue` renders (e.g. `site_id` is a UUID in the database but
-	 * a site name in the UI). Only needed on groupable fields of
-	 * server-paginated lists: it's the key that matches a group to its total in
+	 * a site name in the UI). Only needed on groupable
+	 * fields: it's the key that matches a group to its total in
 	 * the response's `group_counts`. Defaults to the displayed value.
 	 */
 	getGroupValue?: (item: T) => string | null;
@@ -278,12 +274,6 @@ export interface BaseFieldConfig<T, Q extends string = string> {
 	getGroupLabel?: (item: T) => string | null;
 	/** Default checked values for the filter (applied on first load if no localStorage state). */
 	filterDefaults?: string[];
-	/**
-	 * Orders two items for a client-side sort on this field, ascending, in place of comparing
-	 * `getValue` as text. For values whose text order is wrong, like a CIDR, where "10.0.16.0/20"
-	 * would otherwise land before "10.0.2.0/24".
-	 */
-	compare?: (a: T, b: T) => number;
 	/**
 	 * Grouping by this field draws each group as nested tree sections. See {@link TreeConfig}.
 	 */
@@ -314,16 +304,10 @@ export interface OrderableFieldConfig<
 }
 
 /**
- * Display-only field (no server-side ordering).
- * Used for fields that are shown in the UI but can't be sorted/grouped on the backend.
- * Can opt-in to client-side sorting/grouping via `sortable` and `groupable` flags.
+ * Display-only field (no server-side ordering): shown and filtered, never sorted or grouped.
  */
 export interface DisplayFieldConfig<T, Q extends string = string> extends BaseFieldConfig<T, Q> {
 	key: string;
-	/** Whether this field can be used for client-side sorting. */
-	sortable?: boolean;
-	/** Whether this field can be used for client-side grouping. */
-	groupable?: boolean;
 }
 
 /**

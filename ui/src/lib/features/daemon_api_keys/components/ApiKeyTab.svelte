@@ -3,7 +3,6 @@
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
-	import type { FieldConfig } from '$lib/shared/components/data/types';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
 	import { apiKeyColumns } from './ApiKeyTab.columns';
@@ -12,6 +11,7 @@
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import {
 		useApiKeysQuery,
+		useUnboundApiKeysListQuery,
 		useUpdateApiKeyMutation,
 		useDeleteApiKeyMutation,
 		useBulkDeleteApiKeysMutation
@@ -20,6 +20,11 @@
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import type { TabProps } from '$lib/shared/types';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import { useFieldValuesQuery } from '$lib/shared/api/field-values';
+	import type { components } from '$lib/api/schema';
+
+	type DaemonApiKeyOrderField = components['schemas']['DaemonApiKeyOrderField'];
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
 	import {
 		common_edit,
@@ -35,7 +40,19 @@
 
 	// Queries
 	const tagsQuery = useTagsQuery();
+	// Every key, bound or not: a deep link can name a key bound to a daemon.
 	const apiKeysQuery = useApiKeysQuery();
+	// The page the table shows: keys no daemon is bound to, paged on the server. A key bound 1:1 to
+	// a daemon is managed from the daemon record, not this tab.
+	const page = listPageState();
+	const keysPageQuery = useUnboundApiKeysListQuery(() => page.params());
+	const siteValuesQuery = useFieldValuesQuery(
+		'/api/v1/auth/daemon/field-values/{field}',
+		'site_id',
+		() => ({
+			unbound: true
+		})
+	);
 	const sitesQuery = useSitesQuery();
 	// Daemons query — also used to determine which API keys are in use
 	const daemonsQuery = useDaemonsQuery();
@@ -45,12 +62,11 @@
 	const deleteApiKeyMutation = useDeleteApiKeyMutation();
 	const bulkDeleteApiKeysMutation = useBulkDeleteApiKeysMutation();
 
-	// Derived data. Only legacy keys are shown here — a key bound 1:1 to a daemon
-	// (daemon_id set) is managed from the daemon record, not this tab.
 	let tagsData = $derived(tagsQuery.data ?? []);
-	let apiKeysData = $derived((apiKeysQuery.data ?? []).filter((k) => k.daemon_id == null));
+	let apiKeysData = $derived(keysPageQuery.data?.items ?? []);
+	let apiKeysPagination = $derived(keysPageQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
-	let isLoading = $derived(apiKeysQuery.isPending);
+	let isLoading = $derived(keysPageQuery.isPending && !keysPageQuery.data);
 	let apiKeyIdsInUse = $derived(
 		new Set(
 			(daemonsQuery.data ?? []).map((d) => d.api_key_id).filter((id): id is string => id != null)
@@ -112,7 +128,9 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('DaemonApiKey', {});
+		const params = new URLSearchParams(page.listQuery);
+		params.set('unbound', 'true');
+		await downloadCsv('DaemonApiKey', params);
 	}
 
 	/** Row actions. */
@@ -132,12 +150,17 @@
 		];
 	}
 
-	const tableDefaults: TableDefaults<string> = { sort: { field: 'name', direction: 'asc' } };
+	const tableDefaults: TableDefaults<DaemonApiKeyOrderField> = {
+		sort: { field: 'name', direction: 'asc' }
+	};
 
-	const apiKeyFields: FieldConfig<ApiKey>[] = apiKeyColumns({
-		sites: () => sitesData,
-		tags: () => tagsData
-	});
+	let apiKeyFields = $derived(
+		apiKeyColumns({
+			sites: () => sitesData,
+			tags: () => tagsData,
+			siteValues: () => siteValuesQuery.data
+		})
+	);
 </script>
 
 <div class="space-y-6">
@@ -151,7 +174,7 @@
 	<!-- Loading state -->
 	{#if isLoading}
 		<Loading />
-	{:else if apiKeysData.length === 0}
+	{:else if apiKeysData.length === 0 && !page.isNarrowed}
 		<!-- Empty state -->
 		<EmptyState
 			title={common_noEntityYet({ entity: daemonApiKeys_title() })}
@@ -169,6 +192,10 @@
 			storageKey="scanopy-api-keys-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}
+			serverPagination={apiKeysPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			getActions={apiKeyActions}
 			onCsvExport={handleCsvExport}
 		></DataControls>

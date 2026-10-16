@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'svelte/compiler';
 import type { components } from '$lib/api/schema';
 import { getFieldKey, type FieldConfig } from '$lib/shared/components/data/types';
-import { CLIENT_QUERY, type ServerQuery } from '$lib/shared/components/data/controls/listQuery';
+import type { ServerQuery } from '$lib/shared/components/data/controls/listQuery';
 
 /**
  * What the entity-tab tests share: the committed OpenAPI spec, the tabs that render
@@ -157,6 +157,7 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				is_unreachable: 'status',
 				standby: 'status',
 				version_status: 'status',
+				health: 'status',
 				id: ID,
 				// Decided with Maya, 2026-10-04.
 				api_key_id: excluded("The daemon's key is not a meaningful entity of its own to users"),
@@ -559,16 +560,12 @@ export function dataControlsProps(tab: string): Set<string> {
 }
 
 /**
- * What the server applies from the query a tab's list sends: every part when it passes
- * `onQueryChange`, less those its `serverQuery` literal turns off. The same rule `DataControls`
- * applies, read from the template.
+ * What the server applies from the query a tab's list sends: every part, less those its
+ * `serverQuery` literal turns off. The same rule `DataControls` applies, read from the template.
  */
 export function dataControlsServerQuery(tab: string): ServerQuery {
 	const attributes = dataControlsAttributes(tab);
-	if (!attributes.some((attribute: SchemaNode) => attribute.name === 'onQueryChange')) {
-		return CLIENT_QUERY;
-	}
-	const server: ServerQuery = { search: true, tags: true, stale: true, order: true, fields: true };
+	const server: ServerQuery = { tags: true, stale: true };
 	const literal = attributes.find((attribute: SchemaNode) => attribute.name === 'serverQuery')
 		?.value?.expression;
 	for (const property of literal?.properties ?? []) {
