@@ -57,6 +57,17 @@ describe('assignActionKeys with a preferred shortcut', () => {
 			])
 		).toEqual(['N', 'O', DELETE_KEY]);
 	});
+
+	it('gives both states of one control their shared key', () => {
+		expect(
+			keys([
+				action('Disable', { shortcut: 'O' }),
+				action('Enable', { shortcut: 'O' }),
+				action('Edit'),
+				action('Run')
+			])
+		).toEqual(['O', 'O', 'E', 'R']);
+	});
 });
 
 describe('selectionActions', () => {
