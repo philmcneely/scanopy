@@ -70,6 +70,9 @@
 	// One page of the subnets the user curates, paged, filtered, ordered and nested on the server.
 	const page = listPageState();
 	const subnetsQuery = useSubnetsListQuery(() => page.params());
+	// Declared before the by-id queries below: TanStack reads their options as each query is
+	// created, so a later declaration throws "Cannot access 'subnetsData' before initialization".
+	let subnetsData = $derived(subnetsQuery.data?.items ?? []);
 	// Filter options: the values the listed subnets hold, counted by the server.
 	const siteValuesQuery = useFieldValuesQuery(SUBNET_FIELD_VALUES, 'site_id', listedOnly);
 	const typeValuesQuery = useFieldValuesQuery(SUBNET_FIELD_VALUES, 'subnet_type', listedOnly);
@@ -109,7 +112,6 @@
 
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
-	let subnetsData = $derived(subnetsQuery.data?.items ?? []);
 	let subnetsPagination = $derived(subnetsQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let runtimesData = $derived(runtimesQuery.data ?? []);

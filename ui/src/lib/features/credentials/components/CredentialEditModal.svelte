@@ -68,6 +68,9 @@
 		initialSiteIds?: string[];
 	} = $props();
 
+	// Declared before the queries below, whose options TanStack reads as each query is created.
+	let isEditing = $derived(credential !== null);
+
 	// The transports a pre-filled create flow offers: those that can apply where it comes assigned,
 	// falling back to all of the integration's when none can.
 	let typeChoices = $derived.by(() => {
@@ -108,7 +111,6 @@
 	const daemonsQuery = useDaemonsQuery();
 	let daemonHostIds = $derived(daemonsQuery.data?.map((d) => d.host_id));
 
-	let isEditing = $derived(credential !== null);
 	let title = $derived(
 		isEditing ? common_editName({ name: credential?.name ?? '' }) : credentials_createCredential()
 	);
