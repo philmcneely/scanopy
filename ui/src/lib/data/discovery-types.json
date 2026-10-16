@@ -35,7 +35,7 @@
   {
     "id": "Rescan",
     "name": "Rescan",
-    "description": "Re-check a single host's known addresses and ports",
+    "description": "Re-check known hosts' addresses and ports",
     "category": null,
     "icon": "radar",
     "color": "Green",
