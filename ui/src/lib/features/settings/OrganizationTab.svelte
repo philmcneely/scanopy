@@ -27,7 +27,6 @@
 	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import {
 		common_back,
-		common_close,
 		common_created,
 		common_edit,
 		common_id,
@@ -71,16 +70,9 @@
 	} from '$lib/paraglide/messages';
 
 	let {
-		subView = $bindable<'main' | 'edit'>('main'),
-		onClose,
-		dismissible = true
+		subView = $bindable<'main' | 'edit'>('main')
 	}: {
 		subView?: 'main' | 'edit';
-		onClose: () => void;
-		/** When false (Settings is held open by a billing lock), the main-view
-		 * Close button is hidden so the lock can't be escaped from this tab. The
-		 * edit sub-view keeps its Back/Save footer. */
-		dismissible?: boolean;
 	} = $props();
 
 	// TanStack Query for current user
@@ -142,14 +134,10 @@
 		}
 	}
 
-	function handleCancel() {
-		if (subView === 'edit') {
-			subView = 'main';
-			if (org) {
-				form.setFieldValue('name', org.name);
-			}
-		} else {
-			onClose();
+	function handleBack() {
+		subView = 'main';
+		if (org) {
+			form.setFieldValue('name', org.name);
 		}
 	}
 
@@ -223,29 +211,17 @@
 		}
 	}
 
-	let showSave = $derived(subView === 'edit');
-	let cancelLabel = $derived(subView === 'main' ? common_close() : common_back());
-
-	// Hidden on the main view when the modal is hard-gated (dismissible=false), since the only
-	// button there is Close, which would let the user escape the gate. Edit keeps Back/Save.
+	// Only the edit view has a footer; the main view closes from the header.
 	let actions = $derived<ModalAction[]>(
-		dismissible || subView !== 'main'
+		subView === 'edit'
 			? [
+					{ role: 'secondary', label: common_back(), onClick: handleBack },
 					{
-						role: subView === 'main' ? 'cancel' : 'secondary',
-						label: cancelLabel,
-						onClick: handleCancel
-					},
-					...(showSave
-						? [
-								{
-									role: 'primary' as const,
-									label: saving ? common_saving() : common_saveChanges(),
-									onClick: () => form.handleSubmit(),
-									disabled: saving
-								}
-							]
-						: [])
+						role: 'primary',
+						label: saving ? common_saving() : common_saveChanges(),
+						onClick: () => form.handleSubmit(),
+						disabled: saving
+					}
 				]
 			: []
 	);

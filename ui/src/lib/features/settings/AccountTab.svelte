@@ -24,7 +24,6 @@
 	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import {
 		common_back,
-		common_close,
 		common_currentPassword,
 		common_email,
 		common_emailAndPassword,
@@ -60,14 +59,10 @@
 
 	let {
 		subView = $bindable<'main' | 'credentials' | 'email-change' | 'cookies'>('main'),
-		onClose,
-		dismissible = true
+		onClose
 	}: {
 		subView?: 'main' | 'credentials' | 'email-change' | 'cookies';
 		onClose: () => void;
-		/** When false (Settings is held open by a billing lock), the main-view Close button is hidden so
-		 * the gate can't be escaped from this tab. Sub-view Back/Save stay. */
-		dismissible?: boolean;
 	} = $props();
 
 	// TanStack Query for current user
@@ -180,14 +175,10 @@
 		}
 	}
 
-	function handleCancel() {
-		if (subView === 'credentials' || subView === 'email-change' || subView === 'cookies') {
-			subView = 'main';
-			form.reset({ currentPassword: '', password: '', confirmPassword: '' });
-			emailChangeForm.reset({ currentPassword: '', newEmail: '' });
-		} else {
-			onClose();
-		}
+	function handleBack() {
+		subView = 'main';
+		form.reset({ currentPassword: '', password: '', confirmPassword: '' });
+		emailChangeForm.reset({ currentPassword: '', newEmail: '' });
 	}
 
 	async function handleLogout() {
@@ -202,19 +193,13 @@
 
 	let hasLinkedOidc = $derived(!!user?.oidc_provider);
 	let showSave = $derived(subView === 'credentials' || subView === 'email-change');
-	let cancelLabel = $derived(subView === 'main' ? common_close() : common_back());
 	let isSaving = $derived(subView === 'email-change' ? emailChangeLoading : savingCredentials);
 
-	// Hidden on the main view when the modal is hard-gated (dismissible=false), since the only
-	// button there is Close, which would let the user escape the gate. Sub-views keep Back/Save.
+	// Only the sub-views have a footer; the main view closes from the header.
 	let actions = $derived<ModalAction[]>(
-		dismissible || subView !== 'main'
+		subView !== 'main'
 			? [
-					{
-						role: subView === 'main' ? 'cancel' : 'secondary',
-						label: cancelLabel,
-						onClick: handleCancel
-					},
+					{ role: 'secondary', label: common_back(), onClick: handleBack },
 					...(showSave
 						? [
 								{

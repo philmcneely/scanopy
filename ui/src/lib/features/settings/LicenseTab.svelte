@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { Copy, RefreshCw } from 'lucide-svelte';
-	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
-	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
@@ -40,7 +38,6 @@
 		billing_addPaymentMethod,
 		billing_requestAccepted,
 		common_airGapped,
-		common_close,
 		common_continue,
 		common_copied,
 		common_copy,
@@ -81,13 +78,7 @@
 
 	type LicenseKeyType = components['schemas']['LicenseKeyType'];
 
-	let {
-		onClose,
-		dismissible = true
-	}: {
-		onClose: () => void;
-		dismissible?: boolean;
-	} = $props();
+	let { onClose }: { onClose: () => void } = $props();
 
 	const organizationQuery = useOrganizationQuery();
 	let org = $derived(organizationQuery.data);
@@ -314,11 +305,6 @@
 			beforeModal: () => onClose()
 		});
 	}
-
-	let actions = $derived<ModalAction[]>(
-		dismissible ? [{ role: 'cancel', label: common_close(), onClick: onClose }] : []
-	);
-	useModalActions(() => actions);
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
