@@ -1,0 +1,422 @@
+//! Host rescans: one-shot scans of known hosts' addresses, run by the daemon that last found each
+//! host. Hosts that share a daemon share one rescan, which targets all of their addresses.
+
+use std::net::IpAddr;
+use std::sync::Arc;
+
+use axum::extract::{Path, State};
+use axum::response::Json;
+use utoipa_axum::{router::OpenApiRouter, routes};
+use uuid::Uuid;
+
+use crate::server::auth::middleware::auth::AuthenticatedEntity;
+use crate::server::auth::middleware::permissions::{Authorized, Member};
+use crate::server::config::AppState;
+use crate::server::daemons::r#impl::api::DiscoveryUpdatePayload;
+use crate::server::daemons::r#impl::base::Daemon;
+use crate::server::daemons::r#impl::version::{minimum_targeted_rescan, supports_targeted_rescan};
+use crate::server::discovery::r#impl::base::{Discovery, DiscoveryBase};
+use crate::server::discovery::r#impl::scan_settings::{RescanSettings, ScanSettings};
+use crate::server::discovery::r#impl::types::{DiscoveryType, RunType};
+use crate::server::hosts::r#impl::base::Host;
+use crate::server::ports::r#impl::base::PortType;
+use crate::server::shared::services::traits::CrudService;
+use crate::server::shared::storage::filter::StorableFilter;
+use crate::server::shared::storage::traits::{Entity, Storable};
+use crate::server::shared::types::api::{
+    ApiError, ApiErrorResponse, ApiJson, ApiResponse, ApiResult,
+};
+use crate::server::shared::validation::validate_read_access;
+
+pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
+    OpenApiRouter::new()
+        .routes(routes!(rescan_host))
+        .routes(routes!(bulk_rescan_hosts))
+}
+
+/// Rescan a host
+///
+/// Starts a one-shot scan of this host's addresses and nothing else, answering
+/// "is this host still there, and is its data current?" without sweeping the
+/// whole subnet.
+///
+/// The scan runs on the daemon that last discovered this host — evidence it can
+/// reach the address — and only if that daemon still has an interface on a
+/// subnet containing one of the host's scannable IPs. Where that interface has a
+/// MAC the daemon ARPs the target, which sees a live host even when every port
+/// is firewalled; on a MAC-less interface (a point-to-point tunnel) it falls
+/// back to a TCP probe. When no interface covers any of the host's addresses the
+/// request is refused with the specific reason. A loopback address is not a
+/// scannable IP — it is reached locally and is excluded from the target set.
+///
+/// Returns the session, which streams progress over `/api/v1/discovery/stream`
+/// like any other scan. A `Queued` phase means the daemon is busy; it will start
+/// when the running scan finishes.
+#[utoipa::path(
+    post,
+    path = "/{id}/rescan",
+    tag = Host::ENTITY_NAME_PLURAL,
+    params(("id" = uuid::Uuid, Path, description = "Host ID")),
+    responses(
+        (status = 200, description = "Rescan session started", body = ApiResponse<DiscoveryUpdatePayload>),
+        (status = 404, description = "Host not found", body = ApiErrorResponse),
+        (status = 400, description = "Host cannot be rescanned (never scanned, daemon gone, or daemon too old)", body = ApiErrorResponse),
+    ),
+     security(("user_api_key" = []), ("session" = []))
+)]
+async fn rescan_host(
+    State(state): State<Arc<AppState>>,
+    auth: Authorized<Member>,
+    Path(host_id): Path<Uuid>,
+) -> ApiResult<Json<ApiResponse<DiscoveryUpdatePayload>>> {
+    let host = state
+        .services
+        .host_service
+        .get_by_id(&host_id)
+        .await?
+        .ok_or_else(|| ApiError::entity_not_found::<Host>(host_id))?;
+
+    let mut sessions = rescan(&state, auth, vec![host]).await?;
+    let session = sessions
+        .pop()
+        .ok_or_else(|| ApiError::internal_error("A rescan of one host started no session"))?;
+    Ok(Json(ApiResponse::success(session)))
+}
+
+/// Rescan hosts
+///
+/// Rescans several hosts at once. Hosts last found by the same daemon share one
+/// rescan, which scans all of their addresses in one session; hosts found by
+/// different daemons get one rescan per daemon. Every host is checked as in
+/// `POST /{id}/rescan` before any rescan starts, and the request is refused if
+/// any of them can't be rescanned.
+///
+/// Returns one session per daemon.
+#[utoipa::path(
+    post,
+    path = "/bulk-rescan",
+    tag = Host::ENTITY_NAME_PLURAL,
+    request_body(content = Vec<Uuid>, description = "IDs of the hosts to rescan"),
+    responses(
+        (status = 200, description = "Rescan sessions started, one per daemon", body = ApiResponse<Vec<DiscoveryUpdatePayload>>),
+        (status = 404, description = "A host was not found", body = ApiErrorResponse),
+        (status = 400, description = "A host cannot be rescanned; the message names it", body = ApiErrorResponse),
+    ),
+     security(("user_api_key" = []), ("session" = []))
+)]
+async fn bulk_rescan_hosts(
+    State(state): State<Arc<AppState>>,
+    auth: Authorized<Member>,
+    ApiJson(ids): ApiJson<Vec<Uuid>>,
+) -> ApiResult<Json<ApiResponse<Vec<DiscoveryUpdatePayload>>>> {
+    if ids.is_empty() {
+        return Err(ApiError::bulk_empty());
+    }
+    let hosts = state
+        .services
+        .host_service
+        .get_all(StorableFilter::<Host>::new_from_entity_ids(&ids))
+        .await?;
+    if let Some(missing) = ids.iter().find(|id| !hosts.iter().any(|h| h.id == **id)) {
+        return Err(ApiError::entity_not_found::<Host>(missing));
+    }
+
+    let sessions = rescan(&state, auth, hosts).await?;
+    Ok(Json(ApiResponse::success(sessions)))
+}
+
+/// Checks every host, then starts one rescan per daemon. Nothing starts unless every host
+/// can be rescanned.
+async fn rescan(
+    state: &Arc<AppState>,
+    auth: Authorized<Member>,
+    hosts: Vec<Host>,
+) -> Result<Vec<DiscoveryUpdatePayload>, ApiError> {
+    let site_ids = auth.site_ids();
+    let organization_id = auth
+        .organization_id()
+        .ok_or_else(ApiError::organization_required)?;
+    let several = hosts.len() > 1;
+
+    let mut targets = Vec::with_capacity(hosts.len());
+    for host in hosts {
+        validate_read_access(Some(host.base.site_id), None, &site_ids, organization_id)?;
+        match rescan_target(state, &host).await? {
+            Ok((daemon, ips)) => targets.push((host, daemon, ips)),
+            // Several hosts: name the one refused, since the message says "this host".
+            Err(reason) if several => {
+                return Err(ApiError::bad_request(&format!(
+                    "Can't rescan \"{}\": {}",
+                    host.base.name, reason
+                )));
+            }
+            Err(reason) => return Err(ApiError::bad_request(&reason)),
+        }
+    }
+
+    // The ports already recorded on these hosts. `get_for_hosts` applies the live
+    // filter; `get_for_host` does not, and would resurrect historically-closed
+    // ports into the scan list.
+    let host_ids: Vec<Uuid> = targets.iter().map(|(host, _, _)| host.id).collect();
+    let mut ports_by_host = state
+        .services
+        .port_service
+        .get_for_hosts(&host_ids, None)
+        .await
+        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
+
+    let mut planned: Vec<(Daemon, Vec<(Host, Vec<IpAddr>)>)> = Vec::new();
+    for (host, daemon, ips) in targets {
+        match planned.iter_mut().find(|(d, _)| d.id == daemon.id) {
+            Some((_, group)) => group.push((host, ips)),
+            None => planned.push((daemon, vec![(host, ips)])),
+        }
+    }
+
+    let entity = auth.into_entity();
+    let mut sessions = Vec::with_capacity(planned.len());
+    for (daemon, group) in planned {
+        let mut ports: Vec<PortType> = Vec::new();
+        for (host, _) in &group {
+            for port in ports_by_host.remove(&host.id).unwrap_or_default() {
+                if !ports.contains(&port.base.port_type) {
+                    ports.push(port.base.port_type);
+                }
+            }
+        }
+        let discovery = rescan_discovery(state, &daemon, &group, ports).await;
+        sessions.push(start_rescan(state, daemon, discovery, entity.clone()).await?);
+    }
+    Ok(sessions)
+}
+
+/// One daemon's rescan of the hosts it last found, with their scannable addresses.
+async fn rescan_discovery(
+    state: &Arc<AppState>,
+    daemon: &Daemon,
+    group: &[(Host, Vec<IpAddr>)],
+    ports: Vec<PortType>,
+) -> Discovery {
+    // Inherit the daemon's configured scan settings so a deliberately lowered
+    // scan rate — or raw-socket probing the operator turned on — carries over.
+    // The conversion drops the full-scan fields, which a rescan must not have.
+    let settings = RescanSettings::from(
+        &daemon_scan_settings(state, daemon.id)
+            .await
+            .unwrap_or_default(),
+    );
+    let ips: Vec<IpAddr> = group
+        .iter()
+        .flat_map(|(_, ips)| ips.iter().copied())
+        .collect();
+    let names: Vec<String> = group
+        .iter()
+        .map(|(host, _)| host.base.name.to_string())
+        .collect();
+
+    Discovery::new(DiscoveryBase {
+        run_type: RunType::AdHoc { last_run: None },
+        discovery_type: DiscoveryType::Rescan {
+            host_id: daemon.base.host_id,
+            target_host_ids: group.iter().map(|(host, _)| host.id).collect(),
+            ips: ips.clone(),
+            ports,
+            settings,
+        },
+        // The host names and addresses are only known here, and the historical
+        // record inherits this name.
+        name: rescan_name(&names, &ips),
+        daemon_id: daemon.id,
+        site_id: daemon.base.site_id,
+        tags: Vec::new(),
+    })
+}
+
+/// "Rescan of web-01 (10.0.0.5)" for one host, so the record carries the address the scan
+/// aimed at; "Rescan of web-01, web-02 and 3 more" for several, where the addresses would not fit.
+fn rescan_name(names: &[String], ips: &[IpAddr]) -> String {
+    match names {
+        [one] => format!(
+            "Rescan of {} ({})",
+            one,
+            ips.iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        [a, b] => format!("Rescan of {a} and {b}"),
+        [a, b, c] => format!("Rescan of {a}, {b} and {c}"),
+        [a, b, rest @ ..] => format!("Rescan of {a}, {b} and {} more", rest.len()),
+        [] => "Rescan".to_string(),
+    }
+}
+
+/// Creates the rescan, wakes its daemon if it is on standby, and starts the session.
+async fn start_rescan(
+    state: &Arc<AppState>,
+    mut daemon: Daemon,
+    discovery: Discovery,
+    entity: AuthenticatedEntity,
+) -> Result<DiscoveryUpdatePayload, ApiError> {
+    let discovery = state
+        .services
+        .discovery_service
+        .create_discovery(discovery, AuthenticatedEntity::System)
+        .await
+        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
+
+    // start_session itself doesn't clear standby, and a standby daemon never picks up the work.
+    state
+        .services
+        .daemon_service
+        .wake_from_standby(&mut daemon)
+        .await?;
+
+    Ok(state
+        .services
+        .discovery_service
+        .start_session(discovery, entity)
+        .await?)
+}
+
+/// The daemon that will rescan this host, and the host's addresses it can reach. The inner
+/// `Err` is why the host can't be rescanned, worded for the one host.
+async fn rescan_target(
+    state: &Arc<AppState>,
+    host: &Host,
+) -> Result<Result<(Daemon, Vec<IpAddr>), String>, ApiError> {
+    let ip_addresses = state
+        .services
+        .ip_address_service
+        .get_for_host(&host.id)
+        .await?;
+    if ip_addresses.is_empty() {
+        return Ok(Err("This host has no IP addresses to scan.".to_string()));
+    }
+
+    let daemon = match resolve_rescan_daemon(state, host).await? {
+        Ok(daemon) => daemon,
+        Err(reason) => return Ok(Err(reason)),
+    };
+
+    // Only the addresses this daemon has a route to. The daemon ARPs the ones
+    // on an interface with a MAC and falls back to a TCP probe on the ones
+    // without (a point-to-point tunnel has no MAC but is perfectly routable) —
+    // refusing the latter outright made rescan impossible on VPN-only daemons
+    // rather than merely lower fidelity.
+    //
+    // A loopback address passes the junction check — the daemon reports its own
+    // 127.0.0.0/8 as an interfaced subnet — but is not scannable by either path:
+    // loopback subnets are dropped from every scan. Excluding it here keeps this
+    // endpoint and the daemon's own target resolution agreeing, and keeps
+    // 127.0.0.1 out of the frozen rescan name.
+    let interfaced = state
+        .services
+        .daemon_service
+        .get_interfaced_subnet_ids(&daemon.id)
+        .await;
+    let reachable: Vec<IpAddr> = ip_addresses
+        .iter()
+        .filter(|ip| interfaced.contains(&ip.base.subnet_id) && !ip.base.ip_address.is_loopback())
+        .map(|ip| ip.base.ip_address)
+        .collect();
+
+    if reachable.is_empty() {
+        return Ok(Err(format!(
+            "Daemon \"{}\" last scanned this host but has no interface on a subnet holding any \
+             of its scannable addresses, so it can't scan them directly.",
+            daemon.base.name
+        )));
+    }
+
+    Ok(Ok((daemon, reachable)))
+}
+
+/// The scan settings on this daemon's own discovery configuration, if it has one.
+async fn daemon_scan_settings(state: &Arc<AppState>, daemon_id: Uuid) -> Option<ScanSettings> {
+    let filter = StorableFilter::new_from_uuid_column("daemon_id", &daemon_id).live_configs();
+    let discoveries = state
+        .services
+        .discovery_service
+        .get_all(filter)
+        .await
+        .ok()?;
+    discoveries
+        .into_iter()
+        .find_map(|d| match d.base.discovery_type {
+            DiscoveryType::Unified { scan_settings, .. } => Some(scan_settings),
+            _ => None,
+        })
+}
+
+/// The daemon that last discovered this host, validated as usable for a rescan. The inner `Err`
+/// is why it isn't.
+///
+/// Provenance beats inference here: the daemon that produced this host's data
+/// demonstrably reached the address, which is a stronger signal than any
+/// subnet-membership calculation over the interfaced-subnet junction.
+async fn resolve_rescan_daemon(
+    state: &Arc<AppState>,
+    host: &Host,
+) -> Result<Result<Daemon, String>, ApiError> {
+    let Some(discovery_id) = host.last_discovery_id else {
+        return Ok(Err(
+            "This host hasn't been scanned yet, so there is no daemon known to \
+                       reach it. Run a discovery first."
+                .to_string(),
+        ));
+    };
+
+    // The FK is ON DELETE SET NULL, so a pruned historical row lands above rather
+    // than here; this covers a row that vanished between reads.
+    let Some(last_scan) = state
+        .services
+        .discovery_service
+        .get_by_id(&discovery_id)
+        .await?
+    else {
+        return Ok(Err(
+            "The scan that last found this host is no longer on record, so its \
+                       daemon can't be identified. Run a discovery first."
+                .to_string(),
+        ));
+    };
+
+    let Some(daemon) = state
+        .services
+        .daemon_service
+        .get_by_id(&last_scan.base.daemon_id)
+        .await?
+    else {
+        return Ok(Err(
+            "The daemon that last scanned this host no longer exists. Run a \
+                       discovery from another daemon to refresh it."
+                .to_string(),
+        ));
+    };
+
+    if daemon.base.site_id != host.base.site_id {
+        return Ok(Err(format!(
+            "Daemon \"{}\" has moved to a different site and can no longer reach this host.",
+            daemon.base.name
+        )));
+    }
+
+    if !supports_targeted_rescan(daemon.base.version.as_ref()) {
+        return Ok(Err(match daemon.base.version {
+            None => format!(
+                "Daemon \"{}\" has not connected to the server yet, so its version is unknown. \
+                 Wait for it to check in, then try again.",
+                daemon.base.name
+            ),
+            Some(_) => format!(
+                "Daemon \"{}\" does not support rescans. Upgrade it to version \
+                 {} or later.",
+                daemon.base.name,
+                minimum_targeted_rescan()
+            ),
+        }));
+    }
+
+    Ok(Ok(daemon))
+}

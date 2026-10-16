@@ -23,6 +23,7 @@
 		useDaemonsListQuery,
 		useDeleteDaemonMutation,
 		useBulkDeleteDaemonsMutation,
+		useBulkRetryDaemonConnectionMutation,
 		useRetryDaemonConnectionMutation
 	} from '$lib/features/daemons/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
@@ -51,6 +52,8 @@
 		common_noEntityYet,
 		common_upgrade,
 		daemons_retryConnection,
+		daemons_retryingConnection,
+		daemons_upgradeUnreachable,
 		daemons_sunsetBannerTitle,
 		daemons_sunsetBannerBody
 	} from '$lib/paraglide/messages';
@@ -164,6 +167,7 @@
 	});
 
 	const retryConnectionMutation = useRetryDaemonConnectionMutation();
+	const bulkRetryConnectionMutation = useBulkRetryDaemonConnectionMutation();
 
 	/**
 	 * Escalate the upgrade affordance by lifecycle stage: a scheduled or active
@@ -214,12 +218,15 @@
 			}
 		];
 
-		if (hasUpdateAvailable && (daemon.is_unreachable !== true || sunsetDate !== null)) {
+		if (hasUpdateAvailable) {
+			// Without a sunset to warn about, an unreachable daemon has nothing to upgrade from here.
+			const unreachable = daemon.is_unreachable === true && sunsetDate === null;
 			actions.push({
 				label: common_upgrade(),
 				icon: ArrowBigUp,
 				tone: upgradeTone(daemon),
-				onClick: () => handleOpenUpgrade(daemon)
+				onClick: () => handleOpenUpgrade(daemon),
+				disabled: unreachable ? { reason: daemons_upgradeUnreachable() } : undefined
 			});
 		}
 
@@ -231,8 +238,11 @@
 				icon: RefreshCw,
 				tone: 'info',
 				onClick: () => retryConnectionMutation.mutate(daemon.id),
-				onBulk: (ids) => ids.forEach((id) => retryConnectionMutation.mutate(id)),
-				disabled: retryConnectionMutation.isPending
+				onBulk: (ids) => bulkRetryConnectionMutation.mutateAsync(ids),
+				disabled:
+					retryConnectionMutation.isPending || bulkRetryConnectionMutation.isPending
+						? { reason: daemons_retryingConnection() }
+						: undefined
 			});
 		}
 

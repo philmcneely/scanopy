@@ -25,25 +25,26 @@ export interface KeyedAction {
  * One row: its actions as the row shows them. Several: every action with `onBulk` that any
  * selected row has, the same action across rows matched by label. An action with `onBulk` runs on
  * the whole selection through `runBulk`, and is enabled only when every selected row has it
- * enabled. Disabled, it takes the tooltip of the first row that blocks it, or `blockedTooltip`
- * when that row doesn't have the action at all.
+ * enabled. Disabled, it gives the reason of the first row that blocks it: the row's own wording for
+ * one row, its `bulkReason` for several, or `missingReason` when that row doesn't have the action.
  */
 export function selectionActions(
 	perRow: CardAction[][],
 	runBulk: (action: CardAction) => () => void,
-	blockedTooltip: string
+	missingReason: string
 ): CardAction[] {
+	const several = perRow.length > 1;
 	const forSelection = (action: CardAction): CardAction => {
 		const matches = perRow.map((actions) => actions.find((a) => a.label === action.label));
 		const blocker = matches.findIndex((a) => !a || a.disabled);
-		if (blocker === -1) return { ...action, onClick: runBulk(action), disabled: false };
-		const blocking = matches[blocker];
-		return {
-			...action,
-			onClick: runBulk(action),
-			disabled: true,
-			tooltip: blocking ? resolveTooltip(blocking) : blockedTooltip
-		};
+		if (blocker === -1) return { ...action, onClick: runBulk(action), disabled: undefined };
+		const blocked = matches[blocker]?.disabled;
+		const reason = !blocked
+			? missingReason
+			: several
+				? (blocked.bulkReason ?? blocked.reason)
+				: blocked.reason;
+		return { ...action, onClick: runBulk(action), disabled: { reason } };
 	};
 
 	if (perRow.length === 1) {
@@ -56,11 +57,9 @@ export function selectionActions(
 	return [...bulk.values()].map(forSelection);
 }
 
-/** An action's tooltip as it reads in its current state. */
+/** An action's tooltip as it reads in its current state: why it's disabled, or its hint. */
 export function resolveTooltip(action: CardAction): string | undefined {
-	const tip =
-		typeof action.tooltip === 'function' ? action.tooltip(!!action.disabled) : action.tooltip;
-	return tip ?? undefined;
+	return action.disabled?.reason ?? action.tooltip;
 }
 
 // Whole class names, so Tailwind's content scan keeps them.

@@ -272,3 +272,21 @@ export function useReferralSourceMutation() {
 		}
 	}));
 }
+
+/** Revokes several invites. */
+export function useBulkRevokeInvitesMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: async (ids: string[]) => {
+			requireSuccess(await apiClient.POST('/api/v1/invites/bulk-revoke', { body: ids }));
+			return ids;
+		},
+		onSuccess: (ids: string[]) => {
+			queryClient.setQueryData<OrganizationInvite[]>(
+				queryKeys.invites.all,
+				(old) => old?.filter((i) => !ids.includes(i.id)) ?? []
+			);
+		}
+	}));
+}

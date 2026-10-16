@@ -298,6 +298,7 @@ impl CrudService<Discovery> for DiscoveryService {
     }
 }
 
+mod bulk;
 mod cleanup;
 mod discovery_crud;
 mod dispatch;
@@ -306,3 +307,4 @@ mod scheduling;
 mod sessions;
 mod state;
 mod warnings;
+pub use bulk::{StartRefusal, order_for_cancel, set_enabled_refusal, start_refusal};

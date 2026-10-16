@@ -516,7 +516,7 @@ impl DiscoveryService {
         record_session_duration(&session);
 
         {
-            let is_rescan = session.discovery_type.rescan_target_host_id().is_some();
+            let is_rescan = session.discovery_type.rescan_target_host_ids().is_some();
 
             // Record the onboarding milestone on the org row BEFORE the SSE update, so it's
             // committed when the SSE-triggered org refetch arrives. The event is published
@@ -830,7 +830,7 @@ impl DiscoveryService {
         let phase = session.phase;
         let discovery_id = self.lookup_discovery_id(&session_id).await;
         // Capture before `session.discovery_type` is moved into the update below.
-        let is_rescan = session.discovery_type.rescan_target_host_id().is_some();
+        let is_rescan = session.discovery_type.rescan_target_host_ids().is_some();
 
         let cancelled_update = DiscoveryUpdatePayload {
             session_id,

@@ -698,7 +698,7 @@
 						<button
 							type="button"
 							onclick={action.onClick}
-							disabled={action.disabled}
+							disabled={!!action.disabled}
 							use:tooltip
 							data-tooltip={tip}
 							aria-label={action.label}

@@ -8,7 +8,11 @@
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import { formatInviteUrl, useRevokeInviteMutation } from '$lib/features/organizations/queries';
+	import {
+		formatInviteUrl,
+		useBulkRevokeInvitesMutation,
+		useRevokeInviteMutation
+	} from '$lib/features/organizations/queries';
 	import { isUser, type User, type UserOrInvite } from '../types';
 	import type { OrganizationInvite } from '$lib/features/organizations/types';
 	import InviteModal from './InviteModal.svelte';
@@ -36,12 +40,19 @@
 		common_delete,
 		common_revoke,
 		common_users,
+		invites_confirmBulkRevoke,
 		invites_confirmRevoke,
 		users_confirmDeleteUser,
 		users_inviteUser,
 		users_noUsersFound,
 		users_noUsersSubtitle,
-		users_subtitle
+		users_subtitle,
+		invites_cantRevokeUngrantable,
+		invites_cantRevokeUngrantableBulk,
+		users_cantDeleteSelf,
+		users_cantDeleteSelfBulk,
+		users_cantDeleteUngrantable,
+		users_cantDeleteUngrantableBulk
 	} from '$lib/paraglide/messages';
 
 	let { isReadOnly = false }: TabProps = $props();
@@ -149,9 +160,14 @@
 	let sitesData = $derived(sitesQuery.data ?? []);
 
 	const revokeInviteMutation = useRevokeInviteMutation();
+	const bulkRevokeInvitesMutation = useBulkRevokeInvitesMutation();
 
-	/** Whether the current user is allowed to grant — and so revoke — this invite. */
+	/**
+	 * Whether the current user may revoke this invite: one they created, or one for a role they
+	 * could grant. The server applies the same rule.
+	 */
 	function canRevoke(invite: OrganizationInvite): boolean {
+		if (currentUser && invite.created_by === currentUser.id) return true;
 		return currentUser
 			? (permissions
 					.getMetadata(currentUser.permissions)
@@ -162,6 +178,12 @@
 	function handleRevokeInvite(invite: OrganizationInvite) {
 		if (confirm(invites_confirmRevoke())) {
 			revokeInviteMutation.mutate(invite.id);
+		}
+	}
+
+	async function handleBulkRevoke(ids: string[]) {
+		if (confirm(invites_confirmBulkRevoke({ count: ids.length }))) {
+			await bulkRevokeInvitesMutation.mutateAsync(ids);
 		}
 	}
 
@@ -182,33 +204,61 @@
 			: false;
 	}
 
+	/** Whether the current user can grant any role, and so manage users and invites at all. */
+	let managesUsers = $derived(
+		currentUser
+			? (permissions.getMetadata(currentUser.permissions)?.grantable_user_permissions?.length ??
+					0) > 0
+			: false
+	);
+
+	/** Why the current user can't delete this user, if they can't. The server applies the same rule. */
+	function deleteRefusal(user: User) {
+		if (user.id === currentUser?.id) {
+			return { reason: users_cantDeleteSelf(), bulkReason: users_cantDeleteSelfBulk() };
+		}
+		if (!canManageUser(user)) {
+			return {
+				reason: users_cantDeleteUngrantable(),
+				bulkReason: users_cantDeleteUngrantableBulk()
+			};
+		}
+		return undefined;
+	}
+
 	/** Row actions. A user is edited or deleted; an invite is revoked. */
 	function userActions(item: UserOrInvite): CardAction[] {
 		if (isUser(item)) {
 			const actions: CardAction[] = [
 				{ label: common_edit(), icon: Edit, onClick: () => handleEditUser(item.data) }
 			];
-			// You cannot delete yourself, and you cannot delete someone whose role
-			// you could not have granted in the first place.
-			if (item.data.id !== currentUser?.id && canManageUser(item.data)) {
+			if (managesUsers) {
 				actions.push({
 					label: common_delete(),
 					icon: Trash2,
 					tone: 'danger',
 					isDelete: true,
 					onBulk: handleBulkDelete,
-					onClick: () => handleDeleteUser(item.data)
+					onClick: () => handleDeleteUser(item.data),
+					disabled: deleteRefusal(item.data)
 				});
 			}
 			return actions;
 		}
-		if (!canRevoke(item.data)) return [];
+		if (!managesUsers) return [];
 		return [
 			{
 				label: common_revoke(),
 				icon: UserX,
 				tone: 'danger',
-				onClick: () => handleRevokeInvite(item.data)
+				onClick: () => handleRevokeInvite(item.data),
+				onBulk: handleBulkRevoke,
+				disabled: canRevoke(item.data)
+					? undefined
+					: {
+							reason: invites_cantRevokeUngrantable(),
+							bulkReason: invites_cantRevokeUngrantableBulk()
+						}
 			}
 		];
 	}

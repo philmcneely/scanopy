@@ -1,6 +1,6 @@
 use crate::daemon::shared::config::ConfigStore;
 use crate::daemon::shared::forward_compat::DaemonResponse;
-use crate::server::shared::legacy::rewrite_from_network_wire;
+use crate::server::shared::legacy::rewrite_from_server_wire;
 use crate::server::shared::trusted_ca::{TrustedCaBundle, is_untrusted_certificate};
 use crate::server::shared::types::api::{ApiErrorResponse, ApiResponse};
 use anyhow::{Error, bail};
@@ -347,8 +347,8 @@ impl DaemonApiClient {
             .into_data()
             .ok_or_else(|| anyhow::anyhow!("{}: No data in response", context))?;
         // A server that predates the site rename, or sends this daemon's version the old names,
-        // says `network_id`.
-        rewrite_from_network_wire(&mut data);
+        // says `network_id`; one that sends it a single rescan target adds `target_host_id`.
+        rewrite_from_server_wire(&mut data);
 
         serde_json::from_value(data)
             .map_err(|e| anyhow::anyhow!("{}: Failed to parse response data: {}", context, e))

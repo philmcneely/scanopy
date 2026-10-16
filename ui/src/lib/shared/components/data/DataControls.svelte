@@ -115,6 +115,7 @@
 	import { isOnVisiblePage, registerEntityList } from '$lib/shared/stores/modal-registry';
 	import { isShiftShortcut, keyLabel, shiftShortcutLabel } from '$lib/shared/utils/shortcuts';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
+	import { tooltip } from '$lib/shared/actions/tooltip';
 	import {
 		isFreeKeydown,
 		isPlainKey,
@@ -1076,8 +1077,9 @@
 	{#each selectionToolbarActions as { action, key } (action.label)}
 		<button
 			onclick={action.onClick}
-			disabled={action.disabled}
-			title={resolveTooltip(action)}
+			disabled={!!action.disabled}
+			use:tooltip
+			data-tooltip={resolveTooltip(action)}
 			class="{toolbarButtonClass(
 				action.tone
 			)} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"

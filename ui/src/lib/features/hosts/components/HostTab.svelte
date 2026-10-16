@@ -33,7 +33,9 @@
 		common_confirmBulkDelete,
 		common_noEntityYet,
 		common_rescan,
-		daemons_installPromptHosts
+		daemons_installPromptHosts,
+		hosts_rescanNoAddresses,
+		hosts_rescanNoAddressesBulk
 	} from '$lib/paraglide/messages';
 
 	let { isReadOnly = false }: TabProps = $props();
@@ -46,6 +48,7 @@
 		useDeleteHostMutation,
 		useBulkDeleteHostsMutation,
 		useConsolidateHostsMutation,
+		useBulkRescanHostsMutation,
 		useRescanHostMutation,
 		type HostQueryOptions
 	} from '../queries';
@@ -165,6 +168,7 @@
 	const bulkDeleteHostsMutation = useBulkDeleteHostsMutation();
 	const consolidateHostsMutation = useConsolidateHostsMutation();
 	const rescanHostMutation = useRescanHostMutation();
+	const bulkRescanHostsMutation = useBulkRescanHostsMutation();
 
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
@@ -301,20 +305,18 @@
 
 		return [
 			{ label: common_edit(), icon: Edit, onClick: () => handleEditHost(host) },
-			// A rescan targets the host's known addresses, so a host with none has nothing to
-			// scan and the endpoint answers 400. Offering the action anyway meant the only way to
-			// find that out was to trigger it and read the error toast. Devices identified purely
-			// by a MAC are the reason such a host exists at all.
-			...(hostIPAddresses(host).length > 0
-				? [
-						{
-							label: common_rescan(),
-							icon: RefreshCw,
-							onClick: () => handleRescanHost(host),
-							onBulk: handleBulkRescan
-						}
-					]
-				: []),
+			// A rescan targets the host's known addresses, so a host with none (a device identified
+			// purely by a MAC) has nothing to scan, and the endpoint answers 400.
+			{
+				label: common_rescan(),
+				icon: RefreshCw,
+				onClick: () => handleRescanHost(host),
+				onBulk: handleBulkRescan,
+				disabled:
+					hostIPAddresses(host).length === 0
+						? { reason: hosts_rescanNoAddresses(), bulkReason: hosts_rescanNoAddressesBulk() }
+						: undefined
+			},
 			{ label: common_consolidate(), icon: Replace, onClick: () => handleStartConsolidate(host) },
 			{
 				label: common_delete(),
@@ -341,8 +343,8 @@
 		rescanHostMutation.mutate({ id: host.id, name: hostDisplayName(host) });
 	}
 
-	function handleBulkRescan(ids: string[]) {
-		hostsData.filter((host) => ids.includes(host.id)).forEach(handleRescanHost);
+	async function handleBulkRescan(ids: string[]) {
+		await bulkRescanHostsMutation.mutateAsync(ids);
 	}
 
 	function handleDeleteHost(host: Host) {
