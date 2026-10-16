@@ -159,10 +159,14 @@ export const ROOTED_TREES_KEY = `${String.fromCharCode(0)}rooted-trees`;
  *
  * A tree whose root row is on another page joins too, under a continuation entry that names the
  * root and carries the tree's page range, so its rows nest as they would under the root.
+ *
+ * `range` is how much of every tree, together, this page shows (see `rootedTreesPosition`); the
+ * merged header shows it in place of a count of the page's rows.
  */
 export function mergeRootedTrees<T>(
 	groups: RenderGroup<T>[],
-	tree: TreeConfig<T>
+	tree: TreeConfig<T>,
+	range: GroupSlice | null
 ): RenderGroup<T>[] {
 	const rootOf = (group: RenderGroup<T>) =>
 		group.entries !== null && group.items.length > 0 ? tree.rootKey(group.items[0]) : null;
@@ -191,7 +195,7 @@ export function mergeRootedTrees<T>(
 		key: ROOTED_TREES_KEY,
 		name: tree.rootsLabel(),
 		items: rooted.flatMap((group) => group.items),
-		range: null,
+		range,
 		entries,
 		rootRanges
 	};
@@ -325,4 +329,20 @@ export function serverGroupKey<T>(
 		: getFieldValue(groupItems[0], field);
 
 	return raw === null || raw === undefined ? UNGROUPED_KEY : String(raw);
+}
+
+/**
+ * The block every tree's group occupies across all pages, for the merged header of a tree
+ * grouping: where the first tree's group starts and how many rows all trees hold. Null when no
+ * group is a tree.
+ *
+ * The server lists the rows in no tree (key `''`) first and every tree after them, contiguously
+ * (`tree_order` in `backend/src/server/shared/handlers/tree.rs`), so the trees are one run.
+ */
+export function rootedTreesPosition(counts: ServerGroupCount[] | null): GroupPosition | null {
+	const trees = (counts ?? []).filter((group) => group.value != null && group.value !== '');
+	if (trees.length === 0) return null;
+	const offsets = computeGroupOffsets(counts);
+	const start = offsets.get(trees[0].value!)!.start;
+	return { start, count: trees.reduce((sum, group) => sum + group.count, 0) };
 }

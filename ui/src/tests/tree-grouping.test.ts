@@ -3,6 +3,7 @@ import {
 	buildTreeSections,
 	flattenTreeEntries,
 	mergeRootedTrees,
+	rootedTreesPosition,
 	ROOTED_TREES_KEY,
 	type RenderGroup,
 	type TreeEntry
@@ -110,7 +111,7 @@ describe('mergeRootedTrees', () => {
 			group('wide', [wide, mid, leaf], range),
 			group('other', [other, otherKid])
 		];
-		const merged = mergeRootedTrees(groups, tree);
+		const merged = mergeRootedTrees(groups, tree, null);
 		expect(merged.map((g) => g.name)).toEqual(['Ungrouped', 'Nested']);
 		const [, trees] = merged;
 		expect(trees.key).toBe(ROOTED_TREES_KEY);
@@ -127,7 +128,7 @@ describe('mergeRootedTrees', () => {
 		// Page 2 of the "wide" tree: the root and `sibling` are on page 1.
 		const range = { start: 6, end: 25, total: 30 };
 		const groups = [group('10.10.0.0/16', [mid, leaf], range), group('Ungrouped', [loose])];
-		const merged = mergeRootedTrees(groups, tree);
+		const merged = mergeRootedTrees(groups, tree, null);
 		expect(merged.map((g) => g.name)).toEqual(['Nested', 'Ungrouped']);
 		const [head] = merged[0].entries!;
 		expect(head).toMatchObject({ type: 'continued', label: '10.10.0.0/16', range });
@@ -141,7 +142,30 @@ describe('mergeRootedTrees', () => {
 
 	it('leaves groups alone when none is a tree', () => {
 		const groups = [group('Ungrouped', [loose])];
-		expect(mergeRootedTrees(groups, tree)).toBe(groups);
+		expect(mergeRootedTrees(groups, tree, null)).toBe(groups);
+	});
+
+	it('heads the merged group with the range every tree together spans', () => {
+		const range = { start: 4, end: 20, total: 159 };
+		const merged = mergeRootedTrees([group('wide', [wide, mid, leaf])], tree, range);
+		expect(merged[0].range).toEqual(range);
+	});
+});
+
+describe('rootedTreesPosition', () => {
+	it('spans every tree group, which the server lists after the rows in no tree', () => {
+		const counts = [
+			{ value: '', count: 57 },
+			{ value: 'a', count: 25 },
+			{ value: 'b', count: 9 },
+			{ value: 'c', count: 25 }
+		];
+		expect(rootedTreesPosition(counts)).toEqual({ start: 57, count: 59 });
+	});
+
+	it('is null with no tree groups or no counts', () => {
+		expect(rootedTreesPosition([{ value: '', count: 3 }])).toBeNull();
+		expect(rootedTreesPosition(null)).toBeNull();
 	});
 });
 

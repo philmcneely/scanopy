@@ -100,4 +100,46 @@ describe('virtualization tree grouping', () => {
 			}
 		]);
 	});
+
+	it('files a tree whose node is on another page under "Virtualized", headed by the node', () => {
+		const range = { start: 4, end: 5, total: 5 };
+		const groups = [
+			{
+				key: 'Not virtualized',
+				name: 'Not virtualized',
+				items: [lone],
+				range: null,
+				entries: buildTreeSections([lone], virtualizationTree, 'Not virtualized'),
+				rootRanges: null
+			},
+			{
+				key: 'pve-01',
+				name: 'pve-01',
+				items: [vm, container],
+				range,
+				entries: buildTreeSections([vm, container], virtualizationTree, 'pve-01'),
+				rootRanges: null
+			}
+		];
+		const merged = mergeRootedTrees(groups, virtualizationTree, null);
+		expect(merged.map((g) => g.name)).toEqual(['Not virtualized', 'Virtualized']);
+		expect(merged[1].entries).toEqual([
+			{
+				type: 'continued',
+				key: `pve-01${NUL}pve-01`,
+				label: 'pve-01',
+				range,
+				entries: [
+					{
+						type: 'section',
+						key: `pve-01${NUL}docker-vm`,
+						item: vm,
+						count: 1,
+						depth: 1,
+						entries: [{ type: 'row', item: container, depth: 2 }]
+					}
+				]
+			}
+		]);
+	});
 });
