@@ -111,6 +111,11 @@ pub struct DiscoveryHostRequest {
     /// Daemons predating this field omit it; it defaults to all-complete so they behave as before.
     #[serde(default)]
     pub interface_data_complete: InterfaceDataComplete,
+    /// Every (address, protocol, port) this scan probed and got a definite answer from. A stored
+    /// port binding can change hands only where the scan covered it. Daemons predating this field
+    /// omit it, and empty coverage moves nothing.
+    #[serde(default)]
+    pub port_coverage: PortCoverage,
     /// Whether any interface in this submission arrived in a wire shape a current daemon no
     /// longer produces — today, the pre-#701 scalar LLDP/CDP fields (see
     /// [`DiscoveryInterface`](crate::server::interfaces::r#impl::wire::DiscoveryInterface)).
@@ -119,11 +124,6 @@ pub struct DiscoveryHostRequest {
     /// directions and exists only to carry the observation from the boundary, where the raw
     /// shape is visible, to the discovery session, where a warning can be attached. Read once,
     /// in the discovery handlers, then discarded.
-    /// Every (address, protocol, port) this scan probed and got a definite answer from. A stored
-    /// port binding can change hands only where the scan covered it. Daemons predating this field
-    /// omit it, and empty coverage moves nothing.
-    #[serde(default)]
-    pub port_coverage: PortCoverage,
     #[serde(skip)]
     pub superseded_wire_shape: bool,
 }

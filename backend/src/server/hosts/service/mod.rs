@@ -204,6 +204,7 @@ mod lifecycle;
 pub(crate) mod mac_identity;
 mod open_ports;
 mod same_device;
+mod stale_ports;
 mod topology;
 mod update;
 mod virtualization_tree;

@@ -16,16 +16,21 @@ use crate::server::ports::r#impl::base::{PortType, TransportProtocol};
 /// An inclusive run of port numbers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct PortRange {
+    /// First port in the run.
     pub start: u16,
+    /// Last port in the run, inclusive.
     pub end: u16,
 }
 
 /// The ports of one protocol a scan covered at one address.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct CoveredPorts {
+    /// The address the ports were probed at.
     #[schema(value_type = String, example = "192.168.1.10")]
     pub ip_address: IpAddr,
+    /// The transport the probes used.
     pub protocol: TransportProtocol,
+    /// The covered ports, as inclusive runs.
     pub ranges: Vec<PortRange>,
 }
 

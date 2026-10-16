@@ -1,5 +1,6 @@
 //! Host creation from API requests and the create-with-children path.
 use super::open_ports::{held_by_open_ports, port_claim};
+use super::stale_ports::overlaps;
 use super::*;
 use crate::server::shared::attribution::AttributeSource;
 
@@ -737,13 +738,17 @@ impl HostService {
         // virtualization.service_id before creating subnets.
         let mut service_id_remap: std::collections::HashMap<Uuid, Uuid> =
             std::collections::HashMap::new();
+        // Stored services this submission found again. They answered, so they keep their ports
+        // whatever else claims them (see `stale_ports`).
+        let mut rediscovered: HashSet<Uuid> = HashSet::new();
         for svc in &services {
             let mut probe = svc.clone();
             probe.base.host_id = created_host.id;
-            if let Some(existing) = existing_services_for_match.iter().find(|e| **e == probe)
-                && existing.id != svc.id
-            {
-                service_id_remap.insert(svc.id, existing.id);
+            if let Some(existing) = existing_services_for_match.iter().find(|e| **e == probe) {
+                rediscovered.insert(existing.id);
+                if existing.id != svc.id {
+                    service_id_remap.insert(svc.id, existing.id);
+                }
             }
         }
 
@@ -1111,6 +1116,9 @@ impl HostService {
         // Collect orphaned bindings from dropped services to assign to OpenPorts
         let mut orphaned_bindings: Vec<Binding> = Vec::new();
         let mut created_services = Vec::new();
+        let mut turnover = self
+            .port_turnover(&created_host.id, port_coverage, rediscovered)
+            .await?;
 
         for service in services {
             let mut reassigned = self
@@ -1206,8 +1214,41 @@ impl HostService {
                     .collect();
 
                 if matches_existing_service {
-                    // Conflicts with Unclaimed Open Ports are taken back; conflicts with any other
-                    // service leave the port with its owner.
+                    // Conflicts with Unclaimed Open Ports are taken back, and so are covered ports
+                    // whose holders are no longer there (`stale_ports`). Any other conflict leaves
+                    // the port with its owner.
+                    let (handed_over, conflicting_bindings): (Vec<Binding>, Vec<Binding>) =
+                        conflicting_bindings.into_iter().partition(|b| {
+                            port_claim(b).is_some_and(|claim| {
+                                !held_by_open_ports(&claim, &existing_services_for_match)
+                                    && turnover
+                                        .holders_handing_over(
+                                            &[claim],
+                                            &existing_services_for_match,
+                                            &reassigned,
+                                        )
+                                        .is_some_and(|holders| !holders.is_empty())
+                            })
+                        });
+                    let handed_over_claims: Vec<(Uuid, Option<Uuid>)> =
+                        handed_over.iter().filter_map(port_claim).collect();
+                    if let Some(holders) = turnover.holders_handing_over(
+                        &handed_over_claims,
+                        &existing_services_for_match,
+                        &reassigned,
+                    ) && !holders.is_empty()
+                    {
+                        self.take_ports(
+                            &holders,
+                            &handed_over_claims,
+                            &mut existing_services_for_match,
+                            reassigned.base.service_definition.name(),
+                            authentication.clone(),
+                        )
+                        .await?;
+                    }
+                    let mut valid_bindings = valid_bindings;
+                    valid_bindings.extend(handed_over);
                     let (reclaimed, dropped): (Vec<Binding>, Vec<Binding>) =
                         if ServiceDefinitionExt::is_open_ports(&reassigned.base.service_definition)
                         {
@@ -1357,22 +1398,57 @@ impl HostService {
                     let conflicting_claims: Vec<(Uuid, Option<Uuid>)> =
                         conflicting_bindings.iter().filter_map(port_claim).collect();
 
-                    let all_conflicts_from_open_ports = !conflicting_claims.is_empty()
-                        && conflicting_claims
-                            .iter()
-                            .all(|claim| held_by_open_ports(claim, &existing_services_for_match));
+                    // Each conflict is held by Unclaimed Open Ports, by services that hand the
+                    // port over on a covered scan (`stale_ports`), or both. Anything else keeps
+                    // the port and the new service is dropped.
+                    let handing_over = turnover
+                        .holders_handing_over(
+                            &conflicting_claims,
+                            &existing_services_for_match,
+                            &reassigned,
+                        )
+                        .filter(|holders| {
+                            !conflicting_claims.is_empty()
+                                && conflicting_claims.iter().all(|claim| {
+                                    held_by_open_ports(claim, &existing_services_for_match)
+                                        || existing_services_for_match.iter().any(|s| {
+                                            holders.contains(&s.id)
+                                                && s.base
+                                                    .bindings
+                                                    .iter()
+                                                    .any(|b| overlaps(b, claim))
+                                        })
+                                })
+                        });
 
-                    if all_conflicts_from_open_ports {
+                    if let Some(holders) = handing_over {
                         // The daemon's OpenPorts upsert later in the batch sets the
                         // authoritative final state — this just clears DB conflicts
                         // so the new service can be created.
-                        self.reclaim_from_open_ports(
-                            &conflicting_claims,
-                            &mut existing_services_for_match,
-                            reassigned.base.service_definition.name(),
-                            authentication.clone(),
-                        )
-                        .await;
+                        let open_ports_claims: Vec<(Uuid, Option<Uuid>)> = conflicting_claims
+                            .iter()
+                            .filter(|claim| held_by_open_ports(claim, &existing_services_for_match))
+                            .copied()
+                            .collect();
+                        if !open_ports_claims.is_empty() {
+                            self.reclaim_from_open_ports(
+                                &open_ports_claims,
+                                &mut existing_services_for_match,
+                                reassigned.base.service_definition.name(),
+                                authentication.clone(),
+                            )
+                            .await;
+                        }
+                        if !holders.is_empty() {
+                            self.take_ports(
+                                &holders,
+                                &conflicting_claims,
+                                &mut existing_services_for_match,
+                                reassigned.base.service_definition.name(),
+                                authentication.clone(),
+                            )
+                            .await?;
+                        }
 
                         // Restore full bindings on the incoming service
                         let mut full_bindings = valid_bindings;
@@ -1463,8 +1539,20 @@ impl HostService {
             // Add to existing_services_for_match so subsequent services in this batch
             // can find it for ID alignment and Docker Container → specific service reconciliation
             existing_services_for_match.push(created.clone());
+            turnover.mark_present(created.id);
             created_services.push(created);
         }
+
+        // Covered ports nothing answered on, once stale, leave their holders (`stale_ports`).
+        let answered: HashSet<Uuid> = created_ports.iter().map(|p| p.id).collect();
+        self.release_silent_ports(
+            &turnover,
+            &created_host.base.site_id,
+            &answered,
+            &mut existing_services_for_match,
+            authentication.clone(),
+        )
+        .await?;
 
         // If we have orphaned bindings, assign them to OpenPorts service
         if !orphaned_bindings.is_empty() {

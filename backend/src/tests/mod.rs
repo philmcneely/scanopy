@@ -48,6 +48,7 @@ pub mod dependencies;
 pub mod discovery_finish;
 pub mod discovery_port_ownership;
 pub mod discovery_stale_port_guards;
+pub mod discovery_stale_port_holders;
 pub mod discovery_warnings;
 pub mod email_unsubscribe;
 pub mod email_verification;
