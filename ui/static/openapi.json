@@ -24907,6 +24907,7 @@
           "Telnet",
           "Rtsp",
           "Nut",
+          "EpicsCa",
           "ZabbixAgent",
           "CheckMkAgent",
           "Smb",

@@ -15,7 +15,7 @@ impl ServiceDefinition for InstantOnSwitch {
         "Instant On Switch"
     }
     fn description(&self) -> &'static str {
-        "HPE Networking Instant On switch"
+        "HPE Networking (formerly Aruba) Instant On switch"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkAccess

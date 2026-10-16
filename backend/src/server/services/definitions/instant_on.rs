@@ -18,7 +18,7 @@ impl ServiceDefinition for InstantOn {
         "Instant On"
     }
     fn description(&self) -> &'static str {
-        "Managed through the HPE Networking Instant On cloud portal"
+        "Managed through the HPE Networking (formerly Aruba) Instant On cloud portal"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkAccess

@@ -28,6 +28,7 @@ pub mod checkmk;
 pub mod dns_tcp;
 pub mod docker_ping;
 pub mod docker_swarm;
+pub mod epics_ca;
 pub mod ethernet_ip;
 pub mod ftp;
 pub mod h323;

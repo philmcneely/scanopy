@@ -12,7 +12,7 @@ impl ServiceDefinition for Proxmox {
         "Proxmox VE"
     }
     fn description(&self) -> &'static str {
-        "Open-source virtualization management platform"
+        "Open-source KVM and LXC virtualization management platform"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Hypervisor

@@ -12,7 +12,7 @@ impl ServiceDefinition for TrueNAS {
         "TrueNAS"
     }
     fn description(&self) -> &'static str {
-        "Open-source network attached storage system"
+        "Open-source network attached storage system, formerly FreeNAS"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Storage

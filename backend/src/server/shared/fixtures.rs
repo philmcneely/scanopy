@@ -21,14 +21,16 @@ use crate::server::email::messages::EmailCategory;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::r#impl::categories::ServiceCategory;
-use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::services::r#impl::definitions::{ServiceDefinition, ServiceDefinitionExt};
 use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::{AttributeMethod, AttributeSourceDiscriminants};
 use crate::server::shared::concepts::Concept;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::entity_metadata::EntityCategory;
 use crate::server::shared::types::entities::EntitySourceDiscriminants;
-use crate::server::shared::types::metadata::{EntityMetadata, MetadataProvider, TypeMetadata};
+use crate::server::shared::types::metadata::{
+    EntityMetadata, EntityMetadataProvider, MetadataProvider, TypeMetadata,
+};
 use crate::server::subnets::r#impl::types::SubnetType;
 use crate::server::tags::r#impl::base::TagIcon;
 use crate::server::topology::types::edges::EdgeType;
@@ -71,6 +73,28 @@ pub fn generate_ui_data_fixtures(output_dir: &Path) {
     let all_services = ServiceDefinitionRegistry::all_service_definitions();
     let service_defs: Vec<TypeMetadata> = all_services.iter().map(|t| t.to_metadata()).collect();
     write_fixture(&service_defs, output_dir, "service-definitions.json");
+
+    // The website's services catalog: every definition a user can add, with the docs page of the
+    // integration whose service it is.
+    let services_catalog: Vec<serde_json::Value> = all_services
+        .iter()
+        .filter(|s| s.can_be_manually_added())
+        .map(|s| {
+            serde_json::json!({
+                "logo_url": s.logo_url(),
+                "name": s.name(),
+                "description": s.description(),
+                "discovery_pattern": s.discovery_pattern().to_string(),
+                "category": s.category(),
+                "color": s.color(),
+                "icon": s.icon(),
+                "logo_needs_white_background": s.logo_needs_white_background(),
+                "integration_docs_path": CredentialIntegration::for_service(&**s)
+                    .map(|i| i.docs_path()),
+            })
+        })
+        .collect();
+    write_fixture(&services_catalog, output_dir, "services.json");
 
     // Download service logos to static directory for local serving
     // output_dir is ui/src/lib/data, static dir is ui/static/logos/services

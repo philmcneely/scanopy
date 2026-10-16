@@ -1512,6 +1512,7 @@
 	"meta_client_probes_DockerPing_name": "Docker",
 	"meta_client_probes_DockerSwarm_name": "Docker Swarm",
 	"meta_client_probes_Docker_name": "Docker",
+	"meta_client_probes_EpicsCa_name": "EPICS Channel Access",
 	"meta_client_probes_EtherNetIp_name": "EtherNet/IP",
 	"meta_client_probes_Ftp_name": "FTP",
 	"meta_client_probes_Gnmi_name": "gNMI",
