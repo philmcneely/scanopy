@@ -207,8 +207,12 @@ where
         || ordering.order_by.is_some_and(|f| T::is_computed(&f));
 
     if in_memory {
-        let (items, total_count, group_counts) =
-            memory_page::<T>(state, filter, ordering, query, limit, offset).await?;
+        // A tree grouping wins over the SQL group a computed sort would otherwise fall back to.
+        let (items, total_count, group_counts) = if tree_grouped {
+            tree_memory_page::<T>(state, filter, ordering, query, limit, offset).await?
+        } else {
+            memory_page::<T>(state, filter, ordering, query, limit, offset).await?
+        };
         let response =
             PaginatedApiResponse::success(items, total_count, limit.unwrap_or(0), offset);
         return Ok(match group_counts {
@@ -270,7 +274,86 @@ where
         .map(|(id, _)| id)
         .collect();
 
-    let positions = T::tree_positions(state, &ids).await?;
+    let (ordered, group_counts) = tree_layout::<T>(state, &ids).await?;
+    let page = slice(ordered, limit, offset);
+    let mut rows = service
+        .get_all(StorableFilter::<T>::new_from_entity_ids(&page))
+        .await?;
+    let rank: HashMap<Uuid, usize> = page.iter().enumerate().map(|(i, id)| (*id, i)).collect();
+    rows.sort_by_key(|row| rank.get(&row.id()).copied().unwrap_or(usize::MAX));
+
+    Ok((rows, ids.len() as u64, Some(group_counts)))
+}
+
+/// A page of a list grouped by tree and sorted by something only code can derive: every matching
+/// row is built into its item and ordered in memory, then laid out as trees like [`tree_page`].
+/// Siblings follow the computed sort.
+async fn tree_memory_page<T>(
+    state: &AppState,
+    filter: StorableFilter<T>,
+    ordering: ListOrdering<T::OrderField>,
+    query: &T::FilterQuery,
+    limit: Option<u32>,
+    offset: u32,
+) -> ApiResult<(Vec<T::Item>, u64, Option<Vec<GroupCount>>)>
+where
+    T: PaginatedList + ChangeTriggersTopologyStaleness<T> + Default,
+    EntityEnum: From<T>,
+{
+    let sql = ListOrdering {
+        order_by: ordering.order_by.filter(|f| !T::is_computed(f)),
+        ..ordering.sort_only()
+    };
+    let (filter, order) = sql.apply(filter, &T::default_order());
+    let service = T::get_service(state);
+    let ids: Vec<Uuid> = service
+        .storage()
+        .get_ordered_values(filter, &order, &[])
+        .await?
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+    let rank: HashMap<Uuid, usize> = ids.iter().enumerate().map(|(i, id)| (*id, i)).collect();
+    let mut rows = service
+        .get_all(StorableFilter::<T>::new_from_entity_ids(&ids))
+        .await?;
+    rows.sort_by_key(|row| rank.get(&row.id()).copied().unwrap_or(usize::MAX));
+
+    // `items` keeps the order it is given, so each item lines up with its id.
+    let items = T::items(state, rows, query).await?;
+    let listed: Vec<(Option<String>, (Uuid, T::Item))> = ids
+        .into_iter()
+        .zip(items)
+        .filter(|(_, item)| T::keep(query, item))
+        .map(|pair| (None, pair))
+        .collect();
+    let (sorted, total_count, _) = page_in_memory(
+        listed,
+        &ordering.sort_only(),
+        T::is_computed,
+        |field, (_, item): &(Uuid, T::Item)| T::computed(field, item),
+        None,
+        0,
+    );
+
+    let sorted_ids: Vec<Uuid> = sorted.iter().map(|(id, _)| *id).collect();
+    let (ordered, group_counts) = tree_layout::<T>(state, &sorted_ids).await?;
+    let mut by_id: HashMap<Uuid, T::Item> = sorted.into_iter().collect();
+    let page = slice(ordered, limit, offset)
+        .into_iter()
+        .filter_map(|id| by_id.remove(&id))
+        .collect();
+
+    Ok((page, total_count, Some(group_counts)))
+}
+
+/// `ids` (every matching row, in sort order) in tree order, and each group's size in that order.
+async fn tree_layout<T>(state: &AppState, ids: &[Uuid]) -> ApiResult<(Vec<Uuid>, Vec<GroupCount>)>
+where
+    T: PaginatedList + ChangeTriggersTopologyStaleness<T> + Default,
+    EntityEnum: From<T>,
+{
+    let positions = T::tree_positions(state, ids).await?;
     let rows: Vec<(Uuid, String, Option<Uuid>)> = ids
         .iter()
         .map(|id| {
@@ -299,20 +382,18 @@ where
             }),
         }
     }
+    Ok((ordered, group_counts))
+}
 
-    let page: Vec<Uuid> = ordered
+/// The ids of one page.
+fn slice(ordered: Vec<Uuid>, limit: Option<u32>, offset: u32) -> Vec<Uuid> {
+    ordered
         .into_iter()
         .skip(offset as usize)
         .take(limit.map_or(usize::MAX, |l| l as usize))
-        .collect();
-    let mut rows = service
-        .get_all(StorableFilter::<T>::new_from_entity_ids(&page))
-        .await?;
-    let rank: HashMap<Uuid, usize> = page.iter().enumerate().map(|(i, id)| (*id, i)).collect();
-    rows.sort_by_key(|row| rank.get(&row.id()).copied().unwrap_or(usize::MAX));
-
-    Ok((rows, ids.len() as u64, Some(group_counts)))
+        .collect()
 }
+
 /// A page of a list ordered, grouped or filtered by something only code can derive. Every
 /// matching row is loaded and built into its item, so this is for lists that stay small per
 /// organization. The SQL part of the ordering still runs in the database: rows arrive in it, and a
