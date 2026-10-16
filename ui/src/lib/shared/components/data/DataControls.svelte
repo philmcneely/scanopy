@@ -995,8 +995,12 @@
 		isPaused: () => searchFocused
 	});
 
+	/** The toolbar action a key press runs: the first matching one available, else the first match. */
 	function selectionActionFor(event: KeyboardEvent): KeyedAction | undefined {
-		return selectionToolbarActions.find(({ key }) => key !== null && matchesActionKey(event, key));
+		const matches = selectionToolbarActions.filter(
+			({ key }) => key !== null && matchesActionKey(event, key)
+		);
+		return matches.find(({ action }) => !action.unavailable) ?? matches[0];
 	}
 
 	function handleListShortcut(event: KeyboardEvent) {

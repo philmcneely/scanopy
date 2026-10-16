@@ -133,11 +133,17 @@ export function assignActionKeys<A extends KeyableAction = CardAction>(
 	reserved: readonly string[] = RESERVED_ACTION_KEYS
 ): { action: A; key: string | null }[] {
 	const taken = new Set(reserved);
-	// Preferred keys and Delete first, so a label earlier in the row can't take them.
+	// Preferred keys and Delete first, so a label earlier in the row can't take them. Actions
+	// naming the same shortcut are one control in two states (Enable and Disable side by side in
+	// a mixed selection), so each shows it.
+	const shared = new Set<string>();
 	const claimed = actions.map((action) => {
 		const key = action.isDelete ? DELETE_KEY : action.shortcut?.toUpperCase();
-		if (!key || taken.has(key)) return null;
+		if (!key) return null;
+		if (shared.has(key)) return key;
+		if (taken.has(key)) return null;
 		taken.add(key);
+		if (action.shortcut) shared.add(key);
 		return key;
 	});
 	return actions.map((action, i) => {
