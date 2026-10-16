@@ -312,7 +312,8 @@
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
 				onClick: () => handleDeleteHost(host)
 			}
 		];

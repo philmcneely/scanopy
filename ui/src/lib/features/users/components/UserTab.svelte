@@ -189,7 +189,8 @@
 				actions.push({
 					label: common_delete(),
 					icon: Trash2,
-					class: 'btn-icon-danger',
+					tone: 'danger',
+					isDelete: true,
 					onClick: () => handleDeleteUser(item.data)
 				});
 			}
@@ -200,7 +201,7 @@
 			{
 				label: common_revoke(),
 				icon: UserX,
-				class: 'btn-icon-danger',
+				tone: 'danger',
 				onClick: () => handleRevokeInvite(item.data)
 			}
 		];

@@ -246,7 +246,7 @@
 				actions.push({
 					label: isEnabled ? common_disable() : common_enable(),
 					icon: Power,
-					class: isEnabled ? 'btn-icon-success' : 'btn-icon',
+					tone: isEnabled ? 'success' : undefined,
 					onClick: () => handleToggleEnabled(discovery),
 					disabled: running,
 					tooltip: running
@@ -263,7 +263,7 @@
 			actions.push({
 				label: common_cancel(),
 				icon: Ban,
-				class: 'btn-icon-warning',
+				tone: 'warning',
 				onClick: () => handleCancelDiscovery(session.session_id!)
 			});
 		}
@@ -271,7 +271,8 @@
 		actions.push({
 			label: common_delete(),
 			icon: Trash2,
-			class: 'btn-icon-danger',
+			tone: 'danger',
+			isDelete: true,
 			onClick: () => handleDeleteDiscovery(discovery),
 			disabled: running,
 			tooltip: running ? discovery_cannotDeleteWhileRunning() : undefined

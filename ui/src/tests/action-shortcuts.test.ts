@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	assignActionKeys,
+	canDeleteRow,
 	DELETE_KEY,
 	RESERVED_ACTION_KEYS
 } from '$lib/shared/components/data/controls/actionShortcuts';
@@ -26,11 +27,14 @@ describe('assignActionKeys', () => {
 		expect(RESERVED_ACTION_KEYS).toContain('C');
 	});
 
-	it('gives a destructive action Delete, whatever its label', () => {
-		expect(keys([action('Edit'), action('Delete', { class: 'btn-icon-danger' })])).toEqual([
-			'E',
-			DELETE_KEY
-		]);
+	it('gives the delete action Delete, whatever its label', () => {
+		expect(keys([action('Edit'), action('Remove', { isDelete: true })])).toEqual(['E', DELETE_KEY]);
+	});
+
+	it('gives a danger action that is not the delete a letter', () => {
+		expect(
+			keys([action('Upgrade', { tone: 'danger' }), action('Delete', { isDelete: true })])
+		).toEqual(['U', DELETE_KEY]);
 	});
 
 	it('moves to a later letter when an earlier action took the first', () => {
@@ -39,5 +43,23 @@ describe('assignActionKeys', () => {
 
 	it('leaves an action keyless when every letter is taken', () => {
 		expect(keys([action('Tc')])).toEqual([null]);
+	});
+});
+
+describe('canDeleteRow', () => {
+	const del = (extra: Partial<CardAction> = {}) =>
+		action('Delete', { tone: 'danger', isDelete: true, ...extra });
+
+	it('allows a row whose actions include an enabled delete', () => {
+		expect(canDeleteRow([action('Edit'), del()])).toBe(true);
+	});
+
+	it('refuses a row with no delete, or a disabled one', () => {
+		expect(canDeleteRow([action('Edit')])).toBe(false);
+		expect(canDeleteRow([action('Edit'), del({ disabled: true })])).toBe(false);
+	});
+
+	it('refuses a row whose only destructive action is not its delete', () => {
+		expect(canDeleteRow([action('Revoke', { tone: 'danger' })])).toBe(false);
 	});
 });

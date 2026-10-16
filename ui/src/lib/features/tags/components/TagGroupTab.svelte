@@ -111,7 +111,8 @@
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
 				onClick: () => handleDelete(group)
 			}
 		];
@@ -158,7 +159,6 @@
 			{toolbarActions}
 			items={groups}
 			{fields}
-			allowBulkDelete={canManage}
 			storageKey="scanopy-tag-groups-table-state"
 			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}

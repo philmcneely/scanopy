@@ -124,7 +124,8 @@
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
 				onClick: () => handleDeleteApiKey(apiKey),
 				// A key a daemon is using cannot be deleted.
 				disabled: apiKeyIdsInUse.has(apiKey.id)

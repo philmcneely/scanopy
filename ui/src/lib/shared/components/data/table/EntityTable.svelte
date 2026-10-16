@@ -30,6 +30,7 @@
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { shortcutLabel } from '$lib/shared/utils/shortcuts';
 	import { getFieldValue } from '../controls/fieldValues';
+	import { iconButtonClass } from '../controls/actionShortcuts';
 	import type { RenderGroup, TreeCell, TreeEntry } from '../controls/grouping';
 	import type { SortState } from '../controls/sorting';
 	import type { CardAction, GroupSlice } from '../types';
@@ -704,7 +705,7 @@
 							use:tooltip
 							data-tooltip={tip}
 							aria-label={action.label}
-							class="{action.class || 'btn-icon'} disabled:cursor-not-allowed disabled:opacity-50"
+							class="{iconButtonClass(action.tone)} disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							<action.icon size={16} class={action.animation || ''} />
 						</button>

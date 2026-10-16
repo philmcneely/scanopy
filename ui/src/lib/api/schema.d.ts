@@ -24452,7 +24452,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse_BulkDeleteResponse"];
                 };
             };
-            /** @description Cannot delete users with higher permissions */
+            /** @description Cannot delete yourself, or a user whose role you could not grant */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -24595,7 +24595,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse"];
                 };
             };
-            /** @description Cannot delete user with higher permissions */
+            /** @description Cannot delete yourself, or a user whose role you could not grant */
             403: {
                 headers: {
                     [name: string]: unknown;

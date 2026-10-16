@@ -153,13 +153,6 @@
 	let isNonOwnerInDemo = $derived(isDemoOrg && currentUser?.permissions !== 'Owner');
 
 	let canManage = $derived(
-		!isReadOnly &&
-			!isNonOwnerInDemo &&
-			currentUser &&
-			permissions.getMetadata(currentUser.permissions).manage_org_entities
-	);
-
-	let allowBulkDelete = $derived(
 		!isReadOnly && !isNonOwnerInDemo && currentUser
 			? permissions.getMetadata(currentUser.permissions).manage_org_entities
 			: false
@@ -187,7 +180,8 @@
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
 				onClick: () => handleDeleteCredential(credential)
 			}
 		];
@@ -312,13 +306,11 @@
 			{toolbarActions}
 			items={credentials}
 			fields={credentialFields}
-			{allowBulkDelete}
-			canDeleteItem={(item) => !item.is_default}
 			storageKey="scanopy-credentials-table-state"
 			defaults={tableDefaults}
 			onBulkDelete={handleBulkDelete}
 			entityType="Credential"
-			canEditTags={allowBulkDelete}
+			canEditTags={canManage}
 			getItemTags={getCredentialTags}
 			getItemId={(item) => item.id}
 			onCsvExport={handleCsvExport}

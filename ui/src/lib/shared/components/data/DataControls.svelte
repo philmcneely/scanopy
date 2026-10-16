@@ -129,8 +129,9 @@
 	} from './controls/listShortcuts';
 	import {
 		assignActionKeys,
-		isDangerAction,
+		canDeleteRow,
 		matchesActionKey,
+		toolbarButtonClass,
 		type KeyedAction
 	} from './controls/actionShortcuts';
 	import type { components } from '$lib/api/schema';
@@ -145,8 +146,6 @@
 		fields: tabFields = $bindable([]),
 		storageKey = null,
 		onBulkDelete = null,
-		allowBulkDelete = true,
-		canDeleteItem = null,
 		entityType = null,
 		canEditTags = true,
 		getItemTags = null,
@@ -180,11 +179,9 @@
 		items: T[];
 		fields: FieldConfig<T>[];
 		storageKey?: string | null;
+		// Deletes the selected rows. Offered only while every selected row's own actions include an
+		// enabled delete (`CardAction.isDelete`); the selection stays available for tagging.
 		onBulkDelete?: ((ids: string[]) => Promise<void>) | null;
-		allowBulkDelete?: boolean;
-		// Whether one row may be deleted. Bulk delete is offered only while every selected row may
-		// be; the selection stays available for tagging. Absent: every row may be deleted.
-		canDeleteItem?: ((item: T) => boolean) | null;
 		entityType?: EntityDiscriminants | null;
 		// Whether the user may add and remove tags here. `entityType` names what the rows are; this
 		// gates editing them.
@@ -724,11 +721,8 @@
 
 	// Handle bulk delete
 	async function handleBulkDelete() {
-		const deleted = await runBulkAction(
-			'Bulk delete',
-			selectedIds,
-			Boolean(allowBulkDelete && onBulkDelete),
-			(ids) => onBulkDelete!(ids)
+		const deleted = await runBulkAction('Bulk delete', selectedIds, Boolean(onBulkDelete), (ids) =>
+			onBulkDelete!(ids)
 		);
 		// Only on success: a failed delete leaves the rows, so clearing here
 		// would drop the selection the user still needs to retry.
@@ -868,11 +862,14 @@
 	}
 
 	let showSelection = $derived(Boolean(onBulkDelete) || hasBulkTagging);
-	// Bulk delete is offered only while the selection holds no row that can't be deleted.
-	let selectionDeletable = $derived(
-		!canDeleteItem ||
-			items.filter((item) => selectedIds.has(getItemId(item))).every((item) => canDeleteItem(item))
-	);
+	// Bulk delete is offered only while every selected row's own actions include an enabled delete.
+	let selectionDeletable = $derived.by(() => {
+		const rowActions = getActions;
+		if (!rowActions) return false;
+		return items
+			.filter((item) => selectedIds.has(getItemId(item)))
+			.every((item) => canDeleteRow(rowActions(item)));
+	});
 
 	let tableCaptionText = $derived(
 		common_tableCaption({
@@ -1056,9 +1053,7 @@
 		selection: keyLabel('Escape')
 	};
 
-	let canBulkDelete = $derived(
-		Boolean(allowBulkDelete && onBulkDelete) && selectedIds.size > 0 && selectionDeletable
-	);
+	let canBulkDelete = $derived(Boolean(onBulkDelete) && selectedIds.size > 0 && selectionDeletable);
 
 	// With exactly one row selected, its own actions (Edit, Rescan, ...) also show in the toolbar,
 	// each with a key. Its delete action is left out while Delete Selected already covers it.
@@ -1066,7 +1061,7 @@
 		if (!getActions || selectedIds.size !== 1) return [];
 		const item = items.find((i) => selectedIds.has(getItemId(i)));
 		if (!item) return [];
-		const actions = getActions(item).filter((a) => !(canBulkDelete && isDangerAction(a)));
+		const actions = getActions(item).filter((a) => !(canBulkDelete && a.isDelete));
 		return assignActionKeys(actions);
 	});
 
@@ -1181,9 +1176,9 @@
 			onclick={action.onClick}
 			disabled={action.disabled}
 			title={tip ?? undefined}
-			class="{isDangerAction(action)
-				? 'btn-danger'
-				: 'btn-secondary'} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+			class="{toolbarButtonClass(
+				action.tone
+			)} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{action.label}
 			{#if key}

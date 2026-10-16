@@ -87,13 +87,6 @@
 	let isLoading = $derived(tagsQuery.isLoading);
 
 	let canManage = $derived(
-		!isReadOnly &&
-			!isNonOwnerInDemo &&
-			currentUser &&
-			permissions.getMetadata(currentUser.permissions).manage_org_entities
-	);
-
-	let allowBulkDelete = $derived(
 		!isReadOnly && !isNonOwnerInDemo && currentUser
 			? permissions.getMetadata(currentUser.permissions).manage_org_entities
 			: false
@@ -113,7 +106,8 @@
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
 				onClick: () => handleDeleteTag(tag)
 			}
 		];
@@ -198,7 +192,6 @@
 			{toolbarActions}
 			items={tags}
 			fields={tagFields}
-			{allowBulkDelete}
 			storageKey="scanopy-tags-table-state"
 			defaults={tableDefaults}
 			onBulkDelete={handleBulkDelete}

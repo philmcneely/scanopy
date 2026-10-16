@@ -9,9 +9,14 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { isUserManagedSubnet, useSubnetsQuery } from '$lib/features/subnets/queries';
-	import { useUpdateVlanMutation, useVlansQuery } from '../queries';
+	import {
+		useBulkDeleteVlansMutation,
+		useDeleteVlanMutation,
+		useUpdateVlanMutation,
+		useVlansQuery
+	} from '../queries';
 	import VlanEditModal from './VlanEditModal.svelte';
-	import { Edit } from 'lucide-svelte';
+	import { Edit, Trash2 } from 'lucide-svelte';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import type { TabProps } from '$lib/shared/types';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
@@ -23,11 +28,15 @@
 	import type { components } from '$lib/api/schema';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
 	import {
+		common_confirmBulkDelete,
+		common_confirmDeleteName,
+		common_delete,
 		common_edit,
 		common_noEntityYet,
 		common_vlans,
 		daemons_installPromptVlans,
-		vlans_emptySubtitle
+		vlans_emptySubtitle,
+		vlans_vlanTitle
 	} from '$lib/paraglide/messages';
 	import { hasDaemon } from '$lib/shared/onboarding/checklist';
 
@@ -82,11 +91,35 @@
 	let isLoading = $derived(vlansQuery.isPending);
 
 	const updateVlanMutation = useUpdateVlanMutation();
+	const deleteVlanMutation = useDeleteVlanMutation();
+	const bulkDeleteVlansMutation = useBulkDeleteVlansMutation();
 
-	/** Row actions. VLANs are discovered, so editing is the only action. */
+	/** Row actions. */
 	function vlanActions(vlan: Vlan): CardAction[] {
 		if (isReadOnly) return [];
-		return [{ label: common_edit(), icon: Edit, onClick: () => handleEditVlan(vlan) }];
+		return [
+			{ label: common_edit(), icon: Edit, onClick: () => handleEditVlan(vlan) },
+			{
+				label: common_delete(),
+				icon: Trash2,
+				tone: 'danger',
+				isDelete: true,
+				onClick: () => handleDeleteVlan(vlan)
+			}
+		];
+	}
+
+	function handleDeleteVlan(vlan: Vlan) {
+		const name = vlans_vlanTitle({ number: vlan.vlan_number, name: vlan.name });
+		if (confirm(common_confirmDeleteName({ name }))) {
+			deleteVlanMutation.mutate(vlan.id);
+		}
+	}
+
+	async function handleBulkDelete(ids: string[]) {
+		if (confirm(common_confirmBulkDelete({ count: ids.length, entity: common_vlans() }))) {
+			await bulkDeleteVlansMutation.mutateAsync(ids);
+		}
 	}
 
 	function handleEditVlan(vlan: Vlan) {
@@ -163,6 +196,7 @@
 			storageKey="scanopy-vlans-table-state"
 			defaults={tableDefaults}
 			entityType="Vlan"
+			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			canEditTags={!isReadOnly}
 			getItemTags={getVlanTags}
 			getItemId={(item) => item.id}
