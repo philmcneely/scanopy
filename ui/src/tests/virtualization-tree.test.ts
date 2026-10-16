@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { buildTreeSections, groupItems } from '$lib/shared/components/data/controls/grouping';
+import {
+	buildTreeSections,
+	groupItems,
+	mergeRootedTrees
+} from '$lib/shared/components/data/controls/grouping';
 import type { FieldConfig } from '$lib/shared/components/data/types';
 import {
 	missingRootIds,

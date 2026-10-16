@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
 	buildTreeSections,
 	flattenTreeEntries,
-	isSingleRootTree,
 	mergeRootedTrees,
 	ROOTED_TREES_KEY,
 	type RenderGroup,
@@ -16,32 +15,36 @@ interface Range {
 	id: string;
 	parent: string | null;
 	depth: number;
+	root: string | null;
 }
 
 const tree: TreeConfig<Range> = {
 	key: (r) => r.id,
 	parentKey: (r) => r.parent,
 	depth: (r) => r.depth,
+	rootKey: (r) => r.root,
 	rootsLabel: () => 'Nested'
 };
 
 // In the server's order: each range directly before the ranges inside it.
-const wide: Range = { id: 'wide', parent: null, depth: 0 };
-const sibling: Range = { id: 'sibling', parent: 'wide', depth: 1 };
-const mid: Range = { id: 'mid', parent: 'wide', depth: 1 };
-const leaf: Range = { id: 'leaf', parent: 'mid', depth: 2 };
+const wide: Range = { id: 'wide', parent: null, depth: 0, root: 'wide' };
+const sibling: Range = { id: 'sibling', parent: 'wide', depth: 1, root: 'wide' };
+const mid: Range = { id: 'mid', parent: 'wide', depth: 1, root: 'wide' };
+const leaf: Range = { id: 'leaf', parent: 'mid', depth: 2, root: 'wide' };
 
 /** A group's entries as `depth|id` for a leaf row and an object for a row with children. */
 function shape(entries: TreeEntry<Range>[]): unknown[] {
 	return entries.map((entry) =>
-		entry.type === 'row'
-			? `${entry.depth}|${entry.item.id}`
-			: {
-					section: `${entry.depth}|${entry.item.id}`,
-					count: entry.count,
-					depth: entry.depth,
-					entries: shape(entry.entries)
-				}
+		entry.type === 'continued'
+			? { continued: entry.label, entries: shape(entry.entries) }
+			: entry.type === 'row'
+				? `${entry.depth}|${entry.item.id}`
+				: {
+						section: `${entry.depth}|${entry.item.id}`,
+						count: entry.count,
+						depth: entry.depth,
+						entries: shape(entry.entries)
+					}
 	);
 }
 
@@ -66,7 +69,7 @@ describe('buildTreeSections', () => {
 	});
 
 	it('starts rows whose ancestors are on an earlier page at the top', () => {
-		const other: Range = { id: 'other', parent: 'wide', depth: 1 };
+		const other: Range = { id: 'other', parent: 'wide', depth: 1, root: 'wide' };
 		expect(shape(buildTreeSections([leaf, other], tree, 'g'))).toEqual(['0|leaf', '0|other']);
 		expect(shape(buildTreeSections([sibling, mid, leaf], tree, 'g'))).toEqual([
 			'0|sibling',
@@ -75,10 +78,10 @@ describe('buildTreeSections', () => {
 	});
 
 	it('keys sections by path, so same-labelled rows in different places stay apart', () => {
-		const twinA: Range = { id: 'twin-a', parent: null, depth: 0 };
-		const twinB: Range = { id: 'twin-b', parent: null, depth: 0 };
-		const kidA: Range = { id: 'kid-a', parent: 'twin-a', depth: 1 };
-		const kidB: Range = { id: 'kid-b', parent: 'twin-b', depth: 1 };
+		const twinA: Range = { id: 'twin-a', parent: null, depth: 0, root: 'twin-a' };
+		const twinB: Range = { id: 'twin-b', parent: null, depth: 0, root: 'twin-b' };
+		const kidA: Range = { id: 'kid-a', parent: 'twin-a', depth: 1, root: 'twin-a' };
+		const kidB: Range = { id: 'kid-b', parent: 'twin-b', depth: 1, root: 'twin-b' };
 		const entries = buildTreeSections([twinA, kidA, twinB, kidB], tree, 'g');
 		const keys = entries.map((entry) => (entry.type === 'section' ? entry.key : null));
 		expect(keys[0]).not.toBeNull();
@@ -91,32 +94,14 @@ describe('buildTreeSections', () => {
 	});
 });
 
-describe('isSingleRootTree', () => {
-	it('picks out a group that is one tree under a real root', () => {
-		const entries = buildTreeSections([wide, sibling, mid, leaf], tree, 'g');
-		expect(isSingleRootTree(entries, tree)).toBe(true);
-	});
-
-	it('leaves out a group whose top row has a parent on another page', () => {
-		const entries = buildTreeSections([mid, leaf], tree, 'g');
-		expect(isSingleRootTree(entries, tree)).toBe(false);
-	});
-
-	it('leaves out a group of several top-level rows', () => {
-		const other: Range = { id: 'other', parent: null, depth: 0 };
-		const entries = buildTreeSections([wide, mid, other], tree, 'g');
-		expect(isSingleRootTree(entries, tree)).toBe(false);
-	});
-});
-
 describe('mergeRootedTrees', () => {
 	const group = (key: string, rows: Range[], range: RenderGroup<Range>['range'] = null) => {
 		const entries = buildTreeSections(rows, tree, key);
 		return { key, name: key, items: rows, range, entries, rootRanges: null };
 	};
-	const other: Range = { id: 'other', parent: null, depth: 0 };
-	const otherKid: Range = { id: 'other-kid', parent: 'other', depth: 1 };
-	const loose: Range = { id: 'loose', parent: null, depth: 0 };
+	const other: Range = { id: 'other', parent: null, depth: 0, root: 'other' };
+	const otherKid: Range = { id: 'other-kid', parent: 'other', depth: 1, root: 'other' };
+	const loose: Range = { id: 'loose', parent: null, depth: 0, root: null };
 
 	it('collects every rooted tree under one header, where the first one was', () => {
 		const range = { start: 1, end: 3, total: 3 };
@@ -130,18 +115,31 @@ describe('mergeRootedTrees', () => {
 		const [, trees] = merged;
 		expect(trees.key).toBe(ROOTED_TREES_KEY);
 		// Roots are ordinary rows of the merged group, not headers of their own.
-		expect(trees.entries!.map((entry) => entry.item.id)).toEqual(['wide', 'other']);
+		expect(
+			trees.entries!.map((entry) => (entry.type === 'continued' ? null : entry.item.id))
+		).toEqual(['wide', 'other']);
 		expect(trees.items.map((r) => r.id)).toEqual(['wide', 'mid', 'leaf', 'other', 'other-kid']);
 		expect(trees.rootRanges!.get('wide')).toEqual(range);
 		expect(trees.rootRanges!.has('other')).toBe(false);
 	});
 
-	it('keeps a group whose root is not shown under its own header', () => {
-		const groups = [group('wide', [mid, leaf]), group('other', [other, otherKid])];
-		expect(mergeRootedTrees(groups, tree).map((g) => g.name)).toEqual(['wide', 'Nested']);
+	it('nests a tree whose root is on an earlier page under a head naming the root', () => {
+		// Page 2 of the "wide" tree: the root and `sibling` are on page 1.
+		const range = { start: 6, end: 25, total: 30 };
+		const groups = [group('10.10.0.0/16', [mid, leaf], range), group('Ungrouped', [loose])];
+		const merged = mergeRootedTrees(groups, tree);
+		expect(merged.map((g) => g.name)).toEqual(['Nested', 'Ungrouped']);
+		const [head] = merged[0].entries!;
+		expect(head).toMatchObject({ type: 'continued', label: '10.10.0.0/16', range });
+		// One level in from the head, as they would sit under the root.
+		expect(shape(head.type === 'continued' ? head.entries : [])).toEqual([
+			{ section: '1|mid', count: 1, depth: 1, entries: ['2|leaf'] }
+		]);
+		// The head is not a row of the page.
+		expect(flattenTreeEntries(merged[0].entries!).map((r) => r.id)).toEqual(['mid', 'leaf']);
 	});
 
-	it('leaves groups alone when none is a rooted tree', () => {
+	it('leaves groups alone when none is a tree', () => {
 		const groups = [group('Ungrouped', [loose])];
 		expect(mergeRootedTrees(groups, tree)).toBe(groups);
 	});
