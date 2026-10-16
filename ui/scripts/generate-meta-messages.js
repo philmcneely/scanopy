@@ -245,7 +245,13 @@ function main() {
 		sorted[key] = merged[key];
 	}
 
-	writeFileSync(MESSAGES_FILE, JSON.stringify(sorted, null, '\t') + '\n');
+	// Write only on a change, so an unchanged en.json keeps its mtime and doesn't trigger a reload.
+	const output = JSON.stringify(sorted, null, '\t') + '\n';
+	if (existsSync(MESSAGES_FILE) && readFileSync(MESSAGES_FILE, 'utf-8') === output) {
+		console.log(`en.json unchanged (${Object.keys(sorted).length} total messages)`);
+		return;
+	}
+	writeFileSync(MESSAGES_FILE, output);
 	console.log(`Wrote ${Object.keys(sorted).length} total messages to en.json`);
 	console.log(`  - ${Object.keys(manualMessages).length} manual messages`);
 	console.log(`  - ${Object.keys(metaMessages).length} meta messages`);

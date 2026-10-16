@@ -38,6 +38,7 @@ use crate::server::topology::types::grouping::{ContainerRule, ElementRule, Eleme
 use crate::server::topology::types::nodes::ContainerType;
 use crate::server::topology::types::views::{InspectorSection, TopologyView};
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 use strum::{IntoDiscriminant, IntoEnumIterator};
@@ -47,7 +48,7 @@ use strum::{IntoDiscriminant, IntoEnumIterator};
 /// This is called by:
 /// - `generate-fixtures` binary (local dev, Docker builds)
 /// - Integration tests (CI release workflow)
-pub fn generate_ui_data_fixtures(output_dir: &Path) {
+pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
     println!(
         "Generating metadata fixtures to {}...",
         output_dir.display()
@@ -70,7 +71,10 @@ pub fn generate_ui_data_fixtures(output_dir: &Path) {
     let feature_metadata: Vec<TypeMetadata> = Feature::iter().map(|f| f.to_metadata()).collect();
     write_fixture(&feature_metadata, output_dir, "features.json");
 
-    let all_services = ServiceDefinitionRegistry::all_service_definitions();
+    // The registry yields definitions in link order, which shifts between builds. Sorting keeps
+    // the two service fixtures identical until a definition actually changes.
+    let mut all_services = ServiceDefinitionRegistry::all_service_definitions();
+    all_services.sort_by_key(|s| s.id());
     let service_defs: Vec<TypeMetadata> = all_services.iter().map(|t| t.to_metadata()).collect();
     write_fixture(&service_defs, output_dir, "service-definitions.json");
 
@@ -103,7 +107,7 @@ pub fn generate_ui_data_fixtures(output_dir: &Path) {
         .iter()
         .map(|s| (logo_slug(s.name()), s.logo_url()))
         .collect();
-    download_logos(&service_logos, &static_dir);
+    download_logos(&service_logos, &static_dir, force_logos);
 
     // Host OS family logos, beside the service logos and fetched the same way. The UI reads them
     // from /logos/os-families/<family id>.<logo_ext>.
@@ -112,7 +116,7 @@ pub fn generate_ui_data_fixtures(output_dir: &Path) {
         crate::server::hosts::r#impl::os::HostOsFamily::iter()
             .map(|f| (<&'static str>::from(f).to_string(), f.logo_url()))
             .collect();
-    download_logos(&os_family_logos, &os_family_dir);
+    download_logos(&os_family_logos, &os_family_dir, force_logos);
 
     let subnet_types: Vec<TypeMetadata> = SubnetType::iter().map(|t| t.to_metadata()).collect();
     write_fixture(&subnet_types, output_dir, "subnet-types.json");
@@ -412,9 +416,14 @@ pub fn generate_ui_data_fixtures(output_dir: &Path) {
     println!("Done! Generated all metadata fixtures.");
 }
 
+/// Writes the fixture only when its content changed, so unchanged files keep their mtime and the
+/// Vite dev server doesn't reload for nothing.
 fn write_fixture<T: serde::Serialize + ?Sized>(items: &T, output_dir: &Path, filename: &str) {
     let json = serde_json::to_string_pretty(items).expect("Failed to serialize");
     let path = output_dir.join(filename);
+    if fs::read(&path).is_ok_and(|existing| existing == json.as_bytes()) {
+        return;
+    }
     fs::write(&path, json).unwrap_or_else(|_| panic!("Failed to write {filename}"));
     println!("  {}", filename);
 }
@@ -435,49 +444,229 @@ pub(crate) fn logo_ext(url: &str) -> &str {
         .unwrap_or("svg")
 }
 
+/// Record of the URL each logo file in a directory was downloaded from, kept beside the logos.
+const LOGO_CACHE_FILE: &str = ".logo-cache.json";
+
+/// What `download_logos` does with a logo directory, worked out from the wanted logos, the cache
+/// record and the files already on disk.
+#[derive(Debug, PartialEq)]
+struct LogoPlan {
+    /// `(filename, url)` to fetch.
+    download: Vec<(String, String)>,
+    /// Files no current logo maps to, including one whose extension changed.
+    prune: Vec<String>,
+    /// The record with entries for removed logos dropped. Downloads add to it.
+    cache: BTreeMap<String, String>,
+}
+
+/// A logo is fetched when `force` is set, its file is missing, or the record holds a different
+/// URL for it. Empty and already-local (`/...`) URLs are skipped.
+fn plan_logos(
+    logos: &[(String, &str)],
+    mut cache: BTreeMap<String, String>,
+    existing_files: &BTreeSet<String>,
+    force: bool,
+) -> LogoPlan {
+    let wanted: BTreeMap<String, String> = logos
+        .iter()
+        .filter(|(_, url)| !url.is_empty() && !url.starts_with('/'))
+        .map(|(stem, url)| (format!("{stem}.{}", logo_ext(url)), url.to_string()))
+        .collect();
+
+    cache.retain(|filename, _| wanted.contains_key(filename));
+
+    let download = wanted
+        .iter()
+        .filter(|(filename, url)| {
+            force || !existing_files.contains(*filename) || cache.get(*filename) != Some(*url)
+        })
+        .map(|(filename, url)| (filename.clone(), url.clone()))
+        .collect();
+
+    let prune = existing_files
+        .iter()
+        .filter(|f| f.as_str() != LOGO_CACHE_FILE && !wanted.contains_key(*f))
+        .cloned()
+        .collect();
+
+    LogoPlan {
+        download,
+        prune,
+        cache,
+    }
+}
+
 /// Download logos from CDN URLs to a local static directory, one `(file stem, url)` per logo.
-/// Files are saved with extensions so the static server sets correct Content-Type. Empty and
-/// already-local (`/...`) URLs are skipped.
-fn download_logos(logos: &[(String, &str)], static_dir: &Path) {
-    println!("Downloading logos to {}...", static_dir.display());
+/// Files are saved with extensions so the static server sets correct Content-Type. Only logos
+/// that are missing or whose URL changed are fetched (all of them with `force`), and files for
+/// logos that no longer exist are removed.
+fn download_logos(logos: &[(String, &str)], static_dir: &Path, force: bool) {
+    println!("Syncing logos in {}...", static_dir.display());
     fs::create_dir_all(static_dir).expect("Failed to create logos directory");
 
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .expect("Failed to create HTTP client");
+    let cache_path = static_dir.join(LOGO_CACHE_FILE);
+    let cache: BTreeMap<String, String> = fs::read(&cache_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default();
+    let existing_files: BTreeSet<String> = fs::read_dir(static_dir)
+        .expect("Failed to read logos directory")
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().is_ok_and(|t| t.is_file()))
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect();
+
+    let LogoPlan {
+        download,
+        prune,
+        mut cache,
+    } = plan_logos(logos, cache, &existing_files, force);
+
+    for filename in &prune {
+        fs::remove_file(static_dir.join(filename))
+            .unwrap_or_else(|_| panic!("Failed to remove logo {filename}"));
+    }
 
     let mut downloaded = 0;
     let mut failed = 0;
 
-    for (stem, url) in logos {
-        let url = *url;
-        if url.is_empty() || url.starts_with('/') {
-            continue;
-        }
+    if !download.is_empty() {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .expect("Failed to create HTTP client");
 
-        let ext = logo_ext(url);
-        let filename = format!("{stem}.{ext}");
-        let path = static_dir.join(&filename);
-
-        match client.get(url).send().and_then(|r| r.error_for_status()) {
-            Ok(resp) => match resp.bytes() {
+        for (filename, url) in download {
+            let result = client
+                .get(&url)
+                .send()
+                .and_then(|r| r.error_for_status())
+                .and_then(|r| r.bytes());
+            match result {
                 Ok(bytes) => {
-                    fs::write(&path, &bytes)
+                    fs::write(static_dir.join(&filename), &bytes)
                         .unwrap_or_else(|_| panic!("Failed to write logo {filename}"));
+                    cache.insert(filename, url);
                     downloaded += 1;
                 }
                 Err(e) => {
-                    eprintln!("  ⚠ {stem} — failed to read response: {e}");
+                    // Keep any previous file, but drop the record so the next run retries.
+                    eprintln!("  ⚠ {filename} — {e}");
+                    cache.remove(&filename);
                     failed += 1;
                 }
-            },
-            Err(e) => {
-                eprintln!("  ⚠ {stem} — {e}");
-                failed += 1;
             }
         }
     }
 
-    println!("  Logos: {} downloaded, {} failed", downloaded, failed);
+    let json = serde_json::to_string_pretty(&cache).expect("Failed to serialize logo cache");
+    fs::write(&cache_path, json).expect("Failed to write logo cache");
+
+    println!(
+        "  Logos: {} downloaded, {} failed, {} removed, {} unchanged",
+        downloaded,
+        failed,
+        prune.len(),
+        cache.len() - downloaded
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn files(names: &[&str]) -> BTreeSet<String> {
+        names.iter().map(|n| n.to_string()).collect()
+    }
+
+    fn cache(entries: &[(&str, &str)]) -> BTreeMap<String, String> {
+        entries
+            .iter()
+            .map(|(f, u)| (f.to_string(), u.to_string()))
+            .collect()
+    }
+
+    fn downloads(plan: &LogoPlan) -> Vec<&str> {
+        plan.download.iter().map(|(f, _)| f.as_str()).collect()
+    }
+
+    const DOCKER: &str = "https://cdn.example/docker.svg";
+    const PLEX: &str = "https://cdn.example/plex.png";
+
+    #[test]
+    fn fetches_only_missing_or_changed_logos() {
+        let logos = vec![
+            ("docker".to_string(), DOCKER),
+            ("plex".to_string(), PLEX),
+            ("local".to_string(), "/logos/local.svg"),
+            ("none".to_string(), ""),
+        ];
+
+        let fresh = plan_logos(&logos, BTreeMap::new(), &BTreeSet::new(), false);
+        assert_eq!(downloads(&fresh), ["docker.svg", "plex.png"]);
+
+        let cached = cache(&[("docker.svg", DOCKER), ("plex.png", PLEX)]);
+        let on_disk = files(&["docker.svg", "plex.png", LOGO_CACHE_FILE]);
+        let unchanged = plan_logos(&logos, cached.clone(), &on_disk, false);
+        assert!(unchanged.download.is_empty());
+        assert!(unchanged.prune.is_empty());
+
+        let moved = cache(&[
+            ("docker.svg", "https://old.example/docker.svg"),
+            ("plex.png", PLEX),
+        ]);
+        assert_eq!(
+            downloads(&plan_logos(&logos, moved, &on_disk, false)),
+            ["docker.svg"]
+        );
+
+        let missing = files(&["plex.png", LOGO_CACHE_FILE]);
+        assert_eq!(
+            downloads(&plan_logos(&logos, cached.clone(), &missing, false)),
+            ["docker.svg"]
+        );
+
+        assert_eq!(
+            downloads(&plan_logos(&logos, cached, &on_disk, true)),
+            ["docker.svg", "plex.png"]
+        );
+    }
+
+    #[test]
+    fn prunes_files_for_removed_logos_and_old_extensions() {
+        let logos = vec![("plex".to_string(), PLEX)];
+        let cached = cache(&[
+            ("plex.svg", "https://cdn.example/plex.svg"),
+            ("gone.svg", DOCKER),
+        ]);
+        let on_disk = files(&["plex.svg", "gone.svg", LOGO_CACHE_FILE]);
+
+        let plan = plan_logos(&logos, cached, &on_disk, false);
+
+        assert_eq!(downloads(&plan), ["plex.png"]);
+        assert_eq!(plan.prune, ["gone.svg", "plex.svg"]);
+        assert!(plan.cache.is_empty());
+    }
+
+    #[test]
+    fn rewrites_a_fixture_only_when_its_content_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("f.json");
+        let past = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000);
+
+        write_fixture(&["a"], dir.path(), "f.json");
+        fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(past)
+            .unwrap();
+
+        write_fixture(&["a"], dir.path(), "f.json");
+        assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), past);
+
+        write_fixture(&["b"], dir.path(), "f.json");
+        assert_ne!(fs::metadata(&path).unwrap().modified().unwrap(), past);
+        assert!(fs::read_to_string(&path).unwrap().contains("\"b\""));
+    }
 }

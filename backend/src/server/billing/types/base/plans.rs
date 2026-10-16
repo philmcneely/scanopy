@@ -510,10 +510,11 @@ impl BillingPlan {
     /// For Free: returns all enabled features (it's the baseline).
     /// For self-hosted plans with no previous tier: returns all enabled non-universal features.
     /// For cloud plans: returns features new vs the previous tier.
+    /// Sorted, so the generated fixture is identical from run to run.
     pub fn incremental_features(&self) -> Vec<&'static str> {
         let enabled = self.enabled_feature_ids();
 
-        match self.previous_tier() {
+        let mut features: Vec<&'static str> = match self.previous_tier() {
             Some(prev_disc) => {
                 let prev_plan = Self::default_for_discriminant(prev_disc);
                 match prev_plan {
@@ -533,7 +534,9 @@ impl BillingPlan {
                 let universal = Self::universal_feature_ids();
                 enabled.difference(&universal).copied().collect()
             }
-        }
+        };
+        features.sort_unstable();
+        features
     }
 
     /// Returns set of feature IDs where the feature is enabled on this plan.
