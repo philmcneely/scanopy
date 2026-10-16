@@ -13,14 +13,11 @@
 		count?: number;
 		disabled?: boolean;
 	}
-
-	/** Open modals, oldest first. Only the last one answers keys shared by every modal. */
-	const openModals: symbol[] = [];
 </script>
 
 <script lang="ts">
 	import { untrack, type Snippet } from 'svelte';
-	import { ArrowLeft, ChevronLeft, ChevronRight, X } from 'lucide-svelte';
+	import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-svelte';
 	import type { AnyFormApi } from '@tanstack/form-core';
 	import {
 		common_closeModal,
@@ -31,11 +28,25 @@
 		common_modal,
 		common_modalTabs,
 		common_next,
-		common_previous
+		common_previous,
+		common_shortcutsPausedWhileTyping
 	} from '$lib/paraglide/messages';
 	import ConfirmationDialog from '$lib/shared/components/feedback/ConfirmationDialog.svelte';
 	import { isEditableTarget } from '$lib/shared/utils/shortcuts';
 	import ModalStepper from './ModalStepper.svelte';
+	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
+	import { tooltip } from '$lib/shared/actions/tooltip';
+	import { toolbarButtonClass } from '$lib/shared/components/data/controls/actionShortcuts';
+	import {
+		assignModalKeys,
+		isTopmostModal,
+		modalKeyLabel,
+		pausesWhileTyping,
+		registerOpenModal,
+		resolveModalKeydown,
+		type ModalAction
+	} from './modalActions';
+	import { provideModalActions } from './modalActionsContext.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import { toColor } from '$lib/shared/utils/styling';
 	import { get } from 'svelte/store';
@@ -79,7 +90,10 @@
 		headerIcon,
 		banners,
 		children,
-		footer
+		footer,
+		actions = [],
+		footerLayout = 'row',
+		footerNote
 	}: {
 		title?: string;
 		centerTitle?: boolean;
@@ -129,8 +143,62 @@
 		 */
 		banners?: Snippet;
 		children?: Snippet<[number]>;
+		/** A hand-built footer, for one the actions below can't describe. */
 		footer?: Snippet;
+		/**
+		 * The footer's buttons. The modal draws them, toned by role, and gives each its key: Enter
+		 * for the primary action, Escape for cancel, Mod+Delete for danger, a letter for the rest.
+		 * A component inside the modal can declare them instead, with `useModalActions`.
+		 */
+		actions?: ModalAction[];
+		/**
+		 * `stack` spans the button row across the footer and widens the primary action to fill it,
+		 * for the sign-in modals' single call to action.
+		 */
+		footerLayout?: 'row' | 'stack';
+		/** Lines under the footer's buttons, such as a link to sign in instead. */
+		footerNote?: Snippet;
 	} = $props();
+
+	// Actions a component inside the modal declared, which take the place of the prop's.
+	let declaredActions = $state<(() => ModalAction[]) | null>(null);
+	provideModalActions({
+		declare: (getActions) => {
+			declaredActions = getActions;
+			return () => {
+				if (declaredActions === getActions) declaredActions = null;
+			};
+		}
+	});
+	let keyedActions = $derived(assignModalKeys(declaredActions ? declaredActions() : actions));
+	let startActions = $derived(
+		keyedActions.filter(({ action }) => (action.align ?? defaultAlign(action)) === 'start')
+	);
+	let endActions = $derived(
+		keyedActions.filter(({ action }) => (action.align ?? defaultAlign(action)) === 'end')
+	);
+
+	function defaultAlign(action: ModalAction): 'start' | 'end' {
+		return action.role === 'danger' ? 'start' : 'end';
+	}
+
+	const ROLE_CLASS: Record<ModalAction['role'], string> = {
+		primary: 'btn-primary',
+		secondary: 'btn-secondary',
+		cancel: 'btn-secondary',
+		danger: 'btn-danger'
+	};
+
+	function actionClass(action: ModalAction): string {
+		const base = action.tone ? toolbarButtonClass(action.tone) : ROLE_CLASS[action.role];
+		return action.large && action.role === 'primary' ? `${base} btn-primary-lg` : base;
+	}
+
+	// Letter and Delete keys pause while focus is in a text field; their chips dim to match.
+	let typing = $state(false);
+	function trackTyping(event: FocusEvent) {
+		typing = event.type === 'focusin' && isEditableTarget(event.target);
+	}
 
 	// Tabs and steppers share the title row, between the title and the close button, whenever
 	// that row shows a left-aligned title. Otherwise they keep their own row below. In the row,
@@ -151,15 +219,14 @@
 	const stackToken = Symbol();
 	$effect(() => {
 		if (!isOpen) return;
-		openModals.push(stackToken);
-		return () => {
-			openModals.splice(openModals.indexOf(stackToken), 1);
-		};
+		return registerOpenModal(stackToken);
 	});
 
 	function isTopmost(): boolean {
-		return openModals.at(-1) === stackToken;
+		return isTopmostModal(stackToken);
 	}
+
+	let panel = $state<HTMLElement | null>(null);
 
 	// Left and Right step to the previous and next entity of the on-screen list this modal's
 	// entity belongs to. The ends stop rather than wrap.
@@ -365,6 +432,22 @@
 			handleClose();
 			return;
 		}
+		// Footer keys answer only within this panel, or with nothing focused: a popover portalled
+		// to the body (an icon picker's search) keeps Enter for itself.
+		const target = event.target;
+		if (
+			target === document.body ||
+			(target instanceof Node && panel?.contains(target)) ||
+			target === panel?.parentElement
+		) {
+			const { action, preventDefault } = resolveModalKeydown(event, keyedActions);
+			if (preventDefault) event.preventDefault();
+			if (action) {
+				action.onClick();
+				return;
+			}
+			if (preventDefault) return;
+		}
 		if (
 			(event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
 			!event.altKey &&
@@ -425,8 +508,11 @@
 				: size === 'full' || size === 'wide' || fixedHeight
 					? 'h-[calc(100vh-2rem)] sm:h-[calc(100vh-8rem)]'
 					: 'max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-8rem)]'} flex w-full flex-col"
+			bind:this={panel}
 			onpointerdowncapture={captureBaseline}
 			onkeydowncapture={captureBaseline}
+			onfocusin={trackTyping}
+			onfocusout={trackTyping}
 		>
 			<!-- Floating close button (absolute positioned within modal container) -->
 			{#if floatingCloseButton && onClose}
@@ -546,11 +632,71 @@
 				{@render children?.(instanceKey)}
 			</div>
 
-			<!-- Footer slot -->
-			{@render footer?.()}
+			{#if footer}
+				{@render footer()}
+			{:else if keyedActions.length > 0 || footerNote}
+				<div class="modal-footer {footerLayout === 'stack' ? 'space-y-4' : ''}">
+					{#if keyedActions.length > 0}
+						<div
+							class="flex flex-wrap items-center gap-3 {startActions.length > 0
+								? 'justify-between'
+								: 'justify-end'}"
+						>
+							{#if startActions.length > 0}
+								<div class="flex flex-wrap items-center gap-3">
+									{#each startActions as keyed, i (i)}
+										{@render actionButton(keyed.action, keyed.key)}
+									{/each}
+								</div>
+							{/if}
+							<div
+								class="flex flex-wrap items-center justify-end gap-3 {footerLayout === 'stack'
+									? 'w-full'
+									: ''}"
+							>
+								{#each endActions as keyed, i (i)}
+									{@render actionButton(keyed.action, keyed.key)}
+								{/each}
+							</div>
+						</div>
+					{/if}
+					{@render footerNote?.()}
+				</div>
+			{/if}
 		</div>
 	</div>
 {/if}
+
+{#snippet actionButton(action: ModalAction, key: string | null)}
+	{@const Icon = action.busy ? Loader2 : action.icon}
+	{@const paused = typing && key !== null && pausesWhileTyping(key)}
+	<button
+		type="button"
+		onclick={() => action.onClick()}
+		disabled={action.disabled}
+		use:tooltip
+		data-tooltip={action.tooltip}
+		class="{actionClass(action)} {footerLayout === 'stack' && action.role === 'primary'
+			? 'flex-1'
+			: ''} flex items-center gap-2"
+	>
+		{#if Icon && !action.iconAfter}
+			<Icon class="h-4 w-4 {action.busy ? 'animate-spin' : ''}" />
+		{/if}
+		{action.label}
+		{#if Icon && action.iconAfter}
+			<Icon class="h-4 w-4 {action.busy ? 'animate-spin' : ''}" />
+		{/if}
+		{#if key}
+			<span
+				class="inline-flex transition-opacity {paused ? 'opacity-40' : ''}"
+				title={paused ? common_shortcutsPausedWhileTyping() : undefined}
+			>
+				<KbdKey key={modalKeyLabel(key)} size="xs" tone="inherit" />
+			</span>
+		{/if}
+	</button>
+{/snippet}
 
 {#snippet entityStep(key: string, targetId: string | null, label: string, side: string)}
 	<button

@@ -17,6 +17,7 @@
 	import { useCheckEmailMutation } from '../queries';
 	import type { RegisterRequest } from '../types/base';
 	import AuthMethodSelector from './AuthMethodSelector.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		auth_continueWithEmail,
 		auth_createAccount,
@@ -33,6 +34,7 @@
 		auth_youreInvitedTitle,
 		common_back,
 		common_change,
+		common_checking,
 		common_continue,
 		common_email,
 		common_somethingWentWrong
@@ -171,6 +173,36 @@
 	async function handleSubmit() {
 		await submitForm(form);
 	}
+
+	let actions = $derived<ModalAction[]>(
+		subStep === 'email'
+			? [
+					{
+						role: 'secondary',
+						label: common_back(),
+						onClick: () => {
+							subStep = 'method';
+							emailError = null;
+						}
+					},
+					{
+						role: 'primary',
+						label: checkingEmail ? common_checking() : common_continue(),
+						onClick: handleContinue,
+						disabled: checkingEmail
+					}
+				]
+			: subStep === 'password'
+				? [
+						{
+							role: 'primary',
+							label: registering ? auth_creatingAccount() : auth_createAccount(),
+							onClick: handleSubmit,
+							disabled: registering
+						}
+					]
+				: []
+	);
 </script>
 
 <GenericModal
@@ -183,6 +215,8 @@
 	showBackdrop={false}
 	preventCloseOnClickOutside={true}
 	centerTitle={true}
+	{actions}
+	footerLayout="stack"
 >
 	{#snippet headerIcon()}
 		<img src="/logos/scanopy-logo.png" alt={auth_scanopyLogo()} class="h-8 w-8" />
@@ -335,33 +369,6 @@
 					</form.Field>
 				</div>
 			{/if}
-		</div>
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex w-full flex-col gap-4">
-				{#if subStep === 'email'}
-					<div class="flex gap-3">
-						<button
-							type="button"
-							onclick={() => {
-								subStep = 'method';
-								emailError = null;
-							}}
-							class="btn-secondary"
-						>
-							{common_back()}
-						</button>
-						<button type="submit" disabled={checkingEmail} class="btn-primary flex-1">
-							{checkingEmail ? 'Checking...' : common_continue()}
-						</button>
-					</div>
-				{:else if subStep === 'password'}
-					<button type="submit" disabled={registering} class="btn-primary w-full">
-						{registering ? auth_creatingAccount() : auth_createAccount()}
-					</button>
-				{/if}
-			</div>
 		</div>
 	</form>
 </GenericModal>

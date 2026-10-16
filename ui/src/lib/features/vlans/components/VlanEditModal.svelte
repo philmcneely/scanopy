@@ -11,6 +11,7 @@
 	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
 	import { entities } from '$lib/shared/stores/metadata';
 	import type { Vlan } from '../types/base';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		common_cancel,
 		common_description,
@@ -70,6 +71,16 @@
 	}
 
 	const colorHelper = entities.getColorHelper('Vlan');
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'cancel', label: common_cancel(), onClick: onClose, disabled: loading },
+		{
+			role: 'primary',
+			label: loading ? common_saving() : common_update(),
+			onClick: () => submitForm(form),
+			disabled: loading
+		}
+	]);
 </script>
 
 <GenericModal
@@ -82,6 +93,7 @@
 	{onClose}
 	onOpen={handleOpen}
 	showCloseButton={true}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={entities.getIconComponent('Vlan')} color={colorHelper.color} />
@@ -140,16 +152,5 @@
 		{#if vlan}
 			<EntityMetadataSection entities={[vlan]} />
 		{/if}
-
-		<div class="modal-footer">
-			<div class="flex items-center justify-end gap-3">
-				<button type="button" disabled={loading} onclick={onClose} class="btn-secondary">
-					{common_cancel()}
-				</button>
-				<button type="submit" disabled={loading} class="btn-primary">
-					{loading ? common_saving() : common_update()}
-				</button>
-			</div>
-		</div>
 	</form>
 </GenericModal>

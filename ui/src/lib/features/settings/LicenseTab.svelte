@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Copy, RefreshCw } from 'lucide-svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
+	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
@@ -312,6 +314,11 @@
 			beforeModal: () => onClose()
 		});
 	}
+
+	let actions = $derived<ModalAction[]>(
+		dismissible ? [{ role: 'cancel', label: common_close(), onClick: onClose }] : []
+	);
+	useModalActions(() => actions);
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
@@ -492,14 +499,6 @@
 			</div>
 		{/if}
 	</div>
-
-	{#if dismissible}
-		<div class="modal-footer">
-			<div class="flex justify-end">
-				<button type="button" onclick={onClose} class="btn-secondary">{common_close()}</button>
-			</div>
-		</div>
-	{/if}
 </div>
 
 <ConfirmationDialog

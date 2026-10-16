@@ -60,6 +60,7 @@
 	import { trackEvent } from '$lib/shared/utils/analytics';
 	import { downloadTopologyExport } from '$lib/shared/utils/csvExport';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import { closeModal } from '$lib/shared/stores/modal-registry';
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import type { UpgradeFeature } from '$lib/shared/stores/metadata';
@@ -789,9 +790,13 @@
 			}
 		});
 	}
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'primary', label: common_export(), onClick: handleExport }
+	]);
 </script>
 
-<GenericModal title={topology_export()} {name} {isOpen} onClose={close} size="sm">
+<GenericModal title={topology_export()} {name} {isOpen} onClose={close} size="sm" {actions}>
 	<div class="p-6">
 		<div class="space-y-4">
 			<RichSelect
@@ -846,10 +851,6 @@
 					</span>
 				</label>
 			{/if}
-
-			<button class="btn-primary w-full" onclick={handleExport}>
-				{common_export()}
-			</button>
 		</div>
 	</div>
 </GenericModal>

@@ -7,6 +7,7 @@
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
 	import ShareConfigPanel from './ShareConfigPanel.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		ShareDisplay,
 		type ShareDisplayContext
@@ -256,6 +257,20 @@
 			saving = false;
 		}
 	}
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'cancel', label: common_close(), onClick: onClose },
+		...(sharesData.length > 0 || originalShareIds.size > 0
+			? [
+					{
+						role: 'primary' as const,
+						label: saving ? common_saving() : common_save(),
+						onClick: handleSave,
+						disabled: saving
+					}
+				]
+			: [])
+	]);
 </script>
 
 <GenericModal
@@ -266,6 +281,7 @@
 	{onClose}
 	showCloseButton={true}
 	fixedHeight={true}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={Share2} color={entities.getColorHelper('Share').color} />
@@ -349,19 +365,4 @@
 			</ListConfigEditor>
 		</div>
 	{/if}
-
-	{#snippet footer()}
-		<div class="modal-footer">
-			<div class="flex items-center justify-end gap-3">
-				<button type="button" onclick={onClose} class="btn-secondary">
-					{common_close()}
-				</button>
-				{#if sharesData.length > 0 || originalShareIds.size > 0}
-					<button type="button" disabled={saving} onclick={handleSave} class="btn-primary">
-						{saving ? common_saving() : common_save()}
-					</button>
-				{/if}
-			</div>
-		</div>
-	{/snippet}
 </GenericModal>

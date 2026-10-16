@@ -1048,9 +1048,6 @@
 		{/if}
 
 		{@render fieldCardList()}
-
-		<!-- Hidden submit button for Enter-to-submit -->
-		<button type="submit" class="hidden" aria-hidden="true" tabindex={-1}></button>
 	</form>
 {/if}
 

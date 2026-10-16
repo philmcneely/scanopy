@@ -2,6 +2,7 @@
 	import { FileText, LogOut } from 'lucide-svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { useAcceptTermsMutation, useLogoutMutation } from '$lib/features/auth/queries';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		auth_termsAccept,
 		auth_termsUpdatedBody,
@@ -16,6 +17,22 @@
 	const acceptTermsMutation = useAcceptTermsMutation();
 	const logoutMutation = useLogoutMutation();
 	let busy = $derived(acceptTermsMutation.isPending || logoutMutation.isPending);
+
+	let actions = $derived<ModalAction[]>([
+		{
+			role: 'secondary',
+			label: common_logout(),
+			icon: LogOut,
+			onClick: () => logoutMutation.mutate(),
+			disabled: busy
+		},
+		{
+			role: 'primary',
+			label: auth_termsAccept(),
+			onClick: () => acceptTermsMutation.mutate(),
+			disabled: busy
+		}
+	]);
 </script>
 
 <GenericModal
@@ -24,6 +41,7 @@
 	size="md"
 	preventCloseOnClickOutside={true}
 	showCloseButton={false}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<FileText class="h-5 w-5 text-blue-400" />
@@ -32,25 +50,4 @@
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -- static i18n string with fixed links -->
 		<p class="text-secondary text-sm">{@html auth_termsUpdatedBody()}</p>
 	</div>
-	{#snippet footer()}
-		<div class="modal-footer flex justify-end gap-2">
-			<button
-				type="button"
-				class="btn-secondary flex items-center gap-1.5 text-sm"
-				disabled={busy}
-				onclick={() => logoutMutation.mutate()}
-			>
-				<LogOut size={14} />
-				{common_logout()}
-			</button>
-			<button
-				type="button"
-				class="btn-primary text-sm"
-				disabled={busy}
-				onclick={() => acceptTermsMutation.mutate()}
-			>
-				{auth_termsAccept()}
-			</button>
-		</div>
-	{/snippet}
 </GenericModal>

@@ -18,6 +18,7 @@
 		type SimpleOption
 	} from '$lib/shared/components/forms/selection/display/SimpleOptionDisplay';
 	import { useSitesQuery } from '$lib/features/sites/queries';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		common_cancel,
 		common_cidr,
@@ -135,6 +136,26 @@
 			iconColor: subnetTypes.getColorHelper(st.id).icon
 		}))
 	);
+
+	let actions = $derived<ModalAction[]>([
+		...(isEditing && onDelete
+			? [
+					{
+						role: 'danger' as const,
+						label: deleting ? common_deleting() : common_delete(),
+						onClick: handleDelete,
+						disabled: deleting || loading
+					}
+				]
+			: []),
+		{ role: 'cancel', label: common_cancel(), onClick: onClose, disabled: loading || deleting },
+		{
+			role: 'primary',
+			label: loading ? common_saving() : saveLabel,
+			onClick: handleSubmit,
+			disabled: loading || deleting
+		}
+	]);
 </script>
 
 <GenericModal
@@ -147,6 +168,7 @@
 	{onClose}
 	onOpen={handleOpen}
 	showCloseButton={true}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={entities.getIconComponent('Subnet')} color={colorHelper.color} />
@@ -261,36 +283,5 @@
 		{#if isEditing && subnet}
 			<EntityMetadataSection entities={[subnet]} />
 		{/if}
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex items-center justify-between">
-				<div>
-					{#if isEditing && onDelete}
-						<button
-							type="button"
-							disabled={deleting || loading}
-							onclick={handleDelete}
-							class="btn-danger"
-						>
-							{deleting ? common_deleting() : common_delete()}
-						</button>
-					{/if}
-				</div>
-				<div class="flex items-center gap-3">
-					<button
-						type="button"
-						disabled={loading || deleting}
-						onclick={onClose}
-						class="btn-secondary"
-					>
-						{common_cancel()}
-					</button>
-					<button type="submit" disabled={loading || deleting} class="btn-primary">
-						{loading ? common_saving() : saveLabel}
-					</button>
-				</div>
-			</div>
-		</div>
 	</form>
 </GenericModal>

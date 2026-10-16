@@ -7,6 +7,7 @@
 	import { Mail } from 'lucide-svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		auth_backToLogin,
 		auth_checkYourEmail,
@@ -55,6 +56,19 @@
 	async function handleSubmit() {
 		await submitForm(form);
 	}
+
+	let actions = $derived<ModalAction[]>(
+		emailSent
+			? [{ role: 'primary', label: auth_backToLogin(), onClick: onBackToLogin }]
+			: [
+					{
+						role: 'primary',
+						label: requesting ? common_sending() : auth_sendResetLink(),
+						onClick: handleSubmit,
+						disabled: requesting
+					}
+				]
+	);
 </script>
 
 <GenericModal
@@ -67,9 +81,25 @@
 	showBackdrop={false}
 	preventCloseOnClickOutside={true}
 	centerTitle={true}
+	{actions}
+	footerLayout="stack"
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={Mail} color="Blue" />
+	{/snippet}
+
+	{#snippet footerNote()}
+		{#if !emailSent}
+			<div class="text-center">
+				<button
+					type="button"
+					onclick={onBackToLogin}
+					class="text-sm font-medium text-blue-400 hover:text-blue-300"
+				>
+					{auth_backToLogin()}
+				</button>
+			</div>
+		{/if}
 	{/snippet}
 
 	<form
@@ -108,31 +138,6 @@
 					</form.Field>
 				</div>
 			{/if}
-		</div>
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex w-full flex-col gap-4">
-				{#if emailSent}
-					<button type="button" onclick={onBackToLogin} class="btn-primary w-full">
-						{auth_backToLogin()}
-					</button>
-				{:else}
-					<button type="submit" disabled={requesting} class="btn-primary w-full">
-						{requesting ? common_sending() : auth_sendResetLink()}
-					</button>
-
-					<div class="text-center">
-						<button
-							type="button"
-							onclick={onBackToLogin}
-							class="text-sm font-medium text-blue-400 hover:text-blue-300"
-						>
-							{auth_backToLogin()}
-						</button>
-					</div>
-				{/if}
-			</div>
 		</div>
 	</form>
 </GenericModal>

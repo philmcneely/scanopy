@@ -9,6 +9,7 @@
 	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
 	import { wasDismissedToday, markDismissedToday } from '$lib/shared/utils/dismissed-today';
 	import { trackEvent } from '$lib/shared/utils/analytics';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		billing_addPaymentMethod,
 		billing_remindMeLater,
@@ -82,9 +83,21 @@
 		trackEvent('trial_modal_cta_clicked', { trial_days_left: trialDaysLeft });
 		startSetupPayment({ org, source: 'trial_modal', trialDaysLeft });
 	}
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'cancel', label: billing_remindMeLater(), onClick: handleDismiss },
+		{ role: 'primary', label: billing_addPaymentMethod(), icon: CreditCard, onClick: handleCta }
+	]);
 </script>
 
-<GenericModal {title} {isOpen} onClose={handleDismiss} size="md" preventCloseOnClickOutside={true}>
+<GenericModal
+	{title}
+	{isOpen}
+	onClose={handleDismiss}
+	size="md"
+	preventCloseOnClickOutside={true}
+	{actions}
+>
 	{#snippet headerIcon()}
 		<AlertTriangle class="h-5 w-5 text-amber-500" />
 	{/snippet}
@@ -93,19 +106,4 @@
 			{org && hasLicensedPlan(org) ? billing_trialModalBodyLicense() : billing_trialModalBody()}
 		</p>
 	</div>
-	{#snippet footer()}
-		<div class="modal-footer flex justify-end gap-2">
-			<button type="button" class="btn-secondary text-sm" onclick={handleDismiss}>
-				{billing_remindMeLater()}
-			</button>
-			<button
-				type="button"
-				class="btn-primary flex items-center gap-1.5 text-sm"
-				onclick={handleCta}
-			>
-				<CreditCard size={14} />
-				{billing_addPaymentMethod()}
-			</button>
-		</div>
-	{/snippet}
 </GenericModal>

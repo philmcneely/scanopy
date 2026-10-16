@@ -2,6 +2,8 @@
 	import { Bug, AlertTriangle, Lightbulb, BookOpen, Mail, CalendarCheck } from 'lucide-svelte';
 	import { createColorHelper, type Color } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
+	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import { BOOK_CALL_URL, supportEmailAddress } from '$lib/features/support/support';
@@ -114,6 +116,11 @@
 	function handleCardClick(url: string) {
 		window.open(url, '_blank', 'noopener,noreferrer');
 	}
+
+	let actions = $derived<ModalAction[]>(
+		dismissible ? [{ role: 'cancel', label: common_close(), onClick: onClose }] : []
+	);
+	useModalActions(() => actions);
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
@@ -141,12 +148,4 @@
 			{/each}
 		</div>
 	</div>
-
-	{#if dismissible}
-		<div class="modal-footer">
-			<div class="flex justify-end">
-				<button type="button" onclick={onClose} class="btn-secondary">{common_close()}</button>
-			</div>
-		</div>
-	{/if}
 </div>

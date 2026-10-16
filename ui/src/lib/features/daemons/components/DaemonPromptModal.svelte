@@ -2,6 +2,7 @@
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import MiniTopologyPreview from './MiniTopologyPreview.svelte';
 	import { trackEvent } from '$lib/shared/utils/analytics';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		daemons_promptTitle,
 		daemons_promptBody,
@@ -27,6 +28,11 @@
 			tracked = true;
 		}
 	});
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'cancel', label: daemons_promptSkip(), onClick: () => onSkip() },
+		{ role: 'primary', label: daemons_promptGetStarted(), onClick: () => onInstall() }
+	]);
 </script>
 
 <GenericModal
@@ -36,6 +42,7 @@
 	onClose={onSkip}
 	showCloseButton={false}
 	preventCloseOnClickOutside={true}
+	{actions}
 >
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="flex-1 overflow-auto p-6">
@@ -43,17 +50,6 @@
 				<MiniTopologyPreview active={isOpen} />
 
 				<p class="text-secondary text-sm">{daemons_promptBody()}</p>
-			</div>
-		</div>
-
-		<div class="modal-footer">
-			<div class="flex items-center justify-end gap-3">
-				<button type="button" class="btn-secondary" onclick={() => onSkip()}>
-					{daemons_promptSkip()}
-				</button>
-				<button type="button" class="btn-primary" onclick={() => onInstall()}>
-					{daemons_promptGetStarted()}
-				</button>
 			</div>
 		</div>
 	</div>

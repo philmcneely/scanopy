@@ -21,6 +21,7 @@
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { CredentialDisplay } from '$lib/shared/components/forms/selection/display/CredentialDisplay.svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		common_cancel,
 		common_couldNotLoadUser,
@@ -186,6 +187,26 @@
 	}
 
 	let colorHelper = entities.getColorHelper('Site');
+
+	let actions = $derived<ModalAction[]>([
+		...(isEditing && onDelete
+			? [
+					{
+						role: 'danger' as const,
+						label: deleting ? common_deleting() : common_delete(),
+						onClick: handleDelete,
+						disabled: deleting || loading
+					}
+				]
+			: []),
+		{ role: 'cancel', label: common_cancel(), onClick: handleClose, disabled: loading || deleting },
+		{
+			role: 'primary',
+			label: loading ? common_saving() : saveLabel,
+			onClick: handleSubmit,
+			disabled: loading || deleting
+		}
+	]);
 </script>
 
 {#snippet siteCredentialHelpSnippet()}
@@ -206,6 +227,7 @@
 	onClose={handleClose}
 	onOpen={handleOpen}
 	showCloseButton={true}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={entities.getIconComponent('Site')} color={colorHelper.color} />
@@ -291,36 +313,5 @@
 		{#if isEditing && site}
 			<EntityMetadataSection entities={[site]} />
 		{/if}
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex items-center justify-between">
-				<div>
-					{#if isEditing && onDelete}
-						<button
-							type="button"
-							disabled={deleting || loading}
-							onclick={handleDelete}
-							class="btn-danger"
-						>
-							{deleting ? common_deleting() : common_delete()}
-						</button>
-					{/if}
-				</div>
-				<div class="flex items-center gap-3">
-					<button
-						type="button"
-						disabled={loading || deleting}
-						onclick={handleClose}
-						class="btn-secondary"
-					>
-						{common_cancel()}
-					</button>
-					<button type="submit" disabled={loading || deleting} class="btn-primary">
-						{loading ? common_saving() : saveLabel}
-					</button>
-				</div>
-			</div>
-		</div>
 	</form>
 </GenericModal>

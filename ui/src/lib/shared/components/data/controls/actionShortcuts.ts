@@ -125,10 +125,13 @@ export function toolbarButtonClass(tone: ActionTone | undefined): string {
 	return tone ? TOOLBAR_BUTTON_CLASS[tone] : 'btn-secondary';
 }
 
-export function assignActionKeys(
-	actions: CardAction[],
+/** What key assignment reads from an action: a toolbar's `CardAction`, or a modal's. */
+export type KeyableAction = Pick<CardAction, 'label' | 'isDelete' | 'shortcut'>;
+
+export function assignActionKeys<A extends KeyableAction = CardAction>(
+	actions: A[],
 	reserved: readonly string[] = RESERVED_ACTION_KEYS
-): KeyedAction[] {
+): { action: A; key: string | null }[] {
 	const taken = new Set(reserved);
 	// Preferred keys and Delete first, so a label earlier in the row can't take them.
 	const claimed = actions.map((action) => {

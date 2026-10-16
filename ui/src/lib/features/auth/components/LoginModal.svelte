@@ -15,6 +15,7 @@
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import InlineDanger from '$lib/shared/components/feedback/InlineDanger.svelte';
 	import AuthMethodSelector from './AuthMethodSelector.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		auth_demoModeBody,
 		auth_demoModeTitle,
@@ -117,6 +118,28 @@
 	async function handleSubmit() {
 		await submitForm(form);
 	}
+
+	let actions = $derived<ModalAction[]>(
+		subStep === 'credentials' && !disablePasswordLogin
+			? [
+					...(hasOidcProviders && !demoMode
+						? [
+								{
+									role: 'secondary' as const,
+									label: common_back(),
+									onClick: () => (subStep = 'method')
+								}
+							]
+						: []),
+					{
+						role: 'primary',
+						label: signingIn ? auth_signingIn() : auth_signInWithEmail(),
+						onClick: handleSubmit,
+						disabled: signingIn
+					}
+				]
+			: []
+	);
 </script>
 
 <GenericModal
@@ -129,9 +152,44 @@
 	showBackdrop={false}
 	preventCloseOnClickOutside={true}
 	centerTitle={true}
+	{actions}
+	footerLayout="stack"
 >
 	{#snippet headerIcon()}
 		<img src="/logos/scanopy-logo.png" alt={auth_scanopyLogo()} class="h-8 w-8" />
+	{/snippet}
+
+	{#snippet footerNote()}
+		{#if subStep === 'credentials' && !disablePasswordLogin && enablePasswordReset && !demoMode}
+			<div class="text-center">
+				<p class="text-tertiary text-sm">
+					{auth_forgotYourPassword()}
+					<button
+						type="button"
+						onclick={onSwitchToForgot}
+						class="text-link font-medium hover:underline"
+					>
+						{auth_resetPassword()}
+					</button>
+				</p>
+			</div>
+		{/if}
+
+		<!-- Register Link -->
+		{#if onSwitchToRegister && !disableRegistration && !demoMode}
+			<div class="text-center">
+				<p class="text-tertiary text-sm">
+					{auth_dontHaveAccount()}
+					<button
+						type="button"
+						onclick={onSwitchToRegister}
+						class="text-link font-medium hover:underline"
+					>
+						{auth_registerHere()}
+					</button>
+				</p>
+			</div>
+		{/if}
 	{/snippet}
 
 	<form
@@ -224,59 +282,6 @@
 					</div>
 				</div>
 			{/if}
-		</div>
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex w-full flex-col gap-4">
-				{#if subStep === 'credentials' && !disablePasswordLogin}
-					{#if hasOidcProviders && !demoMode}
-						<div class="flex gap-3">
-							<button type="button" onclick={() => (subStep = 'method')} class="btn-secondary">
-								{common_back()}
-							</button>
-							<button type="submit" disabled={signingIn} class="btn-primary flex-1">
-								{signingIn ? auth_signingIn() : auth_signInWithEmail()}
-							</button>
-						</div>
-					{:else}
-						<button type="submit" disabled={signingIn} class="btn-primary w-full">
-							{signingIn ? auth_signingIn() : auth_signInWithEmail()}
-						</button>
-					{/if}
-
-					{#if enablePasswordReset && !demoMode}
-						<div class="text-center">
-							<p class="text-tertiary text-sm">
-								{auth_forgotYourPassword()}
-								<button
-									type="button"
-									onclick={onSwitchToForgot}
-									class="text-link font-medium hover:underline"
-								>
-									{auth_resetPassword()}
-								</button>
-							</p>
-						</div>
-					{/if}
-				{/if}
-
-				<!-- Register Link -->
-				{#if onSwitchToRegister && !disableRegistration && !demoMode}
-					<div class="text-center">
-						<p class="text-tertiary text-sm">
-							{auth_dontHaveAccount()}
-							<button
-								type="button"
-								onclick={onSwitchToRegister}
-								class="text-link font-medium hover:underline"
-							>
-								{auth_registerHere()}
-							</button>
-						</p>
-					</div>
-				{/if}
-			</div>
 		</div>
 	</form>
 </GenericModal>

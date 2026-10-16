@@ -4,6 +4,7 @@
 	import { submitForm, validateForm } from '$lib/shared/components/forms/form-context';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import type { ModalTab } from '$lib/shared/components/layout/GenericModal.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { entities, credentialTypes } from '$lib/shared/stores/metadata';
 	import {
@@ -748,6 +749,57 @@
 	let showSave = $derived(!isHistoricalRun);
 
 	let colorHelper = entities.getColorHelper('Discovery');
+
+	// The footer. Copy actions sit beside Close: they act on the whole run, not on any one row.
+	function footerActions(): ModalAction[] {
+		const busy = loading || deleting;
+		const save = (disabled: boolean): ModalAction => ({
+			role: 'primary',
+			label: loading ? common_saving() : saveLabel,
+			onClick: handleSubmit,
+			disabled
+		});
+		const list: ModalAction[] = [];
+		if (isEditing && !isHistoricalRun && onDelete) {
+			const label = deleting ? common_deleting() : common_delete();
+			list.push({ role: 'danger', label, onClick: handleDelete, disabled: busy });
+		}
+		if ((activeTab === 'scan' || activeTab === 'credentials') && hasRunData) {
+			const label = discovery_copyRunData();
+			list.push({ role: 'secondary', label, icon: Copy, onClick: copyRunData });
+		}
+		if (activeTab === 'scan' && endedBadly) {
+			const label = discovery_copyDiagnostics();
+			list.push({ role: 'secondary', label, icon: Copy, onClick: copyDiagnostics });
+		}
+		if (isEditing || isHistoricalRun) {
+			const label = isHistoricalRun ? common_close() : common_cancel();
+			list.push({ role: 'cancel', label, onClick: onClose, disabled: busy });
+			if (showSave) list.push(save(busy));
+			return list;
+		}
+		list.push(
+			isFirstTab
+				? { role: 'cancel', label: common_cancel(), onClick: onClose }
+				: { role: 'secondary', label: common_back(), onClick: previousTab }
+		);
+		const unsupported = !isEditing && !daemonSupportsUnified;
+		list.push(
+			isLastTab
+				? save(loading || unsupported)
+				: {
+						role: 'primary',
+						label: common_next(),
+						onClick: handleNext,
+						disabled: unsupported,
+						icon: ArrowRight,
+						iconAfter: true,
+						large: true
+					}
+		);
+		return list;
+	}
+	let actions = $derived(footerActions());
 </script>
 
 <GenericModal
@@ -766,6 +818,7 @@
 	bind:activeTab
 	tabStyle={isEditing || isHistoricalRun ? 'tabs' : 'stepper'}
 	onTabChange={(id) => (activeTab = id)}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={entities.getIconComponent('Discovery')} color={colorHelper.color} />
@@ -867,90 +920,5 @@
 		{#if isEditing}
 			<EntityMetadataSection entities={[discovery]} />
 		{/if}
-
-		<div class="modal-footer">
-			<div class="flex items-center justify-between">
-				<div>
-					{#if isEditing && !isHistoricalRun && onDelete}
-						<button
-							type="button"
-							disabled={deleting || loading}
-							onclick={handleDelete}
-							class="btn-danger"
-						>
-							{deleting ? common_deleting() : common_delete()}
-						</button>
-					{/if}
-				</div>
-				<div class="flex items-center gap-3">
-					<!-- Beside Close rather than above the report: it acts on the whole run, not on
-					     any one row, and the footer is where a modal's whole-record actions live. -->
-					{#if (activeTab === 'scan' || activeTab === 'credentials') && hasRunData}
-						<button
-							type="button"
-							class="btn-secondary flex items-center gap-1"
-							onclick={copyRunData}
-						>
-							<Copy class="h-4 w-4" />
-							<span>{discovery_copyRunData()}</span>
-						</button>
-					{/if}
-					{#if activeTab === 'scan' && endedBadly}
-						<button
-							type="button"
-							class="btn-secondary flex items-center gap-1"
-							onclick={copyDiagnostics}
-						>
-							<Copy class="h-4 w-4" />
-							<span>{discovery_copyDiagnostics()}</span>
-						</button>
-					{/if}
-					{#if isEditing || isHistoricalRun}
-						<button
-							type="button"
-							disabled={loading || deleting}
-							onclick={onClose}
-							class="btn-secondary"
-						>
-							{isHistoricalRun ? common_close() : common_cancel()}
-						</button>
-						{#if showSave}
-							<button type="submit" disabled={loading || deleting} class="btn-primary">
-								{loading ? common_saving() : saveLabel}
-							</button>
-						{/if}
-					{:else}
-						{#if !isFirstTab}
-							<button type="button" class="btn-secondary" onclick={previousTab}>
-								{common_back()}
-							</button>
-						{:else}
-							<button type="button" onclick={onClose} class="btn-secondary">
-								{common_cancel()}
-							</button>
-						{/if}
-						{#if isLastTab}
-							<button
-								type="submit"
-								disabled={loading || (!isEditing && !daemonSupportsUnified)}
-								class="btn-primary"
-							>
-								{loading ? common_saving() : saveLabel}
-							</button>
-						{:else}
-							<button
-								type="button"
-								class="btn-primary btn-primary-lg"
-								onclick={handleNext}
-								disabled={!isEditing && !daemonSupportsUnified}
-							>
-								{common_next()}
-								<ArrowRight class="h-4 w-4" />
-							</button>
-						{/if}
-					{/if}
-				</div>
-			</div>
-		</div>
 	</form>
 </GenericModal>
