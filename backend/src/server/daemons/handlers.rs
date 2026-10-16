@@ -763,7 +763,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(generated::get_field_values))
         .routes(routes!(provision_daemon))
         .routes(routes!(get_provision_eligibility))
-        .routes(routes!(retry_connection))
+        .merge(super::retry::create_router())
         .routes(routes!(test_reachability))
         .routes(routes!(email_install_command))
 }
@@ -1345,70 +1345,6 @@ async fn provision_daemon(
         daemon: DaemonResponse::new(created_daemon, version_status, Vec::new()),
         daemon_api_key: plaintext,
     })))
-}
-
-/// Retry connection to an unreachable Daemon
-///
-/// Resets the is_unreachable flag for a daemon that was marked unreachable
-/// due to repeated polling failures. The poller will attempt to contact
-/// the daemon again on the next cycle.
-#[utoipa::path(
-    post,
-    path = "/{id}/retry-connection",
-    tag = Daemon::ENTITY_NAME_PLURAL,
-    operation_id = "retry_daemon_connection",
-    summary = "Retry connection to unreachable daemon",
-    params(("id" = Uuid, Path, description = "Daemon ID")),
-    responses(
-        (status = 200, description = "Connection retry initiated", body = EmptyApiResponse),
-        (status = 404, description = "Daemon not found", body = ApiErrorResponse),
-        (status = 403, description = "Access denied", body = ApiErrorResponse),
-    ),
-    security(("user_api_key" = []), ("session" = []))
-)]
-async fn retry_connection(
-    State(state): State<Arc<AppState>>,
-    auth: Authorized<Member>,
-    Path(id): Path<Uuid>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    let site_ids = auth.site_ids();
-
-    let mut daemon = state
-        .services
-        .daemon_service
-        .get_by_id(&id)
-        .await?
-        .ok_or_else(|| ApiError::entity_not_found::<Daemon>(id))?;
-
-    // Validate user has access to this daemon's site
-    if !site_ids.contains(&daemon.base.site_id) {
-        return Err(ApiError::entity_access_denied::<Daemon>(id));
-    }
-
-    // Only allow retry for ServerPoll daemons
-    if daemon.base.mode != DaemonMode::ServerPoll {
-        return Err(ApiError::bad_request(
-            "Connection retry is only available for ServerPoll mode daemons",
-        ));
-    }
-
-    // Reset unreachability flag
-    if daemon.base.is_unreachable {
-        daemon.base.is_unreachable = false;
-        state
-            .services
-            .daemon_service
-            .update(&mut daemon, auth.into_entity())
-            .await?;
-
-        tracing::info!(
-            daemon_id = %id,
-            daemon_name = %daemon.base.name,
-            "Daemon connection retry initiated - marked as reachable"
-        );
-    }
-
-    Ok(Json(ApiResponse::success(())))
 }
 
 // ============================================================================

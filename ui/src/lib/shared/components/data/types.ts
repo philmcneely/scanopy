@@ -52,10 +52,7 @@ export interface CardAction {
 	label: string;
 	icon: IconComponent; // Svelte component
 	tone?: ActionTone;
-	/**
-	 * This action deletes the row. A row can be deleted from the toolbar exactly when its actions
-	 * include an enabled one, and Delete Selected stands in for it there.
-	 */
+	/** This action deletes the row: it takes the Delete key, and running it clears the selection. */
 	isDelete?: boolean;
 	onClick: () => void;
 	/**
@@ -64,9 +61,25 @@ export interface CardAction {
 	 * shows the action only while its one row is selected.
 	 */
 	onBulk?: (ids: string[]) => Promise<unknown> | void;
-	disabled?: boolean;
-	tooltip?: string | ((disabled: boolean) => string | null);
+	/**
+	 * Why the action can't run on this row. Present exactly when the action is disabled, and shown
+	 * as its tooltip. An action that works for most rows stays on every row and says here why it
+	 * doesn't on this one; an action that exists only in a special state is left out instead.
+	 */
+	disabled?: DisabledReason;
+	/** A hint shown while the action is enabled. */
+	tooltip?: string;
 	animation?: string;
+}
+
+export interface DisabledReason {
+	/** Reads for this one row: "This host has no IP addresses to scan". */
+	reason: string;
+	/**
+	 * Reads for a selection of several rows, where `reason` would not: "A selected host has no IP
+	 * addresses to scan". Falls back to `reason`.
+	 */
+	bulkReason?: string;
 }
 
 export interface EntityRef {

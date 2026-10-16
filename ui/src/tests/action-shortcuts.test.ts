@@ -51,21 +51,22 @@ describe('selectionActions', () => {
 	const del = (extra: Partial<CardAction> = {}) =>
 		action('Delete', { tone: 'danger', isDelete: true, onBulk: bulk, ...extra });
 	const rescan = (extra: Partial<CardAction> = {}) => action('Rescan', { onBulk: bulk, ...extra });
+	const blocked = { reason: 'This one is busy', bulkReason: 'A selected one is busy' };
 	const ran: string[] = [];
 	const runBulk = (a: CardAction) => () => void ran.push(a.label);
-	const run = (perRow: CardAction[][]) => selectionActions(perRow, runBulk, 'blocked');
+	const run = (perRow: CardAction[][]) => selectionActions(perRow, runBulk, 'missing');
 
 	it('shows one row’s actions as the row does, bulk ones running on the selection', () => {
 		const [edit, remove] = run([[action('Edit'), del()]]);
 		expect(edit).toMatchObject({ label: 'Edit' });
-		expect(remove).toMatchObject({ label: 'Delete', tone: 'danger', disabled: false });
+		expect(remove).toMatchObject({ label: 'Delete', tone: 'danger', disabled: undefined });
 		remove.onClick();
 		expect(ran).toContain('Delete');
 	});
 
-	it('keeps a disabled action disabled, with its tooltip', () => {
-		const [remove] = run([[del({ disabled: true, tooltip: 'running' })]]);
-		expect(remove).toMatchObject({ disabled: true, tooltip: 'running' });
+	it('gives one disabled row its own reason', () => {
+		const [remove] = run([[del({ disabled: blocked })]]);
+		expect(remove.disabled).toEqual({ reason: 'This one is busy' });
 	});
 
 	it('offers every bulk action any selected row has, and only bulk ones, for several rows', () => {
@@ -77,11 +78,14 @@ describe('selectionActions', () => {
 	});
 
 	it('disables an action for several rows unless every row has it enabled', () => {
-		const [rescanAll] = run([[rescan()], [action('Edit')]]);
-		expect(rescanAll).toMatchObject({ disabled: true, tooltip: 'blocked' });
-		const [removeAll] = run([[del()], [del({ disabled: true, tooltip: 'in use' })]]);
-		expect(removeAll).toMatchObject({ disabled: true, tooltip: 'in use' });
-		expect(run([[del()], [del()]])).toMatchObject([{ disabled: false }]);
+		expect(run([[del()], [del({ disabled: blocked })]])[0].disabled).toEqual({
+			reason: 'A selected one is busy'
+		});
+		expect(run([[del()], [del({ disabled: { reason: 'Only form' } })]])[0].disabled).toEqual({
+			reason: 'Only form'
+		});
+		expect(run([[rescan()], [action('Edit')]])[0].disabled).toEqual({ reason: 'missing' });
+		expect(run([[del()], [del()]])[0].disabled).toBeUndefined();
 	});
 
 	it('offers nothing for several rows when none has a bulk action', () => {

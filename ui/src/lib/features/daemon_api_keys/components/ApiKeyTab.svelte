@@ -33,7 +33,9 @@
 		common_confirmDeleteName,
 		common_noEntityYet,
 		daemonApiKeys_title,
-		daemonApiKeys_provisionOnlyHint
+		daemonApiKeys_provisionOnlyHint,
+		daemonApiKeys_inUse,
+		daemonApiKeys_inUseBulk
 	} from '$lib/paraglide/messages';
 
 	let { isReadOnly = false }: TabProps = $props();
@@ -146,8 +148,9 @@
 				isDelete: true,
 				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteApiKey(apiKey),
-				// A key a daemon is using cannot be deleted.
 				disabled: apiKeyIdsInUse.has(apiKey.id)
+					? { reason: daemonApiKeys_inUse(), bulkReason: daemonApiKeys_inUseBulk() }
+					: undefined
 			}
 		];
 	}

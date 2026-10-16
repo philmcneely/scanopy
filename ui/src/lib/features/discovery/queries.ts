@@ -160,6 +160,29 @@ export function useUpdateDiscoveryMutation() {
 }
 
 /**
+ * Turns the schedules of several scheduled discoveries on or off, changing nothing else about
+ * them. The row toggle uses it with one id.
+ */
+export function useBulkSetDiscoveriesEnabledMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: async ({ ids, enabled }: { ids: string[]; enabled: boolean }) => {
+			return unwrapData(
+				await apiClient.POST('/api/v1/discovery/bulk-set-enabled', { body: { ids, enabled } })
+			);
+		},
+		onSuccess: (updated: Discovery[]) => {
+			const byId = new Map(updated.map((d) => [d.id, d]));
+			queryClient.setQueryData<Discovery[]>(
+				queryKeys.discovery.all,
+				(old) => old?.map((d) => byId.get(d.id) ?? d) ?? []
+			);
+			queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+		}
+	}));
+}
+/**
  * Mutation hook for deleting a discovery
  */
 export function useDeleteDiscoveryMutation() {
@@ -826,3 +849,75 @@ class DiscoverySSEManager extends BaseSSEManager<DiscoveryUpdatePayload> {
 }
 
 export const discoverySSEManager = new DiscoverySSEManager();
+
+/** Adds sessions to the active-sessions cache, replacing any it already holds. */
+export function upsertSessions(
+	qc: ReturnType<typeof useQueryClient>,
+	sessions: DiscoveryUpdatePayload[]
+) {
+	qc.setQueryData<DiscoveryUpdatePayload[]>(queryKeys.discovery.sessions(), (old) => {
+		const byId = new Map((old ?? []).map((s) => [s.session_id, s]));
+		for (const session of sessions) byId.set(session.session_id, session);
+		return [...byId.values()];
+	});
+}
+
+/**
+ * Starts a session for each discovery. On a daemon given several, the first runs and the rest
+ * queue behind it.
+ */
+export function useBulkStartDiscoveriesMutation() {
+	const qc = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: async (discoveryIds: string[]) => {
+			return unwrapData(
+				await apiClient.POST('/api/v1/discovery/bulk-start-session', { body: discoveryIds })
+			) as DiscoveryUpdatePayload[];
+		},
+		onSuccess: (sessions: DiscoveryUpdatePayload[]) => {
+			upsertSessions(qc, sessions);
+			discoverySSEManager.connect();
+			pushSuccess(m.discovery_sessionsStartedToast({ count: sessions.length }));
+		}
+	}));
+}
+
+/**
+ * Cancels the sessions of several discoveries. `sessionIds` marks them as cancelling until the
+ * stream reports each ended, as the single cancel does.
+ */
+export function useBulkCancelDiscoveriesMutation() {
+	return createMutation(() => ({
+		mutationFn: async ({
+			discoveryIds,
+			sessionIds
+		}: {
+			discoveryIds: string[];
+			sessionIds: string[];
+		}) => {
+			const mark = (cancelling: boolean) =>
+				cancellingSessions.update((c) => {
+					const next = new Map(c);
+					for (const id of sessionIds) {
+						if (cancelling) next.set(id, true);
+						else next.delete(id);
+					}
+					return next;
+				});
+			mark(true);
+			try {
+				requireSuccess(
+					await apiClient.POST('/api/v1/discovery/bulk-cancel', { body: discoveryIds })
+				);
+			} catch (error) {
+				// The stream only clears the mark when a session ends, which a refused request
+				// never makes happen.
+				mark(false);
+				throw error;
+			}
+			return discoveryIds;
+		}
+		// Note: Success handling happens via SSE when each "Cancelled" phase is received
+	}));
+}

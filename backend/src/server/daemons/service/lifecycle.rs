@@ -167,4 +167,39 @@ impl DaemonService {
     pub fn set_host_service(&self, service: Arc<HostService>) -> Result<(), Arc<HostService>> {
         self.host_service.set(service)
     }
+
+    /// Takes the daemon off standby, so it picks up the work just queued for it. Grants the same
+    /// grace window as the restart reactivation path, so the nightly inactivity check doesn't
+    /// put it back on standby before that work completes. A no-op for an active daemon.
+    pub async fn wake_from_standby(&self, daemon: &mut Daemon) -> Result<(), anyhow::Error> {
+        if !daemon.base.standby {
+            return Ok(());
+        }
+        daemon.base.standby = false;
+        daemon.base.standby_cleared_at = Some(Utc::now());
+        self.update(daemon, AuthenticatedEntity::System).await?;
+        tracing::info!(daemon_id = %daemon.id, "Cleared daemon standby (work queued)");
+        Ok(())
+    }
+
+    /// Marks an unreachable ServerPoll daemon reachable again, so the poll loop tries it on its
+    /// next pass. A no-op for a daemon that is already reachable. The caller has checked that the
+    /// daemon polls in ServerPoll mode.
+    pub async fn retry_connection(
+        &self,
+        daemon: &mut Daemon,
+        authentication: AuthenticatedEntity,
+    ) -> Result<(), anyhow::Error> {
+        if !daemon.base.is_unreachable {
+            return Ok(());
+        }
+        daemon.base.is_unreachable = false;
+        self.update(daemon, authentication).await?;
+        tracing::info!(
+            daemon_id = %daemon.id,
+            daemon_name = %daemon.base.name,
+            "Daemon connection retry initiated - marked as reachable"
+        );
+        Ok(())
+    }
 }

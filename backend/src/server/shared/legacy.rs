@@ -1,7 +1,8 @@
 //! Legacy daemon wire transformations.
 //!
 //! Cleanup: remove [`rewrite_response_for_legacy_daemon`] once minimum_supported >= 0.16.0, and
-//! the network-wire rewrites once the floor passes `last_network_wire()`.
+//! the network-wire rewrites once the floor passes `last_network_wire()`, and the single-target
+//! rescan rewrites once it passes `last_single_target_rescan()`.
 //!
 //! The network-wire rename is done here, on whole JSON bodies, rather than with
 //! `#[serde(alias = "network_id")]` on each `site_id` field: serde ignores an alias on a field of
@@ -15,35 +16,44 @@ use axum::{
     response::Response,
 };
 
-use crate::server::daemons::r#impl::version::speaks_network_wire;
+use crate::server::daemons::r#impl::version::{reads_single_target_rescan, speaks_network_wire};
 
 /// The server side of the network wire. A daemon's request body is read with
 /// [`rewrite_from_network_wire`] whatever its version (one built on site names sends none of the
 /// old ones), and its JSON response is written with [`rewrite_for_network_wire`] when it is at or
-/// below `last_network_wire()`. A daemon is recognised by its `X-Daemon-ID` header, which every
+/// below `last_network_wire()`, and with [`rewrite_for_single_target_rescan`] when it is at or
+/// below `last_single_target_rescan()`. A daemon is recognised by its `X-Daemon-ID` header, which every
 /// supported version sends; one without `X-Daemon-Version` predates 0.14.10 and is old enough.
 pub async fn network_wire_middleware(request: Request, next: Next) -> Response {
     let headers = request.headers();
     if !headers.contains_key("X-Daemon-ID") {
         return next.run(request).await;
     }
-    let network_wire = speaks_network_wire(
-        headers
-            .get("X-Daemon-Version")
-            .and_then(|v| v.to_str().ok()),
-    );
+    let version = headers
+        .get("X-Daemon-Version")
+        .and_then(|v| v.to_str().ok());
+    let network_wire = speaks_network_wire(version);
+    let single_target_rescan = reads_single_target_rescan(version);
 
     let request = match rewrite_request(request, rewrite_from_network_wire).await {
         Ok(request) => request,
         Err(response) => return response,
     };
     let response = next.run(request).await;
-    if !network_wire || !is_json(response.headers()) {
+    if !(network_wire || single_target_rescan) || !is_json(response.headers()) {
         return response;
     }
 
     let (mut parts, body) = response.into_parts();
-    match rewrite_body(body, rewrite_for_network_wire).await {
+    let rewrite = |json: &mut serde_json::Value| {
+        if network_wire {
+            rewrite_for_network_wire(json);
+        }
+        if single_target_rescan {
+            rewrite_for_single_target_rescan(json);
+        }
+    };
+    match rewrite_body(body, rewrite).await {
         Ok(body) => {
             parts.headers.remove(header::CONTENT_LENGTH);
             Response::from_parts(parts, body)
@@ -52,10 +62,11 @@ pub async fn network_wire_middleware(request: Request, next: Next) -> Response {
     }
 }
 
-/// The daemon side of the network wire: every request the server sends a daemon is read with
-/// [`rewrite_from_network_wire`], since a server that predates the rename sends `network_id`.
+/// The daemon side of the wire: every request the server sends a daemon is read with
+/// [`rewrite_from_server_wire`], since a server that predates the rename sends `network_id`, and
+/// one that sends this daemon's version a single rescan target adds `target_host_id`.
 pub async fn site_wire_request_middleware(request: Request, next: Next) -> Response {
-    match rewrite_request(request, rewrite_from_network_wire).await {
+    match rewrite_request(request, rewrite_from_server_wire).await {
         Ok(request) => next.run(request).await,
         Err(response) => response,
     }
@@ -82,7 +93,10 @@ async fn rewrite_request(
 }
 
 /// The body with `rewrite` applied, or unchanged when it is not JSON.
-async fn rewrite_body(body: Body, rewrite: fn(&mut serde_json::Value)) -> Result<Body, Response> {
+async fn rewrite_body(
+    body: Body,
+    rewrite: impl FnOnce(&mut serde_json::Value),
+) -> Result<Body, Response> {
     let bytes = to_bytes(body, usize::MAX).await.map_err(|e| {
         tracing::error!(error = %e, "Could not buffer a body for the network wire");
         Response::builder()
@@ -110,6 +124,67 @@ pub fn rewrite_for_network_wire(value: &mut serde_json::Value) {
 /// inverse of [`rewrite_for_network_wire`].
 pub fn rewrite_from_network_wire(value: &mut serde_json::Value) {
     rename_wire_keys(value, ("network_id", "site_id"), ("Network", "Site"));
+}
+
+/// Rewrite JSON bound for a daemon at or below `last_single_target_rescan()`: every rescan
+/// (`"type":"Rescan"`) also gets the single `target_host_id` those daemons require, set to its
+/// first target. They ignore `target_host_ids` and scan only `ips`, which already holds every
+/// target's addresses.
+pub fn rewrite_for_single_target_rescan(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if map.get("type").and_then(|v| v.as_str()) == Some("Rescan")
+                && let Some(first) = map
+                    .get("target_host_ids")
+                    .and_then(|ids| ids.as_array())
+                    .and_then(|ids| ids.first())
+                    .cloned()
+            {
+                map.insert("target_host_id".to_string(), first);
+            }
+            for v in map.values_mut() {
+                rewrite_for_single_target_rescan(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr {
+                rewrite_for_single_target_rescan(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Read a rescan the way the current types expect it: when it carries both `target_host_ids`
+/// and the single `target_host_id` [`rewrite_for_single_target_rescan`] adds, drop the single
+/// one. A daemon built from unreleased code still reports the last released version, so it gets
+/// both, and serde refuses a field together with its alias.
+pub fn rewrite_from_single_target_rescan(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if map.get("type").and_then(|v| v.as_str()) == Some("Rescan")
+                && map.contains_key("target_host_ids")
+            {
+                map.remove("target_host_id");
+            }
+            for v in map.values_mut() {
+                rewrite_from_single_target_rescan(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr {
+                rewrite_from_single_target_rescan(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Everything a daemon reads from the server, in today's names: [`rewrite_from_network_wire`]
+/// and [`rewrite_from_single_target_rescan`].
+pub fn rewrite_from_server_wire(value: &mut serde_json::Value) {
+    rewrite_from_network_wire(value);
+    rewrite_from_single_target_rescan(value);
 }
 
 fn rename_wire_keys(value: &mut serde_json::Value, key: (&str, &str), scope: (&str, &str)) {
@@ -385,5 +460,50 @@ mod tests {
         rewrite_from_network_wire(&mut wire);
         let read: Subnet = serde_json::from_value(wire).unwrap();
         assert_eq!(read.base.site_id, subnet.base.site_id);
+    }
+}
+
+#[cfg(test)]
+mod single_target_rescan_tests {
+    use super::*;
+    use crate::server::discovery::r#impl::types::DiscoveryType;
+    use uuid::Uuid;
+
+    fn rescan(targets: &[Uuid]) -> serde_json::Value {
+        serde_json::json!({
+            "discovery_type": {
+                "type": "Rescan",
+                "host_id": Uuid::nil(),
+                "target_host_ids": targets,
+                "ips": ["10.0.0.1", "10.0.0.2"],
+            }
+        })
+    }
+
+    /// The shape daemons at or below `last_single_target_rescan()` were built with.
+    #[derive(serde::Deserialize)]
+    #[serde(tag = "type")]
+    enum OldDiscoveryType {
+        Rescan { target_host_id: Uuid },
+    }
+
+    #[test]
+    fn an_old_daemon_reads_a_multi_host_rescan() {
+        let targets = [Uuid::new_v4(), Uuid::new_v4()];
+        let mut wire = rescan(&targets);
+        rewrite_for_single_target_rescan(&mut wire);
+        let OldDiscoveryType::Rescan { target_host_id } =
+            serde_json::from_value(wire["discovery_type"].clone()).unwrap();
+        assert_eq!(target_host_id, targets[0]);
+    }
+
+    #[test]
+    fn a_current_daemon_reads_the_rewritten_rescan_with_every_target() {
+        let targets = [Uuid::new_v4(), Uuid::new_v4()];
+        let mut wire = rescan(&targets);
+        rewrite_for_single_target_rescan(&mut wire);
+        rewrite_from_server_wire(&mut wire);
+        let parsed: DiscoveryType = serde_json::from_value(wire["discovery_type"].clone()).unwrap();
+        assert_eq!(parsed.rescan_target_host_ids(), Some(&targets[..]));
     }
 }

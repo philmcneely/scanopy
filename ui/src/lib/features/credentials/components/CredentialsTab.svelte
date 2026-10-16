@@ -47,7 +47,8 @@
 		credentials_subtitle,
 		common_credentials,
 		common_notApplicable,
-		common_noEntityYet
+		common_noEntityYet,
+		credentials_defaultCantDelete
 	} from '$lib/paraglide/messages';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 
@@ -176,22 +177,16 @@
 	function credentialActions(credential: Credential): CardAction[] {
 		if (!canManage) return [];
 
-		const edit: CardAction = {
-			label: common_edit(),
-			icon: Edit,
-			onClick: () => handleEditCredential(credential)
-		};
-		// A default can't be deleted, only unassigned from its sites and hosts.
-		if (credential.is_default) return [edit];
 		return [
-			edit,
+			{ label: common_edit(), icon: Edit, onClick: () => handleEditCredential(credential) },
 			{
 				label: common_delete(),
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
 				onBulk: handleBulkDelete,
-				onClick: () => handleDeleteCredential(credential)
+				onClick: () => handleDeleteCredential(credential),
+				disabled: credential.is_default ? { reason: credentials_defaultCantDelete() } : undefined
 			}
 		];
 	}

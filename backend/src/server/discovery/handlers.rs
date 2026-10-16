@@ -4,14 +4,12 @@ use crate::server::shared::sse::until_shutdown;
 use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::metadata::HasId;
 use crate::server::{
-    auth::middleware::{
-        auth::AuthenticatedEntity,
-        permissions::{Authorized, IsDaemon, Member, Viewer},
-    },
+    auth::middleware::permissions::{Authorized, IsDaemon, Member, Viewer},
     config::AppState,
     credentials::r#impl::types::CredentialTypeDiscriminants,
     daemons::r#impl::{api::DiscoveryUpdatePayload, version::supports_unified_discovery},
     discovery::r#impl::{base::Discovery, types::DiscoveryType},
+    discovery::service::start_refusal,
     shared::{
         extractors::Query,
         handlers::{
@@ -311,6 +309,11 @@ fn active_session_error() -> ApiError {
     )
 }
 
+/// A session the daemon is picking up right now can't be cancelled until it has started.
+pub(super) fn session_starting_error() -> ApiError {
+    ApiError::conflict("The session is starting on its daemon. Try again in a moment.")
+}
+
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
     OpenApiRouter::new()
         .routes(routes!(get_all_discoveries, create_discovery))
@@ -325,6 +328,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(start_session))
         .routes(routes!(get_active_sessions))
         .routes(routes!(cancel_discovery))
+        .merge(super::bulk::create_router())
         // Internal daemon endpoints
         .routes(routes!(receive_discovery_update))
         // SSE endpoint (internal - not well-supported by OpenAPI)
@@ -418,11 +422,11 @@ pub async fn create_discovery(
     if discovery
         .base
         .discovery_type
-        .rescan_target_host_id()
+        .rescan_target_host_ids()
         .is_some()
     {
         return Err(ApiError::bad_request(
-            "Rescans are created by the server for a single host and cannot be submitted \
+            "Rescans are created by the server and cannot be submitted \
              via the API.",
         ));
     }
@@ -510,11 +514,11 @@ pub async fn update_discovery(
     if discovery
         .base
         .discovery_type
-        .rescan_target_host_id()
+        .rescan_target_host_ids()
         .is_some()
     {
         return Err(ApiError::bad_request(
-            "Rescans are created by the server for a single host and cannot be submitted \
+            "Rescans are created by the server and cannot be submitted \
              via the API.",
         ));
     }
@@ -678,29 +682,16 @@ async fn start_session(
             discovery.base.site_id,
         ));
     }
-
-    // Auto-wake daemon if on standby. Grant the same grace window as the
-    // restart reactivation path so the nightly inactivity check doesn't
-    // re-standby the daemon before the just-queued discovery completes.
-    if let Some(mut daemon) = state
+    let running = state
         .services
-        .daemon_service
-        .get_by_id(&discovery.base.daemon_id)
-        .await?
-        && daemon.base.standby
-    {
-        daemon.base.standby = false;
-        daemon.base.standby_cleared_at = Some(chrono::Utc::now());
-        state
-            .services
-            .daemon_service
-            .update(&mut daemon, AuthenticatedEntity::System)
-            .await?;
-        tracing::info!(
-            daemon_id = %daemon.id,
-            "Cleared daemon standby (discovery session started)"
-        );
+        .discovery_service
+        .has_active_session_for_discovery(&discovery.id)
+        .await;
+    if let Some(refusal) = start_refusal(&discovery, running) {
+        return Err(refusal.into_api_error(&discovery.base.name));
     }
+
+    wake_daemon(&state, discovery.base.daemon_id).await?;
 
     let update = state
         .services
@@ -709,6 +700,18 @@ async fn start_session(
         .await?;
 
     Ok(Json(ApiResponse::success(update)))
+}
+
+/// Takes the discovery's daemon off standby, so it picks up the session about to be queued.
+pub(super) async fn wake_daemon(state: &Arc<AppState>, daemon_id: Uuid) -> Result<(), ApiError> {
+    if let Some(mut daemon) = state.services.daemon_service.get_by_id(&daemon_id).await? {
+        state
+            .services
+            .daemon_service
+            .wake_from_standby(&mut daemon)
+            .await?;
+    }
+    Ok(())
 }
 
 async fn discovery_stream(
@@ -790,6 +793,9 @@ async fn cancel_discovery(
 
     if !auth.site_ids().contains(&session.site_id) {
         return Err(ApiError::entity_access_denied::<Site>(session.site_id));
+    }
+    if session.phase == DiscoveryPhase::Starting {
+        return Err(session_starting_error());
     }
 
     state

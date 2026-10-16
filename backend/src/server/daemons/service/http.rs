@@ -158,6 +158,9 @@ impl DaemonService {
         if crate::server::daemons::r#impl::version::speaks_network_wire(version.as_deref()) {
             crate::server::shared::legacy::rewrite_for_network_wire(&mut body_json);
         }
+        if crate::server::daemons::r#impl::version::reads_single_target_rescan(version.as_deref()) {
+            crate::server::shared::legacy::rewrite_for_single_target_rescan(&mut body_json);
+        }
         let api_key_owned = api_key.map(|s| s.to_owned());
 
         // SSRF guard: in cloud mode, refuse to POST (including credential-bearing

@@ -631,7 +631,7 @@ impl DaemonService {
         mut update: DiscoveryUpdatePayload,
     ) -> Result<(), ApiError> {
         if update.phase == DiscoveryPhase::Complete
-            && update.discovery_type.rescan_target_host_id().is_none()
+            && update.discovery_type.rescan_target_host_ids().is_none()
         {
             self.resolve_neighbours_into_session(&mut update).await;
         }

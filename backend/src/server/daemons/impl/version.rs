@@ -316,6 +316,27 @@ pub fn speaks_network_wire(version: Option<&str>) -> bool {
         .is_none_or(|v| v <= last_network_wire())
 }
 
+/// The last release whose daemon reads a rescan's target as the single required
+/// `target_host_id`, before one rescan could cover several hosts (`target_host_ids`). Those
+/// daemons reject a `Rescan` without it, so
+/// [`rewrite_for_single_target_rescan`](crate::server::shared::legacy::rewrite_for_single_target_rescan)
+/// adds it back for them. They only scan `ips`, so a rescan covering several hosts still scans
+/// every address.
+///
+/// A ceiling rather than a floor, for the reason [`last_legacy_neighbor_wire`] gives. Read by
+/// `single_target_rescan_shim_still_needed`, which fails once the enforced floor passes it.
+pub fn last_single_target_rescan() -> Version {
+    Version::new(0, 18, 2)
+}
+
+/// Whether a daemon at this version needs a rescan's single `target_host_id`. A daemon without a
+/// recorded or parseable version is assumed to.
+pub fn reads_single_target_rescan(version: Option<&str>) -> bool {
+    version
+        .and_then(|v| Version::parse(v).ok())
+        .is_none_or(|v| v <= last_single_target_rescan())
+}
+
 /// Every capability floor this build enforces, labelled so a failure names the
 /// offender. The rot-guard test asserts each is ≤ the current server version, so
 /// a floor can never quietly reference a version this build doesn't know about.
@@ -861,6 +882,23 @@ mod tests {
              daemons/service/http.rs), `last_network_wire`, and this test. The daemon \
              config loader's use of `rewrite_from_network_wire` stays: config files written \
              before the rename live on disk until the daemon next saves."
+        );
+    }
+
+    /// Same end-condition for multi-host rescans: once no supported daemon requires a single
+    /// `target_host_id`, the rewrite has no reader left.
+    #[test]
+    fn single_target_rescan_shim_still_needed() {
+        let floor = enforced_floor(Utc::now());
+        let last = last_single_target_rescan();
+        assert!(
+            floor <= last,
+            "the enforced daemon floor is {floor}, above {last}: every supported daemon now \
+             reads `target_host_ids`. Delete `rewrite_for_single_target_rescan` in \
+             server/shared/legacy.rs and its callers (the daemon wire middleware there and \
+             daemons/service/http.rs), `last_single_target_rescan`, `reads_single_target_rescan`, \
+             and this test. The `target_host_id` alias on `DiscoveryType::Rescan` stays while \
+             stored historical rows carry it."
         );
     }
 }

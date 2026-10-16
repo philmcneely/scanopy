@@ -302,3 +302,21 @@ export function getDaemonIsRunningDiscovery(
 	}
 	return false;
 }
+
+/** Asks the server to poll several unreachable ServerPoll daemons again. */
+export function useBulkRetryDaemonConnectionMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: async (ids: string[]) => {
+			requireSuccess(await apiClient.POST('/api/v1/daemons/bulk-retry-connection', { body: ids }));
+			return ids;
+		},
+		onSuccess: (ids: string[]) => {
+			queryClient.setQueryData<Daemon[]>(
+				queryKeys.daemons.all,
+				(old) => old?.map((d) => (ids.includes(d.id) ? { ...d, is_unreachable: false } : d)) ?? []
+			);
+		}
+	}));
+}

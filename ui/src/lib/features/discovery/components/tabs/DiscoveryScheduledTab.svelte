@@ -25,7 +25,10 @@
 		useBulkDeleteDiscoveriesMutation,
 		useInitiateDiscoveryMutation,
 		useActiveSessionsQuery,
-		useCancelDiscoveryMutation
+		useCancelDiscoveryMutation,
+		useBulkStartDiscoveriesMutation,
+		useBulkCancelDiscoveriesMutation,
+		useBulkSetDiscoveriesEnabledMutation
 	} from '../../queries';
 	import type { DiscoveryUpdatePayload } from '../../types/api';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -59,6 +62,9 @@
 		discovery_alreadyRunning,
 		discovery_cannotDeleteWhileRunning,
 		discovery_cannotToggleWhileRunning,
+		discovery_rescanRunsOnce,
+		discovery_rescanRunsOnceBulk,
+		discovery_runningBulk,
 		discovery_confirmDeleteScheduled,
 		discovery_disableScheduleTooltip,
 		discovery_enableScheduleTooltip,
@@ -121,6 +127,9 @@
 	const deleteDiscoveryMutation = useDeleteDiscoveryMutation();
 	const bulkDeleteDiscoveriesMutation = useBulkDeleteDiscoveriesMutation();
 	const initiateDiscoveryMutation = useInitiateDiscoveryMutation();
+	const bulkStartDiscoveriesMutation = useBulkStartDiscoveriesMutation();
+	const bulkCancelDiscoveriesMutation = useBulkCancelDiscoveriesMutation();
+	const bulkSetEnabledMutation = useBulkSetDiscoveriesEnabledMutation();
 
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
@@ -208,22 +217,21 @@
 		cancelDiscoveryMutation.mutate(sessionId);
 	}
 
-	function handleBulkCancel(ids: string[]) {
-		for (const discovery of discoveriesData) {
-			const sessionId = ids.includes(discovery.id) ? getActiveSession(discovery)?.session_id : null;
-			if (sessionId) handleCancelDiscovery(sessionId);
-		}
+	async function handleBulkRun(ids: string[]) {
+		await bulkStartDiscoveriesMutation.mutateAsync(ids);
 	}
 
-	function handleToggleEnabled(discovery: Discovery) {
-		if (discovery.run_type.type !== 'Scheduled') return;
-		updateDiscoveryMutation.mutate({
-			...discovery,
-			run_type: {
-				...discovery.run_type,
-				enabled: !discovery.run_type.enabled
-			}
-		});
+	async function handleBulkCancel(ids: string[]) {
+		const sessionIds = discoveriesData
+			.filter((discovery) => ids.includes(discovery.id))
+			.map((discovery) => getActiveSession(discovery)?.session_id)
+			.filter((id): id is string => !!id);
+		await bulkCancelDiscoveriesMutation.mutateAsync({ discoveryIds: ids, sessionIds });
+	}
+
+	/** Turns the given discoveries' schedules on or off; the row toggle passes its one id. */
+	function setEnabled(enabled: boolean) {
+		return (ids: string[]) => bulkSetEnabledMutation.mutateAsync({ ids, enabled });
 	}
 
 	async function handleDiscoveryCreate(data: Discovery) {
@@ -268,37 +276,37 @@
 		const running = getActiveSession(discovery) !== null;
 		const isRescan = discovery.discovery_type.type === 'Rescan';
 		const isEnabled = discovery.run_type.type === 'Scheduled' && discovery.run_type.enabled;
-		const actions: CardAction[] = [];
-
-		if (!isRescan) {
-			actions.push({
+		const rescanReason = isRescan
+			? { reason: discovery_rescanRunsOnce(), bulkReason: discovery_rescanRunsOnceBulk() }
+			: undefined;
+		const runningReason = (reason: string) =>
+			running ? { reason, bulkReason: discovery_runningBulk() } : undefined;
+		const actions: CardAction[] = [
+			{
 				label: common_edit(),
 				icon: Edit,
-				onClick: () => handleEditDiscovery(discovery)
-			});
-			actions.push({
+				onClick: () => handleEditDiscovery(discovery),
+				disabled: rescanReason
+			},
+			{
 				label: common_run(),
 				icon: Play,
 				onClick: () => handleDiscoveryRun(discovery),
-				onBulk: (ids) => ids.forEach((id) => initiateDiscoveryMutation.mutate(id)),
-				disabled: running,
-				tooltip: running ? discovery_alreadyRunning() : undefined
-			});
-
-			if (discovery.run_type.type === 'Scheduled') {
-				actions.push({
-					label: isEnabled ? common_disable() : common_enable(),
-					icon: Power,
-					tone: isEnabled ? 'success' : undefined,
-					onClick: () => handleToggleEnabled(discovery),
-					disabled: running,
-					tooltip: running
-						? discovery_cannotToggleWhileRunning()
-						: isEnabled
-							? discovery_disableScheduleTooltip()
-							: discovery_enableScheduleTooltip()
-				});
+				onBulk: handleBulkRun,
+				disabled: rescanReason ?? runningReason(discovery_alreadyRunning())
 			}
+		];
+
+		if (discovery.run_type.type === 'Scheduled') {
+			actions.push({
+				label: isEnabled ? common_disable() : common_enable(),
+				icon: Power,
+				tone: isEnabled ? 'success' : undefined,
+				onClick: () => setEnabled(!isEnabled)([discovery.id]),
+				onBulk: setEnabled(!isEnabled),
+				disabled: runningReason(discovery_cannotToggleWhileRunning()),
+				tooltip: isEnabled ? discovery_disableScheduleTooltip() : discovery_enableScheduleTooltip()
+			});
 		}
 
 		const session = getActiveSession(discovery);
@@ -319,8 +327,7 @@
 			isDelete: true,
 			onBulk: handleBulkDelete,
 			onClick: () => handleDeleteDiscovery(discovery),
-			disabled: running,
-			tooltip: running ? discovery_cannotDeleteWhileRunning() : undefined
+			disabled: runningReason(discovery_cannotDeleteWhileRunning())
 		});
 
 		return actions;

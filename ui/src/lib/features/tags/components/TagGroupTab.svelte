@@ -30,7 +30,9 @@
 		common_delete,
 		common_edit,
 		tags_tagGroups,
-		tags_tagGroupsSubtitle
+		tags_tagGroupsSubtitle,
+		tags_systemGroupFixed,
+		tags_systemGroupFixedBulk
 	} from '$lib/paraglide/messages';
 
 	let { isReadOnly = false }: TabProps = $props();
@@ -111,17 +113,18 @@
 
 	function actions(group: TagGroup): CardAction[] {
 		if (!canManage) return [];
-		const edit = { label: common_edit(), icon: Edit, onClick: () => handleEdit(group) };
-		if (isSystemGroup(group)) return [edit];
 		return [
-			edit,
+			{ label: common_edit(), icon: Edit, onClick: () => handleEdit(group) },
 			{
 				label: common_delete(),
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
 				onBulk: handleBulkDelete,
-				onClick: () => handleDelete(group)
+				onClick: () => handleDelete(group),
+				disabled: isSystemGroup(group)
+					? { reason: tags_systemGroupFixed(), bulkReason: tags_systemGroupFixedBulk() }
+					: undefined
 			}
 		];
 	}

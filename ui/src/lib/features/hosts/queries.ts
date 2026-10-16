@@ -16,8 +16,12 @@ import { apiClient } from '$lib/api/client';
 import { requireSuccess, unwrapData, unwrapEnvelope } from '$lib/api/query-helpers';
 import { pushSuccess } from '$lib/shared/stores/feedback';
 import { hostDisplayName } from './host-display-name';
-import { hosts_consolidatedToast, hosts_rescanStartedToast } from '$lib/paraglide/messages';
-import { discoverySSEManager } from '$lib/features/discovery/queries';
+import {
+	hosts_consolidatedToast,
+	hosts_rescanStartedBulkToast,
+	hosts_rescanStartedToast
+} from '$lib/paraglide/messages';
+import { discoverySSEManager, upsertSessions } from '$lib/features/discovery/queries';
 import type { DiscoveryUpdatePayload } from '$lib/features/discovery/types/api';
 import type {
 	Host,
@@ -930,4 +934,25 @@ export function getHostFromIPAddressIdFromCache(
 	if (!iface) return null;
 
 	return getHostByIdFromCache(queryClient, iface.host_id);
+}
+
+/**
+ * Rescans several hosts. Hosts the same daemon last found share one rescan, so this starts one
+ * session per daemon.
+ */
+export function useBulkRescanHostsMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: async (ids: string[]) => {
+			return unwrapData(
+				await apiClient.POST('/api/v1/hosts/bulk-rescan', { body: ids })
+			) as DiscoveryUpdatePayload[];
+		},
+		onSuccess: (sessions: DiscoveryUpdatePayload[], ids) => {
+			upsertSessions(queryClient, sessions);
+			discoverySSEManager.connect();
+			pushSuccess(hosts_rescanStartedBulkToast({ count: ids.length }));
+		}
+	}));
 }
