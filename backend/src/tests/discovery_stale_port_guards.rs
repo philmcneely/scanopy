@@ -186,7 +186,12 @@ impl<'a> Lab<'a> {
         container
     }
 
-    pub(super) async fn scan(&self, ip_addresses: Vec<IPAddress>, ports: Vec<Port>, services: Vec<Service>) {
+    pub(super) async fn scan(
+        &self,
+        ip_addresses: Vec<IPAddress>,
+        ports: Vec<Port>,
+        services: Vec<Service>,
+    ) {
         let mut host = Host::new(HostBase {
             site_id: self.site_id,
             source: EntitySource::Discovery,
@@ -401,7 +406,10 @@ async fn an_address_only_service_survives_a_rescan_that_omits_it() {
 
     let runtime = lab.named("Docker").await.expect("runtime stored");
     assert_eq!(runtime.base.bindings.len(), 1);
-    assert_eq!(runtime.base.bindings[0].ip_address_id(), Some(lab.stored_ip(LAN_IP).await.id));
+    assert_eq!(
+        runtime.base.bindings[0].ip_address_id(),
+        Some(lab.stored_ip(LAN_IP).await.id)
+    );
 }
 
 /// R12. Rescanning an unchanged host re-matches every service, keeps every binding, deletes
@@ -608,7 +616,10 @@ async fn without_coverage_a_new_container_on_a_held_port_is_dropped() {
     let gitea = lab.container_as("Gitea", "gitea", &runtime, vec![(&p3001, &lan)]);
     lab.scan(vec![lan], vec![p3001], vec![runtime, gitea]).await;
 
-    assert_eq!(lab.ports_named("uptime-kuma").await, Some(vec![at_lan(3001)]));
+    assert_eq!(
+        lab.ports_named("uptime-kuma").await,
+        Some(vec![at_lan(3001)])
+    );
     assert_eq!(lab.named("gitea").await, None);
 }
 

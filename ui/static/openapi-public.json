@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Scanopy API",
-    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.18.1\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.18.1\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.18.1)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
+    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.18.2\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.18.2\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.18.2)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
     "license": {
       "name": "Dual (AGPL3.0, Commercial License Available)"
     },
@@ -78,16 +78,19 @@
         "operationId": "list_daemon_api_keys",
         "parameters": [
           {
-            "name": "site_id",
+            "name": "site_ids",
             "in": "query",
-            "description": "Filter by site ID",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
             "required": false,
             "schema": {
               "type": [
-                "string",
+                "array",
                 "null"
               ],
-              "format": "uuid"
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
             }
           },
           {
@@ -104,6 +107,150 @@
                 "type": "string",
                 "format": "uuid"
               }
+            }
+          },
+          {
+            "name": "unbound",
+            "in": "query",
+            "description": "`true` returns only keys no daemon is bound to, the ones managed from the API keys page;\n`false` only keys bound to a daemon. Omit for both.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "is_enabled",
+            "in": "query",
+            "description": "Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty,\nmatches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns keys that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the key's name.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
             }
           },
           {
@@ -320,16 +467,19 @@
         "operationId": "export_daemon_api_keys_csv",
         "parameters": [
           {
-            "name": "site_id",
+            "name": "site_ids",
             "in": "query",
-            "description": "Filter by site ID",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
             "required": false,
             "schema": {
               "type": [
-                "string",
+                "array",
                 "null"
               ],
-              "format": "uuid"
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
             }
           },
           {
@@ -346,6 +496,150 @@
                 "type": "string",
                 "format": "uuid"
               }
+            }
+          },
+          {
+            "name": "unbound",
+            "in": "query",
+            "description": "`true` returns only keys no daemon is bound to, the ones managed from the API keys page;\n`false` only keys bound to a daemon. Omit for both.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "is_enabled",
+            "in": "query",
+            "description": "Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty,\nmatches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns keys that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the key's name.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
             }
           },
           {
@@ -385,6 +679,262 @@
               "text/csv": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/daemon/field-values/{field}": {
+      "get": {
+        "tags": [
+          "Daemon API Keys"
+        ],
+        "summary": "List the values of a Daemon API Key field",
+        "description": "Every distinct value of one Daemon API Key field across the Daemon API Keys the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.",
+        "operationId": "get_daemon_api_key_field_values",
+        "parameters": [
+          {
+            "name": "field",
+            "in": "path",
+            "description": "The field whose values to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "description": "Filter by specific entity IDs (for selective loading)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "unbound",
+            "in": "query",
+            "description": "`true` returns only keys no daemon is bound to, the ones managed from the API keys page;\n`false` only keys bound to a daemon. Omit for both.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "is_enabled",
+            "in": "query",
+            "description": "Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty,\nmatches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns keys that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the key's name.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distinct values and their Daemon API Key counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_Vec_GroupCount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -630,6 +1180,169 @@
         "operationId": "get_all_user_api_keys",
         "parameters": [
           {
+            "name": "permissions",
+            "in": "query",
+            "description": "Only keys limited to one of these roles. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/UserOrgPermissions"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Only keys with access to one of these sites. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "is_enabled",
+            "in": "query",
+            "description": "Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches\nnone.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns keys that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the key's name.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
@@ -813,6 +1526,169 @@
         "operationId": "export_user_api_keys_csv",
         "parameters": [
           {
+            "name": "permissions",
+            "in": "query",
+            "description": "Only keys limited to one of these roles. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/UserOrgPermissions"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Only keys with access to one of these sites. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "is_enabled",
+            "in": "query",
+            "description": "Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches\nnone.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns keys that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the key's name.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
@@ -849,6 +1725,249 @@
               "text/csv": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/keys/field-values/{field}": {
+      "get": {
+        "tags": [
+          "User API Keys"
+        ],
+        "summary": "List the values of a User API Key field",
+        "description": "Every distinct value of one User API Key field across the User API Keys the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.",
+        "operationId": "get_user_api_key_field_values",
+        "parameters": [
+          {
+            "name": "field",
+            "in": "path",
+            "description": "The field whose values to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UserApiKeyOrderField"
+            }
+          },
+          {
+            "name": "permissions",
+            "in": "query",
+            "description": "Only keys limited to one of these roles. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/UserOrgPermissions"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Only keys with access to one of these sites. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "is_enabled",
+            "in": "query",
+            "description": "Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches\nnone.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns keys that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the key's name.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distinct values and their User API Key counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_Vec_GroupCount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -1647,16 +2766,149 @@
           {
             "name": "type",
             "in": "query",
-            "description": "Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`).",
+            "description": "Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several.",
             "required": false,
             "schema": {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/components/schemas/CredentialTypeDiscriminants"
-                }
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/CredentialTypeDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "integrations",
+            "in": "query",
+            "description": "Only credentials of one of these integrations. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/CredentialIntegration"
+              }
+            }
+          },
+          {
+            "name": "beta",
+            "in": "query",
+            "description": "Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).\nSent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "unofficial_api",
+            "in": "query",
+            "description": "Only credentials whose type reads an unpublished API (`true`), a published one (`false`),\nor both (repeat it). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "targets",
+            "in": "query",
+            "description": "Only credentials whose type can be applied to one of these targets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/Target"
+              }
+            }
+          },
+          {
+            "name": "daemon_os",
+            "in": "query",
+            "description": "Only file and socket credentials for one of these daemon OS families. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/OsFamily"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Only credentials assigned to one of these sites. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns credentials that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the credential must hold one tag from each of. Each entry is a comma-separated\nlist of tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
               ]
             }
           },
@@ -1690,6 +2942,32 @@
                   "$ref": "#/components/schemas/CredentialOrderField"
                 }
               ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -1927,16 +3205,149 @@
           {
             "name": "type",
             "in": "query",
-            "description": "Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`).",
+            "description": "Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several.",
             "required": false,
             "schema": {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/components/schemas/CredentialTypeDiscriminants"
-                }
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/CredentialTypeDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "integrations",
+            "in": "query",
+            "description": "Only credentials of one of these integrations. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/CredentialIntegration"
+              }
+            }
+          },
+          {
+            "name": "beta",
+            "in": "query",
+            "description": "Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).\nSent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "unofficial_api",
+            "in": "query",
+            "description": "Only credentials whose type reads an unpublished API (`true`), a published one (`false`),\nor both (repeat it). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "targets",
+            "in": "query",
+            "description": "Only credentials whose type can be applied to one of these targets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/Target"
+              }
+            }
+          },
+          {
+            "name": "daemon_os",
+            "in": "query",
+            "description": "Only file and socket credentials for one of these daemon OS families. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/OsFamily"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Only credentials assigned to one of these sites. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns credentials that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the credential must hold one tag from each of. Each entry is a comma-separated\nlist of tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
               ]
             }
           },
@@ -1970,6 +3381,32 @@
                   "$ref": "#/components/schemas/CredentialOrderField"
                 }
               ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -2219,16 +3656,154 @@
         "operationId": "get_daemons",
         "parameters": [
           {
-            "name": "site_id",
+            "name": "site_ids",
             "in": "query",
-            "description": "Filter by site ID",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "statuses",
+            "in": "query",
+            "description": "Only daemons in one of these statuses. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonHealth"
+              }
+            }
+          },
+          {
+            "name": "os",
+            "in": "query",
+            "description": "Only daemons installed on one of these operating systems. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonOs"
+              }
+            }
+          },
+          {
+            "name": "modes",
+            "in": "query",
+            "description": "Only daemons that connect one of these ways. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonMode"
+              }
+            }
+          },
+          {
+            "name": "maintainer_ids",
+            "in": "query",
+            "description": "Only daemons maintained by one of these users. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "versions",
+            "in": "query",
+            "description": "Only daemons running one of these versions. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "interfaced_subnet_ids",
+            "in": "query",
+            "description": "Only daemons with an interface on one of these subnets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns daemons that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and url.",
             "required": false,
             "schema": {
               "type": [
                 "string",
                 "null"
-              ],
-              "format": "uuid"
+              ]
             }
           },
           {
@@ -2261,6 +3836,32 @@
                   "$ref": "#/components/schemas/DaemonOrderField"
                 }
               ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -2462,16 +4063,154 @@
         "operationId": "export_daemons_csv",
         "parameters": [
           {
-            "name": "site_id",
+            "name": "site_ids",
             "in": "query",
-            "description": "Filter by site ID",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "statuses",
+            "in": "query",
+            "description": "Only daemons in one of these statuses. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonHealth"
+              }
+            }
+          },
+          {
+            "name": "os",
+            "in": "query",
+            "description": "Only daemons installed on one of these operating systems. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonOs"
+              }
+            }
+          },
+          {
+            "name": "modes",
+            "in": "query",
+            "description": "Only daemons that connect one of these ways. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonMode"
+              }
+            }
+          },
+          {
+            "name": "maintainer_ids",
+            "in": "query",
+            "description": "Only daemons maintained by one of these users. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "versions",
+            "in": "query",
+            "description": "Only daemons running one of these versions. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "interfaced_subnet_ids",
+            "in": "query",
+            "description": "Only daemons with an interface on one of these subnets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns daemons that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and url.",
             "required": false,
             "schema": {
               "type": [
                 "string",
                 "null"
-              ],
-              "format": "uuid"
+              ]
             }
           },
           {
@@ -2504,6 +4243,32 @@
                   "$ref": "#/components/schemas/DaemonOrderField"
                 }
               ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -2559,6 +4324,311 @@
               "text/csv": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/daemons/field-values/{field}": {
+      "get": {
+        "tags": [
+          "Daemons"
+        ],
+        "summary": "List the values of a Daemon field",
+        "description": "Every distinct value of one Daemon field across the Daemons the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.",
+        "operationId": "get_daemon_field_values",
+        "parameters": [
+          {
+            "name": "field",
+            "in": "path",
+            "description": "The field whose values to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DaemonOrderField"
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "statuses",
+            "in": "query",
+            "description": "Only daemons in one of these statuses. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonHealth"
+              }
+            }
+          },
+          {
+            "name": "os",
+            "in": "query",
+            "description": "Only daemons installed on one of these operating systems. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonOs"
+              }
+            }
+          },
+          {
+            "name": "modes",
+            "in": "query",
+            "description": "Only daemons that connect one of these ways. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/DaemonMode"
+              }
+            }
+          },
+          {
+            "name": "maintainer_ids",
+            "in": "query",
+            "description": "Only daemons maintained by one of these users. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "versions",
+            "in": "query",
+            "description": "Only daemons running one of these versions. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "interfaced_subnet_ids",
+            "in": "query",
+            "description": "Only daemons with an interface on one of these subnets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns daemons that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and url.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/DaemonOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/DaemonOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distinct values and their Daemon counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_Vec_GroupCount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -3800,6 +5870,108 @@
             }
           },
           {
+            "name": "run_types",
+            "in": "query",
+            "description": "Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "legacy",
+            "in": "query",
+            "description": "Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat\nit). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "force_full_scan",
+            "in": "query",
+            "description": "Only configurations whose next run is forced to a full scan (`true`), not (`false`), or\nboth (repeat it). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns discoveries that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated\nlist of tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
             "name": "group_by",
             "in": "query",
             "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
@@ -4141,6 +6313,108 @@
             }
           },
           {
+            "name": "run_types",
+            "in": "query",
+            "description": "Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "legacy",
+            "in": "query",
+            "description": "Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat\nit). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "force_full_scan",
+            "in": "query",
+            "description": "Only configurations whose next run is forced to a full scan (`true`), not (`false`), or\nboth (repeat it). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns discoveries that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated\nlist of tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
             "name": "group_by",
             "in": "query",
             "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
@@ -4358,6 +6632,108 @@
                 "string",
                 "null"
               ]
+            }
+          },
+          {
+            "name": "run_types",
+            "in": "query",
+            "description": "Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "legacy",
+            "in": "query",
+            "description": "Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat\nit). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "force_full_scan",
+            "in": "query",
+            "description": "Only configurations whose next run is forced to a full scan (`true`), not (`false`), or\nboth (repeat it). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns discoveries that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated\nlist of tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -10853,6 +13229,155 @@
         "operationId": "get_all_sites",
         "parameters": [
           {
+            "name": "credential_ids",
+            "in": "query",
+            "description": "Only sites with one of these credentials assigned. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "effective_stale_after_hours",
+            "in": "query",
+            "description": "Only sites whose effective staleness window is one of these, in hours. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns sites that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the site's name and the names\nof its daemons, subnets and VLANs.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
@@ -11084,6 +13609,155 @@
         "operationId": "export_sites_csv",
         "parameters": [
           {
+            "name": "credential_ids",
+            "in": "query",
+            "description": "Only sites with one of these credentials assigned. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "effective_stale_after_hours",
+            "in": "query",
+            "description": "Only sites whose effective staleness window is one of these, in hours. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns sites that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the site's name and the names\nof its daemons, subnets and VLANs.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
@@ -11120,6 +13794,235 @@
               "text/csv": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sites/field-values/{field}": {
+      "get": {
+        "tags": [
+          "Sites"
+        ],
+        "summary": "List the values of a Site field",
+        "description": "Every distinct value of one Site field across the Sites the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.",
+        "operationId": "get_site_field_values",
+        "parameters": [
+          {
+            "name": "field",
+            "in": "path",
+            "description": "The field whose values to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SiteOrderField"
+            }
+          },
+          {
+            "name": "credential_ids",
+            "in": "query",
+            "description": "Only sites with one of these credentials assigned. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "effective_stale_after_hours",
+            "in": "query",
+            "description": "Only sites whose effective staleness window is one of these, in hours. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns sites that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of\ntag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the site's name and the names\nof its daemons, subnets and VLANs.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SiteOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distinct values and their Site counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_Vec_GroupCount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -11600,16 +14503,124 @@
         "operationId": "list_subnets",
         "parameters": [
           {
-            "name": "site_id",
+            "name": "ids",
             "in": "query",
-            "description": "Filter by site ID",
+            "description": "Filter by specific entity IDs (for selective loading)",
             "required": false,
             "schema": {
               "type": [
-                "string",
+                "array",
                 "null"
               ],
-              "format": "uuid"
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "subnet_types",
+            "in": "query",
+            "description": "Only subnets of one of these types. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "sources",
+            "in": "query",
+            "description": "Only subnets that came to exist one of these ways (`source.type`). Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/EntitySourceDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "managed_by",
+            "in": "query",
+            "description": "Only bridge subnets created by one of these container runtimes. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "user_managed",
+            "in": "query",
+            "description": "`true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates\n(`Subnet::is_user_managed`).",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns subnets that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -11642,6 +14653,32 @@
                   "$ref": "#/components/schemas/SubnetOrderField"
                 }
               ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -11856,16 +14893,124 @@
         "operationId": "export_subnets_csv",
         "parameters": [
           {
-            "name": "site_id",
+            "name": "ids",
             "in": "query",
-            "description": "Filter by site ID",
+            "description": "Filter by specific entity IDs (for selective loading)",
             "required": false,
             "schema": {
               "type": [
-                "string",
+                "array",
                 "null"
               ],
-              "format": "uuid"
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "subnet_types",
+            "in": "query",
+            "description": "Only subnets of one of these types. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "sources",
+            "in": "query",
+            "description": "Only subnets that came to exist one of these ways (`source.type`). Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/EntitySourceDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "managed_by",
+            "in": "query",
+            "description": "Only bridge subnets created by one of these container runtimes. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "user_managed",
+            "in": "query",
+            "description": "`true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates\n(`Subnet::is_user_managed`).",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns subnets that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -11898,6 +15043,32 @@
                   "$ref": "#/components/schemas/SubnetOrderField"
                 }
               ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -11990,6 +15161,318 @@
               "text/csv": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/subnets/field-values/{field}": {
+      "get": {
+        "tags": [
+          "Subnets"
+        ],
+        "summary": "List the values of a Subnet field",
+        "description": "Every distinct value of one Subnet field across the Subnets the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.",
+        "operationId": "get_subnet_field_values",
+        "parameters": [
+          {
+            "name": "field",
+            "in": "path",
+            "description": "The field whose values to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SubnetOrderField"
+            }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "description": "Filter by specific entity IDs (for selective loading)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "subnet_types",
+            "in": "query",
+            "description": "Only subnets of one of these types. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "sources",
+            "in": "query",
+            "description": "Only subnets that came to exist one of these ways (`source.type`). Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/EntitySourceDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "managed_by",
+            "in": "query",
+            "description": "Only bridge subnets created by one of these container runtimes. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "user_managed",
+            "in": "query",
+            "description": "`true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates\n(`Subnet::is_user_managed`).",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns subnets that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SubnetOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/SubnetOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "at",
+            "in": "query",
+            "description": "As-of timestamp (ISO 8601). When set, returns SCD2 state as of this\ninstant (snapshot view) instead of live state.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "stale",
+            "in": "query",
+            "description": "`true` returns only subnets discovery hasn't observed within their\nsite's staleness window; `false` returns only those it has. Omit for\nboth. Evaluated per row against the subnet's own site's window.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the subnet's\nname, CIDR and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distinct values and their Subnet counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_Vec_GroupCount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -12256,6 +15739,170 @@
         "summary": "List all tag groups",
         "description": "Returns every tag group in your organization: the system groups (Application, Status) first,\nthen the groups your organization named, by name.",
         "operationId": "get_all_tag_groups",
+        "parameters": [
+          {
+            "name": "system",
+            "in": "query",
+            "description": "Only system groups (`true`), only the organization's own (`false`), or both (repeat it).\nSent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "ordered",
+            "in": "query",
+            "description": "Only groups keeping their tags in a set order (`true`), by name (`false`), or both (repeat\nit). Sent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "entity_types",
+            "in": "query",
+            "description": "Only groups that apply to one of these entity types. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/EntityDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "include_every_entity_type",
+            "in": "query",
+            "description": "`true` also returns groups that apply to every entity type. Set on its own it returns only\nthose.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Only groups holding one of these tags. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/TagGroupOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/TagGroupOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of tag groups",
@@ -12686,6 +16333,64 @@
         "operationId": "get_all_tags",
         "parameters": [
           {
+            "name": "colors",
+            "in": "query",
+            "description": "Only tags of one of these colours. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "tag_group_ids",
+            "in": "query",
+            "description": "Only tags in one of these groups. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "icons",
+            "in": "query",
+            "description": "Only tags with one of these icons. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
             "name": "group_by",
             "in": "query",
             "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
@@ -13080,6 +16785,64 @@
         "operationId": "export_tags_csv",
         "parameters": [
           {
+            "name": "colors",
+            "in": "query",
+            "description": "Only tags of one of these colours. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "tag_group_ids",
+            "in": "query",
+            "description": "Only tags in one of these groups. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "icons",
+            "in": "query",
+            "description": "Only tags with one of these icons. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
             "name": "group_by",
             "in": "query",
             "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
@@ -13177,6 +16940,205 @@
               "text/csv": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tags/field-values/{field}": {
+      "get": {
+        "tags": [
+          "Tags"
+        ],
+        "summary": "List the values of a Tag field",
+        "description": "Every distinct value of one Tag field across the Tags the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.",
+        "operationId": "get_tag_field_values",
+        "parameters": [
+          {
+            "name": "field",
+            "in": "path",
+            "description": "The field whose values to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TagOrderField"
+            }
+          },
+          {
+            "name": "colors",
+            "in": "query",
+            "description": "Only tags of one of these colours. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "tag_group_ids",
+            "in": "query",
+            "description": "Only tags in one of these groups. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "icons",
+            "in": "query",
+            "description": "Only tags with one of these icons. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the name and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/TagOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/TagOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "at",
+            "in": "query",
+            "description": "As-of timestamp (ISO 8601). When set, returns SCD2 state as of this\ninstant (snapshot view) instead of live state.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distinct values and their Tag counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_Vec_GroupCount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -13975,6 +17937,231 @@
         ]
       }
     },
+    "/api/v1/users/members": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "List members",
+        "description": "The organization's users and its pending invites in one list, each limited to the ones the\ncaller may see: every user and invite for an owner, otherwise the caller themselves, members\nbelow their role, and invites they created.",
+        "operationId": "list_members",
+        "parameters": [
+          {
+            "name": "statuses",
+            "in": "query",
+            "description": "Only members in one of these statuses. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/MemberStatus"
+              }
+            }
+          },
+          {
+            "name": "permissions",
+            "in": "query",
+            "description": "Only members with one of these roles. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/UserOrgPermissions"
+              }
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Only users assigned one of these sites. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "all_sites",
+            "in": "query",
+            "description": "`true` also returns admins and owners, who reach every site. Set on its own it returns only\nthose.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "auth_methods",
+            "in": "query",
+            "description": "Only users signing in one of these ways (`<provider>`, `<provider>+password`, `password`,\n`none`). Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "invited_by",
+            "in": "query",
+            "description": "Only invites created by one of these users. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "email_verified",
+            "in": "query",
+            "description": "Only users whose email is verified (`true`), unverified (`false`), or both (repeat it).\nSent empty, matches none.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the email.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/MemberOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/MemberOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users and pending invites",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedApiResponse_Member"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/{id}": {
       "get": {
         "tags": [
@@ -14255,9 +18442,100 @@
             }
           },
           {
-            "name": "site_id",
+            "name": "site_ids",
             "in": "query",
-            "description": "Filter by site ID",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "sources",
+            "in": "query",
+            "description": "Filter by how the VLAN came to exist (`source.type`). Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/EntitySourceDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "subnet_ids",
+            "in": "query",
+            "description": "Filter to VLANs linked to one of these subnets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns VLANs that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the VLAN must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
             "required": false,
             "schema": {
               "type": [
@@ -14551,9 +18829,100 @@
             }
           },
           {
-            "name": "site_id",
+            "name": "site_ids",
             "in": "query",
-            "description": "Filter by site ID",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "sources",
+            "in": "query",
+            "description": "Filter by how the VLAN came to exist (`source.type`). Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/EntitySourceDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "subnet_ids",
+            "in": "query",
+            "description": "Filter to VLANs linked to one of these subnets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns VLANs that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the VLAN must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
             "required": false,
             "schema": {
               "type": [
@@ -14596,6 +18965,263 @@
               "text/csv": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/vlans/field-values/{field}": {
+      "get": {
+        "tags": [
+          "Vlans"
+        ],
+        "summary": "List the values of a Vlan field",
+        "description": "Every distinct value of one Vlan field across the Vlans the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.",
+        "operationId": "get_vlan_field_values",
+        "parameters": [
+          {
+            "name": "field",
+            "in": "path",
+            "description": "The field whose values to count",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/VlanOrderField"
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Primary ordering field (used for grouping). Always sorts ASC to keep groups together.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/VlanOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Secondary ordering field (sorting within groups or standalone sort).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/VlanOrderField"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "description": "Direction for order_by field (group_by always uses ASC).",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/OrderDirection"
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (1-1000, default: 50). Use 0 for no limit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of results to skip. Default: 0.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "site_ids",
+            "in": "query",
+            "description": "Filter by site ID. Repeat the parameter to pass several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "sources",
+            "in": "query",
+            "description": "Filter by how the VLAN came to exist (`source.type`). Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/EntitySourceDiscriminants"
+              }
+            }
+          },
+          {
+            "name": "subnet_ids",
+            "in": "query",
+            "description": "Filter to VLANs linked to one of these subnets. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "description": "Filter by tag IDs (returns VLANs that have ANY of the specified tags)",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tag_sets",
+            "in": "query",
+            "description": "Tag sets the VLAN must hold one tag from each of. Each entry is a comma-separated list\nof tag ids. One entry per tag group the list is filtered by.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "group_by_tag_group",
+            "in": "query",
+            "description": "Group by the tag each row holds from this tag group. Takes the place of `group_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_by_tag_group",
+            "in": "query",
+            "description": "Sort by the position of the tag each row holds from this tag group. Takes the place of\n`order_by`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "at",
+            "in": "query",
+            "description": "As-of timestamp (ISO 8601). When set, returns SCD2 state as of this\ninstant (snapshot view) instead of live state.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search. Case-insensitive substring match against the VLAN ID,\nname and description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distinct values and their Vlan counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_Vec_GroupCount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -14833,12 +19459,12 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.18.1"
+            "example": "0.18.2"
           }
         },
         "example": {
           "api_version": 1,
-          "server_version": "0.18.1"
+          "server_version": "0.18.2"
         }
       },
       "ApiResponse": {
@@ -14970,19 +19596,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-14T14:23:07.374719Z",
+              "created_at": "2026-10-16T13:48:41.936854Z",
               "first_discovery_id": null,
-              "id": "839363e3-b322-4368-9009-73733c164409",
+              "id": "a277ce80-1838-44bd-846d-2ac04a8bcaed",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-14T14:23:07.374719Z",
+              "last_seen_at": "2026-10-16T13:48:41.936854Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-14T14:23:07.374719Z",
-              "valid_from": "2026-10-14T14:23:07.374719Z",
+              "updated_at": "2026-10-16T13:48:41.936854Z",
+              "valid_from": "2026-10-16T13:48:41.936854Z",
               "valid_to": null
             }
           },
@@ -15527,13 +20153,18 @@
                   "created_at",
                   "updated_at",
                   "version_status",
-                  "interfaced_subnet_ids"
+                  "interfaced_subnet_ids",
+                  "health"
                 ],
                 "properties": {
                   "created_at": {
                     "type": "string",
                     "format": "date-time",
                     "description": "When this record was first created."
+                  },
+                  "health": {
+                    "$ref": "#/components/schemas/DaemonHealth",
+                    "description": "The one status the daemon's chip shows, the most severe that applies."
                   },
                   "id": {
                     "type": "string",
@@ -16725,19 +21356,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-14T14:23:07.327306Z",
+                      "created_at": "2026-10-16T13:48:41.913586Z",
                       "first_discovery_id": null,
-                      "id": "08c327e3-4f7d-4a80-b8fb-48b8ebc55432",
+                      "id": "08fdc7cc-df1a-4292-ad2f-aea9c8bb4aac",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-14T14:23:07.327306Z",
+                      "last_seen_at": "2026-10-16T13:48:41.913586Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-14T14:23:07.327306Z",
-                      "valid_from": "2026-10-14T14:23:07.327306Z",
+                      "updated_at": "2026-10-16T13:48:41.913586Z",
+                      "valid_from": "2026-10-16T13:48:41.913586Z",
                       "valid_to": null
                     }
                   ],
@@ -16750,7 +21381,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Vaultwarden",
+                  "service_definition": "CUPS",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -18228,19 +22859,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-14T14:23:07.365642Z",
+                  "created_at": "2026-10-16T13:48:41.932128Z",
                   "first_discovery_id": null,
-                  "id": "a79b0c35-1476-4559-b035-639fa6bd76b4",
+                  "id": "f2d2cea9-6ad8-4359-b7a3-26931622fc03",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-14T14:23:07.365642Z",
+                  "last_seen_at": "2026-10-16T13:48:41.932128Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-14T14:23:07.365642Z",
-                  "valid_from": "2026-10-14T14:23:07.365642Z",
+                  "updated_at": "2026-10-16T13:48:41.932128Z",
+                  "valid_from": "2026-10-16T13:48:41.932128Z",
                   "valid_to": null
                 }
               ],
@@ -18253,7 +22884,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Vaultwarden",
+              "service_definition": "CUPS",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -18835,9 +23466,27 @@
                 "required": [
                   "used_addresses",
                   "usable_addresses",
+                  "nesting_depth",
+                  "nesting_root_id",
                   "range_evidence"
                 ],
                 "properties": {
+                  "nesting_depth": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "How many ranges this one sits inside: 0 for a range nested in nothing.",
+                    "readOnly": true,
+                    "minimum": 0
+                  },
+                  "nesting_root_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "description": "The outermost range of the tree this one sits in: itself when it holds others and sits in\nnone. `null` for a range that nests with nothing.",
+                    "readOnly": true
+                  },
                   "parent_subnet_id": {
                     "type": [
                       "string",
@@ -21254,19 +25903,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-14T14:23:07.327833Z",
+          "created_at": "2026-10-16T13:48:41.914111Z",
           "first_discovery_id": null,
-          "id": "720ef468-c6e4-4558-ae55-c3cbddec6da8",
+          "id": "a344f0bc-0be5-4419-bdca-7c6488911e73",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-14T14:23:07.327833Z",
+          "last_seen_at": "2026-10-16T13:48:41.914111Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-14T14:23:07.327833Z",
-          "valid_from": "2026-10-14T14:23:07.327833Z",
+          "updated_at": "2026-10-16T13:48:41.914111Z",
+          "valid_from": "2026-10-16T13:48:41.914111Z",
           "valid_to": null
         }
       },
@@ -21652,6 +26301,7 @@
           "Telnet",
           "Rtsp",
           "Nut",
+          "EpicsCa",
           "ZabbixAgent",
           "CheckMkAgent",
           "Smb",
@@ -21774,6 +26424,30 @@
           "VLAN",
           "PortOpStatus"
         ]
+      },
+      "CoveredPorts": {
+        "type": "object",
+        "description": "The ports of one protocol a scan covered at one address.",
+        "required": [
+          "ip_address",
+          "protocol",
+          "ranges"
+        ],
+        "properties": {
+          "ip_address": {
+            "type": "string",
+            "example": "192.168.1.10"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/TransportProtocol"
+          },
+          "ranges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortRange"
+            }
+          }
+        }
       },
       "CreateBindingInput": {
         "oneOf": [
@@ -22030,7 +26704,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Vaultwarden",
+              "service_definition": "CUPS",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -22396,7 +27070,12 @@
         "enum": [
           "created_at",
           "name",
-          "updated_at"
+          "updated_at",
+          "credential_type",
+          "integration",
+          "beta",
+          "unofficial_api",
+          "daemon_os"
         ]
       },
       "CredentialOsFields": {
@@ -23305,6 +27984,19 @@
           }
         }
       },
+      "DaemonApiKeyOrderField": {
+        "type": "string",
+        "description": "Fields the daemon API key list can be ordered and grouped by.",
+        "enum": [
+          "created_at",
+          "name",
+          "updated_at",
+          "site_id",
+          "is_enabled",
+          "last_used",
+          "expires_at"
+        ]
+      },
       "DaemonApiKeyResponse": {
         "type": "object",
         "required": [
@@ -23431,6 +28123,20 @@
           }
         }
       },
+      "DaemonHealth": {
+        "type": "string",
+        "description": "A daemon's status, the most severe that applies, in that order.\n\nUnsupported ranks above Unreachable: a rejected daemon can't connect, so its unreachability is a\nsymptom and the version is the actionable cause. The daemons list sorts and groups by it, and\nfilters on its value, which reads the same in every language.",
+        "enum": [
+          "unsupported",
+          "unreachable",
+          "standby",
+          "awaiting_connection",
+          "deprecated",
+          "outdated",
+          "unknown",
+          "healthy"
+        ]
+      },
       "DaemonHeartbeatPayload": {
         "type": "object",
         "description": "Legacy heartbeat payload for backwards compatibility with pre-v0.14.0 daemons.\nOld daemons call POST /api/daemons/{id}/heartbeat with this payload.",
@@ -23470,7 +28176,12 @@
           "name",
           "last_seen",
           "updated_at",
-          "site_id"
+          "site_id",
+          "os",
+          "mode",
+          "maintainer",
+          "version",
+          "status"
         ]
       },
       "DaemonOs": {
@@ -23621,13 +28332,18 @@
               "created_at",
               "updated_at",
               "version_status",
-              "interfaced_subnet_ids"
+              "interfaced_subnet_ids",
+              "health"
             ],
             "properties": {
               "created_at": {
                 "type": "string",
                 "format": "date-time",
                 "description": "When this record was first created."
+              },
+              "health": {
+                "$ref": "#/components/schemas/DaemonHealth",
+                "description": "The one status the daemon's chip shows, the most severe that applies."
               },
               "id": {
                 "type": "string",
@@ -24343,6 +29059,10 @@
             },
             "description": "IP addresses observed on the host."
           },
+          "port_coverage": {
+            "$ref": "#/components/schemas/PortCoverage",
+            "description": "Whether any interface in this submission arrived in a wire shape a current daemon no\nlonger produces — today, the pre-#701 scalar LLDP/CDP fields (see\n[`DiscoveryInterface`](crate::server::interfaces::r#impl::wire::DiscoveryInterface)).\n\nSet by the deserializer, never by a daemon: it is `skip`ped on the wire in both\ndirections and exists only to carry the observation from the boundary, where the raw\nshape is visible, to the discovery session, where a warning can be attached. Read once,\nin the discovery handlers, then discarded.\nEvery (address, protocol, port) this scan probed and got a definite answer from. A stored\nport binding can change hands only where the scan covered it. Daemons predating this field\nomit it, and empty coverage moves nothing."
+          },
           "ports": {
             "type": "array",
             "items": {
@@ -24380,7 +29100,12 @@
           "started_at",
           "finished_at",
           "duration",
-          "warnings"
+          "warnings",
+          "run_type",
+          "last_run",
+          "scan_count",
+          "force_full_scan",
+          "legacy"
         ]
       },
       "DiscoveryPhase": {
@@ -29101,19 +33826,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-14T14:23:07.326667Z",
+                  "created_at": "2026-10-16T13:48:41.912924Z",
                   "first_discovery_id": null,
-                  "id": "6dd242fa-eb6f-4957-a28a-025fe764b022",
+                  "id": "c19563fd-76fc-4d8c-a117-fe796cecdb27",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-14T14:23:07.326667Z",
+                  "last_seen_at": "2026-10-16T13:48:41.912924Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-14T14:23:07.326667Z",
-                  "valid_from": "2026-10-14T14:23:07.326667Z",
+                  "updated_at": "2026-10-16T13:48:41.912924Z",
+                  "valid_from": "2026-10-16T13:48:41.912924Z",
                   "valid_to": null
                 }
               ],
@@ -29126,7 +33851,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Vaultwarden",
+              "service_definition": "CUPS",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -31631,6 +36356,96 @@
         ],
         "description": "Match reason - either a simple reason string or a container with nested reasons"
       },
+      "Member": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "data",
+              "status",
+              "auth_method",
+              "type"
+            ],
+            "properties": {
+              "auth_method": {
+                "type": "string",
+                "description": "How the user signs in: `<provider>`, `<provider>+password`, `password` or `none`.\nProvider names come from the server's OIDC config."
+              },
+              "data": {
+                "$ref": "#/components/schemas/User"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "status": {
+                "$ref": "#/components/schemas/MemberStatus"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "user"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "data",
+              "status",
+              "type"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/Invite"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "status": {
+                "$ref": "#/components/schemas/MemberStatus"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invite"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "One row of the members list: a user, or an invite still waiting to be accepted."
+      },
+      "MemberOrderField": {
+        "type": "string",
+        "description": "Fields the members list can be ordered and grouped by. Every one is derived in Rust.",
+        "enum": [
+          "created_at",
+          "email",
+          "invite_status",
+          "permissions",
+          "oidc_provider",
+          "updated_at",
+          "invited_by",
+          "expires_at",
+          "email_verified",
+          "oidc_linked_at",
+          "terms_accepted_at"
+        ]
+      },
+      "MemberStatus": {
+        "type": "string",
+        "description": "A member's place in the organization, as the status column shows it.",
+        "enum": [
+          "pending",
+          "you",
+          "user"
+        ]
+      },
       "MergeSubnetRequest": {
         "type": "object",
         "description": "Request body for merging a subnet into the range that contains it.",
@@ -32335,7 +37150,7 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.18.1"
+            "example": "0.18.2"
           }
         },
         "example": {
@@ -32346,7 +37161,7 @@
             "offset": 0,
             "total_count": 142
           },
-          "server_version": "0.18.1"
+          "server_version": "0.18.2"
         }
       },
       "PaginatedApiResponse_Credential": {
@@ -32443,13 +37258,18 @@
                     "created_at",
                     "updated_at",
                     "version_status",
-                    "interfaced_subnet_ids"
+                    "interfaced_subnet_ids",
+                    "health"
                   ],
                   "properties": {
                     "created_at": {
                       "type": "string",
                       "format": "date-time",
                       "description": "When this record was first created."
+                    },
+                    "health": {
+                      "$ref": "#/components/schemas/DaemonHealth",
+                      "description": "The one status the daemon's chip shows, the most severe that applies."
                     },
                     "id": {
                       "type": "string",
@@ -33228,19 +38048,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-14T14:23:07.315166Z",
+                        "created_at": "2026-10-16T13:48:41.904520Z",
                         "first_discovery_id": null,
-                        "id": "eb46398e-9d79-48a4-9630-62bdae10c5d9",
+                        "id": "b9ecab4f-dcd0-4019-90d5-d18f805856ed",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-14T14:23:07.315166Z",
+                        "last_seen_at": "2026-10-16T13:48:41.904520Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-14T14:23:07.315166Z",
-                        "valid_from": "2026-10-14T14:23:07.315166Z",
+                        "updated_at": "2026-10-16T13:48:41.904520Z",
+                        "valid_from": "2026-10-16T13:48:41.904520Z",
                         "valid_to": null
                       }
                     ],
@@ -33253,7 +38073,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Vaultwarden",
+                    "service_definition": "CUPS",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -33286,6 +38106,100 @@
                 "virtualization_root_host_id": null,
                 "virtualization_service_id": null
               }
+            },
+            "description": "The page of results. Empty when nothing matched the query."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Human-readable failure message. Omitted on success."
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginatedApiMeta",
+            "description": "API and server version metadata, plus pagination counters."
+          },
+          "success": {
+            "type": "boolean",
+            "description": "`true` when the request succeeded. `false` responses carry `error` instead of `data`."
+          }
+        }
+      },
+      "PaginatedApiResponse_Member": {
+        "type": "object",
+        "description": "Response type for paginated list endpoints (pagination is always present in meta)",
+        "required": [
+          "success",
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "data",
+                    "status",
+                    "auth_method",
+                    "type"
+                  ],
+                  "properties": {
+                    "auth_method": {
+                      "type": "string",
+                      "description": "How the user signs in: `<provider>`, `<provider>+password`, `password` or `none`.\nProvider names come from the server's OIDC config."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "$ref": "#/components/schemas/MemberStatus"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "user"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "data",
+                    "status",
+                    "type"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Invite"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "$ref": "#/components/schemas/MemberStatus"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "invite"
+                      ]
+                    }
+                  }
+                }
+              ],
+              "description": "One row of the members list: a user, or an invite still waiting to be accepted."
             },
             "description": "The page of results. Empty when nothing matched the query."
           },
@@ -33402,19 +38316,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-14T14:23:07.363366Z",
+                    "created_at": "2026-10-16T13:48:41.931450Z",
                     "first_discovery_id": null,
-                    "id": "6b60cb53-8ff8-4791-beda-b5a7bd2f514a",
+                    "id": "538e4707-e90c-42e2-8c59-600fefeaab88",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-14T14:23:07.363366Z",
+                    "last_seen_at": "2026-10-16T13:48:41.931450Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-14T14:23:07.363366Z",
-                    "valid_from": "2026-10-14T14:23:07.363366Z",
+                    "updated_at": "2026-10-16T13:48:41.931450Z",
+                    "valid_from": "2026-10-16T13:48:41.931450Z",
                     "valid_to": null
                   }
                 ],
@@ -33427,7 +38341,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Vaultwarden",
+                "service_definition": "CUPS",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -33480,9 +38394,27 @@
                   "required": [
                     "used_addresses",
                     "usable_addresses",
+                    "nesting_depth",
+                    "nesting_root_id",
                     "range_evidence"
                   ],
                   "properties": {
+                    "nesting_depth": {
+                      "type": "integer",
+                      "format": "int32",
+                      "description": "How many ranges this one sits inside: 0 for a range nested in nothing.",
+                      "readOnly": true,
+                      "minimum": 0
+                    },
+                    "nesting_root_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid",
+                      "description": "The outermost range of the tree this one sits in: itself when it holds others and sits in\nnone. `null` for a range that nests with nothing.",
+                      "readOnly": true
+                    },
                     "parent_subnet_id": {
                       "type": [
                         "string",
@@ -34392,6 +39324,13 @@
         ],
         "description": "The base data for a Port entity (everything except id, created_at, updated_at)"
       },
+      "PortCoverage": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CoveredPorts"
+        },
+        "description": "Every (address, protocol, port) a scan probed and got a definite answer from: open, refused,\nor silent after every retry. A probe that failed on the scanner's side (file descriptors\nexhausted, the scan cancelled) is left out, since it learned nothing about the port."
+      },
       "PortInput": {
         "type": "object",
         "description": "Input for creating or updating a port.\nUsed in both CreateHostRequest and UpdateHostRequest.\nClient must provide a UUID for the port.",
@@ -34415,6 +39354,26 @@
           "protocol": {
             "$ref": "#/components/schemas/TransportProtocol",
             "description": "Transport protocol (Tcp or Udp)"
+          }
+        }
+      },
+      "PortRange": {
+        "type": "object",
+        "description": "An inclusive run of port numbers.",
+        "required": [
+          "start",
+          "end"
+        ],
+        "properties": {
+          "end": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "start": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           }
         }
       },
@@ -36053,19 +41012,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-14T14:23:07.327658Z",
+              "created_at": "2026-10-16T13:48:41.913935Z",
               "first_discovery_id": null,
-              "id": "805c345e-a0ff-483e-bb26-8fe29731c138",
+              "id": "ab8bdb75-91a9-4130-831f-d54bc67a420a",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-14T14:23:07.327658Z",
+              "last_seen_at": "2026-10-16T13:48:41.913935Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-14T14:23:07.327658Z",
-              "valid_from": "2026-10-14T14:23:07.327658Z",
+              "updated_at": "2026-10-16T13:48:41.913935Z",
+              "valid_from": "2026-10-16T13:48:41.913935Z",
               "valid_to": null
             }
           ],
@@ -36078,7 +41037,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Vaultwarden",
+          "service_definition": "CUPS",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -36725,6 +41684,16 @@
           }
         }
       },
+      "SiteOrderField": {
+        "type": "string",
+        "description": "Fields the sites list can be ordered and grouped by.",
+        "enum": [
+          "created_at",
+          "name",
+          "updated_at",
+          "effective_stale_after_hours"
+        ]
+      },
       "SiteSetup": {
         "type": "object",
         "description": "Site configuration for setup",
@@ -37351,7 +42320,10 @@
           "subnet_type",
           "updated_at",
           "site_id",
-          "last_seen_at"
+          "last_seen_at",
+          "source",
+          "managed_by",
+          "utilization"
         ]
       },
       "SubnetResponse": {
@@ -37364,9 +42336,27 @@
             "required": [
               "used_addresses",
               "usable_addresses",
+              "nesting_depth",
+              "nesting_root_id",
               "range_evidence"
             ],
             "properties": {
+              "nesting_depth": {
+                "type": "integer",
+                "format": "int32",
+                "description": "How many ranges this one sits inside: 0 for a range nested in nothing.",
+                "readOnly": true,
+                "minimum": 0
+              },
+              "nesting_root_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The outermost range of the tree this one sits in: itself when it holds others and sits in\nnone. `null` for a range that nests with nothing.",
+                "readOnly": true
+              },
               "parent_subnet_id": {
                 "type": [
                   "string",
@@ -37670,6 +42660,17 @@
           }
         }
       },
+      "TagGroupOrderField": {
+        "type": "string",
+        "description": "Fields the tag groups list can be ordered and grouped by.",
+        "enum": [
+          "created_at",
+          "name",
+          "updated_at",
+          "group_type",
+          "ordered"
+        ]
+      },
       "TagGroupType": {
         "type": "string",
         "description": "What kind of tag group this is.\n\n`Application`, `Status` and `Visibility` are system groups: every organization has exactly one\nof each, and they can't be renamed, deleted or recreated. Application tags drive the\napplication view. Status tags track where an asset is on its way from planned to\ndecommissioned, on entities that have no status of their own. A host holding a Visibility tag\nis left out of topology. `Custom` groups are named by the organization.",
@@ -37692,7 +42693,8 @@
           "name",
           "color",
           "updated_at",
-          "tag_group"
+          "tag_group",
+          "icon"
         ]
       },
       "TagOrderRequest": {
@@ -37711,6 +42713,14 @@
             "description": "Every tag in the group, each once, in the order to list them."
           }
         }
+      },
+      "Target": {
+        "type": "string",
+        "enum": [
+          "DaemonHost",
+          "Site",
+          "Hosts"
+        ]
       },
       "TestReachabilityRequest": {
         "type": "object",
@@ -38192,7 +43202,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "9e949dc0-4b96-4294-aa06-a6f955adeeac",
+                  "id": "96930821-4b87-4132-ae5d-46776e438958",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -38202,23 +43212,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "916ad4f9-e197-477c-89be-bdac4c4524b9",
+                  "id": "78c291c6-3355-48f0-8d92-d66f8b26709e",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "66896845-c07e-4c39-97fa-e5357e089163",
+                  "id": "a9347b3f-3fe5-46c3-847c-5b1293bb8be7",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "5411b6e5-c8a2-4a8f-83ed-6b75f468a639",
+                  "id": "fef40229-5174-4c6c-8fb2-01fffaf6726d",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "916ad4f9-e197-477c-89be-bdac4c4524b9",
+                  "id": "78c291c6-3355-48f0-8d92-d66f8b26709e",
                   "rule": "ByHost"
                 }
               ]
@@ -38248,19 +43258,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "596908cb-0448-4ac6-9aed-d2dc52ad5dcd",
+                "id": "53a11659-5080-4b2d-a657-fc7bd50bfa89",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "4c886897-b270-4228-ae2c-089140edf9ae",
+                "id": "53a57d3f-ce2d-4a77-a61f-d430b953e03a",
                 "rule": "ByVLAN"
               },
               {
-                "id": "dadd57de-67b2-4d71-8992-daf17e246a58",
+                "id": "cb0b5051-c493-46b3-b785-b3ddf3587955",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "0978b4db-13b4-4a20-b7e1-6413b17ba776",
+                "id": "908fe844-617b-48af-a405-c2e48dbc7a9f",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -38281,7 +43291,7 @@
                 }
               },
               {
-                "id": "4c2e6bfb-888d-4908-9a67-a72006e5adad",
+                "id": "12df5eae-7b37-4074-8fe0-d5aba67e25fd",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -38290,15 +43300,15 @@
                 }
               },
               {
-                "id": "cf0b85e0-81e9-4035-b894-a89e0e37f0bc",
+                "id": "a4718372-194b-457c-a153-d62545bcaa99",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "78314e52-97bf-46c5-a51b-d382434066ba",
+                "id": "819855bf-d60d-428b-979c-ba33543e5bef",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "a75e7513-dd00-44b4-b24f-fd6ef2b11a4e",
+                "id": "b2ba6808-2b6f-4951-b7e1-9a3042c23429",
                 "rule": "ByStack"
               }
             ]
@@ -39090,6 +44100,19 @@
           }
         }
       },
+      "UserApiKeyOrderField": {
+        "type": "string",
+        "description": "Fields the user API key list can be ordered and grouped by.",
+        "enum": [
+          "created_at",
+          "name",
+          "updated_at",
+          "permissions",
+          "is_enabled",
+          "last_used",
+          "expires_at"
+        ]
+      },
       "UserApiKeyResponse": {
         "type": "object",
         "description": "Response for user API key creation/rotation\nContains the full API key record plus the plaintext key (shown only once)",
@@ -39768,7 +44791,10 @@
           "created_at",
           "name",
           "vlan_number",
-          "updated_at"
+          "updated_at",
+          "site_id",
+          "source",
+          "last_seen_at"
         ]
       },
       "WakeOnLanResult": {

@@ -67,12 +67,7 @@ impl PortCoverage {
                 self.0.last_mut().expect("just pushed")
             }
         };
-        numbers.extend(
-            entry
-                .ranges
-                .iter()
-                .flat_map(|r| r.start..=r.end),
-        );
+        numbers.extend(entry.ranges.iter().flat_map(|r| r.start..=r.end));
         numbers.sort_unstable();
         numbers.dedup();
 
@@ -103,7 +98,9 @@ impl PortCoverage {
         self.0.iter().any(|c| {
             c.ip_address == ip_address
                 && c.protocol == protocol
-                && c.ranges.iter().any(|r| r.start <= number && number <= r.end)
+                && c.ranges
+                    .iter()
+                    .any(|r| r.start <= number && number <= r.end)
         })
     }
 }
@@ -131,7 +128,13 @@ mod tests {
     fn a_full_scan_folds_into_one_range_and_survives_a_round_trip() {
         let mut coverage = PortCoverage::default();
         coverage.add(lan(), TransportProtocol::Tcp, 1..=65535);
-        assert_eq!(coverage.0[0].ranges, vec![PortRange { start: 1, end: 65535 }]);
+        assert_eq!(
+            coverage.0[0].ranges,
+            vec![PortRange {
+                start: 1,
+                end: 65535
+            }]
+        );
 
         let json = serde_json::to_string(&coverage).unwrap();
         let back: PortCoverage = serde_json::from_str(&json).unwrap();
@@ -147,6 +150,12 @@ mod tests {
         liveness.merge(deep);
 
         assert_eq!(liveness.0.len(), 1);
-        assert_eq!(liveness.0[0].ranges, vec![PortRange { start: 80, end: 443 }]);
+        assert_eq!(
+            liveness.0[0].ranges,
+            vec![PortRange {
+                start: 80,
+                end: 443
+            }]
+        );
     }
 }
