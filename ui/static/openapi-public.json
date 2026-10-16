@@ -21775,6 +21775,33 @@
           "PortOpStatus"
         ]
       },
+      "CoveredPorts": {
+        "type": "object",
+        "description": "The ports of one protocol a scan covered at one address.",
+        "required": [
+          "ip_address",
+          "protocol",
+          "ranges"
+        ],
+        "properties": {
+          "ip_address": {
+            "type": "string",
+            "description": "The address the ports were probed at.",
+            "example": "192.168.1.10"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/TransportProtocol",
+            "description": "The transport the probes used."
+          },
+          "ranges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortRange"
+            },
+            "description": "The covered ports, as inclusive runs."
+          }
+        }
+      },
       "CreateBindingInput": {
         "oneOf": [
           {
@@ -24342,6 +24369,10 @@
               "$ref": "#/components/schemas/IPAddress"
             },
             "description": "IP addresses observed on the host."
+          },
+          "port_coverage": {
+            "$ref": "#/components/schemas/PortCoverage",
+            "description": "Every (address, protocol, port) this scan probed and got a definite answer from. A stored\nport binding can change hands only where the scan covered it. Daemons predating this field\nomit it, and empty coverage moves nothing."
           },
           "ports": {
             "type": "array",
@@ -34392,6 +34423,13 @@
         ],
         "description": "The base data for a Port entity (everything except id, created_at, updated_at)"
       },
+      "PortCoverage": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CoveredPorts"
+        },
+        "description": "Every (address, protocol, port) a scan probed and got a definite answer from: open, refused,\nor silent after every retry. A probe that failed on the scanner's side (file descriptors\nexhausted, the scan cancelled) is left out, since it learned nothing about the port."
+      },
       "PortInput": {
         "type": "object",
         "description": "Input for creating or updating a port.\nUsed in both CreateHostRequest and UpdateHostRequest.\nClient must provide a UUID for the port.",
@@ -34415,6 +34453,28 @@
           "protocol": {
             "$ref": "#/components/schemas/TransportProtocol",
             "description": "Transport protocol (Tcp or Udp)"
+          }
+        }
+      },
+      "PortRange": {
+        "type": "object",
+        "description": "An inclusive run of port numbers.",
+        "required": [
+          "start",
+          "end"
+        ],
+        "properties": {
+          "end": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Last port in the run, inclusive.",
+            "minimum": 0
+          },
+          "start": {
+            "type": "integer",
+            "format": "int32",
+            "description": "First port in the run.",
+            "minimum": 0
           }
         }
       },

@@ -143,7 +143,11 @@ impl ServiceService {
                 }
             }
 
-            // New service data upserted to a manually or system-created record
+            // A person or the system created this record, and discovery matching it does not make
+            // it discovery's: a manual or system service stays exempt from staleness and is never
+            // released when its port goes quiet or changes hands.
+            (existing_source @ (EntitySource::Manual | EntitySource::System), _) => existing_source,
+
             (_, EntitySource::DiscoveryWithMatch { details }) => {
                 EntitySource::DiscoveryWithMatch { details }
             }

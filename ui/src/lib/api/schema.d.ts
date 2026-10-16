@@ -7409,6 +7409,18 @@ export interface components {
         ContainerNetworkType: "MacVlan" | "IpVlan";
         /** @enum {string} */
         ContainerType: "Subnet" | "ServiceCategory" | "Application" | "ApplicationUngrouped" | "Root" | "Host" | "NestedTag" | "NestedServiceCategory" | "Hypervisor" | "ContainerRuntime" | "Stack" | "TrunkPort" | "VLAN" | "PortOpStatus";
+        /** @description The ports of one protocol a scan covered at one address. */
+        CoveredPorts: {
+            /**
+             * @description The address the ports were probed at.
+             * @example 192.168.1.10
+             */
+            ip_address: string;
+            /** @description The transport the probes used. */
+            protocol: components["schemas"]["TransportProtocol"];
+            /** @description The covered ports, as inclusive runs. */
+            ranges: components["schemas"]["PortRange"][];
+        };
         /**
          * @description Input for creating a binding with a service.
          *     `service_id` and `site_id` are assigned by the server after the service is created.
@@ -8596,6 +8608,12 @@ export interface components {
             interfaces_complete?: boolean;
             /** @description IP addresses observed on the host. */
             ip_addresses: components["schemas"]["IPAddress"][];
+            /**
+             * @description Every (address, protocol, port) this scan probed and got a definite answer from. A stored
+             *     port binding can change hands only where the scan covered it. Daemons predating this field
+             *     omit it, and empty coverage moves nothing.
+             */
+            port_coverage?: components["schemas"]["PortCoverage"];
             /** @description Open ports observed on the host. */
             ports: components["schemas"]["Port"][];
             /** @description Services identified on the host. */
@@ -12968,6 +12986,12 @@ export interface components {
             site_id: string;
         };
         /**
+         * @description Every (address, protocol, port) a scan probed and got a definite answer from: open, refused,
+         *     or silent after every retry. A probe that failed on the scanner's side (file descriptors
+         *     exhausted, the scan cancelled) is left out, since it learned nothing about the port.
+         */
+        PortCoverage: components["schemas"]["CoveredPorts"][];
+        /**
          * @description Input for creating or updating a port.
          *     Used in both CreateHostRequest and UpdateHostRequest.
          *     Client must provide a UUID for the port.
@@ -12985,6 +13009,19 @@ export interface components {
             number: number;
             /** @description Transport protocol (Tcp or Udp) */
             protocol: components["schemas"]["TransportProtocol"];
+        };
+        /** @description An inclusive run of port numbers. */
+        PortRange: {
+            /**
+             * Format: int32
+             * @description Last port in the run, inclusive.
+             */
+            end: number;
+            /**
+             * Format: int32
+             * @description First port in the run.
+             */
+            start: number;
         };
         /** @description Port type with number, protocol, and optional type identifier */
         PortType: {
