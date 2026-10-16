@@ -30,7 +30,7 @@
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { shortcutLabel } from '$lib/shared/utils/shortcuts';
 	import { getFieldValue } from '../controls/fieldValues';
-	import { iconButtonClass } from '../controls/actionShortcuts';
+	import { iconButtonClass, resolveTooltip } from '../controls/actionShortcuts';
 	import type { RenderGroup, TreeCell, TreeEntry } from '../controls/grouping';
 	import type { SortState } from '../controls/sorting';
 	import type { CardAction, GroupSlice } from '../types';
@@ -689,10 +689,7 @@
 			<td class="pin-right px-[var(--cell-px)] py-[var(--cell-py)] text-right align-middle">
 				<div class="flex items-center justify-end gap-1">
 					{#each actions as action (action.label)}
-						{@const tip =
-							typeof action.tooltip === 'function'
-								? action.tooltip(!!action.disabled)
-								: (action.tooltip ?? action.label)}
+						{@const tip = resolveTooltip(action) ?? action.label}
 						<!--
 									The label floats in a tooltip rather than growing inside the
 									button. An in-flow label has to span its neighbours to fit its

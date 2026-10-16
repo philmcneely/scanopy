@@ -185,6 +185,7 @@
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteDaemon(daemon)
 			}
 		];
@@ -206,6 +207,7 @@
 				icon: RefreshCw,
 				tone: 'info',
 				onClick: () => retryConnectionMutation.mutate(daemon.id),
+				onBulk: (ids) => ids.forEach((id) => retryConnectionMutation.mutate(id)),
 				disabled: retryConnectionMutation.isPending
 			});
 		}
@@ -337,7 +339,6 @@
 			fields={daemonFields}
 			storageKey="scanopy-daemons-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			entityType="Daemon"
 			canEditTags={!isReadOnly}
 			getItemTags={getDaemonTags}

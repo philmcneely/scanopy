@@ -126,6 +126,7 @@
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteApiKey(apiKey),
 				// A key a daemon is using cannot be deleted.
 				disabled: apiKeyIdsInUse.has(apiKey.id)
@@ -163,7 +164,6 @@
 			title={daemonApiKeys_title()}
 			items={apiKeysData}
 			fields={apiKeyFields}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			entityType="DaemonApiKey"
 			canEditTags={!isReadOnly}
 			getItemTags={getApiKeyTags}

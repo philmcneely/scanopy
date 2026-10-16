@@ -306,7 +306,14 @@
 			// find that out was to trigger it and read the error toast. Devices identified purely
 			// by a MAC are the reason such a host exists at all.
 			...(hostIPAddresses(host).length > 0
-				? [{ label: common_rescan(), icon: RefreshCw, onClick: () => handleRescanHost(host) }]
+				? [
+						{
+							label: common_rescan(),
+							icon: RefreshCw,
+							onClick: () => handleRescanHost(host),
+							onBulk: handleBulkRescan
+						}
+					]
 				: []),
 			{ label: common_consolidate(), icon: Replace, onClick: () => handleStartConsolidate(host) },
 			{
@@ -314,6 +321,7 @@
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteHost(host)
 			}
 		];
@@ -331,6 +339,10 @@
 
 	function handleRescanHost(host: Host) {
 		rescanHostMutation.mutate({ id: host.id, name: hostDisplayName(host) });
+	}
+
+	function handleBulkRescan(ids: string[]) {
+		hostsData.filter((host) => ids.includes(host.id)).forEach(handleRescanHost);
 	}
 
 	function handleDeleteHost(host: Host) {
@@ -448,7 +460,6 @@
 			fields={hostFields}
 			storageKey="scanopy-hosts-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			entityType="Host"
 			canEditTags={!isReadOnly}
 			getItemTags={getHostTags}

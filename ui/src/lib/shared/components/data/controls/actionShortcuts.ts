@@ -19,9 +19,48 @@ export interface KeyedAction {
 	key: string | null;
 }
 
-/** Whether a row with these actions can be deleted: it has a delete action, and it is enabled. */
-export function canDeleteRow(actions: CardAction[]): boolean {
-	return actions.some((action) => action.isDelete && !action.disabled);
+/**
+ * The toolbar's actions for a selection, from each selected row's own actions (`perRow`).
+ *
+ * One row: its actions as the row shows them. Several: every action with `onBulk` that any
+ * selected row has, the same action across rows matched by label. An action with `onBulk` runs on
+ * the whole selection through `runBulk`, and is enabled only when every selected row has it
+ * enabled. Disabled, it takes the tooltip of the first row that blocks it, or `blockedTooltip`
+ * when that row doesn't have the action at all.
+ */
+export function selectionActions(
+	perRow: CardAction[][],
+	runBulk: (action: CardAction) => () => void,
+	blockedTooltip: string
+): CardAction[] {
+	const forSelection = (action: CardAction): CardAction => {
+		const matches = perRow.map((actions) => actions.find((a) => a.label === action.label));
+		const blocker = matches.findIndex((a) => !a || a.disabled);
+		if (blocker === -1) return { ...action, onClick: runBulk(action), disabled: false };
+		const blocking = matches[blocker];
+		return {
+			...action,
+			onClick: runBulk(action),
+			disabled: true,
+			tooltip: blocking ? resolveTooltip(blocking) : blockedTooltip
+		};
+	};
+
+	if (perRow.length === 1) {
+		return perRow[0].map((action) => (action.onBulk ? forSelection(action) : action));
+	}
+	const bulk = new Map<string, CardAction>();
+	for (const action of perRow.flat()) {
+		if (action.onBulk && !bulk.has(action.label)) bulk.set(action.label, action);
+	}
+	return [...bulk.values()].map(forSelection);
+}
+
+/** An action's tooltip as it reads in its current state. */
+export function resolveTooltip(action: CardAction): string | undefined {
+	const tip =
+		typeof action.tooltip === 'function' ? action.tooltip(!!action.disabled) : action.tooltip;
+	return tip ?? undefined;
 }
 
 // Whole class names, so Tailwind's content scan keeps them.

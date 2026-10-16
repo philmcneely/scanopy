@@ -191,6 +191,7 @@
 					icon: Trash2,
 					tone: 'danger',
 					isDelete: true,
+					onBulk: handleBulkDelete,
 					onClick: () => handleDeleteUser(item.data)
 				});
 			}
@@ -251,7 +252,6 @@
 			fields={userFields}
 			storageKey="scanopy-users-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}
 			getActions={userActions}
 			onCsvExport={handleCsvExport}

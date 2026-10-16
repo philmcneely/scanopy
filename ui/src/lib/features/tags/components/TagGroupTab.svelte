@@ -113,6 +113,7 @@
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDelete(group)
 			}
 		];
@@ -160,7 +161,6 @@
 			items={groups}
 			{fields}
 			storageKey="scanopy-tag-groups-table-state"
-			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}
 			getActions={actions}
 			entityLabel={tags_tagGroups()}

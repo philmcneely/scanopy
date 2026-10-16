@@ -273,6 +273,7 @@
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteService(service)
 			}
 		];
@@ -413,7 +414,6 @@
 			fields={serviceFields}
 			storageKey="scanopy-services-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			entityType="Service"
 			canEditTags={!isReadOnly}
 			getItemTags={getServiceTags}

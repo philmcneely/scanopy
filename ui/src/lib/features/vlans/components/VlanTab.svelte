@@ -104,6 +104,7 @@
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteVlan(vlan)
 			}
 		];
@@ -196,7 +197,6 @@
 			storageKey="scanopy-vlans-table-state"
 			defaults={tableDefaults}
 			entityType="Vlan"
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			canEditTags={!isReadOnly}
 			getItemTags={getVlanTags}
 			getItemId={(item) => item.id}

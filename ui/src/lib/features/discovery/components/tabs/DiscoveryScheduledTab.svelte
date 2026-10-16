@@ -175,6 +175,13 @@
 		cancelDiscoveryMutation.mutate(sessionId);
 	}
 
+	function handleBulkCancel(ids: string[]) {
+		for (const discovery of discoveriesData) {
+			const sessionId = ids.includes(discovery.id) ? getActiveSession(discovery)?.session_id : null;
+			if (sessionId) handleCancelDiscovery(sessionId);
+		}
+	}
+
 	function handleToggleEnabled(discovery: Discovery) {
 		if (discovery.run_type.type !== 'Scheduled') return;
 		updateDiscoveryMutation.mutate({
@@ -238,6 +245,7 @@
 				label: common_run(),
 				icon: Play,
 				onClick: () => handleDiscoveryRun(discovery),
+				onBulk: (ids) => ids.forEach((id) => initiateDiscoveryMutation.mutate(id)),
 				disabled: running,
 				tooltip: running ? discovery_alreadyRunning() : undefined
 			});
@@ -264,7 +272,8 @@
 				label: common_cancel(),
 				icon: Ban,
 				tone: 'warning',
-				onClick: () => handleCancelDiscovery(session.session_id!)
+				onClick: () => handleCancelDiscovery(session.session_id!),
+				onBulk: handleBulkCancel
 			});
 		}
 
@@ -273,6 +282,7 @@
 			icon: Trash2,
 			tone: 'danger',
 			isDelete: true,
+			onBulk: handleBulkDelete,
 			onClick: () => handleDeleteDiscovery(discovery),
 			disabled: running,
 			tooltip: running ? discovery_cannotDeleteWhileRunning() : undefined
@@ -385,7 +395,6 @@
 				(d) => d.run_type.type == 'AdHoc' || d.run_type.type == 'Scheduled'
 			)}
 			{fields}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			storageKey="scanopy-discovery-scans-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}

@@ -182,6 +182,7 @@
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteCredential(credential)
 			}
 		];
@@ -308,7 +309,6 @@
 			fields={credentialFields}
 			storageKey="scanopy-credentials-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={handleBulkDelete}
 			entityType="Credential"
 			canEditTags={canManage}
 			getItemTags={getCredentialTags}

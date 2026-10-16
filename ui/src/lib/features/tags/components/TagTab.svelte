@@ -108,6 +108,7 @@
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteTag(tag)
 			}
 		];
@@ -194,7 +195,6 @@
 			fields={tagFields}
 			storageKey="scanopy-tags-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}
 			onCsvExport={handleCsvExport}
 			getActions={tagActions}

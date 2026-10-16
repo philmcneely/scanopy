@@ -126,6 +126,7 @@
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteSite(site)
 			}
 		];
@@ -246,7 +247,6 @@
 			{toolbarActions}
 			items={sitesData}
 			fields={siteFields}
-			onBulkDelete={handleBulkDelete}
 			entityType="Site"
 			canEditTags={canManageSites}
 			getItemTags={getSiteTags}

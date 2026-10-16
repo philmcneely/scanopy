@@ -58,6 +58,12 @@ export interface CardAction {
 	 */
 	isDelete?: boolean;
 	onClick: () => void;
+	/**
+	 * Runs the action on every selected row, given their ids. With it, the action shows in the
+	 * toolbar for a selection of any size and runs there through this; without it, the toolbar
+	 * shows the action only while its one row is selected.
+	 */
+	onBulk?: (ids: string[]) => Promise<unknown> | void;
 	disabled?: boolean;
 	tooltip?: string | ((disabled: boolean) => string | null);
 	animation?: string;

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	assignActionKeys,
-	canDeleteRow,
+	selectionActions,
 	DELETE_KEY,
 	RESERVED_ACTION_KEYS
 } from '$lib/shared/components/data/controls/actionShortcuts';
@@ -46,20 +46,45 @@ describe('assignActionKeys', () => {
 	});
 });
 
-describe('canDeleteRow', () => {
+describe('selectionActions', () => {
+	const bulk = () => {};
 	const del = (extra: Partial<CardAction> = {}) =>
-		action('Delete', { tone: 'danger', isDelete: true, ...extra });
+		action('Delete', { tone: 'danger', isDelete: true, onBulk: bulk, ...extra });
+	const rescan = (extra: Partial<CardAction> = {}) => action('Rescan', { onBulk: bulk, ...extra });
+	const ran: string[] = [];
+	const runBulk = (a: CardAction) => () => void ran.push(a.label);
+	const run = (perRow: CardAction[][]) => selectionActions(perRow, runBulk, 'blocked');
 
-	it('allows a row whose actions include an enabled delete', () => {
-		expect(canDeleteRow([action('Edit'), del()])).toBe(true);
+	it('shows one row’s actions as the row does, bulk ones running on the selection', () => {
+		const [edit, remove] = run([[action('Edit'), del()]]);
+		expect(edit).toMatchObject({ label: 'Edit' });
+		expect(remove).toMatchObject({ label: 'Delete', tone: 'danger', disabled: false });
+		remove.onClick();
+		expect(ran).toContain('Delete');
 	});
 
-	it('refuses a row with no delete, or a disabled one', () => {
-		expect(canDeleteRow([action('Edit')])).toBe(false);
-		expect(canDeleteRow([action('Edit'), del({ disabled: true })])).toBe(false);
+	it('keeps a disabled action disabled, with its tooltip', () => {
+		const [remove] = run([[del({ disabled: true, tooltip: 'running' })]]);
+		expect(remove).toMatchObject({ disabled: true, tooltip: 'running' });
 	});
 
-	it('refuses a row whose only destructive action is not its delete', () => {
-		expect(canDeleteRow([action('Revoke', { tone: 'danger' })])).toBe(false);
+	it('offers every bulk action any selected row has, and only bulk ones, for several rows', () => {
+		const actions = run([
+			[action('Edit'), rescan(), del()],
+			[action('Edit'), del()]
+		]);
+		expect(actions.map((a) => a.label)).toEqual(['Rescan', 'Delete']);
+	});
+
+	it('disables an action for several rows unless every row has it enabled', () => {
+		const [rescanAll] = run([[rescan()], [action('Edit')]]);
+		expect(rescanAll).toMatchObject({ disabled: true, tooltip: 'blocked' });
+		const [removeAll] = run([[del()], [del({ disabled: true, tooltip: 'in use' })]]);
+		expect(removeAll).toMatchObject({ disabled: true, tooltip: 'in use' });
+		expect(run([[del()], [del()]])).toMatchObject([{ disabled: false }]);
+	});
+
+	it('offers nothing for several rows when none has a bulk action', () => {
+		expect(run([[action('Edit')], [action('Revoke', { tone: 'danger' })]])).toEqual([]);
 	});
 });

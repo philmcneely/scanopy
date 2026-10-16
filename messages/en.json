@@ -421,6 +421,7 @@
 	"common_nonProduction": "Non-production",
 	"common_none": "None",
 	"common_notApplicable": "N/A",
+	"common_notAvailableForAllSelected": "Not available for every selected row",
 	"common_offline": "Offline",
 	"common_oneMoreTag": "+1 tag",
 	"common_online": "Online",

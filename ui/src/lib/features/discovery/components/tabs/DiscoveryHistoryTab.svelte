@@ -249,6 +249,7 @@
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteDiscovery(discovery)
 			}
 		];
@@ -317,7 +318,6 @@
 			title={discovery_historyTitle()}
 			items={discoveriesData}
 			{fields}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			storageKey="scanopy-discovery-historical-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}
