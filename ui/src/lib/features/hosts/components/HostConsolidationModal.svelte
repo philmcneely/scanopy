@@ -4,6 +4,7 @@
 	import { hostDisplayName } from '../host-display-name';
 	import { useHostPicker, useHostServices, hostDisplayContext } from '../host-picker.svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import EntityDisplay from '$lib/shared/components/forms/selection/display/EntityDisplayWrapper.svelte';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
@@ -184,6 +185,34 @@
 	function handleHostSelect(hostId: string) {
 		selectedTargetHost = availableHosts.find((host) => host.id === hostId) ?? null;
 	}
+
+	let actions = $derived<ModalAction[]>([
+		...(showPreview
+			? [
+					{
+						role: 'secondary' as const,
+						label: common_back(),
+						onClick: handleBack,
+						disabled: loading
+					}
+				]
+			: []),
+		{ role: 'cancel', label: common_cancel(), onClick: handleClose, disabled: loading },
+		!showPreview
+			? {
+					role: 'primary',
+					label: common_next(),
+					onClick: handleTargetSelection,
+					disabled: !selectedDestinationHostId
+				}
+			: {
+					role: 'primary',
+					tone: 'danger',
+					label: loading ? common_consolidating() : hosts_consolidateModal_title(),
+					onClick: handleConsolidate,
+					disabled: loading || !selectedDestinationHostId
+				}
+	]);
 </script>
 
 <GenericModal
@@ -192,6 +221,7 @@
 	size="lg"
 	onClose={handleClose}
 	preventCloseOnClickOutside={loading}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon
@@ -252,46 +282,4 @@
 			</div>
 		{/if}
 	</div>
-
-	{#snippet footer()}
-		<div class="modal-footer">
-			<div class="flex items-center justify-between">
-				<div>
-					<!-- Empty space for alignment -->
-				</div>
-
-				<div class="flex items-center gap-3">
-					{#if showPreview}
-						<button type="button" disabled={loading} onclick={handleBack} class="btn-secondary">
-							{common_back()}
-						</button>
-					{/if}
-
-					<button type="button" disabled={loading} onclick={handleClose} class="btn-secondary">
-						{common_cancel()}
-					</button>
-
-					{#if !showPreview}
-						<button
-							type="button"
-							disabled={!selectedDestinationHostId}
-							onclick={handleTargetSelection}
-							class="btn-primary"
-						>
-							{common_next()}
-						</button>
-					{:else}
-						<button
-							type="button"
-							disabled={loading || !selectedDestinationHostId}
-							onclick={handleConsolidate}
-							class="btn-danger"
-						>
-							{loading ? common_consolidating() : hosts_consolidateModal_title()}
-						</button>
-					{/if}
-				</div>
-			</div>
-		</div>
-	{/snippet}
 </GenericModal>

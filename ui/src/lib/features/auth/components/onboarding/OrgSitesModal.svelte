@@ -7,6 +7,7 @@
 	import { required, max, min } from '$lib/shared/components/forms/validators';
 	import { onboardingStore } from '../../stores/onboarding';
 	import { trackEvent } from '$lib/shared/utils/analytics';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		auth_scanopyLogo,
 		common_continue,
@@ -96,6 +97,15 @@
 					? onboarding_visualizeCompany()
 					: onboarding_visualizeHomelab()
 	);
+
+	let actions = $derived<ModalAction[]>([
+		{
+			role: 'primary',
+			label: loading ? common_settingUp() : common_continue(),
+			onClick: handleSubmit,
+			disabled: loading
+		}
+	]);
 </script>
 
 <GenericModal
@@ -108,6 +118,8 @@
 	showBackdrop={false}
 	preventCloseOnClickOutside={true}
 	centerTitle={true}
+	{actions}
+	footerLayout="stack"
 >
 	{#snippet headerIcon()}
 		<img src="/logos/scanopy-logo.png" alt={auth_scanopyLogo()} class="h-8 w-8" />
@@ -166,14 +178,6 @@
 						</div>
 					</div>
 				{/if}
-			</div>
-		</div>
-
-		<div class="modal-footer">
-			<div class="flex w-full flex-col gap-4">
-				<button type="submit" disabled={loading} class="btn-primary w-full">
-					{loading ? common_settingUp() : common_continue()}
-				</button>
 			</div>
 		</div>
 	</form>

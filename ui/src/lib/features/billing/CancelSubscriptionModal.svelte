@@ -2,6 +2,7 @@
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import { createForm } from '@tanstack/svelte-form';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import SelectInput from '$lib/shared/components/forms/input/SelectInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
@@ -324,6 +325,34 @@
 			// Mutation onError surfaces toast; modal stays open.
 		}
 	}
+
+	// Step 2's save offers and Confirm Cancellation are full-width cards in the body; its footer
+	// holds only Back.
+	let actions = $derived<ModalAction[]>(
+		currentStep === 1
+			? [
+					{
+						role: 'cancel',
+						label: settings_billing_cancelModal_keepSubscription(),
+						onClick: handleClose,
+						align: 'start'
+					},
+					{
+						role: 'primary',
+						label: settings_billing_cancelModal_continueCancel(),
+						onClick: goToStep2,
+						disabled: !selectedReason
+					}
+				]
+			: [
+					{
+						role: 'secondary',
+						label: common_back(),
+						onClick: () => (currentStep = 1),
+						align: 'start'
+					}
+				]
+	);
 </script>
 
 <GenericModal
@@ -331,6 +360,7 @@
 	title={settings_billing_cancelSubscription()}
 	size="md"
 	onClose={handleClose}
+	{actions}
 >
 	<div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6">
 		{#if currentStep === 1}
@@ -491,21 +521,4 @@
 			</div>
 		{/if}
 	</div>
-
-	{#snippet footer()}
-		<div class="modal-footer flex justify-between gap-2">
-			{#if currentStep === 1}
-				<button type="button" class="btn-secondary" onclick={handleClose}>
-					{settings_billing_cancelModal_keepSubscription()}
-				</button>
-				<button type="button" class="btn-primary" disabled={!selectedReason} onclick={goToStep2}>
-					{settings_billing_cancelModal_continueCancel()}
-				</button>
-			{:else}
-				<button type="button" class="btn-secondary" onclick={() => (currentStep = 1)}>
-					{common_back()}
-				</button>
-			{/if}
-		</div>
-	{/snippet}
 </GenericModal>

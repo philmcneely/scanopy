@@ -8,6 +8,7 @@
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import { entities } from '$lib/shared/stores/metadata';
 	import { ArrowBigUpDash } from 'lucide-svelte';
 	import type { Daemon, UpgradeStep } from '../types/base';
@@ -96,9 +97,13 @@
 	}
 
 	let colorHelper = entities.getColorHelper('Daemon');
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'cancel', label: common_close(), onClick: onClose }
+	]);
 </script>
 
-<GenericModal {isOpen} title={daemons_upgradeDaemon()} size="xl" {onClose}>
+<GenericModal {isOpen} title={daemons_upgradeDaemon()} size="xl" {onClose} {actions}>
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={ArrowBigUpDash} color={colorHelper.color} />
 	{/snippet}
@@ -232,13 +237,6 @@
 						<Loading />
 					{/if}
 				</OsSelector>
-			</div>
-		</div>
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex items-center justify-end">
-				<button type="button" class="btn-secondary" onclick={onClose}>{common_close()}</button>
 			</div>
 		</div>
 	</div>

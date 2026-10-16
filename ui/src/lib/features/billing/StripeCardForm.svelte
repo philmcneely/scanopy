@@ -13,6 +13,8 @@
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import type { PaymentFormFailure } from '$lib/shared/billing/setup-payment';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
+	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import {
 		common_cancel,
 		common_continue,
@@ -196,10 +198,31 @@
 		errorMessage = billing_cardError();
 		busy = false;
 	}
+
+	let actions = $derived<ModalAction[]>([
+		...(onCancel
+			? [{ role: 'cancel' as const, label: common_cancel(), onClick: onCancel, disabled: busy }]
+			: []),
+		...(methodSelected
+			? [
+					{
+						role: 'primary' as const,
+						label: busy
+							? common_processing()
+							: confirmedSetupIntentId
+								? common_tryAgain()
+								: submitLabel,
+						onClick: handleSubmit,
+						disabled: busy || !ready
+					}
+				]
+			: [])
+	]);
+	useModalActions(() => actions);
 </script>
 
-<!-- Fills a modal-content flex column: the Payment Element scrolls, the action
-     buttons stay pinned in the footer so Continue is always reachable. -->
+<!-- Fills a modal-content flex column: the Payment Element scrolls; the enclosing modal's footer
+     holds the action buttons, so Continue is always reachable. -->
 <form
 	onsubmit={(e) => {
 		e.preventDefault();
@@ -239,19 +262,6 @@
 					{altAction.label}
 				</button>
 			</div>
-		{/if}
-	</div>
-
-	<div class="modal-footer flex items-center justify-end gap-3">
-		{#if onCancel}
-			<button type="button" class="btn-secondary" disabled={busy} onclick={onCancel}>
-				{common_cancel()}
-			</button>
-		{/if}
-		{#if methodSelected}
-			<button type="submit" class="btn-primary" disabled={busy || !ready}>
-				{busy ? common_processing() : confirmedSetupIntentId ? common_tryAgain() : submitLabel}
-			</button>
 		{/if}
 	</div>
 </form>

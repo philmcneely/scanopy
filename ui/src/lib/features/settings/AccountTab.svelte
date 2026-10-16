@@ -20,6 +20,8 @@
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import Password from '$lib/shared/components/forms/input/Password.svelte';
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
+	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import {
 		common_back,
 		common_close,
@@ -201,6 +203,32 @@
 	let hasLinkedOidc = $derived(!!user?.oidc_provider);
 	let showSave = $derived(subView === 'credentials' || subView === 'email-change');
 	let cancelLabel = $derived(subView === 'main' ? common_close() : common_back());
+	let isSaving = $derived(subView === 'email-change' ? emailChangeLoading : savingCredentials);
+
+	// Hidden on the main view when the modal is hard-gated (dismissible=false), since the only
+	// button there is Close, which would let the user escape the gate. Sub-views keep Back/Save.
+	let actions = $derived<ModalAction[]>(
+		dismissible || subView !== 'main'
+			? [
+					{
+						role: subView === 'main' ? 'cancel' : 'secondary',
+						label: cancelLabel,
+						onClick: handleCancel
+					},
+					...(showSave
+						? [
+								{
+									role: 'primary' as const,
+									label: isSaving ? common_saving() : common_saveChanges(),
+									onClick: handleSubmit,
+									disabled: isSaving
+								}
+							]
+						: [])
+				]
+			: []
+	);
+	useModalActions(() => actions);
 </script>
 
 <form
@@ -455,23 +483,4 @@
 			<CookieSettingsPanel onSave={() => (subView = 'main')} />
 		{/if}
 	</div>
-
-	<!-- Footer — hidden on the main view when the modal is hard-gated
-	     (dismissible=false), since the only button there is Close, which would
-	     let the user escape the gate. Sub-views keep their Back/Save footer. -->
-	{#if dismissible || subView !== 'main'}
-		<div class="modal-footer">
-			<div class="flex items-center justify-end gap-3">
-				<button type="button" onclick={handleCancel} class="btn-secondary">
-					{cancelLabel}
-				</button>
-				{#if showSave}
-					{@const isSaving = subView === 'email-change' ? emailChangeLoading : savingCredentials}
-					<button type="submit" disabled={isSaving} class="btn-primary">
-						{isSaving ? common_saving() : common_saveChanges()}
-					</button>
-				{/if}
-			</div>
-		</div>
-	{/if}
 </form>

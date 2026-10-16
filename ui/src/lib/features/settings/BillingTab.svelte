@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import { CreditCard } from 'lucide-svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
+	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import ProgressTrack from '$lib/shared/components/data/ProgressTrack.svelte';
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
@@ -601,6 +603,11 @@
 			// The mutation toasts the failure.
 		}
 	}
+
+	let actions = $derived<ModalAction[]>(
+		dismissible ? [{ role: 'cancel', label: common_close(), onClick: onClose }] : []
+	);
+	useModalActions(() => actions);
 </script>
 
 {#snippet usageRow(label: string, used: number, included: number, overageCents: number | null)}
@@ -824,15 +831,6 @@
 			</div>
 		{/if}
 	</div>
-
-	<!-- Footer -->
-	{#if dismissible}
-		<div class="modal-footer">
-			<div class="flex justify-end">
-				<button type="button" onclick={onClose} class="btn-secondary">{common_close()}</button>
-			</div>
-		</div>
-	{/if}
 </div>
 
 <CancelSubscriptionModal

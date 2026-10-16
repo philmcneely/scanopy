@@ -3,6 +3,7 @@
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import type { UnseenReleaseNotes } from './queries';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		common_close,
 		releaseNotes_earlierReleases,
@@ -31,9 +32,13 @@
 		container.appendChild(fragment);
 		return container.innerHTML;
 	}
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'primary', label: common_close(), onClick: () => onClose() }
+	]);
 </script>
 
-<GenericModal {isOpen} title={releaseNotes_title()} size="lg" {onClose}>
+<GenericModal {isOpen} title={releaseNotes_title()} size="lg" {onClose} {actions}>
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="flex-1 space-y-8 overflow-auto p-6">
 			{#each notes?.releases ?? [] as release (release.version)}
@@ -62,14 +67,6 @@
 				</a>
 				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 			{/if}
-		</div>
-
-		<div class="modal-footer">
-			<div class="flex items-center justify-end">
-				<button type="button" class="btn-primary" onclick={() => onClose()}>
-					{common_close()}
-				</button>
-			</div>
 		</div>
 	</div>
 </GenericModal>

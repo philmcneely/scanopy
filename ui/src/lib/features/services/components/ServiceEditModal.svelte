@@ -7,6 +7,7 @@
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import type { Service } from '../types/base';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import ServiceConfigPanel from '$lib/features/hosts/components/HostEditModal/Services/ServiceConfigPanel.svelte';
 	import type { Host, HostFormData } from '$lib/features/hosts/types/base';
 	import { useIPAddressesQuery } from '$lib/features/ip-addresses/queries';
@@ -141,6 +142,26 @@
 	function handleServiceUpdate(updatedService: Service) {
 		formData = { ...updatedService };
 	}
+
+	let actions = $derived<ModalAction[]>([
+		...(onDelete
+			? [
+					{
+						role: 'danger' as const,
+						label: deleting ? common_deleting() : common_delete(),
+						onClick: handleDelete,
+						disabled: deleting || loading
+					}
+				]
+			: []),
+		{ role: 'cancel', label: common_cancel(), onClick: onClose },
+		{
+			role: 'primary',
+			label: loading ? common_updating() : services_updateService(),
+			onClick: handleSubmit,
+			disabled: loading || deleting
+		}
+	]);
 </script>
 
 <GenericModal
@@ -152,6 +173,7 @@
 	{onClose}
 	onOpen={handleOpen}
 	size="xl"
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon
@@ -175,36 +197,4 @@
 		</div>
 		<EntityMetadataSection entities={[service]} />
 	</div>
-
-	{#snippet footer()}
-		<div class="modal-footer">
-			<div class="flex items-center justify-between">
-				<div>
-					{#if onDelete}
-						<button
-							type="button"
-							disabled={deleting || loading}
-							onclick={handleDelete}
-							class="btn-danger"
-						>
-							{deleting ? common_deleting() : common_delete()}
-						</button>
-					{/if}
-				</div>
-				<div class="flex items-center gap-3">
-					<button type="button" onclick={onClose} class="btn-secondary">
-						{common_cancel()}
-					</button>
-					<button
-						type="button"
-						onclick={handleSubmit}
-						disabled={loading || deleting}
-						class="btn-primary"
-					>
-						{loading ? common_updating() : services_updateService()}
-					</button>
-				</div>
-			</div>
-		</div>
-	{/snippet}
 </GenericModal>

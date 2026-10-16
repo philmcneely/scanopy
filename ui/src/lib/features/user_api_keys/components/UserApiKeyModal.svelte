@@ -18,6 +18,7 @@
 	import SiteAccessSelect from '$lib/shared/components/api-keys/SiteAccessSelect.svelte';
 
 	import type { UserApiKey } from '../queries';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		createEmptyUserApiKeyFormData,
 		useCreateUserApiKeyMutation,
@@ -186,6 +187,35 @@
 	}
 
 	let colorHelper = entities.getColorHelper('UserApiKey');
+
+	let actions = $derived<ModalAction[]>([
+		...(isEditing && onDelete
+			? [
+					{
+						role: 'danger' as const,
+						label: deleting ? common_deleting() : common_delete(),
+						onClick: handleDelete,
+						disabled: deleting || loading
+					}
+				]
+			: []),
+		{
+			role: 'cancel',
+			label: common_close(),
+			onClick: handleOnClose,
+			disabled: loading || deleting
+		},
+		...(isEditing
+			? [
+					{
+						role: 'primary' as const,
+						label: loading ? common_saving() : common_save(),
+						onClick: handleSubmit,
+						disabled: loading || deleting
+					}
+				]
+			: [])
+	]);
 </script>
 
 <GenericModal
@@ -198,6 +228,7 @@
 	onClose={handleOnClose}
 	onOpen={handleOpen}
 	showCloseButton={true}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={entities.getIconComponent('UserApiKey')} color={colorHelper.color} />
@@ -306,38 +337,5 @@
 		{#if isEditing && apiKey}
 			<EntityMetadataSection entities={[apiKey]} />
 		{/if}
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex items-center justify-between">
-				<div>
-					{#if isEditing && onDelete}
-						<button
-							type="button"
-							disabled={deleting || loading}
-							onclick={handleDelete}
-							class="btn-danger"
-						>
-							{deleting ? common_deleting() : common_delete()}
-						</button>
-					{/if}
-				</div>
-				<div class="flex items-center gap-3">
-					<button
-						type="button"
-						disabled={loading || deleting}
-						onclick={handleOnClose}
-						class="btn-secondary"
-					>
-						{common_close()}
-					</button>
-					{#if isEditing}
-						<button type="submit" disabled={loading || deleting} class="btn-primary">
-							{loading ? common_saving() : common_save()}
-						</button>
-					{/if}
-				</div>
-			</div>
-		</div>
 	</form>
 </GenericModal>

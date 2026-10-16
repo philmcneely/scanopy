@@ -23,6 +23,8 @@
 	import { required, max } from '$lib/shared/components/forms/validators';
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
+	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import {
 		common_back,
 		common_close,
@@ -223,6 +225,31 @@
 
 	let showSave = $derived(subView === 'edit');
 	let cancelLabel = $derived(subView === 'main' ? common_close() : common_back());
+
+	// Hidden on the main view when the modal is hard-gated (dismissible=false), since the only
+	// button there is Close, which would let the user escape the gate. Edit keeps Back/Save.
+	let actions = $derived<ModalAction[]>(
+		dismissible || subView !== 'main'
+			? [
+					{
+						role: subView === 'main' ? 'cancel' : 'secondary',
+						label: cancelLabel,
+						onClick: handleCancel
+					},
+					...(showSave
+						? [
+								{
+									role: 'primary' as const,
+									label: saving ? common_saving() : common_saveChanges(),
+									onClick: () => form.handleSubmit(),
+									disabled: saving
+								}
+							]
+						: [])
+				]
+			: []
+	);
+	useModalActions(() => actions);
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
@@ -368,29 +395,6 @@
 			<div class="text-secondary py-8 text-center">
 				<p>{settings_org_unableToLoad()}</p>
 				<p class="text-tertiary mt-2 text-sm">{common_tryAgainLater()}</p>
-			</div>
-		</div>
-	{/if}
-
-	<!-- Footer — hidden on the main view when the modal is hard-gated
-	     (dismissible=false), since the only button there is Close, which would
-	     let the user escape the gate. The edit sub-view keeps its Back/Save. -->
-	{#if dismissible || subView !== 'main'}
-		<div class="modal-footer">
-			<div class="flex items-center justify-end gap-3">
-				<button type="button" onclick={handleCancel} class="btn-secondary">
-					{cancelLabel}
-				</button>
-				{#if showSave}
-					<button
-						type="button"
-						onclick={() => form.handleSubmit()}
-						disabled={saving}
-						class="btn-primary"
-					>
-						{saving ? common_saving() : common_saveChanges()}
-					</button>
-				{/if}
 			</div>
 		</div>
 	{/if}
