@@ -334,6 +334,7 @@ impl HostService {
             true,
             // ...and carries no SNMP-derived neighbour data, so there is nothing to preserve.
             InterfaceDataComplete::default(),
+            &crate::server::ports::r#impl::coverage::PortCoverage::default(),
         )
         .await
         .map(|created| created.host)
@@ -484,6 +485,9 @@ impl HostService {
         // interfaces and their resolved L2 neighbors (GH #649).
         interfaces_complete: bool,
         interface_data_complete: InterfaceDataComplete,
+        // What this scan probed and got an answer from. A stored port binding changes hands only
+        // where it was covered; empty coverage (an API create, an older daemon) moves nothing.
+        port_coverage: &crate::server::ports::r#impl::coverage::PortCoverage,
     ) -> Result<DiscoveredHost> {
         // For advancing `last_seen_at` on matched-existing child rows (see the upsert
         // branches below); mirrors how upsert_host refreshes the host's freshness signal.

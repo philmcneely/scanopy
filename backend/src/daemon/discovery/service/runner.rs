@@ -6,6 +6,7 @@ use crate::server::daemons::r#impl::api::DaemonDiscoveryRequest;
 use crate::server::discovery::r#impl::types::DiscoveryType;
 use crate::server::hosts::r#impl::base::Host;
 use crate::server::ip_addresses::r#impl::base::IPAddress;
+use crate::server::ports::r#impl::coverage::PortCoverage;
 use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::subnets::r#impl::inference::placeable_subnet;
 use anyhow::{Error, Result};
@@ -478,6 +479,7 @@ impl DiscoveryRunner {
             host_data.subnets,
             host_data.interfaces_complete,
             host_data.interface_data_complete,
+            PortCoverage::default(),
             cancel,
         )
         .await?;

@@ -23,7 +23,8 @@ use crate::server::discovery::r#impl::scan_settings::defaults;
 use crate::server::interfaces::r#impl::base::{Interface, InterfaceBase, InterfaceDataComplete};
 use crate::server::ip_addresses::r#impl::base::{IPAddress, IPAddressBase};
 use crate::server::ip_addresses::r#impl::base::{MacEvidence, MacEvidenceValue};
-use crate::server::ports::r#impl::base::PortType;
+use crate::server::ports::r#impl::base::{PortType, TransportProtocol};
+use crate::server::ports::r#impl::coverage::PortCoverage;
 use crate::server::services::r#impl::base::{Service, ServiceMatchBaselineParams};
 use crate::server::shared::attribution::{AttributeSource, Attributed};
 use crate::server::shared::types::entities::EntitySource;
@@ -895,6 +896,7 @@ impl NetworkScan {
                                         interface_data_complete: InterfaceDataComplete::default(),
                                         // This daemon is this build; it submits the current
                                         // shape by construction.
+                                        port_coverage: Default::default(),
                                         superseded_wire_shape: false,
                                     };
                                     early_entity_buffer.push_host(request.clone()).await;
@@ -1445,6 +1447,7 @@ impl NetworkScan {
                 vec![],
                 false,
                 InterfaceDataComplete::none(),
+                PortCoverage::default(),
                 cancel,
             )
             .await
@@ -1501,6 +1504,9 @@ impl NetworkScan {
         // the address is alive without yielding a MAC, and putting it through this check would
         // drop it again for answering no TCP port — undoing the entire point of the ping sweep.
         let mut responsiveness_ports: HashSet<u16> = HashSet::new();
+        // Every TCP port either connect pass got a definite answer from, for the coverage the
+        // server needs before a stored port can change hands.
+        let mut covered_tcp_ports: Vec<u16> = Vec::new();
         if !evidence.is_confirmed_live() {
             // Every port the deep scan would look at, so this check can only skip an address
             // nothing we were going to probe answers on. See `liveness_probe_ports`.
@@ -1512,7 +1518,7 @@ impl NetworkScan {
                 "Checking responsiveness (no liveness signal yet)"
             );
 
-            let responsive_ports = scan_tcp_ports(
+            let responsiveness_scan = scan_tcp_ports(
                 ip,
                 cancel.clone(),
                 effective_batch_size,
@@ -1521,6 +1527,8 @@ impl NetworkScan {
                 scan_controller.clone(),
             )
             .await?;
+            covered_tcp_ports.extend(responsiveness_scan.covered);
+            let responsive_ports = responsiveness_scan.open;
 
             // The responsiveness check itself is accounted work (seeded into total_cost
             // up front for every non-interfaced IP); mark it complete now, on both the
@@ -1585,7 +1593,7 @@ impl NetworkScan {
                 return Err(Error::msg("Discovery was cancelled"));
             }
 
-            let open_ports = scan_tcp_ports(
+            let scan = scan_tcp_ports(
                 ip,
                 cancel.clone(),
                 effective_batch_size,
@@ -1594,7 +1602,8 @@ impl NetworkScan {
                 scan_controller.clone(),
             )
             .await?;
-            all_tcp_ports.extend(open_ports);
+            covered_tcp_ports.extend(scan.covered);
+            all_tcp_ports.extend(scan.open);
 
             // Update cost-based progress: each batch contributes a fraction of scan_cost_cs
             if let Some(counter) = completed_cost {
@@ -1622,6 +1631,7 @@ impl NetworkScan {
         }
         open_ports.sort_by_key(|p| (p.number(), p.protocol()));
         open_ports.dedup();
+        let connect_open: Vec<u16> = open_ports.iter().map(|p| p.number()).collect();
 
         // SNMP ports come from `SnmpIntegration.probe()` in the integration probes below, with the
         // credentials the site and host are assigned. SNMP `public` is one of them: a default
@@ -1828,6 +1838,17 @@ impl NetworkScan {
             }
         }
 
+        // A port the filters above withheld answered, so it is not covered: covering it would tell
+        // the server nothing listens there.
+        let mut port_coverage = PortCoverage::default();
+        port_coverage.add(
+            ip,
+            TransportProtocol::Tcp,
+            covered_tcp_ports.into_iter().filter(|p| {
+                !connect_open.contains(p) || open_ports.contains(&PortType::new_tcp(*p))
+            }),
+        );
+
         if let Ok(Some(mut host_data)) = ops
             .build_host_from_scan(
                 ServiceMatchBaselineParams {
@@ -1933,6 +1954,7 @@ impl NetworkScan {
                     subnets,
                     interfaces_complete,
                     interface_data_complete,
+                    port_coverage,
                     &cancel,
                 )
                 .await

@@ -168,6 +168,7 @@ impl HostService {
         mut subnets: Vec<Subnet>,
         interfaces_complete: bool,
         interface_data_complete: InterfaceDataComplete,
+        port_coverage: &crate::server::ports::r#impl::coverage::PortCoverage,
         scan_ctx: Option<&crate::server::shared::services::scan_context::ScanContext>,
         authentication: AuthenticatedEntity,
         limit_ctx: Option<&HostLimitContext>,
@@ -293,6 +294,7 @@ impl HostService {
                 limit_ctx,
                 interfaces_complete,
                 interface_data_complete,
+                port_coverage,
             )
             .await?;
 

@@ -37,6 +37,7 @@ use crate::server::{
     interfaces::r#impl::wire::DiscoveryInterface,
     ip_addresses::r#impl::base::{IPAddress, IPAddressBase, MacEvidence, MacEvidenceValue},
     ports::r#impl::base::{Port, PortBase, PortConfig, PortType, TransportProtocol},
+    ports::r#impl::coverage::PortCoverage,
     services::r#impl::{
         base::{Service, ServiceBase},
         definitions::ServiceDefinition,
@@ -118,6 +119,11 @@ pub struct DiscoveryHostRequest {
     /// directions and exists only to carry the observation from the boundary, where the raw
     /// shape is visible, to the discovery session, where a warning can be attached. Read once,
     /// in the discovery handlers, then discarded.
+    /// Every (address, protocol, port) this scan probed and got a definite answer from. A stored
+    /// port binding can change hands only where the scan covered it. Daemons predating this field
+    /// omit it, and empty coverage moves nothing.
+    #[serde(default)]
+    pub port_coverage: PortCoverage,
     #[serde(skip)]
     pub superseded_wire_shape: bool,
 }
@@ -158,6 +164,8 @@ struct DiscoveryHostRequestWire {
     interfaces_complete: bool,
     #[serde(default)]
     interface_data_complete: InterfaceDataComplete,
+    #[serde(default, skip_serializing_if = "PortCoverage::is_empty")]
+    port_coverage: PortCoverage,
 }
 
 impl From<DiscoveryHostRequest> for DiscoveryHostRequestWire {
@@ -176,6 +184,7 @@ impl From<DiscoveryHostRequest> for DiscoveryHostRequestWire {
             subnets: req.subnets,
             interfaces_complete: req.interfaces_complete,
             interface_data_complete: req.interface_data_complete,
+            port_coverage: req.port_coverage,
         }
     }
 }
@@ -223,6 +232,7 @@ impl<'de> serde::Deserialize<'de> for DiscoveryHostRequest {
                 subnets: wire.subnets,
                 interfaces_complete: wire.interfaces_complete,
                 interface_data_complete: wire.interface_data_complete,
+                port_coverage: wire.port_coverage,
                 superseded_wire_shape,
             })
         } else {
@@ -244,6 +254,7 @@ impl<'de> serde::Deserialize<'de> for DiscoveryHostRequest {
                 subnets: wire.subnets,
                 interfaces_complete: wire.interfaces_complete,
                 interface_data_complete: wire.interface_data_complete,
+                port_coverage: wire.port_coverage,
                 // Reaching this branch at all is the stronger signal: only a pre-0.16.0 daemon
                 // sends this layout, whatever its interfaces happened to carry.
                 superseded_wire_shape: true,
@@ -266,6 +277,7 @@ mod discovery_request_interfaces_complete_tests {
             subnets: vec![],
             interfaces_complete,
             interface_data_complete: InterfaceDataComplete::default(),
+            port_coverage: Default::default(),
             superseded_wire_shape: false,
         }
     }
@@ -293,6 +305,27 @@ mod discovery_request_interfaces_complete_tests {
         let json = serde_json::to_value(request_with(false)).expect("serializes");
         let parsed: DiscoveryHostRequest = serde_json::from_value(json).expect("deserializes");
         assert!(!parsed.interfaces_complete);
+    }
+
+    /// Coverage crosses the request body, and a daemon predating it sends none, which covers
+    /// nothing.
+    #[test]
+    fn port_coverage_survives_the_wire_and_is_empty_when_absent() {
+        let lan: IpAddr = "192.168.4.58".parse().unwrap();
+        let mut request = request_with(true);
+        request
+            .port_coverage
+            .add(lan, TransportProtocol::Tcp, 1..=1024);
+        let json = serde_json::to_value(&request).expect("serializes");
+        let parsed: DiscoveryHostRequest = serde_json::from_value(json.clone()).expect("parses");
+        assert!(parsed.port_coverage.covers(lan, &PortType::new_tcp(443)));
+
+        let mut old = json;
+        old.as_object_mut()
+            .expect("wire is a JSON object")
+            .remove("port_coverage");
+        let parsed: DiscoveryHostRequest = serde_json::from_value(old).expect("parses");
+        assert!(parsed.port_coverage.is_empty());
     }
 
     /// The address as `deep_scan_host` builds it, inside the request it POSTs.

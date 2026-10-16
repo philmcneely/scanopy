@@ -480,6 +480,7 @@ impl DaemonService {
                 // data to preserve against.
                 true,
                 InterfaceDataComplete::default(),
+                &crate::server::ports::r#impl::coverage::PortCoverage::default(),
                 None,
                 auth.clone(),
                 None,
@@ -998,6 +999,7 @@ impl DaemonService {
                     host_request.subnets,
                     host_request.interfaces_complete,
                     host_request.interface_data_complete,
+                    &host_request.port_coverage,
                     scan_ctx.as_ref(),
                     auth.clone(),
                     limit_ctx.as_ref(),
