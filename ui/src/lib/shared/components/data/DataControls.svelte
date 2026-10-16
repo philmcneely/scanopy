@@ -31,6 +31,7 @@
 		groupItems as groupItemsBy,
 		buildTreeSections,
 		mergeRootedTrees,
+		rootedTreesPosition,
 		flattenTreeEntries,
 		computeGroupOffsets,
 		serverGroupKey as serverGroupKeyOf,
@@ -575,7 +576,14 @@
 				rootRanges: null
 			};
 		});
-		return activeTree ? mergeRootedTrees(groups, activeTree) : groups;
+		if (!activeTree) return groups;
+		// The trees together, across every page: the merged header's range.
+		const trees = rootedTreesPosition(serverGroupCounts);
+		const range =
+			trees && serverPagination
+				? groupPageSlice(trees, serverPagination.offset, items.length)
+				: null;
+		return mergeRootedTrees(groups, activeTree, range);
 	});
 
 	function toggleSort(fieldKey: string) {
