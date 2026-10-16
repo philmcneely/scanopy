@@ -83,11 +83,8 @@ export function useDeleteVlanMutation() {
 			);
 			return id;
 		},
-		onSuccess: (id: string) => {
-			queryClient.setQueryData<Vlan[]>(
-				queryKeys.vlans.all,
-				(old) => old?.filter((v) => v.id !== id) ?? []
-			);
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.vlans.all });
 		}
 	}));
 }
@@ -103,11 +100,8 @@ export function useBulkDeleteVlansMutation() {
 			requireSuccess(await apiClient.POST('/api/v1/vlans/bulk-delete', { body: ids }));
 			return ids;
 		},
-		onSuccess: (ids: string[]) => {
-			queryClient.setQueryData<Vlan[]>(
-				queryKeys.vlans.all,
-				(old) => old?.filter((v) => !ids.includes(v.id)) ?? []
-			);
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.vlans.all });
 		}
 	}));
 }

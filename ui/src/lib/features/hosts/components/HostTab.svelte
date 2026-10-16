@@ -15,7 +15,7 @@
 	import HostExportModal from './HostExportModal.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { hostColumns } from './HostTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import { Trash2, RefreshCw, Replace, Edit } from 'lucide-svelte';
@@ -352,10 +352,11 @@
 				icon: RefreshCw,
 				onClick: () => handleRescanHost(host),
 				onBulk: handleBulkRescan,
-				disabled:
-					hostIPAddresses(host).length === 0
-						? { reason: hosts_rescanNoAddresses(), bulkReason: hosts_rescanNoAddressesBulk() }
-						: undefined
+				unavailable: disabledWhen(
+					hostIPAddresses(host).length === 0,
+					hosts_rescanNoAddresses(),
+					hosts_rescanNoAddressesBulk()
+				)
 			},
 			{ label: common_consolidate(), icon: Replace, onClick: () => handleStartConsolidate(host) },
 			{

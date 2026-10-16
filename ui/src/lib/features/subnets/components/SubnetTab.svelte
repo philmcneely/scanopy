@@ -13,7 +13,7 @@
 	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 	import { fieldValueOptions, useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import { hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { subnetColumns } from './SubnetTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import { Trash2, Edit, CloudAlert } from 'lucide-svelte';
@@ -48,6 +48,7 @@
 		common_edit,
 		common_subnets,
 		daemons_installPromptSubnets,
+		subnets_rangeSettled,
 		subnets_resolveRange
 	} from '$lib/paraglide/messages';
 	import { hasDaemon } from '$lib/shared/onboarding/checklist';
@@ -199,22 +200,18 @@
 	function subnetActions(subnet: SubnetResponse): CardAction[] {
 		if (isReadOnly) return [];
 
-		const actions: CardAction[] = [];
-
-		// Only where there is something to resolve. A badge that says a range was guessed and
-		// offers no way to settle it leaves the operator with the question and no answer.
-		if (isProvisionalCidr(subnet)) {
+		return [
+			// Only where there is something to resolve. A badge that says a range was guessed and
+			// offers no way to settle it leaves the operator with the question and no answer.
 			// Neutral, like Edit. The badge in the row already carries the colour, and the two
 			// variants that would stand out are spoken for: amber means stale and red means broken,
 			// which is exactly what an assumed range is not.
-			actions.push({
+			{
 				label: subnets_resolveRange(),
 				icon: CloudAlert,
-				onClick: () => handleResolveRange(subnet)
-			});
-		}
-
-		actions.push(
+				onClick: () => handleResolveRange(subnet),
+				unavailable: hiddenWhen(!isProvisionalCidr(subnet), subnets_rangeSettled())
+			},
 			{ label: common_edit(), icon: Edit, onClick: () => handleEditSubnet(subnet) },
 			{
 				label: common_delete(),
@@ -224,9 +221,7 @@
 				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteSubnet(subnet)
 			}
-		);
-
-		return actions;
+		];
 	}
 
 	function handleResolveRange(subnet: SubnetResponse) {

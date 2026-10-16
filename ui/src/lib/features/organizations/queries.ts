@@ -287,6 +287,7 @@ export function useBulkRevokeInvitesMutation() {
 				queryKeys.invites.all,
 				(old) => old?.filter((i) => !ids.includes(i.id)) ?? []
 			);
+			queryClient.invalidateQueries({ queryKey: queryKeys.users.members() });
 		}
 	}));
 }

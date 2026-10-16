@@ -56,23 +56,31 @@ export interface CardAction {
 	isDelete?: boolean;
 	onClick: () => void;
 	/**
-	 * Runs the action on every selected row, given their ids. With it, the action shows in the
-	 * toolbar for a selection of any size and runs there through this; without it, the toolbar
-	 * shows the action only while its one row is selected.
+	 * Runs the action on every selected row, given their ids. With it, the action runs in the
+	 * toolbar for a selection of any size through this; without it, the action runs only while its
+	 * one row is selected, and shows disabled for several.
 	 */
 	onBulk?: (ids: string[]) => Promise<unknown> | void;
+	/** Why the action can't run on this row, and whether the row still shows it. Absent when it can. */
+	unavailable?: Unavailable;
 	/**
-	 * Why the action can't run on this row. Present exactly when the action is disabled, and shown
-	 * as its tooltip. An action that works for most rows stays on every row and says here why it
-	 * doesn't on this one; an action that exists only in a special state is left out instead.
+	 * The toolbar key this action prefers, when free. One control in two states (Enable and
+	 * Disable) names the same key, so the key stays put as the label changes.
 	 */
-	disabled?: DisabledReason;
-	/** A hint shown while the action is enabled. */
+	shortcut?: string;
+	/** A hint shown while the action is available. */
 	tooltip?: string;
 	animation?: string;
 }
 
-export interface DisabledReason {
+export interface Unavailable {
+	/**
+	 * `disabled`: the row shows the action greyed out, for an action most rows of this type
+	 * support. `hidden`: the row leaves it out, for an action that exists only in a special state
+	 * (Resolve Range on a provisional subnet). A selection of several rows still shows a hidden
+	 * action, disabled with this reason, when another selected row shows it.
+	 */
+	state: 'disabled' | 'hidden';
 	/** Reads for this one row: "This host has no IP addresses to scan". */
 	reason: string;
 	/**
@@ -80,6 +88,24 @@ export interface DisabledReason {
 	 * addresses to scan". Falls back to `reason`.
 	 */
 	bulkReason?: string;
+}
+
+/** `CardAction.unavailable` for an action most rows support: shown, greyed out, while `when`. */
+export function disabledWhen(
+	when: boolean,
+	reason: string,
+	bulkReason?: string
+): Unavailable | undefined {
+	return when ? { state: 'disabled', reason, bulkReason } : undefined;
+}
+
+/** `CardAction.unavailable` for an action of a special state: left off the row while `when`. */
+export function hiddenWhen(
+	when: boolean,
+	reason: string,
+	bulkReason?: string
+): Unavailable | undefined {
+	return when ? { state: 'hidden', reason, bulkReason } : undefined;
 }
 
 export interface EntityRef {

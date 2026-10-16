@@ -14,7 +14,7 @@
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import type { TagGroup } from '../types/base';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 	import { Trash2, Edit } from 'lucide-svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
@@ -122,9 +122,11 @@
 				isDelete: true,
 				onBulk: handleBulkDelete,
 				onClick: () => handleDelete(group),
-				disabled: isSystemGroup(group)
-					? { reason: tags_systemGroupFixed(), bulkReason: tags_systemGroupFixedBulk() }
-					: undefined
+				unavailable: disabledWhen(
+					isSystemGroup(group),
+					tags_systemGroupFixed(),
+					tags_systemGroupFixedBulk()
+				)
 			}
 		];
 	}

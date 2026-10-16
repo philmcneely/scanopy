@@ -141,13 +141,13 @@ async fn rescan(
     let mut targets = Vec::with_capacity(hosts.len());
     for host in hosts {
         validate_read_access(Some(host.base.site_id), None, &site_ids, organization_id)?;
-        match rescan_target(state, &host).await? {
-            Ok((daemon, ips)) => targets.push((host, daemon, ips)),
+        let (name, target) = rescan_target(state, &host).await?;
+        match target {
+            Ok((daemon, ips)) => targets.push((RescanHost { id: host.id, name, ips }, daemon)),
             // Several hosts: name the one refused, since the message says "this host".
             Err(reason) if several => {
                 return Err(ApiError::bad_request(&format!(
-                    "Can't rescan \"{}\": {}",
-                    host.base.name, reason
+                    "Can't rescan \"{name}\": {reason}"
                 )));
             }
             Err(reason) => return Err(ApiError::bad_request(&reason)),
@@ -157,7 +157,7 @@ async fn rescan(
     // The ports already recorded on these hosts. `get_for_hosts` applies the live
     // filter; `get_for_host` does not, and would resurrect historically-closed
     // ports into the scan list.
-    let host_ids: Vec<Uuid> = targets.iter().map(|(host, _, _)| host.id).collect();
+    let host_ids: Vec<Uuid> = targets.iter().map(|(host, _)| host.id).collect();
     let mut ports_by_host = state
         .services
         .port_service
@@ -165,11 +165,11 @@ async fn rescan(
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 
-    let mut planned: Vec<(Daemon, Vec<(Host, Vec<IpAddr>)>)> = Vec::new();
-    for (host, daemon, ips) in targets {
+    let mut planned: Vec<(Daemon, Vec<RescanHost>)> = Vec::new();
+    for (host, daemon) in targets {
         match planned.iter_mut().find(|(d, _)| d.id == daemon.id) {
-            Some((_, group)) => group.push((host, ips)),
-            None => planned.push((daemon, vec![(host, ips)])),
+            Some((_, group)) => group.push(host),
+            None => planned.push((daemon, vec![host])),
         }
     }
 
@@ -177,7 +177,7 @@ async fn rescan(
     let mut sessions = Vec::with_capacity(planned.len());
     for (daemon, group) in planned {
         let mut ports: Vec<PortType> = Vec::new();
-        for (host, _) in &group {
+        for host in &group {
             for port in ports_by_host.remove(&host.id).unwrap_or_default() {
                 if !ports.contains(&port.base.port_type) {
                     ports.push(port.base.port_type);
@@ -194,7 +194,7 @@ async fn rescan(
 async fn rescan_discovery(
     state: &Arc<AppState>,
     daemon: &Daemon,
-    group: &[(Host, Vec<IpAddr>)],
+    group: &[RescanHost],
     ports: Vec<PortType>,
 ) -> Discovery {
     // Inherit the daemon's configured scan settings so a deliberately lowered
@@ -207,18 +207,15 @@ async fn rescan_discovery(
     );
     let ips: Vec<IpAddr> = group
         .iter()
-        .flat_map(|(_, ips)| ips.iter().copied())
+        .flat_map(|host| host.ips.iter().copied())
         .collect();
-    let names: Vec<String> = group
-        .iter()
-        .map(|(host, _)| host.base.name.to_string())
-        .collect();
+    let names: Vec<String> = group.iter().map(|host| host.name.clone()).collect();
 
     Discovery::new(DiscoveryBase {
         run_type: RunType::AdHoc { last_run: None },
         discovery_type: DiscoveryType::Rescan {
             host_id: daemon.base.host_id,
-            target_host_ids: group.iter().map(|(host, _)| host.id).collect(),
+            target_host_ids: group.iter().map(|host| host.id).collect(),
             ips: ips.clone(),
             ports,
             settings,
@@ -279,24 +276,37 @@ async fn start_rescan(
         .await?)
 }
 
-/// The daemon that will rescan this host, and the host's addresses it can reach. The inner
-/// `Err` is why the host can't be rescanned, worded for the one host.
+/// A host going into a rescan: what to call it in the rescan's name, and its addresses the
+/// daemon can reach.
+struct RescanHost {
+    id: Uuid,
+    name: String,
+    ips: Vec<IpAddr>,
+}
+
+/// What the host list titles this host, and either the daemon that will rescan it with the
+/// addresses it can reach, or why the host can't be rescanned, worded for the one host.
 async fn rescan_target(
     state: &Arc<AppState>,
     host: &Host,
-) -> Result<Result<(Daemon, Vec<IpAddr>), String>, ApiError> {
+) -> Result<(String, Result<(Daemon, Vec<IpAddr>), String>), ApiError> {
     let ip_addresses = state
         .services
         .ip_address_service
         .get_for_host(&host.id)
         .await?;
+    // The name ladder the host list titles rows with: a host known only by its address is
+    // named by it, where `host.base.name` is empty.
+    let name = host
+        .display_name(&ip_addresses)
+        .unwrap_or_else(|| "unnamed host".to_string());
     if ip_addresses.is_empty() {
-        return Ok(Err("This host has no IP addresses to scan.".to_string()));
+        return Ok((name, Err("This host has no IP addresses to scan.".to_string())));
     }
 
     let daemon = match resolve_rescan_daemon(state, host).await? {
         Ok(daemon) => daemon,
-        Err(reason) => return Ok(Err(reason)),
+        Err(reason) => return Ok((name, Err(reason))),
     };
 
     // Only the addresses this daemon has a route to. The daemon ARPs the ones
@@ -322,14 +332,15 @@ async fn rescan_target(
         .collect();
 
     if reachable.is_empty() {
-        return Ok(Err(format!(
+        let reason = format!(
             "Daemon \"{}\" last scanned this host but has no interface on a subnet holding any \
              of its scannable addresses, so it can't scan them directly.",
             daemon.base.name
-        )));
+        );
+        return Ok((name, Err(reason)));
     }
 
-    Ok(Ok((daemon, reachable)))
+    Ok((name, Ok((daemon, reachable))))
 }
 
 /// The scan settings on this daemon's own discovery configuration, if it has one.

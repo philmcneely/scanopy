@@ -15,7 +15,11 @@
 	import { discoveryScheduledColumns } from './DiscoveryScheduledTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import { Play, Power, Edit, Trash2, Ban } from 'lucide-svelte';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import {
+		disabledWhen,
+		hiddenWhen,
+		type CardAction
+	} from '$lib/shared/components/data/types';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import {
 		useScheduledDiscoveriesQuery,
@@ -65,6 +69,10 @@
 		discovery_rescanRunsOnce,
 		discovery_rescanRunsOnceBulk,
 		discovery_runningBulk,
+		discovery_notRunning,
+		discovery_notRunningBulk,
+		discovery_noSchedule,
+		discovery_noScheduleBulk,
 		discovery_confirmDeleteScheduled,
 		discovery_disableScheduleTooltip,
 		discovery_enableScheduleTooltip,
@@ -265,7 +273,8 @@
 	}
 
 	/**
-	 * Row actions.
+	 * Row actions: Cancel and the schedule toggle (each only in its state), then Edit, Run and
+	 * Delete on every row.
 	 *
 	 * A run in flight blocks the destructive and scheduling actions, and the
 	 * tooltip carries the reason.
@@ -273,64 +282,67 @@
 	function discoveryActions(discovery: Discovery): CardAction[] {
 		if (isReadOnly) return [];
 
-		const running = getActiveSession(discovery) !== null;
+		const session = getActiveSession(discovery);
+		const running = session !== null;
 		const isRescan = discovery.discovery_type.type === 'Rescan';
+		const isScheduled = discovery.run_type.type === 'Scheduled';
 		const isEnabled = discovery.run_type.type === 'Scheduled' && discovery.run_type.enabled;
-		const rescanReason = isRescan
-			? { reason: discovery_rescanRunsOnce(), bulkReason: discovery_rescanRunsOnceBulk() }
-			: undefined;
-		const runningReason = (reason: string) =>
-			running ? { reason, bulkReason: discovery_runningBulk() } : undefined;
-		const actions: CardAction[] = [
+		const whileRescan = disabledWhen(
+			isRescan,
+			discovery_rescanRunsOnce(),
+			discovery_rescanRunsOnceBulk()
+		);
+		const whileRunning = (reason: string) =>
+			disabledWhen(running, reason, discovery_runningBulk());
+
+		return [
+			{
+				label: common_cancel(),
+				icon: Ban,
+				tone: 'warning',
+				onClick: () => session?.session_id && handleCancelDiscovery(session.session_id),
+				onBulk: handleBulkCancel,
+				unavailable: hiddenWhen(
+					!session?.session_id,
+					discovery_notRunning(),
+					discovery_notRunningBulk()
+				)
+			},
+			{
+				label: isEnabled ? common_disable() : common_enable(),
+				icon: Power,
+				tone: isEnabled ? 'success' : undefined,
+				shortcut: 'O',
+				onClick: () => setEnabled(!isEnabled)([discovery.id]),
+				onBulk: setEnabled(!isEnabled),
+				unavailable:
+					hiddenWhen(!isScheduled, discovery_noSchedule(), discovery_noScheduleBulk()) ??
+					whileRunning(discovery_cannotToggleWhileRunning()),
+				tooltip: isEnabled ? discovery_disableScheduleTooltip() : discovery_enableScheduleTooltip()
+			},
 			{
 				label: common_edit(),
 				icon: Edit,
 				onClick: () => handleEditDiscovery(discovery),
-				disabled: rescanReason
+				unavailable: whileRescan
 			},
 			{
 				label: common_run(),
 				icon: Play,
 				onClick: () => handleDiscoveryRun(discovery),
 				onBulk: handleBulkRun,
-				disabled: rescanReason ?? runningReason(discovery_alreadyRunning())
+				unavailable: whileRescan ?? whileRunning(discovery_alreadyRunning())
+			},
+			{
+				label: common_delete(),
+				icon: Trash2,
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
+				onClick: () => handleDeleteDiscovery(discovery),
+				unavailable: whileRunning(discovery_cannotDeleteWhileRunning())
 			}
 		];
-
-		if (discovery.run_type.type === 'Scheduled') {
-			actions.push({
-				label: isEnabled ? common_disable() : common_enable(),
-				icon: Power,
-				tone: isEnabled ? 'success' : undefined,
-				onClick: () => setEnabled(!isEnabled)([discovery.id]),
-				onBulk: setEnabled(!isEnabled),
-				disabled: runningReason(discovery_cannotToggleWhileRunning()),
-				tooltip: isEnabled ? discovery_disableScheduleTooltip() : discovery_enableScheduleTooltip()
-			});
-		}
-
-		const session = getActiveSession(discovery);
-		if (session?.session_id) {
-			actions.push({
-				label: common_cancel(),
-				icon: Ban,
-				tone: 'warning',
-				onClick: () => handleCancelDiscovery(session.session_id!),
-				onBulk: handleBulkCancel
-			});
-		}
-
-		actions.push({
-			label: common_delete(),
-			icon: Trash2,
-			tone: 'danger',
-			isDelete: true,
-			onBulk: handleBulkDelete,
-			onClick: () => handleDeleteDiscovery(discovery),
-			disabled: runningReason(discovery_cannotDeleteWhileRunning())
-		});
-
-		return actions;
 	}
 
 	/**

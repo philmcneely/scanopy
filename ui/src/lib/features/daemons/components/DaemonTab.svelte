@@ -9,7 +9,12 @@
 	import OsTag from '$lib/features/hosts/components/OsTag.svelte';
 	import { hostOsOfDaemonOs } from '$lib/features/hosts/host-os';
 	import CreateDaemonModal from './CreateDaemonModal/CreateDaemonModal.svelte';
-	import type { ActionTone, CardAction } from '$lib/shared/components/data/types';
+	import {
+		disabledWhen,
+		hiddenWhen,
+		type ActionTone,
+		type CardAction
+	} from '$lib/shared/components/data/types';
 	import { daemonColumns } from './DaemonTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
@@ -53,6 +58,11 @@
 		common_upgrade,
 		daemons_retryConnection,
 		daemons_retryingConnection,
+		daemons_notServerPolled,
+		daemons_notServerPolledBulk,
+		daemons_reachable,
+		daemons_reachableBulk,
+		daemons_upToDate,
 		daemons_upgradeUnreachable,
 		daemons_sunsetBannerTitle,
 		daemons_sunsetBannerBody
@@ -216,7 +226,10 @@
 		closeModal();
 	}
 
-	/** Row actions. Upgrade and retry appear only when the daemon's state calls for them. */
+	/**
+	 * Row actions: Retry Connection and Upgrade (each only when the daemon's state calls for it,
+	 * the rarer leftmost), then Edit and Delete on every row.
+	 */
 	function daemonActions(daemon: Daemon): CardAction[] {
 		if (isReadOnly) return [];
 
@@ -226,8 +239,42 @@
 			daemon.version_status.status === 'Unsupported';
 		// The scheduled sunset date is server-published — the UI never computes it.
 		const sunsetDate = daemon.version_status.sunset_date ?? null;
+		const serverPolled = daemon.mode === 'server_poll';
 
-		const actions: CardAction[] = [
+		return [
+			// An unreachable ServerPoll daemon is the one case the server can be asked to try
+			// again on demand.
+			{
+				label: daemons_retryConnection(),
+				icon: RefreshCw,
+				tone: 'info',
+				onClick: () => retryConnectionMutation.mutate(daemon.id),
+				onBulk: (ids) => bulkRetryConnectionMutation.mutateAsync(ids),
+				unavailable:
+					hiddenWhen(!serverPolled, daemons_notServerPolled(), daemons_notServerPolledBulk()) ??
+					hiddenWhen(daemon.is_unreachable !== true, daemons_reachable(), daemons_reachableBulk()) ??
+					disabledWhen(
+						retryConnectionMutation.isPending || bulkRetryConnectionMutation.isPending,
+						daemons_retryingConnection()
+					)
+			},
+			{
+				label: common_upgrade(),
+				icon: ArrowBigUp,
+				tone: upgradeTone(daemon),
+				onClick: () => handleOpenUpgrade(daemon),
+				unavailable:
+					hiddenWhen(!hasUpdateAvailable, daemons_upToDate()) ??
+					// Without a sunset to warn about, an unreachable daemon has nothing to upgrade
+					// from here.
+					disabledWhen(
+						daemon.is_unreachable === true && sunsetDate === null,
+						daemons_upgradeUnreachable()
+					)
+			},
+			// It opens the daemon management modal, which is also where the daemon's 1:1 key is
+			// managed — and where a legacy daemon can be given one.
+			{ label: common_edit(), icon: Edit, onClick: () => handleEditDaemon(daemon) },
 			{
 				label: common_delete(),
 				icon: Trash2,
@@ -237,41 +284,6 @@
 				onClick: () => handleDeleteDaemon(daemon)
 			}
 		];
-
-		if (hasUpdateAvailable) {
-			// Without a sunset to warn about, an unreachable daemon has nothing to upgrade from here.
-			const unreachable = daemon.is_unreachable === true && sunsetDate === null;
-			actions.push({
-				label: common_upgrade(),
-				icon: ArrowBigUp,
-				tone: upgradeTone(daemon),
-				onClick: () => handleOpenUpgrade(daemon),
-				disabled: unreachable ? { reason: daemons_upgradeUnreachable() } : undefined
-			});
-		}
-
-		// An unreachable ServerPoll daemon is the one case the server can be asked
-		// to try again on demand.
-		if (daemon.is_unreachable === true && daemon.mode === 'server_poll') {
-			actions.push({
-				label: daemons_retryConnection(),
-				icon: RefreshCw,
-				tone: 'info',
-				onClick: () => retryConnectionMutation.mutate(daemon.id),
-				onBulk: (ids) => bulkRetryConnectionMutation.mutateAsync(ids),
-				disabled:
-					retryConnectionMutation.isPending || bulkRetryConnectionMutation.isPending
-						? { reason: daemons_retryingConnection() }
-						: undefined
-			});
-		}
-
-		// Edit sits last (rightmost) per the convention shared by every other entity.
-		// It opens the daemon management modal, which is also where the daemon's 1:1
-		// key is managed — and where a legacy daemon can be given one.
-		actions.push({ label: common_edit(), icon: Edit, onClick: () => handleEditDaemon(daemon) });
-
-		return actions;
 	}
 
 	function handleEditDaemon(daemon: Daemon) {

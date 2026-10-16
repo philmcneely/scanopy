@@ -30,7 +30,7 @@
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { shortcutLabel } from '$lib/shared/utils/shortcuts';
 	import { getFieldValue } from '../controls/fieldValues';
-	import { iconButtonClass, resolveTooltip } from '../controls/actionShortcuts';
+	import { iconButtonClass, resolveTooltip, shownActions } from '../controls/actionShortcuts';
 	import type { RenderGroup, TreeCell, TreeContinuation, TreeEntry } from '../controls/grouping';
 	import type { SortState } from '../controls/sorting';
 	import type { CardAction, GroupSlice } from '../types';
@@ -728,7 +728,7 @@
 		{/each}
 
 		{#if getActions}
-			{@const actions = getActions(item)}
+			{@const actions = shownActions(getActions(item))}
 			<td class="pin-right px-[var(--cell-px)] py-[var(--cell-py)] text-right align-middle">
 				<div class="flex items-center justify-end gap-1">
 					{#each actions as action (action.label)}
@@ -741,7 +741,7 @@
 						<button
 							type="button"
 							onclick={action.onClick}
-							disabled={!!action.disabled}
+							disabled={!!action.unavailable}
 							use:tooltip
 							data-tooltip={tip}
 							aria-label={action.label}

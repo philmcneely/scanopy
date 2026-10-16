@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Edit, Trash2 } from 'lucide-svelte';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
@@ -149,9 +149,11 @@
 				isDelete: true,
 				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteApiKey(apiKey),
-				disabled: apiKeyIdsInUse.has(apiKey.id)
-					? { reason: daemonApiKeys_inUse(), bulkReason: daemonApiKeys_inUseBulk() }
-					: undefined
+				unavailable: disabledWhen(
+					apiKeyIdsInUse.has(apiKey.id),
+					daemonApiKeys_inUse(),
+					daemonApiKeys_inUseBulk()
+				)
 			}
 		];
 	}

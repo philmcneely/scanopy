@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	assignActionKeys,
 	selectionActions,
+	shownActions,
 	DELETE_KEY,
 	RESERVED_ACTION_KEYS
 } from '$lib/shared/components/data/controls/actionShortcuts';
@@ -46,49 +47,89 @@ describe('assignActionKeys', () => {
 	});
 });
 
+describe('assignActionKeys with a preferred shortcut', () => {
+	it('gives an action its preferred key ahead of an earlier label that would take it', () => {
+		expect(
+			keys([action('Consolidate'), action('Disable', { shortcut: 'O' }), action('Delete', { isDelete: true })])
+		).toEqual(['N', 'O', DELETE_KEY]);
+	});
+});
+
 describe('selectionActions', () => {
 	const bulk = () => {};
 	const del = (extra: Partial<CardAction> = {}) =>
 		action('Delete', { tone: 'danger', isDelete: true, onBulk: bulk, ...extra });
 	const rescan = (extra: Partial<CardAction> = {}) => action('Rescan', { onBulk: bulk, ...extra });
-	const blocked = { reason: 'This one is busy', bulkReason: 'A selected one is busy' };
+	const busy: CardAction['unavailable'] = {
+		state: 'disabled',
+		reason: 'This one is busy',
+		bulkReason: 'A selected one is busy'
+	};
+	const settled: CardAction['unavailable'] = { state: 'hidden', reason: 'Already settled' };
 	const ran: string[] = [];
 	const runBulk = (a: CardAction) => () => void ran.push(a.label);
-	const run = (perRow: CardAction[][]) => selectionActions(perRow, runBulk, 'missing');
+	const reasons = { missing: 'missing', oneRowAtATime: 'one at a time' };
+	const run = (perRow: CardAction[][]) => selectionActions(perRow, runBulk, reasons);
+	const labels = (actions: CardAction[]) => actions.map((a) => a.label);
 
 	it('shows one row’s actions as the row does, bulk ones running on the selection', () => {
-		const [edit, remove] = run([[action('Edit'), del()]]);
-		expect(edit).toMatchObject({ label: 'Edit' });
-		expect(remove).toMatchObject({ label: 'Delete', tone: 'danger', disabled: undefined });
+		const [edit, remove] = run([[action('Resolve', { unavailable: settled }), action('Edit'), del()]]);
+		expect(edit.label).toBe('Edit');
+		expect(remove).toMatchObject({ label: 'Delete', tone: 'danger' });
+		expect(remove.unavailable).toBeUndefined();
 		remove.onClick();
 		expect(ran).toContain('Delete');
 	});
 
-	it('gives one disabled row its own reason', () => {
-		const [remove] = run([[del({ disabled: blocked })]]);
-		expect(remove.disabled).toEqual({ reason: 'This one is busy' });
+	it('gives one unavailable row its own reason', () => {
+		expect(run([[del({ unavailable: busy })]])[0].unavailable?.reason).toBe('This one is busy');
 	});
 
-	it('offers every bulk action any selected row has, and only bulk ones, for several rows', () => {
+	it('shows every action any selected row shows, disabling those with no bulk form', () => {
 		const actions = run([
-			[action('Edit'), rescan(), del()],
-			[action('Edit'), del()]
+			[action('Resolve'), action('Edit'), rescan(), del()],
+			[action('Resolve', { unavailable: settled }), action('Edit'), rescan(), del()]
 		]);
-		expect(actions.map((a) => a.label)).toEqual(['Rescan', 'Delete']);
+		expect(labels(actions)).toEqual(['Resolve', 'Edit', 'Rescan', 'Delete']);
+		expect(actions[0].unavailable?.reason).toBe('one at a time');
+		expect(actions[1].unavailable?.reason).toBe('one at a time');
+		expect(actions[2].unavailable).toBeUndefined();
 	});
 
-	it('disables an action for several rows unless every row has it enabled', () => {
-		expect(run([[del()], [del({ disabled: blocked })]])[0].disabled).toEqual({
-			reason: 'A selected one is busy'
-		});
-		expect(run([[del()], [del({ disabled: { reason: 'Only form' } })]])[0].disabled).toEqual({
-			reason: 'Only form'
-		});
-		expect(run([[rescan()], [action('Edit')]])[0].disabled).toEqual({ reason: 'missing' });
-		expect(run([[del()], [del()]])[0].disabled).toBeUndefined();
+	it('leaves out an action no selected row shows', () => {
+		const hiddenEverywhere = action('Resolve', { unavailable: settled });
+		expect(labels(run([[hiddenEverywhere, del()], [hiddenEverywhere, del()]]))).toEqual(['Delete']);
 	});
 
-	it('offers nothing for several rows when none has a bulk action', () => {
-		expect(run([[action('Edit')], [action('Revoke', { tone: 'danger' })]])).toEqual([]);
+	it('blocks a bulk action with the first blocking row’s selection wording', () => {
+		expect(run([[del()], [del({ unavailable: busy })]])[0].unavailable?.reason).toBe(
+			'A selected one is busy'
+		);
+		const cancel = action('Cancel', { onBulk: bulk });
+		const hiddenCancel = action('Cancel', {
+			onBulk: bulk,
+			unavailable: { state: 'hidden', reason: 'Not running', bulkReason: 'A selected one isn’t running' }
+		});
+		expect(run([[cancel], [hiddenCancel]])[0].unavailable?.reason).toBe('A selected one isn’t running');
+		const rescanOnOne = run([[rescan()], [action('Edit')]]).find((a) => a.label === 'Rescan');
+		expect(rescanOnOne?.unavailable?.reason).toBe('missing');
+	});
+
+	it('keeps each row’s order, with Delete last', () => {
+		const actions = run([
+			[action('Disable', { onBulk: bulk }), action('Run', { onBulk: bulk }), del()],
+			[action('Enable', { onBulk: bulk }), action('Run', { onBulk: bulk }), del()]
+		]);
+		expect(labels(actions)).toEqual(['Disable', 'Enable', 'Run', 'Delete']);
+	});
+});
+
+describe('shownActions', () => {
+	it('leaves out hidden actions and keeps disabled ones', () => {
+		const shown = shownActions([
+			action('Resolve', { unavailable: { state: 'hidden', reason: 'x' } }),
+			action('Delete', { unavailable: { state: 'disabled', reason: 'y' } })
+		]);
+		expect(shown.map((a) => a.label)).toEqual(['Delete']);
 	});
 });
