@@ -391,7 +391,7 @@
 	{:else if isLoading}
 		<!-- Loading state -->
 		<Loading />
-	{:else if subnetsData.length === 0 && !page.isNarrowed}
+	{:else if page.isEmpty(subnetsQuery)}
 		<EmptyState
 			title={common_noEntityYet({ entity: common_subnets() })}
 			subtitle=""

@@ -306,7 +306,7 @@
 <div class="space-y-6">
 	{#if isLoading}
 		<Loading />
-	{:else if pageCredentials.length === 0 && !page.isNarrowed}
+	{:else if page.isEmpty(credentialsPageQuery)}
 		<EmptyState
 			title={common_noEntityYet({ entity: common_credentials() })}
 			subtitle={credentials_emptySubtitle()}

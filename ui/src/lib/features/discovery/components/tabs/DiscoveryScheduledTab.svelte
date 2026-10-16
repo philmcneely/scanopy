@@ -407,7 +407,7 @@
 		<PreDaemonEmptyState title={daemons_installPromptDiscoveries()} {isReadOnly} />
 	{:else if isLoading}
 		<Loading />
-	{:else if discoveriesData.length === 0 && !page.isNarrowed}
+	{:else if page.isEmpty(discoveriesQuery)}
 		<!-- Empty state -->
 		<EmptyState
 			title={discovery_noScheduledSessions()}

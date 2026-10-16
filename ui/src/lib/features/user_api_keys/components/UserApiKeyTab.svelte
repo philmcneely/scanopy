@@ -172,7 +172,7 @@
 		</EmptyState>
 	{:else if isLoading}
 		<Loading />
-	{:else if userApiKeysData.length === 0 && !page.isNarrowed}
+	{:else if page.isEmpty(userApiKeysQuery)}
 		<EmptyState
 			title={userApiKeys_noApiKeysYet()}
 			subtitle={userApiKeys_noApiKeysSubtitle()}

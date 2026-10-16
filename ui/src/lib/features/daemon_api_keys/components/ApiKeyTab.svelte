@@ -175,7 +175,7 @@
 	<!-- Loading state -->
 	{#if isLoading}
 		<Loading />
-	{:else if apiKeysData.length === 0 && !page.isNarrowed}
+	{:else if page.isEmpty(keysPageQuery)}
 		<!-- Empty state -->
 		<EmptyState
 			title={common_noEntityYet({ entity: daemonApiKeys_title() })}

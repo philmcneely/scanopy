@@ -1,4 +1,4 @@
-import type { ListPageParams } from '$lib/api/list-page';
+import { listIsEmpty, type ListPageParams, type ListPageQueryState } from '$lib/api/list-page';
 import { narrowsList } from './controls/listQuery';
 
 /**
@@ -33,6 +33,10 @@ export function listPageState(isActive: () => boolean, initialPageSize = 20) {
 		/** Whether the view narrows the rows, so an empty page means "no match", not "none yet". */
 		get isNarrowed(): boolean {
 			return listQuery !== null && narrowsList(listQuery);
+		},
+		/** Whether the list has no rows at all, judged from a response for the view on screen. */
+		isEmpty(query: ListPageQueryState): boolean {
+			return listIsEmpty(query, listQuery !== null && narrowsList(listQuery));
 		},
 		onPageChange(page: number, size: number) {
 			currentPage = page;

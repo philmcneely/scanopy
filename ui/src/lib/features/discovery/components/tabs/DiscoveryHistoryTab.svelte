@@ -3,6 +3,7 @@
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import { narrowsList } from '$lib/shared/components/data/controls/listQuery';
+	import { listIsEmpty } from '$lib/api/list-page';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
 	import type { Discovery } from '../../types/base';
 	import DiscoveryEditModal from '../DiscoveryModal/DiscoveryEditModal.svelte';
@@ -274,7 +275,7 @@
 		<PreDaemonEmptyState title={daemons_installPromptDiscoveries()} {isReadOnly} />
 	{:else if isLoading}
 		<Loading />
-	{:else if discoveriesData.length === 0 && !isNarrowed}
+	{:else if listIsEmpty(discoveriesQuery, isNarrowed)}
 		<!--
 			"No sessions yet" only when nothing is narrowing the list. The search and the
 			field filters run server-side and are restored from storage on mount, so an
