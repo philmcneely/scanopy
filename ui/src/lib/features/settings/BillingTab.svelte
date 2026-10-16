@@ -42,6 +42,7 @@
 		common_usage,
 		settings_billing_billingQuestions,
 		billing_continueOnPlan,
+		billing_lapsedBannerCta,
 		settings_billing_contactUs,
 		settings_billing_currentPlan,
 		settings_billing_discount_active,
@@ -108,12 +109,12 @@
 	let isLapsed = $derived(org != null && isPlanLapsed(org));
 	const checkoutMutation = useCheckoutMutation();
 	// Licensed self-hosted plans get license keys here instead of usage: the
-	// dashboard route is locked for them server-side.
+	// dashboard route is locked for them server-side, as it is for an org with no plan.
 	let isLicensedPlan = $derived(org != null && hasLicensedPlan(org));
 
 	// Dashboard summary aggregates host/site/seat counts into one query —
 	// reuse it here instead of re-counting users/sites/hosts independently.
-	const dashboardQuery = useDashboardQuery({ enabled: () => org != null && !isLicensedPlan });
+	const dashboardQuery = useDashboardQuery({ enabled: () => org?.plan != null && !isLicensedPlan });
 	let planUsage = $derived(dashboardQuery.data?.plan_usage);
 
 	const configQuery = useConfigQuery();
@@ -346,6 +347,9 @@
 		// Change plan button whose only outcome is a 409 toast.
 		if (airGappedPlanLocked)
 			return { label: settings_billing_cancelSubscription(), onclick: openCancelModal };
+		// A new sign-up that closed the plan picker reopens it from here.
+		if (org != null && org.plan == null)
+			return { label: billing_lapsedBannerCta(), onclick: openPlanPicker };
 		return {
 			label: hasManageableSubscription
 				? settings_billing_changePlan()

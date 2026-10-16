@@ -505,6 +505,12 @@ impl ApiError {
         Self::coded(StatusCode::PAYMENT_REQUIRED, ErrorCode::BillingPlanLapsed)
     }
 
+    /// Forbidden (403) - a cloud org has not chosen a plan yet, so only the
+    /// Settings routes are open to it
+    pub fn billing_plan_required() -> Self {
+        Self::coded(StatusCode::FORBIDDEN, ErrorCode::BillingPlanRequired)
+    }
+
     /// Conflict (409) - cannot leave an air-gapped key while it is still valid.
     /// The request is well formed and the caller is entitled to make it; the
     /// organization is in a state that forbids the transition.

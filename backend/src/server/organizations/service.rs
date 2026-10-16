@@ -579,11 +579,15 @@ impl OrganizationService {
                 let Some(locked) = self.lock_for_update(org.id).await? else {
                     return Ok(false);
                 };
-                // `None` resolves to the build default. Plan equality is
-                // config-based (see `BillingPlan`'s `PartialEq`), so an org
-                // already on `target` is skipped regardless of how its plan
-                // was set.
-                let current = locked.org.base.plan.unwrap_or_default();
+                // A self-hosted org with no plan set is on Community. Plan
+                // equality is config-based (see `BillingPlan`'s `PartialEq`),
+                // so an org already on `target` is skipped regardless of how
+                // its plan was set.
+                let current = locked
+                    .org
+                    .base
+                    .plan
+                    .unwrap_or_else(crate::server::billing::plans::get_community_plan);
                 if current == target {
                     locked.release().await?;
                     return Ok(false);

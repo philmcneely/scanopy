@@ -596,6 +596,89 @@ async fn billing_middleware_locks_main_app_routes_for_self_hosted_plans() {
     assert_eq!(get_status(addr, "/api/v1/hosts").await.0, 403);
 }
 
+/// A cloud org that hasn't chosen a plan reaches only the Settings routes
+/// until it does.
+#[tokio::test]
+async fn billing_middleware_locks_main_app_routes_until_a_plan_is_chosen() {
+    let (state, _container) = test_state().await;
+    let mut org = organization();
+    org.base.plan = None;
+    org.base.plan_status = None;
+    let org = state
+        .services
+        .organization_service
+        .create(org, AuthenticatedEntity::System)
+        .await
+        .unwrap();
+    let owner = AuthenticatedEntity::User {
+        user_id: Uuid::new_v4(),
+        organization_id: org.id,
+        permissions: UserOrgPermissions::Owner,
+        site_ids: vec![],
+        email: EmailAddress::new_unchecked("owner@example.com"),
+        email_verified: true,
+        terms_accepted_at: None,
+    };
+    let org_path = format!("/api/v1/organizations/{}", org.id);
+    let user_path = format!("/api/v1/users/{}", Uuid::new_v4());
+
+    let app = Router::new()
+        .route(
+            "/api/v1/hosts",
+            get(|| async { "ok" }).post(|| async { "ok" }),
+        )
+        .route("/api/v1/organizations", get(|| async { "ok" }))
+        .route(
+            "/api/v1/organizations/{id}",
+            put(|| async { "ok" }).delete(|| async { "ok" }),
+        )
+        .route("/api/v1/users/{id}", put(|| async { "ok" }))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_billing_for_users,
+        ))
+        .layer(middleware::from_fn(
+            move |mut request: Request<Body>, next: Next| {
+                let owner = owner.clone();
+                async move {
+                    request.extensions_mut().insert(owner);
+                    next.run(request).await
+                }
+            },
+        ))
+        .with_state(state.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+
+    let (status, body) = get_status(addr, "/api/v1/hosts").await;
+    assert_eq!(status, 403);
+    assert!(body.contains("billing_plan_required"), "{body}");
+    assert_eq!(
+        send_status(addr, reqwest::Method::POST, "/api/v1/hosts")
+            .await
+            .0,
+        403
+    );
+    assert_eq!(get_status(addr, "/api/v1/organizations").await.0, 200);
+    for (method, path) in [
+        (reqwest::Method::PUT, &org_path),
+        (reqwest::Method::DELETE, &org_path),
+        (reqwest::Method::PUT, &user_path),
+    ] {
+        assert_eq!(
+            send_status(addr, method.clone(), path).await.0,
+            200,
+            "{method} {path}"
+        );
+    }
+
+    // Choosing a plan unlocks the main app.
+    set_plan(&state, org.id, pro_plan()).await;
+    set_plan_status(&state, org.id, Some(PlanStatus::Trialing)).await;
+    assert_eq!(get_status(addr, "/api/v1/hosts").await.0, 200);
+}
+
 #[tokio::test]
 async fn switching_key_type_retires_the_previous_key() {
     let (state, _container) = test_state().await;

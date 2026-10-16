@@ -409,7 +409,12 @@ const cachingMiddleware: Middleware = {
  * Uses translateError to display localized error messages when the backend
  * provides an error code. Falls back to the raw error message or HTTP status.
  */
-const BILLING_SELF_HOSTED_PLAN_LOCKED: ErrorCode = 'billing_self_hosted_plan_locked';
+// Expected while the org is locked to Settings (a self-hosted plan, or no plan
+// chosen yet): the UI already holds the app behind the Settings billing gate.
+const SETTINGS_LOCK_CODES = new Set<string>([
+	'billing_self_hosted_plan_locked',
+	'billing_plan_required'
+] satisfies ErrorCode[]);
 const AUTH_TERMS_ACCEPTANCE_REQUIRED: ErrorCode = 'auth_terms_acceptance_required';
 
 const errorMiddleware: Middleware = {
@@ -431,9 +436,7 @@ const errorMiddleware: Middleware = {
 			}
 			try {
 				const errorData: ApiErrorResponse = await response.clone().json();
-				// Expected while the org is on a self-hosted plan: the UI already
-				// holds the app behind the Settings billing gate, so no toast.
-				if (errorData.code === BILLING_SELF_HOSTED_PLAN_LOCKED) {
+				if (errorData.code != null && SETTINGS_LOCK_CODES.has(errorData.code)) {
 					return response;
 				}
 				// The user must accept the current terms (the date moved while this

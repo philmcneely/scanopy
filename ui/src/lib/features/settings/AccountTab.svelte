@@ -63,7 +63,7 @@
 	}: {
 		subView?: 'main' | 'credentials' | 'email-change' | 'cookies';
 		onClose: () => void;
-		/** When false (hard-gated modal), the main-view Close button is hidden so
+		/** When false (Settings is held open by a billing lock), the main-view Close button is hidden so
 		 * the gate can't be escaped from this tab. Sub-view Back/Save stay. */
 		dismissible?: boolean;
 	} = $props();
