@@ -218,19 +218,19 @@
 			</div>
 		{/if}
 		{#if activeTab === 'account'}
-			<AccountTab bind:subView={accountSubView} onClose={handleClose} {dismissible} />
+			<AccountTab bind:subView={accountSubView} onClose={handleClose} />
 		{:else if activeTab === 'email'}
 			<EmailTab />
 		{:else if activeTab === 'organization'}
-			<OrganizationTab bind:subView={orgSubView} onClose={handleClose} {dismissible} />
+			<OrganizationTab bind:subView={orgSubView} />
 		{:else if activeTab === 'billing'}
-			<BillingTab {isOpen} onClose={handleClose} {dismissible} />
+			<BillingTab {isOpen} onClose={handleClose} />
 		{:else if activeTab === 'license'}
-			<LicenseTab onClose={handleClose} {dismissible} />
+			<LicenseTab onClose={handleClose} />
 		{:else if activeTab === 'system'}
 			<SystemTab />
 		{:else if activeTab === 'support'}
-			<SupportTab onClose={handleClose} {dismissible} />
+			<SupportTab />
 		{/if}
 	</div>
 </GenericModal>

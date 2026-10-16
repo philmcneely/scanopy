@@ -77,9 +77,14 @@ export function modalKeyLabel(key: string): string {
 	return key === DELETE_KEY ? shortcutLabel(keyLabel(DELETE_KEY)) : keyLabel(key);
 }
 
-/** Keys that pause while focus is in a text field: letters and Mod+Delete. */
-export function pausesWhileTyping(key: string): boolean {
-	return key !== ENTER_KEY && key !== ESCAPE_KEY;
+/**
+ * Whether `key` does nothing while focus sits on `target`, so its chip dims. Letters and Mod+Delete
+ * pause in any text field. Enter pauses where the field keeps it (a textarea types a newline), and
+ * Mod+Enter runs the action there instead. Escape never pauses.
+ */
+export function keyPausedAt(key: string, target: EventTarget | null): boolean {
+	if (key === ESCAPE_KEY || !isEditableTarget(target)) return false;
+	return key === ENTER_KEY ? !takesEnterForPrimary(target) : true;
 }
 
 /** The parts of a keydown the resolver reads, so tests can pass plain objects. */

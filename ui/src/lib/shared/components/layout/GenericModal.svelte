@@ -29,19 +29,21 @@
 		common_modalTabs,
 		common_next,
 		common_previous,
-		common_shortcutsPausedWhileTyping
+		common_shortcutsPausedWhileTyping,
+		common_shortcutWhileTyping
 	} from '$lib/paraglide/messages';
 	import ConfirmationDialog from '$lib/shared/components/feedback/ConfirmationDialog.svelte';
-	import { isEditableTarget } from '$lib/shared/utils/shortcuts';
+	import { isEditableTarget, keyLabel, shortcutLabel } from '$lib/shared/utils/shortcuts';
 	import ModalStepper from './ModalStepper.svelte';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { toolbarButtonClass } from '$lib/shared/components/data/controls/actionShortcuts';
 	import {
 		assignModalKeys,
+		ENTER_KEY,
 		isTopmostModal,
+		keyPausedAt,
 		modalKeyLabel,
-		pausesWhileTyping,
 		registerOpenModal,
 		resolveModalKeydown,
 		type ModalAction
@@ -194,10 +196,10 @@
 		return action.large && action.role === 'primary' ? `${base} btn-primary-lg` : base;
 	}
 
-	// Letter and Delete keys pause while focus is in a text field; their chips dim to match.
-	let typing = $state(false);
-	function trackTyping(event: FocusEvent) {
-		typing = event.type === 'focusin' && isEditableTarget(event.target);
+	// Keys pause while focus is in a field that takes them; their chips dim to match.
+	let focusTarget = $state.raw<EventTarget | null>(null);
+	function trackFocus(event: FocusEvent) {
+		focusTarget = event.type === 'focusin' ? event.target : null;
 	}
 
 	// Tabs and steppers share the title row, between the title and the close button, whenever
@@ -440,9 +442,12 @@
 		}
 	}
 
+	// A key closes or acts on one modal only. Whichever listener answers it first marks it handled,
+	// because closing the topmost modal can make the one beneath topmost before its listener runs.
 	function handleKeydown(event: KeyboardEvent) {
-		if (!isOpen || !isTopmost()) return;
+		if (event.defaultPrevented || !isOpen || !isTopmost()) return;
 		if (event.key === 'Escape') {
+			event.preventDefault();
 			handleClose();
 			return;
 		}
@@ -490,7 +495,11 @@
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="modal-title"
-		onkeydown={(e) => e.key === 'Escape' && isTopmost() && handleClose()}
+		onkeydown={(e) => {
+			if (e.key !== 'Escape' || e.defaultPrevented || !isTopmost()) return;
+			e.preventDefault();
+			handleClose();
+		}}
 		tabindex="-1"
 	>
 		<!-- Floating back button (upper-left of viewport, over backdrop) -->
@@ -528,8 +537,8 @@
 			tabindex="-1"
 			onpointerdowncapture={captureBaseline}
 			onkeydowncapture={captureBaseline}
-			onfocusin={trackTyping}
-			onfocusout={trackTyping}
+			onfocusin={trackFocus}
+			onfocusout={trackFocus}
 		>
 			<!-- Floating close button (absolute positioned within modal container) -->
 			{#if floatingCloseButton && onClose}
@@ -686,7 +695,7 @@
 
 {#snippet actionButton(action: ModalAction, key: string | null)}
 	{@const Icon = action.busy ? Loader2 : action.icon}
-	{@const paused = typing && key !== null && pausesWhileTyping(key)}
+	{@const paused = key !== null && keyPausedAt(key, focusTarget)}
 	<button
 		type="button"
 		onclick={() => action.onClick()}
@@ -707,7 +716,11 @@
 		{#if key}
 			<span
 				class="inline-flex transition-opacity {paused ? 'opacity-40' : ''}"
-				title={paused ? common_shortcutsPausedWhileTyping() : undefined}
+				title={!paused
+					? undefined
+					: key === ENTER_KEY
+						? common_shortcutWhileTyping({ shortcut: shortcutLabel(keyLabel(ENTER_KEY)) })
+						: common_shortcutsPausedWhileTyping()}
 			>
 				<KbdKey key={modalKeyLabel(key)} size="xs" tone="inherit" />
 			</span>

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
 	assignModalKeys,
 	isTopmostModal,
+	keyPausedAt,
 	registerOpenModal,
 	resolveModalKeydown,
 	ENTER_KEY,
@@ -191,5 +192,41 @@ describe('stacked modals', () => {
 		expect(isTopmostModal(editor)).toBe(true);
 		closeEditor();
 		expect(isTopmostModal(editor)).toBe(false);
+	});
+});
+
+describe('chips that dim while typing', () => {
+	// Every chip's key, checked against whether pressing it on that target runs its action.
+	const keys = [ENTER_KEY, ESCAPE_KEY, 'B', DELETE_KEY];
+	const keyed = assignModalKeys([
+		action('cancel', 'Cancel'),
+		action('secondary', 'Back'),
+		action('danger', 'Delete'),
+		action('primary', 'Save')
+	]);
+	const fires = (key: string, target: EventTarget) => {
+		const event =
+			key === DELETE_KEY ? keydown('Delete', target, { metaKey: true }) : keydown(key, target);
+		return resolveModalKeydown(event, keyed).action !== null;
+	};
+
+	it('dims Enter and the letters in a textarea, where typing goes into the field', () => {
+		expect(keys.filter((k) => keyPausedAt(k, textarea))).toEqual([ENTER_KEY, 'B', DELETE_KEY]);
+	});
+
+	it('dims the letters but not Enter in a text input, which Enter submits from', () => {
+		expect(keys.filter((k) => keyPausedAt(k, textInput))).toEqual(['B', DELETE_KEY]);
+	});
+
+	it('dims nothing on a focused button', () => {
+		expect(keys.filter((k) => keyPausedAt(k, element('BUTTON')))).toEqual([]);
+	});
+
+	it('dims exactly the keys that do nothing on a field', () => {
+		for (const target of [textarea, textInput]) {
+			for (const key of keys.filter((k) => k !== ESCAPE_KEY)) {
+				expect(keyPausedAt(key, target)).toBe(!fires(key, target));
+			}
+		}
 	});
 });

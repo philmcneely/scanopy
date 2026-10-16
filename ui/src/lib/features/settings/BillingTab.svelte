@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import { CreditCard } from 'lucide-svelte';
-	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
-	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import ProgressTrack from '$lib/shared/components/data/ProgressTrack.svelte';
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
@@ -35,7 +33,6 @@
 		common_atLimit,
 		common_billingExtra,
 		common_billingUsage,
-		common_close,
 		common_hosts,
 		common_included,
 		common_sites,
@@ -95,12 +92,10 @@
 
 	let {
 		isOpen = false,
-		onClose,
-		dismissible = true
+		onClose
 	}: {
 		isOpen?: boolean;
 		onClose: () => void;
-		dismissible?: boolean;
 	} = $props();
 
 	// TanStack Query for organization
@@ -603,11 +598,6 @@
 			// The mutation toasts the failure.
 		}
 	}
-
-	let actions = $derived<ModalAction[]>(
-		dismissible ? [{ role: 'cancel', label: common_close(), onClick: onClose }] : []
-	);
-	useModalActions(() => actions);
 </script>
 
 {#snippet usageRow(label: string, used: number, included: number, overageCents: number | null)}

@@ -514,6 +514,7 @@
 	"common_shortcuts": "Shortcuts",
 	"common_shortcutsPausedInSearch": "Shortcuts are off while you type in the search. Press Esc to leave it.",
 	"common_shortcutsPausedWhileTyping": "This shortcut is off while you type in a field.",
+	"common_shortcutWhileTyping": "Press {shortcut} while typing in this field.",
 	"common_showFalse": "Show False",
 	"common_showTrue": "Show True",
 	"common_showingRange": "{start}-{end} of {total} {itemLabel}",
