@@ -252,7 +252,11 @@
 				onBulk: (ids) => bulkRetryConnectionMutation.mutateAsync(ids),
 				unavailable:
 					hiddenWhen(!serverPolled, daemons_notServerPolled(), daemons_notServerPolledBulk()) ??
-					hiddenWhen(daemon.is_unreachable !== true, daemons_reachable(), daemons_reachableBulk()) ??
+					hiddenWhen(
+						daemon.is_unreachable !== true,
+						daemons_reachable(),
+						daemons_reachableBulk()
+					) ??
 					disabledWhen(
 						retryConnectionMutation.isPending || bulkRetryConnectionMutation.isPending,
 						daemons_retryingConnection()

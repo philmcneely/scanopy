@@ -1369,6 +1369,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/daemons/bulk-retry-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry connection to unreachable daemons
+         * @description Resets the is_unreachable flag on each daemon, as `POST /{id}/retry-connection` does for one.
+         *     The poller contacts each again on its next cycle; one that is still down is marked
+         *     unreachable again, and its unreachable notification is sent again. The request is refused,
+         *     and nothing changes, if any daemon isn't a ServerPoll daemon.
+         */
+        post: operations["bulk_retry_daemon_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/daemons/email-install-command": {
         parameters: {
             query?: never;
@@ -1748,6 +1771,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/discovery/bulk-cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Discovery Sessions
+         * @description Cancels the running session of each discovery, given discovery IDs. Sessions still queued
+         *     are cancelled before running ones, so cancelling a running session never starts a queued one
+         *     that is also being cancelled. The request is refused, and nothing is cancelled, if any
+         *     discovery isn't running or its session is just starting on its daemon.
+         */
+        post: operations["bulk_cancel_sessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/discovery/bulk-delete": {
         parameters: {
             query?: never;
@@ -1759,6 +1805,51 @@ export interface paths {
         put?: never;
         /** Bulk delete discoveries */
         post: operations["bulk_delete_discoveries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/discovery/bulk-set-enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn Discovery Schedules On or Off
+         * @description Turns the schedule of each scheduled discovery on or off, and changes nothing else about
+         *     them. The request is refused, and nothing changes, if any discovery has no schedule or is
+         *     running.
+         */
+        post: operations["bulk_set_enabled"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/discovery/bulk-start-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Discovery Sessions
+         * @description Starts a session for each discovery, as `POST /start-session` does for one. Sessions start
+         *     in turn: on a daemon running several, the first is dispatched and the rest queue behind it.
+         *     The request is refused, and nothing starts, if any discovery is a past run, a rescan, or
+         *     already running.
+         */
+        post: operations["bulk_start_sessions"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1929,6 +2020,32 @@ export interface paths {
          *     an array of host IDs to delete. Fails if any host has an associated daemon.
          */
         post: operations["bulk_delete_hosts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hosts/bulk-rescan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rescan hosts
+         * @description Rescans several hosts at once. Hosts last found by the same daemon share one
+         *     rescan, which scans all of their addresses in one session; hosts found by
+         *     different daemons get one rescan per daemon. Every host is checked as in
+         *     `POST /{id}/rescan` before any rescan starts, and the request is refused if
+         *     any of them can't be rescanned.
+         *
+         *     Returns one session per daemon.
+         */
+        post: operations["bulk_rescan_hosts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2239,6 +2356,27 @@ export interface paths {
         put?: never;
         /** Create invite */
         post: operations["create_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/bulk-revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke invites
+         * @description Revokes each invite, as `DELETE /{id}/revoke` does for one. The request is refused, and
+         *     nothing is revoked, if any invite is invalid or one the caller can't revoke.
+         */
+        post: operations["bulk_revoke_invites"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3999,19 +4137,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-16T13:48:41.861425Z",
+             *       "created_at": "2026-10-16T15:28:34.404573Z",
              *       "first_discovery_id": null,
-             *       "id": "29a0de0d-1ca9-4a54-9b5f-acbc4123b96e",
+             *       "id": "317a5657-7b15-4c25-9ccf-4ea9776eff4a",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-16T13:48:41.861425Z",
+             *       "last_seen_at": "2026-10-16T15:28:34.404573Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-16T13:48:41.861425Z",
-             *       "valid_from": "2026-10-16T13:48:41.861425Z",
+             *       "updated_at": "2026-10-16T15:28:34.404573Z",
+             *       "valid_from": "2026-10-16T15:28:34.404573Z",
              *       "valid_to": null
              *     }
              */
@@ -4886,19 +5024,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-16T13:48:41.829728Z",
+             *               "created_at": "2026-10-16T15:28:34.370916Z",
              *               "first_discovery_id": null,
-             *               "id": "625b7b6a-1d74-4720-9d43-59581eda4a98",
+             *               "id": "98bc6c71-82ae-42df-b6c9-a2e6085adf68",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-16T13:48:41.829728Z",
+             *               "last_seen_at": "2026-10-16T15:28:34.370916Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-16T13:48:41.829728Z",
-             *               "valid_from": "2026-10-16T13:48:41.829728Z",
+             *               "updated_at": "2026-10-16T15:28:34.370916Z",
+             *               "valid_from": "2026-10-16T15:28:34.370916Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -4911,7 +5049,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "CUPS",
+             *           "service_definition": "Overseerr",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -5896,19 +6034,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-16T13:48:41.855399Z",
+             *           "created_at": "2026-10-16T15:28:34.398948Z",
              *           "first_discovery_id": null,
-             *           "id": "de022ced-1605-435d-889a-69429b0e7e50",
+             *           "id": "73e2bef5-0f27-443d-9b46-488c6d4cb713",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-16T13:48:41.855399Z",
+             *           "last_seen_at": "2026-10-16T15:28:34.398948Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-16T13:48:41.855399Z",
-             *           "valid_from": "2026-10-16T13:48:41.855399Z",
+             *           "updated_at": "2026-10-16T15:28:34.398948Z",
+             *           "valid_from": "2026-10-16T15:28:34.398948Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -5921,7 +6059,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "CUPS",
+             *       "service_definition": "Overseerr",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -6886,6 +7024,64 @@ export interface components {
          * @description Envelope for a successful response. Failures are sent with a non-2xx status
          *     and an `ApiErrorResponse` body instead.
          */
+        ApiResponse_Vec_Discovery: {
+            /** @description The result payload. Omitted on failure. */
+            data?: (components["schemas"]["DiscoveryBase"] & {
+                /**
+                 * Format: date-time
+                 * @description When this record was first created.
+                 */
+                readonly created_at: string;
+                /** @description When true, the next scan will be a full port scan regardless of interval */
+                force_full_scan?: boolean;
+                /**
+                 * Format: uuid
+                 * @description Server-assigned unique identifier.
+                 */
+                readonly id: string;
+                /**
+                 * @description Per-daemon integration targeting: which integrations run on this daemon, and on which
+                 *     IPs. Delivered via the init command at registration and editable via the discovery
+                 *     modal. This is the single home for cred↔IP targeting; it replaces the global
+                 *     `credential.target_ips` (race-prone, consumed once).
+                 *
+                 *     One-shot: a target is offered to the daemon until a scan completes successfully, then
+                 *     dropped by [`Discovery::apply_successful_scan`]. Credentials that earned a durable home
+                 *     during the scan keep being retried from there — `host_credentials` for one that probed
+                 *     successfully, `site_credentials` for a broadcast one (see
+                 *     [`Discovery::take_site_scope_credential_ids`]).
+                 */
+                integration_targets: components["schemas"]["IntegrationTarget"][];
+                /**
+                 * @description Whether the next run of this discovery will be a full scan of all 65,535 ports rather than
+                 *     a light scan of common ports. Computed by the server on read and never stored.
+                 */
+                readonly next_run_is_full_scan?: boolean;
+                /**
+                 * Format: int32
+                 * @description Number of completed scans (incremented by server on session completion)
+                 */
+                readonly scan_count?: number;
+                /**
+                 * Format: date-time
+                 * @description When this record was last modified.
+                 */
+                readonly updated_at: string;
+            })[];
+            /**
+             * @description Not sent on a successful response. Failure messages arrive in an
+             *     `ApiErrorResponse`.
+             */
+            error?: string | null;
+            /** @description API and server version metadata. */
+            meta: components["schemas"]["ApiMeta"];
+            /** @description Always `true` on a successful response. */
+            success: boolean;
+        };
+        /**
+         * @description Envelope for a successful response. Failures are sent with a non-2xx status
+         *     and an `ApiErrorResponse` body instead.
+         */
         ApiResponse_Vec_DiscoveryUpdatePayload: {
             /** @description The result payload. Omitted on failure. */
             data?: {
@@ -7299,19 +7495,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-16T13:48:41.830443Z",
+         *       "created_at": "2026-10-16T15:28:34.371634Z",
          *       "first_discovery_id": null,
-         *       "id": "f5b2fcb8-76dc-4065-bb0a-5ba26fe3798b",
+         *       "id": "68d95e17-5be5-4702-b2de-4beca01946dd",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-16T13:48:41.830443Z",
+         *       "last_seen_at": "2026-10-16T15:28:34.371634Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-16T13:48:41.830443Z",
-         *       "valid_from": "2026-10-16T13:48:41.830443Z",
+         *       "updated_at": "2026-10-16T15:28:34.371634Z",
+         *       "valid_from": "2026-10-16T15:28:34.371634Z",
          *       "valid_to": null
          *     }
          */
@@ -7454,6 +7650,12 @@ export interface components {
             /** @description How many IDs the request asked to delete. */
             requested_count: number;
         };
+        BulkSetEnabledRequest: {
+            /** @description Whether their schedules run. */
+            enabled: boolean;
+            /** @description IDs of the scheduled discoveries. */
+            ids: string[];
+        };
         /** @description Request body for bulk tag operations */
         BulkTagRequest: {
             /** @description The IDs of entities to modify */
@@ -7586,9 +7788,14 @@ export interface components {
         ContainerType: "Subnet" | "ServiceCategory" | "Application" | "ApplicationUngrouped" | "Root" | "Host" | "NestedTag" | "NestedServiceCategory" | "Hypervisor" | "ContainerRuntime" | "Stack" | "TrunkPort" | "VLAN" | "PortOpStatus";
         /** @description The ports of one protocol a scan covered at one address. */
         CoveredPorts: {
-            /** @example 192.168.1.10 */
+            /**
+             * @description The address the ports were probed at.
+             * @example 192.168.1.10
+             */
             ip_address: string;
+            /** @description The transport the probes used. */
             protocol: components["schemas"]["TransportProtocol"];
+            /** @description The covered ports, as inclusive runs. */
             ranges: components["schemas"]["PortRange"][];
         };
         /**
@@ -7664,7 +7871,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "CUPS",
+         *           "service_definition": "Overseerr",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -8795,15 +9002,7 @@ export interface components {
             /** @description IP addresses observed on the host. */
             ip_addresses: components["schemas"]["IPAddress"][];
             /**
-             * @description Whether any interface in this submission arrived in a wire shape a current daemon no
-             *     longer produces — today, the pre-#701 scalar LLDP/CDP fields (see
-             *     [`DiscoveryInterface`](crate::server::interfaces::r#impl::wire::DiscoveryInterface)).
-             *
-             *     Set by the deserializer, never by a daemon: it is `skip`ped on the wire in both
-             *     directions and exists only to carry the observation from the boundary, where the raw
-             *     shape is visible, to the discovery session, where a warning can be attached. Read once,
-             *     in the discovery handlers, then discarded.
-             *     Every (address, protocol, port) this scan probed and got a definite answer from. A stored
+             * @description Every (address, protocol, port) this scan probed and got a definite answer from. A stored
              *     port binding can change hands only where the scan covered it. Daemons predating this field
              *     omit it, and empty coverage moves nothing.
              */
@@ -8876,23 +9075,24 @@ export interface components {
             /**
              * Format: uuid
              * @description ID of the host that the daemon is running on — same meaning as every
-             *     other variant. The host being rescanned is `target_host_id`.
+             *     other variant. The hosts being rescanned are `target_host_ids`.
              */
             host_id: string;
-            /** @description Addresses to scan on that host. */
+            /** @description Addresses to scan on those hosts. */
             ips: string[];
             /**
-             * @description Ports already known on that host, re-checked to confirm they are
-             *     still open. Scanned in addition to the standard discovery set, so a
-             *     rescan also surfaces newly-opened services.
+             * @description Ports already known on those hosts, re-checked on every address to
+             *     confirm they are still open. Scanned in addition to the standard
+             *     discovery set, so a rescan also surfaces newly-opened services.
              */
             ports?: components["schemas"]["PortType"][];
             settings?: components["schemas"]["RescanSettings"];
             /**
-             * Format: uuid
-             * @description The host being rescanned.
+             * @description The hosts being rescanned. Reads the single `target_host_id` that
+             *     rescans stored before multi-host rescans carry, and that older
+             *     daemons echo back, as a list of one.
              */
-            target_host_id: string;
+            target_host_ids: string[];
             /** @enum {string} */
             type: "Rescan";
         } | {
@@ -10488,19 +10688,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-16T13:48:41.828894Z",
+         *               "created_at": "2026-10-16T15:28:34.370092Z",
          *               "first_discovery_id": null,
-         *               "id": "ee407db3-53ae-4130-b5b0-1cd77c01e249",
+         *               "id": "7abc5b45-5908-416a-82f2-b0fba3d73837",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-16T13:48:41.828894Z",
+         *               "last_seen_at": "2026-10-16T15:28:34.370092Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-16T13:48:41.828894Z",
-         *               "valid_from": "2026-10-16T13:48:41.828894Z",
+         *               "updated_at": "2026-10-16T15:28:34.370092Z",
+         *               "valid_from": "2026-10-16T15:28:34.370092Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10513,7 +10713,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "CUPS",
+         *           "service_definition": "Overseerr",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -13280,9 +13480,15 @@ export interface components {
         };
         /** @description An inclusive run of port numbers. */
         PortRange: {
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Last port in the run, inclusive.
+             */
             end: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description First port in the run.
+             */
             start: number;
         };
         /** @description Port type with number, protocol, and optional type identifier */
@@ -14018,19 +14224,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-16T13:48:41.830213Z",
+         *           "created_at": "2026-10-16T15:28:34.371383Z",
          *           "first_discovery_id": null,
-         *           "id": "98b48c0f-be32-481a-83aa-b9a2ff03989c",
+         *           "id": "3621ec6c-6bce-4cb9-9828-fe8330819e56",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-16T13:48:41.830213Z",
+         *           "last_seen_at": "2026-10-16T15:28:34.371383Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-16T13:48:41.830213Z",
-         *           "valid_from": "2026-10-16T13:48:41.830213Z",
+         *           "updated_at": "2026-10-16T15:28:34.371383Z",
+         *           "valid_from": "2026-10-16T15:28:34.371383Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14043,7 +14249,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "CUPS",
+         *       "service_definition": "Overseerr",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15145,7 +15351,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "fcf95db0-af1e-4346-a564-9802c9f1a4f0",
+             *           "id": "f8dfcbb8-9630-4156-93e9-90abd1001a77",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15155,23 +15361,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "7b7fba71-8e4d-454a-ac4a-27c42302d54b",
+             *           "id": "9bcc3ed3-69f0-4cf3-a59d-5a4d7bee0b2b",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "5e96267c-5ac5-4315-b330-ab378ede8bb4",
+             *           "id": "16a61e80-09fa-4f2b-939e-1485021848a2",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "afa9a80d-2f76-4c0e-affb-9cf1f531b82b",
+             *           "id": "928ab88a-446c-43f2-8ce5-dee5fee6c868",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "7b7fba71-8e4d-454a-ac4a-27c42302d54b",
+             *           "id": "9bcc3ed3-69f0-4cf3-a59d-5a4d7bee0b2b",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15185,19 +15391,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "cc0ead7d-f62c-4131-addd-109eb204b5e6",
+             *         "id": "06a1cd1b-c4c2-408e-8dfe-c4963b76df24",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "dadf91ca-59da-46de-ae25-6b15db7a312c",
+             *         "id": "4bca63a2-3074-4067-a397-e492ea05ba8f",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "4dbafc4b-cd7c-45fb-830d-3727e2b8b71b",
+             *         "id": "be4e3490-07ea-4809-adbe-4333f2b7269a",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "a0d7e512-4855-432a-8143-4afd0af027cf",
+             *         "id": "13b0fe4b-2b0f-441a-96fc-d45285ef4d45",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15218,7 +15424,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "a408a6ff-63ca-4498-8d9d-eae945796ebd",
+             *         "id": "ef037629-88a3-4c70-8f0a-81fb8d50841a",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15227,15 +15433,15 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "835fe683-6a85-4aa2-90ef-c49534943e73",
+             *         "id": "e0878cb3-b301-403d-8786-f49eb94dabe4",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "356d6531-eb70-4eff-a65e-e8865f5cae4c",
+             *         "id": "6fd60f1f-3ca5-4826-9d58-b7d0d4270e1c",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "7ef58ce5-0fef-4818-b0b4-9435f56aab53",
+             *         "id": "c861684f-1f12-4952-bc83-e538c02bd547",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -19112,6 +19318,58 @@ export interface operations {
             };
         };
     };
+    bulk_retry_daemon_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description IDs of the daemons to retry */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Connection retries initiated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            /** @description A daemon isn't a ServerPoll daemon; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A daemon was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     email_install_command: {
         parameters: {
             query?: never;
@@ -20051,6 +20309,58 @@ export interface operations {
             };
         };
     };
+    bulk_cancel_sessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description IDs of the discoveries whose sessions to cancel */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Sessions cancelled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            /** @description A discovery isn't running; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A discovery was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A session is starting on its daemon */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     bulk_delete_discoveries: {
         parameters: {
             query?: never;
@@ -20075,6 +20385,109 @@ export interface operations {
                 };
             };
             /** @description discovery has active session */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_set_enabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkSetEnabledRequest"];
+            };
+        };
+        responses: {
+            /** @description Schedules updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_Discovery"];
+                };
+            };
+            /** @description A discovery has no schedule; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A discovery was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A discovery is running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_start_sessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description IDs of the discoveries to start */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Sessions started, in the order given */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_DiscoveryUpdatePayload"];
+                };
+            };
+            /** @description A discovery can't be started; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A discovery was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A discovery is already running */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -20652,6 +21065,49 @@ export interface operations {
             };
         };
     };
+    bulk_rescan_hosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description IDs of the hosts to rescan */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Rescan sessions started, one per daemon */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_DiscoveryUpdatePayload"];
+                };
+            };
+            /** @description A host cannot be rescanned; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A host was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     create_host_discovery: {
         parameters: {
             query?: never;
@@ -21215,7 +21671,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse_DiscoveryUpdatePayload"];
                 };
             };
-            /** @description Host cannot be rescanned (never scanned, daemon gone, daemon unreachable, or daemon too old) */
+            /** @description Host cannot be rescanned (never scanned, daemon gone, or daemon too old) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -21576,6 +22032,49 @@ export interface operations {
                 };
             };
             /** @description Cannot create invite with higher permissions */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_revoke_invites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description IDs of the invites to revoke */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Invites revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            /** @description An invite is invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description An invite can't be revoked by the caller */
             403: {
                 headers: {
                     [name: string]: unknown;

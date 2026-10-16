@@ -50,7 +50,11 @@ describe('assignActionKeys', () => {
 describe('assignActionKeys with a preferred shortcut', () => {
 	it('gives an action its preferred key ahead of an earlier label that would take it', () => {
 		expect(
-			keys([action('Consolidate'), action('Disable', { shortcut: 'O' }), action('Delete', { isDelete: true })])
+			keys([
+				action('Consolidate'),
+				action('Disable', { shortcut: 'O' }),
+				action('Delete', { isDelete: true })
+			])
 		).toEqual(['N', 'O', DELETE_KEY]);
 	});
 });
@@ -73,7 +77,9 @@ describe('selectionActions', () => {
 	const labels = (actions: CardAction[]) => actions.map((a) => a.label);
 
 	it('shows one row’s actions as the row does, bulk ones running on the selection', () => {
-		const [edit, remove] = run([[action('Resolve', { unavailable: settled }), action('Edit'), del()]]);
+		const [edit, remove] = run([
+			[action('Resolve', { unavailable: settled }), action('Edit'), del()]
+		]);
 		expect(edit.label).toBe('Edit');
 		expect(remove).toMatchObject({ label: 'Delete', tone: 'danger' });
 		expect(remove.unavailable).toBeUndefined();
@@ -98,7 +104,14 @@ describe('selectionActions', () => {
 
 	it('leaves out an action no selected row shows', () => {
 		const hiddenEverywhere = action('Resolve', { unavailable: settled });
-		expect(labels(run([[hiddenEverywhere, del()], [hiddenEverywhere, del()]]))).toEqual(['Delete']);
+		expect(
+			labels(
+				run([
+					[hiddenEverywhere, del()],
+					[hiddenEverywhere, del()]
+				])
+			)
+		).toEqual(['Delete']);
 	});
 
 	it('blocks a bulk action with the first blocking row’s selection wording', () => {
@@ -108,9 +121,15 @@ describe('selectionActions', () => {
 		const cancel = action('Cancel', { onBulk: bulk });
 		const hiddenCancel = action('Cancel', {
 			onBulk: bulk,
-			unavailable: { state: 'hidden', reason: 'Not running', bulkReason: 'A selected one isn’t running' }
+			unavailable: {
+				state: 'hidden',
+				reason: 'Not running',
+				bulkReason: 'A selected one isn’t running'
+			}
 		});
-		expect(run([[cancel], [hiddenCancel]])[0].unavailable?.reason).toBe('A selected one isn’t running');
+		expect(run([[cancel], [hiddenCancel]])[0].unavailable?.reason).toBe(
+			'A selected one isn’t running'
+		);
 		const rescanOnOne = run([[rescan()], [action('Edit')]]).find((a) => a.label === 'Rescan');
 		expect(rescanOnOne?.unavailable?.reason).toBe('missing');
 	});

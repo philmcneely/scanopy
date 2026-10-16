@@ -143,7 +143,14 @@ async fn rescan(
         validate_read_access(Some(host.base.site_id), None, &site_ids, organization_id)?;
         let (name, target) = rescan_target(state, &host).await?;
         match target {
-            Ok((daemon, ips)) => targets.push((RescanHost { id: host.id, name, ips }, daemon)),
+            Ok((daemon, ips)) => targets.push((
+                RescanHost {
+                    id: host.id,
+                    name,
+                    ips,
+                },
+                daemon,
+            )),
             // Several hosts: name the one refused, since the message says "this host".
             Err(reason) if several => {
                 return Err(ApiError::bad_request(&format!(
@@ -301,7 +308,10 @@ async fn rescan_target(
         .display_name(&ip_addresses)
         .unwrap_or_else(|| "unnamed host".to_string());
     if ip_addresses.is_empty() {
-        return Ok((name, Err("This host has no IP addresses to scan.".to_string())));
+        return Ok((
+            name,
+            Err("This host has no IP addresses to scan.".to_string()),
+        ));
     }
 
     let daemon = match resolve_rescan_daemon(state, host).await? {
