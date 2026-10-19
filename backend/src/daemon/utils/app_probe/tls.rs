@@ -214,6 +214,7 @@ mod tests {
             is_gateway: false,
             cancel: tokio_util::sync::CancellationToken::new(),
             scan_controller: ScanConcurrencyController::new(4),
+            probe_raw_socket_ports: true,
         };
         let handshake = capture_certificate(&ctx, PortType::new_tcp(port)).await;
         let subject = handshake

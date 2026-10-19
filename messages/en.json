@@ -2385,7 +2385,7 @@
 	"meta_scan_settings_port_scan_batch_size_helpText": "Ports scanned concurrently per host. Range: 16-1000.",
 	"meta_scan_settings_port_scan_batch_size_label": "Port Scan Batch Size",
 	"meta_scan_settings_port_scan_batch_size_placeholder": "200",
-	"meta_scan_settings_probe_raw_socket_ports_helpText": "Scan ports 9100-9107. May cause ghost printing on some printers.",
+	"meta_scan_settings_probe_raw_socket_ports_helpText": "Send application and HTTP probes to ports 9100-9107. Printers print what they receive on these ports, so some print a stray page on every scan.",
 	"meta_scan_settings_probe_raw_socket_ports_label": "Probe Raw Socket Ports",
 	"meta_scan_settings_scan_rate_pps_helpText": "Probes per second during port scanning. Lower values reduce network impact.",
 	"meta_scan_settings_scan_rate_pps_label": "Port Scan Rate",

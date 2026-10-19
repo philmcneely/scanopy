@@ -311,7 +311,10 @@ impl ScanSettings {
                 placeholder_by: None,
                 secret: false,
                 optional: false,
-                help_text: Some("Scan ports 9100-9107. May cause ghost printing on some printers."),
+                help_text: Some(
+                    "Send application and HTTP probes to ports 9100-9107. Printers print what \
+                     they receive on these ports, so some print a stray page on every scan.",
+                ),
                 options: None,
                 default_value: Some("false"),
                 inline_format: None,

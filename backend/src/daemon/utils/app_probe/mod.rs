@@ -107,6 +107,9 @@ pub struct ProbeContext {
     /// A raw-byte probe opens its own socket per target, so it is in the same position as
     /// `scan_tcp_ports`, which is the one stage that does feed it today.
     pub scan_controller: Arc<ScanConcurrencyController>,
+    /// The scan's `probe_raw_socket_ports`. Off, no probe on 9100-9107 runs: a raw print port
+    /// prints whatever it receives, and Bacula's greeting on 9101 came out of a Kyocera (GH #801).
+    pub probe_raw_socket_ports: bool,
 }
 
 impl ProbeContext {
@@ -418,21 +421,28 @@ pub fn all_app_probes() -> Vec<Box<dyn AppProbe>> {
         .collect()
 }
 
-/// Run every applicable probe against one address.
+/// The probes [`scan_app_probes`] runs against one address. Every probe passes through here, so
+/// the raw-socket gate covers each one, TCP or UDP, without the probe having to know about it.
 ///
 /// TCP probes gate on the connect scan having found the port open; UDP has no connect scan to gate
 /// on, so its probes always run — which is what `scan_udp_ports` did for the same four probes.
+fn select_probes(ctx: &ProbeContext, open_ports: &[PortType]) -> Vec<Box<dyn AppProbe>> {
+    all_app_probes()
+        .into_iter()
+        .filter(|p| ctx.probe_raw_socket_ports || !p.port().is_raw_socket())
+        .filter(|p| p.applies(ctx))
+        .filter(|p| p.port().is_udp() || open_ports.contains(&p.port()))
+        .collect()
+}
+
+/// Run every applicable probe against one address.
 pub async fn scan_app_probes(
     ctx: &ProbeContext,
     open_ports: &[PortType],
     batch_size: usize,
     scan_rate_pps: u32,
 ) -> Vec<AppProbeResult> {
-    let probes: Vec<Box<dyn AppProbe>> = all_app_probes()
-        .into_iter()
-        .filter(|p| p.applies(ctx))
-        .filter(|p| p.port().is_udp() || open_ports.contains(&p.port()))
-        .collect();
+    let probes = select_probes(ctx, open_ports);
 
     if probes.is_empty() {
         return Vec::new();
@@ -514,6 +524,54 @@ mod tests {
             ports.len(),
             "two probes claiming one port would race for the same evidence slot"
         );
+    }
+
+    /// A gateway address with every registered probe's port open, so nothing but the raw-socket
+    /// gate stands between a probe and selection.
+    fn selection_for(probe_raw_socket_ports: bool) -> Vec<Box<dyn AppProbe>> {
+        let ctx = ProbeContext {
+            ip: IpAddr::V4(std::net::Ipv4Addr::new(192, 168, 1, 1)),
+            subnet_cidr: "192.168.1.0/24".parse().unwrap(),
+            is_gateway: true,
+            cancel: CancellationToken::new(),
+            scan_controller: ScanConcurrencyController::new(16),
+            probe_raw_socket_ports,
+        };
+        let open_ports: Vec<PortType> = all_app_probes().iter().map(|p| p.port()).collect();
+        select_probes(&ctx, &open_ports)
+    }
+
+    /// GH #801: with the setting off, nothing past a connect may reach 9100-9107. Derived from the
+    /// registry, so a probe added on any raw-socket port fails here without this test changing.
+    #[test]
+    fn raw_socket_probes_do_not_run_with_the_setting_off() {
+        let offending: Vec<u16> = selection_for(false)
+            .iter()
+            .map(|p| p.port())
+            .filter(PortType::is_raw_socket)
+            .map(|p| p.number())
+            .collect();
+        assert!(
+            offending.is_empty(),
+            "probes selected on raw-socket ports with probe_raw_socket_ports off: {offending:?}"
+        );
+    }
+
+    #[test]
+    fn raw_socket_probes_run_with_the_setting_on() {
+        let raw_socket_ports = |probes: &[Box<dyn AppProbe>]| -> Vec<PortType> {
+            probes
+                .iter()
+                .map(|p| p.port())
+                .filter(PortType::is_raw_socket)
+                .collect()
+        };
+        let registered = raw_socket_ports(&all_app_probes());
+        assert!(
+            !registered.is_empty(),
+            "no registered probe targets a raw-socket port, so the gate is untested"
+        );
+        assert_eq!(raw_socket_ports(&selection_for(true)), registered);
     }
 
     /// Devices routinely pad a fixed-width identity field with spaces or return it empty, and an

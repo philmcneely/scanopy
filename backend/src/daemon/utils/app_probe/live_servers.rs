@@ -36,6 +36,7 @@ fn context() -> ProbeContext {
         is_gateway: false,
         cancel: CancellationToken::new(),
         scan_controller: ScanConcurrencyController::new(16),
+        probe_raw_socket_ports: true,
     }
 }
 
