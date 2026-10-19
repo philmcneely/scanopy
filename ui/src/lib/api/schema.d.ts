@@ -7778,6 +7778,8 @@ export interface components {
             container_name?: string | null;
             /** @description The network driver that gives the container its own LAN address. */
             network_type: components["schemas"]["ContainerNetworkType"];
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         /**
          * @description The container network drivers that put a container directly on the LAN.
@@ -8127,6 +8129,12 @@ export interface components {
              * @description Number of hosts it collected from.
              */
             hosts: number;
+            /**
+             * @description The hosts whose guests (containers, VMs, network identities) it listed in full,
+             *     stopped ones included. The server removes a guest of one of these hosts that the run
+             *     did not report. Daemons predating this field send none, which removes nothing.
+             */
+            hosts_with_guests_listed?: string[];
             /** @enum {string} */
             type: "Collected";
         } | {
@@ -9264,13 +9272,37 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "SnmpWalkBridgeMibAbsent";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            /** @description See [`DiscoveryWarning::SnmpWalkFailed`]. */
+            net_snmp_options: string | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkNoAnswer";
             group: components["schemas"]["SnmpWalkGroup"];
+        } | {
+            /** @description The device this group was read from. */
+            address: string;
+            cause: components["schemas"]["SnmpWalkCause"];
+            /** @enum {string} */
+            code: "SnmpWalkFailed";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with.
+             */
+            credential_id: string | null;
+            group: components["schemas"]["SnmpWalkGroup"];
+            /**
+             * @description The net-snmp options that authenticate as that credential, every secret a
+             *     `<placeholder>`, for the `snmpwalk` the UI offers to repeat the read with.
+             */
+            net_snmp_options: string | null;
         } | {
             /** @description The device that published the count. */
             address: string;
@@ -9379,6 +9411,19 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "SnmpCollectedNothing";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
+             * @description Each table whose read failed, and how. These are not reported again on their own.
+             *     Empty when every read ended normally; `None` from a daemon that predates the field,
+             *     which recorded only that nothing came back.
+             */
+            failures: components["schemas"]["SnmpWalkFailure"][] | null;
+            /** @description See [`DiscoveryWarning::SnmpWalkFailed`]. */
+            net_snmp_options: string | null;
         } | {
             /** @description The device whose VLANs could not be recorded. */
             address: string;
@@ -9688,6 +9733,8 @@ export interface components {
             container_id?: string | null;
             /** @description Container name as reported by Docker. */
             container_name?: string | null;
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         Edge: components["schemas"]["EdgeType"] & {
             /**
@@ -10299,6 +10346,12 @@ export interface components {
              */
             value?: string | null;
         };
+        /**
+         * @description A guest's run state. Stored rows from before the state was recorded read as `Running`: Docker
+         *     and Podman discovery listed running containers only, so every stored container was running.
+         * @enum {string}
+         */
+        GuestState: "Running" | "Paused" | "Restarting" | "Stopped";
         /** @description One step from an object to related objects. */
         Hop: {
             entity: components["schemas"]["EntityDiscriminants"];
@@ -12198,7 +12251,7 @@ export interface components {
          *     name for the raw value. Serializes to the fixture key.
          * @enum {string}
          */
-        MetadataFixture: "if_oper_statuses" | "subnet_types" | "entity_sources" | "dependency_types" | "discovery_types" | "service_definitions" | "discovery_protocols" | "permissions" | "credential_types";
+        MetadataFixture: "if_oper_statuses" | "guest_states" | "subnet_types" | "entity_sources" | "dependency_types" | "discovery_types" | "service_definitions" | "discovery_protocols" | "permissions" | "credential_types";
         /**
          * @description The Windows MSI install method. The MSI itself is a static release asset the UI links to; only
          *     the per-daemon pre-fill data is tenant-specific.
@@ -13367,6 +13420,8 @@ export interface components {
             container_id?: string | null;
             /** @description Container name as reported by Podman. */
             container_name?: string | null;
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         /**
          * @description Port entity with custom serialization that flattens PortType fields.
@@ -13625,6 +13680,8 @@ export interface components {
         ProxmoxGuestType: "Qemu" | "Lxc";
         ProxmoxVirtualization: {
             guest_type?: null | components["schemas"]["ProxmoxGuestType"];
+            /** @description Whether the guest was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
             /** @description Proxmox VMID of the guest. */
             vm_id?: string | null;
             /** @description Guest name as configured in Proxmox. */
@@ -14752,6 +14809,21 @@ export interface components {
             priv_protocol: components["schemas"]["SnmpV3PrivProtocol"];
             /** @enum {string} */
             security_level: "AuthPriv";
+        };
+        /**
+         * @description How a read that returned nothing ended, as the daemon observed it.
+         *
+         *     Each value is something the daemon saw on the wire, never an inference about the device: a
+         *     timeout is a request with no response, an error status is the status the device returned.
+         *     Collapsing these into one "stopped answering" told an operator whose device had answered every
+         *     request with `genErr` that it had gone silent.
+         * @enum {string}
+         */
+        SnmpWalkCause: "TimedOut" | "EmptyResponse" | "UnreadableResponse" | "TooBig" | "GenErr" | "NoAccess" | "AuthorizationError" | "OtherErrorStatus";
+        /** @description One group that returned nothing on a device, and how its read ended. */
+        SnmpWalkFailure: {
+            cause: components["schemas"]["SnmpWalkCause"];
+            group: components["schemas"]["SnmpWalkGroup"];
         };
         /**
          * @description An SNMP data group a walk may come up short on.
@@ -20911,6 +20983,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -21175,6 +21252,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -21287,6 +21369,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -21399,6 +21486,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -23313,6 +23405,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -23467,6 +23561,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -23563,6 +23659,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**

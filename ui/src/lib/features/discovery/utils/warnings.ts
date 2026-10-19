@@ -19,6 +19,7 @@ import claimSources from '$lib/data/claim-sources.json';
 import discoveryIntegrations from '$lib/data/discovery-integrations.json';
 import malformedNeighbourConsequences from '$lib/data/malformed-neighbour-consequences.json';
 import osFamilies from '$lib/data/os-families.json';
+import snmpWalkCauses from '$lib/data/snmp-walk-causes.json';
 import snmpWalkGroups from '$lib/data/snmp-walk-groups.json';
 import warningCodes from '$lib/data/warning-codes.json';
 import warningRemedies from '$lib/data/warning-remedies.json';
@@ -37,7 +38,10 @@ import {
 	discovery_warningAtAddress,
 	discovery_warningInferredFrom,
 	discovery_warningSeenBy,
-	discovery_warningNoPortId
+	discovery_warningNoPortId,
+	discovery_warningNoWalkFailed,
+	discovery_warningWalkFailures,
+	discovery_warningWalkFailuresUnrecorded
 } from '$lib/paraglide/messages';
 
 export type DiscoveryWarning = components['schemas']['DiscoveryWarning'];
@@ -188,6 +192,29 @@ function nameOf(fixture: { id: string; name: string | null }[], fixtureKey: stri
 }
 
 const group = (id: string) => nameOf(snmpWalkGroups, 'snmp_walk_groups', id);
+const cause = (id: string) => nameOf(snmpWalkCauses, 'snmp_walk_causes', id);
+
+/**
+ * How each failed read on a device ended, as one clause per cause naming the groups that ended
+ * that way. `null` is a daemon that recorded no causes; an empty list is a device whose every read
+ * ended normally on an empty table.
+ */
+function failuresOf(failures: components['schemas']['SnmpWalkFailure'][] | null): string {
+	if (failures === null) return discovery_warningWalkFailuresUnrecorded();
+	if (failures.length === 0) return discovery_warningNoWalkFailed();
+
+	const byCause = new Map<string, string[]>();
+	for (const failure of failures) {
+		const groups = byCause.get(failure.cause) ?? [];
+		groups.push(group(failure.group));
+		byCause.set(failure.cause, groups);
+	}
+	return [...byCause]
+		.map(([id, groups]) =>
+			discovery_warningWalkFailures({ groups: joinList(groups, 'conjunction'), cause: cause(id) })
+		)
+		.join(' ');
+}
 const claimSource = (id: string) => nameOf(claimSources, 'claim_sources', id);
 const consequence = (id: string) =>
 	nameOf(malformedNeighbourConsequences, 'malformed_neighbour_consequences', id);
@@ -242,6 +269,13 @@ const WARNING_PARAMS = {
 	SnmpWalkPartialRecorded: (w) => ({ addresses: addressesOf(w), groups: groupsOf(w) }),
 	SnmpWalkBridgeMibAbsent: (w) => ({ addresses: addressesOf(w), groups: groupsOf(w) }),
 	SnmpWalkNoAnswer: (w) => ({ addresses: addressesOf(w), groups: groupsOf(w) }),
+	// The cause identifies the statement: reads that timed out and reads answered with genErr
+	// are different sentences.
+	SnmpWalkFailed: (w) => ({
+		addresses: addressesOf(w),
+		groups: groupsOf(w),
+		cause: cause(w[0].cause)
+	}),
 
 	// The figures are the substance of a claim warning, so two switches disagreeing with themselves
 	// by different amounts do not share a sentence — the bucketing below keeps them apart, and
@@ -282,7 +316,11 @@ const WARNING_PARAMS = {
 	MalformedNeighboursUnexpectedType: malformedParams,
 	MalformedNeighboursUnreadableIndex: malformedParams,
 
-	SnmpCollectedNothing: (w) => ({ addresses: addressesOf(w) }),
+	// Devices whose reads ended the same way share a sentence; any difference splits them.
+	SnmpCollectedNothing: (w) => ({
+		addresses: addressesOf(w),
+		failures: failuresOf(w[0].failures)
+	}),
 	VlanRecordingFailed: (w) => ({ addresses: addressesOf(w) }),
 	// One per host, like the credential codes. The two integrations identify the statement, so hosts
 	// read by the same pair in the same order share a sentence and a different pair stays apart.

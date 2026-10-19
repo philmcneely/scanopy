@@ -79,6 +79,26 @@ mod tests {
         assert!(scan.fdb.records.is_empty());
     }
 
+    /// The restricted-view candidate for the silent-devices report, and it does not fit: every
+    /// read ends normally on a table the device does not serve, so there is no failed read to
+    /// name. The device still gets its one line, saying no read failed.
+    #[tokio::test]
+    async fn a_device_serving_only_its_system_group_reports_no_failed_read() {
+        use crate::daemon::discovery::types::warnings::DiscoveryWarning;
+
+        let warnings = harness::walk_warnings("switch-mute-01").await;
+        assert!(
+            matches!(
+                warnings.as_slice(),
+                [DiscoveryWarning::SnmpCollectedNothing {
+                    failures: Some(failures),
+                    ..
+                }] if failures.is_empty()
+            ),
+            "{warnings:?}"
+        );
+    }
+
     /// It still sets the datalink bit, so it claims to bridge while serving no bridge MIB. That
     /// contradiction is deliberate and is the lab's only standing one.
     #[tokio::test]

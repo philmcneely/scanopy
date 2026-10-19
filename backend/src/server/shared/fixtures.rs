@@ -3,7 +3,8 @@
 
 use crate::daemon::discovery::types::base::{DiscoveryPhase, DiscoveryTerminalReason};
 use crate::daemon::discovery::types::warnings::{
-    ClaimSource, DiscoveryWarningCode, MalformedNeighbourConsequence, SnmpWalkGroup, WarningRemedy,
+    ClaimSource, DiscoveryWarningCode, MalformedNeighbourConsequence, SnmpWalkCause, SnmpWalkGroup,
+    WarningRemedy,
 };
 use crate::server::billing::plans::get_website_fixture_plans;
 use crate::server::billing::types::base::{BillingPlan, CancelReason, PlanStatus, SaveOffer};
@@ -166,6 +167,10 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
     let snmp_walk_groups: Vec<TypeMetadata> =
         SnmpWalkGroup::iter().map(|g| g.to_metadata()).collect();
     write_fixture(&snmp_walk_groups, output_dir, "snmp-walk-groups.json");
+
+    let snmp_walk_causes: Vec<TypeMetadata> =
+        SnmpWalkCause::iter().map(|c| c.to_metadata()).collect();
+    write_fixture(&snmp_walk_causes, output_dir, "snmp-walk-causes.json");
 
     let claim_sources: Vec<TypeMetadata> = ClaimSource::iter().map(|c| c.to_metadata()).collect();
     write_fixture(&claim_sources, output_dir, "claim-sources.json");

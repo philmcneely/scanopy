@@ -37,7 +37,9 @@ use crate::server::credentials::r#impl::types::CredentialIntegration;
 pub use entity_ids::EntityIdSlots;
 pub use metadata::WarningRemedy;
 pub use summary::{RemedyCount, RunWarningSummary};
-pub use values::{ClaimSource, MalformedNeighbourConsequence, SnmpWalkGroup};
+pub use values::{
+    ClaimSource, MalformedNeighbourConsequence, SnmpWalkCause, SnmpWalkFailure, SnmpWalkGroup,
+};
 
 /// A single non-fatal finding from one discovery run, about one device, neighbour, or the scan
 /// itself.
@@ -115,21 +117,49 @@ pub enum DiscoveryWarning {
         address: IpAddr,
         group: SnmpWalkGroup,
     },
-    /// Nothing came back for the root of the bridge MIB, which switches commonly do not implement.
+    /// Every request for the root of the bridge MIB timed out, which is how switches that do not
+    /// implement it commonly answer.
     #[schema(title = "SnmpWalkBridgeMibAbsent")]
     SnmpWalkBridgeMibAbsent {
         /// The device this group was read from.
         #[schema(value_type = String)]
         address: IpAddr,
         group: SnmpWalkGroup,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
+        /// See [`DiscoveryWarning::SnmpWalkFailed`].
+        #[serde(default)]
+        #[schema(required)]
+        net_snmp_options: Option<String>,
     },
-    /// Nothing came back at all, and the device stopped answering rather than reporting empty.
+    /// The read returned nothing, and its cause was not recorded: a daemon from before causes were
+    /// carried, or a read that ended without a failed request.
     #[schema(title = "SnmpWalkNoAnswer")]
     SnmpWalkNoAnswer {
         /// The device this group was read from.
         #[schema(value_type = String)]
         address: IpAddr,
         group: SnmpWalkGroup,
+    },
+    /// The read returned nothing, and `cause` is how its last request ended.
+    #[schema(title = "SnmpWalkFailed")]
+    SnmpWalkFailed {
+        /// The device this group was read from.
+        #[schema(value_type = String)]
+        address: IpAddr,
+        group: SnmpWalkGroup,
+        cause: SnmpWalkCause,
+        /// The stored credential the device was read with.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
+        /// The net-snmp options that authenticate as that credential, every secret a
+        /// `<placeholder>`, for the `snmpwalk` the UI offers to repeat the read with.
+        #[serde(default)]
+        #[schema(required)]
+        net_snmp_options: Option<String>,
     },
 
     // ---- Contradicted claims ---------------------------------------------
@@ -237,6 +267,20 @@ pub enum DiscoveryWarning {
         /// The device that answered.
         #[schema(value_type = String)]
         address: IpAddr,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
+        /// See [`DiscoveryWarning::SnmpWalkFailed`].
+        #[serde(default)]
+        #[schema(required)]
+        net_snmp_options: Option<String>,
+        /// Each table whose read failed, and how. These are not reported again on their own.
+        /// Empty when every read ended normally; `None` from a daemon that predates the field,
+        /// which recorded only that nothing came back.
+        #[serde(default)]
+        #[schema(required)]
+        failures: Option<Vec<SnmpWalkFailure>>,
     },
     /// The device answered correctly and persisting its VLANs failed.
     #[schema(title = "VlanRecordingFailed")]
@@ -680,6 +724,7 @@ pub enum DiscoveryWarningCode {
     SnmpWalkPartialRecorded,
     SnmpWalkBridgeMibAbsent,
     SnmpWalkNoAnswer,
+    SnmpWalkFailed,
     ClaimedCountReadCutShort,
     ClaimedCountUnderRead,
     ClaimedCapabilityReadCutShort,
@@ -745,6 +790,7 @@ impl DiscoveryWarning {
             Self::SnmpWalkPartialRecorded { .. } => DiscoveryWarningCode::SnmpWalkPartialRecorded,
             Self::SnmpWalkBridgeMibAbsent { .. } => DiscoveryWarningCode::SnmpWalkBridgeMibAbsent,
             Self::SnmpWalkNoAnswer { .. } => DiscoveryWarningCode::SnmpWalkNoAnswer,
+            Self::SnmpWalkFailed { .. } => DiscoveryWarningCode::SnmpWalkFailed,
             Self::ClaimedCountReadCutShort { .. } => DiscoveryWarningCode::ClaimedCountReadCutShort,
             Self::ClaimedCountUnderRead { .. } => DiscoveryWarningCode::ClaimedCountUnderRead,
             Self::ClaimedCapabilityReadCutShort { .. } => {
@@ -843,6 +889,7 @@ impl DiscoveryWarning {
             | Self::SnmpWalkPartialRecorded { .. }
             | Self::SnmpWalkBridgeMibAbsent { .. }
             | Self::SnmpWalkNoAnswer { .. }
+            | Self::SnmpWalkFailed { .. }
             | Self::ClaimedCountReadCutShort { .. }
             | Self::ClaimedCountUnderRead { .. }
             | Self::ClaimedCapabilityReadCutShort { .. }
@@ -918,6 +965,10 @@ impl DiscoveryWarning {
             | Self::CredentialUnreachable(a)
             | Self::CredentialTimedOut(a) => a.credential_id,
 
+            Self::SnmpWalkBridgeMibAbsent { credential_id, .. }
+            | Self::SnmpWalkFailed { credential_id, .. }
+            | Self::SnmpCollectedNothing { credential_id, .. } => *credential_id,
+
             Self::InterfaceSetCutShort { .. }
             | Self::InterfaceDetailsCutShort { .. }
             | Self::SnmpWalkEntryCap { .. }
@@ -925,7 +976,6 @@ impl DiscoveryWarning {
             | Self::SnmpWalkDesynchronised { .. }
             | Self::SnmpWalkPartialDiscarded { .. }
             | Self::SnmpWalkPartialRecorded { .. }
-            | Self::SnmpWalkBridgeMibAbsent { .. }
             | Self::SnmpWalkNoAnswer { .. }
             | Self::ClaimedCountReadCutShort { .. }
             | Self::ClaimedCountUnderRead { .. }
@@ -939,7 +989,6 @@ impl DiscoveryWarning {
             | Self::MalformedNeighboursIncompleteRecords(_)
             | Self::MalformedNeighboursUnexpectedType(_)
             | Self::MalformedNeighboursUnreadableIndex(_)
-            | Self::SnmpCollectedNothing { .. }
             | Self::VlanRecordingFailed { .. }
             | Self::EqualReachIntegrationsMerged { .. }
             | Self::IntegrationWithoutCredential { .. }
@@ -1095,6 +1144,33 @@ mod tests {
     /// the rung it is filed under, its sentence and its action, and renders the row as raw JSON.
     /// That would hit every historical row *and* every warning from a daemon not yet on this
     /// release, since the warning is built daemon-side.
+    #[test]
+    fn a_walk_warning_from_before_causes_keeps_its_code_and_says_none_were_recorded() {
+        let warnings = warnings_of(serde_json::json!([
+            { "code": "SnmpCollectedNothing", "address": "10.91.16.1" },
+            { "code": "SnmpWalkBridgeMibAbsent", "address": "10.91.16.1", "group": "BridgePortNumbering" },
+            { "code": "SnmpWalkNoAnswer", "address": "10.91.16.1", "group": "Lldp" },
+        ]));
+
+        assert_eq!(
+            warnings.iter().map(|w| w.code()).collect::<Vec<_>>(),
+            vec![
+                DiscoveryWarningCode::SnmpCollectedNothing,
+                DiscoveryWarningCode::SnmpWalkBridgeMibAbsent,
+                DiscoveryWarningCode::SnmpWalkNoAnswer,
+            ],
+            "an old daemon's walk warnings keep their codes: {warnings:?}"
+        );
+        assert!(matches!(
+            warnings[0],
+            DiscoveryWarning::SnmpCollectedNothing {
+                failures: None,
+                credential_id: None,
+                ..
+            }
+        ));
+    }
+
     #[test]
     fn a_credential_warning_from_before_ids_keeps_its_code_and_carries_none() {
         let warnings = warnings_of(serde_json::json!([

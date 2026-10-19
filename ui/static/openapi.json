@@ -9794,6 +9794,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -10419,6 +10434,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -10811,6 +10841,21 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
+              }
+            }
+          },
+          {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -11216,6 +11261,21 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
+              }
+            }
+          },
+          {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -14739,6 +14799,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the container a service is, at the last scan. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "tag_ids",
             "in": "query",
             "description": "Filter by tag IDs (returns services that have ANY of the specified tags)",
@@ -15202,6 +15277,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the container a service is, at the last scan. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "tag_ids",
             "in": "query",
             "description": "Filter by tag IDs (returns services that have ANY of the specified tags)",
@@ -15578,6 +15668,21 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/MatchConfidence"
+              }
+            }
+          },
+          {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the container a service is, at the last scan. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -30184,6 +30289,10 @@
           "network_type": {
             "$ref": "#/components/schemas/ContainerNetworkType",
             "description": "The network driver that gives the container its own LAN address."
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the container was running at the last scan."
           }
         }
       },
@@ -30919,6 +31028,14 @@
                 "format": "int32",
                 "description": "Number of hosts it collected from.",
                 "minimum": 0
+              },
+              "hosts_with_guests_listed": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "The hosts whose guests (containers, VMs, network identities) it listed in full,\nstopped ones included. The server removes a guest of one of these hosts that the run\ndid not report. Daemons predating this field send none, which removes nothing."
               },
               "type": {
                 "type": "string",
@@ -33450,10 +33567,12 @@
           {
             "type": "object",
             "title": "SnmpWalkBridgeMibAbsent",
-            "description": "Nothing came back for the root of the bridge MIB, which switches commonly do not implement.",
+            "description": "Every request for the root of the bridge MIB timed out, which is how switches that do not\nimplement it commonly answer.",
             "required": [
               "address",
               "group",
+              "credential_id",
+              "net_snmp_options",
               "code"
             ],
             "properties": {
@@ -33467,15 +33586,30 @@
                   "SnmpWalkBridgeMibAbsent"
                 ]
               },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
+              },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
+              },
+              "net_snmp_options": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "See [`DiscoveryWarning::SnmpWalkFailed`]."
               }
             }
           },
           {
             "type": "object",
             "title": "SnmpWalkNoAnswer",
-            "description": "Nothing came back at all, and the device stopped answering rather than reporting empty.",
+            "description": "The read returned nothing, and its cause was not recorded: a daemon from before causes were\ncarried, or a read that ended without a failed request.",
             "required": [
               "address",
               "group",
@@ -33494,6 +33628,52 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "SnmpWalkFailed",
+            "description": "The read returned nothing, and `cause` is how its last request ended.",
+            "required": [
+              "address",
+              "group",
+              "cause",
+              "credential_id",
+              "net_snmp_options",
+              "code"
+            ],
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "The device this group was read from."
+              },
+              "cause": {
+                "$ref": "#/components/schemas/SnmpWalkCause"
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "SnmpWalkFailed"
+                ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with."
+              },
+              "group": {
+                "$ref": "#/components/schemas/SnmpWalkGroup"
+              },
+              "net_snmp_options": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The net-snmp options that authenticate as that credential, every secret a\n`<placeholder>`, for the `snmpwalk` the UI offers to repeat the read with."
               }
             }
           },
@@ -33860,6 +34040,9 @@
             "description": "SNMP answered and every table came back empty.",
             "required": [
               "address",
+              "credential_id",
+              "net_snmp_options",
+              "failures",
               "code"
             ],
             "properties": {
@@ -33872,6 +34055,31 @@
                 "enum": [
                   "SnmpCollectedNothing"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
+              },
+              "failures": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/SnmpWalkFailure"
+                },
+                "description": "Each table whose read failed, and how. These are not reported again on their own.\nEmpty when every read ended normally; `None` from a daemon that predates the field,\nwhich recorded only that nothing came back."
+              },
+              "net_snmp_options": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "See [`DiscoveryWarning::SnmpWalkFailed`]."
               }
             }
           },
@@ -34922,6 +35130,10 @@
               "null"
             ],
             "description": "Container name as reported by Docker."
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the container was running at the last scan."
           }
         }
       },
@@ -36440,6 +36652,16 @@
             "description": "The group's value, rendered as text. `null` for rows whose group key is\nNULL (the \"ungrouped\" bucket)."
           }
         }
+      },
+      "GuestState": {
+        "type": "string",
+        "description": "A guest's run state. Stored rows from before the state was recorded read as `Running`: Docker\nand Podman discovery listed running containers only, so every stored container was running.",
+        "enum": [
+          "Running",
+          "Paused",
+          "Restarting",
+          "Stopped"
+        ]
       },
       "Hop": {
         "oneOf": [
@@ -40310,6 +40532,7 @@
         "description": "A metadata fixture whose entries name an enum-valued field, so the UI shows the fixture's\nname for the raw value. Serializes to the fixture key.",
         "enum": [
           "if_oper_statuses",
+          "guest_states",
           "subnet_types",
           "entity_sources",
           "dependency_types",
@@ -42983,6 +43206,10 @@
               "null"
             ],
             "description": "Container name as reported by Podman."
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the container was running at the last scan."
           }
         }
       },
@@ -43447,6 +43674,10 @@
                 "description": "Whether the guest is a QEMU virtual machine or an LXC container. `None` when the guest was\nassigned by hand or recorded before the Proxmox integration reported it."
               }
             ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the guest was running at the last scan."
           },
           "vm_id": {
             "type": [
@@ -45835,6 +46066,36 @@
           }
         ],
         "description": "The security material of an SNMPv3 credential, by security level. A level carries exactly\nthe fields it uses, so a credential cannot hold a privacy password it never sends.\n\n`S` is the secret's representation: `SecretValue` where the credential is stored,\n`ResolvableSecret` on the server→daemon wire. Flattened into its parent, so the stored JSON\nkeeps the flat shape it had before levels existed."
+      },
+      "SnmpWalkCause": {
+        "type": "string",
+        "description": "How a read that returned nothing ended, as the daemon observed it.\n\nEach value is something the daemon saw on the wire, never an inference about the device: a\ntimeout is a request with no response, an error status is the status the device returned.\nCollapsing these into one \"stopped answering\" told an operator whose device had answered every\nrequest with `genErr` that it had gone silent.",
+        "enum": [
+          "TimedOut",
+          "EmptyResponse",
+          "UnreadableResponse",
+          "TooBig",
+          "GenErr",
+          "NoAccess",
+          "AuthorizationError",
+          "OtherErrorStatus"
+        ]
+      },
+      "SnmpWalkFailure": {
+        "type": "object",
+        "description": "One group that returned nothing on a device, and how its read ended.",
+        "required": [
+          "group",
+          "cause"
+        ],
+        "properties": {
+          "cause": {
+            "$ref": "#/components/schemas/SnmpWalkCause"
+          },
+          "group": {
+            "$ref": "#/components/schemas/SnmpWalkGroup"
+          }
+        }
       },
       "SnmpWalkGroup": {
         "type": "string",

@@ -32,6 +32,7 @@
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import InlineDanger from '$lib/shared/components/feedback/InlineDanger.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
+	import CodeContainer from '$lib/shared/components/data/CodeContainer.svelte';
 	import CollapsibleCard from '$lib/shared/components/data/CollapsibleCard.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
@@ -55,11 +56,13 @@
 		discovery_noWarningsBeforeStop,
 		discovery_noWarningsSubtitle,
 		discovery_scanSettings,
+		discovery_snmpCheckCommands,
 		subnets_resolveRange
 	} from '$lib/paraglide/messages';
 	import type { EntityDiscriminants } from '$lib/api/entities';
 	import type { DiscoveryUpdatePayload } from '../../types/api';
 	import { runOutcomeReason } from '../../utils/outcome';
+	import { snmpCheckCommands } from '../../utils/snmpCheck';
 	import {
 		buildWarningReport,
 		credentialIdsOf,
@@ -405,6 +408,7 @@
 							</div>
 
 							{#if isOpen}
+								{@const commands = [...new Set(entry.warnings.flatMap(snmpCheckCommands))]}
 								<div class="space-y-2 pb-1 pl-12 pt-1">
 									{#each entry.details as statement, i (i)}
 										<div class="space-y-1">
@@ -438,6 +442,18 @@
 											{#each entry.subjects as subject (subjectKey(subject))}
 												{@render entityChip(subject)}
 											{/each}
+										</div>
+									{/if}
+									<!-- A failed SNMP read, repeated by hand: the page size the daemon asked for,
+									     one row at a time, and GETNEXT. -->
+									{#if commands.length > 0}
+										<div class="space-y-1">
+											<p class="text-secondary text-xs">{discovery_snmpCheckCommands()}</p>
+											<CodeContainer
+												code={commands.join('\n')}
+												language="bash"
+												expandable={false}
+											/>
 										</div>
 									{/if}
 								</div>

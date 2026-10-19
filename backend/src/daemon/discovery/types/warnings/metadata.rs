@@ -157,8 +157,12 @@ impl DiscoveryWarningCode {
         match self {
             Self::InterfaceSetCutShort
             | Self::InterfaceDetailsCutShort
-            | Self::SnmpCollectedNothing
             | Self::VlanRecordingFailed => &["addresses"],
+
+            // `failures` renders as one clause per cause, naming the groups that ended that way.
+            Self::SnmpCollectedNothing => &["addresses", "failures"],
+
+            Self::SnmpWalkFailed => &["addresses", "groups", "cause"],
 
             // Shaped like the credential family: the integrations identify the statement and the
             // addresses aggregate, so hosts read by the same pair in the same order share a
@@ -284,6 +288,7 @@ impl DiscoveryWarningCode {
             | Self::SnmpWalkDesynchronised
             | Self::SnmpWalkPartialRecorded
             | Self::SnmpWalkNoAnswer
+            | Self::SnmpWalkFailed
             | Self::ClaimedCountReadCutShort
             | Self::ClaimedCountUnderRead
             | Self::ClaimedCapabilityReadCutShort
@@ -373,6 +378,11 @@ impl DiscoveryWarningCode {
             | Self::ClaimedCountUnderRead
             | Self::SnmpCollectedNothing => WarningRemedy::CheckTheDevice,
 
+            // Every request for the table failed the same way, with a cause the daemon saw: an
+            // error status the device returned, or silence on the path to it. A rescan repeats it
+            // until something on the device or the path changes.
+            Self::SnmpWalkFailed => WarningRemedy::CheckTheDevice,
+
             // A read that stopped early or a write that failed once. Their own sentences already
             // say the values held were kept.
             Self::InterfaceSetCutShort
@@ -448,7 +458,8 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
             Self::SnmpWalkPartialDiscarded => "Partial read discarded",
             Self::SnmpWalkPartialRecorded => "Partial read recorded",
             Self::SnmpWalkBridgeMibAbsent => "Bridge MIB not served",
-            Self::SnmpWalkNoAnswer => "No answer for a table",
+            Self::SnmpWalkNoAnswer => "Table read returned nothing",
+            Self::SnmpWalkFailed => "Table read failed",
             Self::ClaimedCountReadCutShort => "Claimed count, read cut short",
             Self::ClaimedCountUnderRead => "Fewer rows than the device claims",
             Self::ClaimedCapabilityReadCutShort => "Claimed capability, read cut short",
@@ -503,10 +514,10 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
     fn description(&self) -> &'static str {
         match self {
             Self::InterfaceSetCutShort => {
-                "{addresses} stopped responding partway through the SNMP interface list, so some interfaces are missing."
+                "The SNMP interface list read from {addresses} stopped partway, so some interfaces are missing."
             }
             Self::InterfaceDetailsCutShort => {
-                "{addresses} returned every SNMP interface but stopped while reading their details, so some descriptions or speeds may be blank."
+                "{addresses} returned every SNMP interface, but the read of their details stopped partway, so some descriptions or speeds may be blank."
             }
             Self::SnmpWalkEntryCap => {
                 "{addresses} has more {groups} than one scan reads — collection stops at {limit} entries per table, so the rest were not read. The data recorded is correct as far as it goes."
@@ -527,7 +538,10 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
                 "{addresses} did not answer for {groups}, which these switches commonly do not implement. Their MAC-address-table and VLAN membership cannot be read over SNMP; a UniFi controller integration reports the same data where one manages the device."
             }
             Self::SnmpWalkNoAnswer => {
-                "{addresses} returned no {groups} data at all — the device stopped answering rather than reporting that it has none. Previously discovered values were kept rather than overwritten and refresh on the next complete scan."
+                "{addresses} returned no {groups} data, and the read did not record how it ended. Previously discovered values were kept rather than overwritten and refresh on the next complete scan."
+            }
+            Self::SnmpWalkFailed => {
+                "The read of {groups} from {addresses} returned nothing: its last request {cause} after retries. Previously discovered values were kept rather than overwritten."
             }
             Self::ClaimedCountReadCutShort => {
                 "{addresses} reported {source} as {expected}, and the read ended at {observed} without finishing. That is how much of the table is missing — the incomplete-walk line for each device says why it ended. What was read is recorded."
@@ -566,7 +580,7 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
                 "{addresses} reported neighbour records without the identifier needed to match the far end ({discarded} in total), so {consequence}. Their position in the neighbour table could not be read, so they could not be tied to a local port. Rescanning will not change this."
             }
             Self::SnmpCollectedNothing => {
-                "{addresses} answered SNMP but returned no interfaces, neighbours, addresses or forwarding data at all. The credential is working, so this is either a device that implements nothing beyond its system description, or one whose tables could not be read — the daemon log records which for each table."
+                "{addresses} answered the SNMP probe but returned no interfaces, neighbours, addresses or forwarding data at all. {failures}"
             }
             Self::VlanRecordingFailed => {
                 "The VLANs reported by {addresses} could not be saved, so VLAN membership is missing from their interfaces. The devices answered correctly — this is a failure recording the result, and the daemon log has the underlying error."
@@ -741,6 +755,7 @@ impl DiscoveryWarningCode {
             | Self::SnmpWalkBridgeMibAbsent
             | Self::SnmpWalkDesynchronised
             | Self::SnmpWalkEntryCap
+            | Self::SnmpWalkFailed
             | Self::SnmpWalkNoAnswer
             | Self::SnmpWalkPartialDiscarded
             | Self::SnmpWalkPartialRecorded

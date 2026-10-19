@@ -106,6 +106,9 @@ fn warnings(f: &Fixture) -> Vec<DiscoveryWarning> {
         }),
         DiscoveryWarning::SnmpCollectedNothing {
             address: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 9)),
+            credential_id: None,
+            net_snmp_options: None,
+            failures: Some(Vec::new()),
         },
     ]
 }

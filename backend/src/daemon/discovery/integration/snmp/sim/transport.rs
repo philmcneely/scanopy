@@ -23,7 +23,8 @@ use anyhow::Result;
 
 use super::wire::{DataFile, Row};
 use crate::daemon::discovery::integration::snmp::queries::{
-    SNMP_ERR_NO_SUCH_NAME, SnmpWalkTransport, Varbinds, WalkPage, response_varbinds,
+    RequestTimedOut, SNMP_ERR_NO_SUCH_NAME, SnmpWalkTransport, Varbinds, WalkPage,
+    response_varbinds,
 };
 
 /// A device that answers a GETBULK above a repetition count with an error status instead of rows.
@@ -125,6 +126,11 @@ pub struct SimAgent {
     silent_on: Vec<Vec<u64>>,
     /// A GETBULK above this size is answered with an error status and the request echoed back.
     rejects_getbulk: Option<BulkRejection>,
+    /// Subtrees answered with an error status and the request echoed back, whatever the request
+    /// type. The same shim with its `--reject` list.
+    errors_on: Vec<Vec<u64>>,
+    /// The status those subtrees are answered with.
+    error_status: u32,
     /// Set once a walk has fallen back to getnext, and read by every walk after it.
     ///
     /// One `SimAgent` serves a whole collection, exactly as one session serves one host, so this
@@ -153,8 +159,24 @@ impl SimAgent {
             refuses_getbulk: Vec::new(),
             silent_on: Vec::new(),
             rejects_getbulk: None,
+            errors_on: Vec::new(),
+            error_status: 0,
             getbulk_unusable: false,
         }
+    }
+
+    /// An agent behind a shim that answers every request for these subtrees with `status`.
+    pub fn erroring_on(mut self, subtrees: Vec<Vec<u64>>, status: u32) -> Self {
+        self.errors_on = subtrees;
+        self.error_status = status;
+        self
+    }
+
+    fn errors(&self, from: &[u64]) -> Option<u32> {
+        self.errors_on
+            .iter()
+            .any(|prefix| from.starts_with(prefix))
+            .then_some(self.error_status)
     }
 
     /// An agent behind a shim that drops every request for these subtrees.
@@ -285,10 +307,13 @@ impl SnmpWalkTransport for SimAgent {
         max_repetitions: u32,
     ) -> Result<WalkPage<'a>> {
         if self.is_silent(from) {
-            return Err(anyhow::anyhow!("getbulk timed out"));
+            return Err(RequestTimedOut("getbulk").into());
         }
         if self.bulk_unsupported {
             return Ok(WalkPage::BulkUnsupported);
+        }
+        if let Some(status) = self.errors(from) {
+            return Ok(WalkPage::from_bulk_response(status, echo(from)));
         }
         // A refused bulk is a datagram the shim drops, so the client sees silence and times out.
         // That is an `Err` — the shape a real timeout takes — and deliberately neither an empty
@@ -300,7 +325,7 @@ impl SnmpWalkTransport for SimAgent {
             .iter()
             .any(|prefix| from.starts_with(prefix))
         {
-            return Err(anyhow::anyhow!("getbulk timed out"));
+            return Err(RequestTimedOut("getbulk").into());
         }
         if let Some(rejection) = self.rejects_getbulk
             && max_repetitions > rejection.above_repetitions
@@ -320,7 +345,10 @@ impl SnmpWalkTransport for SimAgent {
         // A silenced column answers nothing by getnext either, which is what separates it from a
         // refused getbulk.
         if self.is_silent(from) {
-            return Err(anyhow::anyhow!("getnext timed out"));
+            return Err(RequestTimedOut("getnext").into());
+        }
+        if let Some(status) = self.errors(from) {
+            return response_varbinds(from, status, echo(from));
         }
         let page = self.page(from, 1);
         // SNMPv1 has no `endOfMibView`. net-snmp answers a v1 client that walks off the end of

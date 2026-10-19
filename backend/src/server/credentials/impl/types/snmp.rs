@@ -432,6 +432,84 @@ impl std::fmt::Debug for SnmpQueryCredential {
     }
 }
 
+impl SnmpQueryCredential {
+    /// The net-snmp command-line options that authenticate as this credential, with each secret
+    /// left as a `<placeholder>`. What an operator pastes before an OID to repeat a read the
+    /// daemon made, so it carries the version, user, level, protocols and context the daemon used
+    /// and never the material.
+    pub fn net_snmp_options(&self) -> String {
+        match (&self.version, &self.v3) {
+            (SnmpVersion::V1, _) => "-v1 -c <community>".to_string(),
+            (SnmpVersion::V2c, _) => "-v2c -c <community>".to_string(),
+            (SnmpVersion::V3, None) => "-v3 -u <user>".to_string(),
+            (SnmpVersion::V3, Some(v3)) => {
+                let mut options = vec![
+                    "-v3".to_string(),
+                    format!("-u {}", shell_word(&v3.security_name)),
+                ];
+                match &v3.security {
+                    SnmpV3Security::NoAuthNoPriv => options.push("-l noAuthNoPriv".into()),
+                    SnmpV3Security::AuthNoPriv { auth_protocol, .. } => {
+                        options.push("-l authNoPriv".into());
+                        options.push(format!("-a {}", auth_protocol.net_snmp_name()));
+                        options.push("-A <auth-passphrase>".into());
+                    }
+                    SnmpV3Security::AuthPriv {
+                        auth_protocol,
+                        priv_protocol,
+                        ..
+                    } => {
+                        options.push("-l authPriv".into());
+                        options.push(format!("-a {}", auth_protocol.net_snmp_name()));
+                        options.push("-A <auth-passphrase>".into());
+                        options.push(format!("-x {}", priv_protocol.net_snmp_name()));
+                        options.push("-X <priv-passphrase>".into());
+                    }
+                }
+                if let Some(context) = v3.context_name.as_deref().filter(|c| !c.is_empty()) {
+                    options.push(format!("-n {}", shell_word(context)));
+                }
+                options.join(" ")
+            }
+        }
+    }
+}
+
+/// `value` as one shell word: bare when it is plainly safe, single-quoted otherwise.
+fn shell_word(value: &str) -> String {
+    if !value.is_empty()
+        && value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_.@".contains(c))
+    {
+        value.to_string()
+    } else {
+        format!("'{}'", value.replace('\'', r"'\''"))
+    }
+}
+
+impl SnmpV3AuthProtocol {
+    /// The name net-snmp's `-a` takes for this protocol.
+    pub fn net_snmp_name(&self) -> &'static str {
+        match self {
+            Self::Md5 => "MD5",
+            Self::Sha1 => "SHA",
+            Self::Sha256 => "SHA-256",
+        }
+    }
+}
+
+impl SnmpV3PrivProtocol {
+    /// The name net-snmp's `-x` takes for this protocol. The daemon extends AES-256 keys the
+    /// Blumenthal way, which is what net-snmp's `AES-256` does (`AES-256C` is the Reeder way).
+    pub fn net_snmp_name(&self) -> &'static str {
+        match self {
+            Self::Aes128 => "AES",
+            Self::Aes256 => "AES-256",
+        }
+    }
+}
+
 // ============================================================================
 // Banner / metadata
 // ============================================================================
@@ -589,6 +667,46 @@ mod tests {
         match &cred.community {
             ResolvableSecret::Value { value } => value,
             ResolvableSecret::FilePath { path } => path.as_str(),
+        }
+    }
+
+    /// The options ride on a warning anyone viewing the scan can read, so no secret of any
+    /// version or security level may appear in them.
+    #[test]
+    fn net_snmp_options_never_carry_a_secret() {
+        let secret = |value: &str| ResolvableSecret::Value {
+            value: value.to_string(),
+        };
+        let v3 = |security| SnmpQueryCredential {
+            version: SnmpVersion::V3,
+            community: secret("unused-community"),
+            v3: Some(SnmpV3Params {
+                security_name: "netops".into(),
+                security,
+                context_name: Some("vlan-20".into()),
+            }),
+        };
+        let credentials = [
+            SnmpQueryCredential {
+                version: SnmpVersion::V1,
+                ..cred("v1-community-secret")
+            },
+            cred("v2-community-secret"),
+            v3(SnmpV3Security::AuthNoPriv {
+                auth_protocol: SnmpV3AuthProtocol::Sha256,
+                auth_password: secret("auth-secret"),
+            }),
+            v3(SnmpV3Security::AuthPriv {
+                auth_protocol: SnmpV3AuthProtocol::Md5,
+                auth_password: secret("auth-secret"),
+                priv_protocol: SnmpV3PrivProtocol::Aes256,
+                priv_password: secret("priv-secret"),
+            }),
+        ];
+
+        for credential in credentials {
+            let options = credential.net_snmp_options();
+            assert!(!options.contains("secret"), "{options}");
         }
     }
 

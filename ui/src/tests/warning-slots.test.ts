@@ -60,7 +60,10 @@ describe('discovery warning rendering', () => {
 			widened_by_vlan: false,
 			declared: 'Windows',
 			actual: 'Unix',
-			elided: 7
+			elided: 7,
+			cause: 'TimedOut',
+			failures: [{ group: 'Interfaces', cause: 'TimedOut' }],
+			net_snmp_options: '-v2c -c <community>'
 		}) as unknown as DiscoveryWarning;
 
 	/**
@@ -117,6 +120,28 @@ describe('discovery warning rendering', () => {
 		expect(rendered).toHaveLength(1);
 		expect(rendered[0]).toContain('192.168.7.235');
 		expect(rendered[0]).toContain('192.168.7.242');
+	});
+
+	it('shares a sentence between devices whose reads all ended the same way, and only then', () => {
+		const nothing = (address: string, failures: unknown) =>
+			({ ...sample('SnmpCollectedNothing'), address, failures }) as DiscoveryWarning;
+		const timedOut = [
+			{ group: 'Interfaces', cause: 'TimedOut' },
+			{ group: 'ArpTable', cause: 'TimedOut' }
+		];
+
+		const same = sentences([nothing('10.91.16.1', timedOut), nothing('10.91.16.11', timedOut)]);
+		const different = sentences([
+			nothing('10.91.16.1', timedOut),
+			nothing('10.91.16.11', [{ group: 'Interfaces', cause: 'GenErr' }])
+		]);
+
+		// The customer's two devices failed identically, and read as one line naming both.
+		expect(same).toHaveLength(1);
+		expect(same[0]).toContain('10.91.16.1');
+		expect(same[0]).toContain('10.91.16.11');
+		// A device whose reads ended differently is a different statement.
+		expect(different).toHaveLength(2);
 	});
 
 	it('keeps devices that failed differently in separate sentences', () => {
