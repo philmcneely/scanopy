@@ -42,7 +42,9 @@ use crate::server::{
             ProxmoxGuestType, ProxmoxVirtualization,
         },
     },
-    interfaces::r#impl::base::{IfAdminStatus, IfOperStatus, Interface, InterfaceBase},
+    interfaces::r#impl::base::{
+        FdbMacs, FdbMacsValue, IfAdminStatus, IfOperStatus, Interface, InterfaceBase,
+    },
     ip_addresses::r#impl::base::{IPAddress, IPAddressBase},
     organizations::r#impl::base::UseCase,
     ports::r#impl::base::{Port, PortType},

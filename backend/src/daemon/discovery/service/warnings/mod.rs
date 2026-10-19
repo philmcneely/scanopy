@@ -26,7 +26,9 @@ use uuid::Uuid;
 
 // Re-exported so the SNMP integration keeps building records against one path, even though the
 // two value enums are wire types now and live with the codes.
-pub use crate::daemon::discovery::types::warnings::{ClaimSource, SnmpWalkGroup};
+pub use crate::daemon::discovery::types::warnings::{
+    ClaimSource, SnmpWalkCause, SnmpWalkFailure, SnmpWalkGroup,
+};
 
 use crate::server::credentials::r#impl::mapping::{
     CredentialQueryPayloadDiscriminants, is_unresolvable_credential,
@@ -49,8 +51,8 @@ pub enum ShortfallReason {
     /// Carries the limit so the renderer can name it without reaching into the SNMP module for
     /// a constant — the number is the whole point of the sentence.
     EntryCap { limit: usize },
-    /// The agent stopped answering partway.
-    NoAnswer,
+    /// A request got no usable answer after its retries, and this is what the daemon saw instead.
+    Failed(SnmpWalkCause),
     /// The agent answered out of step with what was asked — a stale or non-advancing response.
     Desynchronised,
     /// The agent does not implement this MIB. Not a fault, and no later scan will change it.
@@ -65,7 +67,7 @@ impl ShortfallReason {
     /// miscounted itself; the second simply did not get that far, and a line claiming otherwise
     /// contradicts the shortfall line reporting the same device.
     fn read_was_cut_short(self) -> bool {
-        matches!(self, Self::NoAnswer | Self::Desynchronised)
+        matches!(self, Self::Failed(_) | Self::Desynchronised)
     }
 }
 
@@ -165,9 +167,24 @@ pub struct UnresolvedLldpPorts {
 /// because a device that read nothing has not failed eight ways. It is also not necessarily a
 /// fault of ours — a camera switch may genuinely implement nothing past `system` — so the line
 /// says what was observed and what to check, and does not promise a rescan will help.
+///
+/// It is the device's one line for every group whose read failed: those groups ride here, each
+/// with how its read ended, and are not reported again on their own (see
+/// [`snmp_device_findings`]). Empty `failures` means every read ended normally on an empty table.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnmpCollectedNothing {
     pub ip: IpAddr,
+    pub credential: ReadCredential,
+    pub failures: Vec<SnmpWalkFailure>,
+}
+
+/// The credential a device was read with, as a warning about that read carries it: the stored
+/// credential, and the net-snmp options that authenticate as it with every secret left out, so
+/// the UI can hand an operator the `snmpwalk` that repeats the read.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ReadCredential {
+    pub credential_id: Option<Uuid>,
+    pub net_snmp_options: Option<String>,
 }
 
 /// Neighbour records a device served without the identifier that makes them usable.
@@ -262,6 +279,7 @@ pub struct IncompleteSnmpWalk {
     pub returned_any: bool,
     /// Why it came up short, when the walk could establish that.
     pub reason: Option<ShortfallReason>,
+    pub credential: ReadCredential,
 }
 
 /// What one host's SNMP collection managed to read, per group.
@@ -315,11 +333,10 @@ impl SnmpGroupOutcome {
 pub struct SnmpCollectionOutcome {
     pub lldp: SnmpGroupOutcome,
     pub cdp: SnmpGroupOutcome,
-    /// Present so the interface count can be checked against the device's own `ifNumber`.
-    ///
-    /// Deliberately absent from [`snmp_walk_shortfalls`]'s array: a short interface walk is
-    /// reported by [`IncompleteInterfaceWalk`], and adding it here too would tell one operator
-    /// the same thing twice in two vocabularies. See [`SnmpWalkGroup::Interfaces`].
+    /// Checked against the device's own `ifNumber`, and reported by [`snmp_walk_shortfalls`]
+    /// only when its read failed having returned no interfaces at all. A short walk that did
+    /// return some is [`IncompleteInterfaceWalk`]'s, and reporting it here too would tell one
+    /// operator the same thing twice in two vocabularies. See [`SnmpWalkGroup::Interfaces`].
     pub interfaces: SnmpGroupOutcome,
     pub bridge_port_numbering: SnmpGroupOutcome,
     pub bridge_forwarding: SnmpGroupOutcome,
@@ -329,6 +346,34 @@ pub struct SnmpCollectionOutcome {
     pub ip_addresses: SnmpGroupOutcome,
     pub lldp_local_ports: SnmpGroupOutcome,
     pub vlan_names: SnmpGroupOutcome,
+}
+
+impl SnmpCollectionOutcome {
+    /// The device answered the probe and then produced nothing from any table.
+    ///
+    /// Each per-group line reports a walk that fell *short* of the others, and a device where
+    /// every walk ends cleanly on an empty table has no group to single out — so GH #674's switch
+    /// was logged five times at INFO with `count=0` and reported as a clean scan.
+    ///
+    /// Every group, not any: one interface or one neighbour means SNMP is working and this is a
+    /// device with little to say. Local port numbering and bridge-port numbering are left out
+    /// because neither is data of its own: one only places neighbours, the other only keys
+    /// forwarding and VLAN membership.
+    pub fn returned_nothing(&self) -> bool {
+        [
+            self.interfaces,
+            self.lldp,
+            self.cdp,
+            self.arp_table,
+            self.bridge_forwarding,
+            self.vlan_membership,
+            self.vlan_names,
+            self.ip_addresses,
+            self.device_inventory,
+        ]
+        .iter()
+        .all(|group| !group.returned_any())
+    }
 }
 
 /// The groups worth reporting for one host.
@@ -341,6 +386,11 @@ pub struct SnmpCollectionOutcome {
 pub fn snmp_walk_shortfalls(ip: IpAddr, outcome: SnmpCollectionOutcome) -> Vec<IncompleteSnmpWalk> {
     let root_failed = !outcome.bridge_port_numbering.complete;
     [
+        (
+            SnmpWalkGroup::Interfaces,
+            outcome.interfaces,
+            !outcome.interfaces.returned_any(),
+        ),
         (SnmpWalkGroup::Lldp, outcome.lldp, true),
         (SnmpWalkGroup::Cdp, outcome.cdp, true),
         (
@@ -379,8 +429,49 @@ pub fn snmp_walk_shortfalls(ip: IpAddr, outcome: SnmpCollectionOutcome) -> Vec<I
         group,
         returned_any: outcome.returned_any(),
         reason: outcome.reason,
+        credential: ReadCredential::default(),
     })
     .collect()
+}
+
+/// One device's walk findings: the per-group shortfalls, and the whole-device line when it
+/// returned nothing from any table.
+///
+/// When the device returned nothing, every group whose read failed moves into that one line with
+/// how it ended, and is not also reported on its own. The customer report that prompted this had
+/// seven per-group lines and a summary line per device, all saying one thing. Groups that fell
+/// short for another reason (an agent answering out of step, a read with no recorded cause) keep
+/// their own codes, which say something the summary line does not.
+pub fn snmp_device_findings(
+    ip: IpAddr,
+    credential: ReadCredential,
+    outcome: SnmpCollectionOutcome,
+) -> (Vec<IncompleteSnmpWalk>, Option<SnmpCollectedNothing>) {
+    let mut shortfalls = snmp_walk_shortfalls(ip, outcome);
+    for shortfall in &mut shortfalls {
+        shortfall.credential = credential.clone();
+    }
+    if !outcome.returned_nothing() {
+        return (shortfalls, None);
+    }
+
+    let mut failures = Vec::new();
+    shortfalls.retain(|shortfall| match shortfall.reason {
+        Some(ShortfallReason::Failed(cause)) => {
+            failures.push(SnmpWalkFailure {
+                group: shortfall.group,
+                cause,
+            });
+            false
+        }
+        _ => true,
+    });
+    let summary = SnmpCollectedNothing {
+        ip,
+        credential,
+        failures,
+    };
+    (shortfalls, Some(summary))
 }
 
 // ============================================================================
@@ -688,25 +779,136 @@ mod tests {
         s.parse().unwrap()
     }
 
-    /// A short interface walk is reported by `IncompleteInterfaceWalk`, in its own vocabulary.
-    /// `SnmpWalkGroup::Interfaces` exists so the count can be checked against `ifNumber`, and
-    /// telling one operator their interfaces came up short twice, in two phrasings, is what the
-    /// separation prevents.
+    /// A short interface walk that returned some interfaces is reported by
+    /// `IncompleteInterfaceWalk`, in its own vocabulary, and telling one operator their interfaces
+    /// came up short twice is what the separation prevents. One that returned none has no such
+    /// record, and before this nothing at all said the interface read failed.
     #[test]
-    fn the_interfaces_group_is_never_reported_as_a_short_walk() {
-        let outcome = SnmpCollectionOutcome {
+    fn the_interfaces_group_is_reported_only_when_its_read_returned_nothing() {
+        let interfaces = |observed| SnmpCollectionOutcome {
             interfaces: SnmpGroupOutcome {
                 complete: false,
-                observed: 0,
-                reason: Some(ShortfallReason::NoAnswer),
+                observed,
+                reason: Some(ShortfallReason::Failed(SnmpWalkCause::TimedOut)),
                 claim: None,
             },
             ..quiet_groups()
         };
 
         assert!(
-            snmp_walk_shortfalls(ip("192.168.7.248"), outcome).is_empty(),
-            "interface shortfalls belong to warn_incomplete_interface_walks"
+            snmp_walk_shortfalls(ip("192.168.7.248"), interfaces(5)).is_empty(),
+            "a partial interface read belongs to warn_incomplete_interface_walks"
+        );
+        let groups: Vec<SnmpWalkGroup> = snmp_walk_shortfalls(ip("192.168.7.248"), interfaces(0))
+            .iter()
+            .map(|s| s.group)
+            .collect();
+        assert_eq!(groups, vec![SnmpWalkGroup::Interfaces]);
+    }
+
+    fn failed(cause: SnmpWalkCause) -> SnmpGroupOutcome {
+        SnmpGroupOutcome {
+            complete: false,
+            observed: 0,
+            reason: Some(ShortfallReason::Failed(cause)),
+            claim: None,
+        }
+    }
+
+    /// A device that answered the probe and returned nothing gets one line, naming each failed
+    /// read and how it ended, and no per-group line repeats any of them.
+    #[test]
+    fn a_device_that_returned_nothing_names_each_failed_read_once() {
+        let empty = SnmpGroupOutcome {
+            complete: true,
+            ..Default::default()
+        };
+        let outcome = SnmpCollectionOutcome {
+            interfaces: failed(SnmpWalkCause::TimedOut),
+            lldp: failed(SnmpWalkCause::TimedOut),
+            arp_table: failed(SnmpWalkCause::GenErr),
+            cdp: empty,
+            bridge_port_numbering: empty,
+            bridge_forwarding: empty,
+            vlan_membership: empty,
+            device_inventory: empty,
+            ip_addresses: empty,
+            lldp_local_ports: empty,
+            vlan_names: empty,
+        };
+
+        let (shortfalls, summary) =
+            snmp_device_findings(ip("10.91.16.1"), ReadCredential::default(), outcome);
+
+        assert!(shortfalls.is_empty(), "{shortfalls:?}");
+        assert_eq!(
+            summary.expect("the whole-device line").failures,
+            vec![
+                SnmpWalkFailure {
+                    group: SnmpWalkGroup::Interfaces,
+                    cause: SnmpWalkCause::TimedOut,
+                },
+                SnmpWalkFailure {
+                    group: SnmpWalkGroup::Lldp,
+                    cause: SnmpWalkCause::TimedOut,
+                },
+                SnmpWalkFailure {
+                    group: SnmpWalkGroup::ArpTable,
+                    cause: SnmpWalkCause::GenErr,
+                },
+            ]
+        );
+    }
+
+    /// An agent answering out of step says something the whole-device line does not, so it keeps
+    /// its own line beside it rather than being folded in as a failure it was not.
+    #[test]
+    fn a_desynchronised_read_keeps_its_own_line_beside_the_summary() {
+        let outcome = SnmpCollectionOutcome {
+            lldp: SnmpGroupOutcome {
+                complete: false,
+                observed: 0,
+                reason: Some(ShortfallReason::Desynchronised),
+                claim: None,
+            },
+            interfaces: failed(SnmpWalkCause::TimedOut),
+            ..SnmpCollectionOutcome::default()
+        };
+
+        let (shortfalls, summary) =
+            snmp_device_findings(ip("10.91.16.1"), ReadCredential::default(), outcome);
+
+        assert!(
+            shortfalls.iter().any(|s| s.group == SnmpWalkGroup::Lldp
+                && s.reason == Some(ShortfallReason::Desynchronised)),
+            "{shortfalls:?}"
+        );
+        let summary = summary.expect("the whole-device line");
+        assert!(
+            summary
+                .failures
+                .iter()
+                .all(|f| f.group != SnmpWalkGroup::Lldp)
+        );
+    }
+
+    /// One table answering is enough to make it a device with little to say rather than one that
+    /// returned nothing, and its failed reads are reported one by one with their causes.
+    #[test]
+    fn a_device_that_returned_anything_keeps_its_per_group_lines() {
+        let outcome = SnmpCollectionOutcome {
+            arp_table: failed(SnmpWalkCause::AuthorizationError),
+            ..quiet_groups()
+        };
+
+        let (shortfalls, summary) =
+            snmp_device_findings(ip("10.91.16.11"), ReadCredential::default(), outcome);
+
+        assert!(summary.is_none());
+        assert_eq!(shortfalls.len(), 1);
+        assert_eq!(
+            shortfalls[0].reason,
+            Some(ShortfallReason::Failed(SnmpWalkCause::AuthorizationError))
         );
     }
 
@@ -838,7 +1040,7 @@ mod tests {
                     complete: false,
                     observed: 1,
                     claim: None,
-                    reason: Some(ShortfallReason::NoAnswer),
+                    reason: Some(ShortfallReason::Failed(SnmpWalkCause::TimedOut)),
                 },
                 cdp: SnmpGroupOutcome {
                     complete: true,
@@ -975,7 +1177,7 @@ mod tests {
             lldp: SnmpGroupOutcome {
                 complete: false,
                 observed: 0,
-                reason: Some(ShortfallReason::NoAnswer),
+                reason: Some(ShortfallReason::Failed(SnmpWalkCause::TimedOut)),
                 claim: None,
             },
             ..quiet_groups()
@@ -993,7 +1195,7 @@ mod tests {
             lldp: SnmpGroupOutcome {
                 complete: false,
                 observed: 0,
-                reason: Some(ShortfallReason::NoAnswer),
+                reason: Some(ShortfallReason::Failed(SnmpWalkCause::TimedOut)),
                 claim: Some(DeviceClaim::Implements {
                     source: ClaimSource::LldpLocalIdentity,
                 }),

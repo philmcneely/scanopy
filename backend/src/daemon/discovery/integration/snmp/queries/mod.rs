@@ -10,8 +10,9 @@ use tokio::time::timeout;
 use tracing::{debug, trace, warn};
 
 use crate::daemon::discovery::service::warnings::{
-    ClaimSource, DeviceClaim, MalformedNeighbourReason, ShortfallReason,
+    ClaimSource, DeviceClaim, MalformedNeighbourReason, ShortfallReason, SnmpGroupOutcome,
 };
+use crate::daemon::discovery::types::warnings::SnmpWalkCause;
 use crate::server::lldp::canonical_mac;
 
 use super::oids::{self, oid_to_vec};
@@ -44,11 +45,11 @@ pub use lldp::{
     query_lldp_neighbors, query_lldp_neighbors_for,
 };
 pub use system::{query_ip_addr_table, query_system_info, walk_if_table};
-pub use walk::AgentErrorStatus;
+pub use walk::{AgentErrorStatus, MAX_TRANSPORT_RETRIES, RequestTimedOut, cause_of};
 use walk::{walk_column, walk_subtree};
 
 /// Varbinds requested per getbulk round when walking a table subtree.
-const BULK_MAX_REPETITIONS: u32 = 20;
+pub const BULK_MAX_REPETITIONS: u32 = 20;
 
 /// A single `getbulk` round-trip's non-error outcome. Transport failures (timeouts,
 /// session errors) are the `Err` arm of the returned `Result`; the legitimate non-error
@@ -226,7 +227,7 @@ impl SnmpWalkTransport for super::session::SnmpSession {
                 Err(anyhow::Error::new(e).context("SNMP session desynchronized"))
             }
             Ok(Err(_)) => Ok(WalkPage::BulkUnsupported),
-            Err(_) => Err(anyhow::anyhow!("getbulk timed out")),
+            Err(_) => Err(RequestTimedOut("getbulk").into()),
         }
     }
 
@@ -239,7 +240,7 @@ impl SnmpWalkTransport for super::session::SnmpSession {
                 pdu.varbinds.map(|(o, v)| (oid_to_vec(&o), v)).collect(),
             ),
             Ok(Err(e)) => Err(anyhow::Error::new(e).context("getnext failed")),
-            Err(_) => Err(anyhow::anyhow!("getnext timed out")),
+            Err(_) => Err(RequestTimedOut("getnext").into()),
         }
     }
 
@@ -269,7 +270,7 @@ impl SnmpWalkTransport for super::session::SnmpSession {
                 )
             })),
             Ok(Err(e)) => Err(anyhow::Error::new(e).context("get failed")),
-            Err(_) => Err(anyhow::anyhow!("get timed out")),
+            Err(_) => Err(RequestTimedOut("get").into()),
         }
     }
 }
@@ -368,6 +369,16 @@ impl<T: Default> SnmpCollection<T> {
 }
 
 impl<T> SnmpCollection<T> {
+    /// This read as one group of a host's collection, with `observed` records.
+    pub fn group_outcome(&self, observed: usize) -> SnmpGroupOutcome {
+        SnmpGroupOutcome {
+            complete: self.complete,
+            observed,
+            reason: self.reason,
+            claim: self.claim,
+        }
+    }
+
     /// The ordinary outcome of a multi-column walk: the records, plus whether every column
     /// finished and why the first one that didn't stopped.
     ///
@@ -397,9 +408,33 @@ impl<T: Default> Default for SnmpCollection<T> {
             discard_reason: None,
             claim: None,
             local_port_is_if_index: false,
-            // `query_or_default` produces this when a whole query timed out or errored, and it
-            // genuinely cannot say more — the future was dropped before it could report.
-            reason: Some(ShortfallReason::NoAnswer),
+            // A query that never ran has no observed cause. `query_or_failed` replaces this with
+            // what ended the query; anything else building a default has not read the device.
+            reason: None,
+        }
+    }
+}
+
+/// The value a query yields when it errored or ran past `SNMP_WALK_TIMEOUT` before it could
+/// report, carrying what ended it.
+pub trait FailedQuery: Default {
+    fn failed(cause: SnmpWalkCause) -> Self;
+}
+
+impl<T: Default> FailedQuery for SnmpCollection<T> {
+    fn failed(cause: SnmpWalkCause) -> Self {
+        Self {
+            reason: Some(ShortfallReason::Failed(cause)),
+            ..Self::default()
+        }
+    }
+}
+
+impl FailedQuery for IfTableWalk {
+    fn failed(cause: SnmpWalkCause) -> Self {
+        Self {
+            reason: Some(ShortfallReason::Failed(cause)),
+            ..Self::default()
         }
     }
 }
@@ -423,6 +458,8 @@ pub struct IfTableWalk {
     /// Every attribute column also walked to its end. False means some descriptions, speeds or
     /// aliases may be blank — a cosmetic gap, never a reason to withhold pruning.
     pub attributes_complete: bool,
+    /// Why the first column that fell short stopped, when one did.
+    pub reason: Option<ShortfallReason>,
 }
 
 // `Default` is the hard-failure outcome (`query_or_default`): no entries, and neither flag set,
@@ -442,17 +479,13 @@ enum WalkStop {
     EndOfMibView,
     /// Hit `MAX_WALK_ENTRIES`.
     EntryCap,
-    /// getbulk/getnext returned an error. The message distinguishes a timeout from a
-    /// request-id or community mismatch.
-    Transport,
-    /// Agent answered with no varbinds at all mid-walk.
-    EmptyResponse,
+    /// The last request got no usable answer after its retries: a timeout, an error status, an
+    /// empty response, or one that could not be decoded. Which of those is the cause.
+    Failed(SnmpWalkCause),
     /// Agent answered with an OID that did not advance — it would loop for ever.
     NonAdvancingOid,
     /// Left the subtree without advancing: not this walk's continuation at all.
     StaleResponse,
-    /// Agent kept answering getnext with an error status. The detail names the status.
-    ErrorStatus,
     /// The discovery was cancelled partway through the walk. Rows already read stay in the
     /// collector, and the column counts as cut short, so a truncated table is never taken as the
     /// whole of it (the GH #649 prune).
@@ -460,9 +493,9 @@ enum WalkStop {
 }
 
 impl From<WalkStop> for Option<ShortfallReason> {
-    /// Collapse the walk's own vocabulary into the four things an operator can act on
-    /// differently. The distinctions dropped here (`EmptyResponse`, `ErrorStatus` and
-    /// `Transport`) are diagnostic detail, already in the truncation log with the host address.
+    /// Collapse the walk's own vocabulary into the things an operator can act on differently.
+    /// A failed request keeps its cause: "timed out" and "answered genErr" send an operator to
+    /// different places, and reporting both as silence was wrong for the second.
     fn from(stop: WalkStop) -> Self {
         match stop {
             WalkStop::EndOfSubtree => None,
@@ -473,9 +506,7 @@ impl From<WalkStop> for Option<ShortfallReason> {
             WalkStop::NonAdvancingOid | WalkStop::StaleResponse => {
                 Some(ShortfallReason::Desynchronised)
             }
-            WalkStop::Transport | WalkStop::EmptyResponse | WalkStop::ErrorStatus => {
-                Some(ShortfallReason::NoAnswer)
-            }
+            WalkStop::Failed(cause) => Some(ShortfallReason::Failed(cause)),
             // Nothing about the device to report: the run itself was stopped.
             WalkStop::Cancelled => None,
         }
@@ -529,7 +560,7 @@ impl Shortfall {
     /// Fold in one column's stop.
     ///
     /// First reason wins. Columns are walked in order and a session that has gone wrong tends to
-    /// stay wrong, so the first failure is the one that explains the rest — a later `NoAnswer`
+    /// stay wrong, so the first failure is the one that explains the rest — a later timeout
     /// on a session already desynchronised is a consequence, not a second finding.
     fn record(&mut self, stop: WalkStop) {
         if stop.is_complete() {

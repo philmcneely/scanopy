@@ -22,7 +22,7 @@ use super::{
     AttemptOutcome, ContradictedClaim, CredentialIssue, CredentialIssueReason, DeviceClaim,
     EqualReachIntegrations, IncompleteInterfaceWalk, IncompleteSnmpWalk, LocalPortPlacementReason,
     MalformedNeighbourReason, MalformedNeighbours, ShortfallReason, SnmpCollectedNothing,
-    UnresolvedLldpPorts, VlanRecordingFailed,
+    SnmpWalkCause, UnresolvedLldpPorts, VlanRecordingFailed,
 };
 use crate::daemon::discovery::types::warnings::{
     CredentialAttempt, DiscoveryWarning, MalformedNeighbourConsequence,
@@ -56,11 +56,12 @@ pub fn warn_incomplete_interface_walks(
         .collect()
 }
 
-/// The seven ways a walk can come up short.
+/// The ways a walk can come up short.
 ///
-/// Keyed exactly as the renderer this replaces was — on `(reason, returned_any, group)` — because
-/// that key *is* the distinction an operator cares about, and it is what makes the metric able to
-/// tell "the device does not implement this" from "the device stopped answering".
+/// Keyed on `(reason, returned_any, group)`, because that key *is* the distinction an operator
+/// cares about, and it is what makes the metric able to tell "the device does not implement this"
+/// from "the device's reads failed". A read that returned nothing carries how it ended as a slot
+/// value rather than a code per cause, so the metric stays one label per failure mode.
 pub fn warn_incomplete_snmp_walks(records: &[IncompleteSnmpWalk]) -> Vec<DiscoveryWarning> {
     records
         .iter()
@@ -81,19 +82,35 @@ pub fn warn_incomplete_snmp_walks(records: &[IncompleteSnmpWalk]) -> Vec<Discove
                 Some(ShortfallReason::Desynchronised) => {
                     DiscoveryWarning::SnmpWalkDesynchronised { address, group }
                 }
-                None | Some(ShortfallReason::NoAnswer) => {
-                    if record.returned_any {
-                        if group.partial_read_is_discarded() {
-                            DiscoveryWarning::SnmpWalkPartialDiscarded { address, group }
-                        } else {
-                            DiscoveryWarning::SnmpWalkPartialRecorded { address, group }
-                        }
-                    } else if group.absence_means_unsupported() {
-                        DiscoveryWarning::SnmpWalkBridgeMibAbsent { address, group }
+                _ if record.returned_any => {
+                    if group.partial_read_is_discarded() {
+                        DiscoveryWarning::SnmpWalkPartialDiscarded { address, group }
                     } else {
-                        DiscoveryWarning::SnmpWalkNoAnswer { address, group }
+                        DiscoveryWarning::SnmpWalkPartialRecorded { address, group }
                     }
                 }
+                // Silence on the bridge-MIB root is how the switches that do not implement it
+                // answer (the USW-Pro-Max), so it keeps its own line. Any other way of failing
+                // there is a failed read like any other.
+                Some(ShortfallReason::Failed(SnmpWalkCause::TimedOut))
+                    if group.absence_means_unsupported() =>
+                {
+                    DiscoveryWarning::SnmpWalkBridgeMibAbsent {
+                        address,
+                        group,
+                        credential_id: record.credential.credential_id,
+                        net_snmp_options: record.credential.net_snmp_options.clone(),
+                    }
+                }
+                Some(ShortfallReason::Failed(cause)) => DiscoveryWarning::SnmpWalkFailed {
+                    address,
+                    group,
+                    cause,
+                    credential_id: record.credential.credential_id,
+                    net_snmp_options: record.credential.net_snmp_options.clone(),
+                },
+                // Short with no rows and no cause: nothing was observed to name.
+                None => DiscoveryWarning::SnmpWalkNoAnswer { address, group },
             }
         })
         .collect()
@@ -237,7 +254,12 @@ pub fn warn_malformed_neighbours(records: &[MalformedNeighbours]) -> Vec<Discove
 pub fn warn_snmp_collected_nothing(records: &[SnmpCollectedNothing]) -> Vec<DiscoveryWarning> {
     records
         .iter()
-        .map(|record| DiscoveryWarning::SnmpCollectedNothing { address: record.ip })
+        .map(|record| DiscoveryWarning::SnmpCollectedNothing {
+            address: record.ip,
+            credential_id: record.credential.credential_id,
+            net_snmp_options: record.credential.net_snmp_options.clone(),
+            failures: Some(record.failures.clone()),
+        })
         .collect()
 }
 
@@ -510,6 +532,7 @@ mod tests {
             group,
             returned_any,
             reason,
+            credential: Default::default(),
         }
     }
 
@@ -577,7 +600,7 @@ mod tests {
             "192.168.210.217",
             SnmpWalkGroup::BridgePortNumbering,
             false,
-            None,
+            Some(ShortfallReason::Failed(SnmpWalkCause::TimedOut)),
         )]);
 
         assert_eq!(
@@ -589,6 +612,44 @@ mod tests {
         assert_eq!(
             codes(&absent),
             vec![DiscoveryWarningCode::SnmpWalkBridgeMibAbsent]
+        );
+    }
+
+    /// A read that returned nothing carries what the daemon saw, and only silence on the
+    /// bridge-MIB root reads as "not implemented": the same root answered with genErr is a failed
+    /// read like any other, and saying the switch does not implement it would claim what nobody
+    /// observed.
+    #[test]
+    fn an_empty_read_carries_its_cause_and_only_silence_reads_as_absent() {
+        let failed = |group, cause| {
+            warn_incomplete_snmp_walks(&[walk(
+                "10.91.16.1",
+                group,
+                false,
+                Some(ShortfallReason::Failed(cause)),
+            )])
+        };
+
+        assert!(matches!(
+            failed(SnmpWalkGroup::ArpTable, SnmpWalkCause::GenErr).as_slice(),
+            [DiscoveryWarning::SnmpWalkFailed {
+                cause: SnmpWalkCause::GenErr,
+                ..
+            }]
+        ));
+        assert_eq!(
+            codes(&failed(
+                SnmpWalkGroup::BridgePortNumbering,
+                SnmpWalkCause::TimedOut
+            )),
+            vec![DiscoveryWarningCode::SnmpWalkBridgeMibAbsent]
+        );
+        assert_eq!(
+            codes(&failed(
+                SnmpWalkGroup::BridgePortNumbering,
+                SnmpWalkCause::GenErr
+            )),
+            vec![DiscoveryWarningCode::SnmpWalkFailed]
         );
     }
 
@@ -685,7 +746,7 @@ mod tests {
 
         assert_eq!(
             codes(&warn_contradicted_claims(&[claim(Some(
-                ShortfallReason::NoAnswer
+                ShortfallReason::Failed(SnmpWalkCause::TimedOut)
             ))])),
             vec![DiscoveryWarningCode::ClaimedCountReadCutShort]
         );

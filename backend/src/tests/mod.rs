@@ -75,6 +75,7 @@ pub mod snmp_sim_resolution;
 pub mod stripe_webhook_retries;
 pub mod stripe_webhooks;
 pub mod subnet_placement;
+pub mod subnet_vlan_inference;
 pub mod tag_scope;
 pub mod terms_gate;
 pub mod terms_notices;

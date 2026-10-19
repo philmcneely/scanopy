@@ -29,7 +29,7 @@ pub(super) const MAX_DESYNC_RETRIES: u8 = 2;
 /// Counted separately from [`MAX_DESYNC_RETRIES`] so a device suffering both faults cannot spend
 /// one budget on the other. Kept as small as the desync budget for the same reason: a device that
 /// has genuinely stopped answering should be reported, not spun on.
-pub(super) const MAX_TRANSPORT_RETRIES: u8 = 2;
+pub const MAX_TRANSPORT_RETRIES: u8 = 2;
 
 /// Ask the agent for half as much next time, and give up on getbulk entirely once even a
 /// single-repetition page has not worked.
@@ -98,10 +98,24 @@ fn is_desync(error: &anyhow::Error) -> bool {
 #[error("agent answered error-status {0}")]
 pub struct AgentErrorStatus(pub u32);
 
-fn is_error_status(error: &anyhow::Error) -> bool {
-    error
-        .chain()
-        .any(|cause| cause.downcast_ref::<AgentErrorStatus>().is_some())
+/// A request that got no response within [`SNMP_TIMEOUT`]. Typed rather than a message so a walk
+/// that ends on one can report a timeout without matching on text.
+#[derive(Debug, thiserror::Error)]
+#[error("{0} timed out")]
+pub struct RequestTimedOut(pub &'static str);
+
+/// What the daemon observed for a request that failed: the status the agent returned, a timeout,
+/// or a response it could not use.
+pub fn cause_of(error: &anyhow::Error) -> SnmpWalkCause {
+    for cause in error.chain() {
+        if let Some(AgentErrorStatus(status)) = cause.downcast_ref::<AgentErrorStatus>() {
+            return SnmpWalkCause::from_error_status(*status);
+        }
+        if cause.downcast_ref::<RequestTimedOut>().is_some() {
+            return SnmpWalkCause::TimedOut;
+        }
+    }
+    SnmpWalkCause::UnreadableResponse
 }
 
 /// Returns why the walk stopped. [`WalkStop::is_complete`] is true when the subtree was walked
@@ -225,7 +239,7 @@ where
                     continue 'walk;
                 }
                 Err(e) => {
-                    stop = WalkStop::Transport;
+                    stop = WalkStop::Failed(cause_of(&e));
                     stop_detail = Some(e.to_string());
                     break;
                 }
@@ -256,11 +270,7 @@ where
                     continue 'walk;
                 }
                 Err(e) => {
-                    stop = if is_error_status(&e) {
-                        WalkStop::ErrorStatus
-                    } else {
-                        WalkStop::Transport
-                    };
+                    stop = WalkStop::Failed(cause_of(&e));
                     stop_detail = Some(e.to_string());
                     break;
                 }
@@ -291,7 +301,7 @@ where
                 );
                 continue 'walk;
             }
-            stop = WalkStop::EmptyResponse;
+            stop = WalkStop::Failed(SnmpWalkCause::EmptyResponse);
             break;
         }
 
@@ -388,7 +398,7 @@ where
                     }
                 }
                 None => {
-                    stop = WalkStop::EmptyResponse;
+                    stop = WalkStop::Failed(SnmpWalkCause::EmptyResponse);
                     done = true;
                 }
             }
@@ -463,7 +473,7 @@ where
 {
     let stop = walk_subtree(session, ip, base_oid_str, on_entry)
         .await
-        .unwrap_or(WalkStop::Transport);
+        .unwrap_or(WalkStop::Failed(SnmpWalkCause::UnreadableResponse));
     shortfall.record(stop);
     stop
 }

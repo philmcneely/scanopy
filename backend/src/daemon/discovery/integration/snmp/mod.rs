@@ -88,9 +88,10 @@ use crate::daemon::discovery::service::ops::HostData;
 pub use crate::daemon::discovery::service::warnings::LocalPortPlacementReason;
 use crate::daemon::discovery::service::warnings::{
     AttemptOutcome, ClaimSource, DeviceClaim, IncompleteInterfaceWalk, MalformedNeighbours,
-    SnmpCollectedNothing, SnmpCollectionOutcome, SnmpGroupOutcome, SnmpWalkGroup,
-    UnresolvedLldpPorts, contradicted_claims, snmp_walk_shortfalls,
+    ReadCredential, SnmpCollectionOutcome, SnmpGroupOutcome, SnmpWalkCause, SnmpWalkGroup,
+    UnresolvedLldpPorts, contradicted_claims, snmp_device_findings,
 };
+use queries::FailedQuery;
 
 /// Handle returned by a successful SNMP probe — carries the working credential and port.
 pub struct SnmpProbeHandle {
@@ -120,6 +121,26 @@ where
         Err(_) => {
             debug!(ip = %ip, query, "SNMP query timed out");
             T::default()
+        }
+    }
+}
+
+/// [`query_or_default`] for a table read, which keeps what ended a query that never reported:
+/// `SNMP_WALK_TIMEOUT` expiring is a timeout, and an error is whatever the error says.
+async fn query_or_failed<T, Fut>(ip: IpAddr, query: &str, fut: Fut) -> T
+where
+    T: FailedQuery,
+    Fut: std::future::Future<Output = Result<T>>,
+{
+    match timeout(SNMP_WALK_TIMEOUT, fut).await {
+        Ok(Ok(v)) => v,
+        Ok(Err(e)) => {
+            debug!(ip = %ip, query, error = %e, "SNMP query failed");
+            T::failed(queries::cause_of(&e))
+        }
+        Err(_) => {
+            debug!(ip = %ip, query, "SNMP query timed out");
+            T::failed(SnmpWalkCause::TimedOut)
         }
     }
 }
@@ -290,7 +311,7 @@ impl DiscoveryIntegration for SnmpIntegration {
         // authoritative full ifTable (safe to prune stale interfaces against) or a partial walk
         // cut short by timeout/error (must NOT prune — see GH #649). A hard failure yields an
         // empty set, which the server's existing empty-set guard already protects.
-        let if_table = query_or_default(ip, "if_table", walk_if_table(&mut session, ip)).await;
+        let if_table = query_or_failed(ip, "if_table", walk_if_table(&mut session, ip)).await;
         let snmp_if_entries = if_table.entries;
         tracing::debug!(
             ip = %ip,
@@ -368,6 +389,7 @@ impl DiscoveryIntegration for SnmpIntegration {
                 source: ClaimSource::SysServicesBridgeBit,
             });
         let if_set_complete = if_table.set_complete;
+        let if_reason = if_table.reason;
 
         let walk_fell_short = !if_table.set_complete || !if_table.attributes_complete;
         if !snmp_if_entries.is_empty() && walk_fell_short {
@@ -381,7 +403,7 @@ impl DiscoveryIntegration for SnmpIntegration {
         }
 
         // Query LLDP neighbors
-        let lldp = query_or_default(ip, "lldp", query_lldp_neighbors(&mut session, ip)).await;
+        let lldp = query_or_failed(ip, "lldp", query_lldp_neighbors(&mut session, ip)).await;
         // Two different questions, deliberately not one flag.
         //
         // `lldp_complete` — did the walk finish? An agent with no LLDP-MIB answers immediately
@@ -410,7 +432,7 @@ impl DiscoveryIntegration for SnmpIntegration {
         let lldp_count = lldp_neighbors.len();
 
         // Query CDP neighbors (Cisco devices)
-        let cdp = query_or_default(ip, "cdp", query_cdp_neighbors(&mut session, ip)).await;
+        let cdp = query_or_failed(ip, "cdp", query_cdp_neighbors(&mut session, ip)).await;
         let cdp_complete = cdp.complete;
         let cdp_reason = cdp.reason;
         let cdp_discarded = cdp.discarded;
@@ -467,7 +489,7 @@ impl DiscoveryIntegration for SnmpIntegration {
         // the LLDP-V2-MIB (GH #688): `lldpV2RemLocalIfIndex` is already an ifIndex, and the
         // classic `lldpLocPortTable` is not a table such a device serves.
         let lldp_local_ports = if lldp_count > 0 && !lldp_local_port_is_if_index {
-            query_or_default(
+            query_or_failed(
                 ip,
                 "lldp_local_ports",
                 query_lldp_local_ports(&mut session, ip),
@@ -526,7 +548,7 @@ impl DiscoveryIntegration for SnmpIntegration {
 
         // Query ipAddrTable for IP->ifIndex+netMask mappings
         let ip_addr_table =
-            query_or_default(ip, "ip_addr_table", query_ip_addr_table(&mut session, ip)).await;
+            query_or_failed(ip, "ip_addr_table", query_ip_addr_table(&mut session, ip)).await;
         let ip_addresses_outcome = SnmpGroupOutcome {
             complete: ip_addr_table.complete,
             observed: ip_addr_table.records.len(),
@@ -544,7 +566,7 @@ impl DiscoveryIntegration for SnmpIntegration {
             ip_addr_table.values().map(|entry| entry.if_index).collect();
 
         // Query ARP table for remote host discovery
-        let arp = query_or_default(ip, "arp", query_arp_table(&mut session, ip)).await;
+        let arp = query_or_failed(ip, "arp", query_arp_table(&mut session, ip)).await;
         let arp_outcome = SnmpGroupOutcome {
             complete: arp.complete,
             observed: arp.records.len(),
@@ -562,7 +584,7 @@ impl DiscoveryIntegration for SnmpIntegration {
 
         // Query ENTITY-MIB for hardware inventory
         let device_inventory =
-            query_or_default(ip, "entity_mib", query_entity_physical(&mut session, ip)).await;
+            query_or_failed(ip, "entity_mib", query_entity_physical(&mut session, ip)).await;
         let device_inventory_outcome = SnmpGroupOutcome {
             complete: device_inventory.complete,
             observed: usize::from(device_inventory.records.is_some()),
@@ -618,7 +640,7 @@ impl DiscoveryIntegration for SnmpIntegration {
         // so a switch that answers the OID with silence rather than `noSuchObject` (the
         // Ubiquiti USW-Pro-Max does) paid the walk timeout twice per scan for a table that
         // was never going to arrive.
-        let bridge_ports = query_or_default(
+        let bridge_ports = query_or_failed(
             ip,
             "bridge_port_mapping",
             query_bridge_port_mapping(bridge_session, ip),
@@ -632,7 +654,7 @@ impl DiscoveryIntegration for SnmpIntegration {
         );
 
         // Query bridge FDB for MAC-to-port mappings
-        let fdb = query_or_default(
+        let fdb = query_or_failed(
             ip,
             "bridge_fdb",
             query_bridge_fdb(bridge_session, ip, &bridge_ports),
@@ -657,7 +679,7 @@ impl DiscoveryIntegration for SnmpIntegration {
 
         // Query VLAN table for VLAN names and persist as VLAN entities
         let vlan_table =
-            query_or_default(ip, "vlan_table", query_vlan_table(bridge_session, ip)).await;
+            query_or_failed(ip, "vlan_table", query_vlan_table(bridge_session, ip)).await;
         let vlan_names_outcome = SnmpGroupOutcome {
             complete: vlan_table.complete,
             observed: vlan_table.records.len(),
@@ -688,7 +710,7 @@ impl DiscoveryIntegration for SnmpIntegration {
         };
 
         // Query per-port VLAN membership
-        let port_vlan_membership = query_or_default(
+        let port_vlan_membership = query_or_failed(
             ip,
             "port_vlan_membership",
             query_port_vlan_membership(bridge_session, ip, &bridge_ports),
@@ -871,7 +893,7 @@ impl DiscoveryIntegration for SnmpIntegration {
             interfaces: SnmpGroupOutcome {
                 complete: if_set_complete,
                 observed: snmp_if_entries.len(),
-                reason: None,
+                reason: if_reason,
                 claim: if_number_claim,
             },
             bridge_port_numbering: SnmpGroupOutcome {
@@ -899,7 +921,16 @@ impl DiscoveryIntegration for SnmpIntegration {
             vlan_names: vlan_names_outcome,
         };
 
-        let incomplete = snmp_walk_shortfalls(ip, collection_outcome);
+        // A device that answered the probe and then produced nothing gets one line naming every
+        // table that failed and how, instead of a line per table and a summary beside them.
+        let (incomplete, collected_nothing) = snmp_device_findings(
+            ip,
+            ReadCredential {
+                credential_id: ctx.credential_id,
+                net_snmp_options: Some(credential.net_snmp_options()),
+            },
+            collection_outcome,
+        );
         ctx.ops.record_snmp_shortfalls(incomplete).await;
 
         // Separate from the shortfalls above, and emitted alongside them rather than instead of
@@ -911,32 +942,16 @@ impl DiscoveryIntegration for SnmpIntegration {
             ctx.ops.record_contradicted_claims(contradicted).await;
         }
 
-        // A device that answered the credential and then produced nothing from any table.
-        //
-        // The per-group lines above cannot say this. Each of them reports a walk that fell
-        // *short* of the others, and a device where every walk ends cleanly on an empty table
-        // has no group to single out — so GH #674's switch was logged five times at INFO with
-        // `count=0` and reported to the operator as a clean scan. The probe already proved the
-        // address, port and community are right, which is what makes silence worth a line.
-        //
-        // Deliberately every group, not any: one interface or one neighbour means SNMP is
-        // working and this is a device with little to say, which is not worth warning about.
-        let collected_nothing = snmp_if_entries.is_empty()
-            && lldp_count == 0
-            && cdp_count == 0
-            && arp_count == 0
-            && fdb_count == 0
-            && port_vlan_membership.is_empty()
-            && vlan_table.is_empty()
-            && ip_addr_table.is_empty()
-            && device_inventory.is_none();
-        if collected_nothing {
+        // The probe already proved the address, port and community are right, which is what
+        // makes a device that returned nothing from any table worth a line of its own.
+        if let Some(collected_nothing) = collected_nothing {
             tracing::warn!(
                 ip = %ip,
+                failures = ?collected_nothing.failures,
                 "SNMP probe succeeded but every table came back empty"
             );
             ctx.ops
-                .record_snmp_collected_nothing(SnmpCollectedNothing { ip })
+                .record_snmp_collected_nothing(collected_nothing)
                 .await;
         }
 

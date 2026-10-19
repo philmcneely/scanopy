@@ -206,6 +206,7 @@ mod open_ports;
 mod removed_guests;
 mod same_device;
 mod stale_ports;
+pub(crate) mod subnet_vlans;
 mod topology;
 mod update;
 mod virtualization_tree;

@@ -32,6 +32,10 @@ forwards the rest.
 a column the device never answers by either method, so a walk reads the rest of the table and stops
 part way (GH #685).
 
+`--reject` answers every GET, GETNEXT and GETBULK under a subtree with `--error-status` and the
+request's varbinds echoed: a device that answers each table read with an error while its system
+group still answers the probe.
+
 Everything that is not a dropped or refused request is relayed untouched, including SNMPv3, whose
 PDU this deliberately does not try to read. Parsing is fail-open throughout: a packet this cannot
 make sense of is forwarded, because a shim that goes silent on a parse bug turns one unreadable
@@ -206,10 +210,11 @@ class Drop:
         self.name = request.name
 
 
-def decide(packet, refused, silenced, reject_above, error_status):
+def decide(packet, refused, silenced, rejected, reject_above, error_status):
     """What to do with one datagram: a `Drop`, the bytes of an answer to send, or None to relay it.
 
-    `--silence` applies to every request type; `--refuse` and `--reject-above` only ever to GETBULK.
+    `--silence` and `--reject` apply to every request type; `--refuse` and `--reject-above` only
+    ever to GETBULK.
     """
     try:
         request = parse_request(packet)
@@ -223,6 +228,8 @@ def decide(packet, refused, silenced, reject_above, error_status):
 
     if under(silenced):
         return Drop(request)
+    if under(rejected):
+        return error_response(request, error_status)
     if request.pdu_tag != GETBULK_PDU:
         return None
     if under(refused):
@@ -232,18 +239,18 @@ def decide(packet, refused, silenced, reject_above, error_status):
     return None
 
 
-def serve(listen, upstream, refused, silenced, reject_above, error_status, log):
+def serve(listen, upstream, refused, silenced, rejected, reject_above, error_status, log):
     class Handler(socketserver.BaseRequestHandler):
         def handle(self):
             packet, client = self.request
-            verdict = decide(packet, refused, silenced, reject_above, error_status)
+            verdict = decide(packet, refused, silenced, rejected, reject_above, error_status)
             if isinstance(verdict, Drop):
                 # No reply, no error, no upstream call: the device simply does not answer, which
                 # is what the walk under test has to survive.
                 log(f"drop {verdict.name} from {self.client_address[0]}")
                 return
             if verdict is not None:
-                log(f"answer getbulk from {self.client_address[0]} with error-status {error_status}")
+                log(f"answer request from {self.client_address[0]} with error-status {error_status}")
                 client.sendto(verdict, self.client_address)
                 return
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as out:
@@ -265,7 +272,11 @@ def serve(listen, upstream, refused, silenced, reject_above, error_status, log):
 
     with Server(listen, Handler) as server:
         log(f"listening on {listen[0]}:{listen[1]} → {upstream[0]}:{upstream[1]}")
-        for label, prefixes in (("refusing getbulk", refused), ("silent", silenced)):
+        for label, prefixes in (
+            ("refusing getbulk", refused),
+            ("silent", silenced),
+            (f"answering error-status {error_status}", rejected),
+        ):
             if prefixes:
                 log(f"{label} under " + ", ".join(".".join(map(str, p)) for p in prefixes))
         if reject_above is not None:
@@ -308,6 +319,15 @@ def main(argv=None):
         help="drop every request whose first varbind is at or under this subtree; repeatable",
     )
     parser.add_argument(
+        "--reject",
+        type=prefix,
+        action="append",
+        default=[],
+        metavar="OID",
+        help="answer every request whose first varbind is at or under this subtree with "
+        "--error-status; repeatable",
+    )
+    parser.add_argument(
         "--reject-above",
         type=int,
         metavar="N",
@@ -318,12 +338,14 @@ def main(argv=None):
         type=int,
         default=5,
         metavar="S",
-        help="error status for --reject-above (default 5, genErr)",
+        help="error status for --reject and --reject-above (default 5, genErr)",
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
-    if not args.refuse and not args.silence and args.reject_above is None:
-        parser.error("nothing to do: give --refuse, --silence, --reject-above, or a combination")
+    if not args.refuse and not args.silence and not args.reject and args.reject_above is None:
+        parser.error(
+            "nothing to do: give --refuse, --silence, --reject, --reject-above, or a combination"
+        )
 
     def log(message):
         if not args.quiet:
@@ -334,6 +356,7 @@ def main(argv=None):
         args.upstream,
         args.refuse,
         args.silence,
+        args.reject,
         args.reject_above,
         args.error_status,
         log,

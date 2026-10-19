@@ -270,16 +270,33 @@ impl HostService {
         // revisit the old subnet during reconciliation so its stale VLAN links
         // can drop. Post-upsert `get_for_host` alone would miss subnets that
         // disappeared entirely from the host.
-        let previous_subnets: HashSet<Uuid> = self
+        let site_id = host.base.site_id;
+        let matched = self
             .find_matching_host_by_ip_addresses(
-                &host.base.site_id,
+                &site_id,
                 &ip_addresses,
                 &interfaces,
                 host.base.chassis_id.as_ref().map(|c| c.value().0.as_str()),
             )
-            .await?
+            .await?;
+        let mut previous_subnets: HashSet<Uuid> = matched
+            .as_ref()
             .map(|m| m.ip_addresses.iter().map(|i| i.base.subnet_id).collect())
             .unwrap_or_default();
+        // A switch's ports are evidence for the subnets of the hosts they learned. Those it
+        // learned before this scan are revisited too, so a link drops once no port learns it.
+        if !interfaces.is_empty()
+            && let Some(matched) = &matched
+        {
+            let before = self
+                .interface_service
+                .get_for_host(&matched.host.id)
+                .await?;
+            previous_subnets.extend(
+                self.subnets_learned_by(site_id, &subnet_vlans::learned_macs(&before))
+                    .await?,
+            );
+        }
 
         let discovered = self
             .create_with_children(
@@ -375,11 +392,16 @@ impl HostService {
 
     /// Reconcile subnet↔VLAN junction records after a host's discovery.
     ///
-    /// For each subnet in `previous_subnets ∪ current_subnets`, aggregates
-    /// `native_vlan_id` observations across ALL hosts' Interfaces on that subnet
-    /// and replaces the junction set via `save_for_subnet`. The union ensures
-    /// that a host which migrated off a subnet still triggers cleanup for that
-    /// old subnet; post-upsert `get_for_host` captures "current" subnets.
+    /// For each subnet in `previous_subnets ∪ current_subnets`, aggregates two kinds of evidence
+    /// across ALL hosts and replaces the junction set via `save_for_subnet`:
+    ///
+    /// - `native_vlan_id` on the Interfaces linked to an address on the subnet;
+    /// - the native VLAN of every access port that learned a MAC whose only addresses are on the
+    ///   subnet ([`subnet_vlans::access_port_vlans`]).
+    ///
+    /// "Current" subnets are the host's own, post-upsert, plus those of the hosts its ports now
+    /// learn. `previous_subnets` carries the same two sets from before the upsert, so a host that
+    /// migrated off a subnet, or a port that stopped learning a host, still triggers cleanup.
     ///
     /// Inside each reconciled subnet, aggregating across all hosts means host A's
     /// rescan preserves host B's contribution — stale (subnet, vlan) pairs drop
@@ -394,13 +416,16 @@ impl HostService {
         host_id: &Uuid,
         previous_subnets: &HashSet<Uuid>,
     ) -> Result<()> {
-        let current: HashSet<Uuid> = self
-            .ip_address_service
-            .get_for_host(host_id)
-            .await?
-            .iter()
-            .map(|i| i.base.subnet_id)
-            .collect();
+        let own_ip_addresses = self.ip_address_service.get_for_host(host_id).await?;
+        let mut current: HashSet<Uuid> =
+            own_ip_addresses.iter().map(|i| i.base.subnet_id).collect();
+        let interfaces = self.interface_service.get_for_host(host_id).await?;
+        if let Some(site_id) = interfaces.first().map(|i| i.base.site_id) {
+            current.extend(
+                self.subnets_learned_by(site_id, &subnet_vlans::learned_macs(&interfaces))
+                    .await?,
+            );
+        }
 
         let to_reconcile: HashSet<Uuid> = previous_subnets.union(&current).copied().collect();
 
@@ -430,6 +455,10 @@ impl HostService {
                 .iter()
                 .filter_map(|iface| iface.base.native_vlan_id)
                 .collect();
+            fresh_vlan_ids.extend(
+                self.access_port_vlans_for_subnet(subnet_id, &subnet_ip_addresses)
+                    .await?,
+            );
             fresh_vlan_ids.sort();
             fresh_vlan_ids.dedup();
 
@@ -444,7 +473,7 @@ impl HostService {
             tracing::debug!(
                 host_id = %host_id,
                 subnets_reconciled = reconciled,
-                "Reconciled subnet_vlans links from Interface data"
+                "Reconciled subnet_vlans links from Interface and forwarding-database data"
             );
         }
 

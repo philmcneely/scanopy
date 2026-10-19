@@ -21,6 +21,7 @@ pub mod secure_switch_03;
 pub mod secure_switch_04;
 pub mod switch_access_01;
 pub mod switch_aruba_01;
+pub mod switch_bulkdrop_01;
 pub mod switch_cisco_01;
 pub mod switch_core_01;
 pub mod switch_dell_01;
@@ -29,6 +30,7 @@ pub mod switch_dlink_02;
 pub mod switch_exos_01;
 pub mod switch_fdb_only_01;
 pub mod switch_flaky_01;
+pub mod switch_generr_01;
 pub mod switch_hikvision_01;
 pub mod switch_macport_01;
 pub mod switch_mcast_rcv_01;
@@ -41,6 +43,7 @@ pub mod switch_omada_01;
 pub mod switch_quietcol_01;
 pub mod switch_segment_gw_01;
 pub mod switch_shortports_01;
+pub mod switch_silent_01;
 pub mod switch_slowbulk_01;
 pub mod switch_stuck_01;
 pub mod switch_tplink_01;
@@ -106,5 +109,10 @@ pub fn all() -> Vec<SimDevice> {
         secure_switch_02::device(),
         secure_switch_03::device(),
         secure_switch_04::device(),
+        // The silent-devices customer report: the probe answers and every table read times out,
+        // or is answered with genErr. The third drops only GETBULK and is read in full.
+        switch_silent_01::device(),
+        switch_generr_01::device(),
+        switch_bulkdrop_01::device(),
     ]
 }

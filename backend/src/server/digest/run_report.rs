@@ -263,6 +263,9 @@ mod tests {
             },
             DiscoveryWarning::SnmpCollectedNothing {
                 address: "10.0.0.3".parse().unwrap(),
+                credential_id: None,
+                net_snmp_options: None,
+                failures: Some(Vec::new()),
             },
             DiscoveryWarning::ReverseDnsTimedOut { count: 4 },
             DiscoveryWarning::SnmpWalkUnsupported {

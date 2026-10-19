@@ -33,6 +33,32 @@ fn subnet_vlan_records_are_derived_and_reference_valid_entities() {
     }
 }
 
+/// DC Storage's nodes are read over SNMP by nothing, so the demo's only link from that subnet to
+/// a VLAN is the switch's access ports having learned their MACs. A demo without it would show
+/// no example of that link.
+#[test]
+fn a_subnet_is_linked_to_a_vlan_through_the_macs_its_access_ports_learned() {
+    let demo = DemoData::generate(Uuid::new_v4(), Uuid::new_v4(), UseCase::default());
+    let storage = demo
+        .subnets
+        .iter()
+        .find(|s| s.base.name == "DC Storage")
+        .expect("the DC Storage subnet");
+    let servers: HashSet<Uuid> = demo
+        .vlans
+        .iter()
+        .filter(|v| v.base.vlan_number == 20 && v.base.site_id == storage.base.site_id)
+        .map(|v| v.id)
+        .collect();
+
+    assert!(
+        demo.subnet_vlan_records
+            .iter()
+            .any(|r| r.base.subnet_id == storage.id && servers.contains(&r.base.vlan_id)),
+        "DC Storage should be linked to the Servers VLAN"
+    );
+}
+
 #[test]
 fn a_subnet_carries_a_provisional_cidr_source() {
     use crate::server::shared::attribution::AttributeMethod;

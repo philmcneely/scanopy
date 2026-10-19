@@ -108,6 +108,7 @@ export const COVERED_FIXTURES = [
 	// The rung each code's `category` names. Heading and sub-line for a section of the list.
 	{ file: 'warning-remedies.json', key: 'warning_remedies', kind: 'typeMetadata' },
 	{ file: 'snmp-walk-groups.json', key: 'snmp_walk_groups', kind: 'typeMetadata' },
+	{ file: 'snmp-walk-causes.json', key: 'snmp_walk_causes', kind: 'typeMetadata' },
 	{ file: 'claim-sources.json', key: 'claim_sources', kind: 'typeMetadata' },
 	// Keyed by the credential-query discriminant a warning carries, which credential-types.json
 	// cannot resolve — it is keyed by CredentialType.

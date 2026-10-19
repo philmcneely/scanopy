@@ -239,10 +239,28 @@ pub fn shim_args(device: &SimDevice) -> Option<String> {
                 .map(|oid| format!("--silence {}", dotted(oid))),
         )
         .collect();
+    // One `--error-status` serves both `--reject-above` and `--reject`, so a device may use one.
+    let rejected = device.rejected();
+    assert!(
+        rejected.is_empty() || device.rejects_getbulk.is_none(),
+        "{} sets both rejects_getbulk and faults.reject, which share one --error-status",
+        device.name
+    );
     if let Some(rejection) = device.rejects_getbulk {
         args.push(format!(
             "--reject-above {} --error-status {}",
             rejection.above_repetitions, rejection.error_status
+        ));
+    }
+    if !rejected.is_empty() {
+        args.extend(
+            rejected
+                .iter()
+                .map(|oid| format!("--reject {}", dotted(oid))),
+        );
+        args.push(format!(
+            "--error-status {}",
+            device.tables.faults.error_status
         ));
     }
     (!args.is_empty()).then(|| args.join(" "))
