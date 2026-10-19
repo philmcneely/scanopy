@@ -364,6 +364,21 @@ impl HostService {
                 .delete_many(&to_delete, authentication.clone())
                 .await?;
         }
+        // Deleting a runtime deletes its containers. One still in the form went with it, so it
+        // is neither updated nor recreated.
+        let existing_ids: HashSet<Uuid> = if to_delete.is_empty() {
+            existing_ids
+        } else {
+            let live: HashSet<Uuid> = self
+                .service_service
+                .get_for_parent(host_id)
+                .await?
+                .iter()
+                .map(|s| s.id)
+                .collect();
+            inputs.retain(|input| !existing_ids.contains(&input.id) || live.contains(&input.id));
+            live
+        };
 
         // Partition inputs: services losing port bindings must be processed first.
         // This ensures bindings are freed in DB before other services try to claim them,

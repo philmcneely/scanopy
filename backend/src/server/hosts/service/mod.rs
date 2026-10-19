@@ -119,6 +119,29 @@ impl CrudService<Host> for HostService {
         Some(&self.entity_tag_service)
     }
 
+    /// Through [`Self::delete_host`], so a host deleted from the API deletes its services one by
+    /// one: each publishes `Deleted` and deletes what it virtualizes.
+    async fn delete(&self, id: &Uuid, authentication: AuthenticatedEntity) -> Result<()> {
+        self.delete_host(id, authentication).await
+    }
+
+    /// Each host through [`Self::delete_host`]. One that an earlier delete in the batch already
+    /// took with it (a guest of a deleted node) is skipped.
+    async fn delete_many(
+        &self,
+        ids: &[Uuid],
+        authentication: AuthenticatedEntity,
+    ) -> Result<usize> {
+        let mut deleted = 0;
+        for id in ids {
+            if self.get_by_id(id).await?.is_some() {
+                self.delete_host(id, authentication.clone()).await?;
+                deleted += 1;
+            }
+        }
+        Ok(deleted)
+    }
+
     /// Create a new host, or upsert if a matching host exists.
     ///
     /// This method uses `Host::eq` (ID comparison) to find existing hosts.

@@ -8,12 +8,14 @@
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
 	import { pushError } from '$lib/shared/stores/feedback';
+	import { countVirtualized } from '$lib/features/services/virtualized-count';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import ServiceConfigPanel from './ServiceConfigPanel.svelte';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
 	import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
 	import { ArrowRightLeft } from 'lucide-svelte';
 	import {
+		common_confirmDeleteNameWithGuests,
 		common_noEntitySelected,
 		common_service,
 		common_services,
@@ -86,8 +88,19 @@
 		formData.services = [...formData.services, newService];
 	}
 
-	function handleRemoveService(index: number) {
-		formData.services = formData.services.filter((_, i) => i !== index);
+	async function handleRemoveService(index: number) {
+		const removed = formData.services[index];
+		if (!removed) return;
+		// Saving deletes what a runtime or hypervisor runs, so removing one asks first. A service
+		// added in this session runs nothing yet and counts zero.
+		const count = await countVirtualized([removed.id]);
+		if (count > 0 && !confirm(common_confirmDeleteNameWithGuests({ name: removed.name, count }))) {
+			return;
+		}
+		// Its containers on this host go with it on save, so they leave the form too.
+		formData.services = formData.services.filter(
+			(s) => s.id !== removed.id && s.virtualization_service_id !== removed.id
+		);
 	}
 
 	function handleServiceChange(service: Service, index: number) {
