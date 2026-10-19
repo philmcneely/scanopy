@@ -1,5 +1,6 @@
 //! Daemon provisioning: mint a 1:1 api key and create (or re-bind) the daemon record.
 use super::*;
+use crate::server::shared::events::types::DeletionReason;
 
 impl DaemonService {
     /// Provision a daemon: mint an API key bound to it 1:1 and create the daemon record, or
@@ -88,7 +89,7 @@ impl DaemonService {
         if let Some(old_key_id) = existing_daemon.as_ref().and_then(|d| d.base.api_key_id) {
             let old_key = self.daemon_api_key_service.get_by_id(&old_key_id).await?;
             self.daemon_api_key_service
-                .delete(&old_key_id, auth.clone())
+                .delete(&old_key_id, auth.clone(), DeletionReason::Superseded)
                 .await
                 .map_err(|e| {
                     tracing::error!(error = %e, api_key_id = %old_key_id, "Failed to remove superseded daemon api key");

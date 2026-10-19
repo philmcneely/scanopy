@@ -2,7 +2,7 @@
 //!
 //! | What happened | Bindings member | Services member |
 //! |---|---|---|
-//! | binding moved to another service | `MemberMoved` | nothing (deleted if emptied) |
+//! | binding moved to another service | `MemberMoved` | `MemberMoved`, if the move emptied it |
 //! | binding released | `MemberReleased` | nothing (deleted if emptied) |
 //! | service deleted | `MemberDeleted` per binding it still held | `MemberDeleted` |
 //! | placeholder absorbed into its identification | repointed, no event | repointed, no event |
@@ -89,8 +89,8 @@ async fn members_of(services: &ServiceFactory, id: &Uuid) -> DependencyMembers {
         .members
 }
 
-/// Caddy takes Traefik's only port, so Traefik is also deleted. The binding member hears the move
-/// and nothing else; the service member hears the delete. Both rows stay.
+/// Caddy takes Traefik's only port, so Traefik is also deleted for it. Both members hear the move to
+/// Caddy, once each, and both rows stay.
 #[tokio::test]
 async fn a_handover_that_empties_the_holder_is_heard_once_per_member() {
     let (storage, services, _container) = test_services().await;
@@ -135,10 +135,15 @@ async fn a_handover_that_empties_the_holder_is_heard_once_per_member() {
                 Some(binding_id),
                 DependencyMemberChange::MemberMoved {
                     to_service_id: caddy.id,
-                    to_binding_id: caddy.base.bindings[0].id(),
                 },
             ),
-            (by_service.id, None, DependencyMemberChange::MemberDeleted),
+            (
+                by_service.id,
+                None,
+                DependencyMemberChange::MemberMoved {
+                    to_service_id: caddy.id,
+                },
+            ),
         ]
     );
     assert_eq!(
@@ -284,7 +289,11 @@ async fn a_deleted_service_is_heard_by_both_member_types_and_its_members_stay() 
 
     services
         .service_service
-        .delete(&traefik.id, AuthenticatedEntity::System)
+        .delete(
+            &traefik.id,
+            AuthenticatedEntity::System,
+            crate::server::shared::events::types::DeletionReason::Requested,
+        )
         .await
         .unwrap();
 
@@ -335,7 +344,11 @@ async fn a_dependency_with_a_missing_member_can_be_saved() {
     .await;
     services
         .service_service
-        .delete(&traefik.id, AuthenticatedEntity::System)
+        .delete(
+            &traefik.id,
+            AuthenticatedEntity::System,
+            crate::server::shared::events::types::DeletionReason::Requested,
+        )
         .await
         .unwrap();
 

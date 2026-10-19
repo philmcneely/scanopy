@@ -203,7 +203,11 @@ impl HostService {
         let to_delete: Vec<Uuid> = existing_ids.difference(&input_ids).copied().collect();
         if !to_delete.is_empty() {
             self.ip_address_service
-                .delete_many(&to_delete, authentication.clone())
+                .delete_many(
+                    &to_delete,
+                    authentication.clone(),
+                    DeletionReason::Requested,
+                )
                 .await?;
         }
 
@@ -254,7 +258,11 @@ impl HostService {
         let to_delete: Vec<Uuid> = existing_ids.difference(&input_ids).copied().collect();
         if !to_delete.is_empty() {
             self.port_service
-                .delete_many(&to_delete, authentication.clone())
+                .delete_many(
+                    &to_delete,
+                    authentication.clone(),
+                    DeletionReason::Requested,
+                )
                 .await?;
         }
 
@@ -305,7 +313,11 @@ impl HostService {
         let to_delete: Vec<Uuid> = existing_ids.difference(&input_ids).copied().collect();
         if !to_delete.is_empty() {
             self.interface_service
-                .delete_many(&to_delete, authentication.clone())
+                .delete_many(
+                    &to_delete,
+                    authentication.clone(),
+                    DeletionReason::Requested,
+                )
                 .await?;
         }
 
@@ -361,7 +373,11 @@ impl HostService {
         let to_delete: Vec<Uuid> = existing_ids.difference(&input_ids).copied().collect();
         if !to_delete.is_empty() {
             self.service_service
-                .delete_many(&to_delete, authentication.clone())
+                .delete_many(
+                    &to_delete,
+                    authentication.clone(),
+                    DeletionReason::Requested,
+                )
                 .await?;
         }
         // Deleting a runtime deletes its containers. One still in the form went with it, so it

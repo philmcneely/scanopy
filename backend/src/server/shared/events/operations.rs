@@ -133,7 +133,7 @@ impl Operation for EntityOperation {
         match self {
             EntityOperation::Created => LabelColor::Green,
             EntityOperation::Updated => LabelColor::Blue,
-            EntityOperation::Deleted => LabelColor::Red,
+            EntityOperation::Deleted { .. } => LabelColor::Red,
             EntityOperation::Get | EntityOperation::GetAll => LabelColor::Neutral,
         }
     }
@@ -266,7 +266,9 @@ pub(crate) mod tests {
                         entity_id: organization_id,
                         entity_type: examples::organization().into(),
                     },
-                    EntityOperation::Deleted,
+                    EntityOperation::Deleted {
+                        reason: crate::server::shared::events::types::DeletionReason::Requested,
+                    },
                     system(),
                 ),
                 organization_id,

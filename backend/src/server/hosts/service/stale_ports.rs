@@ -17,9 +17,7 @@ use std::net::IpAddr;
 use chrono::Utc;
 
 use super::*;
-use crate::server::bindings::r#impl::ownership_events::{BindingOwnership, BindingOwnershipScope};
 use crate::server::ports::r#impl::{base::PortType, coverage::PortCoverage};
-use crate::server::shared::events::traits::Event;
 use crate::server::shared::storage::snapshot::DiscoveryTracked;
 
 use super::open_ports::port_claim;
@@ -140,46 +138,18 @@ impl<'a> PortTurnover<'a> {
     }
 }
 
-/// A stored port binding taken from its service while a submission is stored.
-#[derive(Debug, Clone)]
-pub(crate) struct TakenBinding {
-    pub site_id: Uuid,
-    pub from_service_id: Uuid,
-    pub from_binding_id: Uuid,
-    pub port_id: Uuid,
-    pub ip_address_id: Option<Uuid>,
-}
-
-impl TakenBinding {
-    /// The bindings of `holder` that `claims` take.
-    pub(crate) fn from_holder(holder: &Service, claims: &[PortClaim]) -> Vec<Self> {
-        holder
-            .base
-            .bindings
-            .iter()
-            .filter(|b| claims.iter().any(|claim| overlaps(b, claim)))
-            .filter_map(|b| {
-                let (port_id, ip_address_id) = port_claim(b)?;
-                Some(Self {
-                    site_id: holder.base.site_id,
-                    from_service_id: holder.id,
-                    from_binding_id: b.id(),
-                    port_id,
-                    ip_address_id,
-                })
-            })
-            .collect()
-    }
-
-    fn scope(&self) -> BindingOwnershipScope {
-        BindingOwnershipScope {
-            site_id: self.site_id,
-            port_id: self.port_id,
-            ip_address_id: self.ip_address_id,
-            from_service_id: self.from_service_id,
-            from_binding_id: self.from_binding_id,
-        }
-    }
+/// The (port, address) claims of `holder`'s bindings that `claims` take.
+pub(crate) fn taken_claims(
+    holder: &Service,
+    claims: &[PortClaim],
+) -> Vec<PortClaim> {
+    holder
+        .base
+        .bindings
+        .iter()
+        .filter(|b| claims.iter().any(|claim| overlaps(b, claim)))
+        .filter_map(port_claim)
+        .collect()
 }
 
 /// The container id a service carries, if it is a container.
@@ -249,17 +219,15 @@ impl HostService {
     }
 
     /// Remove `claims` from each of `holder_ids`, deleting a holder left with no binding, and
-    /// mirror the change in `services` so later services in the payload see it. Returns the
-    /// bindings taken, for the caller to announce once it knows where they went.
+    /// mirror the change in `services` so later services in the payload see it.
     pub(crate) async fn take_ports(
         &self,
         holder_ids: &[Uuid],
         claims: &[PortClaim],
         services: &mut [Service],
-        claimant: &str,
+        reason: DeletionReason,
         authentication: AuthenticatedEntity,
-    ) -> Result<Vec<TakenBinding>> {
-        let mut all_taken = Vec::new();
+    ) -> Result<()> {
         // A rescanned service can sit in `services` twice, stored and re-stored. Every copy drops
         // the bindings, and the store is written and the move announced once.
         let mut seen: HashSet<Uuid> = HashSet::new();
@@ -271,15 +239,10 @@ impl HostService {
                     .retain(|b| !claims.iter().any(|claim| overlaps(b, claim)));
                 continue;
             }
-            let taken_bindings = TakenBinding::from_holder(holder, claims);
-            if taken_bindings.is_empty() {
+            let taken = taken_claims(holder, claims);
+            if taken.is_empty() {
                 continue;
             }
-            let taken: Vec<PortClaim> = taken_bindings
-                .iter()
-                .map(|t| (t.port_id, t.ip_address_id))
-                .collect();
-            all_taken.extend(taken_bindings);
             holder
                 .base
                 .bindings
@@ -288,7 +251,7 @@ impl HostService {
             tracing::info!(
                 service_name = %holder.base.name,
                 service_definition = %holder.base.service_definition.name(),
-                claimant = %claimant,
+                reason = %reason.describe(),
                 ports = ?taken,
                 remaining_bindings = holder.base.bindings.len(),
                 "Taking ports from a service no longer answering on them"
@@ -296,7 +259,7 @@ impl HostService {
             // The taken bindings go first, so a holder deleted below carries only what it still
             // held: a moved binding is never also reported as deleted with its service.
             self.service_service
-                .remove_port_bindings(&holder.id, &taken, authentication.clone())
+                .remove_port_bindings(&holder.id, &taken, authentication.clone(), reason.clone())
                 .await?;
 
             // A runtime or hypervisor left with no bindings stays: deleting it would delete
@@ -308,64 +271,12 @@ impl HostService {
                     .virtualization_role()
                     .is_none()
             {
-                tracing::info!(
-                    service_name = %holder.base.name,
-                    service_definition = %holder.base.service_definition.name(),
-                    "Deleting a service whose last ports were taken"
-                );
                 self.service_service
-                    .delete(&holder.id, authentication.clone())
+                    .delete(&holder.id, authentication.clone(), reason.clone())
                     .await?;
             }
         }
-        Ok(all_taken)
-    }
-
-    /// Announce that `taken` moved to `claimant`, now stored. A binding the claimant ended up not
-    /// holding is not announced as a move.
-    pub(crate) async fn publish_binding_moves(
-        &self,
-        taken: Vec<TakenBinding>,
-        claimant: &Service,
-        authentication: AuthenticatedEntity,
-    ) {
-        for moved in taken {
-            let Some(to_binding) = claimant.base.bindings.iter().find(|b| {
-                b.port_id() == Some(moved.port_id)
-                    && bindings_overlap(&moved.ip_address_id, &b.ip_address_id())
-            }) else {
-                continue;
-            };
-            let _ = self
-                .event_bus()
-                .publish(Event::new(
-                    moved.scope(),
-                    BindingOwnership::Moved {
-                        to_service_id: claimant.id,
-                        to_binding_id: to_binding.id(),
-                    },
-                    authentication.clone(),
-                ))
-                .await;
-        }
-    }
-
-    /// Announce that `released` were given up with nothing answering on them.
-    pub(crate) async fn publish_binding_releases(
-        &self,
-        released: Vec<TakenBinding>,
-        authentication: AuthenticatedEntity,
-    ) {
-        for binding in released {
-            let _ = self
-                .event_bus()
-                .publish(Event::new(
-                    binding.scope(),
-                    BindingOwnership::Released,
-                    authentication.clone(),
-                ))
-                .await;
-        }
+        Ok(())
     }
 
     /// Fold into `claimant` the generic placeholders stored for its container. Returns them, cleared
@@ -406,7 +317,6 @@ impl HostService {
             .collect();
 
         for placeholder in &placeholders {
-            let mut moved = 0;
             for binding in &placeholder.base.bindings {
                 let binding_type = binding.base.binding_type;
                 // An address binding conflicts with a port binding on the same address.
@@ -423,21 +333,19 @@ impl HostService {
                         .base
                         .bindings
                         .push(Binding::new_serviceless(binding_type));
-                    moved += 1;
                 }
             }
-            tracing::info!(
-                service_name = %placeholder.base.name,
-                claimant = %claimant.base.service_definition.name(),
-                container_id = %container_id,
-                moved_binding_count = moved,
-                "Folding a generic container into its identification"
-            );
             // Its bindings go now, so they don't count as conflicts with the claimant's. The row and
             // its dependency memberships stay until the claimant is stored and they can be
             // repointed.
             self.service_service
-                .clear_bindings(&placeholder.id, authentication.clone())
+                .clear_bindings(
+                    &placeholder.id,
+                    authentication.clone(),
+                    DeletionReason::IdentifiedAs {
+                        service_id: claimant.id,
+                    },
+                )
                 .await?;
             services.retain(|s| s.id != placeholder.id);
         }
@@ -476,7 +384,13 @@ impl HostService {
                 )
                 .await?;
             self.service_service
-                .delete(&placeholder.id, authentication.clone())
+                .delete(
+                    &placeholder.id,
+                    authentication.clone(),
+                    DeletionReason::IdentifiedAs {
+                        service_id: claimant.id,
+                    },
+                )
                 .await?;
         }
         Ok(())
@@ -528,17 +442,14 @@ impl HostService {
         }
 
         for (service_id, claims) in releases {
-            let released = self
-                .take_ports(
-                    &[service_id],
-                    &claims,
-                    services,
-                    "nothing answering",
-                    authentication.clone(),
-                )
-                .await?;
-            self.publish_binding_releases(released, authentication.clone())
-                .await;
+            self.take_ports(
+                &[service_id],
+                &claims,
+                services,
+                DeletionReason::PortsReleased,
+                authentication.clone(),
+            )
+            .await?;
         }
         Ok(())
     }

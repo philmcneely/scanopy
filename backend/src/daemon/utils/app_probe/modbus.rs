@@ -67,7 +67,7 @@ impl AppProbe for ModbusProbe {
     }
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let addr = std::net::SocketAddr::new(ctx.ip, self.port().number());
+        let addr = ctx.target(self.port().number());
 
         // Both units on one connection where the device allows it, which is the multi-round-trip
         // case the stage exists to support.

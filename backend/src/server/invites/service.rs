@@ -1,3 +1,4 @@
+use crate::server::shared::events::types::DeletionReason;
 use std::sync::Arc;
 
 use chrono::Utc;
@@ -91,11 +92,17 @@ impl InviteService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Deleted, AuthenticatedEntity::System)
-                        .with_flags(EntityEventFlags {
-                            trigger_stale,
-                            ..Default::default()
-                        }),
+                    Event::new(
+                        scope,
+                        EntityOperation::Deleted {
+                            reason: DeletionReason::Consumed,
+                        },
+                        AuthenticatedEntity::System,
+                    )
+                    .with_flags(EntityEventFlags {
+                        trigger_stale,
+                        ..Default::default()
+                    }),
                 )
                 .await?;
         }

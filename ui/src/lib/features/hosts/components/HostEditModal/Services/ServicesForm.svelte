@@ -8,7 +8,7 @@
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
 	import { pushError } from '$lib/shared/stores/feedback';
-	import { countVirtualized } from '$lib/features/services/virtualized-count';
+	import { virtualizedSummary } from '$lib/features/services/virtualized-count';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import ServiceConfigPanel from './ServiceConfigPanel.svelte';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
@@ -92,9 +92,9 @@
 		const removed = formData.services[index];
 		if (!removed) return;
 		// Saving deletes what a runtime or hypervisor runs, so removing one asks first. A service
-		// added in this session runs nothing yet and counts zero.
-		const count = await countVirtualized([removed.id]);
-		if (count > 0 && !confirm(common_confirmDeleteNameWithGuests({ name: removed.name, count }))) {
+		// added in this session runs nothing yet.
+		const guests = await virtualizedSummary([removed]);
+		if (guests && !confirm(common_confirmDeleteNameWithGuests({ name: removed.name, guests }))) {
 			return;
 		}
 		// Its containers on this host go with it on save, so they leave the form too.

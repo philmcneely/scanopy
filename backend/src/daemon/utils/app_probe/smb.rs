@@ -74,7 +74,7 @@ impl AppProbe for SmbProbe {
     }
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let addr = std::net::SocketAddr::new(ctx.ip, self.port().number());
+        let addr = ctx.target(self.port().number());
         let mut stream = match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
             Ok(Ok(stream)) => stream,
             Ok(Err(e)) => {

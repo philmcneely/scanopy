@@ -3,6 +3,7 @@ use crate::server::config::AppState;
 use crate::server::hosts::r#impl::base::Host;
 use crate::server::ip_addresses::r#impl::base::IPAddress;
 use crate::server::ip_addresses::service::IPAddressService;
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::shared::handlers::query::IPAddressQuery;
 use crate::server::shared::handlers::traits::{
     BulkDeleteResponse, CrudHandlers, create_handler, update_handler,
@@ -216,7 +217,7 @@ pub async fn delete_ip_address(
 
     // Delete the IP address
     service
-        .delete(&id, entity_auth.clone())
+        .delete(&id, entity_auth.clone(), DeletionReason::Requested)
         .await
         .map_err(ApiError::from)?;
 
@@ -274,7 +275,7 @@ async fn bulk_delete_ip_addresses(
     // Only delete entities that actually exist and user has access to
     let valid_ids: Vec<Uuid> = entities.iter().map(|e| e.id).collect();
     let deleted_count = service
-        .delete_many(&valid_ids, entity_auth.clone())
+        .delete_many(&valid_ids, entity_auth.clone(), DeletionReason::Requested)
         .await
         .map_err(ApiError::from)?;
 

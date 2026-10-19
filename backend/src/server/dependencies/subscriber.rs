@@ -1,19 +1,19 @@
 //! Telling the user a dependency lost a member.
 //!
-//! Members outlive what they name. When a member's binding changes hands (`BindingOwnership`) or
-//! its service is deleted (`Service` `Deleted`), the member stays and this publishes a
-//! `DependencyMemberChange` for it, one per affected member.
+//! Members outlive what they name. When a member's binding or service is deleted, the member stays
+//! and this publishes a `DependencyMemberChange` for it, read from the reason the `Deleted` event
+//! carries: a port that changed hands is a move, one nothing answered on is a release, anything
+//! else that deletes a service is a delete.
 //!
-//! Each member gets one event per change. A service losing a binding to another first gives up the
-//! binding and is deleted after, if at all, so its `Deleted` carries only the bindings it still
-//! held: a member on a moved binding hears `MemberMoved`, never also `MemberDeleted`.
+//! Each member hears once per change. A service losing a binding to another gives up the binding
+//! first and is deleted after, if at all, so its `Deleted` carries only the bindings it still
+//! held: a member on a moved binding hears `MemberMoved` from the binding's own event.
 
 use anyhow::Error;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
 use crate::server::{
-    bindings::r#impl::ownership_events::BindingOwnership,
     dependencies::{
         r#impl::member_events::{DependencyMemberChange, DependencyMemberChangeScope},
         service::DependencyService,
@@ -22,19 +22,34 @@ use crate::server::{
         entities::{Entity, EntityDiscriminants},
         events::{
             registry::SubscriberRegistration,
-            traits::{EntityEventFilter, Event, EventFilter, Subscriber},
-            types::{EntityOperation, EntityOperationDiscriminants},
+            traits::{EntityEventFilter, Event, Subscriber},
+            types::{DeletionReason, EntityOperation, EntityOperationDiscriminants},
         },
         services::traits::EventBusService,
     },
 };
+
+/// What a port changing hands or going quiet means to a member on it, or `None` when the
+/// deletion says nothing about where the port went.
+fn port_change(reason: &DeletionReason) -> Option<DependencyMemberChange> {
+    match reason {
+        DeletionReason::PortsHandedOver { to_service_id, .. }
+        | DeletionReason::OpenPortsReclaimed { to_service_id, .. } => {
+            Some(DependencyMemberChange::MemberMoved {
+                to_service_id: *to_service_id,
+            })
+        }
+        DeletionReason::PortsReleased => Some(DependencyMemberChange::MemberReleased),
+        _ => None,
+    }
+}
 
 impl DependencyService {
     async fn announce(
         &self,
         scope: DependencyMemberChangeScope,
         change: DependencyMemberChange,
-        event: &Event<impl crate::server::shared::events::traits::Operation>,
+        event: &Event<EntityOperation>,
     ) -> Result<(), Error> {
         self.event_bus()
             .publish(Event::new(scope, change, event.authentication.clone()))
@@ -43,87 +58,86 @@ impl DependencyService {
 }
 
 #[async_trait]
-impl Subscriber<BindingOwnership> for DependencyService {
-    fn filter(&self) -> EventFilter<BindingOwnership> {
-        EventFilter::all()
-    }
-
-    async fn handle(&self, events: Vec<Event<BindingOwnership>>) -> Result<(), Error> {
-        for event in events {
-            let change = match &event.operation {
-                BindingOwnership::Moved {
-                    to_service_id,
-                    to_binding_id,
-                } => DependencyMemberChange::MemberMoved {
-                    to_service_id: *to_service_id,
-                    to_binding_id: *to_binding_id,
-                },
-                BindingOwnership::Released => DependencyMemberChange::MemberReleased,
-            };
-            for record in self
-                .member_storage()
-                .records_for_binding(&event.scope.from_binding_id)
-                .await?
-            {
-                self.announce(
-                    DependencyMemberChangeScope {
-                        site_id: event.scope.site_id,
-                        dependency_id: record.dependency_id(),
-                        service_id: event.scope.from_service_id,
-                        binding_id: Some(event.scope.from_binding_id),
-                    },
-                    change.clone(),
-                    &event,
-                )
-                .await?;
-            }
-        }
-        Ok(())
-    }
-}
-inventory::submit!(SubscriberRegistration::new::<
-    DependencyService,
-    BindingOwnership,
->());
-
-#[async_trait]
 impl Subscriber<EntityOperation> for DependencyService {
     fn filter(&self) -> EntityEventFilter {
-        EntityEventFilter::by_entity(HashMap::from([(
-            EntityDiscriminants::Service,
-            Some(vec![EntityOperationDiscriminants::Deleted]),
-        )]))
+        let deleted = Some(vec![EntityOperationDiscriminants::Deleted]);
+        EntityEventFilter::by_entity(HashMap::from([
+            (EntityDiscriminants::Service, deleted.clone()),
+            (EntityDiscriminants::Binding, deleted),
+        ]))
     }
 
     async fn handle(&self, events: Vec<Event<EntityOperation>>) -> Result<(), Error> {
         for event in events {
-            let Entity::Service(service) = event.scope.entity_type() else {
+            let EntityOperation::Deleted { reason } = &event.operation else {
                 continue;
             };
-            let held: Vec<_> = service.base.bindings.iter().map(|b| b.id()).collect();
-            for record in self
-                .member_storage()
-                .records_for_service(&service.id)
-                .await?
-            {
-                // A member on a binding the service no longer held when deleted has already heard
-                // where that binding went.
-                if let Some(binding_id) = record.binding_id()
-                    && !held.contains(&binding_id)
-                {
-                    continue;
+            match event.scope.entity_type() {
+                // A binding removed from a living service is that service's own edit, unless its
+                // port changed hands or went quiet.
+                Entity::Binding(binding) => {
+                    let Some(change) = port_change(reason) else {
+                        continue;
+                    };
+                    for record in self
+                        .member_storage()
+                        .records_for_binding(&binding.id)
+                        .await?
+                    {
+                        self.announce(
+                            DependencyMemberChangeScope {
+                                site_id: binding.base.site_id,
+                                dependency_id: record.dependency_id(),
+                                service_id: binding.base.service_id,
+                                binding_id: Some(binding.id),
+                            },
+                            change.clone(),
+                            &event,
+                        )
+                        .await?;
+                    }
                 }
-                self.announce(
-                    DependencyMemberChangeScope {
-                        site_id: service.base.site_id,
-                        dependency_id: record.dependency_id(),
-                        service_id: service.id,
-                        binding_id: record.binding_id(),
-                    },
-                    DependencyMemberChange::MemberDeleted,
-                    &event,
-                )
-                .await?;
+                Entity::Service(service) => {
+                    // Absorption repoints the placeholder's members to the identified service
+                    // before deleting it, so none are left to hear.
+                    if matches!(reason, DeletionReason::IdentifiedAs { .. }) {
+                        continue;
+                    }
+                    let change = match reason {
+                        DeletionReason::PortsHandedOver { to_service_id, .. } => {
+                            DependencyMemberChange::MemberMoved {
+                                to_service_id: *to_service_id,
+                            }
+                        }
+                        _ => DependencyMemberChange::MemberDeleted,
+                    };
+                    let held: Vec<_> = service.base.bindings.iter().map(|b| b.id()).collect();
+                    for record in self
+                        .member_storage()
+                        .records_for_service(&service.id)
+                        .await?
+                    {
+                        // A member on a binding the service gave up before it was deleted has
+                        // already heard where that binding went.
+                        if let Some(binding_id) = record.binding_id()
+                            && !held.contains(&binding_id)
+                        {
+                            continue;
+                        }
+                        self.announce(
+                            DependencyMemberChangeScope {
+                                site_id: service.base.site_id,
+                                dependency_id: record.dependency_id(),
+                                service_id: service.id,
+                                binding_id: record.binding_id(),
+                            },
+                            change.clone(),
+                            &event,
+                        )
+                        .await?;
+                    }
+                }
+                _ => {}
             }
         }
         Ok(())

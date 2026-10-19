@@ -42,7 +42,7 @@ impl AppProbe for SnmpEngineProbe {
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
         Ok(presence(
-            discovers_engine(SocketAddr::new(ctx.ip, self.port().number())).await,
+            discovers_engine(ctx.target(self.port().number())).await,
         ))
     }
 }

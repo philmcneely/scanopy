@@ -70,7 +70,8 @@ pub mod zmtp;
 use anyhow::Error;
 use async_trait::async_trait;
 use cidr::IpCidr;
-use std::net::IpAddr;
+use std::collections::HashMap;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
@@ -110,9 +111,17 @@ pub struct ProbeContext {
     /// The scan's `probe_raw_socket_ports`. Off, no probe on 9100-9107 runs: a raw print port
     /// prints whatever it receives, and Bacula's greeting on 9101 came out of a Kyocera (GH #801).
     pub probe_raw_socket_ports: bool,
+    /// Where to reach a probe's port when it isn't the port itself: a container's port published
+    /// on another host port. Empty for a network scan, which probes each port where it is.
+    pub port_map: HashMap<u16, u16>,
 }
 
 impl ProbeContext {
+    /// The address a probe for `port` connects to.
+    pub fn target(&self, port: u16) -> SocketAddr {
+        SocketAddr::new(self.ip, *self.port_map.get(&port).unwrap_or(&port))
+    }
+
     /// Report a connect failure, so an FD-exhaustion error degrades the whole scan's concurrency
     /// rather than being read as "nothing is listening there".
     pub fn note_connect_error(&self, error: &std::io::Error) {
@@ -259,7 +268,7 @@ pub struct AppProbeResult {
 /// A connect error is reported to the scan controller before being swallowed, so FD exhaustion
 /// degrades the scan's concurrency rather than being read as "nothing is listening there".
 pub(crate) async fn read_greeting(ctx: &ProbeContext, port: PortType, buf_len: usize) -> Vec<u8> {
-    let addr = std::net::SocketAddr::new(ctx.ip, port.number());
+    let addr = ctx.target(port.number());
     let mut stream = match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
         Ok(Ok(stream)) => stream,
         Ok(Err(e)) => {
@@ -291,7 +300,7 @@ pub(crate) async fn request_response(
     request: &[u8],
     buf_len: usize,
 ) -> Vec<u8> {
-    let addr = std::net::SocketAddr::new(ctx.ip, port.number());
+    let addr = ctx.target(port.number());
     let mut stream = match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
         Ok(Ok(stream)) => stream,
         Ok(Err(e)) => {
@@ -334,7 +343,7 @@ pub(crate) async fn request_exact(
     request: &[u8],
     want: usize,
 ) -> Vec<u8> {
-    let addr = std::net::SocketAddr::new(ctx.ip, port.number());
+    let addr = ctx.target(port.number());
     let mut stream = match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
         Ok(Ok(stream)) => stream,
         Ok(Err(e)) => {
@@ -378,7 +387,7 @@ pub(crate) async fn udp_request_response(
     request: &[u8],
     buf_len: usize,
 ) -> Vec<u8> {
-    let target = std::net::SocketAddr::new(ctx.ip, port.number());
+    let target = ctx.target(port.number());
     let bind = if ctx.ip.is_ipv6() {
         "[::]:0"
     } else {
@@ -425,13 +434,19 @@ pub fn all_app_probes() -> Vec<Box<dyn AppProbe>> {
 /// the raw-socket gate covers each one, TCP or UDP, without the probe having to know about it.
 ///
 /// TCP probes gate on the connect scan having found the port open; UDP has no connect scan to gate
-/// on, so its probes always run — which is what `scan_udp_ports` did for the same four probes.
-fn select_probes(ctx: &ProbeContext, open_ports: &[PortType]) -> Vec<Box<dyn AppProbe>> {
+/// on, so its probes run whenever `udp` is set — which is what `scan_udp_ports` did for the same four probes.
+fn select_probes(ctx: &ProbeContext, open_ports: &[PortType], udp: bool) -> Vec<Box<dyn AppProbe>> {
     all_app_probes()
         .into_iter()
         .filter(|p| ctx.probe_raw_socket_ports || !p.port().is_raw_socket())
         .filter(|p| p.applies(ctx))
-        .filter(|p| p.port().is_udp() || open_ports.contains(&p.port()))
+        .filter(|p| {
+            if p.port().is_udp() {
+                udp
+            } else {
+                open_ports.contains(&p.port())
+            }
+        })
         .collect()
 }
 
@@ -441,8 +456,9 @@ pub async fn scan_app_probes(
     open_ports: &[PortType],
     batch_size: usize,
     scan_rate_pps: u32,
+    udp: bool,
 ) -> Vec<AppProbeResult> {
-    let probes = select_probes(ctx, open_ports);
+    let probes = select_probes(ctx, open_ports, udp);
 
     if probes.is_empty() {
         return Vec::new();
@@ -505,6 +521,23 @@ mod tests {
     use super::*;
     use crate::server::services::r#impl::patterns::ClientProbe;
 
+    /// A probe reaches a mapped port on the port it's published on, and any other on its own.
+    #[test]
+    fn a_probe_reaches_a_mapped_port_on_its_published_port() {
+        let ctx = ProbeContext {
+            ip: "192.168.4.58".parse().unwrap(),
+            subnet_cidr: "192.168.4.0/24".parse().unwrap(),
+            is_gateway: false,
+            cancel: CancellationToken::new(),
+            scan_controller: crate::daemon::utils::scanner::ScanConcurrencyController::new(1),
+            probe_raw_socket_ports: false,
+            port_map: HashMap::from([(5432, 15432)]),
+        };
+        assert_eq!(ctx.target(5432).port(), 15432);
+        assert_eq!(ctx.target(6379).port(), 6379);
+        assert_eq!(ctx.target(5432).ip(), ctx.ip);
+    }
+
     /// Every probe is reachable only through a service definition, so this also asserts that each
     /// one has a definition behind it.
     #[test]
@@ -536,9 +569,10 @@ mod tests {
             cancel: CancellationToken::new(),
             scan_controller: ScanConcurrencyController::new(16),
             probe_raw_socket_ports,
+            port_map: Default::default(),
         };
         let open_ports: Vec<PortType> = all_app_probes().iter().map(|p| p.port()).collect();
-        select_probes(&ctx, &open_ports)
+        select_probes(&ctx, &open_ports, true)
     }
 
     /// GH #801: with the setting off, nothing past a connect may reach 9100-9107. Derived from the

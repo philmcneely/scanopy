@@ -15,7 +15,10 @@ use crate::server::{
     services::r#impl::{base::Service, patterns::MatchDetails},
     shared::{
         entities::ChangeTriggersTopologyStaleness,
-        events::{bus::EventBus, types::EntityOperation},
+        events::{
+            bus::EventBus,
+            types::{DeletionReason, EntityOperation},
+        },
         position::next_position,
         services::traits::{ChildCrudService, CrudService, EventBusService},
         storage::{
@@ -244,7 +247,12 @@ impl CrudService<Service> for ServiceService {
                     .collect();
                 let saved_bindings = self
                     .binding_service
-                    .save_for_parent(&created.id, &bindings_with_ids, authentication.clone())
+                    .save_for_parent(
+                        &created.id,
+                        &bindings_with_ids,
+                        authentication.clone(),
+                        DeletionReason::Requested,
+                    )
                     .await?;
 
                 // Update service with the saved bindings (which have actual IDs)
@@ -344,7 +352,12 @@ impl CrudService<Service> for ServiceService {
             .collect();
         let saved_bindings = self
             .binding_service
-            .save_for_parent(&updated.id, &bindings_with_ids, authentication.clone())
+            .save_for_parent(
+                &updated.id,
+                &bindings_with_ids,
+                authentication.clone(),
+                DeletionReason::Requested,
+            )
             .await?;
 
         // Update service with the saved bindings (which have actual IDs and preserved created_at)
@@ -396,18 +409,25 @@ impl CrudService<Service> for ServiceService {
         &self,
         ids: &[Uuid],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize> {
         let mut deleted = 0;
         for id in ids {
             if self.get_by_id(id).await?.is_some() {
-                self.delete(id, authentication.clone()).await?;
+                self.delete(id, authentication.clone(), reason.clone())
+                    .await?;
                 deleted += 1;
             }
         }
         Ok(deleted)
     }
 
-    async fn delete(&self, id: &Uuid, authentication: AuthenticatedEntity) -> Result<()> {
+    async fn delete(
+        &self,
+        id: &Uuid,
+        authentication: AuthenticatedEntity,
+        reason: DeletionReason,
+    ) -> Result<()> {
         let lock_guard = self
             .storage
             .session_lock(LockKey::Service(*id), DEFAULT_LOCK_TIMEOUT)
@@ -444,12 +464,17 @@ impl CrudService<Service> for ServiceService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Deleted, authentication).with_flags(
-                        EntityEventFlags {
-                            trigger_stale,
-                            ..Default::default()
+                    Event::new(
+                        scope,
+                        EntityOperation::Deleted {
+                            reason: reason.clone(),
                         },
-                    ),
+                        authentication,
+                    )
+                    .with_flags(EntityEventFlags {
+                        trigger_stale,
+                        ..Default::default()
+                    }),
                 )
                 .await?;
         }

@@ -38,10 +38,6 @@ const HOST: &[F] = &[
     F::new("virtualized_by", "Virtualized By")
         .entity(&[Hop::parent(E::Service, "virtualization_service_id")])
         .summary(),
-    F::new("guest_state", "Guest State")
-        .field("virtualization_metadata.details.state")
-        .metadata(Fx::GuestStates)
-        .summary(),
     F::new("presented_by", "Presented By")
         .entity(&[Hop::parent(E::Interface, "virtualization_interface_id")]),
     F::new("os_family", "Operating System")

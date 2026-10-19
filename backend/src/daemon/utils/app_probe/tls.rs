@@ -141,7 +141,7 @@ pub(crate) async fn capture_certificate(ctx: &ProbeContext, port: PortType) -> T
     // there is nothing for SNI or ALPN to negotiate.
     config.enable_sni = false;
 
-    let addr = std::net::SocketAddr::new(ctx.ip, port.number());
+    let addr = ctx.target(port.number());
     let stream = match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
         Ok(Ok(stream)) => stream,
         Ok(Err(e)) => {
@@ -215,6 +215,7 @@ mod tests {
             cancel: tokio_util::sync::CancellationToken::new(),
             scan_controller: ScanConcurrencyController::new(4),
             probe_raw_socket_ports: true,
+            port_map: Default::default(),
         };
         let handshake = capture_certificate(&ctx, PortType::new_tcp(port)).await;
         let subject = handshake

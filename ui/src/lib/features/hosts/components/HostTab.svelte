@@ -32,6 +32,7 @@
 		common_edit,
 		common_hosts,
 		common_confirmBulkDelete,
+		common_confirmBulkDeleteWithGuests,
 		common_noEntityYet,
 		common_rescan,
 		daemons_installPromptHosts,
@@ -54,7 +55,7 @@
 		type HostQueryOptions
 	} from '../queries';
 	import { useServicesByIds, useServicesCacheQuery } from '$lib/features/services/queries';
-	import { countVirtualizedOnHost } from '$lib/features/services/virtualized-count';
+	import { virtualizedSummaryOnHosts } from '$lib/features/services/virtualized-count';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { useIPAddressesQuery } from '$lib/features/ip-addresses/queries';
 	import { usePortsQuery } from '$lib/features/ports/queries';
@@ -392,12 +393,11 @@
 
 	async function handleDeleteHost(host: Host) {
 		// Deleting a hypervisor's or runtime's host deletes what it runs, so the question says how much.
-		const count = await countVirtualizedOnHost(host.id);
+		const guests = await virtualizedSummaryOnHosts([host.id]);
 		const name = hostDisplayName(host);
-		const question =
-			count > 0
-				? common_confirmDeleteNameWithGuests({ name, count })
-				: common_confirmDeleteName({ name });
+		const question = guests
+			? common_confirmDeleteNameWithGuests({ name, guests })
+			: common_confirmDeleteName({ name });
 		if (confirm(question)) {
 			deleteHostMutation.mutate(host.id);
 		}
@@ -438,7 +438,11 @@
 	}
 
 	async function handleBulkDelete(ids: string[]) {
-		if (confirm(common_confirmBulkDelete({ count: ids.length, entity: common_hosts() }))) {
+		const guests = await virtualizedSummaryOnHosts(ids);
+		const question = guests
+			? common_confirmBulkDeleteWithGuests({ count: ids.length, entity: common_hosts(), guests })
+			: common_confirmBulkDelete({ count: ids.length, entity: common_hosts() });
+		if (confirm(question)) {
 			await bulkDeleteHostsMutation.mutateAsync(ids);
 		}
 	}

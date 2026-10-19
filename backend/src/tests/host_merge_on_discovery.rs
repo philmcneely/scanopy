@@ -904,7 +904,12 @@ async fn a_manual_merge_keeps_interfaces_adjacencies_and_tags() {
         .unwrap();
     services
         .host_service
-        .consolidate_hosts(a_host, b_host, AuthenticatedEntity::System)
+        .consolidate_hosts(
+            a_host,
+            b_host,
+            AuthenticatedEntity::System,
+            crate::server::shared::events::types::DeletionReason::Requested,
+        )
         .await
         .unwrap();
 
@@ -981,7 +986,11 @@ async fn a_network_identity_references_its_presenting_interface() {
 
     services
         .interface_service
-        .delete(&presenting, AuthenticatedEntity::System)
+        .delete(
+            &presenting,
+            AuthenticatedEntity::System,
+            crate::server::shared::events::types::DeletionReason::Requested,
+        )
         .await
         .unwrap();
     let identity_now = services

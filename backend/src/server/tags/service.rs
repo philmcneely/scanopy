@@ -1,3 +1,4 @@
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     shared::{
@@ -136,6 +137,7 @@ impl CrudService<Tag> for TagService {
         &self,
         id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<(), anyhow::Error> {
         let mut entity = self
             .get_by_id(id)
@@ -161,12 +163,11 @@ impl CrudService<Tag> for TagService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Deleted, authentication).with_flags(
-                        EntityEventFlags {
+                    Event::new(scope, EntityOperation::Deleted { reason }, authentication)
+                        .with_flags(EntityEventFlags {
                             trigger_stale,
                             ..Default::default()
-                        },
-                    ),
+                        }),
                 )
                 .await?;
         }

@@ -201,7 +201,6 @@ async fn every_documented_host_filter_narrows_the_rows() {
             ("models", "C2960X"),
             ("sys_locations", "Lobby"),
             ("os_families", "Linux"),
-            ("guest_states", "Stopped"),
             ("credential_ids", id.as_str()),
             ("tag_ids", id.as_str()),
             ("tag_sets", id.as_str()),

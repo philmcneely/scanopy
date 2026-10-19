@@ -84,15 +84,13 @@ impl HostService {
                 for guest in guest_services.into_iter().filter(|s| {
                     s.base.source.is_from_discovery() && !scanned_services.contains(&s.id)
                 }) {
-                    tracing::info!(
-                        service_name = %guest.base.name,
-                        service_definition = %guest.base.service_definition.name(),
-                        host_id = %host_id,
-                        "Deleting a container its runtime no longer has"
-                    );
                     if let Err(e) = self
                         .service_service
-                        .delete(&guest.id, authentication.clone())
+                        .delete(
+                            &guest.id,
+                            authentication.clone(),
+                            no_longer_listed(&guest.base.virtualization_service_id),
+                        )
                         .await
                     {
                         tracing::warn!(service_id = %guest.id, error = %e, "Failed to delete a removed container");
@@ -110,17 +108,26 @@ impl HostService {
                     .into_iter()
                     .filter(|h| h.base.source.is_from_discovery() && !scanned_hosts.contains(&h.id))
                 {
-                    tracing::info!(
-                        host_name = %guest.base.name.value(),
-                        host_id = %host_id,
-                        "Deleting a guest its hypervisor or runtime no longer has"
-                    );
-                    if let Err(e) = self.delete_host(&guest.id, authentication.clone()).await {
+                    if let Err(e) = self
+                        .delete_host(
+                            &guest.id,
+                            authentication.clone(),
+                            no_longer_listed(&guest.base.virtualization_service_id),
+                        )
+                        .await
+                    {
                         tracing::warn!(host_id = %guest.id, error = %e, "Failed to delete a removed guest");
                     }
                 }
             }
         }
         Ok(())
+    }
+}
+
+/// The reason for deleting a guest of `parent`, which the filter that found it guarantees is set.
+fn no_longer_listed(parent: &Option<Uuid>) -> DeletionReason {
+    DeletionReason::GuestNoLongerListed {
+        parent_service_id: parent.unwrap_or_default(),
     }
 }

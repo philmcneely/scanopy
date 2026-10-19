@@ -1,6 +1,6 @@
 //! Host creation from API requests and the create-with-children path.
 use super::open_ports::{held_by_open_ports, port_claim};
-use super::stale_ports::{TakenBinding, overlaps, stored_container};
+use super::stale_ports::{overlaps, stored_container};
 use super::*;
 use crate::server::shared::attribution::AttributeSource;
 
@@ -1125,8 +1125,6 @@ impl HostService {
             .await?;
 
         for service in services {
-            // Bindings this service takes from stored holders, announced once it is stored.
-            let mut moved: Vec<TakenBinding> = Vec::new();
             let mut reassigned = self
                 .service_service
                 .reassign_service_interface_bindings(
@@ -1256,16 +1254,14 @@ impl HostService {
                         &reassigned,
                     ) && !holders.is_empty()
                     {
-                        moved.extend(
-                            self.take_ports(
-                                &holders,
-                                &handed_over_claims,
-                                &mut existing_services_for_match,
-                                reassigned.base.service_definition.name(),
-                                authentication.clone(),
-                            )
-                            .await?,
-                        );
+                        self.take_ports(
+                            &holders,
+                            &handed_over_claims,
+                            &mut existing_services_for_match,
+                            handed_over_to(&reassigned),
+                            authentication.clone(),
+                        )
+                        .await?;
                     }
                     let mut valid_bindings = valid_bindings;
                     valid_bindings.extend(handed_over);
@@ -1283,15 +1279,13 @@ impl HostService {
                     let claims: Vec<(Uuid, Option<Uuid>)> =
                         reclaimed.iter().filter_map(port_claim).collect();
                     if !claims.is_empty() {
-                        moved.extend(
-                            self.reclaim_from_open_ports(
-                                &claims,
-                                &mut existing_services_for_match,
-                                reassigned.base.service_definition.name(),
-                                authentication.clone(),
-                            )
-                            .await,
-                        );
+                        self.reclaim_from_open_ports(
+                            &claims,
+                            &mut existing_services_for_match,
+                            &reassigned,
+                            authentication.clone(),
+                        )
+                        .await;
                     }
                     tracing::debug!(
                         service_name = %reassigned.base.name,
@@ -1392,14 +1386,13 @@ impl HostService {
                         ports = ?claims,
                         "Container takes the ports its runtime is reached through"
                     );
-                    if let Some(owner) = existing_services_for_match
-                        .iter()
-                        .find(|s| s.id == owner_id)
-                    {
-                        moved.extend(TakenBinding::from_holder(owner, &claims));
-                    }
                     self.service_service
-                        .remove_port_bindings(&owner_id, &claims, authentication.clone())
+                        .remove_port_bindings(
+                            &owner_id,
+                            &claims,
+                            authentication.clone(),
+                            handed_over_to(&reassigned),
+                        )
                         .await?;
                     if let Some(owner) = existing_services_for_match
                         .iter_mut()
@@ -1459,27 +1452,23 @@ impl HostService {
                             .copied()
                             .collect();
                         if !open_ports_claims.is_empty() {
-                            moved.extend(
-                                self.reclaim_from_open_ports(
-                                    &open_ports_claims,
-                                    &mut existing_services_for_match,
-                                    reassigned.base.service_definition.name(),
-                                    authentication.clone(),
-                                )
-                                .await,
-                            );
+                            self.reclaim_from_open_ports(
+                                &open_ports_claims,
+                                &mut existing_services_for_match,
+                                &reassigned,
+                                authentication.clone(),
+                            )
+                            .await;
                         }
                         if !holders.is_empty() {
-                            moved.extend(
-                                self.take_ports(
-                                    &holders,
-                                    &conflicting_claims,
-                                    &mut existing_services_for_match,
-                                    reassigned.base.service_definition.name(),
-                                    authentication.clone(),
-                                )
-                                .await?,
-                            );
+                            self.take_ports(
+                                &holders,
+                                &conflicting_claims,
+                                &mut existing_services_for_match,
+                                handed_over_to(&reassigned),
+                                authentication.clone(),
+                            )
+                            .await?;
                         }
 
                         // Restore full bindings on the incoming service
@@ -1572,8 +1561,6 @@ impl HostService {
             // can find it for ID alignment and Docker Container → specific service reconciliation
             existing_services_for_match.push(created.clone());
             turnover.mark_present(created.id);
-            self.publish_binding_moves(moved, &created, authentication.clone())
-                .await;
             self.finish_absorbing(absorbed, &created, authentication.clone())
                 .await?;
             created_services.push(created);
@@ -1810,7 +1797,11 @@ impl HostService {
                 if !kept_ids.contains(&iface.id) {
                     match self
                         .interface_service
-                        .delete(&iface.id, authentication.clone())
+                        .delete(
+                            &iface.id,
+                            authentication.clone(),
+                            DeletionReason::NoLongerReported,
+                        )
                         .await
                     {
                         Ok(_) => pruned += 1,
@@ -1934,7 +1925,10 @@ impl HostService {
             addresses = ?proven.addresses,
             "Merging a host this payload proves is the same device"
         );
-        self.consolidate_hosts(destination, other, authentication.clone())
+        let reason = DeletionReason::MergedInto {
+            host_id: destination.id,
+        };
+        self.consolidate_hosts(destination, other, authentication.clone(), reason)
             .await
     }
 }
@@ -2252,5 +2246,13 @@ mod tests {
         // An interface that failed to persist means the set we hold is a subset of what the
         // device reported — pruning against it would delete ports that are genuinely still there.
         assert!(!should_prune_interfaces(true, 5, 1));
+    }
+}
+
+/// Why a holder gives up the ports `claimant` takes.
+fn handed_over_to(claimant: &Service) -> DeletionReason {
+    DeletionReason::PortsHandedOver {
+        to_service_id: claimant.id,
+        to: claimant.base.service_definition.clone(),
     }
 }

@@ -1,3 +1,4 @@
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::shared::extractors::Query;
 use crate::server::{
     auth::middleware::{
@@ -480,19 +481,22 @@ where
         organization_id,
     )?;
 
-    service.delete(&id, auth.into_entity()).await.map_err(|e| {
-        // Use From<anyhow::Error> to properly handle ValidationError (400) vs internal errors (500)
-        let api_error = ApiError::from(e);
-        if api_error.status.is_server_error() {
-            tracing::error!(
-                entity_type = T::table_name(),
-                entity_id = %id,
-                error = %api_error.message,
-                "Failed to delete entity"
-            );
-        }
-        api_error
-    })?;
+    service
+        .delete(&id, auth.into_entity(), DeletionReason::Requested)
+        .await
+        .map_err(|e| {
+            // Use From<anyhow::Error> to properly handle ValidationError (400) vs internal errors (500)
+            let api_error = ApiError::from(e);
+            if api_error.status.is_server_error() {
+                tracing::error!(
+                    entity_type = T::table_name(),
+                    entity_id = %id,
+                    error = %api_error.message,
+                    "Failed to delete entity"
+                );
+            }
+            api_error
+        })?;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -548,7 +552,7 @@ where
     let valid_ids: Vec<Uuid> = entities.iter().map(|e| e.id()).collect();
 
     let deleted_count = service
-        .delete_many(&valid_ids, auth.into_entity())
+        .delete_many(&valid_ids, auth.into_entity(), DeletionReason::Requested)
         .await
         .map_err(|e| {
             // Use From<anyhow::Error> to properly handle ValidationError (400) vs internal errors (500)

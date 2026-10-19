@@ -1,3 +1,4 @@
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::shared::types::api::ApiJson;
 use axum::Json;
 use axum::extract::{Path, State};
@@ -190,7 +191,11 @@ async fn create_binding(
                 state
                     .services
                     .binding_service
-                    .delete(&existing_binding.id, auth.entity.clone())
+                    .delete(
+                        &existing_binding.id,
+                        auth.entity.clone(),
+                        DeletionReason::Requested,
+                    )
                     .await?;
             }
         }

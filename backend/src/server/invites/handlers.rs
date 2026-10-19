@@ -6,6 +6,7 @@ use crate::server::config::AppState;
 use crate::server::invites::r#impl::base::Invite;
 use crate::server::organizations::r#impl::api::CreateInviteRequest;
 use crate::server::shared::events::traits::{Event, OrgScope};
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::shared::events::types::{
     BillingOperation, OnboardingOperation, OnboardingOperationDiscriminants,
 };
@@ -318,7 +319,7 @@ async fn revoke_invite(
     state
         .services
         .invite_service
-        .delete(&invite.id, auth.into_entity())
+        .delete(&invite.id, auth.into_entity(), DeletionReason::Requested)
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 
@@ -362,7 +363,7 @@ async fn bulk_revoke_invites(
     state
         .services
         .invite_service
-        .delete_many(&ids, auth.into_entity())
+        .delete_many(&ids, auth.into_entity(), DeletionReason::Requested)
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 
@@ -505,7 +506,7 @@ async fn accept_invite_link(
             if let Err(e) = state
                 .services
                 .invite_service
-                .delete(&id, AuthenticatedEntity::System)
+                .delete(&id, AuthenticatedEntity::System, DeletionReason::Consumed)
                 .await
             {
                 tracing::warn!("Failed to revoke invite {}: {}", id, e);

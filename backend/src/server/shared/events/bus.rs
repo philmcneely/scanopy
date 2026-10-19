@@ -5,7 +5,6 @@ use anyhow::Result;
 use crate::{
     daemon::discovery::types::{base::DiscoveryPhase, warnings::DiscoveryWarningCode},
     server::{
-        bindings::r#impl::ownership_events::BindingOwnership,
         dependencies::r#impl::member_events::DependencyMemberChange,
         digest::payload::DiscoveryDigestOperation,
         shared::events::{
@@ -37,8 +36,6 @@ pub struct EventBus {
     /// scan — a daemon's interfaced subnets arrive on status, not on a discovery submission — so it
     /// has neither a session nor a daemon to hang off the warning scope.
     pub subnet_correction_channel: TypedChannel<SubnetCorrection>,
-    /// One event per port binding that changed hands or was released.
-    pub binding_ownership_channel: TypedChannel<BindingOwnership>,
     /// One event per dependency member whose binding or service changed under it.
     pub dependency_member_channel: TypedChannel<DependencyMemberChange>,
     /// Shared by every channel: what `flush` and `shutdown` wait on.
@@ -65,7 +62,6 @@ impl EventBus {
             discovery_digest_channel: TypedChannel::with_tracker(tracker.clone()),
             discovery_warning_channel: TypedChannel::with_tracker(tracker.clone()),
             subnet_correction_channel: TypedChannel::with_tracker(tracker.clone()),
-            binding_ownership_channel: TypedChannel::with_tracker(tracker.clone()),
             dependency_member_channel: TypedChannel::with_tracker(tracker.clone()),
         }
     }
@@ -176,12 +172,6 @@ impl BusChannel<DiscoveryWarningCode> for EventBus {
 impl BusChannel<SubnetCorrection> for EventBus {
     fn channel(&self) -> &TypedChannel<SubnetCorrection> {
         &self.subnet_correction_channel
-    }
-}
-
-impl BusChannel<BindingOwnership> for EventBus {
-    fn channel(&self) -> &TypedChannel<BindingOwnership> {
-        &self.binding_ownership_channel
     }
 }
 

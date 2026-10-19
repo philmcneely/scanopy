@@ -3,6 +3,7 @@ use super::*;
 use crate::daemon::discovery::types::base::DiscoveryPhase;
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
 use crate::server::daemons::r#impl::api::ScannedEntityIds;
+use crate::server::shared::events::types::DeletionReason;
 
 /// How long the completion request will wait for neighbour resolution before cutting it short.
 ///
@@ -1400,7 +1401,11 @@ impl DaemonService {
         for old in &discoveries {
             if let Err(e) = self
                 .discovery_service
-                .delete(&old.id, AuthenticatedEntity::System)
+                .delete(
+                    &old.id,
+                    AuthenticatedEntity::System,
+                    DeletionReason::Superseded,
+                )
                 .await
             {
                 tracing::warn!(

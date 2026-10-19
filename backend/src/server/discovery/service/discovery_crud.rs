@@ -1,5 +1,6 @@
 //! Discovery creation and deletion (with scheduler wiring).
 use super::*;
+use crate::server::shared::events::types::DeletionReason;
 
 impl DiscoveryService {
     /// Validate timezone string if present on a scheduled discovery
@@ -94,6 +95,7 @@ impl DiscoveryService {
         self: &Arc<Self>,
         id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<(), Error> {
         let discovery = self
             .get_by_id(id)
@@ -125,12 +127,11 @@ impl DiscoveryService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Deleted, authentication).with_flags(
-                        EntityEventFlags {
+                    Event::new(scope, EntityOperation::Deleted { reason }, authentication)
+                        .with_flags(EntityEventFlags {
                             trigger_stale,
                             ..Default::default()
-                        },
-                    ),
+                        }),
                 )
                 .await?;
         }

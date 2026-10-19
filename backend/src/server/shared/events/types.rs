@@ -7,6 +7,7 @@ use crate::server::{
     discovery::r#impl::types::DiscoveryType,
     license::types::LicenseKeyType,
     organizations::r#impl::base::UseCase,
+    services::r#impl::definitions::ServiceDefinition,
     shared::api_key_common::ApiKeyType,
 };
 use chrono::{DateTime, Utc};
@@ -169,7 +170,83 @@ pub enum EntityOperation {
     GetAll,
     Created,
     Updated,
-    Deleted,
+    /// Always says why: a delete has to name its reason.
+    Deleted {
+        reason: DeletionReason,
+    },
+}
+
+/// Why an entity was deleted. Every Deleted event carries one, and every delete names it, so a subscriber can tell a person's delete from one discovery made
+/// and say what took a port or removed a guest.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(tag = "type")]
+pub enum DeletionReason {
+    /// A person or an API key asked for it.
+    Requested,
+    /// Another service answered on its ports and took them.
+    PortsHandedOver {
+        to_service_id: Uuid,
+        to: Box<dyn ServiceDefinition>,
+    },
+    /// Nothing answered on its ports past the site's stale window.
+    PortsReleased,
+    /// A service claimed the ports Unclaimed Open Ports held.
+    OpenPortsReclaimed {
+        to_service_id: Uuid,
+        by: Box<dyn ServiceDefinition>,
+    },
+    /// A generic container placeholder, now identified as this service.
+    IdentifiedAs { service_id: Uuid },
+    /// Its runtime or hypervisor listed its guests in full and no longer has it.
+    GuestNoLongerListed { parent_service_id: Uuid },
+    /// The runtime or hypervisor running it was deleted.
+    VirtualizerDeleted { virtualizer_service_id: Uuid },
+    /// The host it ran on was deleted.
+    HostDeleted { host_id: Uuid },
+    /// Discovery found it to be the same device as another host, and merged it into that one.
+    MergedInto { host_id: Uuid },
+    /// A complete reading of what it belonged to no longer has it: an interface a full ifTable
+    /// walk didn't return, a binding a broader one replaced.
+    NoLongerReported,
+    /// A newer record replaced it.
+    Superseded,
+    /// It was used up: an invite someone followed.
+    Consumed,
+    /// Its organization was deleted.
+    OrganizationDeleted,
+}
+
+impl DeletionReason {
+    /// The reason as the end of a sentence about the deleted entity: "deleted: <this>".
+    pub fn describe(&self) -> String {
+        match self {
+            Self::Requested => "requested".to_string(),
+            Self::PortsHandedOver { to_service_id, to } => {
+                format!("its ports were taken by {} ({to_service_id})", to.name())
+            }
+            Self::PortsReleased => {
+                "its ports went unanswered past the site's stale window".to_string()
+            }
+            Self::OpenPortsReclaimed { to_service_id, by } => {
+                format!("its ports were claimed by {} ({to_service_id})", by.name())
+            }
+            Self::IdentifiedAs { service_id } => format!("identified as service {service_id}"),
+            Self::GuestNoLongerListed { parent_service_id } => {
+                format!("service {parent_service_id} no longer runs it")
+            }
+            Self::VirtualizerDeleted {
+                virtualizer_service_id,
+            } => format!("service {virtualizer_service_id}, which ran it, was deleted"),
+            Self::HostDeleted { host_id } => {
+                format!("host {host_id}, which it ran on, was deleted")
+            }
+            Self::MergedInto { host_id } => format!("merged into host {host_id}"),
+            Self::NoLongerReported => "no longer reported".to_string(),
+            Self::Superseded => "superseded by a newer record".to_string(),
+            Self::Consumed => "it was used".to_string(),
+            Self::OrganizationDeleted => "its organization was deleted".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display, EnumDiscriminants)]

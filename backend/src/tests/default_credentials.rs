@@ -207,7 +207,11 @@ async fn a_default_can_be_renamed_and_unassigned_but_not_changed_or_deleted() {
 
     let deleted = services
         .credential_service
-        .delete(&default.id, AuthenticatedEntity::System)
+        .delete(
+            &default.id,
+            AuthenticatedEntity::System,
+            crate::server::shared::events::types::DeletionReason::Requested,
+        )
         .await;
     assert!(matches!(
         error_code(deleted),
@@ -225,7 +229,11 @@ async fn a_default_can_be_renamed_and_unassigned_but_not_changed_or_deleted() {
         .unwrap();
     let batch = services
         .credential_service
-        .delete_many(&[ordinary.id, default.id], AuthenticatedEntity::System)
+        .delete_many(
+            &[ordinary.id, default.id],
+            AuthenticatedEntity::System,
+            crate::server::shared::events::types::DeletionReason::Requested,
+        )
         .await;
     assert!(matches!(
         error_code(batch),

@@ -11,7 +11,10 @@ use crate::server::{
     shared::types::api::{ApiError, GroupCount},
     shared::{
         entities::{ChangeTriggersTopologyStaleness, Entity as EntityEnum},
-        events::{bus::EventBus, types::EntityOperation},
+        events::{
+            bus::EventBus,
+            types::{DeletionReason, EntityOperation},
+        },
         storage::{
             child::ChildStorableEntity,
             filter::StorableFilter,
@@ -346,8 +349,9 @@ where
         &self,
         id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<(), anyhow::Error> {
-        self.delete_base(id, authentication).await
+        self.delete_base(id, authentication, reason).await
     }
 
     /// Base delete implementation: storage, tag cleanup and the Deleted event.
@@ -355,6 +359,7 @@ where
         &self,
         id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<(), anyhow::Error> {
         if let Some(entity) = self.get_by_id(id).await? {
             self.storage().delete(id).await?;
@@ -372,7 +377,9 @@ where
                 self,
                 entity,
                 *id,
-                EntityOperation::Deleted,
+                EntityOperation::Deleted {
+                    reason: reason.clone(),
+                },
                 EntityEventFlags {
                     trigger_stale,
                     suppress_logs,
@@ -527,8 +534,9 @@ where
         &self,
         ids: &[Uuid],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize, anyhow::Error> {
-        self.delete_many_base(ids, authentication).await
+        self.delete_many_base(ids, authentication, reason).await
     }
 
     /// Base bulk delete implementation: tag cleanup, a Deleted event per entity, then storage.
@@ -536,6 +544,7 @@ where
         &self,
         ids: &[Uuid],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize, anyhow::Error> {
         if ids.is_empty() {
             return Ok(0);
@@ -559,7 +568,9 @@ where
                     self,
                     entity,
                     *id,
-                    EntityOperation::Deleted,
+                    EntityOperation::Deleted {
+                        reason: reason.clone(),
+                    },
                     EntityEventFlags {
                         trigger_stale,
                         suppress_logs,
@@ -586,6 +597,7 @@ where
         site_ids: &[Uuid],
         authentication: AuthenticatedEntity,
     ) -> Result<usize, anyhow::Error> {
+        let reason = DeletionReason::OrganizationDeleted;
         let filter = if T::is_site_keyed() {
             StorableFilter::<T>::new_from_site_ids(site_ids)
         } else {
@@ -610,7 +622,9 @@ where
                 self,
                 entity.clone(),
                 entity.id(),
-                EntityOperation::Deleted,
+                EntityOperation::Deleted {
+                    reason: reason.clone(),
+                },
                 EntityEventFlags {
                     trigger_stale,
                     suppress_logs,
@@ -684,6 +698,7 @@ where
         parent_id: &Uuid,
         children: &[T],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<Vec<T>, Error> {
         // Fetch full existing children to get their created_at timestamps
         let existing_children = self.get_for_parent(parent_id).await?;
@@ -703,7 +718,7 @@ where
         let ids_to_delete: Vec<Uuid> = current_ids.difference(&new_ids).cloned().collect();
 
         if !ids_to_delete.is_empty() {
-            self.delete_many(&ids_to_delete, authentication.clone())
+            self.delete_many(&ids_to_delete, authentication.clone(), reason)
                 .await?;
         }
 
@@ -737,6 +752,7 @@ where
         &self,
         parent_id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize, anyhow::Error> {
         let filter = StorableFilter::<T>::new_from_uuid_column(T::parent_column(), parent_id);
 
@@ -761,12 +777,18 @@ where
                 entity.organization_id(),
             ) {
                 events.push(
-                    TypedEvent::new(scope, EntityOperation::Deleted, authentication.clone())
-                        .with_flags(EntityEventFlags {
-                            trigger_stale,
-                            suppress_logs,
-                            ..Default::default()
-                        }),
+                    TypedEvent::new(
+                        scope,
+                        EntityOperation::Deleted {
+                            reason: reason.clone(),
+                        },
+                        authentication.clone(),
+                    )
+                    .with_flags(EntityEventFlags {
+                        trigger_stale,
+                        suppress_logs,
+                        ..Default::default()
+                    }),
                 );
             }
         }

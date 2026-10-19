@@ -3,7 +3,7 @@
 //! Unclaimed Open Ports holds the ports a scan found open with no service to give them to. A
 //! service that later claims one of them takes it, whether the service is new to the host or was
 //! stored by an earlier scan, so the placeholder never outranks a real owner (GH #784).
-use super::stale_ports::{TakenBinding, overlaps};
+use super::stale_ports::{overlaps, taken_claims};
 use super::*;
 
 /// A port binding as the (port, address) claim the conflict checks compare.
@@ -32,23 +32,27 @@ pub(crate) fn held_by_open_ports(claim: &(Uuid, Option<Uuid>), services: &[Servi
 impl HostService {
     /// Remove `claims` from the host's Unclaimed Open Ports service, deleting the service when no
     /// binding is left, and mirror the change in `services` so later services in the payload see
-    /// it. Returns the bindings taken, for the caller to announce once it knows where they went.
+    /// it.
     pub(crate) async fn reclaim_from_open_ports(
         &self,
         claims: &[(Uuid, Option<Uuid>)],
         services: &mut [Service],
-        claimant: &str,
+        claimant: &Service,
         authentication: AuthenticatedEntity,
-    ) -> Vec<TakenBinding> {
+    ) {
+        let reason = DeletionReason::OpenPortsReclaimed {
+            to_service_id: claimant.id,
+            by: claimant.base.service_definition.clone(),
+        };
         let Some(open_ports) = services
             .iter_mut()
             .find(|s| ServiceDefinitionExt::is_open_ports(&s.base.service_definition))
         else {
-            return Vec::new();
+            return;
         };
-        let taken = TakenBinding::from_holder(open_ports, claims);
-        if taken.is_empty() {
-            return taken;
+        let reclaimed = taken_claims(open_ports, claims);
+        if reclaimed.is_empty() {
+            return;
         }
         let open_ports_id = open_ports.id;
         open_ports
@@ -58,29 +62,27 @@ impl HostService {
         let remaining_bindings = open_ports.base.bindings.len();
 
         tracing::info!(
-            service_name = %claimant,
+            service_name = %claimant.base.name,
             reclaimed_ports = ?claims,
             remaining_bindings,
             "Reclaiming ports from Unclaimed Open Ports service"
         );
         // The taken bindings go first, so deleting the emptied service below reports none of them
         // as deleted with it.
-        let reclaimed: Vec<(Uuid, Option<Uuid>)> =
-            taken.iter().map(|t| (t.port_id, t.ip_address_id)).collect();
         let _ = self
             .service_service
-            .remove_port_bindings(&open_ports_id, &reclaimed, authentication.clone())
+            .remove_port_bindings(
+                &open_ports_id,
+                &reclaimed,
+                authentication.clone(),
+                reason.clone(),
+            )
             .await;
         if remaining_bindings == 0 {
-            tracing::info!(
-                service_name = %claimant,
-                "Deleting Unclaimed Open Ports service after all ports reclaimed"
-            );
             let _ = self
                 .service_service
-                .delete(&open_ports_id, authentication)
+                .delete(&open_ports_id, authentication, reason)
                 .await;
         }
-        taken
     }
 }
