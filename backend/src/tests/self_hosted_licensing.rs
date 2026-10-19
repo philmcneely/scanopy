@@ -175,8 +175,14 @@ async fn online_keys_are_stable_until_rotated() {
     let org = create_org(&state, get_self_hosted_standard_plan(), None).await;
 
     // What two clicks of Copy do: one issued-at stamp, one key string.
-    let first_stamp = service.license_key_issued_at(org.id).await.unwrap();
-    let second_stamp = service.license_key_issued_at(org.id).await.unwrap();
+    let first_stamp = service
+        .license_key_issued_at(org.id, AuthenticatedEntity::System)
+        .await
+        .unwrap();
+    let second_stamp = service
+        .license_key_issued_at(org.id, AuthenticatedEntity::System)
+        .await
+        .unwrap();
     assert_eq!(first_stamp, second_stamp);
     let key = issuer
         .mint_online_key(&reload(&state, org.id).await, first_stamp)
@@ -194,7 +200,10 @@ async fn online_keys_are_stable_until_rotated() {
         .rotate_license_key(org.id, AuthenticatedEntity::System)
         .await
         .unwrap();
-    let rotated_stamp = service.license_key_issued_at(org.id).await.unwrap();
+    let rotated_stamp = service
+        .license_key_issued_at(org.id, AuthenticatedEntity::System)
+        .await
+        .unwrap();
     assert!(rotated_stamp >= first_stamp);
     assert_ne!(
         issuer
@@ -219,7 +228,10 @@ async fn a_second_production_server_is_refused_and_a_non_production_one_admitted
         Some(whole_seconds_from_now(30)),
     )
     .await;
-    let stamp = service.license_key_issued_at(org.id).await.unwrap();
+    let stamp = service
+        .license_key_issued_at(org.id, AuthenticatedEntity::System)
+        .await
+        .unwrap();
     let key = issuer
         .mint_online_key(&reload(&state, org.id).await, stamp)
         .unwrap();
@@ -691,7 +703,10 @@ async fn switching_key_type_retires_the_previous_key() {
     )
     .await;
 
-    let issued_at = service.license_key_issued_at(org.id).await.unwrap();
+    let issued_at = service
+        .license_key_issued_at(org.id, AuthenticatedEntity::System)
+        .await
+        .unwrap();
     let online_key = issuer
         .mint_online_key(&reload(&state, org.id).await, issued_at)
         .unwrap();

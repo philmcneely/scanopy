@@ -237,7 +237,8 @@ impl OrganizationService {
         }
 
         for operation in events {
-            self.publish_license_event(organization_id, operation).await;
+            self.publish_license_event(organization_id, operation, AuthenticatedEntity::System)
+                .await;
         }
         Ok(())
     }
@@ -262,7 +263,8 @@ impl OrganizationService {
         }
 
         if let Some(operation) = event {
-            self.publish_license_event(organization_id, operation).await;
+            self.publish_license_event(organization_id, operation, AuthenticatedEntity::System)
+                .await;
         }
         Ok(())
     }
@@ -270,14 +272,19 @@ impl OrganizationService {
     /// Publish a license telemetry event. Best-effort: the state it describes
     /// is already written, so a failed publish is logged rather than failing
     /// the request that caused it.
-    async fn publish_license_event(&self, organization_id: Uuid, operation: BillingOperation) {
+    async fn publish_license_event(
+        &self,
+        organization_id: Uuid,
+        operation: BillingOperation,
+        authentication: AuthenticatedEntity,
+    ) {
         let name = operation.to_string();
         if let Err(e) = self
             .event_bus()
             .publish(Event::new(
                 OrgScope { organization_id },
                 operation,
-                AuthenticatedEntity::System,
+                authentication,
             ))
             .await
         {
@@ -312,7 +319,8 @@ impl OrganizationService {
             }
 
             if let Some(operation) = operation {
-                self.publish_license_event(candidate.id, operation).await;
+                self.publish_license_event(candidate.id, operation, AuthenticatedEntity::System)
+                    .await;
                 reported += 1;
             }
         }
@@ -328,10 +336,13 @@ impl OrganizationService {
 
     /// The `iat` this org's online license key is signed with, assigned on
     /// first use. Holding it makes minting deterministic: every copy of the
-    /// key returns the same string until the key is rotated.
+    /// key returns the same string until the key is rotated. The first use
+    /// publishes `LicenseKeyIssued` as `authentication`, the owner asking for
+    /// the key.
     pub async fn license_key_issued_at(
         &self,
         organization_id: Uuid,
+        authentication: AuthenticatedEntity,
     ) -> Result<DateTime<Utc>, Error> {
         let mut locked = self
             .lock_for_update(organization_id)
@@ -340,11 +351,10 @@ impl OrganizationService {
 
         // Rotation and switching set the stamp themselves, so an unset stamp
         // means the org has never been issued a key.
-        let first_issue = locked.org.base.license_key_issued_at.is_none();
-        let issued_at = match locked.org.base.license_key_issued_at {
+        let (issued_at, first_issue) = match locked.org.base.license_key_issued_at {
             Some(issued_at) => {
                 locked.release().await?;
-                issued_at
+                (issued_at, None)
             }
             None => {
                 // Whole seconds: the claim carries seconds, and Postgres keeps
@@ -358,12 +368,15 @@ impl OrganizationService {
                     key_version = organization.base.license_key_version,
                     "Issued online license key"
                 );
-                issued_at
+                let issued = BillingOperation::LicenseKeyIssued {
+                    plan: organization.base.plan,
+                };
+                (issued_at, Some(issued))
             }
         };
 
-        if first_issue {
-            self.publish_license_event(organization_id, BillingOperation::LicenseKeyIssued)
+        if let Some(operation) = first_issue {
+            self.publish_license_event(organization_id, operation, authentication)
                 .await;
         }
         Ok(issued_at)
