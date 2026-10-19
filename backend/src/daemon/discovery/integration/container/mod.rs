@@ -278,7 +278,7 @@ pub fn guest_state(container: &bollard::models::ContainerInspectResponse) -> Gue
         .as_ref()
         .and_then(|s| s.status.as_ref())
         .map_or_else(GuestState::default, |status| {
-            GuestState::from_container_state(&status.to_string())
+            GuestState::from_container_state(status.as_ref())
         })
 }
 

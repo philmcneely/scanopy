@@ -40,7 +40,7 @@ fn acceptance_required_since(
 ) -> bool {
     deployment_type.requires_terms_acceptance()
         && !plan.is_some_and(BillingPlan::is_demo)
-        && !accepted_at.is_some_and(|at| at >= effective)
+        && accepted_at.is_none_or(|at| at < effective)
 }
 
 /// Whether a user in an org on `plan` must accept the current terms before

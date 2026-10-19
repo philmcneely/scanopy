@@ -276,11 +276,11 @@ async fn start_rescan(
         .wake_from_standby(&mut daemon)
         .await?;
 
-    Ok(state
+    state
         .services
         .discovery_service
         .start_session(discovery, entity)
-        .await?)
+        .await
 }
 
 /// A host going into a rescan: what to call it in the rescan's name, and its addresses the

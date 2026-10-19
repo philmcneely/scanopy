@@ -7586,6 +7586,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -8163,6 +8178,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -8555,6 +8585,21 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
+              }
+            }
+          },
+          {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -8960,6 +9005,21 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
+              }
+            }
+          },
+          {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -11890,6 +11950,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the container a service is, at the last scan. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "tag_ids",
             "in": "query",
             "description": "Filter by tag IDs (returns services that have ANY of the specified tags)",
@@ -12353,6 +12428,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the container a service is, at the last scan. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "tag_ids",
             "in": "query",
             "description": "Filter by tag IDs (returns services that have ANY of the specified tags)",
@@ -12729,6 +12819,21 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/MatchConfidence"
+              }
+            }
+          },
+          {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the container a service is, at the last scan. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -20021,19 +20126,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-16T15:28:34.478741Z",
+              "created_at": "2026-10-19T17:01:54.436524Z",
               "first_discovery_id": null,
-              "id": "227259a9-4597-456c-862e-522e1a631daf",
+              "id": "9a02cd47-3844-4380-8c92-81116b0aff4f",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-16T15:28:34.478741Z",
+              "last_seen_at": "2026-10-19T17:01:54.436524Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-16T15:28:34.478741Z",
-              "valid_from": "2026-10-16T15:28:34.478741Z",
+              "updated_at": "2026-10-19T17:01:54.436524Z",
+              "valid_from": "2026-10-19T17:01:54.436524Z",
               "valid_to": null
             }
           },
@@ -21781,19 +21886,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-16T15:28:34.453064Z",
+                      "created_at": "2026-10-19T17:01:54.409345Z",
                       "first_discovery_id": null,
-                      "id": "1c83c99d-3adb-4c1b-b12c-0b77a375aa47",
+                      "id": "38180bee-4551-49c1-8e7d-bcb6da3bf843",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-16T15:28:34.453064Z",
+                      "last_seen_at": "2026-10-19T17:01:54.409345Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-16T15:28:34.453064Z",
-                      "valid_from": "2026-10-16T15:28:34.453064Z",
+                      "updated_at": "2026-10-19T17:01:54.409345Z",
+                      "valid_from": "2026-10-19T17:01:54.409345Z",
                       "valid_to": null
                     }
                   ],
@@ -21806,7 +21911,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Overseerr",
+                  "service_definition": "Duplicati",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -23284,19 +23389,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-16T15:28:34.473979Z",
+                  "created_at": "2026-10-19T17:01:54.431612Z",
                   "first_discovery_id": null,
-                  "id": "45c7e07f-5626-45ad-a1e3-961ba302726d",
+                  "id": "eb146fd6-3976-46ec-8db8-59b12b40ecf7",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-16T15:28:34.473979Z",
+                  "last_seen_at": "2026-10-19T17:01:54.431612Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-16T15:28:34.473979Z",
-                  "valid_from": "2026-10-16T15:28:34.473979Z",
+                  "updated_at": "2026-10-19T17:01:54.431612Z",
+                  "valid_from": "2026-10-19T17:01:54.431612Z",
                   "valid_to": null
                 }
               ],
@@ -23309,7 +23414,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Overseerr",
+              "service_definition": "Duplicati",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -26416,19 +26521,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-16T15:28:34.453569Z",
+          "created_at": "2026-10-19T17:01:54.409894Z",
           "first_discovery_id": null,
-          "id": "679bc8d5-5874-4e82-b9de-7920bd949c3e",
+          "id": "6abe0a21-0cf9-4ff2-a640-0343b27677b3",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-16T15:28:34.453569Z",
+          "last_seen_at": "2026-10-19T17:01:54.409894Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-16T15:28:34.453569Z",
-          "valid_from": "2026-10-16T15:28:34.453569Z",
+          "updated_at": "2026-10-19T17:01:54.409894Z",
+          "valid_from": "2026-10-19T17:01:54.409894Z",
           "valid_to": null
         }
       },
@@ -26929,6 +27034,10 @@
           "network_type": {
             "$ref": "#/components/schemas/ContainerNetworkType",
             "description": "The network driver that gives the container its own LAN address."
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the container was running at the last scan."
           }
         }
       },
@@ -27241,7 +27350,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Overseerr",
+              "service_definition": "Duplicati",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -27664,6 +27773,14 @@
                 "format": "int32",
                 "description": "Number of hosts it collected from.",
                 "minimum": 0
+              },
+              "hosts_with_guests_listed": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "The hosts whose guests (containers, VMs, network identities) it listed in full,\nstopped ones included. The server removes a guest of one of these hosts that the run\ndid not report. Daemons predating this field send none, which removes nothing."
               },
               "type": {
                 "type": "string",
@@ -31667,6 +31784,10 @@
               "null"
             ],
             "description": "Container name as reported by Docker."
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the container was running at the last scan."
           }
         }
       },
@@ -33186,6 +33307,16 @@
           }
         }
       },
+      "GuestState": {
+        "type": "string",
+        "description": "A guest's run state. Stored rows from before the state was recorded read as `Running`: Docker\nand Podman discovery listed running containers only, so every stored container was running.",
+        "enum": [
+          "Running",
+          "Paused",
+          "Restarting",
+          "Stopped"
+        ]
+      },
       "Hop": {
         "oneOf": [
           {
@@ -34366,19 +34497,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-16T15:28:34.452466Z",
+                  "created_at": "2026-10-19T17:01:54.408640Z",
                   "first_discovery_id": null,
-                  "id": "6fa33c56-4d86-47f4-ab13-eb0521a2dbb2",
+                  "id": "0319eddb-3ba7-487a-a198-764f37b46816",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-16T15:28:34.452466Z",
+                  "last_seen_at": "2026-10-19T17:01:54.408640Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-16T15:28:34.452466Z",
-                  "valid_from": "2026-10-16T15:28:34.452466Z",
+                  "updated_at": "2026-10-19T17:01:54.408640Z",
+                  "valid_from": "2026-10-19T17:01:54.408640Z",
                   "valid_to": null
                 }
               ],
@@ -34391,7 +34522,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Overseerr",
+              "service_definition": "Duplicati",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -36900,6 +37031,7 @@
         "oneOf": [
           {
             "type": "object",
+            "title": "User",
             "required": [
               "id",
               "data",
@@ -36917,7 +37049,8 @@
               },
               "id": {
                 "type": "string",
-                "format": "uuid"
+                "format": "uuid",
+                "description": "The user's id."
               },
               "status": {
                 "$ref": "#/components/schemas/MemberStatus"
@@ -36932,6 +37065,7 @@
           },
           {
             "type": "object",
+            "title": "Invite",
             "required": [
               "id",
               "data",
@@ -36944,7 +37078,8 @@
               },
               "id": {
                 "type": "string",
-                "format": "uuid"
+                "format": "uuid",
+                "description": "The invite's id."
               },
               "status": {
                 "$ref": "#/components/schemas/MemberStatus"
@@ -37055,6 +37190,7 @@
         "description": "A metadata fixture whose entries name an enum-valued field, so the UI shows the fixture's\nname for the raw value. Serializes to the fixture key.",
         "enum": [
           "if_oper_statuses",
+          "guest_states",
           "subnet_types",
           "entity_sources",
           "dependency_types",
@@ -38588,19 +38724,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-16T15:28:34.443844Z",
+                        "created_at": "2026-10-19T17:01:54.399046Z",
                         "first_discovery_id": null,
-                        "id": "a64def3f-1cdc-498c-b62c-b4420e018611",
+                        "id": "34aaf5e1-acbb-47a6-a6ea-882ad5b43a20",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-16T15:28:34.443844Z",
+                        "last_seen_at": "2026-10-19T17:01:54.399046Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-16T15:28:34.443844Z",
-                        "valid_from": "2026-10-16T15:28:34.443844Z",
+                        "updated_at": "2026-10-19T17:01:54.399046Z",
+                        "valid_from": "2026-10-19T17:01:54.399046Z",
                         "valid_to": null
                       }
                     ],
@@ -38613,7 +38749,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Overseerr",
+                    "service_definition": "Duplicati",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -38681,6 +38817,7 @@
               "oneOf": [
                 {
                   "type": "object",
+                  "title": "User",
                   "required": [
                     "id",
                     "data",
@@ -38698,7 +38835,8 @@
                     },
                     "id": {
                       "type": "string",
-                      "format": "uuid"
+                      "format": "uuid",
+                      "description": "The user's id."
                     },
                     "status": {
                       "$ref": "#/components/schemas/MemberStatus"
@@ -38713,6 +38851,7 @@
                 },
                 {
                   "type": "object",
+                  "title": "Invite",
                   "required": [
                     "id",
                     "data",
@@ -38725,7 +38864,8 @@
                     },
                     "id": {
                       "type": "string",
-                      "format": "uuid"
+                      "format": "uuid",
+                      "description": "The invite's id."
                     },
                     "status": {
                       "$ref": "#/components/schemas/MemberStatus"
@@ -38856,19 +38996,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-16T15:28:34.473287Z",
+                    "created_at": "2026-10-19T17:01:54.430895Z",
                     "first_discovery_id": null,
-                    "id": "5b212faa-e23a-4d32-835a-e507a4db965a",
+                    "id": "204e16f4-98e1-4216-83c9-d2a378e7f596",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-16T15:28:34.473287Z",
+                    "last_seen_at": "2026-10-19T17:01:54.430895Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-16T15:28:34.473287Z",
-                    "valid_from": "2026-10-16T15:28:34.473287Z",
+                    "updated_at": "2026-10-19T17:01:54.430895Z",
+                    "valid_from": "2026-10-19T17:01:54.430895Z",
                     "valid_to": null
                   }
                 ],
@@ -38881,7 +39021,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Overseerr",
+                "service_definition": "Duplicati",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -39728,6 +39868,10 @@
               "null"
             ],
             "description": "Container name as reported by Podman."
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the container was running at the last scan."
           }
         }
       },
@@ -40192,6 +40336,10 @@
                 "description": "Whether the guest is a QEMU virtual machine or an LXC container. `None` when the guest was\nassigned by hand or recorded before the Proxmox integration reported it."
               }
             ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the guest was running at the last scan."
           },
           "vm_id": {
             "type": [
@@ -41554,19 +41702,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-16T15:28:34.453403Z",
+              "created_at": "2026-10-19T17:01:54.409717Z",
               "first_discovery_id": null,
-              "id": "b85b2f22-d42c-4d3d-8141-1ff4fac1c29f",
+              "id": "49f7a4a4-bb5a-42e3-8475-50ddc25ac943",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-16T15:28:34.453403Z",
+              "last_seen_at": "2026-10-19T17:01:54.409717Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-16T15:28:34.453403Z",
-              "valid_from": "2026-10-16T15:28:34.453403Z",
+              "updated_at": "2026-10-19T17:01:54.409717Z",
+              "valid_from": "2026-10-19T17:01:54.409717Z",
               "valid_to": null
             }
           ],
@@ -41579,7 +41727,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Overseerr",
+          "service_definition": "Duplicati",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -43744,7 +43892,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "27cfa7e2-efd0-4708-9046-de4389dc4c7f",
+                  "id": "8221b9e1-0f99-4252-8f0c-68353bdb778e",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -43754,23 +43902,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "adc2ff43-1716-455b-81aa-7a3002c7f561",
+                  "id": "6e0f5ac3-307d-4136-8b67-a22b341c31c3",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "e2fdcf91-35d0-404b-a6b6-0b8b2a717b36",
+                  "id": "7c55ec7b-4c59-4c2b-b312-ea492223d433",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "0e4ba4fc-2c7b-4575-a783-d4df2074005d",
+                  "id": "09591ef9-06a2-466a-92e2-0a052aac7b98",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "adc2ff43-1716-455b-81aa-7a3002c7f561",
+                  "id": "6e0f5ac3-307d-4136-8b67-a22b341c31c3",
                   "rule": "ByHost"
                 }
               ]
@@ -43800,19 +43948,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "f4387acc-1bea-4567-836c-bd0003732575",
+                "id": "e15d523c-f703-4a41-a633-4c8bc4704ce0",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "40f0fdd6-bf8f-495d-a736-b9edf3fc22bc",
+                "id": "2e3a574d-2cab-4708-8999-6aa4571991f1",
                 "rule": "ByVLAN"
               },
               {
-                "id": "16b90178-e09b-474b-912b-7e58245484b8",
+                "id": "624bd5e4-b2c4-4624-b827-1765b340fc18",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "af473b17-01a1-4823-a64d-eaae8b09ffbb",
+                "id": "643d824e-590c-4461-86c3-1c052d531b82",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -43833,7 +43981,7 @@
                 }
               },
               {
-                "id": "eec1a4d8-f1c0-49ba-9c7d-9ef0ddc8e360",
+                "id": "6ec13c02-52e0-4d61-b2a6-045fd919794d",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -43842,15 +43990,15 @@
                 }
               },
               {
-                "id": "d3f0e4c3-46f8-43b9-bf40-043694ae0e02",
+                "id": "b9317fea-ebc4-411f-880d-b26b8c16d105",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "a5002ffc-1752-4967-9187-89d4c745787b",
+                "id": "8f35ddc2-afdc-4d3b-815e-bb7d3b2ad20d",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "a9d41117-08fe-4716-b1b6-b3b74c7f4e76",
+                "id": "b9f41e21-cd6a-47f1-bb5a-68109a8e7996",
                 "rule": "ByStack"
               }
             ]

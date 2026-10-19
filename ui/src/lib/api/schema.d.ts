@@ -4137,19 +4137,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-16T15:28:34.404573Z",
+             *       "created_at": "2026-10-19T17:01:54.355115Z",
              *       "first_discovery_id": null,
-             *       "id": "317a5657-7b15-4c25-9ccf-4ea9776eff4a",
+             *       "id": "aaaaa815-6466-4a19-8ad6-4dd989a1507c",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-16T15:28:34.404573Z",
+             *       "last_seen_at": "2026-10-19T17:01:54.355115Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-16T15:28:34.404573Z",
-             *       "valid_from": "2026-10-16T15:28:34.404573Z",
+             *       "updated_at": "2026-10-19T17:01:54.355115Z",
+             *       "valid_from": "2026-10-19T17:01:54.355115Z",
              *       "valid_to": null
              *     }
              */
@@ -5024,19 +5024,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-16T15:28:34.370916Z",
+             *               "created_at": "2026-10-19T17:01:54.317340Z",
              *               "first_discovery_id": null,
-             *               "id": "98bc6c71-82ae-42df-b6c9-a2e6085adf68",
+             *               "id": "ef977212-fc10-49a9-a83a-fb576488ae38",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-16T15:28:34.370916Z",
+             *               "last_seen_at": "2026-10-19T17:01:54.317340Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-16T15:28:34.370916Z",
-             *               "valid_from": "2026-10-16T15:28:34.370916Z",
+             *               "updated_at": "2026-10-19T17:01:54.317340Z",
+             *               "valid_from": "2026-10-19T17:01:54.317340Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5049,7 +5049,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Overseerr",
+             *           "service_definition": "Duplicati",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -6034,19 +6034,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-16T15:28:34.398948Z",
+             *           "created_at": "2026-10-19T17:01:54.349535Z",
              *           "first_discovery_id": null,
-             *           "id": "73e2bef5-0f27-443d-9b46-488c6d4cb713",
+             *           "id": "7e383008-039d-4f42-b44e-6d4c7d3cb2a3",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-16T15:28:34.398948Z",
+             *           "last_seen_at": "2026-10-19T17:01:54.349535Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-16T15:28:34.398948Z",
-             *           "valid_from": "2026-10-16T15:28:34.398948Z",
+             *           "updated_at": "2026-10-19T17:01:54.349535Z",
+             *           "valid_from": "2026-10-19T17:01:54.349535Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6059,7 +6059,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Overseerr",
+             *       "service_definition": "Duplicati",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7495,19 +7495,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-16T15:28:34.371634Z",
+         *       "created_at": "2026-10-19T17:01:54.318204Z",
          *       "first_discovery_id": null,
-         *       "id": "68d95e17-5be5-4702-b2de-4beca01946dd",
+         *       "id": "5d205d66-750d-43d4-a0f7-71daaae29908",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-16T15:28:34.371634Z",
+         *       "last_seen_at": "2026-10-19T17:01:54.318204Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-16T15:28:34.371634Z",
-         *       "valid_from": "2026-10-16T15:28:34.371634Z",
+         *       "updated_at": "2026-10-19T17:01:54.318204Z",
+         *       "valid_from": "2026-10-19T17:01:54.318204Z",
          *       "valid_to": null
          *     }
          */
@@ -7778,6 +7778,8 @@ export interface components {
             container_name?: string | null;
             /** @description The network driver that gives the container its own LAN address. */
             network_type: components["schemas"]["ContainerNetworkType"];
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         /**
          * @description The container network drivers that put a container directly on the LAN.
@@ -7871,7 +7873,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Overseerr",
+         *           "service_definition": "Duplicati",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -8127,6 +8129,12 @@ export interface components {
              * @description Number of hosts it collected from.
              */
             hosts: number;
+            /**
+             * @description The hosts whose guests (containers, VMs, network identities) it listed in full,
+             *     stopped ones included. The server removes a guest of one of these hosts that the run
+             *     did not report. Daemons predating this field send none, which removes nothing.
+             */
+            hosts_with_guests_listed?: string[];
             /** @enum {string} */
             type: "Collected";
         } | {
@@ -9688,6 +9696,8 @@ export interface components {
             container_id?: string | null;
             /** @description Container name as reported by Docker. */
             container_name?: string | null;
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         Edge: components["schemas"]["EdgeType"] & {
             /**
@@ -10299,6 +10309,12 @@ export interface components {
              */
             value?: string | null;
         };
+        /**
+         * @description A guest's run state. Stored rows from before the state was recorded read as `Running`: Docker
+         *     and Podman discovery listed running containers only, so every stored container was running.
+         * @enum {string}
+         */
+        GuestState: "Running" | "Paused" | "Restarting" | "Stopped";
         /** @description One step from an object to related objects. */
         Hop: {
             entity: components["schemas"]["EntityDiscriminants"];
@@ -10688,19 +10704,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-16T15:28:34.370092Z",
+         *               "created_at": "2026-10-19T17:01:54.316308Z",
          *               "first_discovery_id": null,
-         *               "id": "7abc5b45-5908-416a-82f2-b0fba3d73837",
+         *               "id": "34cede90-b157-4661-843e-a7083a9db570",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-16T15:28:34.370092Z",
+         *               "last_seen_at": "2026-10-19T17:01:54.316308Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-16T15:28:34.370092Z",
-         *               "valid_from": "2026-10-16T15:28:34.370092Z",
+         *               "updated_at": "2026-10-19T17:01:54.316308Z",
+         *               "valid_from": "2026-10-19T17:01:54.316308Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10713,7 +10729,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Overseerr",
+         *           "service_definition": "Duplicati",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -12126,14 +12142,20 @@ export interface components {
              */
             auth_method: string;
             data: components["schemas"]["User"];
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The user's id.
+             */
             id: string;
             status: components["schemas"]["MemberStatus"];
             /** @enum {string} */
             type: "user";
         } | {
             data: components["schemas"]["Invite"];
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The invite's id.
+             */
             id: string;
             status: components["schemas"]["MemberStatus"];
             /** @enum {string} */
@@ -12198,7 +12220,7 @@ export interface components {
          *     name for the raw value. Serializes to the fixture key.
          * @enum {string}
          */
-        MetadataFixture: "if_oper_statuses" | "subnet_types" | "entity_sources" | "dependency_types" | "discovery_types" | "service_definitions" | "discovery_protocols" | "permissions" | "credential_types";
+        MetadataFixture: "if_oper_statuses" | "guest_states" | "subnet_types" | "entity_sources" | "dependency_types" | "discovery_types" | "service_definitions" | "discovery_protocols" | "permissions" | "credential_types";
         /**
          * @description The Windows MSI install method. The MSI itself is a static release asset the UI links to; only
          *     the per-daemon pre-fill data is tenant-specific.
@@ -12877,14 +12899,20 @@ export interface components {
                  */
                 auth_method: string;
                 data: components["schemas"]["User"];
-                /** Format: uuid */
+                /**
+                 * Format: uuid
+                 * @description The user's id.
+                 */
                 id: string;
                 status: components["schemas"]["MemberStatus"];
                 /** @enum {string} */
                 type: "user";
             } | {
                 data: components["schemas"]["Invite"];
-                /** Format: uuid */
+                /**
+                 * Format: uuid
+                 * @description The invite's id.
+                 */
                 id: string;
                 status: components["schemas"]["MemberStatus"];
                 /** @enum {string} */
@@ -13367,6 +13395,8 @@ export interface components {
             container_id?: string | null;
             /** @description Container name as reported by Podman. */
             container_name?: string | null;
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         /**
          * @description Port entity with custom serialization that flattens PortType fields.
@@ -13625,6 +13655,8 @@ export interface components {
         ProxmoxGuestType: "Qemu" | "Lxc";
         ProxmoxVirtualization: {
             guest_type?: null | components["schemas"]["ProxmoxGuestType"];
+            /** @description Whether the guest was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
             /** @description Proxmox VMID of the guest. */
             vm_id?: string | null;
             /** @description Guest name as configured in Proxmox. */
@@ -14224,19 +14256,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-16T15:28:34.371383Z",
+         *           "created_at": "2026-10-19T17:01:54.317920Z",
          *           "first_discovery_id": null,
-         *           "id": "3621ec6c-6bce-4cb9-9828-fe8330819e56",
+         *           "id": "ae3e9f78-df3e-4b6c-9c11-a784f852c963",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-16T15:28:34.371383Z",
+         *           "last_seen_at": "2026-10-19T17:01:54.317920Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-16T15:28:34.371383Z",
-         *           "valid_from": "2026-10-16T15:28:34.371383Z",
+         *           "updated_at": "2026-10-19T17:01:54.317920Z",
+         *           "valid_from": "2026-10-19T17:01:54.317920Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14249,7 +14281,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Overseerr",
+         *       "service_definition": "Duplicati",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15351,7 +15383,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "f8dfcbb8-9630-4156-93e9-90abd1001a77",
+             *           "id": "992606a3-93c4-44ee-92ea-34f3f5b1b7cd",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15361,23 +15393,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "9bcc3ed3-69f0-4cf3-a59d-5a4d7bee0b2b",
+             *           "id": "900ff06e-58a5-4500-8961-1b41137a12b8",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "16a61e80-09fa-4f2b-939e-1485021848a2",
+             *           "id": "8a9be459-5772-4d23-903b-f95ecf5fc14f",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "928ab88a-446c-43f2-8ce5-dee5fee6c868",
+             *           "id": "502eefd9-bbd4-4dd1-ba75-9f3d4a2d5a1c",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "9bcc3ed3-69f0-4cf3-a59d-5a4d7bee0b2b",
+             *           "id": "900ff06e-58a5-4500-8961-1b41137a12b8",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15391,19 +15423,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "06a1cd1b-c4c2-408e-8dfe-c4963b76df24",
+             *         "id": "ee1424b4-b1eb-49a4-9327-bd4947c5204d",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "4bca63a2-3074-4067-a397-e492ea05ba8f",
+             *         "id": "d61a913c-1efd-44a3-a8d9-5b7ed9fbf18e",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "be4e3490-07ea-4809-adbe-4333f2b7269a",
+             *         "id": "03e9edcc-c45e-4431-bde9-3166b5320543",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "13b0fe4b-2b0f-441a-96fc-d45285ef4d45",
+             *         "id": "947953c4-3615-41ac-857f-0161737d0165",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15424,7 +15456,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "ef037629-88a3-4c70-8f0a-81fb8d50841a",
+             *         "id": "2ec9d999-c22f-43b8-bd2b-fcc53241ce27",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15433,15 +15465,15 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "e0878cb3-b301-403d-8786-f49eb94dabe4",
+             *         "id": "a91945e8-9039-4539-a647-63e4b32b3adf",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "6fd60f1f-3ca5-4826-9d58-b7d0d4270e1c",
+             *         "id": "3bbb05a5-bfcd-4a53-ae00-f499039bf248",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "c861684f-1f12-4952-bc83-e538c02bd547",
+             *         "id": "ff7b2792-bd06-4f22-88fb-947fbecfef1f",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -20911,6 +20943,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -21175,6 +21212,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -21287,6 +21329,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -21399,6 +21446,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -23313,6 +23365,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -23467,6 +23521,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -23563,6 +23619,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**

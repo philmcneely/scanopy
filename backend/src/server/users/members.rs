@@ -51,15 +51,19 @@ pub enum MemberStatus {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Member {
+    #[schema(title = "User")]
     User {
+        /// The user's id.
         id: Uuid,
-        data: User,
+        data: Box<User>,
         status: MemberStatus,
         /// How the user signs in: `<provider>`, `<provider>+password`, `password` or `none`.
         /// Provider names come from the server's OIDC config.
         auth_method: String,
     },
+    #[schema(title = "Invite")]
     Invite {
+        /// The invite's id.
         id: Uuid,
         data: Invite,
         status: MemberStatus,
@@ -84,7 +88,7 @@ impl Member {
         };
         Self::User {
             id: user.id,
-            data: user,
+            data: Box::new(user),
             status,
             auth_method,
         }
@@ -121,7 +125,7 @@ impl Member {
 
     fn user_data(&self) -> Option<&User> {
         match self {
-            Self::User { data, .. } => Some(data),
+            Self::User { data, .. } => Some(data.as_ref()),
             Self::Invite { .. } => None,
         }
     }

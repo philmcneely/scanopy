@@ -321,11 +321,11 @@ where
 
     // `items` keeps the order it is given, so each item lines up with its id.
     let items = T::items(state, rows, query).await?;
-    let listed: Vec<(Option<String>, (Uuid, T::Item))> = ids
+    let listed: Vec<_> = ids
         .into_iter()
         .zip(items)
         .filter(|(_, item)| T::keep(query, item))
-        .map(|pair| (None, pair))
+        .map(|pair| (None::<String>, pair))
         .collect();
     let (sorted, total_count, _) = page_in_memory(
         listed,

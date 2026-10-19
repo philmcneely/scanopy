@@ -284,20 +284,6 @@ impl EntityBuffer {
         vlans.extend(ids);
     }
 
-    /// Collect canonical IDs of every entity confirmed (`Created`) by the
-    /// server during this session. Called at terminal phase so the result
-    /// rides the terminal `DiscoveryUpdatePayload.scanned` field over the
-    /// wire to the server, where per-entity FK-update subscribers consume
-    /// it via the in-memory `EntityOperation::Created` event scope.
-    ///
-    /// Notes:
-    /// - host children (ip_addresses, ports, services, interfaces) are
-    ///   reachable nested inside each `Created` host entry; bindings are
-    ///   nested one level further inside `service.base.bindings`.
-    /// - `subnet_vlan_ids` is left empty: subnet_vlan rows are created
-    ///   server-side from interface SNMP vlan info; the daemon never sees
-    ///   their canonical IDs. The SubnetVlan FK-update subscriber no-ops
-    ///   for now; server-side enrichment can fill this in later.
     /// The server's id for a host this session submitted, given the id it was submitted under or
     /// the server's own. `None` when the host was never created: its submission failed, timed
     /// out, or never happened.
@@ -315,6 +301,20 @@ impl EntityBuffer {
         })
     }
 
+    /// Collect canonical IDs of every entity confirmed (`Created`) by the
+    /// server during this session. Called at terminal phase so the result
+    /// rides the terminal `DiscoveryUpdatePayload.scanned` field over the
+    /// wire to the server, where per-entity FK-update subscribers consume
+    /// it via the in-memory `EntityOperation::Created` event scope.
+    ///
+    /// Notes:
+    /// - host children (ip_addresses, ports, services, interfaces) are
+    ///   reachable nested inside each `Created` host entry; bindings are
+    ///   nested one level further inside `service.base.bindings`.
+    /// - `subnet_vlan_ids` is left empty: subnet_vlan rows are created
+    ///   server-side from interface SNMP vlan info; the daemon never sees
+    ///   their canonical IDs. The SubnetVlan FK-update subscriber no-ops
+    ///   for now; server-side enrichment can fill this in later.
     pub async fn get_scanned_ids(&self) -> ScannedEntityIds {
         let mut out = ScannedEntityIds::default();
 

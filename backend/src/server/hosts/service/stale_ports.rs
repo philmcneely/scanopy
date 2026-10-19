@@ -24,6 +24,9 @@ use crate::server::shared::storage::snapshot::DiscoveryTracked;
 
 use super::open_ports::port_claim;
 
+/// A (port, address) claim, as `port_claim` returns it.
+type PortClaim = (Uuid, Option<Uuid>);
+
 /// What one submission says about which stored port bindings may change hands.
 pub(crate) struct PortTurnover<'a> {
     coverage: &'a PortCoverage,
@@ -48,7 +51,7 @@ impl<'a> PortTurnover<'a> {
 
     /// Whether the submission covered `claim`. An all-addresses binding is covered only when its
     /// port was covered at every address the host has.
-    pub(crate) fn covers(&self, claim: &(Uuid, Option<Uuid>)) -> bool {
+    pub(crate) fn covers(&self, claim: &PortClaim) -> bool {
         let (port_id, ip_address_id) = claim;
         let Some(port) = self.ports.get(port_id) else {
             return false;
@@ -104,7 +107,7 @@ impl<'a> PortTurnover<'a> {
     /// claim only it holds needs no coverage, as before.
     pub(crate) fn holders_handing_over(
         &self,
-        claims: &[(Uuid, Option<Uuid>)],
+        claims: &[PortClaim],
         services: &[Service],
         claimant: &Service,
     ) -> Option<Vec<Uuid>> {
@@ -149,7 +152,7 @@ pub(crate) struct TakenBinding {
 
 impl TakenBinding {
     /// The bindings of `holder` that `claims` take.
-    pub(crate) fn from_holder(holder: &Service, claims: &[(Uuid, Option<Uuid>)]) -> Vec<Self> {
+    pub(crate) fn from_holder(holder: &Service, claims: &[PortClaim]) -> Vec<Self> {
         holder
             .base
             .bindings
@@ -205,7 +208,7 @@ pub(crate) fn stored_container<'a>(
 }
 
 /// Whether `binding` is a port binding overlapping `claim`.
-pub(crate) fn overlaps(binding: &Binding, claim: &(Uuid, Option<Uuid>)) -> bool {
+pub(crate) fn overlaps(binding: &Binding, claim: &PortClaim) -> bool {
     binding.port_id() == Some(claim.0) && bindings_overlap(&claim.1, &binding.ip_address_id())
 }
 
@@ -251,7 +254,7 @@ impl HostService {
     pub(crate) async fn take_ports(
         &self,
         holder_ids: &[Uuid],
-        claims: &[(Uuid, Option<Uuid>)],
+        claims: &[PortClaim],
         services: &mut [Service],
         claimant: &str,
         authentication: AuthenticatedEntity,
@@ -272,7 +275,7 @@ impl HostService {
             if taken_bindings.is_empty() {
                 continue;
             }
-            let taken: Vec<(Uuid, Option<Uuid>)> = taken_bindings
+            let taken: Vec<PortClaim> = taken_bindings
                 .iter()
                 .map(|t| (t.port_id, t.ip_address_id))
                 .collect();
@@ -466,7 +469,7 @@ impl HostService {
                 .collect();
             self.service_service
                 .replace_service_references(
-                    &placeholder,
+                    placeholder,
                     claimant,
                     &binding_map,
                     authentication.clone(),
@@ -500,12 +503,12 @@ impl HostService {
         };
         let cutoff = site.stale_cutoff(Utc::now());
 
-        let mut releases: Vec<(Uuid, Vec<(Uuid, Option<Uuid>)>)> = Vec::new();
+        let mut releases: Vec<(Uuid, Vec<PortClaim>)> = Vec::new();
         for service in services
             .iter()
             .filter(|s| s.base.source.is_from_discovery())
         {
-            let claims: Vec<(Uuid, Option<Uuid>)> = service
+            let claims: Vec<PortClaim> = service
                 .base
                 .bindings
                 .iter()
