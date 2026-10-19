@@ -1207,6 +1207,7 @@ fn container_on_api_port(
     proxy.base.virtualization_service_id = Some(runtime_id);
     proxy.base.virtualization_metadata =
         Some(ServiceVirtualization::Docker(DockerVirtualization {
+            state: Default::default(),
             container_name: Some("docker-api-proxy".to_string()),
             container_id: Some("a27773f8c424".to_string()),
             compose_project: Some("proxy".to_string()),
@@ -1317,6 +1318,7 @@ async fn a_stored_self_owned_runtime_is_cleared_on_rescan() {
     runtime.base.virtualization_service_id = Some(runtime.id);
     runtime.base.virtualization_metadata =
         Some(ServiceVirtualization::Docker(DockerVirtualization {
+            state: Default::default(),
             container_name: Some("docker-api-proxy".to_string()),
             container_id: Some("a27773f8c424".to_string()),
             compose_project: None,
@@ -1408,6 +1410,7 @@ impl DockerHost {
         c.base.virtualization_service_id = Some(self.runtime.id);
         c.base.virtualization_metadata =
             Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
                 container_name: Some(name.to_string()),
                 container_id: Some(format!("{name}-id")),
                 compose_project: None,
@@ -1681,6 +1684,7 @@ impl<'a> SocketHost<'a> {
         container.base.virtualization_service_id = Some(runtime.id);
         container.base.virtualization_metadata =
             Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
                 container_name: Some("plain-http".to_string()),
                 container_id: Some("298f41e5ae2e".to_string()),
                 compose_project: None,
@@ -1820,6 +1824,7 @@ async fn an_address_the_hypervisor_did_not_list_for_a_nic_stays_off_the_guest() 
             virtualization_service_id: Some(docker_id),
             virtualization_metadata: Some(HostVirtualization::Docker(
                 ContainerHostVirtualization {
+                    state: Default::default(),
                     container_name: Some("ipvlan-test".to_string()),
                     container_id: Some("aec2a3e9".to_string()),
                     compose_project: None,
@@ -1954,6 +1959,7 @@ async fn a_container_report_takes_its_address_off_a_host_holding_another_devices
             virtualization_service_id: Some(docker_id),
             virtualization_metadata: Some(HostVirtualization::Docker(
                 ContainerHostVirtualization {
+                    state: Default::default(),
                     container_name: Some("ipvlan-test".to_string()),
                     container_id: Some("aec2a3e9".to_string()),
                     compose_project: None,
@@ -2051,6 +2057,7 @@ async fn a_container_report_takes_its_address_off_its_runtimes_host() {
             virtualization_service_id: Some(docker_id),
             virtualization_metadata: Some(HostVirtualization::Docker(
                 ContainerHostVirtualization {
+                    state: Default::default(),
                     container_name: Some("ipvlan-test".to_string()),
                     container_id: Some("aec2a3e9".to_string()),
                     compose_project: None,

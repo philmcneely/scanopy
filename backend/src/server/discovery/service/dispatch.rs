@@ -702,6 +702,26 @@ impl DiscoveryService {
                 }
             }
 
+            // Guests a run no longer reported under the hosts whose guests it listed in full were
+            // removed. After the digest, which reports them as removed from the stored rows.
+            if let Some(scanned) = session.scanned.as_ref()
+                && let Some(host_service) = self.host_service.get()
+                && let Err(e) = host_service
+                    .remove_unreported_guests(
+                        site_id,
+                        scanned,
+                        &session.credential_results,
+                        AuthenticatedEntity::System,
+                    )
+                    .await
+            {
+                tracing::error!(
+                    session_id = %session_id,
+                    error = %e,
+                    "Failed to remove guests the run no longer reported"
+                );
+            }
+
             if history_written
                 && let Some(scope) = EntityScope::from_ids(
                     historical_discovery.id(),

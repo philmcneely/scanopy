@@ -52,6 +52,20 @@ impl ServiceService {
             .await
     }
 
+    /// Remove every binding a service holds, leaving the service and its dependency memberships.
+    /// For a service about to be folded into another, whose bindings would otherwise conflict
+    /// with the one taking them.
+    pub async fn clear_bindings(
+        &self,
+        service_id: &Uuid,
+        authentication: AuthenticatedEntity,
+    ) -> Result<()> {
+        self.binding_service
+            .save_for_parent(service_id, &[], authentication)
+            .await?;
+        Ok(())
+    }
+
     /// Partition bindings into non-conflicting and conflicting sets.
     ///
     /// A binding conflicts if another service on the same host already has a port binding

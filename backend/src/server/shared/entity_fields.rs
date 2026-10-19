@@ -38,6 +38,10 @@ const HOST: &[F] = &[
     F::new("virtualized_by", "Virtualized By")
         .entity(&[Hop::parent(E::Service, "virtualization_service_id")])
         .summary(),
+    F::new("guest_state", "Guest State")
+        .field("virtualization_metadata.details.state")
+        .metadata(Fx::GuestStates)
+        .summary(),
     F::new("presented_by", "Presented By")
         .entity(&[Hop::parent(E::Interface, "virtualization_interface_id")]),
     F::new("os_family", "Operating System")
@@ -167,6 +171,18 @@ const SERVICE: &[F] = &[
     ]),
     F::new("containerized_by", "Containerized By")
         .entity(&[Hop::parent(E::Service, "virtualization_service_id")]),
+    F::new("container_name", "Container Name")
+        .field("virtualization_metadata.details.container_name")
+        .summary(),
+    F::new("container_id", "Container ID")
+        .field("virtualization_metadata.details.container_id")
+        .format(FieldFormat::Identifier),
+    F::new("compose_project", "Compose Project")
+        .field("virtualization_metadata.details.compose_project"),
+    F::new("guest_state", "Container State")
+        .field("virtualization_metadata.details.state")
+        .metadata(Fx::GuestStates)
+        .summary(),
     F::new("position", "Position").format(FieldFormat::Number),
     SOURCE,
     SITE,

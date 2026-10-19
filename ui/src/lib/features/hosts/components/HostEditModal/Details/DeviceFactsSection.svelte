@@ -6,11 +6,13 @@
 	import OsTag from '../../OsTag.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import CopyableValue from '$lib/shared/components/data/CopyableValue.svelte';
+	import GuestStateTag from '$lib/shared/components/virtualization/GuestStateTag.svelte';
 	import { entityRef, type EntityRef } from '$lib/shared/components/data/types';
 	import type { Color } from '$lib/shared/utils/styling';
 	import {
 		containerNetworkTypes,
 		entities,
+		guestStates,
 		hostVirtualizations,
 		proxmoxGuestTypes
 	} from '$lib/shared/stores/metadata';
@@ -35,6 +37,7 @@
 		common_manager,
 		common_presentedBy,
 		common_runtime,
+		common_status,
 		common_virtualization,
 		hosts_deviceFacts_composeProject,
 		hosts_deviceFacts_containerId,
@@ -73,6 +76,8 @@
 		os?: HostOs;
 		/** Drawn as a clickable entity tag labelled with `value`. */
 		entity?: { ref: EntityRef; color: Color };
+		/** Drawn as the guest's run-state chip. */
+		guestState?: string;
 	}
 
 	interface Section {
@@ -123,6 +128,13 @@
 		return { label, value, source: null, sourceless: true, identifier };
 	}
 
+	function stateFact(state: string | undefined): Fact {
+		return {
+			...sourceless(common_status(), state ? guestStates.getName(state) : null),
+			guestState: state
+		};
+	}
+
 	let virtualizationFacts = $derived.by((): Fact[] => {
 		const virtualization = host.virtualization_metadata;
 		if (!virtualization) return [];
@@ -160,7 +172,8 @@
 					sourceless(
 						hosts_deviceFacts_guestType(),
 						guestType ? proxmoxGuestTypes.getName(guestType) : null
-					)
+					),
+					...(virtualization.type === 'Proxmox' ? [stateFact(virtualization.details.state)] : [])
 				];
 			}
 			case 'Docker':
@@ -175,7 +188,8 @@
 					sourceless(
 						hosts_deviceFacts_networkType(),
 						containerNetworkTypes.getName(details.network_type)
-					)
+					),
+					stateFact(details.state)
 				];
 			}
 			case 'NetworkIdentity':
@@ -269,7 +283,9 @@
 						<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
 							<span class="text-secondary w-40 shrink-0 text-sm">{fact.label}</span>
 							<span class="text-primary min-w-0 flex-1 break-words text-sm">
-								{#if fact.entity}
+								{#if fact.guestState}
+									<GuestStateTag state={fact.guestState} />
+								{:else if fact.entity}
 									<EntityTag
 										entityRef={fact.entity.ref}
 										label={fact.value ?? undefined}

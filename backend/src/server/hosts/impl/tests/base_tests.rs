@@ -257,6 +257,7 @@ fn proxmox_guest(owner: Uuid, vm_id: Option<&str>, vm_name: &str) -> HostBase {
     HostBase {
         virtualization_service_id: Some(owner),
         virtualization_metadata: Some(HostVirtualization::Proxmox(ProxmoxVirtualization {
+            state: Default::default(),
             vm_name: Some(vm_name.to_string()),
             vm_id: vm_id.map(str::to_string),
             guest_type: vm_id.map(|_| ProxmoxGuestType::Qemu),
@@ -319,6 +320,7 @@ fn docker_container_host(owner: Uuid, container_id: Option<&str>) -> HostBase {
     HostBase {
         virtualization_service_id: Some(owner),
         virtualization_metadata: Some(HostVirtualization::Docker(ContainerHostVirtualization {
+            state: Default::default(),
             container_name: Some("pihole".to_string()),
             container_id: container_id.map(str::to_string),
             compose_project: None,

@@ -21,7 +21,8 @@
 		common_confirmDeleteName,
 		common_dependency,
 		common_edit,
-		common_services
+		common_services,
+		dependencies_missingMember
 	} from '$lib/paraglide/messages';
 	import { entities } from '$lib/shared/stores/metadata';
 	import InspectorSection from '../shared/InspectorSection.svelte';
@@ -301,6 +302,10 @@
 									<ArrowDown class="text-secondary h-5 w-5" />
 								</div>
 							{/if}
+						{:else if !bindingData}
+							<div class="card card-static text-secondary text-sm">
+								{dependencies_missingMember()}
+							</div>
 						{/if}
 					{/each}
 				{:else if group.members.type === 'Services'}
@@ -313,6 +318,10 @@
 									item={service}
 									displayComponent={ServiceDisplay}
 								/>
+							</div>
+						{:else}
+							<div class="card card-static text-secondary text-sm">
+								{dependencies_missingMember()}
 							</div>
 						{/if}
 					{/each}

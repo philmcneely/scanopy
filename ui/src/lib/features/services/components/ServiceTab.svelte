@@ -10,6 +10,7 @@
 		type LabelledCardFieldItem
 	} from '$lib/shared/components/data/types';
 	import { usePortsQuery } from '$lib/features/ports/queries';
+	import { countVirtualized } from '$lib/features/services/virtualized-count';
 	import { useIPAddressesQuery } from '$lib/features/ip-addresses/queries';
 	import { useSubnetsQuery, isContainerSubnet } from '$lib/features/subnets/queries';
 	import { formatIPAddress } from '$lib/features/hosts/address-labels';
@@ -44,6 +45,7 @@
 	import {
 		common_confirmBulkDelete,
 		common_confirmDeleteName,
+		common_confirmDeleteNameWithGuests,
 		common_delete,
 		common_edit,
 		common_noEntityYet,
@@ -345,8 +347,14 @@
 		})()
 	);
 
-	function handleDeleteService(service: Service) {
-		if (confirm(common_confirmDeleteName({ name: service.name }))) {
+	async function handleDeleteService(service: Service) {
+		// Deleting a runtime or hypervisor deletes what it runs, so the question says how much.
+		const count = await countVirtualized([service.id]);
+		const question =
+			count > 0
+				? common_confirmDeleteNameWithGuests({ name: service.name, count })
+				: common_confirmDeleteName({ name: service.name });
+		if (confirm(question)) {
 			deleteServiceMutation.mutate(service.id);
 		}
 	}

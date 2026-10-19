@@ -25,6 +25,7 @@
 	import type { TabProps } from '$lib/shared/types';
 	import {
 		common_confirmDeleteName,
+		common_confirmDeleteNameWithGuests,
 		common_consolidate,
 		common_create,
 		common_delete,
@@ -53,6 +54,7 @@
 		type HostQueryOptions
 	} from '../queries';
 	import { useServicesByIds, useServicesCacheQuery } from '$lib/features/services/queries';
+	import { countVirtualizedOnHost } from '$lib/features/services/virtualized-count';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { useIPAddressesQuery } from '$lib/features/ip-addresses/queries';
 	import { usePortsQuery } from '$lib/features/ports/queries';
@@ -388,8 +390,15 @@
 		await bulkRescanHostsMutation.mutateAsync(ids);
 	}
 
-	function handleDeleteHost(host: Host) {
-		if (confirm(common_confirmDeleteName({ name: hostDisplayName(host) }))) {
+	async function handleDeleteHost(host: Host) {
+		// Deleting a hypervisor's or runtime's host deletes what it runs, so the question says how much.
+		const count = await countVirtualizedOnHost(host.id);
+		const name = hostDisplayName(host);
+		const question =
+			count > 0
+				? common_confirmDeleteNameWithGuests({ name, count })
+				: common_confirmDeleteName({ name });
+		if (confirm(question)) {
 			deleteHostMutation.mutate(host.id);
 		}
 	}

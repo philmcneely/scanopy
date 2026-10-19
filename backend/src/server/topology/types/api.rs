@@ -316,6 +316,7 @@ mod tests {
         }];
         let containerized = Service::new(ServiceBase {
             virtualization_metadata: Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
                 container_name: None,
                 container_id: None,
                 compose_project: None,

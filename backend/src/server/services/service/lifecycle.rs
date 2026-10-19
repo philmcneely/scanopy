@@ -8,6 +8,7 @@ impl ServiceService {
         dependency_service: Arc<DependencyService>,
         event_bus: Arc<EventBus>,
         entity_tag_service: Arc<EntityTagService>,
+        subnet_service: Arc<SubnetService>,
     ) -> Self {
         Self {
             storage,
@@ -16,6 +17,7 @@ impl ServiceService {
             host_service: OnceLock::new(),
             event_bus,
             entity_tag_service,
+            subnet_service,
         }
     }
 

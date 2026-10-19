@@ -32,6 +32,7 @@ import discoveryProtocolsJson from '$lib/data/discovery-protocols.json';
 import proxmoxGuestTypesJson from '$lib/data/proxmox-guest-types.json';
 import containerNetworkTypesJson from '$lib/data/container-network-types.json';
 import ifOperStatusesJson from '$lib/data/if-oper-statuses.json';
+import guestStatesJson from '$lib/data/guest-states.json';
 import {
 	createColorHelper,
 	createIconComponent,
@@ -139,6 +140,7 @@ export interface MetadataRegistry {
 	proxmox_guest_types: TypeMetadata[];
 	container_network_types: TypeMetadata[];
 	if_oper_statuses: TypeMetadata[];
+	guest_states: TypeMetadata[];
 }
 
 // Utility type to add proper typing to the metadata field
@@ -336,7 +338,8 @@ export const metadata = writable<MetadataRegistry>({
 	discovery_protocols: discoveryProtocolsJson,
 	proxmox_guest_types: proxmoxGuestTypesJson,
 	container_network_types: containerNetworkTypesJson,
-	if_oper_statuses: ifOperStatusesJson
+	if_oper_statuses: ifOperStatusesJson,
+	guest_states: guestStatesJson
 } as unknown as MetadataRegistry);
 
 // Shared color helper functions that work for both TypeMetadata and EntityMetadata
@@ -581,6 +584,8 @@ export const containerNetworkTypes = createTypeMetadataHelpers<'container_networ
 export const ifOperStatuses = createTypeMetadataHelpers<'if_oper_statuses', object>(
 	'if_oper_statuses'
 );
+/** A container's or VM's run state at the last scan (label, colour, icon), keyed by `GuestState`. */
+export const guestStates = createTypeMetadataHelpers<'guest_states', object>('guest_states');
 export const discoveryTypes = createTypeMetadataHelpers<'discovery_types', DiscoveryTypeMetadata>(
 	'discovery_types'
 );

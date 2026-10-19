@@ -25,8 +25,12 @@ use crate::server::credentials::r#impl::types::CredentialIntegration;
 use crate::server::discovery::r#impl::types::HostNamingFallback;
 use crate::server::ip_addresses::r#impl::base::{ALL_IP_ADDRESSES_IP, IPAddress};
 use crate::server::ports::r#impl::base::{Port, PortType, TransportProtocol};
-use crate::server::services::r#impl::base::{Service, ServiceMatchBaselineParams};
+use crate::server::services::r#impl::base::{Service, ServiceBase, ServiceMatchBaselineParams};
+use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::endpoints::{ApplicationProtocol, Endpoint, EndpointResponse};
+use crate::server::shared::storage::traits::Storable;
+use crate::server::shared::types::entities::EntitySource;
+use crate::server::shared::types::guest_state::GuestState;
 use crate::server::subnets::r#impl::base::Subnet;
 
 use super::ContainerRuntime;
@@ -242,6 +246,12 @@ impl<'a> ContainerScanner<'a> {
                 return Ok(None);
             }
 
+            // A stopped container listens on nothing and has no addresses, so there is nothing to
+            // probe. It is still reported, so the server knows the runtime has it.
+            if super::guest_state(container) == GuestState::Stopped {
+                return Ok(Some(self.stopped_container(container).await?));
+            }
+
             let host_networking_mode = container
                 .host_config
                 .as_ref()
@@ -261,6 +271,40 @@ impl<'a> ContainerScanner<'a> {
         }
 
         Ok(None)
+    }
+
+    /// A stopped container as a generic container service with no bindings. The server matches it
+    /// to the stored service by container id, whatever that service was identified as, and
+    /// updates its state; its stored bindings stay until the stale window releases them.
+    async fn stopped_container(
+        &self,
+        container: &ContainerInspectResponse,
+    ) -> Result<ContainerScanResult> {
+        let container_name = container
+            .name
+            .as_ref()
+            .map(|n| n.trim_start_matches('/').to_string());
+        let service = Service::new(ServiceBase {
+            site_id: self.ops.site_id().await?,
+            name: container_name
+                .clone()
+                .unwrap_or_else(|| self.runtime.container_def().name().to_string()),
+            service_definition: self.runtime.container_def(),
+            virtualization_metadata: Some(self.runtime.service_virtualization(
+                container_name,
+                container.id.clone(),
+                Self::extract_compose_project(container),
+                GuestState::Stopped,
+            )),
+            virtualization_service_id: Some(self.runtime_service_id),
+            source: EntitySource::Discovery,
+            ..Default::default()
+        });
+        Ok(ContainerScanResult {
+            services: vec![service],
+            ports: vec![],
+            ip_addresses: vec![],
+        })
     }
 
     async fn process_host_mode_container(
@@ -338,6 +382,7 @@ impl<'a> ContainerScanner<'a> {
                             .map(|n| n.trim_start_matches("/").to_string()),
                         container.id.clone(),
                         Self::extract_compose_project(container),
+                        super::guest_state(container),
                     ),
                 ),
                 virtualization_service_id: Some(**runtime_service_id),
@@ -509,6 +554,7 @@ impl<'a> ContainerScanner<'a> {
                                     .map(|n| n.trim_start_matches("/").to_string()),
                                 container.id.clone(),
                                 Self::extract_compose_project(container),
+                                super::guest_state(container),
                             ),
                         ),
                         virtualization_service_id: Some(**runtime_service_id),
@@ -1451,7 +1497,10 @@ exec(\\\"try:\\\\n p=urllib.request.urlopen(r,context=c,timeout=1)\\\\nexcept Ex
     ) -> Result<Vec<(ContainerInspectResponse, ContainerSummary)>, Error> {
         let container_summaries = self
             .client
-            .list_containers(None::<ListContainersOptions>)
+            .list_containers(Some(ListContainersOptions {
+                all: true,
+                ..Default::default()
+            }))
             .await
             .map_err(|e| anyhow!(e))?;
 

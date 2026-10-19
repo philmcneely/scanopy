@@ -26,6 +26,7 @@ use crate::server::{
         },
         types::{api::ValidationError, entities::EntitySource},
     },
+    subnets::service::SubnetService,
 };
 use anyhow::anyhow;
 use anyhow::{Error, Result};
@@ -40,6 +41,8 @@ pub struct ServiceService {
     dependency_service: Arc<DependencyService>,
     event_bus: Arc<EventBus>,
     entity_tag_service: Arc<EntityTagService>,
+    /// Deleting a service deletes the bridge subnets it owns.
+    subnet_service: Arc<SubnetService>,
 }
 
 impl EventBusService<Service> for ServiceService {
@@ -397,8 +400,12 @@ impl CrudService<Service> for ServiceService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Service {} not found", id))?;
 
-        self.update_dependency_members(&service, None, authentication.clone())
+        self.delete_virtualized(&service, authentication.clone())
             .await?;
+
+        // Its dependency memberships stay: the member names an id that no longer resolves, the
+        // dependency service's subscriber reports it (`DependencyMemberChange`), and the user
+        // decides what replaces it.
 
         // Remove tags from junction table
         if let Some(tag_service) = self.entity_tag_service() {
@@ -442,3 +449,4 @@ mod dependencies;
 mod lifecycle;
 mod transfer;
 mod upsert;
+mod virtualized;

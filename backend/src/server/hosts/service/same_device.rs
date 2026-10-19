@@ -361,6 +361,7 @@ mod tests {
         let mut ipvlan_host = host(ipvlan, vec![arp("192.168.4.126", lan, ens19())]);
         ipvlan_host.virtualization =
             Some(HostVirtualization::Docker(ContainerHostVirtualization {
+                state: Default::default(),
                 container_name: Some("ipvlan-test".to_string()),
                 container_id: Some("aec2a3e9".to_string()),
                 compose_project: None,

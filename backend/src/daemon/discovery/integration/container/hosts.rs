@@ -85,6 +85,7 @@ pub fn container_host_record(
             container_id: container.id.clone(),
             compose_project: ContainerScanner::extract_compose_project(container),
             network_type,
+            state: super::guest_state(container),
         })),
         virtualization_service_id: Some(runtime_service_id),
         ..Default::default()
@@ -582,6 +583,7 @@ mod tests {
         assert_eq!(
             record.host.base.virtualization_metadata,
             Some(HostVirtualization::Docker(ContainerHostVirtualization {
+                state: Default::default(),
                 container_name: Some("pihole".into()),
                 container_id: Some("4f1c2a".into()),
                 compose_project: Some("dns".into()),

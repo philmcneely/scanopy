@@ -13,6 +13,7 @@ use crate::server::{
         entities::EntityDiscriminants,
         types::{
             Color, Icon,
+            guest_state::GuestState,
             metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
         },
     },
@@ -64,6 +65,9 @@ pub struct ContainerHostVirtualization {
     pub compose_project: Option<String>,
     /// The network driver that gives the container its own LAN address.
     pub network_type: ContainerNetworkType,
+    /// Whether the container was running at the last scan.
+    #[serde(default)]
+    pub state: GuestState,
 }
 
 /// The container network drivers that put a container directly on the LAN.
@@ -162,6 +166,9 @@ pub struct ProxmoxVirtualization {
     /// assigned by hand or recorded before the Proxmox integration reported it.
     #[serde(default)]
     pub guest_type: Option<ProxmoxGuestType>,
+    /// Whether the guest was running at the last scan.
+    #[serde(default)]
+    pub state: GuestState,
 }
 
 /// The two kinds of guest a Proxmox VE node runs. Both are hosts with their own addresses, so

@@ -584,6 +584,7 @@ mod tests {
 
     fn docker_virt(container_name: &str) -> Option<ServiceVirtualization> {
         Some(ServiceVirtualization::Docker(DockerVirtualization {
+            state: Default::default(),
             container_name: Some(container_name.to_string()),
             container_id: Some(Uuid::new_v4().to_string()),
             compose_project: None,
@@ -688,6 +689,7 @@ mod tests {
             site_id,
             "Docker Container",
             Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
                 container_name: Some("my-container".to_string()),
                 container_id: Some(container_id.clone()),
                 compose_project: None,
@@ -700,6 +702,7 @@ mod tests {
             site_id,
             "Docker Container",
             Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
                 container_name: Some("my-container".to_string()),
                 container_id: Some(container_id),
                 compose_project: None,

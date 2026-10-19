@@ -945,7 +945,7 @@ impl DiscoveryOps {
         }
 
         truncate_warnings(&mut warnings);
-        let credential_results = session
+        let mut credential_results = session
             .credential_results
             .lock()
             .map(|r| {
@@ -957,6 +957,23 @@ impl DiscoveryOps {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
+        // A listed host is named by the id it was submitted under. Resolve it to the server's, and
+        // drop one that was never created: nothing under a host the server didn't get is removed.
+        for result in &mut credential_results {
+            if let CredentialRunOutcome::Collected {
+                hosts_with_guests_listed,
+                ..
+            } = &mut result.outcome
+            {
+                let mut resolved = Vec::with_capacity(hosts_with_guests_listed.len());
+                for id in hosts_with_guests_listed.iter() {
+                    if let Some(server_id) = self.entity_buffer.created_host_id(id).await {
+                        resolved.push(server_id);
+                    }
+                }
+                *hosts_with_guests_listed = resolved;
+            }
+        }
 
         let warning_count = warnings.len();
         let terminal_update = terminal_update(
@@ -1204,8 +1221,30 @@ impl DiscoveryOps {
         integration: CredentialQueryPayloadDiscriminants,
     ) {
         self.with_credential_result(credential_id, integration, |o| {
-            if let CredentialRunOutcome::Collected { hosts } = o {
+            if let CredentialRunOutcome::Collected { hosts, .. } = o {
                 *hosts += 1;
+            }
+        })
+        .await;
+    }
+
+    /// A credential's collection listed every guest of `host_id`, stopped ones included. The id
+    /// may be the one the host was submitted under; the terminal update resolves it to the
+    /// server's.
+    pub async fn record_guests_listed(
+        &self,
+        credential_id: uuid::Uuid,
+        integration: CredentialQueryPayloadDiscriminants,
+        host_id: uuid::Uuid,
+    ) {
+        self.with_credential_result(credential_id, integration, |o| {
+            if let CredentialRunOutcome::Collected {
+                hosts_with_guests_listed,
+                ..
+            } = o
+                && !hosts_with_guests_listed.contains(&host_id)
+            {
+                hosts_with_guests_listed.push(host_id);
             }
         })
         .await;

@@ -814,7 +814,10 @@ mod scanned_payload_tests {
             vec![
                 CredentialRunResult {
                     credential_id: collected,
-                    outcome: CredentialRunOutcome::Collected { hosts: 3 },
+                    outcome: CredentialRunOutcome::Collected {
+                        hosts: 3,
+                        hosts_with_guests_listed: vec![],
+                    },
                 },
                 CredentialRunResult {
                     credential_id: missing_field,

@@ -237,6 +237,13 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
         "container-network-types.json",
     );
 
+    // A container's or VM's run state at the last scan, keyed by `GuestState`.
+    let guest_states: Vec<TypeMetadata> =
+        crate::server::shared::types::guest_state::GuestState::iter()
+            .map(|s| s.to_metadata())
+            .collect();
+    write_fixture(&guest_states, output_dir, "guest-states.json");
+
     // A port's ifOperStatus, keyed by `IfOperStatus`: the inspector's status tag colour.
     let if_oper_statuses: Vec<TypeMetadata> =
         crate::server::interfaces::r#impl::base::IfOperStatus::iter()

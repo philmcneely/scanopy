@@ -4,6 +4,7 @@
 	import {
 		containerNetworkTypes,
 		entities,
+		guestStates,
 		hostVirtualizations,
 		proxmoxGuestTypes,
 		serviceDefinitions
@@ -51,17 +52,20 @@
 	 */
 	function virtualizationTags(host: Host, context?: HostDisplayContext): TagProps[] {
 		const virtualization = host.virtualization_metadata;
+		// A stopped or paused guest says so; a running one, the usual case, adds nothing.
+		const stateTags = (state: string | undefined): TagProps[] =>
+			state && state !== 'Running'
+				? [{ ...guestStates.getTag(state), role: 'guest' satisfies HostTagRole }]
+				: [];
 		switch (virtualization?.type) {
 			case 'Proxmox': {
 				const guestType = virtualization.details.guest_type;
-				return guestType
-					? [
-							{
-								...proxmoxGuestTypes.getTag(guestType),
-								role: 'guest' satisfies HostTagRole
-							}
-						]
-					: [];
+				return [
+					...(guestType
+						? [{ ...proxmoxGuestTypes.getTag(guestType), role: 'guest' satisfies HostTagRole }]
+						: []),
+					...stateTags(virtualization.details.state)
+				];
 			}
 			case 'Docker':
 			case 'Podman': {
@@ -70,7 +74,8 @@
 					{
 						...containerNetworkTypes.getTag(networkType),
 						role: 'guest' satisfies HostTagRole
-					}
+					},
+					...stateTags(virtualization.details.state)
 				];
 			}
 			case 'NetworkIdentity': {

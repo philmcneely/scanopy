@@ -90,6 +90,13 @@ const server = (param: string): ColumnDecision => ({ sort: true, group: true, fi
 /** Sorted by the server's order field only. */
 const serverIdentity = (group: string): ColumnDecision => ({ sort: true, group, filter: SEARCH });
 
+/** A guest's run state: four values, filtered by the server; it has no order field to sort or group on. */
+const GUEST_STATE: ColumnDecision = {
+	sort: 'Four states with no order field on the server',
+	group: 'No order field on the server; the filter narrows by state',
+	filter: { param: 'guest_states' }
+};
+
 /** The run that first or last found an entity: one chip, and Created and Last seen already say when. */
 const FOUND_BY = none('A scan run; Created and Last seen order by when');
 
@@ -112,6 +119,7 @@ const DECISIONS: Record<string, TabDecisions> = {
 			model: server('models'),
 			sys_location: server('sys_locations'),
 			os_family: server('os_families'),
+			guest_state: GUEST_STATE,
 			description: TEXT,
 			serial_number: none('Identifier, unique per device; search finds one'),
 			asset_tag: none('Identifier, unique per device; search finds one'),
@@ -152,6 +160,14 @@ const DECISIONS: Record<string, TabDecisions> = {
 			host: server('host_ids'),
 			site_id: server('site_ids'),
 			service_definition: server('service_definitions'),
+			guest_state: GUEST_STATE,
+			container_name: none('Unique per container; Containerized by groups and filters containers'),
+			container_id: none(
+				'Identifier, unique per container; Containerized by groups and filters containers'
+			),
+			compose_project: none(
+				'Read from the container metadata, which the server does not order or filter on'
+			),
 			position: { sort: true, group: 'Per-host ordinal', filter: 'Per-host ordinal' },
 			created_at: DATE,
 			updated_at: DATE,

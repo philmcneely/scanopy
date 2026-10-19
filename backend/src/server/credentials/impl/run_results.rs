@@ -30,6 +30,11 @@ pub enum CredentialRunOutcome {
     Collected {
         /// Number of hosts it collected from.
         hosts: u32,
+        /// The hosts whose guests (containers, VMs, network identities) it listed in full,
+        /// stopped ones included. The server removes a guest of one of these hosts that the run
+        /// did not report. Daemons predating this field send none, which removes nothing.
+        #[serde(default)]
+        hosts_with_guests_listed: Vec<Uuid>,
     },
     /// One entry per host the script ran on.
     #[schema(title = "SshScript")]
@@ -63,7 +68,10 @@ impl CredentialRunOutcome {
             | D::PodmanSocket
             | D::UnifiController
             | D::InstantOn
-            | D::Proxmox => Self::Collected { hosts: 0 },
+            | D::Proxmox => Self::Collected {
+                hosts: 0,
+                hosts_with_guests_listed: Vec::new(),
+            },
             D::Ssh => Self::SshScript { runs: Vec::new() },
             D::WakeOnLan => Self::WakeOnLan { hosts: Vec::new() },
             D::Unknown => Self::Unknown,

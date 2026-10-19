@@ -26,6 +26,7 @@ async fn every_documented_service_filter_narrows_the_rows() {
             ("include_uncontainerized", "true"),
             ("sources", "DiscoveryWithMatch"),
             ("match_confidences", "High"),
+            ("guest_states", "Stopped"),
             ("tag_ids", id.as_str()),
             ("tag_sets", id.as_str()),
             ("search", "nas"),

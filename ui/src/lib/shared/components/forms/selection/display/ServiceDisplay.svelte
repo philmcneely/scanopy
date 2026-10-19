@@ -3,7 +3,8 @@
 		concepts,
 		serviceCategories,
 		serviceDefinitions,
-		serviceVirtualizations
+		serviceVirtualizations,
+		guestStates
 	} from '$lib/shared/stores/metadata';
 	import type { Port } from '$lib/features/hosts/types/base';
 	import { services_bindingCount } from '$lib/paraglide/messages';
@@ -90,6 +91,14 @@
 					color: concepts.getColorHelper('Virtualization').color,
 					role: 'virtualization' satisfies ServiceTagRole
 				});
+				const state = service.virtualization_metadata.details.state;
+				// A stopped or paused container says so; a running one, the usual case, adds nothing.
+				if (state && state !== 'Running') {
+					tags.push({
+						...guestStates.getTag(state),
+						role: 'virtualization' satisfies ServiceTagRole
+					});
+				}
 			}
 
 			return tags;

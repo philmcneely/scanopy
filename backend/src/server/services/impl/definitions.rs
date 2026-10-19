@@ -193,6 +193,15 @@ pub enum VirtualizationRole {
 }
 
 impl VirtualizationRole {
+    /// The host virtualization this role's hosts carry: its VMs, container hosts or identities.
+    pub fn hosts(&self) -> HostVirtualizationDiscriminants {
+        match self {
+            Self::Hypervisor { hosts }
+            | Self::ContainerRuntime { hosts, .. }
+            | Self::IdentityHost { hosts } => *hosts,
+        }
+    }
+
     /// Serde "type" discriminant of the variant manual assignment writes (e.g. "Proxmox",
     /// "VCenter", "Podman"): the host variant for a hypervisor, the service variant for a
     /// container runtime, the host variant for an identity host. Container hosts and network

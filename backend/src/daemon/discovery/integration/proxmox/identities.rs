@@ -212,6 +212,7 @@ mod tests {
     use crate::server::hosts::service::mac_identity::{MacQuality, grade};
     use crate::server::services::r#impl::definitions::{ServiceDefinitionExt, VirtualizationRole};
     use crate::server::shared::attribution::AttributeSource;
+    use crate::server::shared::types::guest_state::GuestState;
     use crate::server::subnets::r#impl::base::{SubnetBase, SubnetCidr, SubnetCidrValue};
     use crate::server::subnets::r#impl::types::SubnetType;
 
@@ -416,7 +417,7 @@ mod tests {
             vmid: 103,
             name: Some("docker".to_string()),
             guest_type: ProxmoxGuestType::Qemu,
-            running: true,
+            state: GuestState::Running,
         };
         let reading = GuestReading {
             addresses: select_addresses(&nics, reported.clone()),

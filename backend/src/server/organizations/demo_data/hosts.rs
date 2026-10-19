@@ -478,6 +478,7 @@ pub(super) fn generate_hosts_and_services(
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
+                        state: Default::default(),
                         vm_name: Some("uptime-kuma".to_string()),
                         vm_id: Some("202".to_string()),
                         guest_type: Some(ProxmoxGuestType::Lxc),
@@ -677,6 +678,7 @@ pub(super) fn generate_hosts_and_services(
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
+                        state: Default::default(),
                         vm_name: Some("gitlab-vm".to_string()),
                         vm_id: Some("100".to_string()),
                         guest_type: Some(ProxmoxGuestType::Qemu),
@@ -725,6 +727,7 @@ pub(super) fn generate_hosts_and_services(
             None,
             Some((
                 HostVirtualization::Docker(ContainerHostVirtualization {
+                    state: Default::default(),
                     container_name: Some("gitlab-runner".to_string()),
                     container_id: Some("7b1c2d3e4f5a".to_string()),
                     compose_project: Some("ci".to_string()),
@@ -765,6 +768,7 @@ pub(super) fn generate_hosts_and_services(
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
+                        state: Default::default(),
                         vm_name: Some("nextcloud-vm".to_string()),
                         vm_id: Some("101".to_string()),
                         guest_type: Some(ProxmoxGuestType::Qemu),
@@ -801,6 +805,7 @@ pub(super) fn generate_hosts_and_services(
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
+                        state: Default::default(),
                         vm_name: Some("keycloak-vm".to_string()),
                         vm_id: Some("200".to_string()),
                         guest_type: Some(ProxmoxGuestType::Qemu),
@@ -994,7 +999,7 @@ pub(super) fn generate_hosts_and_services(
             services.push(svc);
         }
         // Other container services on docker0
-        for (def_id, name, pt, cname, cid, tags) in [
+        for (def_id, name, pt, cname, cid, tags, state) in [
             (
                 "Vaultwarden",
                 "Vaultwarden",
@@ -1002,6 +1007,7 @@ pub(super) fn generate_hosts_and_services(
                 "vaultwarden",
                 "d4e5f6a7b8c9",
                 devops_tag.into_iter().collect::<Vec<_>>(),
+                GuestState::Running,
             ),
             (
                 "mailcow",
@@ -1010,9 +1016,11 @@ pub(super) fn generate_hosts_and_services(
                 "mailcow",
                 "j0k1l2m3n4o5",
                 messaging_tag.into_iter().collect::<Vec<_>>(),
+                // Stopped while mail moves to a hosted provider; it is still on the runtime.
+                GuestState::Stopped,
             ),
         ] {
-            if let Some((svc, port)) = create_container_service(
+            if let Some((mut svc, port)) = create_container_service(
                 def_id,
                 name,
                 &host,
@@ -1024,6 +1032,11 @@ pub(super) fn generate_hosts_and_services(
                 tags,
                 now,
             ) {
+                if let Some(ServiceVirtualization::Docker(docker)) =
+                    svc.base.virtualization_metadata.as_mut()
+                {
+                    docker.state = state;
+                }
                 if let Some(p) = port {
                     ports.push(p);
                 }
@@ -1054,6 +1067,7 @@ pub(super) fn generate_hosts_and_services(
             None,
             Some((
                 HostVirtualization::Docker(ContainerHostVirtualization {
+                    state: Default::default(),
                     container_name: Some("pihole".to_string()),
                     container_id: Some("e3f4a5b6c7d8".to_string()),
                     compose_project: Some("dns".to_string()),
@@ -1173,6 +1187,7 @@ pub(super) fn generate_hosts_and_services(
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
+                        state: Default::default(),
                         vm_name: Some("db-vm".to_string()),
                         vm_id: Some("201".to_string()),
                         guest_type: Some(ProxmoxGuestType::Qemu),
@@ -2151,6 +2166,7 @@ pub(super) fn generate_hosts_and_services(
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
+                        state: Default::default(),
                         vm_name: Some("argocd-vm".to_string()),
                         vm_id: Some("300".to_string()),
                         guest_type: Some(ProxmoxGuestType::Qemu),
@@ -2184,6 +2200,8 @@ pub(super) fn generate_hosts_and_services(
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
+                        // Shut down for a log-retention migration: a stopped guest stays on the map.
+                        state: GuestState::Stopped,
                         vm_name: Some("graylog-vm".to_string()),
                         vm_id: Some("301".to_string()),
                         guest_type: Some(ProxmoxGuestType::Qemu),
@@ -2218,6 +2236,7 @@ pub(super) fn generate_hosts_and_services(
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
+                        state: Default::default(),
                         vm_name: Some("mariadb-vm".to_string()),
                         vm_id: Some("302".to_string()),
                         guest_type: Some(ProxmoxGuestType::Qemu),

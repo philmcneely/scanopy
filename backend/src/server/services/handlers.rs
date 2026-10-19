@@ -18,6 +18,7 @@ use crate::server::shared::types::api::{
     ApiError, ApiErrorResponse, ApiResponse, ApiResult, PaginatedApiResponse,
 };
 use crate::server::shared::types::entities::{EntitySource, EntitySourceDiscriminants};
+use crate::server::shared::types::guest_state::GuestState;
 use crate::server::shared::types::metadata::HasId;
 use crate::server::shared::validation::validate_site_access;
 use crate::server::{
@@ -146,6 +147,8 @@ pub struct ServiceFilterQuery {
     /// Filter by match confidence (`source.details.confidence`). Repeat for several. Only
     /// services discovery matched to a definition carry one.
     pub match_confidences: Option<Vec<MatchConfidence>>,
+    /// Filter by the run state of the container a service is, at the last scan. Repeat for several.
+    pub guest_states: Option<Vec<GuestState>>,
     /// Filter by tag IDs (returns services that have ANY of the specified tags)
     pub tag_ids: Option<Vec<Uuid>>,
     /// Tag sets the service must hold one tag from each of. Each entry is a comma-separated
@@ -262,6 +265,19 @@ impl ServiceFilterQuery {
             Some(confidences) if !confidences.is_empty() => {
                 let ids: Vec<&str> = confidences.iter().map(|c| c.id()).collect();
                 filter.json_text_in("source", &["details", "confidence"], &ids)
+            }
+            _ => filter,
+        };
+
+        let filter = match &self.guest_states {
+            Some(states) if !states.is_empty() => {
+                let ids: Vec<&str> = states.iter().map(|s| s.id()).collect();
+                filter.json_text_in_defaulting(
+                    "virtualization_metadata",
+                    &["details", "state"],
+                    &ids,
+                    GuestState::default().id(),
+                )
             }
             _ => filter,
         };

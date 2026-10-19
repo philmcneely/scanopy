@@ -13,6 +13,8 @@ use async_trait::async_trait;
 use crate::{
     daemon::discovery::types::{base::DiscoveryPhase, warnings::DiscoveryWarningCode},
     server::{
+        bindings::r#impl::ownership_events::BindingOwnership,
+        dependencies::r#impl::member_events::DependencyMemberChange,
         logging::service::LoggingService,
         shared::events::{
             registry::SubscriberRegistration,
@@ -206,4 +208,41 @@ impl Subscriber<SubnetCorrection> for LoggingService {
 inventory::submit!(SubscriberRegistration::new::<
     LoggingService,
     SubnetCorrection,
+>());
+
+#[async_trait]
+impl Subscriber<BindingOwnership> for LoggingService {
+    fn filter(&self) -> EventFilter<BindingOwnership> {
+        EventFilter::all()
+    }
+
+    async fn handle(&self, events: Vec<Event<BindingOwnership>>) -> Result<(), Error> {
+        for event in events {
+            log_event(&event, event.flags.suppress_logs);
+        }
+        Ok(())
+    }
+}
+inventory::submit!(SubscriberRegistration::new::<
+    LoggingService,
+    BindingOwnership,
+>());
+
+#[async_trait]
+impl Subscriber<DependencyMemberChange> for LoggingService {
+    fn filter(&self) -> EventFilter<DependencyMemberChange> {
+        EventFilter::all()
+    }
+
+    /// One line per member at `Warn`: the dependency is short a member until the user replaces it.
+    async fn handle(&self, events: Vec<Event<DependencyMemberChange>>) -> Result<(), Error> {
+        for event in events {
+            log_event(&event, event.flags.suppress_logs);
+        }
+        Ok(())
+    }
+}
+inventory::submit!(SubscriberRegistration::new::<
+    LoggingService,
+    DependencyMemberChange,
 >());

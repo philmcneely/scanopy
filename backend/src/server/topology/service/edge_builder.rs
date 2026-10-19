@@ -976,6 +976,7 @@ mod tests {
                 name: "multi-attached".to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some("multi-attached".to_string()),
                         container_id: Some("abc123".to_string()),
                         compose_project: None,
@@ -1079,6 +1080,7 @@ mod tests {
                 name: "multi-attached".to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some("multi-attached".to_string()),
                         container_id: Some("abc123".to_string()),
                         compose_project: None,
@@ -1167,6 +1169,7 @@ mod tests {
                 name: "single".to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some("single".to_string()),
                         container_id: Some("def456".to_string()),
                         compose_project: None,
@@ -1245,6 +1248,7 @@ mod tests {
                 name: name.to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some(name.to_string()),
                         container_id: Some(name.to_string()),
                         compose_project: None,
@@ -1342,6 +1346,7 @@ mod tests {
                 name: name.to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_id: Some(name.to_string()),
                         container_name: Some(name.to_string()),
                         compose_project: None,
@@ -1442,6 +1447,7 @@ mod tests {
                 name: name.to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some(name.to_string()),
                         container_id: Some(name.to_string()),
                         compose_project: None,
@@ -1563,6 +1569,7 @@ mod tests {
         vm.base.virtualization_service_id = Some(proxmox.id);
         vm.base.virtualization_metadata =
             Some(HostVirtualization::Proxmox(ProxmoxVirtualization {
+                state: Default::default(),
                 vm_name: Some("gitlab".to_string()),
                 vm_id: Some("100".to_string()),
                 guest_type: Some(ProxmoxGuestType::Qemu),
@@ -1573,6 +1580,7 @@ mod tests {
         pihole.base.virtualization_service_id = Some(docker.id);
         pihole.base.virtualization_metadata =
             Some(HostVirtualization::Docker(ContainerHostVirtualization {
+                state: Default::default(),
                 container_name: Some("pihole".to_string()),
                 container_id: Some("4f1c2a".to_string()),
                 compose_project: None,
