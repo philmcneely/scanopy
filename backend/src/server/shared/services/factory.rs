@@ -559,6 +559,13 @@ impl ServiceFactory {
         } else {
             None
         };
+        // Per-occurrence subscriber failures go to PostHog from Scanopy Cloud only; a self-hosted
+        // server with a PostHog key sends nothing it didn't before.
+        if deployment_type == crate::server::config::DeploymentType::Cloud
+            && let Some(posthog) = &posthog_service
+        {
+            event_bus.set_failure_reporter(posthog.clone());
+        }
 
         let oidc_service = config
             .oidc_providers

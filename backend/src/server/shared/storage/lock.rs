@@ -8,9 +8,18 @@
 //! - [`session_lock`] — RAII guard on a dedicated pool connection, for
 //!   multi-service critical sections that run pool-based storage calls and
 //!   cannot become a single transaction (host/service create/update/delete).
-//!   Acquisition polls `pg_try_advisory_lock` with backoff instead of
-//!   blocking server-side, so waiters never pin pool connections that the
-//!   lock holder needs for its own work.
+//!   The guard holds `pg_try_advisory_xact_lock` inside an open transaction
+//!   on its own connection; the critical section's storage calls run on other
+//!   pool connections. Acquisition polls with backoff instead of blocking
+//!   server-side, so waiters never pin pool connections that the lock holder
+//!   needs for its own work.
+//!
+//!   Not a session-level lock (`pg_advisory_lock` / `pg_advisory_unlock`):
+//!   behind a transaction-mode pooler (Neon's pooled endpoint, PgBouncer) two
+//!   statements from one client can run on different backends, so the unlock
+//!   lands on a backend that holds nothing and the lock stays held until the
+//!   pooler recycles the first one. An open transaction stays on one backend,
+//!   and commit or rollback releases the lock there.
 //! - [`xact_lock`] — `pg_advisory_xact_lock` on an existing transaction,
 //!   auto-released at commit/rollback, for tx-local read-modify-writes
 //!   (position assignment, junction-table syncs).
@@ -20,9 +29,8 @@
 //! and new instances contend on the same entities).
 
 use crate::server::shared::entities::EntityDiscriminants;
-use sqlx::pool::PoolConnection;
 use sqlx::postgres::{PgAdvisoryLock, PgAdvisoryLockKey};
-use sqlx::{Either, PgPool, Postgres};
+use sqlx::{PgPool, Postgres};
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -140,24 +148,22 @@ pub enum LockError {
     Db(#[from] sqlx::Error),
 }
 
-/// Holds a session-scoped advisory lock on a dedicated pool connection.
+/// Holds a transaction-scoped advisory lock in an open transaction on a
+/// dedicated pool connection.
 ///
-/// Call [`release`](Self::release) on success paths; `Drop` covers
-/// error/cancel paths by releasing asynchronously (and closing the
-/// connection if the unlock fails, so a lock-holding connection can never
-/// return to the pool).
+/// Call [`release`](Self::release) on success paths; it commits. `Drop`
+/// covers error/cancel paths: the dropped transaction rolls back when the
+/// pool takes its connection back, which releases the lock.
 pub struct SessionLockGuard {
     key: LockKey,
-    lock: PgAdvisoryLock,
-    conn: Option<PoolConnection<Postgres>>,
+    tx: Option<sqlx::Transaction<'static, Postgres>>,
 }
 
 impl SessionLockGuard {
     /// Release the lock and return the connection to the pool.
     pub async fn release(mut self) -> Result<(), LockError> {
-        if let Some(conn) = self.conn.take() {
-            // Returns the connection, which drops back to the pool here.
-            self.lock.force_release(conn).await?;
+        if let Some(tx) = self.tx.take() {
+            tx.commit().await?;
         }
         Ok(())
     }
@@ -167,58 +173,29 @@ impl SessionLockGuard {
     }
 }
 
-impl Drop for SessionLockGuard {
-    fn drop(&mut self) {
-        if let Some(mut conn) = self.conn.take() {
-            let pg_key = self.key.pg_key();
-            tokio::spawn(async move {
-                let unlocked = sqlx::query("SELECT pg_advisory_unlock($1)")
-                    .bind(pg_key)
-                    .execute(&mut *conn)
-                    .await;
-                if unlocked.is_err() {
-                    // Never return a possibly-still-locked connection to the
-                    // pool; closing the session releases its advisory locks
-                    // server-side.
-                    let _ = conn.close().await;
-                }
-            });
-        }
-    }
-}
-
-/// Acquire a session-scoped advisory lock, polling `pg_try_advisory_lock`
-/// with backoff until `timeout`. The returned guard holds one pool
-/// connection for the duration of the critical section.
+/// Acquire an advisory lock held until the guard is released or dropped,
+/// polling `pg_try_advisory_xact_lock` with backoff until `timeout`. The
+/// returned guard holds one pool connection for the duration of the
+/// critical section.
 pub async fn session_lock(
     pool: &PgPool,
     key: LockKey,
     timeout: Duration,
 ) -> Result<SessionLockGuard, LockError> {
-    let lock = key.to_pg_lock();
+    let pg_key = key.pg_key();
     let deadline = tokio::time::Instant::now() + timeout;
     loop {
-        let conn = pool.acquire().await?;
-        let acquired = lock.try_acquire(conn).await?;
-        match acquired {
-            Either::Left(guard) => {
-                // Take over release management from sqlx's guard: `leak()`
-                // hands the (still locked) connection back without queuing
-                // an unlock. Consuming the guard also ends its borrow of
-                // `lock`, letting us move `lock` into our own guard.
-                let conn = guard.leak();
-                return Ok(SessionLockGuard {
-                    key,
-                    // Reconstructed (cheap, deterministic) rather than moved:
-                    // the borrow checker pins `lock` to the guard's lifetime.
-                    lock: key.to_pg_lock(),
-                    conn: Some(conn),
-                });
-            }
-            // Not acquired: connection goes straight back to the pool so
-            // waiting never starves the lock holder of connections.
-            Either::Right(conn) => drop(conn),
+        let mut tx = pool.begin().await?;
+        let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_xact_lock($1)")
+            .bind(pg_key)
+            .fetch_one(&mut *tx)
+            .await?;
+        if acquired {
+            return Ok(SessionLockGuard { key, tx: Some(tx) });
         }
+        // Not acquired: the connection goes straight back to the pool so
+        // waiting never starves the lock holder of connections.
+        tx.rollback().await?;
         if tokio::time::Instant::now() + RETRY_INTERVAL > deadline {
             return Err(LockError::Timeout(timeout, key));
         }
@@ -381,7 +358,7 @@ mod tests {
             .unwrap();
         drop(guard);
 
-        // Drop releases via a spawned task; poll until it lands.
+        // The rollback lands when the pool takes the connection back; poll until it does.
         let reacquired = session_lock(&pool, key, Duration::from_secs(5))
             .await
             .expect("lock should be released after guard drop");
@@ -446,6 +423,94 @@ mod tests {
         let t2 = spawn_looper(pool.clone(), [b, a]);
         t1.await.unwrap();
         t2.await.unwrap();
+    }
+
+    /// A Postgres container and a transaction-mode PgBouncer in front of it, as Neon's pooled
+    /// endpoint runs. Returns a pool straight to Postgres and one through PgBouncer.
+    async fn setup_pooled_db() -> (
+        PgPool,
+        PgPool,
+        Vec<testcontainers::ContainerAsync<testcontainers::GenericImage>>,
+    ) {
+        use testcontainers::{GenericImage, ImageExt, core::WaitFor, runners::AsyncRunner};
+
+        let run = Uuid::new_v4().simple().to_string();
+        let network = format!("scanopy-lock-{run}");
+        let db_host = format!("scanopy-lock-db-{run}");
+
+        let postgres = GenericImage::new("postgres", "17-alpine")
+            .with_wait_for(WaitFor::message_on_stderr(
+                "database system is ready to accept connections",
+            ))
+            .with_env_var("POSTGRES_PASSWORD", "password")
+            .with_env_var("POSTGRES_DB", "scanopy_test")
+            .with_network(network.clone())
+            .with_container_name(db_host.clone())
+            .start()
+            .await
+            .unwrap();
+        // Round-robin over a pool of four makes consecutive statements from one client land on
+        // different backends, which a busy pooler does anyway.
+        let pgbouncer = GenericImage::new("edoburu/pgbouncer", "v1.26.1-p0")
+            .with_wait_for(WaitFor::message_on_stderr("process up"))
+            .with_env_var("DB_HOST", db_host)
+            .with_env_var("DB_USER", "postgres")
+            .with_env_var("DB_PASSWORD", "password")
+            .with_env_var("DB_NAME", "scanopy_test")
+            .with_env_var("AUTH_TYPE", "scram-sha-256")
+            .with_env_var("POOL_MODE", "transaction")
+            .with_env_var("DEFAULT_POOL_SIZE", "4")
+            .with_env_var("SERVER_ROUND_ROBIN", "1")
+            .with_env_var("MAX_PREPARED_STATEMENTS", "100")
+            .with_network(network)
+            .start()
+            .await
+            .unwrap();
+
+        let url = |port: u16| format!("postgres://postgres:password@127.0.0.1:{port}/scanopy_test");
+        let direct = PgPool::connect(&url(postgres.get_host_port_ipv4(5432).await.unwrap()))
+            .await
+            .unwrap();
+        let pooled = PgPool::connect(&url(pgbouncer.get_host_port_ipv4(5432).await.unwrap()))
+            .await
+            .unwrap();
+
+        // Open all four server connections, so round-robin has backends to rotate through.
+        let mut warm = Vec::new();
+        for _ in 0..4 {
+            let mut tx = pooled.begin().await.unwrap();
+            sqlx::query("SELECT 1").execute(&mut *tx).await.unwrap();
+            warm.push(tx);
+        }
+        for tx in warm {
+            tx.commit().await.unwrap();
+        }
+
+        (direct, pooled, vec![postgres, pgbouncer])
+    }
+
+    /// Behind a transaction-mode pooler (prod's Neon endpoint), a released lock must be free.
+    /// A session-level lock taken on one backend and unlocked from another stays held until the
+    /// pooler recycles the first, which is how registration's `TagGroups` lock outlived its
+    /// guard and timed out the billing run's cloud setup on 2026-10-19.
+    #[tokio::test]
+    async fn test_released_lock_is_free_behind_transaction_pooler() {
+        let (direct, pooled, _containers) = setup_pooled_db().await;
+
+        for _ in 0..10 {
+            let key = LockKey::TagGroups {
+                organization_id: Uuid::new_v4(),
+            };
+            let guard = session_lock(&pooled, key, DEFAULT_LOCK_TIMEOUT)
+                .await
+                .unwrap();
+            guard.release().await.unwrap();
+
+            let reacquired = session_lock(&direct, key, Duration::from_secs(2))
+                .await
+                .expect("a released lock must be free on every backend");
+            reacquired.release().await.unwrap();
+        }
     }
 
     /// The whole point: exclusion must hold across separate pools (i.e.

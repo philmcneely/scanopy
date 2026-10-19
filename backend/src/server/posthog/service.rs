@@ -2,7 +2,10 @@ use crate::server::metrics::dependency::{Dependency, observe};
 use crate::server::{
     auth::middleware::auth::ActorProperties,
     shared::{
-        events::{Attribution, Event, EventProperties, EventScope, Operation, ScopeOrganization},
+        events::{
+            Attribution, Event, EventProperties, EventScope, Operation, ScopeOrganization,
+            traits::{SubscriberFailure, SubscriberFailureReporter},
+        },
         services::traits::CrudService,
     },
     sites::service::SiteService,
@@ -136,6 +139,82 @@ impl PosthogService {
             None
         }
     }
+}
+
+/// Subscriber failures go to PostHog error tracking as `$exception` events, grouped under the
+/// first organization the events name. Only set on Scanopy Cloud (`ServiceFactory`).
+#[async_trait::async_trait]
+impl SubscriberFailureReporter for PosthogService {
+    async fn report(&self, failure: SubscriberFailure) {
+        let organization_id = match failure.organizations.first() {
+            Some(ScopeOrganization::Org(id)) => Some(*id),
+            Some(ScopeOrganization::Site(site_id)) => self.get_org_id_from_site(site_id).await,
+            None => None,
+        };
+        let result = match subscriber_failure_event(&failure, organization_id) {
+            Ok(event) => self.send(event).await.map_err(anyhow::Error::from),
+            Err(e) => Err(e),
+        };
+        if let Err(e) = result {
+            tracing::warn!(
+                subscriber = failure.subscriber,
+                error = format!("{e:#}"),
+                "PostHog $exception for a subscriber failure not sent"
+            );
+        }
+    }
+}
+
+/// A subscriber failure as a PostHog `$exception`. Issues group by subscriber and reason, so
+/// each org hitting the same failure adds an occurrence rather than a new issue.
+pub(crate) fn subscriber_failure_event(
+    failure: &SubscriberFailure,
+    organization_id: Option<Uuid>,
+) -> anyhow::Result<posthog_rs::Event> {
+    let outcome: &'static str = failure.outcome.into();
+    let reason: &'static str = failure.reason.into();
+    let (subscriber, event_type) = failure
+        .subscriber
+        .split_once(':')
+        .unwrap_or((failure.subscriber, "unknown"));
+
+    let mut event = match organization_id {
+        Some(id) => {
+            let mut event = posthog_rs::Event::new("$exception".to_string(), format!("org:{id}"));
+            event.add_group("organization", &id.to_string());
+            event
+        }
+        None => posthog_rs::Event::new_anon("$exception"),
+    };
+    let organization_ids: Vec<String> = failure
+        .organizations
+        .iter()
+        .map(|org| match org {
+            ScopeOrganization::Org(id) => id.to_string(),
+            ScopeOrganization::Site(id) => format!("site:{id}"),
+        })
+        .collect();
+    event.insert_prop(
+        "$exception_list",
+        serde_json::json!([{
+            "type": failure.subscriber,
+            "value": failure.error,
+            "mechanism": { "handled": true, "synthetic": true },
+        }]),
+    )?;
+    event.insert_prop(
+        "$exception_fingerprint",
+        format!("{}:{reason}", failure.subscriber),
+    )?;
+    event.insert_prop("subscriber", subscriber)?;
+    event.insert_prop("event_type", event_type)?;
+    event.insert_prop("operations", &failure.operations)?;
+    event.insert_prop("outcome", outcome)?;
+    event.insert_prop("reason", reason)?;
+    event.insert_prop("attempts", failure.attempts)?;
+    event.insert_prop("organization_ids", organization_ids)?;
+    event.insert_prop("server_version", env!("CARGO_PKG_VERSION"))?;
+    Ok(event)
 }
 
 /// The PostHog person an event lands on: a named user, else the actor, else the organization.
