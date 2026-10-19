@@ -10,7 +10,7 @@
 		type LabelledCardFieldItem
 	} from '$lib/shared/components/data/types';
 	import { usePortsQuery } from '$lib/features/ports/queries';
-	import { countVirtualized } from '$lib/features/services/virtualized-count';
+	import { virtualizedSummary } from '$lib/features/services/virtualized-count';
 	import { useIPAddressesQuery } from '$lib/features/ip-addresses/queries';
 	import { useSubnetsQuery, isContainerSubnet } from '$lib/features/subnets/queries';
 	import { formatIPAddress } from '$lib/features/hosts/address-labels';
@@ -44,6 +44,7 @@
 	import { closeModal, modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
 	import {
 		common_confirmBulkDelete,
+		common_confirmBulkDeleteWithGuests,
 		common_confirmDeleteName,
 		common_confirmDeleteNameWithGuests,
 		common_delete,
@@ -315,11 +316,10 @@
 
 	async function handleDeleteService(service: Service) {
 		// Deleting a runtime or hypervisor deletes what it runs, so the question says how much.
-		const count = await countVirtualized([service.id]);
-		const question =
-			count > 0
-				? common_confirmDeleteNameWithGuests({ name: service.name, count })
-				: common_confirmDeleteName({ name: service.name });
+		const guests = await virtualizedSummary([service]);
+		const question = guests
+			? common_confirmDeleteNameWithGuests({ name: service.name, guests })
+			: common_confirmDeleteName({ name: service.name });
 		if (confirm(question)) {
 			deleteServiceMutation.mutate(service.id);
 		}
@@ -336,7 +336,11 @@
 	}
 
 	async function handleBulkDelete(ids: string[]) {
-		if (confirm(common_confirmBulkDelete({ count: ids.length, entity: common_services() }))) {
+		const guests = await virtualizedSummary(servicesData.filter((s) => ids.includes(s.id)));
+		const question = guests
+			? common_confirmBulkDeleteWithGuests({ count: ids.length, entity: common_services(), guests })
+			: common_confirmBulkDelete({ count: ids.length, entity: common_services() });
+		if (confirm(question)) {
 			await bulkDeleteServicesMutation.mutateAsync(ids);
 		}
 	}

@@ -17,6 +17,9 @@ impl ServiceService {
     ) -> Result<()> {
         let site_id = service.base.site_id;
         let parent = [service.id];
+        let reason = DeletionReason::VirtualizerDeleted {
+            virtualizer_service_id: service.id,
+        };
 
         let children = self
             .get_all(
@@ -26,7 +29,8 @@ impl ServiceService {
             )
             .await?;
         for child in children.into_iter().filter(|c| c.id != service.id) {
-            self.delete(&child.id, authentication.clone()).await?;
+            self.delete(&child.id, authentication.clone(), reason.clone())
+                .await?;
         }
 
         if let Some(host_service) = self.host_service.get() {
@@ -40,7 +44,7 @@ impl ServiceService {
             // The service's own host is the one being deleted when this runs from a host delete.
             for host in hosts.into_iter().filter(|h| h.id != service.base.host_id) {
                 host_service
-                    .delete_host(&host.id, authentication.clone())
+                    .delete_host(&host.id, authentication.clone(), reason.clone())
                     .await?;
             }
         }
@@ -55,7 +59,7 @@ impl ServiceService {
             .await?;
         for subnet in subnets {
             self.subnet_service
-                .delete(&subnet.id, authentication.clone())
+                .delete(&subnet.id, authentication.clone(), reason.clone())
                 .await?;
         }
         Ok(())

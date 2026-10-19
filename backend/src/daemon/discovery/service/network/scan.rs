@@ -1647,9 +1647,16 @@ impl NetworkScan {
             is_gateway: gateway_ips.contains(&ip),
             cancel: cancel.clone(),
             scan_controller: scan_controller.clone(),
+            port_map: Default::default(),
         };
-        let app_probe_results =
-            scan_app_probes(&probe_ctx, &open_ports, effective_batch_size, scan_rate_pps).await;
+        let app_probe_results = scan_app_probes(
+            &probe_ctx,
+            &open_ports,
+            effective_batch_size,
+            scan_rate_pps,
+            true,
+        )
+        .await;
         for result in &app_probe_results {
             if !open_ports.contains(&result.port) {
                 open_ports.push(result.port);

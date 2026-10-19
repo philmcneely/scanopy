@@ -11789,7 +11789,7 @@ export interface components {
          *     name for the raw value. Serializes to the fixture key.
          * @enum {string}
          */
-        MetadataFixture: "if_oper_statuses" | "subnet_types" | "entity_sources" | "dependency_types" | "discovery_types" | "service_definitions" | "discovery_protocols" | "permissions" | "credential_types";
+        MetadataFixture: "if_oper_statuses" | "guest_states" | "subnet_types" | "entity_sources" | "dependency_types" | "discovery_types" | "service_definitions" | "discovery_protocols" | "permissions" | "credential_types";
         /**
          * @description The Windows MSI install method. The MSI itself is a static release asset the UI links to; only
          *     the per-daemon pre-fill data is tenant-specific.
@@ -19677,11 +19677,6 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
-                /**
-                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
-                 *     several.
-                 */
-                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -19903,11 +19898,6 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
-                /**
-                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
-                 *     several.
-                 */
-                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -20020,11 +20010,6 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
-                /**
-                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
-                 *     several.
-                 */
-                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -20137,11 +20122,6 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
-                /**
-                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
-                 *     several.
-                 */
-                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */

@@ -1,5 +1,6 @@
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     credentials::r#impl::{
@@ -241,11 +242,16 @@ impl CrudService<Credential> for CredentialService {
     }
 
     /// A default can't be deleted. Unassigning it from sites and hosts is the way to stop using it.
-    async fn delete(&self, id: &Uuid, authentication: AuthenticatedEntity) -> Result<(), Error> {
+    async fn delete(
+        &self,
+        id: &Uuid,
+        authentication: AuthenticatedEntity,
+        reason: DeletionReason,
+    ) -> Result<(), Error> {
         if let Some(credential) = self.get_by_id(id).await? {
             defaults::refuse_default_delete(std::slice::from_ref(&credential))?;
         }
-        self.delete_base(id, authentication).await
+        self.delete_base(id, authentication, reason).await
     }
 
     /// Refuses the whole batch when any of it is a default, before deleting anything.
@@ -253,12 +259,13 @@ impl CrudService<Credential> for CredentialService {
         &self,
         ids: &[Uuid],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize, Error> {
         let credentials = self
             .get_all(StorableFilter::<Credential>::new_from_entity_ids(ids))
             .await?;
         defaults::refuse_default_delete(&credentials)?;
-        self.delete_many_base(ids, authentication).await
+        self.delete_many_base(ids, authentication, reason).await
     }
 }
 

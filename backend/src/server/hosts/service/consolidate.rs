@@ -346,6 +346,7 @@ impl HostService {
         destination_host: Host,
         other_host: Host,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<HostResponse> {
         if destination_host.id == other_host.id {
             return Err(ValidationError::new("Can't consolidate a host with itself").into());
@@ -809,7 +810,7 @@ impl HostService {
 
         // Delete other host (remaining children that weren't transferred will
         // cascade). Inner variant: this task already holds Host(other_host.id).
-        self.delete_host_inner(&other_host.id, authentication)
+        self.delete_host_inner(&other_host.id, authentication, reason)
             .await?;
 
         tracing::info!(

@@ -1,5 +1,6 @@
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event};
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
@@ -208,7 +209,8 @@ impl SubnetService {
                 .await?;
         }
 
-        self.delete(&source.id, authentication).await?;
+        self.delete(&source.id, authentication, DeletionReason::Requested)
+            .await?;
 
         tracing::info!(
             merged = %source.base.cidr,

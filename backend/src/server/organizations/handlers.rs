@@ -6,6 +6,7 @@ use crate::server::organizations::demo_seed::seed_demo_data;
 use crate::server::organizations::demo_status::DemoPopulateStatus;
 use crate::server::organizations::r#impl::base::Organization;
 use crate::server::shared::events::traits::{Event, OrgScope};
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::shared::events::types::{OnboardingOperation, OnboardingOperationDiscriminants};
 use crate::server::shared::handlers::traits::CrudHandlers;
 use crate::server::shared::services::traits::CrudService;
@@ -467,7 +468,7 @@ pub async fn delete_organization(
     state
         .services
         .organization_service
-        .delete(&org.id, entity)
+        .delete(&org.id, entity, DeletionReason::Requested)
         .await
         .map_err(|e| ApiError::internal_error(&format!("Failed to delete organization: {}", e)))?;
 

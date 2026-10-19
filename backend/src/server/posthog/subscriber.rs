@@ -497,7 +497,9 @@ mod tests {
             Event::new(scope, op, AuthenticatedEntity::System)
         };
 
-        assert!(entity_filter().matches(&event(EntityOperation::Deleted)));
+        assert!(entity_filter().matches(&event(EntityOperation::Deleted {
+            reason: crate::server::shared::events::types::DeletionReason::Requested,
+        })));
         // Creation is `org_created` from onboarding; forwarding it too would double-count.
         assert!(!entity_filter().matches(&event(EntityOperation::Created)));
     }

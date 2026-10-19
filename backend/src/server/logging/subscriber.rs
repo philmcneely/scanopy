@@ -13,7 +13,6 @@ use async_trait::async_trait;
 use crate::{
     daemon::discovery::types::{base::DiscoveryPhase, warnings::DiscoveryWarningCode},
     server::{
-        bindings::r#impl::ownership_events::BindingOwnership,
         dependencies::r#impl::member_events::DependencyMemberChange,
         logging::service::LoggingService,
         shared::events::{
@@ -140,9 +139,21 @@ impl Subscriber<EntityOperation> for LoggingService {
         EntityEventFilter::all()
     }
 
+    /// The event as JSON, and for a delete a line a person can read: what went and why.
     async fn handle(&self, events: Vec<Event<EntityOperation>>) -> Result<(), Error> {
         for event in events {
             log_event(&event, event.flags.suppress_logs);
+            if let EntityOperation::Deleted { reason } = &event.operation
+                && !event.flags.suppress_logs
+            {
+                tracing::info!(
+                    target: "events",
+                    "{} {} deleted: {}",
+                    event.scope.entity_discriminant(),
+                    event.scope.entity_id(),
+                    reason.describe()
+                );
+            }
         }
         Ok(())
     }
@@ -208,24 +219,6 @@ impl Subscriber<SubnetCorrection> for LoggingService {
 inventory::submit!(SubscriberRegistration::new::<
     LoggingService,
     SubnetCorrection,
->());
-
-#[async_trait]
-impl Subscriber<BindingOwnership> for LoggingService {
-    fn filter(&self) -> EventFilter<BindingOwnership> {
-        EventFilter::all()
-    }
-
-    async fn handle(&self, events: Vec<Event<BindingOwnership>>) -> Result<(), Error> {
-        for event in events {
-            log_event(&event, event.flags.suppress_logs);
-        }
-        Ok(())
-    }
-}
-inventory::submit!(SubscriberRegistration::new::<
-    LoggingService,
-    BindingOwnership,
 >());
 
 #[async_trait]

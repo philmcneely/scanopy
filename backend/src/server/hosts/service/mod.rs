@@ -37,7 +37,10 @@ use crate::server::{
     shared::attribution::{self, AttributeSource, Attributed},
     shared::{
         entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants},
-        events::{bus::EventBus, types::EntityOperation},
+        events::{
+            bus::EventBus,
+            types::{DeletionReason, EntityOperation},
+        },
         position::resolve_and_validate_input_positions,
         services::traits::{ChildCrudService, CrudService, EventBusService},
         storage::{
@@ -121,8 +124,13 @@ impl CrudService<Host> for HostService {
 
     /// Through [`Self::delete_host`], so a host deleted from the API deletes its services one by
     /// one: each publishes `Deleted` and deletes what it virtualizes.
-    async fn delete(&self, id: &Uuid, authentication: AuthenticatedEntity) -> Result<()> {
-        self.delete_host(id, authentication).await
+    async fn delete(
+        &self,
+        id: &Uuid,
+        authentication: AuthenticatedEntity,
+        reason: DeletionReason,
+    ) -> Result<()> {
+        self.delete_host(id, authentication, reason).await
     }
 
     /// Each host through [`Self::delete_host`]. One that an earlier delete in the batch already
@@ -131,11 +139,13 @@ impl CrudService<Host> for HostService {
         &self,
         ids: &[Uuid],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize> {
         let mut deleted = 0;
         for id in ids {
             if self.get_by_id(id).await?.is_some() {
-                self.delete_host(id, authentication.clone()).await?;
+                self.delete_host(id, authentication.clone(), reason.clone())
+                    .await?;
                 deleted += 1;
             }
         }

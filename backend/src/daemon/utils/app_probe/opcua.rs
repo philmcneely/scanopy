@@ -52,7 +52,7 @@ impl AppProbe for OpcUaProbe {
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
         let port = self.port().number();
-        let addr = std::net::SocketAddr::new(ctx.ip, port);
+        let addr = ctx.target(port);
 
         let mut stream = match timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
             Ok(Ok(stream)) => stream,
@@ -63,7 +63,7 @@ impl AppProbe for OpcUaProbe {
             Err(_) => return Ok(AppProbeOutcome::NoAnswer),
         };
 
-        let endpoint_url = format!("opc.tcp://{}:{}", ctx.ip, port);
+        let endpoint_url = format!("opc.tcp://{}", ctx.target(port));
         stream.write_all(&hello(&endpoint_url)).await?;
 
         let mut buf = [0u8; 256];

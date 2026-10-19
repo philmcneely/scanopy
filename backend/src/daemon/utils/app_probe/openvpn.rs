@@ -13,7 +13,6 @@
 
 use anyhow::Error;
 use async_trait::async_trait;
-use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 use tokio::time::{Duration, timeout};
 
@@ -50,7 +49,7 @@ impl AppProbe for OpenVpnProbe {
             Ok(socket) => socket,
             Err(_) => return Ok(AppProbeOutcome::NoAnswer),
         };
-        let target = SocketAddr::new(ctx.ip, self.port().number());
+        let target = ctx.target(self.port().number());
 
         if socket.send_to(&hard_reset(), target).await.is_err() {
             return Ok(AppProbeOutcome::NoAnswer);

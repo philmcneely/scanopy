@@ -6,8 +6,8 @@
 //! [`SubnetCorrection`]: a row changed on its own initiative, and an operator who sees a
 //! dependency come up short should find out why without turning up the log level.
 //!
-//! Published by the dependency service's subscribers on `BindingOwnership` and on a service's
-//! `Deleted`, one per affected member.
+//! Published by the dependency service's subscriber on a binding's or a service's `Deleted`, read
+//! from the reason it carries, one per affected member.
 //!
 //! [`SubnetCorrection`]: crate::server::subnets::r#impl::correction_events::SubnetCorrection
 
@@ -33,8 +33,6 @@ pub enum DependencyMemberChange {
     MemberMoved {
         /// The service that took the port.
         to_service_id: Uuid,
-        /// Its binding on the port.
-        to_binding_id: Uuid,
     },
     /// The member's binding was released: nothing answered on its port past the stale window.
     MemberReleased,

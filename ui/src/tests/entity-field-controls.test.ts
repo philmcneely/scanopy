@@ -124,7 +124,6 @@ const DECISIONS: Record<string, TabDecisions> = {
 			model: server('models'),
 			sys_location: server('sys_locations'),
 			os_family: server('os_families'),
-			guest_state: GUEST_STATE,
 			description: TEXT,
 			serial_number: none('Identifier, unique per device; search finds one'),
 			asset_tag: none('Identifier, unique per device; search finds one'),

@@ -5,6 +5,7 @@
 //! - Processing logic for daemon data (formerly in processor.rs)
 //! - Polling loop for ServerPoll mode (formerly in poller.rs)
 //! - HTTP client for daemon communication
+use crate::server::shared::events::types::DeletionReason;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -170,6 +171,7 @@ impl CrudService<Daemon> for DaemonService {
         &self,
         id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<(), anyhow::Error> {
         // Clean up in-memory discovery session state (queued/pending/terminal)
         // to prevent stale references after deletion.
@@ -200,13 +202,12 @@ impl CrudService<Daemon> for DaemonService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Deleted, authentication).with_flags(
-                        EntityEventFlags {
+                    Event::new(scope, EntityOperation::Deleted { reason }, authentication)
+                        .with_flags(EntityEventFlags {
                             trigger_stale,
                             suppress_logs,
                             ..Default::default()
-                        },
-                    ),
+                        }),
                 )
                 .await?;
         }

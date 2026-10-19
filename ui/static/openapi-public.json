@@ -4915,21 +4915,6 @@
             }
           },
           {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
-              }
-            }
-          },
-          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -5442,21 +5427,6 @@
             }
           },
           {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
-              }
-            }
-          },
-          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -5849,21 +5819,6 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
-              }
-            }
-          },
-          {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -6269,21 +6224,6 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
-              }
-            }
-          },
-          {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
               }
             }
           },

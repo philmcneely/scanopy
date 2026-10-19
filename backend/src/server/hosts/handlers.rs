@@ -16,6 +16,7 @@ use crate::server::services::r#impl::base::Service;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::events::traits::{Event, OrgScope};
 use crate::server::shared::events::types::BillingOperation;
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::shared::extractors::Query;
 use crate::server::shared::handlers::ordering::OrderField;
 use crate::server::shared::handlers::query::{
@@ -34,7 +35,6 @@ use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::api::{ApiErrorResponse, EmptyApiResponse};
 use crate::server::shared::types::entities::EntitySourceDiscriminants;
 use crate::server::shared::types::error_codes::ErrorCode;
-use crate::server::shared::types::guest_state::GuestState;
 use crate::server::shared::types::metadata::HasId;
 use crate::server::shared::validation::{validate_read_access, validate_site_access};
 use crate::server::sites::r#impl::Site;
@@ -215,9 +215,6 @@ pub struct HostFilterQuery {
     pub sys_locations: Option<Vec<String>>,
     /// Filter by operating system family. Repeat for several.
     pub os_families: Option<Vec<HostOsFamily>>,
-    /// Filter by the run state of the VM or container a host is, at the last scan. Repeat for
-    /// several.
-    pub guest_states: Option<Vec<GuestState>>,
     /// Filter to hosts assigned one of these credentials. Repeat for several.
     pub credential_ids: Option<Vec<Uuid>>,
     /// Filter by tag IDs (returns hosts that have ANY of the specified tags)
@@ -392,19 +389,6 @@ impl HostFilterQuery {
             Some(families) if !families.is_empty() => {
                 let ids: Vec<&str> = families.iter().map(|f| f.id()).collect();
                 filter.json_text_in("os", &["family"], &ids)
-            }
-            _ => filter,
-        };
-
-        let filter = match &self.guest_states {
-            Some(states) if !states.is_empty() => {
-                let ids: Vec<&str> = states.iter().map(|s| s.id()).collect();
-                filter.json_text_in_defaulting(
-                    "virtualization_metadata",
-                    &["details", "state"],
-                    &ids,
-                    GuestState::default().id(),
-                )
             }
             _ => filter,
         };
@@ -1375,7 +1359,12 @@ async fn consolidate_hosts(
     }
 
     let mut host_response = host_service
-        .consolidate_hosts(destination_host, other_host, auth.into_entity())
+        .consolidate_hosts(
+            destination_host,
+            other_host,
+            auth.into_entity(),
+            DeletionReason::Requested,
+        )
         .await?;
 
     // Hydrate tags from junction table

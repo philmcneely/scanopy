@@ -187,6 +187,9 @@ impl ServiceService {
                 &existing_service.id,
                 &bindings_with_ids,
                 authentication.clone(),
+                // The only bindings an upsert removes are specific ones an all-addresses binding
+                // now covers.
+                DeletionReason::NoLongerReported,
             )
             .await?;
 

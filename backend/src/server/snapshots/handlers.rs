@@ -10,6 +10,7 @@
 //! `GET /snapshots?site_id=X` and `DELETE /snapshots/{id}` use the standard
 //! generic CRUD handlers; the cascade FKs on closed entity rows + topology rows
 //! reap everything tied to the deleted snapshots automatically.
+use crate::server::shared::events::types::DeletionReason;
 
 use std::sync::Arc;
 
@@ -150,7 +151,7 @@ async fn create_snapshot(
             if let Err(cleanup) = state
                 .services
                 .snapshot_service
-                .delete(&created.id, auth.entity.clone())
+                .delete(&created.id, auth.entity.clone(), DeletionReason::Requested)
                 .await
             {
                 tracing::error!(

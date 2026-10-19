@@ -1,3 +1,4 @@
+use crate::server::shared::events::types::{DeletionReason, EntityOperation};
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use std::collections::BTreeMap;
@@ -114,12 +115,18 @@ impl CrudService<TagGroup> for TagGroupService {
         if updated.base.ordered != current.base.ordered {
             self.renumber_tags(&updated).await?;
         }
-        self.publish_change(&updated, authentication, false).await?;
+        self.publish_change(&updated, authentication, EntityOperation::Updated)
+            .await?;
         Ok(updated)
     }
 
     /// Deleting a group leaves its tags in no group. System groups can't be deleted.
-    async fn delete(&self, id: &Uuid, authentication: AuthenticatedEntity) -> Result<()> {
+    async fn delete(
+        &self,
+        id: &Uuid,
+        authentication: AuthenticatedEntity,
+        reason: DeletionReason,
+    ) -> Result<()> {
         let group = self
             .get_by_id(id)
             .await?
@@ -127,7 +134,8 @@ impl CrudService<TagGroup> for TagGroupService {
         self.refuse_system_delete(&group)?;
         self.ungroup_tags(&group).await?;
         self.storage.delete(id).await?;
-        self.publish_change(&group, authentication, true).await?;
+        self.publish_change(&group, authentication, EntityOperation::Deleted { reason })
+            .await?;
         Ok(())
     }
 
@@ -135,6 +143,7 @@ impl CrudService<TagGroup> for TagGroupService {
         &self,
         ids: &[Uuid],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize> {
         let groups = self
             .get_all(StorableFilter::<TagGroup>::new_from_entity_ids(ids))
@@ -143,7 +152,8 @@ impl CrudService<TagGroup> for TagGroupService {
             self.refuse_system_delete(group)?;
         }
         for group in &groups {
-            self.delete(&group.id, authentication.clone()).await?;
+            self.delete(&group.id, authentication.clone(), reason.clone())
+                .await?;
         }
         Ok(groups.len())
     }
@@ -168,20 +178,15 @@ impl TagGroupService {
         &self,
         group: &TagGroup,
         authentication: AuthenticatedEntity,
-        deleted: bool,
+        operation: EntityOperation,
     ) -> Result<()> {
-        use crate::server::shared::events::{traits::EntityScope, types::EntityOperation};
+        use crate::server::shared::events::traits::EntityScope;
         if let Some(scope) = EntityScope::from_ids(
             group.id,
             group.clone().into(),
             None,
             Some(group.base.organization_id),
         ) {
-            let operation = if deleted {
-                EntityOperation::Deleted
-            } else {
-                EntityOperation::Updated
-            };
             self.event_bus
                 .publish(Event::new(scope, operation, authentication))
                 .await?;
