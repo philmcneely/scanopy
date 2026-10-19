@@ -112,6 +112,12 @@ impl ServiceService {
                 existing_service.base.virtualization_service_id = Some(owner);
             }
         }
+        // A container that stopped, or moved runtime, is a change even with its bindings as they
+        // were: the open page and the topology need to hear it.
+        let virtualization_changed = existing_service.base.virtualization_metadata
+            != service_before_updates.base.virtualization_metadata
+            || existing_service.base.virtualization_service_id
+                != service_before_updates.base.virtualization_service_id;
 
         existing_service.base.source = match (
             existing_service.base.source,
@@ -192,6 +198,9 @@ impl ServiceService {
         if binding_updates > 0 {
             data.push(format!("{} bindings", binding_updates))
         };
+        if virtualization_changed {
+            data.push("virtualization".to_string());
+        }
 
         if !data.is_empty() {
             let trigger_stale = existing_service.triggers_staleness(Some(service_before_updates));
@@ -216,7 +225,7 @@ impl ServiceService {
         } else {
             tracing::debug!(
                 service_id = %existing_service.id,
-                "Service upsert - no binding changes needed"
+                "Service upsert - no binding or virtualization changes"
             );
         }
 

@@ -384,3 +384,115 @@ fn a_collected_result_without_the_list_reads_as_listing_nothing() {
         }
     );
 }
+
+/// Every Service `Updated` published, as the service each one carries.
+#[derive(Default)]
+struct ServiceUpdates(std::sync::Mutex<Vec<Service>>);
+
+#[async_trait::async_trait]
+impl
+    crate::server::shared::events::traits::Subscriber<
+        crate::server::shared::events::types::EntityOperation,
+    > for ServiceUpdates
+{
+    fn filter(&self) -> crate::server::shared::events::traits::EntityEventFilter {
+        use crate::server::shared::entities::EntityDiscriminants;
+        use crate::server::shared::events::types::EntityOperationDiscriminants;
+        crate::server::shared::events::traits::EntityEventFilter::by_entity(
+            std::collections::HashMap::from([(
+                EntityDiscriminants::Service,
+                Some(vec![EntityOperationDiscriminants::Updated]),
+            )]),
+        )
+    }
+
+    async fn handle(
+        &self,
+        events: Vec<
+            crate::server::shared::events::traits::Event<
+                crate::server::shared::events::types::EntityOperation,
+            >,
+        >,
+    ) -> anyhow::Result<()> {
+        let mut updates = self.0.lock().unwrap();
+        for event in events {
+            if let crate::server::shared::entities::Entity::Service(service) =
+                event.scope.entity_type()
+            {
+                updates.push(service.clone());
+            }
+        }
+        Ok(())
+    }
+}
+
+/// A container stopping changes nothing but its state, and that is still an update: the open
+/// page and the topology hear it.
+#[tokio::test]
+async fn a_container_stopping_publishes_an_update() {
+    let (storage, services, _container) = test_services().await;
+    let lab = Lab::new(&services, &storage).await;
+    let (lan, p3001) = (lab.lan_ip(), lab.tcp(3001));
+    let runtime = lab.runtime(&lan);
+    let kuma = lab.container_as("UptimeKuma", "kuma", &runtime, vec![(&p3001, &lan)]);
+    lab.scan(vec![lan], vec![p3001], vec![runtime, kuma]).await;
+    let kuma_id = lab.named("kuma").await.unwrap().id;
+    let updates = std::sync::Arc::new(ServiceUpdates::default());
+    services
+        .event_bus
+        .register::<crate::server::shared::events::types::EntityOperation>(
+            updates.clone(),
+            "test_service_updates",
+        )
+        .await;
+
+    let lan = lab.lan_ip();
+    let runtime = lab.runtime(&lan);
+    let mut stopped = lab.container_as("Docker Container", "kuma", &runtime, vec![]);
+    if let Some(ServiceVirtualization::Docker(d)) = stopped.base.virtualization_metadata.as_mut() {
+        d.state = GuestState::Stopped;
+    }
+    lab.scan(vec![lan], vec![], vec![runtime, stopped]).await;
+    services.event_bus.flush().await;
+
+    let heard: Vec<Option<GuestState>> = updates
+        .0
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|s| s.id == kuma_id)
+        .map(state_of)
+        .collect();
+    assert_eq!(heard, vec![Some(GuestState::Stopped)]);
+}
+
+/// A rescan that finds the container as it was publishes nothing for it.
+#[tokio::test]
+async fn an_unchanged_container_publishes_no_update() {
+    let (storage, services, _container) = test_services().await;
+    let lab = Lab::new(&services, &storage).await;
+    let (lan, p3001) = (lab.lan_ip(), lab.tcp(3001));
+    let runtime = lab.runtime(&lan);
+    let kuma = lab.container_as("UptimeKuma", "kuma", &runtime, vec![(&p3001, &lan)]);
+    lab.scan(vec![lan], vec![p3001], vec![runtime, kuma]).await;
+    let kuma_id = lab.named("kuma").await.unwrap().id;
+    let updates = std::sync::Arc::new(ServiceUpdates::default());
+    services
+        .event_bus
+        .register::<crate::server::shared::events::types::EntityOperation>(
+            updates.clone(),
+            "test_service_updates",
+        )
+        .await;
+
+    let (lan, p3001) = (lab.lan_ip(), lab.tcp(3001));
+    let runtime = lab.runtime(&lan);
+    let kuma = lab.container_as("UptimeKuma", "kuma", &runtime, vec![(&p3001, &lan)]);
+    lab.scan(vec![lan], vec![p3001], vec![runtime, kuma]).await;
+    services.event_bus.flush().await;
+
+    assert!(
+        updates.0.lock().unwrap().iter().all(|s| s.id != kuma_id),
+        "an unchanged container is not updated"
+    );
+}
