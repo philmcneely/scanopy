@@ -4137,19 +4137,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-19T19:32:55.968266Z",
+             *       "created_at": "2026-10-19T19:43:10.313992Z",
              *       "first_discovery_id": null,
-             *       "id": "34621f35-9550-4804-af25-3f34d3fa9fb2",
+             *       "id": "1e4b2b29-ee5b-4b4c-88b5-264f0b14af16",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-19T19:32:55.968266Z",
+             *       "last_seen_at": "2026-10-19T19:43:10.313992Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-19T19:32:55.968266Z",
-             *       "valid_from": "2026-10-19T19:32:55.968266Z",
+             *       "updated_at": "2026-10-19T19:43:10.313992Z",
+             *       "valid_from": "2026-10-19T19:43:10.313992Z",
              *       "valid_to": null
              *     }
              */
@@ -5024,19 +5024,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-19T19:32:55.934585Z",
+             *               "created_at": "2026-10-19T19:43:10.282765Z",
              *               "first_discovery_id": null,
-             *               "id": "7d393f11-b3c2-4dae-b694-90a61cb6aca4",
+             *               "id": "0fdd8e44-96b8-477e-af81-26cf99c9d777",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-19T19:32:55.934585Z",
+             *               "last_seen_at": "2026-10-19T19:43:10.282765Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-19T19:32:55.934585Z",
-             *               "valid_from": "2026-10-19T19:32:55.934585Z",
+             *               "updated_at": "2026-10-19T19:43:10.282765Z",
+             *               "valid_from": "2026-10-19T19:43:10.282765Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5049,7 +5049,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "APC",
+             *           "service_definition": "Radarr",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -6034,19 +6034,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-19T19:32:55.962684Z",
+             *           "created_at": "2026-10-19T19:43:10.308585Z",
              *           "first_discovery_id": null,
-             *           "id": "74982623-bb2f-435b-b857-03fae79e3089",
+             *           "id": "8d188521-8282-43e0-89f3-bb40304f4310",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-19T19:32:55.962684Z",
+             *           "last_seen_at": "2026-10-19T19:43:10.308585Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-19T19:32:55.962684Z",
-             *           "valid_from": "2026-10-19T19:32:55.962684Z",
+             *           "updated_at": "2026-10-19T19:43:10.308585Z",
+             *           "valid_from": "2026-10-19T19:43:10.308585Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6059,7 +6059,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "APC",
+             *       "service_definition": "Radarr",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7495,19 +7495,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-19T19:32:55.935298Z",
+         *       "created_at": "2026-10-19T19:43:10.283280Z",
          *       "first_discovery_id": null,
-         *       "id": "62a7f49e-836d-4198-a067-fbe2fa9bc436",
+         *       "id": "4c0ebbb6-0ab8-424b-bbed-c491ca80d582",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-19T19:32:55.935298Z",
+         *       "last_seen_at": "2026-10-19T19:43:10.283280Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-19T19:32:55.935298Z",
-         *       "valid_from": "2026-10-19T19:32:55.935298Z",
+         *       "updated_at": "2026-10-19T19:43:10.283280Z",
+         *       "valid_from": "2026-10-19T19:43:10.283280Z",
          *       "valid_to": null
          *     }
          */
@@ -7873,7 +7873,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "APC",
+         *           "service_definition": "Radarr",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -9272,13 +9272,37 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "SnmpWalkBridgeMibAbsent";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            /** @description See [`DiscoveryWarning::SnmpWalkFailed`]. */
+            net_snmp_options: string | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkNoAnswer";
             group: components["schemas"]["SnmpWalkGroup"];
+        } | {
+            /** @description The device this group was read from. */
+            address: string;
+            cause: components["schemas"]["SnmpWalkCause"];
+            /** @enum {string} */
+            code: "SnmpWalkFailed";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with.
+             */
+            credential_id: string | null;
+            group: components["schemas"]["SnmpWalkGroup"];
+            /**
+             * @description The net-snmp options that authenticate as that credential, every secret a
+             *     `<placeholder>`, for the `snmpwalk` the UI offers to repeat the read with.
+             */
+            net_snmp_options: string | null;
         } | {
             /** @description The device that published the count. */
             address: string;
@@ -9387,6 +9411,19 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "SnmpCollectedNothing";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
+             * @description Each table whose read failed, and how. These are not reported again on their own.
+             *     Empty when every read ended normally; `None` from a daemon that predates the field,
+             *     which recorded only that nothing came back.
+             */
+            failures: components["schemas"]["SnmpWalkFailure"][] | null;
+            /** @description See [`DiscoveryWarning::SnmpWalkFailed`]. */
+            net_snmp_options: string | null;
         } | {
             /** @description The device whose VLANs could not be recorded. */
             address: string;
@@ -10704,19 +10741,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-19T19:32:55.933751Z",
+         *               "created_at": "2026-10-19T19:43:10.282149Z",
          *               "first_discovery_id": null,
-         *               "id": "97cb2c5c-3f5d-4e8b-bdbf-94eb71db4c07",
+         *               "id": "801d7627-d19c-4958-906f-cd484f27235a",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-19T19:32:55.933751Z",
+         *               "last_seen_at": "2026-10-19T19:43:10.282149Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-19T19:32:55.933751Z",
-         *               "valid_from": "2026-10-19T19:32:55.933751Z",
+         *               "updated_at": "2026-10-19T19:43:10.282149Z",
+         *               "valid_from": "2026-10-19T19:43:10.282149Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10729,7 +10766,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "APC",
+         *           "service_definition": "Radarr",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -14259,19 +14296,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-19T19:32:55.935064Z",
+         *           "created_at": "2026-10-19T19:43:10.283110Z",
          *           "first_discovery_id": null,
-         *           "id": "a08473ce-692f-447d-9e15-1d5a4216cd66",
+         *           "id": "c6f5dfca-20e3-4962-b3b4-e8ba25b5d47d",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-19T19:32:55.935064Z",
+         *           "last_seen_at": "2026-10-19T19:43:10.283110Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-19T19:32:55.935064Z",
-         *           "valid_from": "2026-10-19T19:32:55.935064Z",
+         *           "updated_at": "2026-10-19T19:43:10.283110Z",
+         *           "valid_from": "2026-10-19T19:43:10.283110Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14284,7 +14321,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "APC",
+         *       "service_definition": "Radarr",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -14787,6 +14824,21 @@ export interface components {
             priv_protocol: components["schemas"]["SnmpV3PrivProtocol"];
             /** @enum {string} */
             security_level: "AuthPriv";
+        };
+        /**
+         * @description How a read that returned nothing ended, as the daemon observed it.
+         *
+         *     Each value is something the daemon saw on the wire, never an inference about the device: a
+         *     timeout is a request with no response, an error status is the status the device returned.
+         *     Collapsing these into one "stopped answering" told an operator whose device had answered every
+         *     request with `genErr` that it had gone silent.
+         * @enum {string}
+         */
+        SnmpWalkCause: "TimedOut" | "EmptyResponse" | "UnreadableResponse" | "TooBig" | "GenErr" | "NoAccess" | "AuthorizationError" | "OtherErrorStatus";
+        /** @description One group that returned nothing on a device, and how its read ended. */
+        SnmpWalkFailure: {
+            cause: components["schemas"]["SnmpWalkCause"];
+            group: components["schemas"]["SnmpWalkGroup"];
         };
         /**
          * @description An SNMP data group a walk may come up short on.
@@ -15386,7 +15438,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "7c71f6d9-871f-4201-b6c5-cb294a01eb9c",
+             *           "id": "f7e75cfc-1746-438a-b112-946b2ed9319f",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15396,23 +15448,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "69d1b655-9dc8-4474-b880-05cc30bf4bcb",
+             *           "id": "87ab6362-e780-4664-9edd-dab57cb8c285",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "586c6672-5ce3-4f0a-ada4-7454cd197ef5",
+             *           "id": "4bff6784-b6f1-4838-ac4b-955b70d85670",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "a56e3b40-d5d4-4768-a6c2-7a3c73cefbde",
+             *           "id": "e15debce-e541-4e30-8975-bc62deaa20ef",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "69d1b655-9dc8-4474-b880-05cc30bf4bcb",
+             *           "id": "87ab6362-e780-4664-9edd-dab57cb8c285",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15426,19 +15478,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "f3a199e7-d146-4129-aa0b-84c412513fe4",
+             *         "id": "77dfd6f5-ccc4-4776-b8af-d5f6c32235a9",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "9b6ded32-fc52-451a-9dee-481dd40ebb60",
+             *         "id": "ba30bba9-a2fb-416f-bf33-236c51fa9a2d",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "e56b96af-850b-4420-9bc0-9155616c47a9",
+             *         "id": "706d41ea-b8ee-461d-8eb1-64067f26ecc2",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "0c6e5dc6-8497-47bf-8a21-b86e3a288000",
+             *         "id": "501d25df-680f-4b89-9a8d-58c505c3a462",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15459,7 +15511,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "6df3d82d-96e9-49a3-b854-3b8dd1a00c47",
+             *         "id": "cb63c4db-08d1-4afc-bcc7-751e7886c476",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15468,15 +15520,15 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "97612c84-e6f5-473a-85ce-b4b61cac3a2c",
+             *         "id": "bd236e90-732e-4e24-a106-cb865d87588a",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "e4119fd5-c632-4333-8ef4-d232a0e6167f",
+             *         "id": "3748ceac-c228-4208-900f-454565dc410c",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "4fcf03dc-f09f-495d-bd19-e1b725aabe12",
+             *         "id": "bd9e1362-cf0c-426f-90f7-107006a027cb",
              *         "rule": "ByStack"
              *       }
              *     ]

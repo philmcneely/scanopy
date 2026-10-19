@@ -338,7 +338,7 @@ impl Organization {
         };
         if activated {
             events.push(BillingOperation::LicenseActivated {
-                plan: self.base.plan.clone(),
+                plan: self.base.plan,
                 server_version: server_version.clone(),
             });
         }
@@ -543,7 +543,7 @@ mod tests {
         assert_eq!(
             first,
             vec![BillingOperation::LicenseActivated {
-                plan: org.base.plan.clone(),
+                plan: org.base.plan,
                 server_version: Some(Version::new(0, 17, 20))
             }],
             "the activation carries the version, so no separate upgrade"
