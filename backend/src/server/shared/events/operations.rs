@@ -209,6 +209,7 @@ pub type EntityDiscriminant = EntityOperationDiscriminants;
 pub(crate) mod tests {
     use super::*;
     use crate::daemon::discovery::types::warnings::DiscoveryWarning;
+    use crate::server::billing::plans::get_commercial_self_hosted_plan;
     use crate::server::{
         auth::middleware::auth::AuthenticatedEntity,
         digest::payload::{DiscoveryDigestOperation, DiscoveryDigestPayload, DiscoveryDigestScope},
@@ -234,7 +235,7 @@ pub(crate) mod tests {
         pub properties: EventProperties<Value>,
     }
 
-    fn sample<Op: Operation>(event: Event<Op>, organization_id: Uuid) -> Sample {
+    pub(crate) fn sample<Op: Operation>(event: Event<Op>, organization_id: Uuid) -> Sample {
         Sample {
             name: event.name().into_owned(),
             attribution: event.attribution(),
@@ -302,7 +303,8 @@ pub(crate) mod tests {
                 Event::new(
                     OrgScope { organization_id },
                     BillingOperation::LicenseActivated {
-                        server_version: Some("0.17.20".to_string()),
+                        plan: Some(get_commercial_self_hosted_plan()),
+                        server_version: Some(semver::Version::new(0, 17, 20)),
                     },
                     system(),
                 ),

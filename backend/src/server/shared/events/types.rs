@@ -419,21 +419,28 @@ pub enum BillingOperation {
     /// the license tab. Fires once per org: rotations and type switches are
     /// tracked by the frontend. The first key is always online, since an org
     /// reaches air-gapped only by switching from it. Telemetry-only, never
-    /// persisted.
-    LicenseKeyIssued,
+    /// persisted. Published as the owner who opened the tab.
+    LicenseKeyIssued {
+        /// The org's plan when the key was issued.
+        #[serde(default)]
+        plan: Option<BillingPlan>,
+    },
     /// The first successful entitlement check-in for the org's current online
     /// key: a customer server is running it. Fires once per key version, so a
     /// rotated key activates again when its replacement checks in.
     /// `server_version` is `None` for servers older than the version header.
     LicenseActivated {
-        server_version: Option<String>,
+        /// The org's plan at the check-in.
+        #[serde(default)]
+        plan: Option<BillingPlan>,
+        server_version: Option<semver::Version>,
     },
     /// A check-in reported a server version higher than any reported before
     /// for this org. Several servers can share one key, so only a new highest
     /// version counts; a mixed-version fleet never repeats the event.
     LicenseServerUpgraded {
-        from: Option<String>,
-        to: String,
+        from: Option<semver::Version>,
+        to: semver::Version,
     },
     /// An online key that used to check in has been silent for
     /// [`LICENSE_SILENCE_THRESHOLD_DAYS`](crate::server::organizations::r#impl::base::LICENSE_SILENCE_THRESHOLD_DAYS):
@@ -441,7 +448,7 @@ pub enum BillingOperation {
     /// silence by the daily sweep.
     LicenseCheckInsStopped {
         last_check_in_at: DateTime<Utc>,
-        server_version: Option<String>,
+        server_version: Option<semver::Version>,
     },
     /// A key reported by `LicenseCheckInsStopped` checked in again.
     LicenseCheckInsResumed {
@@ -473,7 +480,9 @@ impl BillingOperation {
             | Self::PaymentFailed { plan, .. }
             | Self::PaymentRecovered { plan, .. } => Some(plan),
             Self::PlanChanged { to, .. } | Self::LicenseReconciled { to, .. } => Some(to),
-            Self::CancellationInitiated { plan, .. } => plan.as_ref(),
+            Self::CancellationInitiated { plan, .. }
+            | Self::LicenseKeyIssued { plan }
+            | Self::LicenseActivated { plan, .. } => plan.as_ref(),
             _ => None,
         }
     }
@@ -498,13 +507,15 @@ impl BillingOperation {
         }
     }
 
-    /// Plan the org *lands on* after this event, for the PostHog person/group
-    /// `plan_type`. A `SubscriptionCancelled` leaves the org on the plan it carries (lapsed, read-only), so this is
-    /// `plan()` for every variant; it stays a separate accessor so the
-    /// analytics call site names the intent.
-    pub fn resulting_plan_name(&self) -> Option<&'static str> {
-        use crate::server::shared::types::metadata::TypeMetadataProvider;
-        self.plan().map(|p| p.name())
+    /// Id of the plan the org *lands on* after this event, for the PostHog
+    /// person/group `plan_type`: the same string as the event's
+    /// `metadata.plan.type` and the frontend's `plan_type`. A
+    /// `SubscriptionCancelled` leaves the org on the plan it carries (lapsed,
+    /// read-only), so this is `plan()` for every variant; it stays a separate
+    /// accessor so the analytics call site names the intent.
+    pub fn resulting_plan_id(&self) -> Option<&'static str> {
+        use crate::server::shared::types::metadata::HasId;
+        self.plan().map(|p| p.id())
     }
 
     /// Canonical mapping from a billing event to the `PlanStatus` it implies
@@ -569,7 +580,7 @@ impl BillingOperation {
             Self::CheckoutStarted { .. }
             | Self::PlanChanged { .. }
             | Self::LicenseReconciled { .. }
-            | Self::LicenseKeyIssued
+            | Self::LicenseKeyIssued { .. }
             | Self::LicenseActivated { .. }
             | Self::LicenseServerUpgraded { .. }
             | Self::LicenseCheckInsStopped { .. }
@@ -728,20 +739,41 @@ mod tests {
         });
     }
 
+    /// An activation recorded before it carried the plan reads back without one, its version
+    /// string parsed.
+    #[test]
+    fn license_activated_reads_rows_without_a_plan() {
+        use crate::server::billing::plans::get_commercial_self_hosted_plan;
+        round_trip(BillingOperation::LicenseActivated {
+            plan: Some(get_commercial_self_hosted_plan()),
+            server_version: Some(semver::Version::new(0, 17, 20)),
+        });
+        let old: BillingOperation =
+            serde_json::from_str(r#"{"type":"LicenseActivated","server_version":"0.17.20"}"#)
+                .expect("deserialize");
+        assert_eq!(
+            old,
+            BillingOperation::LicenseActivated {
+                plan: None,
+                server_version: Some(semver::Version::new(0, 17, 20)),
+            }
+        );
+    }
+
     #[test]
     fn license_reconciled_plan_reports_target() {
         use crate::server::billing::plans::{get_commercial_self_hosted_plan, get_community_plan};
-        use crate::server::shared::types::metadata::TypeMetadataProvider;
+        use crate::server::shared::types::metadata::HasId;
         let op = BillingOperation::LicenseReconciled {
             from: get_community_plan(),
             to: get_commercial_self_hosted_plan(),
         };
-        // PostHog labels `plan_type` off `resulting_plan_name()` → must be the
+        // PostHog labels `plan_type` off `resulting_plan_id()` → must be the
         // upgraded target, not null, so analytics don't clobber the plan.
         assert_eq!(op.plan(), Some(&get_commercial_self_hosted_plan()));
         assert_eq!(
-            op.resulting_plan_name(),
-            Some(get_commercial_self_hosted_plan().name())
+            op.resulting_plan_id(),
+            Some(get_commercial_self_hosted_plan().id())
         );
         // Plan swap, not a status transition.
         assert_eq!(op.implied_status(), None);
@@ -894,7 +926,7 @@ mod tests {
             license_key_type: None,
             defaulted: false,
         };
-        assert_eq!(cancelled.resulting_plan_name(), Some("Enterprise"));
+        assert_eq!(cancelled.resulting_plan_id(), Some("Enterprise"));
         assert_eq!(cancelled.implied_status(), Some(PlanStatus::Cancelled));
 
         // A converted trial keeps the paid plan it carries, live.
@@ -902,7 +934,7 @@ mod tests {
             plan: get_enterprise_plan(),
             next_renewal_at: DateTime::<Utc>::from_timestamp(1_800_000_000, 0),
         };
-        assert_eq!(trial_won.resulting_plan_name(), Some("Enterprise"));
+        assert_eq!(trial_won.resulting_plan_id(), Some("Enterprise"));
         assert_eq!(trial_won.implied_status(), Some(PlanStatus::Active));
 
         // Non-downgrade events return the plan they carry.
@@ -914,11 +946,11 @@ mod tests {
             is_trialing: false,
             next_renewal_at: None,
         };
-        assert_eq!(checkout.resulting_plan_name(), Some("Enterprise"));
+        assert_eq!(checkout.resulting_plan_id(), Some("Enterprise"));
 
         // Events with no plan return None.
         assert_eq!(
-            BillingOperation::PaymentMethodAdded.resulting_plan_name(),
+            BillingOperation::PaymentMethodAdded.resulting_plan_id(),
             None
         );
     }

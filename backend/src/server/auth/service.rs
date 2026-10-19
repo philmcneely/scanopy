@@ -301,8 +301,7 @@ impl AuthService {
                 ];
 
                 // Cloud: no plan until user selects one via billing modal → Stripe checkout → webhook
-                // Self-hosted: assign the license-resolved plan and emit a
-                // CheckoutCompleted event below so the ledger reflects it immediately.
+                // Self-hosted: assign the license-resolved plan, which `OrgCreated` below carries.
                 let self_hosted_plan = deployment_type.is_self_hosted().then_some(license_plan);
                 new_org_plan = self_hosted_plan;
 
