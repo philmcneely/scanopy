@@ -93,6 +93,13 @@ pub trait Operation:
     fn log_color(&self) -> LabelColor {
         LabelColor::Neutral
     }
+
+    /// A line a person can read, written after the event's JSON at the same level. Carries what
+    /// the JSON doesn't say plainly (why an entity was deleted) or leaves out (ids kept from
+    /// PostHog). `None` for most operations.
+    fn log_detail(&self, _scope: &Self::Scope) -> Option<String> {
+        None
+    }
 }
 
 // ===========================================================================
@@ -260,6 +267,13 @@ pub struct DiscoveryScope {
     pub error_reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<DiscoveryTerminalReason>,
+    /// When the server last heard about the run, set at terminal: for a stall, how long it was
+    /// silent. Stays out of the PostHog metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_update_at: Option<DateTime<Utc>>,
+    /// The phase a reaped run was in when it stalled. Stays out of the PostHog metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_phase: Option<crate::daemon::discovery::types::base::DiscoveryPhase>,
 }
 
 // ===========================================================================

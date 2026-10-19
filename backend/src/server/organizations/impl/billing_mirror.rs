@@ -263,6 +263,7 @@ impl BillingOperation {
                 plan,
                 resumed_through,
                 next_renewal_at,
+                ..
             } => {
                 // Settling the written-off invoice puts the org back on
                 // its plan with the service it was still owed. Set the
@@ -363,6 +364,7 @@ impl BillingOperation {
             BillingOperation::DiscountApplied {
                 percent_off,
                 expires_at,
+                ..
             } => {
                 organization.base.last_discount_at = Some(at);
                 organization.base.discount_save_offer_percent_off = Some(*percent_off);
@@ -388,7 +390,7 @@ impl BillingOperation {
                     changed = true;
                 }
             }
-            BillingOperation::StripeCustomerCreated { customer_id } => {
+            BillingOperation::StripeCustomerCreated { customer_id, .. } => {
                 if organization.base.stripe_customer_id.as_deref() != Some(customer_id.as_str()) {
                     organization.base.stripe_customer_id = Some(customer_id.clone());
                     changed = true;

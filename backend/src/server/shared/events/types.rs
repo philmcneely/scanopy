@@ -14,7 +14,8 @@ use chrono::{DateTime, Utc};
 use email_address::EmailAddress;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
-use stripe_billing::{CancellationDetailsFeedback, CancellationDetailsReason};
+use std::net::IpAddr;
+use stripe_billing::{CancellationDetailsFeedback, CancellationDetailsReason, SubscriptionStatus};
 use strum::EnumIter;
 use strum_macros::EnumDiscriminants;
 use uuid::Uuid;
@@ -109,7 +110,8 @@ pub enum AuthOperation {
     },
     LoginFailed {
         method: AuthMethod,
-        attempted_email: EmailAddress,
+        /// `None` when an OIDC provider failed before naming an address, or named none.
+        attempted_email: Option<EmailAddress>,
     },
     PasswordResetRequested {
         email_and_token: EmailAndToken,
@@ -203,8 +205,16 @@ pub enum DeletionReason {
     VirtualizerDeleted { virtualizer_service_id: Uuid },
     /// The host it ran on was deleted.
     HostDeleted { host_id: Uuid },
-    /// Discovery found it to be the same device as another host, and merged it into that one.
-    MergedInto { host_id: Uuid },
+    /// Merged into another host: discovery found the two to be the same device, or a person
+    /// merged them. `proven_by` holds the addresses discovery found both answering on, and is
+    /// empty for a person's merge.
+    MergedInto {
+        host_id: Uuid,
+        #[serde(default)]
+        proven_by: Vec<IpAddr>,
+    },
+    /// An assumed range found inside another range, and merged into it.
+    MergedIntoSubnet { subnet_id: Uuid },
     /// A complete reading of what it belonged to no longer has it: an interface a full ifTable
     /// walk didn't return, a binding a broader one replaced.
     NoLongerReported,
@@ -240,7 +250,18 @@ impl DeletionReason {
             Self::HostDeleted { host_id } => {
                 format!("host {host_id}, which it ran on, was deleted")
             }
-            Self::MergedInto { host_id } => format!("merged into host {host_id}"),
+            Self::MergedInto { host_id, proven_by } if proven_by.is_empty() => {
+                format!("merged into host {host_id}")
+            }
+            Self::MergedInto { host_id, proven_by } => format!(
+                "merged into host {host_id}, the same device at {}",
+                proven_by
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::MergedIntoSubnet { subnet_id } => format!("merged into subnet {subnet_id}"),
             Self::NoLongerReported => "no longer reported".to_string(),
             Self::Superseded => "superseded by a newer record".to_string(),
             Self::Consumed => "it was used".to_string(),
@@ -264,6 +285,13 @@ pub enum BillingOperation {
     CheckoutStarted {
         plan: BillingPlan,
         has_trial: bool,
+        /// The checkout session, or the subscription when checkout was skipped. Log only.
+        #[serde(skip)]
+        stripe_id: String,
+        /// The subscription's status when checkout was skipped; `None` for a checkout session,
+        /// which has no subscription yet. Log only.
+        #[serde(skip)]
+        subscription_status: Option<SubscriptionStatus>,
     },
     CheckoutCompleted {
         plan: BillingPlan,
@@ -371,6 +399,12 @@ pub enum BillingOperation {
         plan: BillingPlan,
         resumed_through: DateTime<Utc>,
         next_renewal_at: Option<DateTime<Utc>>,
+        /// The replacement subscription. Log only.
+        #[serde(skip)]
+        subscription_id: String,
+        /// The written-off invoice the customer settled. Log only.
+        #[serde(skip)]
+        invoice_id: String,
     },
     /// Stripe could not finalize a draft licence invoice
     /// (`invoice.finalization_failed`), so it was never issued or emailed and
@@ -424,6 +458,13 @@ pub enum BillingOperation {
     },
     Resumed {
         was_early: bool,
+        /// Log only.
+        #[serde(skip)]
+        subscription_id: String,
+        /// The prorated credit posted to the customer's balance; `None` when none was due. Log
+        /// only.
+        #[serde(skip)]
+        pause_credit_cents: Option<i64>,
     },
     TrialExtended {
         days_added: u32,
@@ -470,6 +511,12 @@ pub enum BillingOperation {
     DiscountApplied {
         percent_off: i64,
         expires_at: DateTime<Utc>,
+        /// Log only.
+        #[serde(skip)]
+        subscription_id: String,
+        /// Every discount on the subscription after the apply. Log only.
+        #[serde(skip)]
+        discount_ids: Vec<String>,
     },
     PaymentMethodAdded,
     PaymentMethodRemoved,
@@ -479,6 +526,9 @@ pub enum BillingOperation {
     /// org. Telemetry-only with respect to plan_status.
     StripeCustomerCreated {
         customer_id: String,
+        /// An existing customer whose metadata named the org, rather than a new one. Log only.
+        #[serde(skip)]
+        adopted: bool,
     },
     /// A self-hosted org's plan was reconciled to the tier its license entitles,
     /// in either direction. Emitted at startup and each time an online key's
@@ -501,6 +551,9 @@ pub enum BillingOperation {
         /// The org's plan when the key was issued.
         #[serde(default)]
         plan: Option<BillingPlan>,
+        /// Log only.
+        #[serde(skip)]
+        key_version: i64,
     },
     /// The first successful entitlement check-in for the org's current online
     /// key: a customer server is running it. Fires once per key version, so a
@@ -541,6 +594,59 @@ pub enum BillingOperation {
 }
 
 impl BillingOperation {
+    /// The Stripe ids and amounts a variant carries only for the log, as a readable line. They
+    /// are `#[serde(skip)]`, so neither the JSON line nor PostHog sees them; this is where they
+    /// reach the log. `None` for a variant without any.
+    pub fn describe_log_only_fields(&self) -> Option<String> {
+        match self {
+            Self::CheckoutStarted {
+                stripe_id,
+                subscription_status,
+                ..
+            } => Some(match subscription_status {
+                Some(status) => format!("subscription {stripe_id} ({status})"),
+                None => format!("checkout session {stripe_id}"),
+            }),
+            Self::LicenseResumed {
+                subscription_id,
+                invoice_id,
+                ..
+            } => Some(format!(
+                "settled invoice {invoice_id}, subscription {subscription_id}"
+            )),
+            Self::Resumed {
+                subscription_id,
+                pause_credit_cents,
+                ..
+            } => Some(match pause_credit_cents {
+                Some(cents) => {
+                    format!("subscription {subscription_id}, pause credit {cents} cents")
+                }
+                None => format!("subscription {subscription_id}, no pause credit due"),
+            }),
+            Self::DiscountApplied {
+                subscription_id,
+                discount_ids,
+                ..
+            } => Some(format!(
+                "subscription {subscription_id}, discounts {}",
+                discount_ids.join(", ")
+            )),
+            Self::StripeCustomerCreated {
+                customer_id,
+                adopted,
+            } => Some(if *adopted {
+                format!("adopted existing customer {customer_id}")
+            } else {
+                format!("created customer {customer_id}")
+            }),
+            Self::LicenseKeyIssued { key_version, .. } => {
+                Some(format!("key version {key_version}"))
+            }
+            _ => None,
+        }
+    }
+
     /// Plan carried by the event, where the variant has one. Used by analytics
     /// subscribers (PostHog person properties) that need the
     /// plan name without a per-call-site exhaustive match.
@@ -558,7 +664,7 @@ impl BillingOperation {
             | Self::PaymentRecovered { plan, .. } => Some(plan),
             Self::PlanChanged { to, .. } | Self::LicenseReconciled { to, .. } => Some(to),
             Self::CancellationInitiated { plan, .. }
-            | Self::LicenseKeyIssued { plan }
+            | Self::LicenseKeyIssued { plan, .. }
             | Self::LicenseActivated { plan, .. } => plan.as_ref(),
             _ => None,
         }
@@ -721,6 +827,7 @@ pub enum OnboardingOperation {
     DaemonPromptDismissed,
     DaemonPromptAccepted,
     FirstDaemonRegistered {
+        daemon_id: Uuid,
         daemon_name: String,
         site_name: String,
     },
@@ -978,6 +1085,7 @@ mod tests {
     fn stripe_customer_created_round_trip() {
         round_trip(BillingOperation::StripeCustomerCreated {
             customer_id: "cus_abc123".to_string(),
+            adopted: false,
         });
     }
 
@@ -1097,6 +1205,31 @@ mod tests {
             plan: get_free_plan(),
             next_renewal_at: DateTime::<Utc>::from_timestamp(1_800_000_000, 0),
         });
+    }
+
+    /// The Stripe ids carried for the log stay out of what PostHog receives.
+    #[test]
+    fn log_only_billing_fields_stay_out_of_event_properties() {
+        use crate::server::auth::middleware::auth::AuthenticatedEntity;
+        use crate::server::shared::events::traits::{Event, OrgScope};
+
+        let event = Event::new(
+            OrgScope {
+                organization_id: Uuid::new_v4(),
+            },
+            BillingOperation::DiscountApplied {
+                percent_off: 20,
+                expires_at: DateTime::<Utc>::from_timestamp(1_800_000_000, 0).unwrap(),
+                subscription_id: "sub_log_only".to_string(),
+                discount_ids: vec!["di_log_only".to_string()],
+            },
+            AuthenticatedEntity::System,
+        );
+
+        let properties = serde_json::to_string(&event.properties(None)).expect("serialize");
+        assert!(!properties.contains("sub_log_only"), "{properties}");
+        assert!(!properties.contains("di_log_only"), "{properties}");
+        assert!(properties.contains("percent_off"), "{properties}");
     }
 
     /// Events are logged as JSON via `Display`. A reset or verification token in that line

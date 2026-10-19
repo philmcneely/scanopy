@@ -1,7 +1,7 @@
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event};
-use crate::server::shared::handlers::tree::TreePosition;
 use crate::server::shared::events::types::DeletionReason;
+use crate::server::shared::handlers::tree::TreePosition;
 use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
@@ -231,15 +231,14 @@ impl SubnetService {
                 .await?;
         }
 
-        self.delete(&source.id, authentication, DeletionReason::Requested)
-            .await?;
-
-        tracing::info!(
-            merged = %source.base.cidr,
-            into = %target.base.cidr,
-            site_id = %target.base.site_id,
-            "Merged an assumed range into the range that contains it"
-        );
+        self.delete(
+            &source.id,
+            authentication,
+            DeletionReason::MergedIntoSubnet {
+                subnet_id: target.id,
+            },
+        )
+        .await?;
 
         Ok(target)
     }
@@ -666,13 +665,6 @@ impl SubnetService {
         subnet.last_seen_at = Utc::now();
 
         let created = self.create(subnet, AuthenticatedEntity::System).await?;
-        tracing::info!(
-            site_id = %site_id,
-            ip = %ip,
-            cidr = %cidr,
-            subnet_id = %created.id,
-            "Inferred a subnet for an address nothing on this site holds"
-        );
         Ok(Placement::Inferred(created.id))
     }
 

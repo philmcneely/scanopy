@@ -351,6 +351,8 @@ impl DiscoveryUpdatePayload {
                 discovery_type: self.discovery_type.clone(),
                 error_reason: self.error.clone(),
                 reason: self.reason,
+                last_update_at: self.last_update_at,
+                previous_phase: None,
             },
             self.phase,
             auth,

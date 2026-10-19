@@ -363,13 +363,9 @@ impl OrganizationService {
                 let issued_at = whole_second(Utc::now());
                 locked.org.base.license_key_issued_at = Some(issued_at);
                 let organization = locked.save_quietly().await?;
-                tracing::info!(
-                    organization_id = %organization_id,
-                    key_version = organization.base.license_key_version,
-                    "Issued online license key"
-                );
                 let issued = BillingOperation::LicenseKeyIssued {
                     plan: organization.base.plan,
+                    key_version: organization.base.license_key_version,
                 };
                 (issued_at, Some(issued))
             }

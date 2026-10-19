@@ -1319,14 +1319,6 @@ impl HostService {
                     // them below (GH #784).
                     let takes_other_bindings = enrichable_services.len() == 1;
                     for mut updated in enrichable_services {
-                        tracing::info!(
-                            service_name = %updated.base.name,
-                            service_definition = %updated.base.service_definition.name(),
-                            container_service = %reassigned.base.name,
-                            moved_binding_count =
-                                if takes_other_bindings { valid_bindings.len() } else { 0 },
-                            "Setting Docker virtualization on existing service from conflicting Docker Container"
-                        );
                         updated.base.virtualization_metadata =
                             reassigned.base.virtualization_metadata.clone();
                         updated.base.virtualization_service_id =
@@ -1380,12 +1372,6 @@ impl HostService {
                             BindingType::IPAddress { .. } => None,
                         })
                         .collect();
-                    tracing::info!(
-                        container_service = %reassigned.base.name,
-                        runtime_service_id = %owner_id,
-                        ports = ?claims,
-                        "Container takes the ports its runtime is reached through"
-                    );
                     self.service_service
                         .remove_port_bindings(
                             &owner_id,
@@ -1581,12 +1567,6 @@ impl HostService {
         if !orphaned_bindings.is_empty() {
             use crate::server::services::definitions::open_ports::OpenPorts as OpenPortsDef;
             use crate::server::services::r#impl::base::ServiceBase;
-
-            tracing::info!(
-                host_id = %created_host.id,
-                orphaned_binding_count = orphaned_bindings.len(),
-                "Assigning orphaned bindings to OpenPorts service"
-            );
 
             let open_ports_service = Service::new(ServiceBase {
                 host_id: created_host.id,
@@ -1918,15 +1898,9 @@ impl HostService {
             .get_by_id(&proven.host_id)
             .await?
             .ok_or_else(|| anyhow!("host {} is no longer live", proven.host_id))?;
-        tracing::info!(
-            host_id = %destination.id,
-            other_host_id = %other.id,
-            other_host_name = %other.base.name,
-            addresses = ?proven.addresses,
-            "Merging a host this payload proves is the same device"
-        );
         let reason = DeletionReason::MergedInto {
             host_id: destination.id,
+            proven_by: proven.addresses.clone(),
         };
         self.consolidate_hosts(destination, other, authentication.clone(), reason)
             .await

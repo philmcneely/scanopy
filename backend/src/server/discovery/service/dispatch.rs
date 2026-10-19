@@ -394,16 +394,6 @@ impl DiscoveryService {
             return;
         }
 
-        tracing::warn!(
-            session_id = %session_id,
-            daemon_id = %update.daemon_id,
-            site_id = %update.site_id,
-            phase = ?update.phase,
-            reason = ?reason,
-            error = %error,
-            "Failing discovery session"
-        );
-
         update.phase = DiscoveryPhase::Failed;
         update.error = Some(error);
         update.finished_at = Some(Utc::now());
@@ -957,12 +947,6 @@ impl DiscoveryService {
                     .write()
                     .await
                     .insert(daemon_id, (true, session_id));
-
-                tracing::info!(
-                    daemon_id = %daemon_id,
-                    session_id = %session_id,
-                    "Discovery cancellation requested",
-                );
 
                 Ok(())
             }

@@ -61,12 +61,6 @@ impl HostService {
             .retain(|b| !claims.iter().any(|claim| overlaps(b, claim)));
         let remaining_bindings = open_ports.base.bindings.len();
 
-        tracing::info!(
-            service_name = %claimant.base.name,
-            reclaimed_ports = ?claims,
-            remaining_bindings,
-            "Reclaiming ports from Unclaimed Open Ports service"
-        );
         // The taken bindings go first, so deleting the emptied service below reports none of them
         // as deleted with it.
         let _ = self

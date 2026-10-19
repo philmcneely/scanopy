@@ -1013,14 +1013,7 @@ impl HostService {
                     .create(interface, AuthenticatedEntity::System)
                     .await
                 {
-                    Ok(created) => {
-                        recorded_ids.push(created.id);
-                        tracing::info!(
-                            host_id = %host_id,
-                            port = %created.base.if_descr.as_deref().unwrap_or("?"),
-                            "Recorded the port a neighbour named for a device that describes none itself"
-                        )
-                    }
+                    Ok(created) => recorded_ids.push(created.id),
                     Err(e) => tracing::warn!(
                         host_id = %host_id,
                         error = %e,

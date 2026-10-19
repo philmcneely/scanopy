@@ -105,7 +105,6 @@ impl DiscoveryService {
         // If it's scheduled, remove from scheduler first (with timeout to prevent deadlock)
         if discovery.base.run_type.schedule().is_some() {
             self.remove_scheduled_job(id).await;
-            tracing::debug!("Removed scheduled job for discovery {}", id);
         }
 
         // Remove tags from junction table

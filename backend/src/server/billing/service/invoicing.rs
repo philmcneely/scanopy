@@ -471,12 +471,6 @@ impl BillingService {
             return Ok(());
         };
 
-        tracing::error!(
-            organization_id = %organization.id,
-            invoice_id = %snapshot.stripe_invoice_id,
-            reason = %reason,
-            "A licence invoice could not be finalized, so nothing was sent"
-        );
         self.event_bus
             .publish(Event::new(
                 OrgScope {
@@ -533,12 +527,6 @@ impl BillingService {
             );
             return Ok(());
         }
-
-        tracing::info!(
-            organization_id = %organization.id,
-            invoice_id = %invoice.stripe_invoice_id,
-            "Sent licence invoice is overdue"
-        );
         let event = Event::new(
             OrgScope { organization_id },
             BillingOperation::InvoiceOverdue { invoice },

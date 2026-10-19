@@ -942,13 +942,12 @@ async fn consolidate_hosts(
         )));
     }
 
+    let reason = DeletionReason::MergedInto {
+        host_id: destination_host.id,
+        proven_by: Vec::new(),
+    };
     let mut host_response = host_service
-        .consolidate_hosts(
-            destination_host,
-            other_host,
-            auth.into_entity(),
-            DeletionReason::Requested,
-        )
+        .consolidate_hosts(destination_host, other_host, auth.into_entity(), reason)
         .await?;
 
     // Hydrate tags from junction table

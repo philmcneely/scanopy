@@ -139,10 +139,7 @@ impl<'a> PortTurnover<'a> {
 }
 
 /// The (port, address) claims of `holder`'s bindings that `claims` take.
-pub(crate) fn taken_claims(
-    holder: &Service,
-    claims: &[PortClaim],
-) -> Vec<PortClaim> {
+pub(crate) fn taken_claims(holder: &Service, claims: &[PortClaim]) -> Vec<PortClaim> {
     holder
         .base
         .bindings
@@ -248,14 +245,6 @@ impl HostService {
                 .bindings
                 .retain(|b| !claims.iter().any(|claim| overlaps(b, claim)));
 
-            tracing::info!(
-                service_name = %holder.base.name,
-                service_definition = %holder.base.service_definition.name(),
-                reason = %reason.describe(),
-                ports = ?taken,
-                remaining_bindings = holder.base.bindings.len(),
-                "Taking ports from a service no longer answering on them"
-            );
             // The taken bindings go first, so a holder deleted below carries only what it still
             // held: a moved binding is never also reported as deleted with its service.
             self.service_service

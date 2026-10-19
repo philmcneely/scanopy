@@ -178,7 +178,6 @@ impl DaemonService {
         daemon.base.standby = false;
         daemon.base.standby_cleared_at = Some(Utc::now());
         self.update(daemon, AuthenticatedEntity::System).await?;
-        tracing::info!(daemon_id = %daemon.id, "Cleared daemon standby (work queued)");
         Ok(())
     }
 
@@ -195,11 +194,6 @@ impl DaemonService {
         }
         daemon.base.is_unreachable = false;
         self.update(daemon, authentication).await?;
-        tracing::info!(
-            daemon_id = %daemon.id,
-            daemon_name = %daemon.base.name,
-            "Daemon connection retry initiated - marked as reachable"
-        );
         Ok(())
     }
 }

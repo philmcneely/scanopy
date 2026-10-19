@@ -152,12 +152,6 @@ impl HostService {
                     *port_id = new_id;
                 }
             }
-            tracing::debug!(
-                service = %service.base.name,
-                from_host_id = %from.id,
-                to_host_id = %to.id,
-                "Moved a service bound only to a container's addresses"
-            );
             self.service_service
                 .update(&mut service, authentication.clone())
                 .await?;

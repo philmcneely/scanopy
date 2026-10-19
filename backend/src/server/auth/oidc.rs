@@ -151,22 +151,7 @@ impl OidcService {
             .get_user_by_oidc(&user_info.subject)
             .await?
         {
-            let authentication: AuthenticatedEntity = existing_user.clone().into();
-            self.event_bus
-                .publish(Event::new(
-                    AuthScope {
-                        user_id: Some(existing_user.id),
-                        organization_id: Some(existing_user.base.organization_id),
-                        ip_address: ip,
-                        user_agent,
-                    },
-                    AuthOperation::LoginSuccess {
-                        method: AuthMethod::Oidc((&**provider).into()),
-                        via_register_flow: true,
-                    },
-                    authentication,
-                ))
-                .await?;
+            // The handler publishes `LoginSuccess` once the session is saved.
             return Ok(OidcRegisterResult::ExistingUser(existing_user));
         }
 
@@ -263,7 +248,9 @@ impl OidcService {
         Ok(OidcRegisterResult::NewUser(user))
     }
 
-    /// Login existing user via OIDC (fails if account doesn't exist)
+    /// Login existing user via OIDC (fails if account doesn't exist). Publishes `LoginFailed` when
+    /// the provider exchange fails or no account matches. `LoginSuccess` is the caller's to
+    /// publish, with [`Self::publish_login_success`], once the session is saved.
     pub async fn login(
         &self,
         provider_slug: &str,
@@ -277,41 +264,66 @@ impl OidcService {
             .ok_or_else(|| anyhow!("Provider '{}' not found", provider_slug))?;
 
         // Exchange code for user info using provider
-        let user_info = provider.exchange_code(code, &pending_auth).await?;
+        let user_info = match provider.exchange_code(code, &pending_auth).await {
+            Ok(user_info) => user_info,
+            Err(e) => {
+                self.publish_login_failed(provider, None, ip, user_agent)
+                    .await?;
+                return Err(e);
+            }
+        };
 
         // Check if user exists with this OIDC account
-        let user = match self
+        if let Some(user) = self
             .user_service
             .get_user_by_oidc(&user_info.subject)
             .await?
         {
-            Some(user) => user,
-            None => {
-                // Check if an account exists with the same email but no OIDC link
-                if let Some(email_str) = &user_info.email
-                    && let Ok(email) = EmailAddress::from_str(email_str)
-                {
-                    let existing = self
-                        .user_service
-                        .get_all(StorableFilter::<User>::new_from_email(&email))
-                        .await?;
-                    if !existing.is_empty() {
-                        return Err(anyhow!(
-                            "An account with this email exists but isn't linked to {}. Please sign in with email first, then link your {} account from settings.",
-                            provider.name,
-                            provider.name
-                        ));
-                    }
-                }
-                return Err(anyhow!(
-                    "No account found with this {} login. Please register first.",
-                    provider.name
-                ));
-            }
-        };
+            return Ok(user);
+        }
 
-        // Publish event
-        let authentication: AuthenticatedEntity = user.clone().into();
+        let email = user_info
+            .email
+            .as_deref()
+            .and_then(|e| EmailAddress::from_str(e).ok());
+        // Check if an account exists with the same email but no OIDC link
+        let unlinked = match &email {
+            Some(email) => !self
+                .user_service
+                .get_all(StorableFilter::<User>::new_from_email(email))
+                .await?
+                .is_empty(),
+            None => false,
+        };
+        self.publish_login_failed(provider, email, ip, user_agent)
+            .await?;
+        if unlinked {
+            return Err(anyhow!(
+                "An account with this email exists but isn't linked to {}. Please sign in with email first, then link your {} account from settings.",
+                provider.name,
+                provider.name
+            ));
+        }
+        Err(anyhow!(
+            "No account found with this {} login. Please register first.",
+            provider.name
+        ))
+    }
+
+    /// `LoginSuccess` for an OIDC sign-in, published by the handler once the session holds the
+    /// user: a sign-in refused afterwards (a demo host, a session that won't save) never reports
+    /// one.
+    pub async fn publish_login_success(
+        &self,
+        user: &User,
+        provider_slug: &str,
+        via_register_flow: bool,
+        ip: IpAddr,
+        user_agent: Option<String>,
+    ) -> Result<()> {
+        let provider = self
+            .get_provider(provider_slug)
+            .ok_or_else(|| anyhow!("Provider '{}' not found", provider_slug))?;
         self.event_bus
             .publish(Event::new(
                 AuthScope {
@@ -322,13 +334,35 @@ impl OidcService {
                 },
                 AuthOperation::LoginSuccess {
                     method: AuthMethod::Oidc((&**provider).into()),
-                    via_register_flow: false,
+                    via_register_flow,
                 },
-                authentication,
+                user.clone().into(),
             ))
-            .await?;
+            .await
+    }
 
-        Ok(user)
+    async fn publish_login_failed(
+        &self,
+        provider: &OidcProvider,
+        attempted_email: Option<EmailAddress>,
+        ip: IpAddr,
+        user_agent: Option<String>,
+    ) -> Result<()> {
+        self.event_bus
+            .publish(Event::new(
+                AuthScope {
+                    user_id: None,
+                    organization_id: None,
+                    ip_address: ip,
+                    user_agent,
+                },
+                AuthOperation::LoginFailed {
+                    method: AuthMethod::Oidc(provider.into()),
+                    attempted_email,
+                },
+                AuthenticatedEntity::Anonymous,
+            ))
+            .await
     }
 
     /// Link OIDC account to existing user

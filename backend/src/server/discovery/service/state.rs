@@ -264,6 +264,8 @@ pub(crate) fn select_stalled(
 pub(crate) struct ReapedSession {
     pub session: DiscoveryUpdatePayload,
     pub promoted: Option<PromotedSession>,
+    /// The phase the run was in when it stalled; `session.phase` is now `Failed`.
+    pub previous_phase: DiscoveryPhase,
 }
 
 /// Fail and remove stalled sessions, returning them as recorded.
@@ -285,16 +287,7 @@ pub(crate) fn reap(
         };
         let daemon_id = session.daemon_id;
         let last_update_at = maps.last_updated.get(session_id).copied();
-
-        tracing::warn!(
-            session_id = %session_id,
-            daemon_id = %daemon_id,
-            site_id = %session.site_id,
-            phase = ?session.phase,
-            silent_for_secs = last_update_at.map(|at| now.signed_duration_since(at).num_seconds()),
-            reason = ?DiscoveryTerminalReason::StalledNoUpdates,
-            "Reaping discovery session: no update from the daemon within the stall threshold"
-        );
+        let previous_phase = session.phase;
 
         session.phase = DiscoveryPhase::Failed;
         session.error = Some(
@@ -309,7 +302,11 @@ pub(crate) fn reap(
         // The daemon's pull cancellation, if the sweep just set one, stays: it is how a DaemonPoll
         // daemon still running this session learns to stop. It is consumed when the daemon polls.
 
-        reaped.push(ReapedSession { session, promoted });
+        reaped.push(ReapedSession {
+            session,
+            promoted,
+            previous_phase,
+        });
     }
 
     reaped

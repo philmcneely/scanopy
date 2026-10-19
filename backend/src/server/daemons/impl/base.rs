@@ -264,11 +264,40 @@ pub struct Daemon {
 }
 
 impl Daemon {
+    /// Whether an update changed nothing worth a log line. Every heartbeat moves `last_seen`, so
+    /// that alone is suppressed; any other change (standby, reachability, OS, version, key) is
+    /// logged. `tags` live in their own junction and aren't compared. Destructured so a new field
+    /// has to be placed on one side or the other.
     pub fn suppress_logs(&self, other: &Self) -> bool {
-        self.base.mode == other.base.mode
-            && self.base.url == other.base.url
-            && self.base.site_id == other.base.site_id
-            && self.base.host_id == other.base.host_id
+        let DaemonBase {
+            host_id,
+            site_id,
+            url,
+            last_seen: _,
+            mode,
+            name,
+            tags: _,
+            version,
+            user_id,
+            api_key_id,
+            is_unreachable,
+            standby,
+            standby_cleared_at,
+            os,
+        } = &self.base;
+        let o = &other.base;
+        *host_id == o.host_id
+            && *site_id == o.site_id
+            && *url == o.url
+            && *mode == o.mode
+            && *name == o.name
+            && *version == o.version
+            && *user_id == o.user_id
+            && *api_key_id == o.api_key_id
+            && *is_unreachable == o.is_unreachable
+            && *standby == o.standby
+            && *standby_cleared_at == o.standby_cleared_at
+            && *os == o.os
     }
 
     /// Check if daemon supports full ServerPoll mode (v0.14.0+).
@@ -353,6 +382,24 @@ mod tests {
             last_seen: connected.then(Utc::now),
             ..Default::default()
         }
+    }
+
+    /// A heartbeat moves only `last_seen` and stays out of the log; a change of state does not.
+    #[test]
+    fn only_a_heartbeat_is_kept_out_of_the_log() {
+        let before = crate::server::shared::types::examples::daemon();
+
+        let mut heartbeat = before.clone();
+        heartbeat.base.last_seen = Some(Utc::now());
+        assert!(heartbeat.suppress_logs(&before));
+
+        let mut standby = before.clone();
+        standby.base.standby = !before.base.standby;
+        assert!(!standby.suppress_logs(&before));
+
+        let mut unreachable = before.clone();
+        unreachable.base.is_unreachable = !before.base.is_unreachable;
+        assert!(!unreachable.suppress_logs(&before));
     }
 
     const REPORTING: &str = "0.17.20";
