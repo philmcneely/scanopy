@@ -32,6 +32,13 @@ pub struct DependencyService {
     entity_tag_service: Arc<EntityTagService>,
 }
 
+impl DependencyService {
+    /// The member records, for the subscriber that reports members losing what they name.
+    pub(crate) fn member_storage(&self) -> &DependencyMemberStorage {
+        &self.member_storage
+    }
+}
+
 impl EventBusService<Dependency> for DependencyService {
     fn event_bus(&self) -> &Arc<EventBus> {
         &self.event_bus

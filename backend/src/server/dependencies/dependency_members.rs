@@ -343,6 +343,15 @@ impl DependencyMemberStorage {
         dependency_id: &Uuid,
         members: &DependencyMembers,
     ) -> Result<()> {
+        // A member can name a binding that no longer exists: members outlive what they name, and
+        // the user decides what replaces it. Such a binding keeps the service its row recorded.
+        let recorded_services: HashMap<Uuid, Uuid> = self
+            .get_records_for_dependency(dependency_id)
+            .await?
+            .iter()
+            .filter_map(|r| r.binding_id().map(|b| (b, r.service_id())))
+            .collect();
+
         let mut tx = self.storage.begin_transaction().await?;
         // Serialize concurrent delete-all + re-insert syncs for one
         // dependency (interleaving would duplicate member rows).
@@ -379,14 +388,16 @@ impl DependencyMemberStorage {
                 let binding_storage = GenericPostgresStorage::<Binding>::new(self.pool.clone());
                 for (position, binding_id) in binding_ids.iter().enumerate() {
                     let filter = StorableFilter::<Binding>::new_from_entity_id(binding_id);
-                    let binding = binding_storage
-                        .get_unique(filter)
-                        .await?
-                        .at_most_one()?
-                        .ok_or_else(|| anyhow::anyhow!("Binding {} not found", binding_id))?;
+                    let service_id =
+                        match binding_storage.get_unique(filter).await?.at_most_one()? {
+                            Some(binding) => binding.base.service_id,
+                            None => *recorded_services.get(binding_id).ok_or_else(|| {
+                                anyhow::anyhow!("Binding {} not found", binding_id)
+                            })?,
+                        };
                     let record = DependencyMemberRecord::new(DependencyMemberRecordBase::new(
                         *dependency_id,
-                        binding.base.service_id,
+                        service_id,
                         Some(*binding_id),
                         position as i32,
                     ));
@@ -420,6 +431,30 @@ impl DependencyMemberStorage {
             StorableFilter::<DependencyMemberRecord>::new_from_dependency_ids(&[*dependency_id]);
         self.storage.delete_by_filter(filter).await?;
         Ok(())
+    }
+
+    /// Every member naming `binding_id`, across dependencies.
+    pub async fn records_for_binding(
+        &self,
+        binding_id: &Uuid,
+    ) -> Result<Vec<DependencyMemberRecord>> {
+        self.storage
+            .get_all(
+                StorableFilter::<DependencyMemberRecord>::new_from_binding_id(binding_id).live(),
+            )
+            .await
+    }
+
+    /// Every member recorded against `service_id`: the service itself, or a binding of it.
+    pub async fn records_for_service(
+        &self,
+        service_id: &Uuid,
+    ) -> Result<Vec<DependencyMemberRecord>> {
+        self.storage
+            .get_all(
+                StorableFilter::<DependencyMemberRecord>::new_from_service_id(service_id).live(),
+            )
+            .await
     }
 
     /// Remove a specific binding from all dependencies.

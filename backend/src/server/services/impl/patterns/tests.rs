@@ -136,6 +136,7 @@ fn test_container_virtualization_matches_docker_and_podman() {
     // PodmanContainer generic claims it, and the DockerContainer generic does not.
     let mut ctx = TestContext::new();
     ctx.virtualization = Some(ServiceVirtualization::Podman(PodmanVirtualization {
+        state: Default::default(),
         container_name: Some("scanopy-test-web".to_string()),
         container_id: Some("73413cba1d1c".to_string()),
         compose_project: None,
@@ -163,6 +164,7 @@ fn test_container_virtualization_matches_docker_and_podman() {
     let mut dctx = TestContext::new();
     dctx.virtualization = Some(ServiceVirtualization::Docker(
         crate::server::services::r#impl::virtualization::DockerVirtualization {
+            state: Default::default(),
             container_name: Some("nginx".to_string()),
             container_id: Some("abc123".to_string()),
             compose_project: None,

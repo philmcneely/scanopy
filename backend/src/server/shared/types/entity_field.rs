@@ -56,6 +56,7 @@ impl Hop {
 #[serde(rename_all = "snake_case")]
 pub enum MetadataFixture {
     IfOperStatuses,
+    GuestStates,
     SubnetTypes,
     EntitySources,
     DependencyTypes,

@@ -7401,6 +7401,8 @@ export interface components {
             container_name?: string | null;
             /** @description The network driver that gives the container its own LAN address. */
             network_type: components["schemas"]["ContainerNetworkType"];
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         /**
          * @description The container network drivers that put a container directly on the LAN.
@@ -7750,6 +7752,12 @@ export interface components {
              * @description Number of hosts it collected from.
              */
             hosts: number;
+            /**
+             * @description The hosts whose guests (containers, VMs, network identities) it listed in full,
+             *     stopped ones included. The server removes a guest of one of these hosts that the run
+             *     did not report. Daemons predating this field send none, which removes nothing.
+             */
+            hosts_with_guests_listed?: string[];
             /** @enum {string} */
             type: "Collected";
         } | {
@@ -9294,6 +9302,8 @@ export interface components {
             container_id?: string | null;
             /** @description Container name as reported by Docker. */
             container_name?: string | null;
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         Edge: components["schemas"]["EdgeType"] & {
             /**
@@ -9905,6 +9915,12 @@ export interface components {
              */
             value?: string | null;
         };
+        /**
+         * @description A guest's run state. Stored rows from before the state was recorded read as `Running`: Docker
+         *     and Podman discovery listed running containers only, so every stored container was running.
+         * @enum {string}
+         */
+        GuestState: "Running" | "Paused" | "Restarting" | "Stopped";
         /** @description One step from an object to related objects. */
         Hop: {
             entity: components["schemas"]["EntityDiscriminants"];
@@ -12899,6 +12915,8 @@ export interface components {
             container_id?: string | null;
             /** @description Container name as reported by Podman. */
             container_name?: string | null;
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         /**
          * @description Port entity with custom serialization that flattens PortType fields.
@@ -13157,6 +13175,8 @@ export interface components {
         ProxmoxGuestType: "Qemu" | "Lxc";
         ProxmoxVirtualization: {
             guest_type?: null | components["schemas"]["ProxmoxGuestType"];
+            /** @description Whether the guest was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
             /** @description Proxmox VMID of the guest. */
             vm_id?: string | null;
             /** @description Guest name as configured in Proxmox. */
@@ -19657,6 +19677,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -19878,6 +19903,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -19990,6 +20020,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -20102,6 +20137,11 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
+                /**
+                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
+                 *     several.
+                 */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -21973,6 +22013,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -22127,6 +22169,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -22223,6 +22267,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**

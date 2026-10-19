@@ -45,7 +45,20 @@ impl HostService {
                 .await?;
         }
 
-        // Delete host - children cascade via ON DELETE CASCADE
+        // Its services go through their own delete first: each publishes `Deleted` and deletes
+        // what it virtualizes (a node's VMs, a runtime's containers). The FK cascade below would
+        // drop them with no event and leave their guests unlinked.
+        let services = self
+            .service_service
+            .get_all(StorableFilter::<Service>::new_from_host_ids(&[*id]).live())
+            .await?;
+        for service in services {
+            self.service_service
+                .delete(&service.id, authentication.clone())
+                .await?;
+        }
+
+        // Delete host - its remaining children cascade via ON DELETE CASCADE
         self.storage().delete(id).await?;
 
         let trigger_stale = host.triggers_staleness(None);

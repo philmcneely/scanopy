@@ -963,7 +963,7 @@ async fn a_host_is_never_owned_by_its_own_service() {
                 virtualization_service_id: Some(runtime_id),
                 virtualization_metadata: Some(
                     crate::server::hosts::r#impl::virtualization::HostVirtualization::Docker(
-                        crate::server::hosts::r#impl::virtualization::ContainerHostVirtualization {
+                        crate::server::hosts::r#impl::virtualization::ContainerHostVirtualization { state: Default::default(),
                             container_name: Some("ipvlan-test".to_string()),
                             container_id: Some("aec2a3e9".to_string()),
                             compose_project: None,

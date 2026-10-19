@@ -237,6 +237,7 @@ mod tests {
 
     fn container() -> HostVirtualization {
         HostVirtualization::Docker(ContainerHostVirtualization {
+            state: Default::default(),
             container_name: Some("ipvlan-test".to_string()),
             container_id: Some("aec2a3e9".to_string()),
             compose_project: None,
@@ -277,6 +278,7 @@ mod tests {
         let (host, lan) = (Uuid::new_v4(), Uuid::new_v4());
         let m = matched(
             Some(HostVirtualization::Proxmox(ProxmoxVirtualization {
+                state: Default::default(),
                 vm_name: Some("docker".to_string()),
                 vm_id: Some("103".to_string()),
                 guest_type: None,

@@ -176,7 +176,7 @@ pub fn run_report(
 /// Hosts a credential worked on: collected from, script applied, or woken.
 fn hosts_reached(outcome: &CredentialRunOutcome) -> u32 {
     match outcome {
-        CredentialRunOutcome::Collected { hosts } => *hosts,
+        CredentialRunOutcome::Collected { hosts, .. } => *hosts,
         CredentialRunOutcome::SshScript { runs } => runs
             .iter()
             .filter(|r| r.outcome == SshScriptOutcome::Applied)
@@ -222,7 +222,10 @@ mod tests {
     fn collected(credential_id: Uuid, hosts: u32) -> CredentialRunResult {
         CredentialRunResult {
             credential_id,
-            outcome: CredentialRunOutcome::Collected { hosts },
+            outcome: CredentialRunOutcome::Collected {
+                hosts,
+                hosts_with_guests_listed: vec![],
+            },
         }
     }
 

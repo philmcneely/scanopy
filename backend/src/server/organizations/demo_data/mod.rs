@@ -57,7 +57,7 @@ use crate::server::{
     shared::attribution::{AttributeSource, Attributed},
     shared::{
         api_key_common::{ApiKeyType, generate_api_key_for_storage},
-        types::{Color, entities::EntitySource},
+        types::{Color, entities::EntitySource, guest_state::GuestState},
     },
     shares::r#impl::base::{Share, ShareBase, ShareOptions},
     sites::r#impl::{Site, SiteBase},
@@ -747,6 +747,7 @@ fn create_container_service(
                 bindings,
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some(container_name.to_string()),
                         container_id: Some(container_id.to_string()),
                         compose_project: Some("media-stack".to_string()),

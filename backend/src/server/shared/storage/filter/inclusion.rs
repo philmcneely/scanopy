@@ -30,6 +30,28 @@ impl<T: Storable> StorableFilter<T> {
         self
     }
 
+    /// [`Self::json_text_in`] for a leaf that serde defaults to `default` when absent. A row whose
+    /// `column` is set but holds no such leaf reads as `default`, so it matches when `default` is
+    /// selected. A row with `column` NULL never matches.
+    pub fn json_text_in_defaulting<V: AsRef<str>>(
+        mut self,
+        column: &str,
+        path: &[&str],
+        values: &[V],
+        default: &str,
+    ) -> Self {
+        let qualified = self.qualify_column(column);
+        let expr = json_text_path(&qualified, path);
+        let includes_default = values.iter().any(|v| v.as_ref() == default);
+        self.push_text_in(expr.clone(), values.iter().map(|v| v.as_ref().to_string()));
+        if includes_default && let Some(condition) = self.conditions.pop() {
+            self.conditions.push(format!(
+                "({condition} OR ({qualified} IS NOT NULL AND {expr} IS NULL))"
+            ));
+        }
+        self
+    }
+
     /// Push `expr IN ($n, …)` with one bound string per value, or `FALSE` for none.
     fn push_text_in(&mut self, expr: String, values: impl ExactSizeIterator<Item = String>) {
         if values.len() == 0 {

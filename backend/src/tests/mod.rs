@@ -45,8 +45,10 @@ pub mod cloud_setup;
 pub mod default_credentials;
 pub mod demo_data_seeding;
 pub mod dependencies;
+pub mod dependency_member_events;
 pub mod discovery_finish;
 pub mod discovery_port_ownership;
+pub mod discovery_removed_children;
 pub mod discovery_stale_port_guards;
 pub mod discovery_stale_port_holders;
 pub mod discovery_warnings;
@@ -76,6 +78,7 @@ pub mod tag_scope;
 pub mod terms_gate;
 pub mod terms_notices;
 pub mod virtualization_tree;
+pub mod virtualizer_cascade;
 
 pub const DAEMON_CONFIG_FIXTURE: &str = "src/tests/daemon_config.json";
 pub const SERVER_DB_FIXTURE: &str = "src/tests/scanopy.sql";

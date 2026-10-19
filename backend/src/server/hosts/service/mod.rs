@@ -203,6 +203,7 @@ mod discovery;
 mod lifecycle;
 pub(crate) mod mac_identity;
 mod open_ports;
+mod removed_guests;
 mod same_device;
 mod stale_ports;
 mod topology;
@@ -1277,6 +1278,7 @@ mod tests {
             chassis_id: None,
             ip_addresses: vec![row],
             virtualization: Some(HostVirtualization::Docker(ContainerHostVirtualization {
+                state: Default::default(),
                 container_name: Some("test".to_string()),
                 container_id: Some("aec2a3e9".to_string()),
                 compose_project: None,

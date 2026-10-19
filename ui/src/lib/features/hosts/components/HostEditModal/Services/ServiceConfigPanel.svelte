@@ -19,8 +19,15 @@
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
+	import CopyableValue from '$lib/shared/components/data/CopyableValue.svelte';
+	import GuestStateTag from '$lib/shared/components/virtualization/GuestStateTag.svelte';
 	import {
 		common_bindings,
+		common_status,
+		hosts_deviceFacts_composeProject,
+		hosts_deviceFacts_containerId,
+		hosts_deviceFacts_containerName,
+		common_container,
 		common_details,
 		common_ipAddressBindings,
 		common_name,
@@ -401,6 +408,36 @@
 				onChange={(tags) => onChange({ ...service, tags })}
 			/>
 		</InfoCard>
+
+		{#if service.virtualization_metadata}
+			{@const container = service.virtualization_metadata.details}
+			<InfoCard title={common_container()}>
+				<dl class="space-y-2 text-sm">
+					{#each [{ label: hosts_deviceFacts_containerName(), value: container.container_name }, { label: hosts_deviceFacts_composeProject(), value: container.compose_project }] as fact (fact.label)}
+						{#if fact.value}
+							<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+								<dt class="text-secondary w-40 shrink-0">{fact.label}</dt>
+								<dd class="text-primary min-w-0 flex-1 break-words">{fact.value}</dd>
+							</div>
+						{/if}
+					{/each}
+					{#if container.container_id}
+						<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+							<dt class="text-secondary w-40 shrink-0">{hosts_deviceFacts_containerId()}</dt>
+							<dd class="min-w-0 flex-1">
+								<CopyableValue value={container.container_id} variant="inline" />
+							</dd>
+						</div>
+					{/if}
+					{#if container.state}
+						<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+							<dt class="text-secondary w-40 shrink-0">{common_status()}</dt>
+							<dd class="min-w-0 flex-1"><GuestStateTag state={container.state} /></dd>
+						</div>
+					{/if}
+				</dl>
+			</InfoCard>
+		{/if}
 
 		<InfoCard title={common_bindings()}>
 			<p class="text-muted text-xs">

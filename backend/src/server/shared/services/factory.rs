@@ -265,6 +265,7 @@ impl ServiceFactory {
             dependency_service.clone(),
             event_bus.clone(),
             entity_tag_service.clone(),
+            subnet_service.clone(),
         ));
 
         // GH #701 multi-neighbour tables: no CrudService, so constructed straight from the pool

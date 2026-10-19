@@ -7123,6 +7123,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -7683,6 +7698,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -8075,6 +8105,21 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
+              }
+            }
+          },
+          {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -8480,6 +8525,21 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
+              }
+            }
+          },
+          {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -11938,6 +11998,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the container a service is, at the last scan. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "tag_ids",
             "in": "query",
             "description": "Filter by tag IDs (returns services that have ANY of the specified tags)",
@@ -12401,6 +12476,21 @@
             }
           },
           {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the container a service is, at the last scan. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
+              }
+            }
+          },
+          {
             "name": "tag_ids",
             "in": "query",
             "description": "Filter by tag IDs (returns services that have ANY of the specified tags)",
@@ -12777,6 +12867,21 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/MatchConfidence"
+              }
+            }
+          },
+          {
+            "name": "guest_states",
+            "in": "query",
+            "description": "Filter by the run state of the container a service is, at the last scan. Repeat for several.",
+            "required": false,
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -25000,6 +25105,10 @@
           "network_type": {
             "$ref": "#/components/schemas/ContainerNetworkType",
             "description": "The network driver that gives the container its own LAN address."
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the container was running at the last scan."
           }
         }
       },
@@ -25730,6 +25839,14 @@
                 "format": "int32",
                 "description": "Number of hosts it collected from.",
                 "minimum": 0
+              },
+              "hosts_with_guests_listed": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "The hosts whose guests (containers, VMs, network identities) it listed in full,\nstopped ones included. The server removes a guest of one of these hosts that the run\ndid not report. Daemons predating this field send none, which removes nothing."
               },
               "type": {
                 "type": "string",
@@ -29688,6 +29805,10 @@
               "null"
             ],
             "description": "Container name as reported by Docker."
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the container was running at the last scan."
           }
         }
       },
@@ -31206,6 +31327,16 @@
             "description": "The group's value, rendered as text. `null` for rows whose group key is\nNULL (the \"ungrouped\" bucket)."
           }
         }
+      },
+      "GuestState": {
+        "type": "string",
+        "description": "A guest's run state. Stored rows from before the state was recorded read as `Running`: Docker\nand Podman discovery listed running containers only, so every stored container was running.",
+        "enum": [
+          "Running",
+          "Paused",
+          "Restarting",
+          "Stopped"
+        ]
       },
       "Hop": {
         "oneOf": [
@@ -34986,6 +35117,7 @@
         "description": "A metadata fixture whose entries name an enum-valued field, so the UI shows the fixture's\nname for the raw value. Serializes to the fixture key.",
         "enum": [
           "if_oper_statuses",
+          "guest_states",
           "subnet_types",
           "entity_sources",
           "dependency_types",
@@ -37542,6 +37674,10 @@
               "null"
             ],
             "description": "Container name as reported by Podman."
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the container was running at the last scan."
           }
         }
       },
@@ -38006,6 +38142,10 @@
                 "description": "Whether the guest is a QEMU virtual machine or an LXC container. `None` when the guest was\nassigned by hand or recorded before the Proxmox integration reported it."
               }
             ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the guest was running at the last scan."
           },
           "vm_id": {
             "type": [

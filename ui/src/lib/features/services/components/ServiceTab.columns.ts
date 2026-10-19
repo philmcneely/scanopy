@@ -1,7 +1,12 @@
 import { lastSeenItems } from '$lib/shared/utils/freshness';
 import { entityRef, type LabelledCardFieldItem } from '$lib/shared/components/data/types';
 import { tagNames } from '$lib/features/tags/columns';
-import { entities, entitySources, matchConfidences } from '$lib/shared/stores/metadata';
+import {
+	entities,
+	entitySources,
+	guestStates,
+	matchConfidences
+} from '$lib/shared/stores/metadata';
 import { entitySourceItems } from '$lib/shared/utils/entity-source';
 import { discoveryRunItems } from '$lib/features/discovery/columns';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
@@ -32,7 +37,8 @@ import {
 	common_updated,
 	services_matchConfidence,
 	services_notContainerized,
-	services_notDiscovered
+	services_notDiscovered,
+	meta_entities_Service_field_guest_state_label
 } from '$lib/paraglide/messages';
 import {
 	serviceDefinitions,
@@ -268,6 +274,35 @@ export function serviceColumns(ctx: ServiceColumnsContext) {
 			}
 		},
 		[
+			{
+				key: 'guest_state',
+				label: meta_entities_Service_field_guest_state_label(),
+				filterable: true,
+				serverFiltered: true,
+				queryParam: 'guest_states',
+				// Every state the backend defines.
+				filterOptions: guestStates.getItems().map((state) => state.id),
+				filterLabel: (id) => guestStates.getName(id),
+				getValue: (service) => {
+					const state = service.virtualization_metadata?.details.state;
+					return state ? guestStates.getName(state) : null;
+				},
+				display: {
+					hiddenByDefault: true,
+					getItems: (service) => {
+						const state = service.virtualization_metadata?.details.state;
+						return state
+							? [
+									{
+										id: state,
+										...guestStates.getTag(state),
+										icon: guestStates.getIconComponent(state)
+									}
+								]
+							: [];
+					}
+				}
+			},
 			{
 				key: 'port_bindings',
 				label: common_portBindings(),

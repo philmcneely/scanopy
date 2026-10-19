@@ -167,6 +167,7 @@ impl<'a> Lab<'a> {
         container.base.virtualization_service_id = Some(runtime.id);
         container.base.virtualization_metadata =
             Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
                 container_name: Some(name.to_string()),
                 container_id: Some(format!("{name}-id")),
                 compose_project: None,

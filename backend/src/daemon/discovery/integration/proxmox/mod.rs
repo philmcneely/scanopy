@@ -27,7 +27,7 @@ pub mod identities;
 pub mod mapping;
 pub mod types;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use anyhow::{Error, Result};
@@ -47,6 +47,7 @@ use crate::server::services::r#impl::base::ServiceMatchBaselineParams;
 use crate::server::services::r#impl::definitions::{ServiceDefinitionExt, VirtualizationRole};
 use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::Attributed;
+use crate::server::shared::types::guest_state::GuestState;
 use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::subnets::r#impl::inference::placeable_subnet;
 
@@ -167,6 +168,7 @@ impl DiscoveryIntegration for ProxmoxIntegration {
 
         // Nodes first, so each guest can carry its node's stored service id.
         let mut owners: HashMap<String, Uuid> = HashMap::new();
+        let mut node_hosts: HashMap<String, Uuid> = HashMap::new();
         for node in &nodes {
             if ctx.cancel.is_cancelled() {
                 return Err(IntegrationFailure::cancelled());
@@ -182,8 +184,9 @@ impl DiscoveryIntegration for ProxmoxIntegration {
                 host_data.offer_os(Attributed::new(HostOsValue(os.clone()), REPORTED));
             }
             match create_node_host(ctx, &subnets, node, &reading, handle.port).await {
-                Ok(Some(service_id)) => {
+                Ok(Some((host_id, service_id))) => {
                     owners.insert(node.name.clone(), service_id);
+                    node_hosts.insert(node.name.clone(), host_id);
                 }
                 Ok(None) => {}
                 Err(e) => {
@@ -197,6 +200,10 @@ impl DiscoveryIntegration for ProxmoxIntegration {
         let total = guests.len();
         let mut created = 0usize;
         let mut unidentifiable: Vec<String> = vec![];
+        // Nodes with a guest that failed to record: their guests are not listed in full.
+        let mut short_nodes: HashSet<String> = HashSet::new();
+        // Guests whose network identities were all read and recorded.
+        let mut identities_listed: Vec<Uuid> = vec![];
         for (i, guest) in guests.iter().enumerate() {
             if ctx.cancel.is_cancelled() {
                 return Err(IntegrationFailure::cancelled());
@@ -215,8 +222,14 @@ impl DiscoveryIntegration for ProxmoxIntegration {
             let identities =
                 identities::network_identities(&reading.nics, &reading.reported, &subnets);
             match create_guest_host(ctx, &subnets, guest, record, &identities, site_id).await {
-                Ok(_) => created += 1,
+                Ok((guest_host_id, all_identities_recorded)) => {
+                    created += 1;
+                    if reading.interfaces_read && all_identities_recorded {
+                        identities_listed.push(guest_host_id);
+                    }
+                }
                 Err(e) => {
+                    short_nodes.insert(guest.node.clone());
                     tracing::warn!(guest = %guest_label(guest), error = %e, "Failed to record Proxmox VE guest")
                 }
             }
@@ -237,6 +250,26 @@ impl DiscoveryIntegration for ProxmoxIntegration {
                 guests = %unidentifiable.join(", "),
                 "Proxmox VE guests with no network interface were not recorded"
             );
+        }
+
+        // `/cluster/resources` lists every guest, stopped ones included. A node whose guests were
+        // all recorded has them listed in full, so a stored guest of it that this run didn't
+        // report was removed. A guest with no NIC and no address was never stored, so leaving it
+        // out holds nothing back.
+        if let Some(credential_id) = ctx.credential_id {
+            let integration = ctx.credential.into();
+            for (name, host_id) in &node_hosts {
+                if !short_nodes.contains(name) {
+                    ctx.ops
+                        .record_guests_listed(credential_id, integration, *host_id)
+                        .await;
+                }
+            }
+            for host_id in identities_listed {
+                ctx.ops
+                    .record_guests_listed(credential_id, integration, host_id)
+                    .await;
+            }
         }
 
         // A guest whose node has no address cannot be linked to it. That is a shortfall the
@@ -262,6 +295,8 @@ impl DiscoveryIntegration for ProxmoxIntegration {
 /// that service's stored id, read back from the guest's response the way a node's Proxmox VE
 /// service id is. So the guest goes first. An identity that fails to record is logged and the
 /// rest go on: the guest itself is recorded.
+///
+/// Returns the guest host's stored id, and whether every identity was recorded.
 async fn create_guest_host(
     ctx: &IntegrationContext<'_>,
     subnets: &[Subnet],
@@ -269,7 +304,7 @@ async fn create_guest_host(
     record: GuestRecord,
     identities: &[NetworkIdentity],
     site_id: Uuid,
-) -> Result<(), Error> {
+) -> Result<(Uuid, bool), Error> {
     let services = identities::guest_services(&record.host, identities);
     // The interfaces its identities sit on, so each identity can name its interface by stored id.
     let mut interfaces = record.interfaces;
@@ -295,7 +330,7 @@ async fn create_guest_host(
         )
         .await?;
     if identities.is_empty() {
-        return Ok(());
+        return Ok((response.id, true));
     }
 
     let Some(owner) = response
@@ -314,8 +349,9 @@ async fn create_guest_host(
             "Proxmox VE guest was recorded without its Network Identities service; its network \
              identities were not recorded"
         );
-        return Ok(());
+        return Ok((response.id, false));
     };
+    let mut all_recorded = true;
     for identity in identities {
         let presenting = identities::presenting_interface_id(identity, &response.interfaces);
         if presenting.is_none() {
@@ -351,9 +387,10 @@ async fn create_guest_host(
                 error = %e,
                 "Failed to record a Proxmox VE guest's network identity"
             );
+            all_recorded = false;
         }
     }
-    Ok(())
+    Ok((response.id, all_recorded))
 }
 
 /// `pve/110 (gitlab)`, for log lines.
@@ -394,7 +431,7 @@ async fn read_guest(client: &ProxmoxClient, guest: &GuestSummary) -> GuestReadin
         _ => GuestReading::default(),
     };
 
-    let runtime = if guest.running {
+    let runtime: Option<Vec<mapping::GuestAddress>> = if guest.state == GuestState::Running {
         match guest.guest_type {
             ProxmoxGuestType::Qemu => {
                 match client
@@ -420,21 +457,22 @@ async fn read_guest(client: &ProxmoxClient, guest: &GuestSummary) -> GuestReadin
                             .as_ref()
                             .and_then(mapping::agent_hostname)
                             .map(|h| Attributed::new(HostHostnameValue(h), mapping::GUEST_AGENT));
-                        mapping::agent_addresses(&agent)
+                        Some(mapping::agent_addresses(&agent))
                     }
-                    None => vec![],
+                    None => None,
                 }
             }
             ProxmoxGuestType::Lxc => client
                 .get_best_effort::<Vec<LxcInterface>>(&format!("{path}/interfaces"))
                 .await
-                .map(|ifaces| mapping::lxc_addresses(&ifaces))
-                .unwrap_or_default(),
+                .map(|ifaces| mapping::lxc_addresses(&ifaces)),
         }
     } else {
-        vec![]
+        None
     };
 
+    reading.interfaces_read = runtime.is_some();
+    let runtime = runtime.unwrap_or_default();
     reading.addresses = mapping::select_addresses(&nics, runtime.clone());
     reading.reported = runtime;
     reading.nics = nics;
@@ -462,7 +500,8 @@ async fn read_node(client: &ProxmoxClient, node: &NodeSpec) -> NodeReading {
     }
 }
 
-/// Record a node's host with its Proxmox VE service, returning that service's stored id.
+/// Record a node's host with its Proxmox VE service, returning the host's and that service's stored
+/// ids.
 ///
 /// `None` when the node has no known address, or the address sits in no subnet this site
 /// holds (the matcher needs one to evaluate against). Stricter than the submission rule
@@ -473,7 +512,7 @@ async fn create_node_host(
     node: &NodeSpec,
     reading: &NodeReading,
     port: u16,
-) -> Result<Option<Uuid>, Error> {
+) -> Result<Option<(Uuid, Uuid)>, Error> {
     let Some(ip) = node.ip else {
         return Ok(None);
     };
@@ -532,7 +571,7 @@ async fn create_node_host(
         .services
         .iter()
         .find(|s| is_proxmox_ve(s.base.service_definition.virtualization_role()))
-        .map(|s| s.id))
+        .map(|s| (response.id, s.id)))
 }
 
 fn is_proxmox_ve(role: Option<VirtualizationRole>) -> bool {

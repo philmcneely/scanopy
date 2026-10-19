@@ -298,6 +298,23 @@ impl EntityBuffer {
     ///   server-side from interface SNMP vlan info; the daemon never sees
     ///   their canonical IDs. The SubnetVlan FK-update subscriber no-ops
     ///   for now; server-side enrichment can fill this in later.
+    /// The server's id for a host this session submitted, given the id it was submitted under or
+    /// the server's own. `None` when the host was never created: its submission failed, timed
+    /// out, or never happened.
+    pub async fn created_host_id(&self, id: &Uuid) -> Option<Uuid> {
+        let hosts = self.hosts.read().await;
+        if let Some(entry) = hosts.get(id) {
+            return match entry {
+                BufferedEntity::Created { actual, .. } => Some(actual.host.id),
+                _ => None,
+            };
+        }
+        hosts.values().find_map(|entry| match entry {
+            BufferedEntity::Created { actual, .. } if actual.host.id == *id => Some(*id),
+            _ => None,
+        })
+    }
+
     pub async fn get_scanned_ids(&self) -> ScannedEntityIds {
         let mut out = ScannedEntityIds::default();
 

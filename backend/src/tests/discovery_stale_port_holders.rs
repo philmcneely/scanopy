@@ -5,11 +5,9 @@
 //! What must stay put lives in `discovery_stale_port_guards`, which shares this file's `Lab`.
 
 use chrono::{Duration, Utc};
-use uuid::Uuid;
 
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::bindings::r#impl::base::Binding;
-use crate::server::dependencies::r#impl::base::DependencyMembers;
 use crate::server::hosts::r#impl::base::{Host, HostBase};
 use crate::server::interfaces::r#impl::base::InterfaceDataComplete;
 use crate::server::ip_addresses::r#impl::base::IPAddress;
@@ -22,10 +20,10 @@ use crate::server::shared::storage::traits::Storage;
 use crate::server::shared::types::entities::EntitySource;
 
 use super::discovery_stale_port_guards::{LAN_IP, Lab, SECOND_LAN_IP, at, at_lan};
-use super::{dependency, test_services};
+use super::test_services;
 
 /// TCP coverage of `numbers` at `ip`.
-fn covering(ip: &str, numbers: &[u16]) -> PortCoverage {
+pub(super) fn covering(ip: &str, numbers: &[u16]) -> PortCoverage {
     let mut coverage = PortCoverage::default();
     coverage.add(
         ip.parse().unwrap(),
@@ -37,7 +35,7 @@ fn covering(ip: &str, numbers: &[u16]) -> PortCoverage {
 
 impl Lab<'_> {
     /// A scan that covered `coverage`, as a current daemon's network scan reports it.
-    async fn scan_covering(
+    pub(super) async fn scan_covering(
         &self,
         ip_addresses: Vec<IPAddress>,
         ports: Vec<Port>,
@@ -71,7 +69,7 @@ impl Lab<'_> {
     }
 
     /// Mark the stored port as last answering well past the site's stale window.
-    async fn age_port(&self, number: u16) {
+    pub(super) async fn age_port(&self, number: u16) {
         let mut port = self.stored_tcp(number).await;
         port.last_seen_at = Utc::now() - Duration::days(30);
         self.services
@@ -422,44 +420,4 @@ async fn an_all_addresses_binding_needs_coverage_at_every_address() {
 
     assert_eq!(lab.ports_named("Traefik").await, Some(vec![(443, None)]));
     assert_eq!(lab.named("Caddy").await, None);
-}
-
-/// A deleted holder leaves the dependencies it belonged to.
-#[tokio::test]
-async fn a_replaced_holder_leaves_its_dependencies() {
-    let (storage, services, _container) = test_services().await;
-    let lab = Lab::new(&services, &storage).await;
-    let (lan, p443, p3000) = (lab.lan_ip(), lab.tcp(443), lab.tcp(3000));
-    let traefik = lab.service("Traefik", vec![(&p443, &lan)]);
-    let grafana = lab.service("Grafana", vec![(&p3000, &lan)]);
-    lab.scan(vec![lan], vec![p443, p3000], vec![traefik, grafana])
-        .await;
-    let traefik = lab.named("Traefik").await.unwrap();
-    let grafana = lab.named("Grafana").await.unwrap();
-    let mut chain = dependency(&lab.site_id);
-    chain.base.members = DependencyMembers::Services {
-        service_ids: vec![traefik.id, grafana.id],
-    };
-    let chain = services
-        .dependency_service
-        .create(chain, AuthenticatedEntity::System)
-        .await
-        .unwrap();
-
-    let (lan, p443) = (lab.lan_ip(), lab.tcp(443));
-    let caddy = lab.service("Caddy", vec![(&p443, &lan)]);
-    lab.scan_covering(vec![lan], vec![p443], vec![caddy], covering(LAN_IP, &[443]))
-        .await;
-
-    let chain = services
-        .dependency_service
-        .get_by_id(&chain.id)
-        .await
-        .unwrap()
-        .expect("dependency stored");
-    let members: Vec<Uuid> = match chain.base.members {
-        DependencyMembers::Services { service_ids } => service_ids,
-        other => panic!("unexpected members {other:?}"),
-    };
-    assert_eq!(members, vec![grafana.id]);
 }

@@ -8,7 +8,7 @@ import { defineRegistryFields } from '$lib/shared/entity-fields/table';
 import type { EntityLookup } from '$lib/shared/entity-fields';
 import { tagNames } from '$lib/features/tags/columns';
 import { credentialItems } from '$lib/features/credentials/columns';
-import { entities, entitySources, concepts } from '$lib/shared/stores/metadata';
+import { entities, entitySources, concepts, guestStates } from '$lib/shared/stores/metadata';
 import {
 	common_created,
 	common_description,
@@ -47,7 +47,8 @@ import {
 	hosts_snmp_managementUrl,
 	hosts_snmp_sysDescr,
 	hosts_snmp_sysName,
-	hosts_snmp_sysObjectId
+	hosts_snmp_sysObjectId,
+	meta_entities_Host_field_guest_state_label
 } from '$lib/paraglide/messages';
 import { entitySourceItems } from '$lib/shared/utils/entity-source';
 import {
@@ -106,6 +107,19 @@ export interface HostColumnsContext {
 	sysLocationValues: () => FieldValueCount[] | undefined;
 	serviceNameValues: () => FieldValueCount[] | undefined;
 	osCell: Snippet<[Host, string]>;
+}
+
+/** The run state of the VM or container a host is, at the last scan. */
+function hostGuestState(host: Host): string | null {
+	const virtualization = host.virtualization_metadata;
+	switch (virtualization?.type) {
+		case 'Proxmox':
+		case 'Docker':
+		case 'Podman':
+			return virtualization.details.state ?? null;
+		default:
+			return null;
+	}
 }
 
 /**
@@ -443,6 +457,35 @@ export function hostColumns(ctx: HostColumnsContext) {
 				display: {
 					order: 3,
 					getItems: (host) => credentialItems(hostCredentials(host))
+				}
+			},
+			{
+				key: 'guest_state',
+				label: meta_entities_Host_field_guest_state_label(),
+				filterable: true,
+				serverFiltered: true,
+				queryParam: 'guest_states',
+				// Every state the backend defines.
+				filterOptions: guestStates.getItems().map((state) => state.id),
+				filterLabel: (id) => guestStates.getName(id),
+				getValue: (host) => {
+					const state = hostGuestState(host);
+					return state ? guestStates.getName(state) : null;
+				},
+				display: {
+					hiddenByDefault: true,
+					getItems: (host) => {
+						const state = hostGuestState(host);
+						return state
+							? [
+									{
+										id: state,
+										...guestStates.getTag(state),
+										icon: guestStates.getIconComponent(state)
+									}
+								]
+							: [];
+					}
 				}
 			},
 			// The registry's interface names and chips.

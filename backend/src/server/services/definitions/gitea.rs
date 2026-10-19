@@ -17,13 +17,23 @@ impl ServiceDefinition for Gitea {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Development
     }
+    /// A set-up instance serves its pages on `/explore/repos`. Until setup is done, every path but
+    /// the installer at `/` answers 404, so a fresh install is found by its installer page.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Endpoint(
-            PortType::Http3000,
-            "/explore/repos",
-            "Powered by Gitea",
-            None,
-        )
+        Pattern::AnyOf(vec![
+            Pattern::Endpoint(
+                PortType::Http3000,
+                "/explore/repos",
+                "Powered by Gitea",
+                None,
+            ),
+            Pattern::Endpoint(
+                PortType::Http3000,
+                "/",
+                "Installation - Gitea",
+                Some(200..300),
+            ),
+        ])
     }
 
     fn logo_url(&self) -> &'static str {

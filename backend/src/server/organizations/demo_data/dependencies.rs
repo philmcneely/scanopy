@@ -41,6 +41,9 @@ pub(super) fn generate_dependencies(
                     svc_ids.prometheus_hq,
                     svc_ids.grafana_hq,
                     svc_ids.uptime_kuma,
+                    // Zabbix, retired when Prometheus replaced it. The dependency still names it,
+                    // so the inspector shows a member that is no longer on the network.
+                    Uuid::new_v4(),
                 ],
             },
             source: EntitySource::Manual,
