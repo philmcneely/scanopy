@@ -69,9 +69,9 @@ pub enum MatchReason {
 impl utoipa::PartialSchema for MatchReason {
     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::Schema> {
         use utoipa::openapi::schema::{
-            ArrayBuilder, ObjectBuilder, OneOfBuilder, SchemaType, Type,
+            ArrayBuilder, ArrayItems, ObjectBuilder, OneOfBuilder, SchemaType, Type,
         };
-        use utoipa::openapi::{RefOr, Schema};
+        use utoipa::openapi::{Ref, RefOr, Schema};
 
         // Variant 1: { type: "reason", data: string }
         let reason_variant = ObjectBuilder::new()
@@ -92,8 +92,26 @@ impl utoipa::PartialSchema for MatchReason {
             .required("data")
             .build();
 
-        // Variant 2: { type: "container", data: [string, MatchReason[]] }
-        // Note: JSON Schema doesn't perfectly represent Rust tuples, so we use an array
+        // Variant 2: { type: "container", data: [string, MatchReason[]] }, as a two-item tuple
+        let container_data = ArrayBuilder::new()
+            .prefix_items([
+                Schema::Object(
+                    ObjectBuilder::new()
+                        .schema_type(SchemaType::new(Type::String))
+                        .description(Some("The rule that grouped these reasons."))
+                        .build(),
+                ),
+                Schema::Array(
+                    ArrayBuilder::new()
+                        .items(RefOr::Ref(Ref::from_schema_name("MatchReason")))
+                        .description(Some("The reasons it grouped."))
+                        .build(),
+                ),
+            ])
+            .items(ArrayItems::False)
+            .min_items(Some(2))
+            .max_items(Some(2))
+            .description(Some("Tuple of [name: string, children: MatchReason[]]"));
         let container_variant = ObjectBuilder::new()
             .title(Some("Container"))
             .property(
@@ -103,11 +121,7 @@ impl utoipa::PartialSchema for MatchReason {
                     .enum_values(Some(vec!["container"])),
             )
             .required("type")
-            .property(
-                "data",
-                ArrayBuilder::new()
-                    .description(Some("Tuple of [name: string, children: MatchReason[]]")),
-            )
+            .property("data", container_data)
             .required("data")
             .build();
 

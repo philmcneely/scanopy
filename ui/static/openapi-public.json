@@ -20126,19 +20126,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-19T17:01:54.436524Z",
+              "created_at": "2026-10-19T19:32:56.041430Z",
               "first_discovery_id": null,
-              "id": "9a02cd47-3844-4380-8c92-81116b0aff4f",
+              "id": "bbd6b3b4-f60f-46d6-b688-1232cc37f58f",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-19T17:01:54.436524Z",
+              "last_seen_at": "2026-10-19T19:32:56.041430Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-19T17:01:54.436524Z",
-              "valid_from": "2026-10-19T17:01:54.436524Z",
+              "updated_at": "2026-10-19T19:32:56.041430Z",
+              "valid_from": "2026-10-19T19:32:56.041430Z",
               "valid_to": null
             }
           },
@@ -21886,19 +21886,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-19T17:01:54.409345Z",
+                      "created_at": "2026-10-19T19:32:56.016295Z",
                       "first_discovery_id": null,
-                      "id": "38180bee-4551-49c1-8e7d-bcb6da3bf843",
+                      "id": "c3fce311-b280-484c-b28a-c67a90fdebc1",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-19T17:01:54.409345Z",
+                      "last_seen_at": "2026-10-19T19:32:56.016295Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-19T17:01:54.409345Z",
-                      "valid_from": "2026-10-19T17:01:54.409345Z",
+                      "updated_at": "2026-10-19T19:32:56.016295Z",
+                      "valid_from": "2026-10-19T19:32:56.016295Z",
                       "valid_to": null
                     }
                   ],
@@ -21911,7 +21911,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Duplicati",
+                  "service_definition": "APC",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -23389,19 +23389,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-19T17:01:54.431612Z",
+                  "created_at": "2026-10-19T19:32:56.036682Z",
                   "first_discovery_id": null,
-                  "id": "eb146fd6-3976-46ec-8db8-59b12b40ecf7",
+                  "id": "7cf0a363-343a-4748-80ee-82573c947d9f",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-19T17:01:54.431612Z",
+                  "last_seen_at": "2026-10-19T19:32:56.036682Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-19T17:01:54.431612Z",
-                  "valid_from": "2026-10-19T17:01:54.431612Z",
+                  "updated_at": "2026-10-19T19:32:56.036682Z",
+                  "valid_from": "2026-10-19T19:32:56.036682Z",
                   "valid_to": null
                 }
               ],
@@ -23414,7 +23414,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Duplicati",
+              "service_definition": "APC",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -26521,19 +26521,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-19T17:01:54.409894Z",
+          "created_at": "2026-10-19T19:32:56.016781Z",
           "first_discovery_id": null,
-          "id": "6abe0a21-0cf9-4ff2-a640-0343b27677b3",
+          "id": "2e740fda-7c84-405c-b596-8a7c4e33557e",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-19T17:01:54.409894Z",
+          "last_seen_at": "2026-10-19T19:32:56.016781Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-19T17:01:54.409894Z",
-          "valid_from": "2026-10-19T17:01:54.409894Z",
+          "updated_at": "2026-10-19T19:32:56.016781Z",
+          "valid_from": "2026-10-19T19:32:56.016781Z",
           "valid_to": null
         }
       },
@@ -27350,7 +27350,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Duplicati",
+              "service_definition": "APC",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -34497,19 +34497,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-19T17:01:54.408640Z",
+                  "created_at": "2026-10-19T19:32:56.015707Z",
                   "first_discovery_id": null,
-                  "id": "0319eddb-3ba7-487a-a198-764f37b46816",
+                  "id": "0d4a70b9-62cb-4320-a592-0b76f58e2a4c",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-19T17:01:54.408640Z",
+                  "last_seen_at": "2026-10-19T19:32:56.015707Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-19T17:01:54.408640Z",
-                  "valid_from": "2026-10-19T17:01:54.408640Z",
+                  "updated_at": "2026-10-19T19:32:56.015707Z",
+                  "valid_from": "2026-10-19T19:32:56.015707Z",
                   "valid_to": null
                 }
               ],
@@ -34522,7 +34522,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Duplicati",
+              "service_definition": "APC",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -37013,8 +37013,23 @@
             "properties": {
               "data": {
                 "type": "array",
-                "items": {},
-                "description": "Tuple of [name: string, children: MatchReason[]]"
+                "items": false,
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "description": "The rule that grouped these reasons."
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/MatchReason"
+                    },
+                    "description": "The reasons it grouped."
+                  }
+                ],
+                "description": "Tuple of [name: string, children: MatchReason[]]",
+                "maxItems": 2,
+                "minItems": 2
               },
               "type": {
                 "type": "string",
@@ -38724,19 +38739,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-19T17:01:54.399046Z",
+                        "created_at": "2026-10-19T19:32:56.007255Z",
                         "first_discovery_id": null,
-                        "id": "34aaf5e1-acbb-47a6-a6ea-882ad5b43a20",
+                        "id": "37133962-a9c0-47ae-b7b3-7dd1454eeb42",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-19T17:01:54.399046Z",
+                        "last_seen_at": "2026-10-19T19:32:56.007255Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-19T17:01:54.399046Z",
-                        "valid_from": "2026-10-19T17:01:54.399046Z",
+                        "updated_at": "2026-10-19T19:32:56.007255Z",
+                        "valid_from": "2026-10-19T19:32:56.007255Z",
                         "valid_to": null
                       }
                     ],
@@ -38749,7 +38764,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Duplicati",
+                    "service_definition": "APC",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -38996,19 +39011,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-19T17:01:54.430895Z",
+                    "created_at": "2026-10-19T19:32:56.035992Z",
                     "first_discovery_id": null,
-                    "id": "204e16f4-98e1-4216-83c9-d2a378e7f596",
+                    "id": "95c2187d-988f-4f59-86bb-503073d4572a",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-19T17:01:54.430895Z",
+                    "last_seen_at": "2026-10-19T19:32:56.035992Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-19T17:01:54.430895Z",
-                    "valid_from": "2026-10-19T17:01:54.430895Z",
+                    "updated_at": "2026-10-19T19:32:56.035992Z",
+                    "valid_from": "2026-10-19T19:32:56.035992Z",
                     "valid_to": null
                   }
                 ],
@@ -39021,7 +39036,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Duplicati",
+                "service_definition": "APC",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -41702,19 +41717,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-19T17:01:54.409717Z",
+              "created_at": "2026-10-19T19:32:56.016618Z",
               "first_discovery_id": null,
-              "id": "49f7a4a4-bb5a-42e3-8475-50ddc25ac943",
+              "id": "fdd279f3-50fd-49c2-9e8a-5f2e5b072298",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-19T17:01:54.409717Z",
+              "last_seen_at": "2026-10-19T19:32:56.016618Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-19T17:01:54.409717Z",
-              "valid_from": "2026-10-19T17:01:54.409717Z",
+              "updated_at": "2026-10-19T19:32:56.016618Z",
+              "valid_from": "2026-10-19T19:32:56.016618Z",
               "valid_to": null
             }
           ],
@@ -41727,7 +41742,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Duplicati",
+          "service_definition": "APC",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -43892,7 +43907,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "8221b9e1-0f99-4252-8f0c-68353bdb778e",
+                  "id": "852114bc-be9c-45ea-947e-2098cb31c2b4",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -43902,23 +43917,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "6e0f5ac3-307d-4136-8b67-a22b341c31c3",
+                  "id": "e86b6fe0-daa5-44f0-bf22-488a43f27cca",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "7c55ec7b-4c59-4c2b-b312-ea492223d433",
+                  "id": "7b55271b-8d51-479f-816b-631d14c3a948",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "09591ef9-06a2-466a-92e2-0a052aac7b98",
+                  "id": "9d1d1f5a-7dee-4672-88a4-517167ddd89f",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "6e0f5ac3-307d-4136-8b67-a22b341c31c3",
+                  "id": "e86b6fe0-daa5-44f0-bf22-488a43f27cca",
                   "rule": "ByHost"
                 }
               ]
@@ -43948,19 +43963,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "e15d523c-f703-4a41-a633-4c8bc4704ce0",
+                "id": "29652556-9887-478f-83a7-7c94cb406542",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "2e3a574d-2cab-4708-8999-6aa4571991f1",
+                "id": "fa7f6387-fe32-4667-b534-4b458d024ed5",
                 "rule": "ByVLAN"
               },
               {
-                "id": "624bd5e4-b2c4-4624-b827-1765b340fc18",
+                "id": "793665c9-a8d6-4574-a7ff-58b26fd79b36",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "643d824e-590c-4461-86c3-1c052d531b82",
+                "id": "9f1d4ee8-3dda-43bc-9c5a-6ce0abf54051",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -43981,7 +43996,7 @@
                 }
               },
               {
-                "id": "6ec13c02-52e0-4d61-b2a6-045fd919794d",
+                "id": "589d2446-f968-4bcc-8b8e-0f3a4a5b1443",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -43990,15 +44005,15 @@
                 }
               },
               {
-                "id": "b9317fea-ebc4-411f-880d-b26b8c16d105",
+                "id": "ad6963bf-3e08-46b0-b243-b9b1bf4673be",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "8f35ddc2-afdc-4d3b-815e-bb7d3b2ad20d",
+                "id": "a17dd931-16cc-4497-938d-cfdbacebadf1",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "b9f41e21-cd6a-47f1-bb5a-68109a8e7996",
+                "id": "8cc012dd-a061-4e1f-b4fd-86729aec89b9",
                 "rule": "ByStack"
               }
             ]
