@@ -129,3 +129,188 @@ async fn an_emptied_runtime_is_not_deleted_by_a_handover() {
     assert!(lab.named("Docker").await.is_some());
     assert!(lab.named("kuma").await.is_some());
 }
+
+/// A stored service as the host modal sends it back on save.
+fn as_input(
+    service: &crate::server::services::r#impl::base::Service,
+) -> crate::server::hosts::r#impl::api::ServiceInput {
+    use crate::server::bindings::r#impl::base::BindingType;
+    use crate::server::hosts::r#impl::api::{BindingInput, ServiceInput};
+    ServiceInput {
+        id: service.id,
+        service_definition: service.base.service_definition.clone(),
+        name: service.base.name.clone(),
+        bindings: service
+            .base
+            .bindings
+            .iter()
+            .map(|b| match b.base.binding_type {
+                BindingType::IPAddress { ip_address_id } => BindingInput::IPAddress {
+                    id: b.id(),
+                    ip_address_id,
+                },
+                BindingType::Port {
+                    port_id,
+                    ip_address_id,
+                } => BindingInput::Port {
+                    id: b.id(),
+                    port_id,
+                    ip_address_id,
+                },
+            })
+            .collect(),
+        virtualization_metadata: service.base.virtualization_metadata.clone(),
+        virtualization_service_id: service.base.virtualization_service_id,
+        tags: service.base.tags.clone(),
+        position: None,
+    }
+}
+
+/// The host modal saved with the Docker service removed but its container still in the form:
+/// the save succeeds, and the container goes with its runtime.
+#[tokio::test]
+async fn removing_a_runtime_in_the_host_modal_deletes_its_containers() {
+    use crate::server::hosts::r#impl::api::UpdateHostRequest;
+
+    let (storage, services, _container) = test_services().await;
+    let lab = Lab::new(&services, &storage).await;
+    let (lan, p3001) = (lab.lan_ip(), lab.tcp(3001));
+    let runtime = lab.runtime(&lan);
+    let kuma = lab.container_as("UptimeKuma", "kuma", &runtime, vec![(&p3001, &lan)]);
+    lab.scan(vec![lan], vec![p3001], vec![runtime, kuma]).await;
+    let host = services
+        .host_service
+        .get_by_id(&lab.host_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let kept: Vec<_> = lab
+        .stored()
+        .await
+        .into_iter()
+        .filter(|s| s.base.name != "Docker")
+        .map(|s| as_input(&s))
+        .collect();
+
+    services
+        .host_service
+        .update_from_request(
+            UpdateHostRequest {
+                id: host.id,
+                name: host.base.name.value().as_str().to_string(),
+                hostname: None,
+                description: None,
+                virtualization_metadata: None,
+                virtualization_service_id: None,
+                virtualization_interface_id: None,
+                tags: vec![],
+                expected_updated_at: None,
+                ip_addresses: None,
+                ports: None,
+                services: Some(kept),
+                interfaces: None,
+                credential_assignments: None,
+            },
+            AuthenticatedEntity::System,
+        )
+        .await
+        .expect("the save succeeds");
+
+    assert!(lab.named("Docker").await.is_none());
+    assert!(
+        lab.named("kuma").await.is_none(),
+        "the container goes with its runtime"
+    );
+}
+
+/// The bulk delete deletes what a runtime runs, the same as the single delete.
+#[tokio::test]
+async fn bulk_deleting_a_runtime_deletes_its_containers() {
+    let (storage, services, _container) = test_services().await;
+    let lab = Lab::new(&services, &storage).await;
+    let (lan, p3001) = (lab.lan_ip(), lab.tcp(3001));
+    let runtime = lab.runtime(&lan);
+    let kuma = lab.container_as("UptimeKuma", "kuma", &runtime, vec![(&p3001, &lan)]);
+    lab.scan(vec![lan], vec![p3001], vec![runtime, kuma]).await;
+    let runtime_id = lab.named("Docker").await.unwrap().id;
+
+    services
+        .service_service
+        .delete_many(&[runtime_id], AuthenticatedEntity::System)
+        .await
+        .unwrap();
+
+    assert!(lab.named("kuma").await.is_none());
+}
+
+/// The host delete the API reaches through the CRUD trait deletes the node's guests.
+#[tokio::test]
+async fn deleting_a_node_host_through_the_api_deletes_its_guests() {
+    let (storage, services, _container) = test_services().await;
+    let lab = Lab::new(&services, &storage).await;
+    let lan = lab.lan_ip();
+    let mut pve = lab.service("Proxmox VE", vec![]);
+    pve.base.bindings = vec![Binding::new_ip_address_serviceless(lan.id)];
+    lab.scan(vec![lan], vec![], vec![pve]).await;
+    let pve_id = lab.named("Proxmox VE").await.unwrap().id;
+    let guest = lab
+        .submit_host(
+            guest_of(pve_id, "vm"),
+            vec![lab.lan_ip_at("192.168.4.70", "02:00:00:00:00:70")],
+        )
+        .await;
+
+    CrudService::<Host>::delete(
+        &*services.host_service,
+        &lab.host_id,
+        AuthenticatedEntity::System,
+    )
+    .await
+    .unwrap();
+
+    assert!(!lab.host_exists(&guest).await);
+}
+
+/// Bulk-deleting a node and its guest together: the guest is already gone when its turn comes,
+/// and that is not an error.
+#[tokio::test]
+async fn bulk_deleting_a_node_with_its_guest_deletes_both() {
+    let (storage, services, _container) = test_services().await;
+    let lab = Lab::new(&services, &storage).await;
+    let lan = lab.lan_ip();
+    let mut pve = lab.service("Proxmox VE", vec![]);
+    pve.base.bindings = vec![Binding::new_ip_address_serviceless(lan.id)];
+    lab.scan(vec![lan], vec![], vec![pve]).await;
+    let pve_id = lab.named("Proxmox VE").await.unwrap().id;
+    let guest = lab
+        .submit_host(
+            guest_of(pve_id, "vm"),
+            vec![lab.lan_ip_at("192.168.4.70", "02:00:00:00:00:70")],
+        )
+        .await;
+
+    CrudService::<Host>::delete_many(
+        &*services.host_service,
+        &[lab.host_id, guest],
+        AuthenticatedEntity::System,
+    )
+    .await
+    .expect("both go without an error");
+
+    assert!(!lab.host_exists(&lab.host_id).await);
+    assert!(!lab.host_exists(&guest).await);
+}
+
+fn guest_of(pve_id: uuid::Uuid, name: &str) -> Host {
+    Host::new(HostBase {
+        source: EntitySource::Discovery,
+        virtualization_metadata: Some(HostVirtualization::Proxmox(ProxmoxVirtualization {
+            vm_name: Some(name.to_string()),
+            vm_id: Some("100".to_string()),
+            guest_type: None,
+            state: GuestState::Running,
+        })),
+        virtualization_service_id: Some(pve_id),
+        ..Default::default()
+    })
+}

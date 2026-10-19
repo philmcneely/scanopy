@@ -389,6 +389,24 @@ impl CrudService<Service> for ServiceService {
         Ok(updated)
     }
 
+    /// Each service through [`Self::delete`], so a bulk delete deletes what each one virtualizes
+    /// and publishes its own `Deleted`, the same as deleting them one at a time. One that an
+    /// earlier delete in the batch already took with it is skipped.
+    async fn delete_many(
+        &self,
+        ids: &[Uuid],
+        authentication: AuthenticatedEntity,
+    ) -> Result<usize> {
+        let mut deleted = 0;
+        for id in ids {
+            if self.get_by_id(id).await?.is_some() {
+                self.delete(id, authentication.clone()).await?;
+                deleted += 1;
+            }
+        }
+        Ok(deleted)
+    }
+
     async fn delete(&self, id: &Uuid, authentication: AuthenticatedEntity) -> Result<()> {
         let lock_guard = self
             .storage
