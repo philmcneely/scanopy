@@ -66,20 +66,25 @@ fn record_event(category: &str, operation: impl std::fmt::Display) {
 ///
 /// `name` is the registry's `<service_snake>:<op_snake>` (`registry.rs`), split into two
 /// labels so failures can be summed per service or per event type. Both halves come from type
-/// names, so the label set is fixed at compile time. `count` is above 1 only for a
-/// `NonRetryable` report covering several failed events.
+/// names, so the label set is fixed at compile time. `reason` is what the error was
+/// (`SubscriberErrorReason`, five values); for `recovered` it is the last error retried. Which
+/// org and which error text go to the log line and, on cloud, PostHog, never to a label.
+/// `count` is above 1 only for a `NonRetryable` report covering several failed events.
 pub(crate) fn record_subscriber_error(
     name: &'static str,
     outcome: crate::server::shared::events::traits::SubscriberErrorOutcome,
+    reason: crate::server::shared::events::traits::SubscriberErrorReason,
     count: u64,
 ) {
     let (subscriber, event_type) = name.split_once(':').unwrap_or((name, "unknown"));
     let outcome: &'static str = outcome.into();
+    let reason: &'static str = reason.into();
     metrics::counter!(
         "scanopy_event_subscriber_errors_total",
         "subscriber" => subscriber,
         "event_type" => event_type,
         "outcome" => outcome,
+        "reason" => reason,
     )
     .increment(count);
 }

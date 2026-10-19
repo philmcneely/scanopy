@@ -368,7 +368,7 @@ where
     // Transaction support
     // =========================================================================
 
-    /// Acquire a session-scoped DB advisory lock via this storage's pool.
+    /// Acquire a DB advisory lock held until the guard is released, via this storage's pool.
     /// See `shared/storage/lock.rs` — this keeps services off the raw pool.
     pub async fn session_lock(
         &self,
@@ -378,7 +378,7 @@ where
         super::lock::session_lock(&self.pool, key, timeout).await
     }
 
-    /// Acquire several session-scoped DB advisory locks in canonical order.
+    /// Acquire several guard-held DB advisory locks in canonical order.
     pub async fn session_lock_many(
         &self,
         keys: &[LockKey],

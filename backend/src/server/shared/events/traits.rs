@@ -513,4 +513,7 @@ pub trait Subscriber<Op: Operation>: Send + Sync {
     }
 }
 
-pub use super::dispatch::{DispatchTracker, NonRetryable, SubscriberErrorOutcome, TypedChannel};
+pub use super::dispatch::{
+    DispatchTracker, NonRetryable, SubscriberErrorOutcome, SubscriberErrorReason,
+    SubscriberFailure, SubscriberFailureReporter, TypedChannel,
+};

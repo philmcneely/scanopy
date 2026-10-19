@@ -7,7 +7,10 @@ use crate::{
     server::{
         digest::payload::DiscoveryDigestOperation,
         shared::events::{
-            traits::{DispatchTracker, Event, Operation, Subscriber, TypedChannel},
+            traits::{
+                DispatchTracker, Event, Operation, Subscriber, SubscriberFailureReporter,
+                TypedChannel,
+            },
             types::{
                 AnalyticsOperation, AuthOperation, BillingOperation, EntityOperation,
                 OnboardingOperation,
@@ -80,6 +83,12 @@ impl EventBus {
         Self: BusChannel<Op>,
     {
         self.channel().publish(event).await
+    }
+
+    /// Send each subscriber failure on every channel to `reporter` as well as the log and the
+    /// counter.
+    pub fn set_failure_reporter(&self, reporter: Arc<dyn SubscriberFailureReporter>) {
+        self.tracker.set_failure_reporter(reporter)
     }
 
     /// Wait until every published event has been handled by every subscriber, including events

@@ -4,18 +4,22 @@
 //! filter matches and returns; a worker per subscriber handles events in publish order, retrying
 //! failures (`handle_with_retry`) and counting them in `scanopy_event_subscriber_errors_total`.
 //! Debounced subscribers batch instead. A `DispatchTracker` shared by the bus counts queued work,
-//! so tests can `flush` and the server can drain on shutdown.
+//! so tests can `flush` and the server can drain on shutdown, and holds the reporter that a
+//! delivery which never applied is sent to.
 
 use std::{
+    borrow::Cow,
     sync::{
-        Arc,
+        Arc, OnceLock,
         atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
 };
 use tokio::sync::{Notify, RwLock, broadcast, mpsc, watch};
 
-use crate::server::shared::events::traits::{Event, Operation, Subscriber, SubscriberFilter};
+use crate::server::shared::events::traits::{
+    Event, EventScope, Operation, ScopeOrganization, Subscriber, SubscriberFilter,
+};
 
 /// A subscriber failure that a re-run would make worse: side effects for part of the work have
 /// already been applied, and running `handle` again would repeat them. `failed` is how many
@@ -58,40 +62,169 @@ pub enum SubscriberErrorOutcome {
     NotRetried,
 }
 
-/// Errors a retry can't fix within the budget: a [`NonRetryable`] report, a validation failure,
-/// or an org lock that already waited its full timeout.
-fn not_retryable(e: &anyhow::Error) -> bool {
-    e.chain().any(|c| {
-        c.is::<NonRetryable>()
-            || c.is::<crate::server::shared::types::api::ValidationError>()
-            || matches!(
-                c.downcast_ref::<crate::server::shared::storage::lock::LockError>(),
-                Some(crate::server::shared::storage::lock::LockError::Timeout(..))
-            )
-    })
+/// What a subscriber's error was. The `reason` label of `scanopy_event_subscriber_errors_total`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
+pub enum SubscriberErrorReason {
+    /// An org lock that already waited its full timeout.
+    LockTimeout,
+    /// A validation failure: the same input fails the same way again.
+    Validation,
+    /// The subscriber reported a [`NonRetryable`] partial failure.
+    NonRetryable,
+    /// `handle` panicked.
+    Panic,
+    /// Anything else, e.g. a dropped connection. The only reason that is retried.
+    Other,
+}
+
+impl SubscriberErrorReason {
+    /// The outermost recognized cause in `e`'s chain.
+    pub fn of(e: &anyhow::Error) -> Self {
+        use crate::server::shared::storage::lock::LockError;
+
+        e.chain()
+            .find_map(|c| {
+                if c.is::<NonRetryable>() {
+                    Some(Self::NonRetryable)
+                } else if c.is::<crate::server::shared::types::api::ValidationError>() {
+                    Some(Self::Validation)
+                } else if matches!(c.downcast_ref::<LockError>(), Some(LockError::Timeout(..))) {
+                    Some(Self::LockTimeout)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(Self::Other)
+    }
+
+    /// Whether a retry can fix it within the budget.
+    fn is_retryable(self) -> bool {
+        self == Self::Other
+    }
+}
+
+/// A delivery whose side of the events was never applied, as the reporter receives it.
+#[derive(Debug, Clone)]
+pub struct SubscriberFailure {
+    /// The registry's `<service_snake>:<op_snake>` name.
+    pub subscriber: &'static str,
+    pub outcome: SubscriberErrorOutcome,
+    pub reason: SubscriberErrorReason,
+    pub attempts: usize,
+    /// Each distinct organization the events name, in event order.
+    pub organizations: Vec<ScopeOrganization>,
+    /// Each distinct event name, in event order.
+    pub operations: Vec<Cow<'static, str>>,
+    /// The full error chain (`{e:#}`), or the panic message.
+    pub error: String,
+}
+
+impl SubscriberFailure {
+    fn new<Op: Operation>(
+        subscriber: &'static str,
+        events: &[Event<Op>],
+        outcome: SubscriberErrorOutcome,
+        reason: SubscriberErrorReason,
+        attempts: usize,
+        error: String,
+    ) -> Self {
+        let mut organizations = Vec::new();
+        let mut operations = Vec::new();
+        for event in events {
+            if let Some(org) = event.scope.organization()
+                && !organizations.contains(&org)
+            {
+                organizations.push(org);
+            }
+            let name = event.name();
+            if !operations.contains(&name) {
+                operations.push(name);
+            }
+        }
+        Self {
+            subscriber,
+            outcome,
+            reason,
+            attempts,
+            organizations,
+            operations,
+            error,
+        }
+    }
+
+    /// The organizations as the log line prints them: an org id, or `site:<id>` for a site the
+    /// reporter resolves later.
+    fn organization_ids(&self) -> String {
+        self.organizations
+            .iter()
+            .map(|org| match org {
+                ScopeOrganization::Org(id) => id.to_string(),
+                ScopeOrganization::Site(id) => format!("site:{id}"),
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+
+    /// Log it at error level, count it, and hand it to the reporter if the bus has one.
+    fn record(self, count: u64, reporter: Option<&Arc<dyn SubscriberFailureReporter>>) {
+        crate::server::metrics::subscriber::record_subscriber_error(
+            self.subscriber,
+            self.outcome,
+            self.reason,
+            count,
+        );
+        let outcome: &'static str = self.outcome.into();
+        let reason: &'static str = self.reason.into();
+        tracing::error!(
+            subscriber = self.subscriber,
+            outcome,
+            reason,
+            attempts = self.attempts,
+            organization_ids = self.organization_ids(),
+            operation = self.operations.join(","),
+            error = self.error,
+            "Typed subscriber failed"
+        );
+        if let Some(reporter) = reporter.cloned() {
+            // Off the subscriber's queue, so a slow destination never holds up its next event.
+            tokio::spawn(async move { reporter.report(self).await });
+        }
+    }
+}
+
+/// Where per-occurrence detail of a [`SubscriberFailure`] goes, beyond the log line and the
+/// counter. Set on the bus only for Scanopy Cloud (`ServiceFactory`).
+#[async_trait::async_trait]
+pub trait SubscriberFailureReporter: Send + Sync {
+    async fn report(&self, failure: SubscriberFailure);
 }
 
 /// Run `subscriber.handle`, retrying this subscriber alone (never the others on the bus, whose
 /// side effects already ran) while the error is retryable and attempts remain. Records one
-/// `scanopy_event_subscriber_errors_total` increment per delivery that hit an error.
+/// `scanopy_event_subscriber_errors_total` increment per delivery that hit an error; a delivery
+/// that never applied also goes to `reporter`.
 async fn handle_with_retry<Op: Operation>(
     subscriber: &dyn Subscriber<Op>,
     name: &'static str,
-    events: Vec<Event<Op>>,
+    events: &[Event<Op>],
+    reporter: Option<&Arc<dyn SubscriberFailureReporter>>,
 ) {
     use crate::server::metrics::subscriber::record_subscriber_error;
     use backon::{ExponentialBuilder, Retryable};
 
     let mut retries = 0usize;
-    let result = (|| subscriber.handle(events.clone()))
+    let mut last_reason = SubscriberErrorReason::Other;
+    let result = (|| subscriber.handle(events.to_vec()))
         .retry(
             ExponentialBuilder::default()
                 .with_min_delay(SUBSCRIBER_RETRY_MIN_DELAY)
                 .with_max_times(SUBSCRIBER_RETRY_TIMES),
         )
-        .when(|e| !not_retryable(e))
+        .when(|e| SubscriberErrorReason::of(e).is_retryable())
         .notify(|e, delay| {
             retries += 1;
+            last_reason = SubscriberErrorReason::of(e);
             tracing::debug!(
                 subscriber = name,
                 retry = retries,
@@ -105,7 +238,7 @@ async fn handle_with_retry<Op: Operation>(
 
     match result {
         Ok(()) if retries > 0 => {
-            record_subscriber_error(name, SubscriberErrorOutcome::Recovered, 1);
+            record_subscriber_error(name, SubscriberErrorOutcome::Recovered, last_reason, 1);
             tracing::warn!(
                 subscriber = name,
                 attempts,
@@ -113,26 +246,19 @@ async fn handle_with_retry<Op: Operation>(
             );
         }
         Ok(()) => {}
-        Err(e) if not_retryable(&e) => {
-            let failed = e
-                .chain()
-                .find_map(|c| c.downcast_ref::<NonRetryable>())
-                .map_or(1, |n| n.failed);
-            record_subscriber_error(name, SubscriberErrorOutcome::NotRetried, failed as u64);
-            tracing::error!(
-                subscriber = name,
-                error = format!("{e:#}"),
-                "Typed subscriber failed; not retried"
-            );
-        }
         Err(e) => {
-            record_subscriber_error(name, SubscriberErrorOutcome::Exhausted, 1);
-            tracing::error!(
-                subscriber = name,
-                attempts,
-                error = format!("{e:#}"),
-                "Typed subscriber failed after retries"
-            );
+            let reason = SubscriberErrorReason::of(&e);
+            let (outcome, count) = if reason.is_retryable() {
+                (SubscriberErrorOutcome::Exhausted, 1)
+            } else {
+                let failed = e
+                    .chain()
+                    .find_map(|c| c.downcast_ref::<NonRetryable>())
+                    .map_or(1, |n| n.failed);
+                (SubscriberErrorOutcome::NotRetried, failed as u64)
+            };
+            SubscriberFailure::new(name, events, outcome, reason, attempts, format!("{e:#}"))
+                .record(count, reporter);
         }
     }
 }
@@ -143,12 +269,13 @@ async fn handle_with_retry<Op: Operation>(
 
 /// Counts events queued for, or being handled by, any subscriber of the bus, so a caller can wait
 /// for dispatch to finish: tests before asserting a subscriber's effect, and the server before it
-/// exits.
+/// exits. Also holds the bus's [`SubscriberFailureReporter`], when it has one.
 pub struct DispatchTracker {
     in_flight: AtomicUsize,
     idle: Notify,
     /// Bumped to make debounced subscribers drain now rather than at their next tick.
     drain_now: watch::Sender<u64>,
+    failure_reporter: OnceLock<Arc<dyn SubscriberFailureReporter>>,
 }
 
 impl Default for DispatchTracker {
@@ -157,11 +284,22 @@ impl Default for DispatchTracker {
             in_flight: AtomicUsize::new(0),
             idle: Notify::new(),
             drain_now: watch::Sender::new(0),
+            failure_reporter: OnceLock::new(),
         }
     }
 }
 
 impl DispatchTracker {
+    /// Send every later [`SubscriberFailure`] to `reporter` too. Set once; a second call is
+    /// ignored.
+    pub fn set_failure_reporter(&self, reporter: Arc<dyn SubscriberFailureReporter>) {
+        let _ = self.failure_reporter.set(reporter);
+    }
+
+    fn failure_reporter(&self) -> Option<&Arc<dyn SubscriberFailureReporter>> {
+        self.failure_reporter.get()
+    }
+
     fn queued(&self, count: usize) {
         self.in_flight.fetch_add(count, Ordering::SeqCst);
     }
@@ -239,7 +377,7 @@ impl<Op: Operation> TypedSubscriberState<Op> {
                         p.drain(..).collect()
                     };
                     let count = drained.len();
-                    deliver(subscriber_clone.as_ref(), name, drained).await;
+                    deliver(subscriber_clone.as_ref(), name, drained, &tracker).await;
                     tracker.done(count);
                 }
             });
@@ -249,7 +387,7 @@ impl<Op: Operation> TypedSubscriberState<Op> {
             let subscriber_clone = subscriber.clone();
             tokio::spawn(async move {
                 while let Some(event) = receiver.recv().await {
-                    deliver(subscriber_clone.as_ref(), name, vec![event]).await;
+                    deliver(subscriber_clone.as_ref(), name, vec![event], &tracker).await;
                     tracker.done(1);
                 }
             });
@@ -279,28 +417,30 @@ async fn deliver<Op: Operation>(
     subscriber: &dyn Subscriber<Op>,
     name: &'static str,
     events: Vec<Event<Op>>,
+    tracker: &DispatchTracker,
 ) {
     use futures::FutureExt;
 
-    let outcome = std::panic::AssertUnwindSafe(handle_with_retry(subscriber, name, events))
-        .catch_unwind()
-        .await;
+    let reporter = tracker.failure_reporter();
+    let outcome =
+        std::panic::AssertUnwindSafe(handle_with_retry(subscriber, name, &events, reporter))
+            .catch_unwind()
+            .await;
     if let Err(panic) = outcome {
         let message = panic
             .downcast_ref::<&str>()
             .map(|s| s.to_string())
             .or_else(|| panic.downcast_ref::<String>().cloned())
             .unwrap_or_default();
-        crate::server::metrics::subscriber::record_subscriber_error(
+        SubscriberFailure::new(
             name,
+            &events,
             SubscriberErrorOutcome::Exhausted,
+            SubscriberErrorReason::Panic,
             1,
-        );
-        tracing::error!(
-            subscriber = name,
-            panic = message,
-            "Typed subscriber panicked"
-        );
+            message,
+        )
+        .record(1, reporter);
     }
 }
 
@@ -441,9 +581,9 @@ mod tests {
         (calls.load(Ordering::SeqCst), rendered)
     }
 
-    fn series(outcome: &str, value: u64) -> String {
+    fn series(outcome: &str, reason: &str, value: u64) -> String {
         format!(
-            r#"scanopy_event_subscriber_errors_total{{subscriber="scripted_subscriber",event_type="onboarding_operation",outcome="{outcome}"}} {value}"#
+            r#"scanopy_event_subscriber_errors_total{{subscriber="scripted_subscriber",event_type="onboarding_operation",outcome="{outcome}",reason="{reason}"}} {value}"#
         )
     }
 
@@ -455,14 +595,14 @@ mod tests {
     async fn transient_failure_is_retried_and_counted_as_recovered() {
         let (calls, rendered) = deliver(1, transient).await;
         assert_eq!(calls, 2);
-        assert_eq!(rendered, series("recovered", 1));
+        assert_eq!(rendered, series("recovered", "other", 1));
     }
 
     #[tokio::test(flavor = "current_thread")]
     async fn persistent_failure_stops_after_three_attempts() {
         let (calls, rendered) = deliver(usize::MAX, transient).await;
         assert_eq!(calls, 3);
-        assert_eq!(rendered, series("exhausted", 1));
+        assert_eq!(rendered, series("exhausted", "other", 1));
     }
 
     /// The lock already waited its full timeout; retrying would hold the request for another 30s.
@@ -477,7 +617,7 @@ mod tests {
         })
         .await;
         assert_eq!(calls, 1);
-        assert_eq!(rendered, series("not_retried", 1));
+        assert_eq!(rendered, series("not_retried", "lock_timeout", 1));
     }
 
     /// A subscriber that already applied part of its work reports the failures without a retry,
@@ -491,7 +631,114 @@ mod tests {
         })
         .await;
         assert_eq!(calls, 1);
-        assert_eq!(rendered, series("not_retried", 3));
+        assert_eq!(rendered, series("not_retried", "non_retryable", 3));
+    }
+
+    /// The same input fails validation the same way again, so it isn't retried.
+    #[tokio::test(flavor = "current_thread")]
+    async fn validation_failure_is_not_retried() {
+        let (calls, rendered) = deliver(usize::MAX, || {
+            anyhow::Error::from(crate::server::shared::types::api::ValidationError::new(
+                "bad input",
+            ))
+            .context("ensure groups")
+        })
+        .await;
+        assert_eq!(calls, 1);
+        assert_eq!(rendered, series("not_retried", "validation", 1));
+    }
+
+    /// Forwards each failure it receives to the test.
+    struct ForwardingReporter(mpsc::UnboundedSender<SubscriberFailure>);
+
+    #[async_trait::async_trait]
+    impl SubscriberFailureReporter for ForwardingReporter {
+        async fn report(&self, failure: SubscriberFailure) {
+            let _ = self.0.send(failure);
+        }
+    }
+
+    /// Publish one event for `organization_id` to a channel whose bus reports to a
+    /// [`ForwardingReporter`]; return what it received.
+    async fn reported(
+        failures: usize,
+        make_error: fn() -> anyhow::Error,
+        organization_id: Uuid,
+    ) -> Vec<SubscriberFailure> {
+        let (sender, mut receiver) = mpsc::unbounded_channel();
+        let tracker = Arc::new(DispatchTracker::default());
+        tracker.set_failure_reporter(Arc::new(ForwardingReporter(sender)));
+        let channel = TypedChannel::<OnboardingOperation>::with_tracker(tracker);
+        channel
+            .register(
+                Arc::new(ScriptedSubscriber {
+                    failures,
+                    make_error,
+                    calls: Arc::new(AtomicUsize::new(0)),
+                }),
+                "scripted_subscriber:onboarding_operation",
+            )
+            .await;
+        channel
+            .publish(Event::new(
+                OrgScope { organization_id },
+                OnboardingOperation::OnboardingModalCompleted,
+                AuthenticatedEntity::System,
+            ))
+            .await
+            .unwrap();
+        channel.flush().await;
+        drop(channel);
+
+        // The report runs in its own task; it ends once the bus and its reporter are gone.
+        let mut received = Vec::new();
+        while let Ok(Some(failure)) =
+            tokio::time::timeout(Duration::from_millis(200), receiver.recv()).await
+        {
+            received.push(failure);
+        }
+        received
+    }
+
+    #[tokio::test]
+    async fn an_unapplied_delivery_reaches_the_reporter_with_its_org_and_event() {
+        let organization_id = Uuid::new_v4();
+        let received = reported(
+            usize::MAX,
+            || {
+                LockError::Timeout(
+                    Duration::from_secs(30),
+                    LockKey::TagGroups {
+                        organization_id: Uuid::nil(),
+                    },
+                )
+                .into()
+            },
+            organization_id,
+        )
+        .await;
+
+        let [failure] = received.as_slice() else {
+            panic!("expected one report, got {received:?}");
+        };
+        assert_eq!(
+            failure.subscriber,
+            "scripted_subscriber:onboarding_operation"
+        );
+        assert_eq!(failure.outcome, SubscriberErrorOutcome::NotRetried);
+        assert_eq!(failure.reason, SubscriberErrorReason::LockTimeout);
+        assert_eq!(
+            failure.organizations,
+            vec![ScopeOrganization::Org(organization_id)]
+        );
+        assert_eq!(failure.operations, vec!["onboarding_modal_completed"]);
+        assert!(failure.error.contains("timed out"), "{}", failure.error);
+    }
+
+    /// A retry that applied the event is counted but not reported: nothing was lost.
+    #[tokio::test]
+    async fn a_recovered_delivery_is_not_reported() {
+        assert!(reported(1, transient, Uuid::new_v4()).await.is_empty());
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -645,7 +892,7 @@ mod tests {
 
         assert_eq!(calls.load(Ordering::SeqCst), 2);
         assert!(handle.render().lines().any(|l| l.starts_with(
-            r#"scanopy_event_subscriber_errors_total{subscriber="panicking_subscriber",event_type="onboarding_operation",outcome="exhausted"} 1"#
+            r#"scanopy_event_subscriber_errors_total{subscriber="panicking_subscriber",event_type="onboarding_operation",outcome="exhausted",reason="panic"} 1"#
         )));
     }
 
