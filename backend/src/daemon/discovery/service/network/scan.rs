@@ -1647,6 +1647,7 @@ impl NetworkScan {
             is_gateway: gateway_ips.contains(&ip),
             cancel: cancel.clone(),
             scan_controller: scan_controller.clone(),
+            probe_raw_socket_ports,
         };
         let app_probe_results =
             scan_app_probes(&probe_ctx, &open_ports, effective_batch_size, scan_rate_pps).await;
@@ -1663,10 +1664,17 @@ impl NetworkScan {
 
         // Integration probes — each checks connectivity and returns a ClientProbe for service matching
         use crate::daemon::discovery::integration::dispatch;
+        // An integration gated on a raw-socket port sees it closed when the setting is off, as
+        // the application probes above do (GH #801).
+        let integration_gate_ports: Vec<PortType> = open_ports
+            .iter()
+            .copied()
+            .filter(|p| probe_raw_socket_ports || !p.is_raw_socket())
+            .collect();
         let mut probe_results = dispatch::probe_integrations(
             ip,
             credential_mappings,
-            &open_ports,
+            &integration_gate_ports,
             false, // network scan: keep the probe-gate (cheap broad scan)
             &cancel,
             utils,
@@ -1811,8 +1819,9 @@ impl NetworkScan {
             ip_address_source: evidence.address_source(),
         });
 
-        // Filter raw socket ports from service matching when probe_raw_socket_ports is off,
-        // matching the same filtering applied in scan_endpoints() for endpoint probing.
+        // Filter raw socket ports from service matching when probe_raw_socket_ports is off.
+        // Nothing has written to them: the application probes, integration gates and
+        // scan_endpoints() each applied the same check before sending.
         if !probe_raw_socket_ports {
             open_ports.retain(|p| !p.is_raw_socket());
         }
