@@ -116,7 +116,8 @@ const NOTHING: ModalKeydownResult = { action: null, preventDefault: false };
  * Enter runs the primary action from a text input, a checkbox or the panel itself. It leaves alone
  * a textarea or contenteditable (Enter types a newline there; Mod+Enter runs the primary action
  * instead), a select or an open combobox (Enter picks the option), and a focused button or link
- * (Enter presses it). In a text input Enter is stopped even while the primary action is disabled,
+ * (Enter presses it), except a choice button such as an OS toggle or a step, where it runs the
+ * primary action. In a text input Enter is stopped even while the primary action is disabled,
  * so the browser's implicit form submission can't run what the button won't.
  *
  * Letters and Mod+Delete never fire while focus is in a text field.
@@ -152,9 +153,28 @@ function takesEnterForPrimary(target: EventTarget | null): boolean {
 	const el = target as HTMLElement | null;
 	if (!el || typeof el.tagName !== 'string') return true;
 	if (el.isContentEditable) return false;
+	if (el.tagName === 'BUTTON' && isChoiceButton(el)) return true;
 	if (['TEXTAREA', 'SELECT', 'BUTTON', 'A', 'SUMMARY'].includes(el.tagName)) return false;
 	if (el.getAttribute?.('aria-expanded') === 'true') return false;
 	return true;
+}
+
+/**
+ * A button that picks one of several options (an OS, a mode, a step) rather than doing something.
+ * Pressing it again changes nothing, so Enter on it runs the primary action, as Enter in a native
+ * radio group submits the form. Space still presses it.
+ */
+function isChoiceButton(el: HTMLElement): boolean {
+	const has = (name: string) => el.getAttribute?.(name) != null;
+	const role = el.getAttribute?.('role');
+	return (
+		has('aria-pressed') ||
+		has('aria-current') ||
+		has('aria-selected') ||
+		role === 'radio' ||
+		role === 'tab' ||
+		role === 'switch'
+	);
 }
 
 /** Open modals, oldest first. Only the last one answers keys shared by every modal. */

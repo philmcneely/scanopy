@@ -127,6 +127,19 @@ describe('Enter that belongs to a control', () => {
 		expect(resolveModalKeydown(keydown('Enter', element('BUTTON')), keyed).action).toBe(null);
 	});
 
+	// The daemon wizard: clicking an OS or a step leaves focus on that choice, and Enter re-picked
+	// it instead of moving on.
+	it('runs the primary action from a focused choice button', () => {
+		for (const attributes of [
+			{ 'aria-pressed': 'true' },
+			{ 'aria-current': 'step' },
+			{ role: 'tab' }
+		]) {
+			const choice = element('BUTTON', { attributes });
+			expect(resolveModalKeydown(keydown('Enter', choice), keyed).action?.label).toBe('Save');
+		}
+	});
+
 	it('runs the primary action with a closed combobox focused', () => {
 		const combobox = element('INPUT', { attributes: { 'aria-expanded': 'false' } });
 		expect(resolveModalKeydown(keydown('Enter', combobox), keyed).action?.label).toBe('Save');
