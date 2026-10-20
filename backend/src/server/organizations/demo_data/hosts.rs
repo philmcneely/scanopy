@@ -2410,7 +2410,7 @@ pub(super) fn generate_hosts_and_services(
         }
 
         // Container services on docker0 (pre-generated IDs for Observability Stack)
-        for (def_id, name, pt, cname, cid, override_svc_id) in [
+        for (def_id, name, pt, cname, cid, override_svc_id, state) in [
             (
                 "Prometheus",
                 "Prometheus",
@@ -2418,6 +2418,7 @@ pub(super) fn generate_hosts_and_services(
                 "prometheus",
                 "p1r2o3m4e5t6",
                 Some(prometheus_dc_svc_id),
+                GuestState::Running,
             ),
             (
                 "Grafana",
@@ -2426,6 +2427,7 @@ pub(super) fn generate_hosts_and_services(
                 "grafana",
                 "g1r2a3f4a5n6",
                 Some(grafana_dc_svc_id),
+                GuestState::Running,
             ),
             (
                 "Jaeger",
@@ -2434,6 +2436,8 @@ pub(super) fn generate_hosts_and_services(
                 "jaeger",
                 "j1a2e3g4e5r6",
                 Some(jaeger_dc_svc_id),
+                // Paused between tracing investigations; the runtime keeps it.
+                GuestState::Paused,
             ),
             (
                 "Loki",
@@ -2442,6 +2446,7 @@ pub(super) fn generate_hosts_and_services(
                 "loki",
                 "l1o2k3i4d5c6",
                 None,
+                GuestState::Running,
             ),
         ] {
             if let Some((mut svc, port)) = create_container_service(
@@ -2458,6 +2463,11 @@ pub(super) fn generate_hosts_and_services(
             ) {
                 if let Some(id) = override_svc_id {
                     svc.id = id;
+                }
+                if let Some(ServiceVirtualization::Docker(docker)) =
+                    svc.base.virtualization_metadata.as_mut()
+                {
+                    docker.state = state;
                 }
                 if let Some(p) = port {
                     ports.push(p);
