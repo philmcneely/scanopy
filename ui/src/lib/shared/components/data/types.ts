@@ -3,6 +3,10 @@ import type { Snippet } from 'svelte';
 import type { Color } from '$lib/shared/utils/styling';
 import type { EntityDiscriminants } from '$lib/api/entities';
 import type { AttributeSource } from '$lib/shared/utils/attribute-source';
+import type { components } from '$lib/api/schema';
+
+/** The heading a column is listed under in the column menu; see `field-groups.json`. */
+export type FieldGroup = components['schemas']['FieldGroup'];
 
 // ============================================================================
 // Page Size Configuration
@@ -171,10 +175,11 @@ export interface DisplayConfig<T> {
 	/** A real column, but unchecked in the column menu until the user asks for it. */
 	hiddenByDefault?: boolean;
 	/**
-	 * The heading the column is listed under in the column menu. Columns without one are listed
-	 * first, ungrouped; a column moves only among columns of its own section.
+	 * The heading the column is listed under in the column menu. Registry columns take their
+	 * field's group; a tab sets it on its own columns. A column moves only among columns of its
+	 * own group.
 	 */
-	section?: string;
+	group?: FieldGroup;
 	/**
 	 * Rich chips: `EntityTag` when an item carries an `entityRef`, `Tag`
 	 * otherwise. Prefer this over `cell`: it is data rather than markup, so

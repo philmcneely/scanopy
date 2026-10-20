@@ -32625,6 +32625,7 @@
         "required": [
           "id",
           "label",
+          "group",
           "path",
           "format",
           "summary",
@@ -32640,6 +32641,9 @@
           },
           "format": {
             "$ref": "#/components/schemas/FieldFormat"
+          },
+          "group": {
+            "$ref": "#/components/schemas/FieldGroup"
           },
           "id": {
             "type": "string",
@@ -33178,6 +33182,22 @@
           }
         ],
         "description": "How a field's value is written. Chosen by the value's shape, never by where it is shown."
+      },
+      "FieldGroup": {
+        "type": "string",
+        "description": "The heading a field is listed under wherever fields are picked, such as a table's column\nmenu. One vocabulary for every entity: a MAC address is `Network` on hosts and interfaces\nalike. Variant order is display order.",
+        "enum": [
+          "identity",
+          "network",
+          "device",
+          "virtualization",
+          "relationships",
+          "status",
+          "configuration",
+          "access",
+          "discovery",
+          "timestamps"
+        ]
       },
       "FieldSetRole": {
         "oneOf": [
@@ -43243,6 +43263,23 @@
           "Loopback",
           "Unknown"
         ]
+      },
+      "TableColumn": {
+        "type": "object",
+        "description": "A list-table column that is not a registry field: a value the table computes, reads from\nanother endpoint, or keeps out of CSV export (`created_at`, `last_seen_at`). Declared here so\nthe column menu files it under a group the backend chose. CSV, diagram Shape Data and the\ninspector read only fields, never these.",
+        "required": [
+          "id",
+          "group"
+        ],
+        "properties": {
+          "group": {
+            "$ref": "#/components/schemas/FieldGroup"
+          },
+          "id": {
+            "type": "string",
+            "description": "The column's key in the list table, and so in saved column preferences."
+          }
+        }
       },
       "TableDensity": {
         "type": "string",

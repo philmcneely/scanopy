@@ -1,4 +1,5 @@
 import { defineFields, type LabelledCardFieldItem } from '$lib/shared/components/data/types';
+import { withColumnGroups } from '$lib/shared/entity-fields/table';
 import { NO_VALUE, valuesOrNoneCodec } from '$lib/shared/components/data/controls/listQuery';
 import { siteItems } from '$lib/features/sites/columns';
 import { permissions, entities } from '$lib/shared/stores/metadata';
@@ -110,7 +111,7 @@ function distinct(values: (string | null)[]): string[] {
  * and filters each.
  */
 export function userColumns(ctx: UserColumnsContext) {
-	return defineFields<UserOrInvite, MemberOrderField, MemberListParam>(
+	const fields = defineFields<UserOrInvite, MemberOrderField, MemberListParam>(
 		{
 			email: {
 				label: common_email(),
@@ -266,4 +267,5 @@ export function userColumns(ctx: UserColumnsContext) {
 			}
 		]
 	);
+	return withColumnGroups('User', fields);
 }

@@ -1,4 +1,5 @@
 import { defineFields } from '$lib/shared/components/data/types';
+import { withColumnGroups } from '$lib/shared/entity-fields/table';
 import { NO_VALUE, valuesOrNoneCodec } from '$lib/shared/components/data/controls/listQuery';
 import type { components, operations } from '$lib/api/schema';
 import { entities } from '$lib/shared/stores/metadata';
@@ -44,7 +45,7 @@ function scopeNames(group: TagGroup): string[] {
 
 /** Every TagGroupOrderField value is listed; the server sorts, groups and filters each. */
 export function tagGroupColumns(ctx: TagGroupColumnsContext) {
-	return defineFields<TagGroup, TagGroupOrderField, TagGroupListParam>(
+	const fields = defineFields<TagGroup, TagGroupOrderField, TagGroupListParam>(
 		{
 			name: {
 				label: common_name(),
@@ -143,4 +144,5 @@ export function tagGroupColumns(ctx: TagGroupColumnsContext) {
 			}
 		]
 	);
+	return withColumnGroups('TagGroup', fields);
 }

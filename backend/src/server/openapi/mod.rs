@@ -42,7 +42,9 @@ use crate::server::services::r#impl::base::Service;
 use crate::server::shared::handlers::query::{OrderDirection, PaginationParams};
 use crate::server::shared::storage::traits::Entity;
 use crate::server::shared::types::entities::{EntityFreshness, EntitySourceDiscriminants};
-use crate::server::shared::types::entity_field::{EntityField, FieldFormat, Hop, MetadataFixture};
+use crate::server::shared::types::entity_field::{
+    EntityField, FieldFormat, FieldGroup, Hop, MetadataFixture, TableColumn,
+};
 use crate::server::shared::types::field_definition::{
     FieldDefinition, FieldType, InlineFormat, SelectOption,
 };
@@ -191,6 +193,8 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         Hop,
         FieldFormat,
         MetadataFixture,
+        FieldGroup,
+        TableColumn,
         FieldDefinition,
         FieldType,
         SelectOption,

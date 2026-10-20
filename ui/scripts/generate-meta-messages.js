@@ -85,6 +85,8 @@ export const COVERED_FIXTURES = [
 	{ file: 'entity-sources.json', key: 'entity_sources', kind: 'typeMetadata' },
 	// The parts of the product entities belong to: the sidebar's section names.
 	{ file: 'entity-categories.json', key: 'entity_categories', kind: 'typeMetadata' },
+	// Headings a field is listed under in the column menu, keyed by `EntityField.group`.
+	{ file: 'field-groups.json', key: 'field_groups', kind: 'typeMetadata' },
 	// How confidently discovery matched a service to its definition, keyed by `MatchConfidence`.
 	{ file: 'match-confidences.json', key: 'match_confidences', kind: 'typeMetadata' },
 	// The hypervisor platform a guest runs on, keyed by `virtualization_metadata.type`.

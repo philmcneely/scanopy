@@ -10075,6 +10075,7 @@ export interface components {
              */
             field?: string | null;
             format: components["schemas"]["FieldFormat"];
+            group: components["schemas"]["FieldGroup"];
             /** @description Stable key: the CSV header, the list-table column id and the diagram Shape Data name. */
             id: string;
             /** @description English label; the UI translates it through a generated `meta_*` key. */
@@ -10249,6 +10250,13 @@ export interface components {
             /** @enum {string} */
             type: "Entity";
         };
+        /**
+         * @description The heading a field is listed under wherever fields are picked, such as a table's column
+         *     menu. One vocabulary for every entity: a MAC address is `Network` on hosts and interfaces
+         *     alike. Variant order is display order.
+         * @enum {string}
+         */
+        FieldGroup: "identity" | "network" | "device" | "virtualization" | "relationships" | "status" | "configuration" | "access" | "discovery" | "timestamps";
         /**
          * @description Schema of [`FieldDefinition::field_set`] on the wire. Never constructed: the values are the
          *     serialized variants of the set's own enum, which the schema cannot name generically.
@@ -15024,6 +15032,17 @@ export interface components {
         };
         /** @enum {string} */
         SubnetType: "Internet" | "Remote" | "Gateway" | "VpnTunnel" | "Dmz" | "Lan" | "WiFi" | "IoT" | "Guest" | "DockerBridge" | "PodmanBridge" | "MacVlan" | "IpVlan" | "Management" | "Storage" | "Loopback" | "Unknown";
+        /**
+         * @description A list-table column that is not a registry field: a value the table computes, reads from
+         *     another endpoint, or keeps out of CSV export (`created_at`, `last_seen_at`). Declared here so
+         *     the column menu files it under a group the backend chose. CSV, diagram Shape Data and the
+         *     inspector read only fields, never these.
+         */
+        TableColumn: {
+            group: components["schemas"]["FieldGroup"];
+            /** @description The column's key in the list table, and so in saved column preferences. */
+            id: string;
+        };
         /** @enum {string} */
         TableDensity: "comfortable" | "compact";
         /**

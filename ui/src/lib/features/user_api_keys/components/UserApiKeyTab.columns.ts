@@ -1,4 +1,5 @@
 import { defineFields } from '$lib/shared/components/data/types';
+import { withColumnGroups } from '$lib/shared/entity-fields/table';
 import { siteItems } from '$lib/features/sites/columns';
 import { permissions } from '$lib/shared/stores/metadata';
 import type { components, operations } from '$lib/api/schema';
@@ -33,7 +34,7 @@ export interface UserApiKeyColumnsContext {
 
 /** Every UserApiKeyOrderField value is listed; the server sorts, groups and filters each. */
 export function userApiKeyColumns(ctx: UserApiKeyColumnsContext) {
-	return defineFields<UserApiKey, UserApiKeyOrderField, UserApiKeyListParam>(
+	const fields = defineFields<UserApiKey, UserApiKeyOrderField, UserApiKeyListParam>(
 		{
 			name: {
 				label: common_name(),
@@ -141,4 +142,5 @@ export function userApiKeyColumns(ctx: UserApiKeyColumnsContext) {
 			}
 		]
 	);
+	return withColumnGroups('UserApiKey', fields);
 }

@@ -6,96 +6,100 @@
 
 use crate::server::shared::entities::EntityDiscriminants as E;
 use crate::server::shared::types::entity_field::{
-    EntityField as F, FieldFormat, Hop, MetadataFixture as Fx,
+    EntityField as F, FieldFormat, FieldGroup as G, Hop, MetadataFixture as Fx, TableColumn as C,
 };
 
-const SITE: F = F::new("site_id", "Site").entity(&[Hop::parent(E::Site, "site_id")]);
-const SOURCE: F = F::new("source", "Source")
+const SITE: F =
+    F::new("site_id", "Site", G::Relationships).entity(&[Hop::parent(E::Site, "site_id")]);
+const SOURCE: F = F::new("source", "Source", G::Discovery)
     .field("source.type")
     .metadata(Fx::EntitySources);
-const DESCRIPTION: F = F::new("description", "Description").format(FieldFormat::Prose);
+const DESCRIPTION: F = F::new("description", "Description", G::Identity).format(FieldFormat::Prose);
 const TIMESTAMP: FieldFormat = FieldFormat::Timestamp;
 
 const HOST: &[F] = &[
-    F::new("name", "Name").source("name_source").summary(),
-    F::new("hostname", "Hostname")
+    F::new("name", "Name", G::Identity)
+        .source("name_source")
+        .summary(),
+    F::new("hostname", "Hostname", G::Identity)
         .source("hostname_source")
         .summary(),
-    F::new("interface_ip", "IP Addresses")
+    F::new("interface_ip", "IP Addresses", G::Network)
         .via(
             &[Hop::children(E::IPAddress, "host_id")],
             Some("ip_address"),
         )
         .format(FieldFormat::Identifier)
         .summary(),
-    F::new("interfaces", "Interfaces").entity(&[Hop::children(E::Interface, "host_id")]),
-    F::new("services", "Services")
+    F::new("interfaces", "Interfaces", G::Network)
+        .entity(&[Hop::children(E::Interface, "host_id")]),
+    F::new("services", "Services", G::Relationships)
         .entity(&[Hop::children(E::Service, "host_id")])
         .summary(),
-    F::new("ports", "Ports")
+    F::new("ports", "Ports", G::Network)
         .via(&[Hop::children(E::Port, "host_id")], None)
         .format(FieldFormat::Port),
-    F::new("virtualized_by", "Virtualized By")
+    F::new("virtualized_by", "Virtualized By", G::Virtualization)
         .entity(&[Hop::parent(E::Service, "virtualization_service_id")])
         .summary(),
-    F::new("presented_by", "Presented By")
+    F::new("presented_by", "Presented By", G::Virtualization)
         .entity(&[Hop::parent(E::Interface, "virtualization_interface_id")]),
-    F::new("os_family", "Operating System")
+    F::new("os_family", "Operating System", G::Device)
         .field("os")
         .source("os_source")
         .format(FieldFormat::OperatingSystem)
         .summary(),
-    F::new("manufacturer", "Manufacturer").source("manufacturer_source"),
-    F::new("model", "Model").source("model_source"),
-    F::new("serial_number", "Serial Number")
+    F::new("manufacturer", "Manufacturer", G::Device).source("manufacturer_source"),
+    F::new("model", "Model", G::Device).source("model_source"),
+    F::new("serial_number", "Serial Number", G::Device)
         .source("serial_number_source")
         .format(FieldFormat::Identifier),
-    F::new("asset_tag", "Asset Tag")
+    F::new("asset_tag", "Asset Tag", G::Device)
         .source("asset_tag_source")
         .format(FieldFormat::Identifier),
-    F::new("firmware_revision", "Firmware Revision")
+    F::new("firmware_revision", "Firmware Revision", G::Device)
         .source("firmware_revision_source")
         .format(FieldFormat::Identifier),
-    F::new("software_revision", "Software Revision")
+    F::new("software_revision", "Software Revision", G::Device)
         .source("software_revision_source")
         .format(FieldFormat::Identifier),
-    F::new("sys_name", "System Name").source("sys_name_source"),
-    F::new("sys_descr", "System Description").source("sys_descr_source"),
-    F::new("sys_object_id", "System OID")
+    F::new("sys_name", "System Name", G::Device).source("sys_name_source"),
+    F::new("sys_descr", "System Description", G::Device).source("sys_descr_source"),
+    F::new("sys_object_id", "System OID", G::Device)
         .source("sys_object_id_source")
         .format(FieldFormat::Identifier),
-    F::new("sys_location", "Location").source("sys_location_source"),
-    F::new("sys_contact", "Contact").source("sys_contact_source"),
-    F::new("chassis_id", "Chassis ID")
+    F::new("sys_location", "Location", G::Device).source("sys_location_source"),
+    F::new("sys_contact", "Contact", G::Device).source("sys_contact_source"),
+    F::new("chassis_id", "Chassis ID", G::Device)
         .source("chassis_id_source")
         .format(FieldFormat::Identifier),
-    F::new("management_url", "Management URL").source("management_url_source"),
+    F::new("management_url", "Management URL", G::Device).source("management_url_source"),
     DESCRIPTION,
     SOURCE,
     SITE,
 ];
 
 const IP_ADDRESS: &[F] = &[
-    F::new("ip_address", "IP Address")
+    F::new("ip_address", "IP Address", G::Network)
         .source("ip_address_source")
         .format(FieldFormat::Identifier)
         .summary(),
-    F::new("mac_address", "MAC Address")
+    F::new("mac_address", "MAC Address", G::Network)
         .source("mac_address_source")
         .format(FieldFormat::Identifier)
         .summary(),
-    F::new("name", "Name"),
-    F::new("host_id", "Host")
+    F::new("name", "Name", G::Identity),
+    F::new("host_id", "Host", G::Relationships)
         .entity(&[Hop::parent(E::Host, "host_id")])
         .summary(),
-    F::new("subnet_id", "Subnet")
+    F::new("subnet_id", "Subnet", G::Network)
         .entity(&[Hop::parent(E::Subnet, "subnet_id")])
         .summary(),
-    F::new("services", "Services").entity(&[
+    F::new("services", "Services", G::Relationships).entity(&[
         Hop::children(E::Binding, "ip_address_id"),
         Hop::parent(E::Service, "service_id"),
     ]),
-    F::new("ports", "Ports")
+    F::new("ports", "Ports", G::Network)
         .via(
             &[
                 Hop::children(E::Binding, "ip_address_id"),
@@ -104,42 +108,43 @@ const IP_ADDRESS: &[F] = &[
             None,
         )
         .format(FieldFormat::Port),
-    F::new("position", "Position").format(FieldFormat::Number),
+    F::new("position", "Position", G::Configuration).format(FieldFormat::Number),
     SITE,
 ];
 
 const INTERFACE: &[F] = &[
-    F::new("display_name", "Interface").summary(),
-    F::new("host_id", "Host")
+    F::new("display_name", "Interface", G::Identity).summary(),
+    F::new("host_id", "Host", G::Relationships)
         .entity(&[Hop::parent(E::Host, "host_id")])
         .summary(),
-    F::new("mac_address", "MAC Address")
+    F::new("mac_address", "MAC Address", G::Network)
         .source("mac_address_source")
         .format(FieldFormat::Identifier)
         .summary(),
-    F::new("speed_bps", "Speed")
+    F::new("speed_bps", "Speed", G::Network)
         .format(FieldFormat::BitsPerSecond)
         .summary(),
-    F::new("oper_status", "Status")
+    F::new("oper_status", "Status", G::Status)
         .metadata(Fx::IfOperStatuses)
         .summary(),
-    F::new("admin_status", "Admin Status"),
-    F::new("native_vlan_id", "Native VLAN")
+    F::new("admin_status", "Admin Status", G::Status),
+    F::new("native_vlan_id", "Native VLAN", G::Network)
         .entity(&[Hop::parent(E::Vlan, "native_vlan_id")])
         .source("vlan_membership_source")
         .summary(),
-    F::new("vlan_ids", "Tagged VLANs")
+    F::new("vlan_ids", "Tagged VLANs", G::Network)
         .entity(&[Hop::parent(E::Vlan, "vlan_ids")])
         .source("vlan_membership_source")
         .many(),
-    F::new("ip_address_id", "IP Address").entity(&[Hop::parent(E::IPAddress, "ip_address_id")]),
-    F::new("if_name", "ifName"),
-    F::new("if_descr", "ifDescr"),
-    F::new("if_alias", "Alias"),
-    F::new("if_type", "ifType"),
-    F::new("if_index", "Index").format(FieldFormat::Number),
-    F::new("ip_configured", "IP Configured").format(FieldFormat::Boolean),
-    F::new("fdb_macs", "Forwarding Table MACs")
+    F::new("ip_address_id", "IP Address", G::Network)
+        .entity(&[Hop::parent(E::IPAddress, "ip_address_id")]),
+    F::new("if_name", "ifName", G::Identity),
+    F::new("if_descr", "ifDescr", G::Identity),
+    F::new("if_alias", "Alias", G::Identity),
+    F::new("if_type", "ifType", G::Identity),
+    F::new("if_index", "Index", G::Identity).format(FieldFormat::Number),
+    F::new("ip_configured", "IP Configured", G::Network).format(FieldFormat::Boolean),
+    F::new("fdb_macs", "Forwarding Table MACs", G::Network)
         .source("fdb_macs_source")
         .format(FieldFormat::Identifier)
         .many(),
@@ -147,89 +152,91 @@ const INTERFACE: &[F] = &[
 ];
 
 const SERVICE: &[F] = &[
-    F::new("name", "Name").summary(),
-    F::new("service_definition", "Service Type")
+    F::new("name", "Name", G::Identity).summary(),
+    F::new("service_definition", "Service Type", G::Identity)
         .metadata(Fx::ServiceDefinitions)
         .summary(),
-    F::new("host", "Host")
+    F::new("host", "Host", G::Relationships)
         .entity(&[Hop::parent(E::Host, "host_id")])
         .summary(),
-    F::new("port_bindings", "Port Bindings")
+    F::new("port_bindings", "Port Bindings", G::Network)
         .via(
             &[Hop::embedded("bindings"), Hop::parent(E::Port, "port_id")],
             None,
         )
         .format(FieldFormat::Port)
         .summary(),
-    F::new("ip_bindings", "IP Address Bindings").entity(&[
+    F::new("ip_bindings", "IP Address Bindings", G::Network).entity(&[
         Hop::embedded("bindings"),
         Hop::parent(E::IPAddress, "ip_address_id"),
     ]),
-    F::new("containerized_by", "Containerized By")
+    F::new("containerized_by", "Containerized By", G::Virtualization)
         .entity(&[Hop::parent(E::Service, "virtualization_service_id")]),
-    F::new("container_name", "Container Name")
+    F::new("container_name", "Container Name", G::Virtualization)
         .field("virtualization_metadata.details.container_name")
         .summary(),
-    F::new("container_id", "Container ID")
+    F::new("container_id", "Container ID", G::Virtualization)
         .field("virtualization_metadata.details.container_id")
         .format(FieldFormat::Identifier),
-    F::new("compose_project", "Compose Project")
+    F::new("compose_project", "Compose Project", G::Virtualization)
         .field("virtualization_metadata.details.compose_project"),
-    F::new("guest_state", "Container State")
+    F::new("guest_state", "Container State", G::Virtualization)
         .field("virtualization_metadata.details.state")
         .metadata(Fx::GuestStates)
         .summary(),
-    F::new("position", "Position").format(FieldFormat::Number),
+    F::new("position", "Position", G::Configuration).format(FieldFormat::Number),
     SOURCE,
     SITE,
 ];
 
 const PORT: &[F] = &[
-    F::new("port_number", "Port")
+    F::new("port_number", "Port", G::Network)
         .field("number")
         .source("port_source")
         .format(FieldFormat::Number)
         .summary(),
-    F::new("protocol", "Protocol").summary(),
-    F::new("port_type", "Port Type").field("type"),
-    F::new("host_id", "Host").entity(&[Hop::parent(E::Host, "host_id")]),
+    F::new("protocol", "Protocol", G::Network).summary(),
+    F::new("port_type", "Port Type", G::Identity).field("type"),
+    F::new("host_id", "Host", G::Relationships).entity(&[Hop::parent(E::Host, "host_id")]),
     SITE,
 ];
 
 const BINDING: &[F] = &[
-    F::new("binding_type", "Binding Type").field("type"),
-    F::new("service_id", "Service").entity(&[Hop::parent(E::Service, "service_id")]),
-    F::new("ip_address_id", "IP Address").entity(&[Hop::parent(E::IPAddress, "ip_address_id")]),
-    F::new("port_id", "Port").entity(&[Hop::parent(E::Port, "port_id")]),
+    F::new("binding_type", "Binding Type", G::Identity).field("type"),
+    F::new("service_id", "Service", G::Relationships)
+        .entity(&[Hop::parent(E::Service, "service_id")]),
+    F::new("ip_address_id", "IP Address", G::Network)
+        .entity(&[Hop::parent(E::IPAddress, "ip_address_id")]),
+    F::new("port_id", "Port", G::Network).entity(&[Hop::parent(E::Port, "port_id")]),
     SITE,
 ];
 
 const SUBNET: &[F] = &[
-    F::new("name", "Name").summary(),
-    F::new("cidr", "CIDR")
+    F::new("name", "Name", G::Identity).summary(),
+    F::new("cidr", "CIDR", G::Network)
         .source("cidr_source")
         .format(FieldFormat::Identifier)
         .summary(),
-    F::new("subnet_type", "Subnet Type")
+    F::new("subnet_type", "Subnet Type", G::Identity)
         .metadata(Fx::SubnetTypes)
         .summary(),
     DESCRIPTION,
-    F::new("managed_by", "Managed By")
+    F::new("managed_by", "Managed By", G::Virtualization)
         .entity(&[Hop::parent(E::Service, "virtualization_service_id")]),
     SOURCE,
     SITE,
 ];
 
 const VLAN: &[F] = &[
-    F::new("vlan_number", "VLAN Number")
+    F::new("vlan_number", "VLAN Number", G::Network)
         .format(FieldFormat::Number)
         .summary(),
-    F::new("name", "Name").summary(),
+    F::new("name", "Name", G::Identity).summary(),
     DESCRIPTION.summary(),
-    F::new("subnet_ids", "Subnets")
+    F::new("subnet_ids", "Subnets", G::Network)
         .entity(&[Hop::parent(E::Subnet, "subnet_ids")])
         .many(),
-    F::new("interface_ids", "Interfaces")
+    F::new("interface_ids", "Interfaces", G::Network)
         .entity(&[Hop::parent(E::Interface, "interface_ids")])
         .many(),
     SOURCE,
@@ -237,118 +244,261 @@ const VLAN: &[F] = &[
 ];
 
 const DEPENDENCY: &[F] = &[
-    F::new("name", "Name").summary(),
+    F::new("name", "Name", G::Identity).summary(),
     DESCRIPTION.summary(),
-    F::new("dependency_type", "Dependency Type")
+    F::new("dependency_type", "Dependency Type", G::Identity)
         .metadata(Fx::DependencyTypes)
         .summary(),
-    F::new("color", "Color"),
+    F::new("color", "Color", G::Identity),
     SOURCE,
     SITE,
 ];
 
 const TAG: &[F] = &[
-    F::new("name", "Name").summary(),
+    F::new("name", "Name", G::Identity).summary(),
     DESCRIPTION.summary(),
-    F::new("color", "Color"),
-    F::new("tag_group", "Tag Group").entity(&[Hop::parent(E::TagGroup, "tag_group_id")]),
-    F::new("icon", "Icon"),
+    F::new("color", "Color", G::Identity),
+    F::new("tag_group", "Tag Group", G::Relationships)
+        .entity(&[Hop::parent(E::TagGroup, "tag_group_id")]),
+    F::new("icon", "Icon", G::Identity),
 ];
 
 const TAG_GROUP: &[F] = &[
-    F::new("name", "Name").summary(),
+    F::new("name", "Name", G::Identity).summary(),
     DESCRIPTION,
-    F::new("group_type", "Group Type"),
-    F::new("entity_types", "Applies To").many(),
+    F::new("group_type", "Group Type", G::Identity),
+    F::new("entity_types", "Applies To", G::Configuration).many(),
 ];
 
 const DAEMON: &[F] = &[
-    F::new("name", "Name").summary(),
-    F::new("mode", "Daemon Mode"),
-    F::new("version", "Version").summary(),
-    F::new("last_seen", "Last Seen").format(TIMESTAMP),
-    F::new("url", "URL"),
-    F::new("host_id", "Host").entity(&[Hop::parent(E::Host, "host_id")]),
-    F::new("maintainer", "Maintainer").entity(&[Hop::parent(E::User, "user_id")]),
+    F::new("name", "Name", G::Identity).summary(),
+    F::new("mode", "Daemon Mode", G::Configuration),
+    F::new("version", "Version", G::Status).summary(),
+    F::new("last_seen", "Last Seen", G::Status).format(TIMESTAMP),
+    F::new("url", "URL", G::Configuration),
+    F::new("host_id", "Host", G::Relationships).entity(&[Hop::parent(E::Host, "host_id")]),
+    F::new("maintainer", "Maintainer", G::Relationships).entity(&[Hop::parent(E::User, "user_id")]),
     SITE,
 ];
 
 const DISCOVERY: &[F] = &[
-    F::new("name", "Name").summary(),
-    F::new("discovery_type", "Discovery Type")
+    F::new("name", "Name", G::Identity).summary(),
+    F::new("discovery_type", "Discovery Type", G::Identity)
         .field("discovery_type.type")
         .metadata(Fx::DiscoveryTypes)
         .summary(),
-    F::new("run_type", "Run Type").field("run_type.type"),
-    F::new("daemon_id", "Daemon").entity(&[Hop::parent(E::Daemon, "daemon_id")]),
+    F::new("run_type", "Run Type", G::Configuration).field("run_type.type"),
+    F::new("daemon_id", "Daemon", G::Relationships).entity(&[Hop::parent(E::Daemon, "daemon_id")]),
     SITE,
 ];
 
 const DAEMON_API_KEY: &[F] = &[
-    F::new("name", "Name").summary(),
-    F::new("is_enabled", "Enabled").format(FieldFormat::Boolean),
-    F::new("last_used", "Last Used").format(TIMESTAMP),
-    F::new("expires_at", "Expires").format(TIMESTAMP),
-    F::new("daemon_id", "Daemon").entity(&[Hop::parent(E::Daemon, "daemon_id")]),
+    F::new("name", "Name", G::Identity).summary(),
+    F::new("is_enabled", "Enabled", G::Access).format(FieldFormat::Boolean),
+    F::new("last_used", "Last Used", G::Access).format(TIMESTAMP),
+    F::new("expires_at", "Expires", G::Access).format(TIMESTAMP),
+    F::new("daemon_id", "Daemon", G::Relationships).entity(&[Hop::parent(E::Daemon, "daemon_id")]),
     SITE,
 ];
 
 const USER_API_KEY: &[F] = &[
-    F::new("name", "Name").summary(),
-    F::new("permissions", "Permissions").metadata(Fx::Permissions),
-    F::new("is_enabled", "Enabled").format(FieldFormat::Boolean),
-    F::new("last_used", "Last Used").format(TIMESTAMP),
-    F::new("expires_at", "Expires").format(TIMESTAMP),
-    F::new("user_id", "User").entity(&[Hop::parent(E::User, "user_id")]),
+    F::new("name", "Name", G::Identity).summary(),
+    F::new("permissions", "Permissions", G::Access).metadata(Fx::Permissions),
+    F::new("is_enabled", "Enabled", G::Access).format(FieldFormat::Boolean),
+    F::new("last_used", "Last Used", G::Access).format(TIMESTAMP),
+    F::new("expires_at", "Expires", G::Access).format(TIMESTAMP),
+    F::new("user_id", "User", G::Relationships).entity(&[Hop::parent(E::User, "user_id")]),
 ];
 
 const CREDENTIAL: &[F] = &[
-    F::new("name", "Name").summary(),
-    F::new("credential_type", "Credential Type")
+    F::new("name", "Name", G::Identity).summary(),
+    F::new("credential_type", "Credential Type", G::Identity)
         .field("credential_type.type")
         .metadata(Fx::CredentialTypes)
         .summary(),
     DESCRIPTION,
-    F::new("daemon_os", "Daemon OS"),
+    F::new("daemon_os", "Daemon OS", G::Configuration),
 ];
 
 const SITE_FIELDS: &[F] = &[
-    F::new("name", "Name").summary(),
-    F::new("stale_after_hours", "Stale After (hours)").format(FieldFormat::Number),
+    F::new("name", "Name", G::Identity).summary(),
+    F::new("stale_after_hours", "Stale After (hours)", G::Configuration)
+        .format(FieldFormat::Number),
 ];
 
 const USER: &[F] = &[
-    F::new("email", "Email").summary(),
-    F::new("permissions", "Permissions")
+    F::new("email", "Email", G::Identity).summary(),
+    F::new("permissions", "Permissions", G::Access)
         .metadata(Fx::Permissions)
         .summary(),
-    F::new("email_verified", "Email Verified").format(FieldFormat::Boolean),
-    F::new("oidc_provider", "OIDC Provider"),
-    F::new("terms_accepted_at", "Terms Accepted").format(TIMESTAMP),
+    F::new("email_verified", "Email Verified", G::Access).format(FieldFormat::Boolean),
+    F::new("oidc_provider", "OIDC Provider", G::Access),
+    F::new("terms_accepted_at", "Terms Accepted", G::Access).format(TIMESTAMP),
 ];
 
 const SHARE: &[F] = &[
-    F::new("name", "Name").summary(),
-    F::new("is_enabled", "Enabled").format(FieldFormat::Boolean),
-    F::new("expires_at", "Expires").format(TIMESTAMP),
-    F::new("topology_id", "Topology").entity(&[Hop::parent(E::Topology, "topology_id")]),
-    F::new("created_by", "Created By").entity(&[Hop::parent(E::User, "created_by")]),
+    F::new("name", "Name", G::Identity).summary(),
+    F::new("is_enabled", "Enabled", G::Access).format(FieldFormat::Boolean),
+    F::new("expires_at", "Expires", G::Access).format(TIMESTAMP),
+    F::new("topology_id", "Topology", G::Relationships)
+        .entity(&[Hop::parent(E::Topology, "topology_id")]),
+    F::new("created_by", "Created By", G::Relationships)
+        .entity(&[Hop::parent(E::User, "created_by")]),
     SITE,
 ];
 
 const TOPOLOGY: &[F] = &[SITE];
-const ORGANIZATION: &[F] = &[F::new("name", "Name").summary()];
+const ORGANIZATION: &[F] = &[F::new("name", "Name", G::Identity).summary()];
 const SNAPSHOT: &[F] = &[
-    F::new("taken_at", "Taken").format(TIMESTAMP).summary(),
+    F::new("taken_at", "Taken", G::Identity)
+        .format(TIMESTAMP)
+        .summary(),
     SITE,
 ];
 const INVITE: &[F] = &[
-    F::new("send_to", "Sent To").summary(),
-    F::new("permissions", "Permissions").metadata(Fx::Permissions),
-    F::new("expires_at", "Expires").format(TIMESTAMP),
+    F::new("send_to", "Sent To", G::Identity).summary(),
+    F::new("permissions", "Permissions", G::Access).metadata(Fx::Permissions),
+    F::new("expires_at", "Expires", G::Access).format(TIMESTAMP),
 ];
 
+// List-table columns that aren't fields; see `TableColumn`.
+const CREATED_AT: C = C::new("created_at", G::Timestamps);
+const UPDATED_AT: C = C::new("updated_at", G::Timestamps);
+const LAST_SEEN_AT: C = C::new("last_seen_at", G::Discovery);
+const FIRST_FOUND_BY: C = C::new("first_found_by", G::Discovery);
+const LAST_FOUND_BY: C = C::new("last_found_by", G::Discovery);
+
+const HOST_COLUMNS: &[C] = &[
+    C::new("mac_address", G::Network),
+    C::new("credentials", G::Relationships),
+    LAST_SEEN_AT,
+    FIRST_FOUND_BY,
+    LAST_FOUND_BY,
+    CREATED_AT,
+    UPDATED_AT,
+];
+
+const SERVICE_COLUMNS: &[C] = &[
+    C::new("category", G::Identity),
+    C::new("match_confidence", G::Discovery),
+    LAST_SEEN_AT,
+    FIRST_FOUND_BY,
+    LAST_FOUND_BY,
+    CREATED_AT,
+    UPDATED_AT,
+];
+
+const SUBNET_COLUMNS: &[C] = &[
+    C::new("utilization", G::Network),
+    LAST_SEEN_AT,
+    FIRST_FOUND_BY,
+    LAST_FOUND_BY,
+    CREATED_AT,
+    UPDATED_AT,
+];
+
+const VLAN_COLUMNS: &[C] = &[
+    LAST_SEEN_AT,
+    FIRST_FOUND_BY,
+    LAST_FOUND_BY,
+    CREATED_AT,
+    UPDATED_AT,
+];
+
+const DAEMON_COLUMNS: &[C] = &[
+    C::new("status", G::Status),
+    C::new("os", G::Device),
+    C::new("interfaced_subnet_ids", G::Network),
+    CREATED_AT,
+    UPDATED_AT,
+];
+
+const DISCOVERY_COLUMNS: &[C] = &[
+    C::new("last_run", G::Status),
+    C::new("scan_count", G::Status),
+    C::new("legacy", G::Status),
+    C::new("progress", G::Status),
+    C::new("phase", G::Status),
+    C::new("started_at", G::Status),
+    C::new("finished_at", G::Status),
+    C::new("duration", G::Status),
+    C::new("warnings", G::Status),
+    C::new("schedule", G::Configuration),
+    C::new("force_full_scan", G::Configuration),
+    C::new("scan_mode", G::Configuration),
+    CREATED_AT,
+    UPDATED_AT,
+];
+
+const CREDENTIAL_COLUMNS: &[C] = &[
+    C::new("integration", G::Identity),
+    C::new("beta", G::Identity),
+    C::new("unofficial_api", G::Identity),
+    C::new("target", G::Relationships),
+    C::new("assigned_sites", G::Relationships),
+    C::new("assigned_hosts", G::Relationships),
+    CREATED_AT,
+    UPDATED_AT,
+];
+
+const SITE_COLUMNS: &[C] = &[
+    C::new("effective_stale_after_hours", G::Configuration),
+    C::new("vlans", G::Network),
+    C::new("subnets", G::Network),
+    C::new("daemons", G::Relationships),
+    C::new("credentials", G::Relationships),
+    CREATED_AT,
+    UPDATED_AT,
+];
+
+const TAG_GROUP_COLUMNS: &[C] = &[C::new("ordered", G::Configuration), CREATED_AT, UPDATED_AT];
+
+const USER_API_KEY_COLUMNS: &[C] = &[C::new("site_ids", G::Relationships), CREATED_AT, UPDATED_AT];
+
+// The Users tab lists pending invites beside users, so the invite columns are listed here too.
+const USER_COLUMNS: &[C] = &[
+    C::new("oidc_linked_at", G::Access),
+    C::new("invite_status", G::Access),
+    C::new("invite_url", G::Access),
+    C::new("expires_at", G::Access),
+    C::new("invited_by", G::Relationships),
+    C::new("site_ids", G::Relationships),
+    CREATED_AT,
+    UPDATED_AT,
+];
+
+const TIMESTAMP_COLUMNS: &[C] = &[CREATED_AT, UPDATED_AT];
+
 impl E {
+    /// The list table's columns that aren't fields, so the column menu can group them. Empty for
+    /// types without a list table.
+    pub fn table_columns(&self) -> &'static [C] {
+        match self {
+            E::Host => HOST_COLUMNS,
+            E::Service => SERVICE_COLUMNS,
+            E::Subnet => SUBNET_COLUMNS,
+            E::Vlan => VLAN_COLUMNS,
+            E::Daemon => DAEMON_COLUMNS,
+            E::Discovery => DISCOVERY_COLUMNS,
+            E::Credential => CREDENTIAL_COLUMNS,
+            E::Site => SITE_COLUMNS,
+            E::TagGroup => TAG_GROUP_COLUMNS,
+            E::UserApiKey => USER_API_KEY_COLUMNS,
+            E::User => USER_COLUMNS,
+            E::Tag | E::DaemonApiKey => TIMESTAMP_COLUMNS,
+            E::IPAddress
+            | E::Interface
+            | E::Port
+            | E::Binding
+            | E::Organization
+            | E::Invite
+            | E::Topology
+            | E::Snapshot
+            | E::Share
+            | E::Dependency => &[],
+        }
+    }
+
     /// The fields this entity type is described by, in display order.
     pub fn fields(&self) -> &'static [F] {
         match self {

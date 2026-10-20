@@ -1,4 +1,5 @@
-import { getFieldKey, type DisplayConfig, type FieldConfig } from '../types';
+import { getFieldKey, type DisplayConfig, type FieldConfig, type FieldGroup } from '../types';
+import { fieldGroups } from '$lib/shared/stores/metadata';
 import { isSortableField } from '../controls/sorting';
 
 /**
@@ -313,24 +314,18 @@ export function withTagColumn<T>(
 /** One heading's worth of the column menu: its columns in table order. */
 export interface ColumnSection<T> {
 	/** The heading; `null` for the columns listed first, under no heading. */
-	section: string | null;
+	group: FieldGroup | null;
 	columns: EntityColumn<T>[];
 }
 
 /**
- * Split columns, already in table order, by `display.section`: the unsectioned ones first, then
- * each section in the order its first column appears.
+ * Split columns, already in table order, by `display.group`: the ungrouped ones first, then each
+ * group in the order `field-groups.json` lists them.
  */
 export function columnSections<T>(columns: EntityColumn<T>[]): ColumnSection<T>[] {
-	const sections: ColumnSection<T>[] = [{ section: null, columns: [] }];
-	for (const column of columns) {
-		const name = column.display.section ?? null;
-		let entry = sections.find((s) => s.section === name);
-		if (!entry) {
-			entry = { section: name, columns: [] };
-			sections.push(entry);
-		}
-		entry.columns.push(column);
-	}
-	return sections.filter((s) => s.columns.length > 0);
+	const order = [null, ...fieldGroups.getItems().map((group) => group.id)];
+	return order.flatMap((id) => {
+		const grouped = columns.filter((column) => (column.display.group ?? null) === id);
+		return grouped.length ? [{ group: grouped[0].display.group ?? null, columns: grouped }] : [];
+	});
 }

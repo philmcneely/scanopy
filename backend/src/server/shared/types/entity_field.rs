@@ -7,8 +7,87 @@
 //! fields the same way instead of each keeping its own list.
 
 use crate::server::shared::entities::EntityDiscriminants;
+use crate::server::shared::types::{
+    Color, Icon,
+    metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
+};
 use serde::Serialize;
+use strum_macros::{EnumIter, IntoStaticStr};
 use utoipa::ToSchema;
+
+/// The heading a field is listed under wherever fields are picked, such as a table's column
+/// menu. One vocabulary for every entity: a MAC address is `Network` on hosts and interfaces
+/// alike. Variant order is display order.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash, ToSchema, EnumIter, IntoStaticStr)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FieldGroup {
+    /// Name, type, description, colour and icon.
+    Identity,
+    /// Values that address something on the network, even the entity's own key (a port number,
+    /// a CIDR, a VLAN number), and membership in VLANs and subnets.
+    Network,
+    /// Hardware and system facts read from the device.
+    Device,
+    /// What the entity runs under, or the virtual network it manages.
+    Virtualization,
+    /// Other entities it belongs to or holds.
+    Relationships,
+    /// Current state and recent activity.
+    Status,
+    /// Settings that control how it behaves.
+    Configuration,
+    /// Permissions, enablement, expiry and sign-in.
+    Access,
+    /// How and when Scanopy found it.
+    Discovery,
+    /// When the record was created and last updated.
+    Timestamps,
+}
+
+impl HasId for FieldGroup {
+    fn id(&self) -> &'static str {
+        self.into()
+    }
+}
+
+impl EntityMetadataProvider for FieldGroup {
+    fn color(&self) -> Color {
+        Color::Gray
+    }
+
+    fn icon(&self) -> Icon {
+        match self {
+            Self::Identity => Icon::Crosshair,
+            Self::Network => Icon::Network,
+            Self::Device => Icon::Cpu,
+            Self::Virtualization => Icon::Boxes,
+            Self::Relationships => Icon::Link,
+            Self::Status => Icon::Activity,
+            Self::Configuration => Icon::Settings,
+            Self::Access => Icon::KeyRound,
+            Self::Discovery => Icon::Radar,
+            Self::Timestamps => Icon::Clock,
+        }
+    }
+}
+
+impl TypeMetadataProvider for FieldGroup {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Identity => "Identity",
+            Self::Network => "Network",
+            Self::Device => "Device",
+            Self::Virtualization => "Virtualization",
+            Self::Relationships => "Relationships",
+            Self::Status => "Status",
+            Self::Configuration => "Configuration",
+            Self::Access => "Access",
+            Self::Discovery => "Discovery",
+            Self::Timestamps => "Timestamps",
+        }
+    }
+}
 
 /// One step from an object to related objects.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, ToSchema)]
@@ -107,6 +186,23 @@ pub enum FieldFormat {
     Entity,
 }
 
+/// A list-table column that is not a registry field: a value the table computes, reads from
+/// another endpoint, or keeps out of CSV export (`created_at`, `last_seen_at`). Declared here so
+/// the column menu files it under a group the backend chose. CSV, diagram Shape Data and the
+/// inspector read only fields, never these.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, ToSchema)]
+pub struct TableColumn {
+    /// The column's key in the list table, and so in saved column preferences.
+    pub id: &'static str,
+    pub group: FieldGroup,
+}
+
+impl TableColumn {
+    pub const fn new(id: &'static str, group: FieldGroup) -> Self {
+        TableColumn { id, group }
+    }
+}
+
 /// One fact that describes an entity, possibly read from a related entity.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, ToSchema)]
 pub struct EntityField {
@@ -114,6 +210,7 @@ pub struct EntityField {
     pub id: &'static str,
     /// English label; the UI translates it through a generated `meta_*` key.
     pub label: &'static str,
+    pub group: FieldGroup,
     /// Steps from the entity to the objects the value is read from. Empty for the entity itself.
     pub path: &'static [Hop],
     /// Dotted path to the value on the last object, or `None` for the object itself (an
@@ -143,10 +240,11 @@ const fn path_is_many(path: &[Hop]) -> bool {
 
 impl EntityField {
     /// A text field read from `id` on the entity itself.
-    pub const fn new(id: &'static str, label: &'static str) -> Self {
+    pub const fn new(id: &'static str, label: &'static str, group: FieldGroup) -> Self {
         EntityField {
             id,
             label,
+            group,
             path: &[],
             field: Some(id),
             format: FieldFormat::Text,

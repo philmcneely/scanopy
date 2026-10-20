@@ -6,6 +6,7 @@ import edgeTypesJson from '$lib/data/edge-types.json';
 import dependencyTypesJson from '$lib/data/dependency-types.json';
 import entitiesJson from '$lib/data/entities.json';
 import entityCategoriesJson from '$lib/data/entity-categories.json';
+import fieldGroupsJson from '$lib/data/field-groups.json';
 import entitySourcesJson from '$lib/data/entity-sources.json';
 import portsJson from '$lib/data/ports.json';
 import discoveryTypesJson from '$lib/data/discovery-types.json';
@@ -114,6 +115,7 @@ export interface MetadataRegistry {
 	dependency_types: TypeMetadata[];
 	entities: TypeMetadata[];
 	entity_categories: TypeMetadata[];
+	field_groups: TypeMetadata[];
 	entity_sources: TypeMetadata[];
 	ports: TypeMetadata[];
 	discovery_types: TypeMetadata[];
@@ -313,6 +315,7 @@ export const metadata = writable<MetadataRegistry>({
 	dependency_types: dependencyTypesJson,
 	entities: entitiesJson,
 	entity_categories: entityCategoriesJson,
+	field_groups: fieldGroupsJson,
 	entity_sources: entitySourcesJson,
 	ports: portsJson,
 	discovery_types: discoveryTypesJson,
@@ -525,6 +528,8 @@ export interface EntityTypeMetadata {
 	entity_name_plural?: string;
 	/** What this entity type is described by; see `shared/entity-fields`. */
 	fields: components['schemas']['EntityField'][];
+	/** List-table columns that aren't fields, with the group the column menu files them under. */
+	table_columns: components['schemas']['TableColumn'][];
 	/** Fields that name one entity in text, tried in order. */
 	display_fields: string[];
 }
@@ -533,6 +538,8 @@ export const entities = createTypeMetadataHelpers<'entities', EntityTypeMetadata
 export const entityCategories = createTypeMetadataHelpers<'entity_categories', object>(
 	'entity_categories'
 );
+/** Headings a field is listed under, in display order: the column menu's sections. */
+export const fieldGroups = createTypeMetadataHelpers<'field_groups', object>('field_groups');
 /** How an entity came to exist, keyed by `source.type`. */
 export const entitySources = createTypeMetadataHelpers<'entity_sources', object>('entity_sources');
 /**

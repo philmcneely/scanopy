@@ -29,6 +29,7 @@ use crate::server::shared::concepts::Concept;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::entity_metadata::EntityCategory;
 use crate::server::shared::types::entities::EntitySourceDiscriminants;
+use crate::server::shared::types::entity_field::FieldGroup;
 use crate::server::shared::types::metadata::{
     EntityMetadata, EntityMetadataProvider, MetadataProvider, TypeMetadata,
 };
@@ -302,6 +303,11 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
     let entity_categories: Vec<TypeMetadata> =
         EntityCategory::iter().map(|c| c.to_metadata()).collect();
     write_fixture(&entity_categories, output_dir, "entity-categories.json");
+
+    // Headings a field is listed under wherever fields are picked, in display order. Each field
+    // in `entities.json` and `edge-types.json` names one in its `group`.
+    let field_groups: Vec<TypeMetadata> = FieldGroup::iter().map(|g| g.to_metadata()).collect();
+    write_fixture(&field_groups, output_dir, "field-groups.json");
 
     let concepts: Vec<EntityMetadata> = Concept::iter().map(|e| e.to_metadata()).collect();
     write_fixture(&concepts, output_dir, "concepts.json");

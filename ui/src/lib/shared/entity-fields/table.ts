@@ -16,9 +16,11 @@ import type {
 	OrderableFieldConfig,
 	OrderableFieldEntry
 } from '$lib/shared/components/data/types';
-import { entityRef } from '$lib/shared/components/data/types';
+import { entityRef, getFieldKey } from '$lib/shared/components/data/types';
+import { TAG_COLUMN_ID } from '$lib/shared/components/data/table/columns';
 import { entities } from '$lib/shared/stores/metadata';
 import {
+	columnGroup,
 	entityDisplayText,
 	entityFieldLabel,
 	entityFields,
@@ -171,7 +173,11 @@ export function defineRegistryFields<T extends object, O extends string, Q exten
 		.filter(([id]) => !listed.has(id))
 		.map(([id, column]) => ({ ...column, key: id }) as DisplayFieldConfig<T, Q>);
 
-	const columns = [...orderableColumns, ...displayColumns, ...unlisted];
+	const columns = withColumnGroups(entityType, [
+		...orderableColumns,
+		...displayColumns,
+		...unlisted
+	]);
 	if (import.meta.env.DEV) {
 		for (const column of columns) {
 			if (!column.label || !column.type) {
@@ -182,4 +188,25 @@ export function defineRegistryFields<T extends object, O extends string, Q exten
 		}
 	}
 	return columns;
+}
+
+/**
+ * Each column with the group the backend files it under in the column menu: its registry field's
+ * group, or the group the entity declares for the table's own column. `defineRegistryFields`
+ * applies it; a tab built with `defineFields` calls it on its own fields.
+ */
+export function withColumnGroups<T, O extends string, Q extends string>(
+	entityType: EntityType,
+	fields: FieldConfig<T, O, Q>[]
+): FieldConfig<T, O, Q>[] {
+	return fields.map((field) => {
+		const key = getFieldKey(field);
+		const group = columnGroup(entityType, key);
+		if (import.meta.env.DEV && !group && key !== TAG_COLUMN_ID && !field.display?.hidden) {
+			console.warn(
+				`[withColumnGroups] ${entityType} column "${key}" has no group: declare it in the backend's table_columns`
+			);
+		}
+		return { ...field, display: { ...field.display, group } };
+	});
 }
