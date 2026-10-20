@@ -133,7 +133,7 @@
 	/** Row actions. */
 	function userApiKeyActions(apiKey: UserApiKey): CardAction[] {
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEdit(apiKey) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEdit(apiKey) },
 			{
 				label: common_delete(),
 				icon: Trash2,

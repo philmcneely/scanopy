@@ -212,7 +212,7 @@
 				onClick: () => handleResolveRange(subnet),
 				unavailable: hiddenWhen(!isProvisionalCidr(subnet), subnets_rangeSettled())
 			},
-			{ label: common_edit(), icon: Edit, onClick: () => handleEditSubnet(subnet) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditSubnet(subnet) },
 			{
 				label: common_delete(),
 				icon: Trash2,

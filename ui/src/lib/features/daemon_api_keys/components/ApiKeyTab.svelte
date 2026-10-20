@@ -141,7 +141,7 @@
 		if (isReadOnly) return [];
 
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEditApiKey(apiKey) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditApiKey(apiKey) },
 			{
 				label: common_delete(),
 				icon: Trash2,

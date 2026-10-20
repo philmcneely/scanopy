@@ -182,7 +182,12 @@
 		if (!canManage) return [];
 
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEditCredential(credential) },
+			{
+				label: common_edit(),
+				icon: Edit,
+				isOpen: true,
+				onClick: () => handleEditCredential(credential)
+			},
 			{
 				label: common_delete(),
 				icon: Trash2,

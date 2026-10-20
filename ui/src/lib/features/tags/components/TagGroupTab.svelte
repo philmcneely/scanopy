@@ -114,7 +114,7 @@
 	function actions(group: TagGroup): CardAction[] {
 		if (!canManage) return [];
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEdit(group) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEdit(group) },
 			{
 				label: common_delete(),
 				icon: Trash2,

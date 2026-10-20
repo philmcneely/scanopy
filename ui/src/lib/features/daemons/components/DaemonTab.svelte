@@ -278,7 +278,7 @@
 			},
 			// It opens the daemon management modal, which is also where the daemon's 1:1 key is
 			// managed — and where a legacy daemon can be given one.
-			{ label: common_edit(), icon: Edit, onClick: () => handleEditDaemon(daemon) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditDaemon(daemon) },
 			{
 				label: common_delete(),
 				icon: Trash2,

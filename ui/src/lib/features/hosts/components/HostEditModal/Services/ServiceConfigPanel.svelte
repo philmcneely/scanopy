@@ -1,10 +1,17 @@
+<script lang="ts" module>
+	import { required, max } from '$lib/shared/components/forms/validators';
+
+	/** A service name's rule, for its field here and for the hidden one an unselected service keeps. */
+	export const validateServiceName = ({ value }: { value: string }) =>
+		required(value) || max(100)(value);
+</script>
+
 <script lang="ts">
 	import type { IPAddressBinding, PortBinding, Service } from '$lib/features/services/types/base';
 	import { serviceCategories, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { pushWarning } from '$lib/shared/stores/feedback';
-	import { required, max } from '$lib/shared/components/forms/validators';
 	import { v4 as uuidv4 } from 'uuid';
 	import { useServicesCacheQuery } from '$lib/features/services/queries';
 	import { PortBindingDisplay } from '$lib/shared/components/forms/selection/display/PortBindingDisplay.svelte';
@@ -45,7 +52,6 @@
 		hosts_services_noInterfaces,
 		hosts_services_noPorts,
 		hosts_services_portBindingsHelp,
-		hosts_services_portRequired,
 		hosts_services_selectBinding,
 		hosts_services_unclaimedPortsHint,
 		hosts_services_unclaimedPortsLearnMore
@@ -115,11 +121,6 @@
 
 	// Port Bindings Logic
 	let portBindings = $derived(service.bindings.filter((b) => b.type === 'Port') as PortBinding[]);
-
-	// Get the actual index of a binding in service.bindings array (for form field naming)
-	function getBindingIndex(bindingId: string): number {
-		return service.bindings.findIndex((b) => b.id === bindingId);
-	}
 
 	// Interface Bindings Logic
 	let ipAddressBindings = $derived(
@@ -383,8 +384,8 @@
 			<form.Field
 				name={nameFieldName}
 				validators={{
-					onBlur: ({ value }: { value: string }) => required(value) || max(100)(value),
-					onChange: ({ value }: { value: string }) => required(value) || max(100)(value)
+					onBlur: validateServiceName,
+					onChange: validateServiceName
 				}}
 				listeners={{
 					onChange: ({ value }: { value: string }) => handleNameChange(value)
@@ -479,22 +480,6 @@
 					bind:selectedItems={selectedPortBindings}
 				/>
 			{/key}
-
-			<!-- Hidden form fields for port binding validation -->
-			{#each portBindings as binding (binding.id)}
-				{@const bindingIndex = getBindingIndex(binding.id)}
-				<form.Field
-					name={`services[${index}].bindings[${bindingIndex}].port_id`}
-					validators={{
-						onChange: () => (!binding.port_id ? hosts_services_portRequired() : undefined),
-						onBlur: () => (!binding.port_id ? hosts_services_portRequired() : undefined)
-					}}
-				>
-					{#snippet children(field: AnyFieldApi)}
-						<input type="hidden" value={field.state.value} />
-					{/snippet}
-				</form.Field>
-			{/each}
 
 			<!-- Interface Bindings -->
 			{#key service.id}
