@@ -7,6 +7,9 @@
 		movableIds,
 		moveColumn,
 		moveColumnTo,
+		moveSection,
+		moveSectionTo,
+		movableSectionKeys,
 		type EntityColumn
 	} from './columns';
 	import {
@@ -18,7 +21,6 @@
 		common_shortcutsPausedInSearch
 	} from '$lib/paraglide/messages';
 	import { isShiftShortcut, shiftShortcutLabel } from '$lib/shared/utils/shortcuts';
-	import { fieldGroups } from '$lib/shared/stores/metadata';
 	import { isFreeKeydown, useListShortcuts } from '../controls/listShortcuts';
 
 	let {
@@ -26,7 +28,6 @@
 		order,
 		visibility,
 		onToggle,
-		onToggleGroup,
 		onReorder,
 		onReset
 	}: {
@@ -35,8 +36,6 @@
 		order: string[];
 		visibility: Record<string, boolean>;
 		onToggle: (id: string) => void;
-		/** Show or hide every column under one heading. */
-		onToggleGroup: (ids: string[], visible: boolean) => void;
 		onReorder: (order: string[]) => void;
 		onReset: () => void;
 	} = $props();
@@ -168,6 +167,8 @@
 	}
 
 	function handleDrop(event: DragEvent) {
+		// A dragged heading drops on the block around this row instead (`handleSectionDrop`).
+		if (!draggingId) return;
 		event.preventDefault();
 		if (draggingId && dropTarget) {
 			const next = moveColumnTo(
@@ -185,6 +186,70 @@
 	function clearDrag() {
 		draggingId = null;
 		dropTarget = null;
+		draggingSection = null;
+		sectionDropTarget = null;
+	}
+
+	/** Headings whose columns move as a block, in menu order. */
+	let movableSections = $derived(movableSectionKeys(order, toggleable));
+
+	let draggingSection = $state<string | null>(null);
+	let sectionDropTarget = $state<{ key: string; position: 'before' | 'after' } | null>(null);
+
+	async function stepSection(key: string, delta: -1 | 1) {
+		const next = moveSection(order, toggleable, key, delta);
+		if (next === order) return;
+
+		reordering = true;
+		onReorder(next);
+		await tick();
+		reordering = false;
+
+		// Same focus handling as `step`, keyed by the heading.
+		const direction = delta < 0 ? 'up' : 'down';
+		const opposite = delta < 0 ? 'down' : 'up';
+		const pressed = menuElement?.querySelector<HTMLButtonElement>(
+			`[data-move="${direction}"][data-section="${key}"]`
+		);
+		const fallback = menuElement?.querySelector<HTMLButtonElement>(
+			`[data-move="${opposite}"][data-section="${key}"]`
+		);
+		(pressed && !pressed.disabled ? pressed : fallback)?.focus();
+	}
+
+	function handleSectionDragStart(event: DragEvent, key: string) {
+		draggingSection = key;
+		if (event.dataTransfer) {
+			event.dataTransfer.effectAllowed = 'move';
+			event.dataTransfer.setData('text/plain', key);
+		}
+	}
+
+	/** A heading drops before or after a whole heading's block, never inside it. */
+	function handleSectionDragOver(event: DragEvent, key: string | null) {
+		if (!draggingSection || key === null || !movableSections.includes(key)) return;
+		event.preventDefault();
+		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+
+		const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		const position = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+		sectionDropTarget = { key, position };
+	}
+
+	function handleSectionDrop(event: DragEvent) {
+		if (!draggingSection) return;
+		event.preventDefault();
+		if (sectionDropTarget) {
+			const next = moveSectionTo(
+				order,
+				toggleable,
+				draggingSection,
+				sectionDropTarget.key,
+				sectionDropTarget.position
+			);
+			if (next !== order) onReorder(next);
+		}
+		clearDrag();
 	}
 </script>
 
@@ -233,93 +298,138 @@
 					{common_resetColumns()}
 				</button>
 			</div>
-			{#each sections as { group, columns: sectionColumns } (group)}
+			{#each sections as { key, heading, columns: sectionColumns } (key)}
 				{@const movable = movableIds(order, sectionColumns)}
-				{#if group}
-					{@const ids = sectionColumns.map((column) => column.id)}
-					{@const shown = ids.filter((id) => visibility[id] !== false).length}
-					<!-- Checked when every column under the heading shows; a click shows them all, or
-						hides them all once they all show. -->
-					<label
-						class="text-tertiary mb-1 mt-3 flex cursor-pointer items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide"
-					>
-						<input
-							type="checkbox"
-							checked={shown === ids.length}
-							indeterminate={shown > 0 && shown < ids.length}
-							onchange={() => onToggleGroup(ids, shown < ids.length)}
-							class="checkbox-card ml-5 h-3.5 w-3.5 rounded"
-						/>
-						{fieldGroups.getName(group)}
-					</label>
-				{/if}
-				<ul class="space-y-0.5">
-					{#each sectionColumns as column (column.id)}
-						{@const canMove = isMovableColumn(column)}
-						{@const index = movable.indexOf(column.id)}
-						{@const isTarget = dropTarget?.id === column.id && draggingId !== column.id}
-						<li
-							class="flex items-center gap-1 rounded border-y-2 border-transparent px-1 py-0.5 {draggingId ===
-							column.id
-								? 'opacity-50'
-								: ''} {isTarget && dropTarget?.position === 'before'
-								? '!border-t-blue-500'
-								: ''} {isTarget && dropTarget?.position === 'after' ? '!border-b-blue-500' : ''}"
-							draggable={canMove}
-							ondragstart={(event) => handleDragStart(event, column.id)}
-							ondragover={(event) => handleDragOver(event, column.id)}
-							ondrop={handleDrop}
+				{@const sectionIndex = key === null ? -1 : movableSections.indexOf(key)}
+				{@const isSectionTarget =
+					key !== null && sectionDropTarget?.key === key && draggingSection !== key}
+				<div
+					class="rounded border-y-2 border-transparent {draggingSection !== null &&
+					draggingSection === key
+						? 'opacity-50'
+						: ''} {isSectionTarget && sectionDropTarget?.position === 'before'
+						? '!border-t-blue-500'
+						: ''} {isSectionTarget && sectionDropTarget?.position === 'after'
+						? '!border-b-blue-500'
+						: ''}"
+					role="presentation"
+					ondragover={(event) => handleSectionDragOver(event, key)}
+					ondrop={handleSectionDrop}
+				>
+					{#if key !== null && heading}
+						<!-- Flush left, with its columns indented beneath it. Dragging the heading, or its
+							arrows, moves every column under it. -->
+						<div
+							class="text-tertiary mt-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide"
+							draggable={sectionIndex !== -1}
+							ondragstart={(event) => handleSectionDragStart(event, key)}
 							ondragend={clearDrag}
+							role="presentation"
 						>
-							{#if canMove}
+							{#if sectionIndex !== -1}
 								<span
-									class="text-tertiary cursor-grab"
-									title={common_dragToReorderColumn({ column: column.label })}
+									class="cursor-grab"
+									title={common_dragToReorderColumn({ column: heading })}
 									aria-hidden="true"
 								>
 									<GripVertical class="h-4 w-4" />
 								</span>
-							{:else}
-								<span class="w-4" aria-hidden="true"></span>
 							{/if}
-							<label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
-								<input
-									type="checkbox"
-									checked={visibility[column.id] !== false}
-									onchange={() => onToggle(column.id)}
-									class="checkbox-card h-4 w-4 rounded"
-								/>
-								<span class="text-secondary truncate text-sm" title={column.label}
-									>{column.label}</span
-								>
-							</label>
-							{#if canMove}
+							<span class="min-w-0 flex-1 truncate">{heading}</span>
+							{#if sectionIndex !== -1}
 								<button
 									type="button"
 									data-move="up"
-									data-column={column.id}
-									onclick={() => step(column.id, -1)}
-									disabled={index <= 0}
-									aria-label={common_moveColumnUp({ column: column.label })}
-									class="text-tertiary hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
+									data-section={key}
+									onclick={() => stepSection(key, -1)}
+									disabled={sectionIndex <= 0}
+									aria-label={common_moveColumnUp({ column: heading })}
+									class="hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
 								>
 									<ChevronUp class="h-4 w-4" />
 								</button>
 								<button
 									type="button"
 									data-move="down"
-									data-column={column.id}
-									onclick={() => step(column.id, 1)}
-									disabled={index === movable.length - 1}
-									aria-label={common_moveColumnDown({ column: column.label })}
-									class="text-tertiary hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
+									data-section={key}
+									onclick={() => stepSection(key, 1)}
+									disabled={sectionIndex === movableSections.length - 1}
+									aria-label={common_moveColumnDown({ column: heading })}
+									class="hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
 								>
 									<ChevronDown class="h-4 w-4" />
 								</button>
 							{/if}
-						</li>
-					{/each}
-				</ul>
+						</div>
+					{/if}
+					<ul class="space-y-0.5 {key !== null ? 'pl-3' : ''}">
+						{#each sectionColumns as column (column.id)}
+							{@const canMove = isMovableColumn(column)}
+							{@const index = movable.indexOf(column.id)}
+							{@const isTarget = dropTarget?.id === column.id && draggingId !== column.id}
+							<li
+								class="flex items-center gap-1 rounded border-y-2 border-transparent px-1 py-0.5 {draggingId ===
+								column.id
+									? 'opacity-50'
+									: ''} {isTarget && dropTarget?.position === 'before'
+									? '!border-t-blue-500'
+									: ''} {isTarget && dropTarget?.position === 'after' ? '!border-b-blue-500' : ''}"
+								draggable={canMove}
+								ondragstart={(event) => handleDragStart(event, column.id)}
+								ondragover={(event) => handleDragOver(event, column.id)}
+								ondrop={handleDrop}
+								ondragend={clearDrag}
+							>
+								{#if canMove}
+									<span
+										class="text-tertiary cursor-grab"
+										title={common_dragToReorderColumn({ column: column.label })}
+										aria-hidden="true"
+									>
+										<GripVertical class="h-4 w-4" />
+									</span>
+								{:else}
+									<span class="w-4" aria-hidden="true"></span>
+								{/if}
+								<label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+									<input
+										type="checkbox"
+										checked={visibility[column.id] !== false}
+										onchange={() => onToggle(column.id)}
+										class="checkbox-card h-4 w-4 rounded"
+									/>
+									<span class="text-secondary truncate text-sm" title={column.label}
+										>{column.label}</span
+									>
+								</label>
+								{#if canMove}
+									<button
+										type="button"
+										data-move="up"
+										data-column={column.id}
+										onclick={() => step(column.id, -1)}
+										disabled={index <= 0}
+										aria-label={common_moveColumnUp({ column: column.label })}
+										class="text-tertiary hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
+									>
+										<ChevronUp class="h-4 w-4" />
+									</button>
+									<button
+										type="button"
+										data-move="down"
+										data-column={column.id}
+										onclick={() => step(column.id, 1)}
+										disabled={index === movable.length - 1}
+										aria-label={common_moveColumnDown({ column: column.label })}
+										class="text-tertiary hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
+									>
+										<ChevronDown class="h-4 w-4" />
+									</button>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</div>
 			{/each}
 		</div>
 	{/if}

@@ -51,10 +51,10 @@ const HOST: &[F] = &[
         .summary(),
     F::new("manufacturer", "Manufacturer", G::Device).source("manufacturer_source"),
     F::new("model", "Model", G::Device).source("model_source"),
-    F::new("serial_number", "Serial Number", G::Device)
+    F::new("serial_number", "Serial Number", G::Identity)
         .source("serial_number_source")
         .format(FieldFormat::Identifier),
-    F::new("asset_tag", "Asset Tag", G::Device)
+    F::new("asset_tag", "Asset Tag", G::Identity)
         .source("asset_tag_source")
         .format(FieldFormat::Identifier),
     F::new("firmware_revision", "Firmware Revision", G::Device)
@@ -63,14 +63,14 @@ const HOST: &[F] = &[
     F::new("software_revision", "Software Revision", G::Device)
         .source("software_revision_source")
         .format(FieldFormat::Identifier),
-    F::new("sys_name", "System Name", G::Device).source("sys_name_source"),
+    F::new("sys_name", "System Name", G::Identity).source("sys_name_source"),
     F::new("sys_descr", "System Description", G::Device).source("sys_descr_source"),
     F::new("sys_object_id", "System OID", G::Device)
         .source("sys_object_id_source")
         .format(FieldFormat::Identifier),
     F::new("sys_location", "Location", G::Device).source("sys_location_source"),
     F::new("sys_contact", "Contact", G::Device).source("sys_contact_source"),
-    F::new("chassis_id", "Chassis ID", G::Device)
+    F::new("chassis_id", "Chassis ID", G::Identity)
         .source("chassis_id_source")
         .format(FieldFormat::Identifier),
     F::new("management_url", "Management URL", G::Device).source("management_url_source"),

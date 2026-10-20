@@ -815,14 +815,6 @@
 		dropHiddenColumns();
 	}
 
-	function toggleColumnGroup(ids: string[], visible: boolean) {
-		columnVisibility = {
-			...columnState.visibility,
-			...Object.fromEntries(ids.map((id) => [id, visible]))
-		};
-		dropHiddenColumns();
-	}
-
 	function reorderColumns(order: string[]) {
 		columnOrder = order;
 	}
@@ -1179,7 +1171,6 @@
 						order={columnState.order}
 						visibility={columnState.visibility}
 						onToggle={toggleColumn}
-						onToggleGroup={toggleColumnGroup}
 						onReorder={reorderColumns}
 						onReset={resetColumns}
 					/>
