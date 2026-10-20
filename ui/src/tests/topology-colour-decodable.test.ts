@@ -216,7 +216,10 @@ describe('topology card colours are decodable in their view', () => {
 						expandedInlineGroups: new Set(),
 						sites: [SITE]
 					});
-					for (const [channel, value] of Object.entries(result.marks) as [MarkChannel, MarkValue][]) {
+					for (const [channel, value] of Object.entries(result.marks) as [
+						MarkChannel,
+						MarkValue
+					][]) {
 						const color = value.color as Color;
 						painted.add(channel);
 						expect(
@@ -237,7 +240,7 @@ describe('topology card colours are decodable in their view', () => {
 		});
 	}
 
-	it('L3 does not mark a guest's run state', () => {
+	it("L3 does not mark a guest's run state", () => {
 		const vm = topology.hosts.find((h) => h.virtualization_metadata != null);
 		const node = cardNodes(topology, 'IPAddress').find(
 			(n) => (n as { host_id?: string }).host_id === vm?.id
