@@ -1262,11 +1262,6 @@ impl EmailService {
             })
             .await?;
 
-        tracing::info!(
-            organization_id = %organization.id,
-            paid_through = %paid_through,
-            "Warned an air-gapped organization that its license key expires soon"
-        );
         Ok(())
     }
 

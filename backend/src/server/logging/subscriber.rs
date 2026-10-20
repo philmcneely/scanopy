@@ -248,8 +248,8 @@ mod tests {
             entities::Entity,
             events::{
                 log::{EventLog, changes_log},
-                traits::{EntityScope, OrgScope},
-                types::{DeletionReason, UpdateReason},
+                traits::{AuthScope, EntityScope, OrgScope},
+                types::{AuthMethod, DeletionReason, UpdateReason},
             },
         },
     };
@@ -353,6 +353,31 @@ mod tests {
             AuthenticatedEntity::System,
         );
         assert_eq!(lines_for(&event).len(), 1);
+    }
+
+    /// A failed login says why on a second line at WARN; the reason stays out of the JSON.
+    #[test]
+    fn a_failed_login_logs_its_reason_on_its_own_line() {
+        let event = Event::new(
+            AuthScope {
+                user_id: None,
+                organization_id: None,
+                ip_address: "127.0.0.1".parse().unwrap(),
+                user_agent: None,
+            },
+            AuthOperation::LoginFailed {
+                method: AuthMethod::Password,
+                attempted_email: None,
+                reason: "no-account-marker".to_string(),
+            },
+            AuthenticatedEntity::Anonymous,
+        );
+
+        let lines = lines_for(&event);
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert!(!lines[0].1.contains("no-account-marker"), "{}", lines[0].1);
+        assert_eq!(lines[1].0, Level::WARN);
+        assert!(lines[1].1.contains("no-account-marker"), "{}", lines[1].1);
     }
 
     fn host_updated() -> Event<EntityOperation> {

@@ -1,5 +1,6 @@
 //! OIDC providers, authorize/callback, link/login/register flows, and unlink.
 use super::*;
+use crate::server::auth::oidc::OidcLoginRefused;
 use crate::server::metrics::dependency::DependencyError;
 use crate::server::openapi::tags as api_tags;
 use crate::server::shared::types::api::MetricErrorCode;
@@ -503,7 +504,10 @@ async fn handle_login_flow(
             )))
         }
         Err(e) => {
-            tracing::error!("Failed to login via OIDC: {}", e);
+            // A refused login (no matching account) is already `login_failed`, with its reason.
+            if e.downcast_ref::<OidcLoginRefused>().is_none() {
+                tracing::error!("Failed to login via OIDC: {}", e);
+            }
             Err(ErrorRedirect::to(&format!(
                 "{}?error={}",
                 return_url,

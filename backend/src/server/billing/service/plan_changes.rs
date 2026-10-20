@@ -230,13 +230,6 @@ impl BillingService {
                 .send(&self.stripe)
                 .await?;
 
-            tracing::info!(
-                organization_id = %organization_id,
-                subscription_id = %sub.id,
-                is_trialing,
-                "Scheduled cancellation at period end"
-            );
-
             if is_trialing {
                 Ok("Your subscription ends when your trial ends. After that your account is read-only until you choose a paid plan.".to_string())
             } else {
@@ -421,13 +414,6 @@ impl BillingService {
             }
 
             let is_trialing = sub.status == SubscriptionStatus::Trialing;
-
-            tracing::info!(
-                organization_id = %organization_id,
-                target_plan = %target_plan.name(),
-                is_trialing,
-                "Plan changed via subscription update"
-            );
 
             if is_trialing {
                 Ok(format!(

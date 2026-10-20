@@ -462,6 +462,7 @@ impl AuthService {
                         AuthOperation::LoginFailed {
                             method: AuthMethod::Password,
                             attempted_email: Some(request.email.clone()),
+                            reason: e.to_string(),
                         },
                         AuthenticatedEntity::Anonymous,
                     ))

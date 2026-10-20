@@ -186,6 +186,7 @@ async fn a_free_customer_still_gets_the_emails_that_change_something() {
                 save_offer_shown: vec![],
                 save_offer_redeemed: None,
                 planned_period_end: period_end,
+                subscription_id: String::new(),
             },
             "cancellation_initiated",
         ),

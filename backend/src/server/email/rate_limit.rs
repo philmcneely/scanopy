@@ -78,11 +78,6 @@ impl EmailTransport for RateLimitedTransport {
             {
                 Err(e) if attempt < TRANSIENT_RETRIES && (self.transient)(&e) => {
                     attempt += 1;
-                    tracing::warn!(
-                        attempt,
-                        ?backoff,
-                        "Relay refused an email for now; retrying"
-                    );
                     tokio::time::sleep(backoff).await;
                     backoff *= 2;
                 }

@@ -39,6 +39,12 @@ pub enum OidcRegisterResult {
     EmailAlreadyExists,
 }
 
+/// A login refused because no account matches the provider's user. `login` has already
+/// published `LoginFailed` with this text, so the handler doesn't log it again.
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct OidcLoginRefused(pub String);
+
 pub struct OidcService {
     providers: HashMap<String, Arc<OidcProvider>>,
     auth_service: Arc<AuthService>,
@@ -267,7 +273,7 @@ impl OidcService {
         let user_info = match provider.exchange_code(code, &pending_auth).await {
             Ok(user_info) => user_info,
             Err(e) => {
-                self.publish_login_failed(provider, None, ip, user_agent)
+                self.publish_login_failed(provider, None, format!("{e:#}"), ip, user_agent)
                     .await;
                 return Err(e);
             }
@@ -295,19 +301,20 @@ impl OidcService {
                 .is_empty(),
             None => false,
         };
-        self.publish_login_failed(provider, email, ip, user_agent)
-            .await;
-        if unlinked {
-            return Err(anyhow!(
+        let refused = if unlinked {
+            OidcLoginRefused(format!(
                 "An account with this email exists but isn't linked to {}. Please sign in with email first, then link your {} account from settings.",
-                provider.name,
+                provider.name, provider.name
+            ))
+        } else {
+            OidcLoginRefused(format!(
+                "No account found with this {} login. Please register first.",
                 provider.name
-            ));
-        }
-        Err(anyhow!(
-            "No account found with this {} login. Please register first.",
-            provider.name
-        ))
+            ))
+        };
+        self.publish_login_failed(provider, email, refused.0.clone(), ip, user_agent)
+            .await;
+        Err(refused.into())
     }
 
     /// `LoginSuccess` for an OIDC sign-in, published by the handler once the session holds the
@@ -346,6 +353,7 @@ impl OidcService {
         &self,
         provider: &OidcProvider,
         attempted_email: Option<EmailAddress>,
+        reason: String,
         ip: IpAddr,
         user_agent: Option<String>,
     ) {
@@ -360,6 +368,7 @@ impl OidcService {
                 AuthOperation::LoginFailed {
                     method: AuthMethod::Oidc(provider.into()),
                     attempted_email,
+                    reason,
                 },
                 AuthenticatedEntity::Anonymous,
             ))

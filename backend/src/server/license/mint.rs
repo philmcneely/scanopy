@@ -158,27 +158,19 @@ impl LicenseIssuer {
     /// Mint the org's online key. Deterministic: the same `issued_at` and key
     /// version sign to a byte-identical string, so copying the key twice hands
     /// back the same value. `issued_at` comes from
-    /// `OrganizationService::license_key_issued_at`, which logs the audit line
-    /// when it assigns one; this re-signs an already-issued key, so it logs at
-    /// debug rather than repeating that line on every copy.
+    /// `OrganizationService::license_key_issued_at`, which publishes
+    /// `LicenseKeyIssued` when it assigns one; this re-signs an already-issued
+    /// key, so it logs nothing of its own.
     pub fn mint_online_key(
         &self,
         org: &Organization,
         issued_at: DateTime<Utc>,
     ) -> Result<String, MintError> {
-        let plan = licensed_plan(org)?;
+        licensed_plan(org)?;
         let key_version = u32::try_from(org.base.license_key_version)
             .map_err(|_| MintError::KeyVersionOutOfRange)?;
         let claims = online_key_claims(issued_at, org.id.to_string(), key_version);
-        let token = sign_online_key(&claims, &self.encoding)?;
-        tracing::debug!(
-            organization_id = %org.id,
-            key_type = "online",
-            plan = ?plan,
-            key_version,
-            "Signed online license key"
-        );
-        Ok(token)
+        Ok(sign_online_key(&claims, &self.encoding)?)
     }
 
     /// The air-gap check lives here, in the mint path, so it holds whichever
