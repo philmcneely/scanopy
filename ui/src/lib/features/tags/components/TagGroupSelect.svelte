@@ -3,6 +3,7 @@
 	import CreatableOptionList, {
 		type CreatableOption
 	} from '$lib/shared/components/forms/selection/CreatableOptionList.svelte';
+	import Popover from '$lib/shared/components/data/Popover.svelte';
 	import { groupNamed, tagGroupIcon, tagGroupLabel, type TagGroup } from '../groups';
 	import { common_none, tags_createTagQuoted } from '$lib/paraglide/messages';
 
@@ -34,6 +35,7 @@
 	const NONE = 'none';
 
 	let open = $state(false);
+	let triggerEl: HTMLDivElement | undefined = $state();
 	let query = $state('');
 	let creating = $state(false);
 
@@ -89,7 +91,7 @@
 	}
 </script>
 
-<div class="relative">
+<div bind:this={triggerEl} class="relative">
 	<input
 		{id}
 		type="text"
@@ -106,18 +108,22 @@
 	<ChevronDown
 		class="text-tertiary pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2"
 	/>
-
-	{#if open && (options.length > 0 || canCreate)}
-		<div
-			class="select-dropdown absolute left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-md shadow-lg"
-		>
-			<CreatableOptionList
-				{options}
-				onSelect={select}
-				createLabel={canCreate ? tags_createTagQuoted({ name: query.trim() }) : null}
-				onCreate={create}
-				createOnEnter={options.length === 0}
-			/>
-		</div>
-	{/if}
 </div>
+
+<!-- Focus stays in the input, whose keydown and blur drive the list. -->
+<Popover
+	triggerElement={triggerEl ?? null}
+	isOpen={open && (options.length > 0 || canCreate)}
+	role="presentation"
+	align="start"
+	matchTriggerWidth
+	onClose={close}
+>
+	<CreatableOptionList
+		{options}
+		onSelect={select}
+		createLabel={canCreate ? tags_createTagQuoted({ name: query.trim() }) : null}
+		onCreate={create}
+		createOnEnter={options.length === 0}
+	/>
+</Popover>

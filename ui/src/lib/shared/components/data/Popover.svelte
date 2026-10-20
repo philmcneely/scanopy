@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { onMount } from 'svelte';
+	import { fitToViewport } from '$lib/shared/utils/popoverPosition';
 
 	let {
 		triggerElement = null,
@@ -10,7 +11,12 @@
 		onMouseLeave,
 		role = 'tooltip',
 		ariaLabel = undefined,
+		id = undefined,
+		align = 'center',
+		prefer = 'below',
+		minWidth = '200px',
 		maxWidth = '350px',
+		matchTriggerWidth = false,
 		children
 	}: {
 		triggerElement?: HTMLElement | null;
@@ -23,12 +29,24 @@
 		 * hands it back to the trigger on Escape, and closes when focus leaves it.
 		 * The popover is portalled to the end of the body, so without this a
 		 * keyboard user could open it and never reach what is inside.
+		 *
+		 * `presentation` for a list whose trigger keeps focus, such as a select's
+		 * search input or a combobox: the list inside carries the semantics.
 		 */
-		role?: 'tooltip' | 'dialog';
+		role?: 'tooltip' | 'dialog' | 'presentation';
 		ariaLabel?: string;
+		/** For a trigger's `aria-controls`. */
+		id?: string;
+		/** `start` lines the popover up with the trigger's left edge; `center` centres it. */
+		align?: 'start' | 'center';
+		/** The side it opens on when the content fits there or that side has the more room. */
+		prefer?: 'below' | 'above';
+		minWidth?: string;
 		/** CSS max-width. A popover shown only while hovered can take the viewport width, so its
 		 *  content needs no truncation. */
 		maxWidth?: string;
+		/** Exactly as wide as the trigger, as a select's options are; overrides the min and max. */
+		matchTriggerWidth?: boolean;
 		children: Snippet;
 	} = $props();
 
@@ -36,7 +54,7 @@
 
 	let portalContainer: HTMLDivElement | null = $state(null);
 	let popoverEl: HTMLDivElement | undefined = $state();
-	let position = $state({ top: 0, left: 0 });
+	let contentEl: HTMLDivElement | undefined = $state();
 
 	onMount(() => {
 		portalContainer = document.createElement('div');
@@ -64,58 +82,75 @@
 		};
 	}
 
+	/**
+	 * Below the trigger, or above it when the content doesn't fit below and there is more room
+	 * above; as tall as the content, up to the viewport margin on that side. Set on the element
+	 * directly: measuring the uncapped height clears the cap for one synchronous read. The
+	 * template's `style:` directives set single properties, so they leave these alone.
+	 */
 	function updatePosition() {
 		if (!triggerElement || !popoverEl) return;
-
 		const rect = triggerElement.getBoundingClientRect();
-		const popoverRect = popoverEl.getBoundingClientRect();
-		const viewportHeight = window.innerHeight;
-		const viewportWidth = window.innerWidth;
-
-		// Position above or below based on space
-		let top: number;
-		const spaceBelow = viewportHeight - rect.bottom;
-		const spaceAbove = rect.top;
-
-		if (spaceBelow >= popoverRect.height + 8 || spaceBelow >= spaceAbove) {
-			top = rect.bottom + window.scrollY + 4;
-		} else {
-			top = rect.top + window.scrollY - popoverRect.height - 4;
-		}
-
-		// Center horizontally, constrain to viewport
-		let left = rect.left + window.scrollX + rect.width / 2 - popoverRect.width / 2;
-		left = Math.max(8, Math.min(left, viewportWidth - popoverRect.width - 8));
-
-		position = { top, left };
+		const style = popoverEl.style;
+		if (matchTriggerWidth) style.minWidth = style.maxWidth = style.width = `${rect.width}px`;
+		style.maxHeight = 'none';
+		const fit = fitToViewport({
+			trigger: rect,
+			contentHeight: popoverEl.offsetHeight,
+			width: popoverEl.offsetWidth,
+			viewport: { width: window.innerWidth, height: window.innerHeight },
+			align,
+			prefer
+		});
+		style.top = fit.top === null ? '' : `${fit.top}px`;
+		style.bottom = fit.bottom === null ? '' : `${fit.bottom}px`;
+		style.left = `${fit.left}px`;
+		style.maxHeight = `${fit.maxHeight}px`;
 	}
 
 	$effect(() => {
-		if (isOpen && triggerElement && popoverEl) {
-			updatePosition();
-			if (role === 'dialog') popoverEl.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+		if (isOpen && popoverEl && role === 'dialog') {
+			popoverEl.querySelector<HTMLElement>(FOCUSABLE)?.focus();
 		}
+	});
+
+	// Follow the trigger as the page scrolls or resizes, and refit as the content or trigger changes.
+	$effect(() => {
+		if (!isOpen || !triggerElement || !popoverEl || !contentEl) return;
+		updatePosition();
+
+		function handleScroll(e: Event) {
+			// A scrollable list inside the popover scrolls too; that moves nothing.
+			if (popoverEl?.contains(e.target as Node)) return;
+			updatePosition();
+		}
+
+		const resizeObserver = new ResizeObserver(() => updatePosition());
+		resizeObserver.observe(contentEl);
+		resizeObserver.observe(triggerElement);
+		window.addEventListener('scroll', handleScroll, true);
+		window.addEventListener('resize', updatePosition);
+
+		return () => {
+			resizeObserver.disconnect();
+			window.removeEventListener('scroll', handleScroll, true);
+			window.removeEventListener('resize', updatePosition);
+		};
 	});
 
 	function handleFocusOut(e: FocusEvent) {
 		if (role !== 'dialog') return;
 		// No related target is a click on non-focusable content, such as a
-		// checkbox's label text; a click outside is handled on mousedown.
+		// checkbox's label text, or a focused row moved in the DOM; a click
+		// outside is handled on mousedown.
 		const next = e.relatedTarget as Node | null;
 		if (!next || popoverEl?.contains(next) || triggerElement?.contains(next)) return;
 		onClose();
 	}
 
-	// Close on scroll or click outside
+	// Close on click outside or Escape
 	$effect(() => {
 		if (!isOpen) return;
-
-		function handleScroll(e: Event) {
-			// A scrollable list inside the popover scrolls too; that is not the
-			// page moving out from under it.
-			if (popoverEl?.contains(e.target as Node)) return;
-			onClose();
-		}
 
 		function handleClickOutside(e: MouseEvent) {
 			if (
@@ -139,13 +174,10 @@
 			}
 		}
 
-		// Use capture to catch scroll on any ancestor
-		window.addEventListener('scroll', handleScroll, true);
 		document.addEventListener('mousedown', handleClickOutside);
 		document.addEventListener('keydown', handleKeydown);
 
 		return () => {
-			window.removeEventListener('scroll', handleScroll, true);
 			document.removeEventListener('mousedown', handleClickOutside);
 			document.removeEventListener('keydown', handleKeydown);
 		};
@@ -153,17 +185,25 @@
 </script>
 
 {#if isOpen && portalContainer}
+	<!-- The surface clips to its radius; the inner box scrolls, so the scrollbar meets the border.
+	     A child that should scroll on its own, below controls that stay put, takes `min-h-0`. -->
 	<div
 		use:portal
 		bind:this={popoverEl}
-		class="fixed z-[9999] rounded-lg border p-2 shadow-[0_4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
-		style="border-color: var(--color-border); background: var(--color-bg-elevated); top: {position.top}px; left: {position.left}px; min-width: 200px; max-width: {maxWidth};"
+		{id}
+		class="fixed z-[9999] flex flex-col overflow-hidden rounded-lg border shadow-[0_4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+		style:border-color="var(--color-border)"
+		style:background="var(--color-bg-elevated)"
+		style:min-width={minWidth}
+		style:max-width={maxWidth}
 		{role}
 		aria-label={ariaLabel}
 		onfocusout={handleFocusOut}
 		onmouseenter={onMouseEnter}
 		onmouseleave={onMouseLeave}
 	>
-		{@render children()}
+		<div bind:this={contentEl} class="flex min-h-0 flex-col overflow-y-auto p-2">
+			{@render children()}
+		</div>
 	</div>
 {/if}
