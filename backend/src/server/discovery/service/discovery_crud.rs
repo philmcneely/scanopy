@@ -47,26 +47,6 @@ impl DiscoveryService {
                 .await?;
         }
 
-        // If it's a scheduled discovery, add it to the scheduler
-        if created_discovery.base.run_type.schedule().is_some()
-            && let Err(e) = Self::schedule_discovery(self, &created_discovery).await
-        {
-            // Disable and save to DB
-            created_discovery.disable();
-            let disabled_discovery = self
-                .discovery_storage
-                .update(&mut created_discovery)
-                .await?;
-
-            tracing::error!(
-                "Failed to schedule discovery {}. Discovery created but disabled. Error: {}",
-                disabled_discovery.id,
-                e
-            );
-
-            return Ok(disabled_discovery);
-        }
-
         let trigger_stale = created_discovery.triggers_staleness(None);
 
         if let Some(scope) = EntityScope::from_ids(
@@ -77,14 +57,30 @@ impl DiscoveryService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Created, authentication).with_flags(
-                        EntityEventFlags {
+                    Event::new(scope, EntityOperation::Created, authentication.clone())
+                        .with_flags(EntityEventFlags {
                             trigger_stale,
                             ..Default::default()
-                        },
-                    ),
+                        }),
                 )
-                .await?;
+                .await;
+        }
+
+        // If it's a scheduled discovery, add it to the scheduler. One that can't be scheduled is
+        // disabled, and its update names the failure, so the log says why it won't run.
+        if created_discovery.base.run_type.schedule().is_some()
+            && let Err(e) = Self::schedule_discovery(self, &created_discovery).await
+        {
+            created_discovery.disable();
+            return self
+                .update_base(
+                    &mut created_discovery,
+                    authentication,
+                    UpdateReason::DiscoveryScheduleFailed {
+                        error: e.to_string(),
+                    },
+                )
+                .await;
         }
 
         Ok(created_discovery)
@@ -132,7 +128,7 @@ impl DiscoveryService {
                             ..Default::default()
                         }),
                 )
-                .await?;
+                .await;
         }
         Ok(())
     }

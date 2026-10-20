@@ -224,8 +224,7 @@ impl EmailService {
 
     /// Record a send for analytics. Best-effort: the email has already gone.
     async fn publish_email_sent(&self, user: &User, email: &dyn Email) {
-        if let Err(e) = self
-            .organization_service
+        self.organization_service
             .event_bus()
             .publish(Event::new(
                 OrgScope {
@@ -238,15 +237,7 @@ impl EmailService {
                 },
                 AuthenticatedEntity::System,
             ))
-            .await
-        {
-            tracing::warn!(
-                user_id = %user.id,
-                campaign = email.campaign(),
-                error = %e,
-                "Failed to publish email send",
-            );
-        }
+            .await;
     }
 
     /// True when an org on `plan` is locked out of this cloud app because it

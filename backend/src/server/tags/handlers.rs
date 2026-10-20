@@ -290,7 +290,7 @@ pub async fn create_tag(
                     OnboardingOperation::FirstTagCreated,
                     entity.clone(),
                 ))
-                .await?;
+                .await;
         }
 
         let application_group_id = state
@@ -315,7 +315,7 @@ pub async fn create_tag(
                     OnboardingOperation::FirstApplicationTagCreated,
                     entity,
                 ))
-                .await?;
+                .await;
         }
     }
 
@@ -449,7 +449,7 @@ async fn emit_tag_change_events(
             site_id,
             organization_id.or(auth.organization_id()),
         ) {
-            let _ = state
+            state
                 .services
                 .event_bus
                 // A refresh signal that carries a default entity in place of the real one, so

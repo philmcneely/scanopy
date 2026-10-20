@@ -1,6 +1,5 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::Result;
 
 use crate::{
     daemon::discovery::types::{base::DiscoveryPhase, warnings::DiscoveryWarningCode},
@@ -81,7 +80,7 @@ impl EventBus {
     /// Publish a typed event. Op is inferred from the event's type; the bus
     /// routes to the right channel via `BusChannel<Op>`. Returns once the
     /// event is queued; subscribers handle it in the background.
-    pub async fn publish<Op>(&self, event: Event<Op>) -> Result<()>
+    pub async fn publish<Op>(&self, event: Event<Op>)
     where
         Op: Operation,
         Self: BusChannel<Op>,

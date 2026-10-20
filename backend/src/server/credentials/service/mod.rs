@@ -187,7 +187,7 @@ impl CrudService<Credential> for CredentialService {
                     OnboardingOperation::FirstCredentialCreated,
                     authentication.clone(),
                 ))
-                .await?;
+                .await;
         }
 
         // Clears the interface prompts on home and the L2 view; a container or Wake-on-LAN
@@ -212,7 +212,7 @@ impl CrudService<Credential> for CredentialService {
                     OnboardingOperation::FirstInterfaceCredentialCreated,
                     authentication,
                 ))
-                .await?;
+                .await;
         }
 
         Ok(created)
@@ -635,11 +635,6 @@ impl CredentialService {
 
         // Get site's SNMP credentials (from junction table)
         let site_cred_ids = self.get_credential_ids_for_site(&site_id).await?;
-        tracing::debug!(
-            site_id = %site_id,
-            credential_count = site_cred_ids.len(),
-            "Credential IDs found for site via junction table"
-        );
         // Legacy mapping only carries SNMPv2c — pre-v0.15.0 daemons can't speak
         // v1 or v3. v1/v3 credentials reach modern daemons via
         // build_all_credential_mappings.
@@ -654,12 +649,6 @@ impl CredentialService {
                 break;
             }
         }
-        tracing::debug!(
-            site_id = %site_id,
-            has_default = site_snmp_credential.is_some(),
-            "Site default SNMP credential resolution"
-        );
-
         // Get host-level SNMP credential overrides
         let host_ids: Vec<Uuid> = hosts.iter().map(|h| h.id).collect();
         let host_cred_map = self.get_credential_assignments_for_hosts(&host_ids).await?;
@@ -699,13 +688,6 @@ impl CredentialService {
                 }
             }
         }
-
-        tracing::debug!(
-            site_id = %site_id,
-            ip_overrides = overrides.len(),
-            has_default = site_snmp_credential.is_some(),
-            "SNMP credential mapping built for discovery"
-        );
 
         Ok(SnmpCredentialMapping {
             daemon_os: Default::default(),

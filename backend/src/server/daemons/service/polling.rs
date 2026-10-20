@@ -45,20 +45,11 @@ impl DaemonService {
             .into_iter()
             .map(|daemon| {
                 let sem = self.poll_semaphore.clone();
-                let daemon_id = daemon.id;
-                let daemon_name = daemon.base.name.clone();
                 async move {
                     let _permit = sem.acquire().await.expect("Semaphore closed");
-                    // poll_daemon handles retries internally via backon
-                    // Errors are logged inside poll_daemon, but log unexpected ones here too
-                    if let Err(e) = self.poll_daemon(&daemon, email_service).await {
-                        tracing::debug!(
-                            daemon_id = %daemon_id,
-                            daemon_name = %daemon_name,
-                            error = %e,
-                            "Poll cycle failed for daemon"
-                        );
-                    }
+                    // poll_daemon handles retries internally via backon, and every failure it
+                    // returns is already logged or on the daemon's unreachable event.
+                    let _ = self.poll_daemon(&daemon, email_service).await;
                 }
             })
             .collect();
@@ -180,14 +171,6 @@ impl DaemonService {
             return Ok(());
         }
 
-        tracing::debug!(
-            daemon_id = %daemon.id,
-            daemon_name = %daemon.base.name,
-            daemon_url = %daemon.base.url,
-            api_key_id = ?daemon.base.api_key_id,
-            "Starting poll for daemon"
-        );
-
         // Get the API key for this daemon
         let api_key = match self.get_daemon_api_key(daemon).await {
             Ok(key) => key,
@@ -209,33 +192,14 @@ impl DaemonService {
 
         // Get status - either via first contact (which assigns daemon ID) or regular poll
         let status = if is_first_contact {
-            tracing::info!(
-                daemon_id = %daemon.id,
-                daemon_name = %daemon.base.name,
-                "First contact with ServerPoll daemon - assigning ID"
-            );
-
             // Send first contact to assign daemon its server-side ID
             // This must succeed before we can proceed - without the correct ID,
             // discovery updates from the daemon won't be recognized by the server
             match self.send_first_contact(daemon, &api_key).await {
                 Ok(status) => status,
                 Err(e) => {
-                    // First contact failed - abort poll entirely
-                    // No point continuing since discovery updates won't work without correct ID
-                    tracing::warn!(
-                        daemon_id = %daemon.id,
-                        daemon_name = %daemon.base.name,
-                        error = %e,
-                        "First contact failed - aborting poll (will retry next cycle)"
-                    );
-                    // Mark unreachable after threshold failures
-                    tracing::warn!(
-                        daemon_id = %daemon.id,
-                        daemon_name = %daemon.base.name,
-                        "Marking daemon unreachable after {} failures",
-                        UNREACHABLE_THRESHOLD
-                    );
+                    // First contact failed - abort poll entirely; the unreachable event's WARN
+                    // line carries the error. Retried next cycle.
                     if let Err(mark_err) =
                         self.mark_daemon_unreachable(
                             daemon.id,
@@ -261,28 +225,12 @@ impl DaemonService {
                 Ok(status) => status,
                 Err(e) => {
                     // A 4xx (e.g. 401 key mismatch) is a definitive misconfiguration, not a
-                    // transient network failure — say so, instead of the generic "unreachable
-                    // after N failures". Either way we mark the daemon unreachable to stop the
-                    // poll loop from hammering a daemon that can't currently be polled.
+                    // transient network failure; `DaemonPollFailed` says so on the unreachable
+                    // WARN line, with the fix. Either way we mark the daemon unreachable to stop
+                    // the poll loop from hammering a daemon that can't currently be polled.
                     let is_auth_failure = e
                         .downcast_ref::<super::http::DaemonHttpError>()
                         .is_some_and(|h| h.status.is_client_error());
-                    if is_auth_failure {
-                        tracing::warn!(
-                            daemon_id = %daemon.id,
-                            daemon_name = %daemon.base.name,
-                            "Daemon rejected the poll ({e}) — likely an API key mismatch. \
-                             Re-provision/re-install the daemon so its key matches the server. \
-                             Pausing polling of this daemon."
-                        );
-                    } else {
-                        tracing::warn!(
-                            daemon_id = %daemon.id,
-                            daemon_name = %daemon.base.name,
-                            "Marking daemon unreachable after {} failures",
-                            UNREACHABLE_THRESHOLD
-                        );
-                    }
                     if let Err(mark_err) =
                         self.mark_daemon_unreachable(daemon.id, email_service, &e, is_auth_failure).await
                     {
@@ -298,14 +246,6 @@ impl DaemonService {
         };
 
         let auth = AuthenticatedEntity::System;
-
-        tracing::debug!(
-            daemon_id = %daemon.id,
-            daemon_name = %daemon.base.name,
-            ready_for_work = status.ready_for_work,
-            interfaced_subnet_count = status.interfaced_subnets.len(),
-            "ServerPoll status received"
-        );
 
         // Process status data
         if let Err(e) = self
@@ -343,12 +283,6 @@ impl DaemonService {
 
         // First contact - create default discovery jobs and emit telemetry
         if is_first_contact {
-            tracing::info!(
-                daemon_id = %daemon.id,
-                daemon_name = %daemon.base.name,
-                "First contact with ServerPoll daemon"
-            );
-
             // Determine if org is on Free plan for discovery defaults
             let is_free_plan =
                 if let Ok(Some(site)) = self.site_service.get_by_id(&daemon.base.site_id).await {
@@ -437,14 +371,8 @@ impl DaemonService {
                 }
 
                 // Process progress update if available
-                if let Some(progress) = poll_response.progress
-                    && let Err(e) = self.process_discovery_progress(progress).await
-                {
-                    tracing::warn!(
-                        daemon_id = %daemon.id,
-                        error = ?e,
-                        "Failed to process discovery progress"
-                    );
+                if let Some(progress) = poll_response.progress {
+                    self.process_discovery_progress(progress).await;
                 }
                 true
             }
@@ -495,17 +423,7 @@ impl DaemonService {
                     daemon.base.version.as_ref(),
                     self.site_subnets(work.site_id).await,
                 )
-                .await
-                .unwrap_or_else(|e| {
-                    tracing::error!("Failed to build daemon request: {}", e);
-                    DaemonDiscoveryRequest {
-                        session_id: work.session_id,
-                        discovery_id: work.discovery_id.unwrap_or_default(),
-                        discovery_type: work.discovery_type,
-                        credential_mappings: vec![],
-                        subnets: vec![],
-                    }
-                });
+                .await;
             let session_id = request.session_id;
             match self
                 .send_discovery_request_to_daemon(daemon, Some(&api_key), request)
@@ -528,13 +446,17 @@ impl DaemonService {
                         )
                         .await;
                 }
+                // Any other failure leaves nothing to start it either: a Starting session counts
+                // as active, so `get_pending_work` hands this daemon nothing until it ends. End it
+                // now, with the error, rather than at the stall sweep.
                 Err(e) => {
-                    tracing::warn!(
-                        daemon_id = %daemon.id,
-                        session_id = %session_id,
-                        error = %e,
-                        "Failed to initiate discovery"
-                    );
+                    self.discovery_service
+                        .fail_session(
+                            session_id,
+                            DiscoveryTerminalReason::DaemonUnreachable,
+                            e.to_string(),
+                        )
+                        .await;
                 }
             }
         }

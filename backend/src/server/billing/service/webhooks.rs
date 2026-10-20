@@ -710,7 +710,7 @@ impl BillingService {
                     },
                     owner.clone().into(),
                 ))
-                .await?;
+                .await;
         }
 
         Ok(())

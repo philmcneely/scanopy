@@ -374,7 +374,7 @@ where
                 },
                 authentication,
             ) {
-                self.event_bus().publish(event).await?;
+                self.event_bus().publish(event).await;
             }
 
             Ok(())
@@ -394,10 +394,22 @@ where
         entity: T,
         authentication: AuthenticatedEntity,
     ) -> Result<T, anyhow::Error> {
+        let created = self.store_created(entity, &authentication).await?;
+        self.publish_created(&created, authentication).await;
+        Ok(created)
+    }
+
+    /// The storage half of [`Self::create_base`]: the row and its tags, no event. For a create
+    /// whose dependent writes (junction rows keyed by the new id) must land before
+    /// [`Self::publish_created`] announces it.
+    async fn store_created(
+        &self,
+        entity: T,
+        authentication: &AuthenticatedEntity,
+    ) -> Result<T, anyhow::Error> {
         let entity = ready_for_create(entity);
 
         let created = self.storage().create(&entity).await?;
-        let trigger_stale = created.triggers_staleness(None);
 
         if let Some(entity_tag_service) = self.entity_tag_service()
             && let Some(org_id) = authentication.organization_id()
@@ -408,21 +420,24 @@ where
                 .await?;
         }
 
+        Ok(created)
+    }
+
+    /// The Created event for an entity [`Self::store_created`] wrote.
+    async fn publish_created(&self, created: &T, authentication: AuthenticatedEntity) {
         if let Some(event) = build_entity_event(
             self,
             created.clone(),
             created.id(),
             EntityOperation::Created,
             EntityEventFlags {
-                trigger_stale,
+                trigger_stale: created.triggers_staleness(None),
                 ..Default::default()
             },
             authentication,
         ) {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event).await;
         }
-
-        Ok(created)
     }
 
     /// Create entity. Override this to add post-creation logic (e.g. onboarding
@@ -454,7 +469,7 @@ where
                 EntityEventFlags::default(),
                 authentication.clone(),
             ) {
-                let _ = self.event_bus().publish(event).await;
+                self.event_bus().publish(event).await;
             }
         }
 
@@ -496,7 +511,7 @@ where
         }
 
         self.publish_updated(&current, &updated, authentication, reason)
-            .await?;
+            .await;
 
         Ok(updated)
     }
@@ -509,7 +524,7 @@ where
         after: &T,
         authentication: AuthenticatedEntity,
         reason: UpdateReason,
-    ) -> Result<(), anyhow::Error> {
+    ) {
         let log = after.update_log(before, after.id(), &reason);
         if let Some(event) = build_entity_event(
             self,
@@ -522,9 +537,8 @@ where
             },
             authentication,
         ) {
-            self.event_bus().publish(event.with_log(log)).await?;
+            self.event_bus().publish(event.with_log(log)).await;
         }
-        Ok(())
     }
 
     /// Bulk update entities: one storage write, then an Updated event per entity whose stored
@@ -550,7 +564,7 @@ where
         for after in &updated {
             if let Some(before) = current.get(&after.id()) {
                 self.publish_updated(before, after, authentication.clone(), reason.clone())
-                    .await?;
+                    .await;
             }
         }
         Ok(updated)
@@ -610,7 +624,7 @@ where
         let deleted_count = self.storage().delete_many(ids).await?;
 
         for event in events {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event).await;
         }
 
         Ok(deleted_count)
@@ -661,7 +675,7 @@ where
         let deleted = self.storage().delete_by_filter(filter).await?;
 
         for event in events {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event).await;
         }
 
         Ok(deleted)
@@ -824,7 +838,7 @@ where
         let deleted = self.storage().delete_by_filter(filter).await?;
 
         for event in events {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event).await;
         }
 
         Ok(deleted)

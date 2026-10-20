@@ -243,7 +243,7 @@ impl OidcService {
                 },
                 authentication,
             ))
-            .await?;
+            .await;
 
         Ok(OidcRegisterResult::NewUser(user))
     }
@@ -268,7 +268,7 @@ impl OidcService {
             Ok(user_info) => user_info,
             Err(e) => {
                 self.publish_login_failed(provider, None, ip, user_agent)
-                    .await?;
+                    .await;
                 return Err(e);
             }
         };
@@ -296,7 +296,7 @@ impl OidcService {
             None => false,
         };
         self.publish_login_failed(provider, email, ip, user_agent)
-            .await?;
+            .await;
         if unlinked {
             return Err(anyhow!(
                 "An account with this email exists but isn't linked to {}. Please sign in with email first, then link your {} account from settings.",
@@ -338,7 +338,8 @@ impl OidcService {
                 },
                 user.clone().into(),
             ))
-            .await
+            .await;
+        Ok(())
     }
 
     async fn publish_login_failed(
@@ -347,7 +348,7 @@ impl OidcService {
         attempted_email: Option<EmailAddress>,
         ip: IpAddr,
         user_agent: Option<String>,
-    ) -> Result<()> {
+    ) {
         self.event_bus
             .publish(Event::new(
                 AuthScope {
@@ -439,7 +440,16 @@ impl OidcService {
 
         let authentication: AuthenticatedEntity = user.clone().into();
 
-        // Publish event
+        let user = self
+            .user_service
+            .update(
+                &mut user,
+                authentication.clone(),
+                UpdateReason::UserOidcLinked,
+            )
+            .await?;
+
+        // Published once the link is stored.
         self.event_bus
             .publish(Event::new(
                 AuthScope {
@@ -452,13 +462,11 @@ impl OidcService {
                     provider: (&**provider).into(),
                     email: user.base.email.clone(),
                 },
-                authentication.clone(),
+                authentication,
             ))
-            .await?;
+            .await;
 
-        self.user_service
-            .update(&mut user, authentication, UpdateReason::UserOidcLinked)
-            .await
+        Ok(user)
     }
 
     /// Unlink OIDC from user
@@ -494,7 +502,16 @@ impl OidcService {
 
         let authentication: AuthenticatedEntity = user.clone().into();
 
-        // Publish event
+        let user = self
+            .user_service
+            .update(
+                &mut user,
+                authentication.clone(),
+                UpdateReason::UserOidcUnlinked,
+            )
+            .await?;
+
+        // Published once the unlink is stored.
         self.event_bus
             .publish(Event::new(
                 AuthScope {
@@ -507,12 +524,10 @@ impl OidcService {
                     provider: (&**provider).into(),
                     email: user.base.email.clone(),
                 },
-                authentication.clone(),
+                authentication,
             ))
-            .await?;
+            .await;
 
-        self.user_service
-            .update(&mut user, authentication, UpdateReason::UserOidcUnlinked)
-            .await
+        Ok(user)
     }
 }

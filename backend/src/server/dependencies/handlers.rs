@@ -244,7 +244,7 @@ async fn create_dependency(
                 OnboardingOperation::FirstDependencyCreated,
                 entity,
             ))
-            .await?;
+            .await;
     }
 
     Ok(response)

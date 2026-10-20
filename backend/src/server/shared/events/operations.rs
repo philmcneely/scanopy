@@ -158,7 +158,7 @@ impl Operation for EntityOperation {
     fn log(&self, scope: &EntityScope) -> EventLog {
         match self {
             EntityOperation::Deleted { reason } => EventLog::default().with_line(
-                self.log_level(),
+                reason.log_level(),
                 format!(
                     "{} {} deleted: {}",
                     scope.entity_discriminant(),

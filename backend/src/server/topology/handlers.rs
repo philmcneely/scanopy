@@ -195,7 +195,7 @@ async fn get_topology_data(
             )
             .await
     {
-        let _ = state
+        state
             .services
             .event_bus
             .publish(BusEvent::new(

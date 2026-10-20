@@ -71,11 +71,6 @@ impl DiscoveryService {
                 session_last_updated.remove(session_id);
                 discovery_sessions.retain(|_, sid| sid != session_id);
             }
-            tracing::debug!(
-                daemon_id = %daemon_id,
-                session_count = session_ids.len(),
-                "Cleared all sessions for daemon"
-            );
         }
 
         daemon_pull_cancellations.remove(daemon_id);
@@ -263,17 +258,9 @@ impl DiscoveryService {
         drop(sessions);
 
         for payload in to_publish {
-            if let Err(e) = self
-                .event_bus()
+            self.event_bus()
                 .publish(payload.into_discovery_event())
-                .await
-            {
-                tracing::warn!(
-                    site_id = %site_id,
-                    error = %e,
-                    "Failed to publish discovery event after release_site_for_snapshot",
-                );
-            }
+                .await;
         }
     }
 
@@ -294,7 +281,7 @@ impl DiscoveryService {
         for warning in warnings {
             let scope = DiscoveryWarningScope::new(site_id, session_id, daemon_id, warning.clone());
             let code = warning.code();
-            let _ = self
+            self
                 .event_bus
                 .publish(Event::new(scope, code, AuthenticatedEntity::System))
                 .await;

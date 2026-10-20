@@ -213,7 +213,7 @@ impl ServiceService {
                 authentication,
                 UpdateReason::EntityRediscovered,
             )
-            .await?;
+            .await;
         } else {
             tracing::debug!(
                 service_id = %existing_service.id,

@@ -276,7 +276,7 @@ pub async fn create_user_api_key(
                 OnboardingOperation::FirstUserApiKeyCreated,
                 entity,
             ))
-            .await?;
+            .await;
     }
 
     Ok(Json(ApiResponse::success(UserApiKeyResponse {

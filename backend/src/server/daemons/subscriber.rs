@@ -113,6 +113,12 @@ impl Subscriber<DiscoveryPhase> for DaemonService {
 
     async fn handle(&self, events: Vec<Event<DiscoveryPhase>>) -> Result<(), anyhow::Error> {
         for event in events {
+            // A cancel request carries no reason yet; the session ends when the daemon reports
+            // it. A Cancelled that carries one has already ended (a queued session removed before
+            // dispatch, or the daemon's own report), so there is nothing to deliver.
+            if event.scope.reason.is_some() {
+                continue;
+            }
             let daemon_id = event.scope.daemon_id;
             let session_id = event.scope.session_id;
 

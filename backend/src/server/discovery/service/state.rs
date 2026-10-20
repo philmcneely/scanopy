@@ -247,12 +247,8 @@ pub(crate) fn select_stalled(
             } else if let Some(started_at) = session.started_at {
                 now.signed_duration_since(started_at) > threshold
             } else {
-                // Dispatched but never reported back.
-                tracing::warn!(
-                    session_id = %session_id,
-                    phase = ?session.phase,
-                    "Session has no tracking timestamps, treating as stalled"
-                );
+                // Dispatched but never reported back: its discovery_failed carries no
+                // `last_update_at`, which says so.
                 true
             }
         })

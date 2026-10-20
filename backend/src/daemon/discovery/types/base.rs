@@ -203,7 +203,7 @@ pub enum DiscoveryTerminalReason {
     StalledNoUpdates,
     /// The daemon came back ready for work while the server still had the session running.
     DaemonRestarted,
-    /// Cancellation could not be delivered because the daemon is unreachable or unusable.
+    /// The server could not reach the daemon: to deliver a session, or a cancellation.
     DaemonUnreachable,
     /// The daemon refused the session because it was already running another.
     DaemonBusy,

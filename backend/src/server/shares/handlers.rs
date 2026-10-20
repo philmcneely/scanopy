@@ -533,7 +533,7 @@ async fn get_share_topology(
                     has_password,
                 }
             };
-            let _ = state
+            state
                 .services
                 .event_bus
                 .publish(Event::new(

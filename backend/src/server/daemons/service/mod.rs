@@ -200,7 +200,7 @@ impl CrudService<Daemon> for DaemonService {
                             ..Default::default()
                         }),
                 )
-                .await?;
+                .await;
         }
 
         Ok(())

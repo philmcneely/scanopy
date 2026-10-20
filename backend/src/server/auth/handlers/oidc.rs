@@ -494,7 +494,7 @@ async fn handle_login_flow(
                 .publish_login_success(&user, slug, false, ip, user_agent)
                 .await
             {
-                tracing::error!(error = %e, "Failed to publish the OIDC login event");
+                tracing::error!(error = %e, "Could not record the OIDC login");
             }
 
             Ok(Redirect::to(&format!(
@@ -637,7 +637,7 @@ async fn handle_register_flow(
                     .publish_login_success(&user, slug, true, ip, user_agent)
                     .await
             {
-                tracing::error!(error = %e, "Failed to publish the OIDC login event");
+                tracing::error!(error = %e, "Could not record the OIDC login");
             }
 
             // If this is a new org, provision the integrated daemon on the site

@@ -140,10 +140,10 @@ impl DiscoveryService {
         if reaped.is_empty() {
             return;
         }
-        let reaped_count = reaped.len();
 
-        // Storage writes run on their own task, for the same reason as `update_session`'s: the
-        // sessions have already left the maps, so an interrupted write would lose their record.
+        // Each reaped session publishes its own discovery_failed. Storage writes run on their own
+        // task, for the same reason as `update_session`'s: the sessions have already left the
+        // maps, so an interrupted write would lose their record.
         match self.self_ref.upgrade() {
             Some(this) => {
                 if let Err(e) =
@@ -154,8 +154,6 @@ impl DiscoveryService {
             }
             None => self.finish_reaped(reaped, now).await,
         }
-
-        tracing::info!(count = reaped_count, "Reaped stalled discovery sessions");
     }
 
     /// Ask each stalled session's daemon to stop, concurrently. Returns the sessions whose daemon
@@ -211,13 +209,7 @@ impl DiscoveryService {
             // user's cancel.
             let mut event = session.into_discovery_event();
             event.scope.previous_phase = Some(previous_phase);
-            if let Err(e) = self.event_bus().publish(event).await {
-                tracing::error!(
-                    session_id = %session.session_id,
-                    error = %e,
-                    "Failed to publish the reaped session's terminal event"
-                );
-            }
+            self.event_bus().publish(event).await;
 
             self.record_stalled_session(session, now).await;
             if let Some(promoted) = promoted {

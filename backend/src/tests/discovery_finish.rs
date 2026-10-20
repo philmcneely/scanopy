@@ -63,8 +63,7 @@ async fn finished_session_stamps_scanned_host_with_its_historical_discovery() {
     services
         .discovery_service
         .update_session(update)
-        .await
-        .unwrap();
+        .await;
 
     let stamped = storage
         .hosts

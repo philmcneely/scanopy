@@ -236,7 +236,7 @@ impl AuthService {
                 },
                 authentication,
             ))
-            .await?;
+            .await;
 
         Ok(user)
     }
@@ -416,7 +416,7 @@ impl AuthService {
                     },
                     authentication,
                 ))
-                .await?;
+                .await;
         }
 
         Ok(user)
@@ -465,7 +465,7 @@ impl AuthService {
                         },
                         AuthenticatedEntity::Anonymous,
                     ))
-                    .await?;
+                    .await;
 
                 let mut attempts = self.login_attempts.write().await;
                 let entry = attempts
@@ -484,7 +484,7 @@ impl AuthService {
         user: &User,
         ip: IpAddr,
         user_agent: Option<String>,
-    ) -> Result<()> {
+    ) {
         self.event_bus
             .publish(Event::new(
                 AuthScope {
@@ -596,7 +596,7 @@ impl AuthService {
                 },
                 authentication.clone(),
             ))
-            .await?;
+            .await;
 
         self.user_service
             .update(&mut user, authentication, UpdateReason::UserPasswordChanged)
@@ -649,7 +649,7 @@ impl AuthService {
                 },
                 AuthenticatedEntity::Anonymous,
             ))
-            .await?;
+            .await;
 
         Ok(())
     }
@@ -697,7 +697,7 @@ impl AuthService {
                 AuthOperation::PasswordResetCompleted,
                 authentication,
             ))
-            .await?;
+            .await;
 
         // Update password and clear token
         let hashed_password = hash_password(new_password)?;
@@ -743,7 +743,7 @@ impl AuthService {
                     AuthOperation::LoggedOut,
                     authentication,
                 ))
-                .await?;
+                .await;
         }
 
         Ok(())
@@ -842,7 +842,7 @@ impl AuthService {
                 },
                 authentication,
             ))
-            .await?;
+            .await;
 
         Ok(())
     }
@@ -930,7 +930,7 @@ impl AuthService {
                     },
                     user.clone().into(),
                 ))
-                .await?;
+                .await;
         } else {
             // Standard initial verification flow
             user.base.email_verified = true;
@@ -952,7 +952,7 @@ impl AuthService {
                     AuthOperation::EmailVerified,
                     user.clone().into(),
                 ))
-                .await?;
+                .await;
         }
 
         Ok(user)
@@ -993,7 +993,7 @@ impl AuthService {
                 AuthOperation::EmailVerificationRequested { email_and_token },
                 authentication,
             ))
-            .await?;
+            .await;
 
         Ok(())
     }

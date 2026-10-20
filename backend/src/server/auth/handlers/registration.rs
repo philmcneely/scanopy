@@ -451,8 +451,7 @@ pub(crate) async fn apply_pending_setup(
             OnboardingOperation::OnboardingModalCompleted,
             auth_entity,
         ))
-        .await
-        .map_err(|e| ApiError::internal_error(&format!("Failed to publish telemetry: {}", e)))?;
+        .await;
 
     Ok(())
 }

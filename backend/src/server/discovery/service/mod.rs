@@ -266,7 +266,7 @@ impl CrudService<Discovery> for DiscoveryService {
         }
 
         self.publish_updated(&current, &updated, authentication, reason)
-            .await?;
+            .await;
 
         Ok(updated)
     }

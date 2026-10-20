@@ -269,7 +269,8 @@ pub struct Daemon {
 
 /// Every heartbeat moves `last_seen`, so that alone logs nothing; `tags` live in their own
 /// junction. Going unreachable gets a WARN line of its own, saying why, so it isn't lost among
-/// the changes.
+/// the changes; a start gets an INFO line, since a restart on the same version changes nothing
+/// else.
 impl EntityLog for Daemon {
     const LOG_IGNORED_PATHS: &'static [&'static str] = &["last_seen", "tags"];
 
@@ -283,6 +284,16 @@ impl EntityLog for Daemon {
                     self.base.name,
                     reason.describe()
                 ),
+            )
+        } else if matches!(reason, UpdateReason::DaemonStarted) {
+            let version = self
+                .base
+                .version
+                .as_ref()
+                .map_or_else(|| "unknown".to_string(), ToString::to_string);
+            log.with_line(
+                EventLogLevel::Info,
+                format!("Daemon {} started, version {version}", self.base.name),
             )
         } else {
             log
