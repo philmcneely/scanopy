@@ -107,7 +107,6 @@ export interface HostColumnsContext {
 	sysLocationValues: () => FieldValueCount[] | undefined;
 	serviceNameValues: () => FieldValueCount[] | undefined;
 	osCell: Snippet<[Host, string]>;
-	deviceRoleCell: Snippet<[Host, string]>;
 }
 
 /**
@@ -360,7 +359,19 @@ export function hostColumns(ctx: HostColumnsContext) {
 				label: hosts_deviceType(),
 				type: 'string',
 				getValue: (host: Host) => deviceRoles.getName(host.device_role ?? 'Unidentified'),
-				display: { cell: ctx.deviceRoleCell }
+				// A tag, as the subnets table shows a subnet's type.
+				display: {
+					getItems: (host: Host) => {
+						const role = host.device_role ?? 'Unidentified';
+						return [
+							{
+								id: role,
+								...deviceRoles.getTag(role),
+								icon: deviceRoles.getIconComponent(role)
+							}
+						];
+					}
+				}
 			},
 			{
 				key: 'description',
