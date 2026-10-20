@@ -3,6 +3,7 @@ import type { Snippet } from 'svelte';
 import type { Color } from '$lib/shared/utils/styling';
 import type { EntityDiscriminants } from '$lib/api/entities';
 import type { AttributeSource } from '$lib/shared/utils/attribute-source';
+import type { TooltipContent } from '$lib/shared/actions/tooltip';
 import type { components } from '$lib/api/schema';
 
 /** The heading a column is listed under in the column menu; see `field-groups.json`. */
@@ -37,7 +38,8 @@ export interface TagProps {
 	href?: string;
 	entityRef?: EntityRef;
 	pill?: boolean;
-	title?: string;
+	/** Hover text, or structured tooltip content. */
+	title?: string | TooltipContent;
 	/**
 	 * What the tag says about the row (a display's own vocabulary, e.g. `subnet`, `guest`). A
 	 * display context's `hideTags`, or `compact` through the display's `compactHides`, drops tags
@@ -154,7 +156,8 @@ export interface CardFieldItem {
 	metadata?: Record<string, unknown>;
 	badge?: string; // For things like "5m", "Critical", etc.
 	badgeColor?: string;
-	title?: string;
+	/** Hover text, or structured tooltip content. */
+	title?: string | TooltipContent;
 	/** Opens in a new tab: a docs link that explains the value. */
 	href?: string;
 	entityRef?: EntityRef;

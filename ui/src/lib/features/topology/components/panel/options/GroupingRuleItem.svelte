@@ -15,16 +15,20 @@
 		disabled?: boolean;
 		disabledTooltip?: string;
 	} = $props();
+
+	// What the rule does, then, set apart, why it does nothing in this view.
+	let content = $derived(
+		description || disabledTooltip
+			? {
+					sections: [description, disabledTooltip]
+						.filter((text): text is string => !!text)
+						.map((text) => ({ text }))
+				}
+			: null
+	);
 </script>
 
-<div
-	class="flex items-center gap-2"
-	class:opacity-40={disabled}
-	use:tooltip
-	data-tooltip={description && disabledTooltip
-		? `${description}.\n${disabledTooltip}`
-		: (description ?? disabledTooltip ?? null)}
->
+<div class="flex items-center gap-2" class:opacity-40={disabled} use:tooltip={{ content }}>
 	<span class="text-sm" class:text-primary={!disabled} class:text-tertiary={disabled}>{label}</span>
 	{#if locked}
 		<Lock class="text-tertiary h-3 w-3" />

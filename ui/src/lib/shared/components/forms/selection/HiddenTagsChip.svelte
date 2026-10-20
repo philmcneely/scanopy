@@ -5,7 +5,7 @@
 <script lang="ts">
 	import Popover from '$lib/shared/components/data/Popover.svelte';
 	import type { TagProps } from '$lib/shared/components/data/types';
-	import { tooltip } from '$lib/shared/actions/tooltip';
+	import { tooltip, tooltipLabel } from '$lib/shared/actions/tooltip';
 	import { common_moreTags, common_oneMoreTag } from '$lib/paraglide/messages';
 	import DisplayTag from './DisplayTag.svelte';
 	import { Info } from 'lucide-svelte';
@@ -18,7 +18,7 @@
 	);
 	let names = $derived(
 		tags
-			.map((tag) => tag.label ?? tag.title ?? '')
+			.map((tag) => tag.label ?? tooltipLabel(tag.title))
 			.filter(Boolean)
 			.join('\n')
 	);

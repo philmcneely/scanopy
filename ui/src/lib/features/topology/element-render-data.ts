@@ -31,7 +31,7 @@ import type {
 import { elementEntity, nodeEntity, resolveElementNode } from './resolvers';
 import { entityGlyph, type EntityGlyph } from './entity-glyph';
 import { elementMarks, entityMark, type ElementMarks, type MarkValue } from './element-marks';
-import type { HostVirtualization } from '$lib/features/hosts/types/base';
+import type { Host, HostVirtualization } from '$lib/features/hosts/types/base';
 import type { ServiceVirtualization } from '$lib/features/services/types/base';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 import { getTopologyIndex } from './entity-index';
@@ -47,6 +47,8 @@ import {
 	views
 } from '$lib/shared/stores/metadata';
 import { getFreshnessTag } from '$lib/shared/utils/freshness';
+import { createColorHelper } from '$lib/shared/utils/styling';
+import type { TooltipContent, TooltipRow, TooltipSection } from '$lib/shared/actions/tooltip';
 import { formatInterfaceSpeed } from '$lib/shared/utils/formatting';
 import type { Site } from '$lib/features/sites/types';
 import { get } from 'svelte/store';
@@ -58,9 +60,7 @@ import {
 	common_containers,
 	common_host,
 	common_ipAddress,
-	common_labeledValue,
 	common_manager,
-	common_service,
 	common_services,
 	common_status,
 	hosts_deviceFacts_composeProject,
@@ -121,8 +121,8 @@ export interface ElementIconCard {
 	 */
 	badgeDefinitions: string[];
 	label: string;
-	/** Hover text: labelled rows for what the card no longer shows, then its services. */
-	title: string;
+	/** Hover content: the card's name, labelled rows for what the card no longer shows, then its services. */
+	tooltip: TooltipContent;
 	/**
 	 * The manager groups inlined on a guest's card (a Docker engine on a VM with its containers),
 	 * each drawn under the label in a dashed box as small glyphs, one per member.
@@ -145,8 +145,8 @@ export interface IconCardMember {
 	glyph: EntityGlyph;
 	/** Its run state, from the view's Status mark; absent when the view paints none on it. */
 	status: MarkValue | undefined;
-	/** Hover text, as the card's own. */
-	title: string;
+	/** Hover content, as the card's own. */
+	tooltip: TooltipContent;
 }
 
 export interface ElementRenderInputs {
@@ -236,14 +236,12 @@ export function buildElementRender(inputs: ElementRenderInputs): ElementRenderRe
 	const content = buildElementContent(inputs, resolved);
 	const subject = nodeEntity(inputs.node, inputs.topology);
 	const glyph = subject ? entityGlyph(subject.entityType, subject.entity, inputs.topology) : null;
+	const marks = elementMarks(inputs.activeView, inputs.node, inputs.sites, inputs.topology);
 	return {
 		...content,
-		marks: elementMarks(inputs.activeView, inputs.node, inputs.sites, inputs.topology),
+		marks,
 		glyph,
-		iconCard:
-			glyph
-				? buildIconCard(inputs, resolved, content.data, glyph)
-				: null
+		iconCard: glyph ? buildIconCard(inputs, resolved, content.data, glyph, marks) : null
 	};
 }
 
@@ -253,23 +251,42 @@ const BADGE_STACK_MAX = 5;
 /** Member glyphs per row in an icon card's group box: four small glyphs fit its width. */
 export const ICON_GROUP_COLUMNS = 4;
 
-type TooltipRow = [label: string, value: string | null | undefined];
+/** A tooltip row before empty values are dropped. */
+type MaybeRow = { label: string; value: string | null | undefined; dot?: string };
+
+/** The run state row, its dot in the colour the view's Status mark paints that state. */
+function statusRow(state: string | null | undefined, status: MarkValue | undefined): MaybeRow {
+	return {
+		label: common_status(),
+		value: state ? guestStates.getName(state) : null,
+		dot: status ? createColorHelper(status.color).rgb : undefined
+	};
+}
 
 /**
  * What a guest host's tooltip adds about how it runs: its manager, the modifiers that set it apart
  * from a plain guest (a Proxmox guest's type, a container's macvlan or ipvlan network, its Compose
  * project) and its run state. The same facts the host modal's virtualization section lists.
  */
-function hostGuestRows(virtualization: HostVirtualization | null | undefined): TooltipRow[] {
+function hostGuestRows(
+	virtualization: HostVirtualization | null | undefined,
+	status: MarkValue | undefined
+): MaybeRow[] {
 	if (!virtualization) return [];
-	const manager: TooltipRow = [common_manager(), hostVirtualizations.getName(virtualization.type)];
+	const manager: MaybeRow = {
+		label: common_manager(),
+		value: hostVirtualizations.getName(virtualization.type)
+	};
 	switch (virtualization.type) {
 		case 'Proxmox': {
 			const { guest_type, state } = virtualization.details;
 			return [
 				manager,
-				[hosts_deviceFacts_guestType(), guest_type ? proxmoxGuestTypes.getName(guest_type) : null],
-				[common_status(), guestStates.getName(state)]
+				{
+					label: hosts_deviceFacts_guestType(),
+					value: guest_type ? proxmoxGuestTypes.getName(guest_type) : null
+				},
+				statusRow(state, status)
 			];
 		}
 		case 'VCenter':
@@ -280,9 +297,12 @@ function hostGuestRows(virtualization: HostVirtualization | null | undefined): T
 			const { network_type, compose_project, state } = virtualization.details;
 			return [
 				manager,
-				[hosts_deviceFacts_networkType(), containerNetworkTypes.getName(network_type)],
-				[hosts_deviceFacts_composeProject(), compose_project],
-				[common_status(), guestStates.getName(state)]
+				{
+					label: hosts_deviceFacts_networkType(),
+					value: containerNetworkTypes.getName(network_type)
+				},
+				{ label: hosts_deviceFacts_composeProject(), value: compose_project },
+				statusRow(state, status)
 			];
 		}
 		case 'NetworkIdentity':
@@ -292,29 +312,73 @@ function hostGuestRows(virtualization: HostVirtualization | null | undefined): T
 
 /** A containerized service's rows: its runtime, Compose project and run state. */
 function serviceGuestRows(
-	virtualization: ServiceVirtualization | null | undefined
-): TooltipRow[] {
+	virtualization: ServiceVirtualization | null | undefined,
+	status: MarkValue | undefined
+): MaybeRow[] {
 	if (!virtualization) return [];
 	const { compose_project, state } = virtualization.details;
 	return [
-		[common_manager(), serviceVirtualizations.getName(virtualization.type)],
-		[hosts_deviceFacts_composeProject(), compose_project],
-		[common_status(), guestStates.getName(state)]
+		{ label: common_manager(), value: serviceVirtualizations.getName(virtualization.type) },
+		{ label: hosts_deviceFacts_composeProject(), value: compose_project },
+		statusRow(state, status)
 	];
 }
 
+/** A titled tooltip: one row per value present, then the services under their own heading. */
+function titledTooltip(title: string, rows: MaybeRow[], services: string[] = []): TooltipContent {
+	const present: TooltipRow[] = rows.flatMap(({ label, value, dot }) =>
+		value ? [{ label, value, dot }] : []
+	);
+	const sections: TooltipSection[] = [];
+	if (present.length > 0) sections.push({ rows: present });
+	if (services.length > 0) sections.push({ heading: common_services(), items: services });
+	return { title, sections };
+}
+
 /**
- * An icon card's hover text: one labelled row per value present ("IP Address: 10.0.1.1"), then a
- * headed list. Plain text with line breaks, which the shared tooltip action keeps.
+ * A service's hover text: its name as the title, the host it runs on when the card does not
+ * already say it, and how it runs when it is containerized. `status` is the view's Status mark on
+ * the service, which colours its run state.
  */
-function tooltipText(rows: TooltipRow[], list?: { header: string; items: string[] }): string {
-	const lines: string[] = rows
-		.filter(([, value]) => value)
-		.map(([label, value]) => common_labeledValue({ label, value: value as string }));
-	if (list && list.items.length > 0) {
-		lines.push('', list.header, ...list.items.map((item) => `• ${item}`));
+export function serviceTooltip(
+	service: Service,
+	{ host, status }: { host?: Host | null; status?: MarkValue } = {}
+): TooltipContent {
+	return titledTooltip(service.name, [
+		{ label: common_host(), value: host ? hostDisplayName(host) : null },
+		...serviceGuestRows(service.virtualization_metadata, status)
+	]);
+}
+
+/**
+ * A host's hover text: its name as the title, then its address, device type and how it runs as a
+ * guest, then its services. `status` is the view's Status mark on the host.
+ */
+export function hostTooltip(
+	host: Host,
+	{
+		name,
+		address,
+		deviceType,
+		services,
+		status
+	}: {
+		name?: string;
+		address?: string | null;
+		deviceType?: string | null;
+		services: Service[];
+		status?: MarkValue;
 	}
-	return lines.join('\n');
+): TooltipContent {
+	return titledTooltip(
+		name ?? hostDisplayName(host),
+		[
+			{ label: common_ipAddress(), value: address },
+			{ label: hosts_deviceType(), value: deviceType ? deviceTypes.getName(deviceType) : null },
+			...hostGuestRows(host.virtualization_metadata, status)
+		],
+		services.map((s) => s.name)
+	);
 }
 
 /**
@@ -326,7 +390,8 @@ function buildIconCard(
 	inputs: ElementRenderInputs,
 	resolved: ReturnType<typeof resolveElementNode>,
 	data: ElementRenderData | null,
-	glyph: EntityGlyph
+	glyph: EntityGlyph,
+	marks: ElementMarks
 ): ElementIconCard | null {
 	if (!data) return null;
 	const host = resolved.host;
@@ -338,11 +403,7 @@ function buildIconCard(
 			glyph,
 			badgeDefinitions: [],
 			label: service.name,
-			title: tooltipText([
-				[common_service(), service.name],
-				[common_host(), host ? hostDisplayName(host) : null],
-				...serviceGuestRows(service.virtualization_metadata)
-			]),
+			tooltip: serviceTooltip(service, { host, status: marks.Status }),
 			groups: []
 		};
 	}
@@ -371,15 +432,13 @@ function buildIconCard(
 		glyph,
 		badgeDefinitions,
 		label: address ?? hostName,
-		title: tooltipText(
-			[
-				[common_host(), hostName],
-				[common_ipAddress(), address],
-				[hosts_deviceType(), deviceTypes.getName(deviceType)],
-				...hostGuestRows(host.virtualization_metadata)
-			],
-			{ header: common_services(), items: data.services.map((s) => s.name) }
-		),
+		tooltip: hostTooltip(host, {
+			name: hostName,
+			address,
+			deviceType,
+			services: data.services,
+			status: marks.Status
+		}),
 		groups: data.inlineGroups.map((g) => iconCardGroup(inputs, g))
 	};
 }
@@ -390,35 +449,30 @@ function buildIconCard(
  */
 function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): IconCardGroup {
 	const { activeView, sites, topology } = inputs;
-	const services: IconCardMember[] = group.services.map((service) => ({
-		id: service.id,
-		glyph: { type: 'software', definition: service.service_definition },
-		status: entityMark(activeView, 'Status', 'Service', service, sites),
-		title: tooltipText([
-			[common_service(), service.name],
-			...serviceGuestRows(service.virtualization_metadata)
-		])
-	}));
+	const services: IconCardMember[] = group.services.map((service) => {
+		const status = entityMark(activeView, 'Status', 'Service', service, sites);
+		return {
+			id: service.id,
+			glyph: { type: 'software', definition: service.service_definition },
+			status,
+			tooltip: serviceTooltip(service, { status })
+		};
+	});
 	const hosts: IconCardMember[] = group.hosts.map(({ host, services: hostServices }) => {
 		const glyph: EntityGlyph = entityGlyph('Host', host, topology) ?? {
 			type: 'device',
 			deviceType: 'Unidentified'
 		};
+		const status = entityMark(activeView, 'Status', 'Host', host, sites);
 		return {
 			id: host.id,
 			glyph,
-			status: entityMark(activeView, 'Status', 'Host', host, sites),
-			title: tooltipText(
-				[
-					[common_host(), hostDisplayName(host)],
-					[
-						hosts_deviceType(),
-						glyph.type === 'device' ? deviceTypes.getName(glyph.deviceType) : null
-					],
-					...hostGuestRows(host.virtualization_metadata)
-				],
-				{ header: common_services(), items: hostServices.map((s) => s.name) }
-			)
+			status,
+			tooltip: hostTooltip(host, {
+				deviceType: glyph.type === 'device' ? glyph.deviceType : null,
+				services: hostServices,
+				status
+			})
 		};
 	});
 	return {

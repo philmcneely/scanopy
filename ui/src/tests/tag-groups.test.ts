@@ -113,18 +113,16 @@ describe('groupNamed', () => {
 });
 
 describe('tagTooltip', () => {
-	it('puts the group first and the description under it', () => {
-		const lines = tagTooltip({ ...planned, description: '  Not deployed yet ' }, groups).split(
-			'\n'
-		);
-		expect(lines).toHaveLength(2);
-		expect(lines[0]).toContain('Status');
-		expect(lines[1]).toBe('Not deployed yet');
+	it('puts the group first and the trimmed description under it', () => {
+		const content = tagTooltip({ ...planned, description: '  Not deployed yet ' }, groups);
+		expect(content?.sections).toHaveLength(2);
+		expect(content?.sections[0].rows?.[0].value).toContain('Status');
+		expect(content?.sections[1].text).toBe('Not deployed yet');
 	});
 
-	it('is empty for a tag with neither, so the chip shows no tooltip', () => {
-		expect(tagTooltip({ ...critical, description: '   ' }, groups)).toBe('');
-		expect(tagTooltip(null, groups)).toBe('');
+	it('is null for a tag with neither, so the chip shows no tooltip', () => {
+		expect(tagTooltip({ ...critical, description: '   ' }, groups)).toBeNull();
+		expect(tagTooltip(null, groups)).toBeNull();
 	});
 });
 

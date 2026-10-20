@@ -259,7 +259,7 @@
 			label: tag?.name ?? tagId,
 			color: (tag?.color as Color) ?? 'Gray',
 			title:
-				tagTooltip(tag, queryClient.getQueryData<TagGroup[]>(queryKeys.tagGroups.all) ?? []) ||
+				tagTooltip(tag, queryClient.getQueryData<TagGroup[]>(queryKeys.tagGroups.all) ?? []) ??
 				undefined
 		};
 	}
