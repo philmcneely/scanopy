@@ -234,6 +234,6 @@ export function discoveryHistoryColumns(ctx: DiscoveryHistoryColumnsContext) {
 			}
 		],
 		// Every run here is historical, so a run-type column would read the same on every row.
-		['run_type']
+		{ omit: ['run_type'] }
 	);
 }

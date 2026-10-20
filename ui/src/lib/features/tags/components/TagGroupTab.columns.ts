@@ -1,5 +1,5 @@
-import { defineFields } from '$lib/shared/components/data/types';
-import { withColumnGroups } from '$lib/shared/entity-fields/table';
+import { defineRegistryFields } from '$lib/shared/entity-fields/table';
+import type { EntityLookup } from '$lib/shared/entity-fields';
 import { NO_VALUE, valuesOrNoneCodec } from '$lib/shared/components/data/controls/listQuery';
 import type { components, operations } from '$lib/api/schema';
 import { entities } from '$lib/shared/stores/metadata';
@@ -28,6 +28,8 @@ type TagGroupListParam = keyof NonNullable<operations['get_all_tag_groups']['par
 
 /** What the tag group columns read from the tab, each as a getter so values stay live. */
 export interface TagGroupColumnsContext {
+	/** Related entities the registry's tag group fields read; none beyond the group itself. */
+	lookup: () => EntityLookup;
 	tags: () => Tag[];
 	groups: () => TagGroup[];
 }
@@ -45,7 +47,9 @@ function scopeNames(group: TagGroup): string[] {
 
 /** Every TagGroupOrderField value is listed; the server sorts, groups and filters each. */
 export function tagGroupColumns(ctx: TagGroupColumnsContext) {
-	const fields = defineFields<TagGroup, TagGroupOrderField, TagGroupListParam>(
+	return defineRegistryFields<TagGroup, TagGroupOrderField, TagGroupListParam>(
+		'TagGroup',
+		ctx.lookup,
 		{
 			name: {
 				label: common_name(),
@@ -144,5 +148,4 @@ export function tagGroupColumns(ctx: TagGroupColumnsContext) {
 			}
 		]
 	);
-	return withColumnGroups('TagGroup', fields);
 }

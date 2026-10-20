@@ -1,5 +1,5 @@
-import { defineFields } from '$lib/shared/components/data/types';
-import { withColumnGroups } from '$lib/shared/entity-fields/table';
+import { defineRegistryFields } from '$lib/shared/entity-fields/table';
+import type { EntityLookup } from '$lib/shared/entity-fields';
 import { siteItems } from '$lib/features/sites/columns';
 import type { components, operations } from '$lib/api/schema';
 import type { FieldValueCount } from '$lib/shared/api/field-values';
@@ -29,6 +29,8 @@ type DaemonApiKeyListParam = keyof NonNullable<
 
 /** What the daemon API key columns read from the tab, each as a getter so values stay live. */
 export interface ApiKeyColumnsContext {
+	/** Related entities the registry's key fields read: the site. */
+	lookup: () => EntityLookup;
 	sites: () => Site[];
 	tags: () => Tag[];
 	siteValues: () => FieldValueCount[] | undefined;
@@ -36,7 +38,9 @@ export interface ApiKeyColumnsContext {
 
 /** Every DaemonApiKeyOrderField value is listed; the server sorts, groups and filters each. */
 export function apiKeyColumns(ctx: ApiKeyColumnsContext) {
-	const fields = defineFields<ApiKey, DaemonApiKeyOrderField, DaemonApiKeyListParam>(
+	return defineRegistryFields<ApiKey, DaemonApiKeyOrderField, DaemonApiKeyListParam>(
+		'DaemonApiKey',
+		ctx.lookup,
 		{
 			name: {
 				label: common_name(),
@@ -112,7 +116,8 @@ export function apiKeyColumns(ctx: ApiKeyColumnsContext) {
 						.map((id) => ctx.tags().find((t) => t.id === id)?.name)
 						.filter((name): name is string => !!name)
 			}
-		]
+		],
+		// The tab lists only keys not bound to a daemon, so the daemon would be empty on every row.
+		{ omit: ['daemon_id'] }
 	);
-	return withColumnGroups('DaemonApiKey', fields);
 }

@@ -1,5 +1,6 @@
-import { defineFields, type LabelledCardFieldItem } from '$lib/shared/components/data/types';
-import { withColumnGroups } from '$lib/shared/entity-fields/table';
+import type { LabelledCardFieldItem } from '$lib/shared/components/data/types';
+import { defineRegistryFields } from '$lib/shared/entity-fields/table';
+import type { EntityLookup } from '$lib/shared/entity-fields';
 import { NO_VALUE, valuesOrNoneCodec } from '$lib/shared/components/data/controls/listQuery';
 import { siteItems } from '$lib/features/sites/columns';
 import { permissions, entities } from '$lib/shared/stores/metadata';
@@ -38,6 +39,8 @@ type MemberListParam = keyof NonNullable<operations['list_members']['parameters'
 
 /** What the user columns read from the tab, each as a getter so values stay live. */
 export interface UserColumnsContext {
+	/** Related entities the registry's user fields read; none beyond the user itself. */
+	lookup: () => EntityLookup;
 	/** Every user and invite the caller may see: the filter options come from these. */
 	members: () => UserOrInvite[];
 	sites: () => Site[];
@@ -111,7 +114,9 @@ function distinct(values: (string | null)[]): string[] {
  * and filters each.
  */
 export function userColumns(ctx: UserColumnsContext) {
-	const fields = defineFields<UserOrInvite, MemberOrderField, MemberListParam>(
+	return defineRegistryFields<UserOrInvite, MemberOrderField, MemberListParam>(
+		'User',
+		ctx.lookup,
 		{
 			email: {
 				label: common_email(),
@@ -265,7 +270,9 @@ export function userColumns(ctx: UserColumnsContext) {
 				getValue: (item) => (isUser(item) ? '' : ctx.inviteUrl(item.data)),
 				display: { hiddenByDefault: true }
 			}
-		]
+		],
+		// Each row wraps a user or an invite in `data`. An invite has none of the user-only fields,
+		// so its cells for them stay empty.
+		{ root: (item) => item.data }
 	);
-	return withColumnGroups('User', fields);
 }

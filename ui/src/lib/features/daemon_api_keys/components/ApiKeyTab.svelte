@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { collectionLookup } from '$lib/shared/entity-fields';
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
@@ -162,8 +163,12 @@
 		sort: { field: 'name', direction: 'asc' }
 	};
 
+	// Related entities the registry's key fields read: the site.
+	let lookup = $derived(collectionLookup({ Site: sitesData }));
+
 	let apiKeyFields = $derived(
 		apiKeyColumns({
+			lookup: () => lookup,
 			sites: () => sitesData,
 			tags: () => tagsData,
 			siteValues: () => siteValuesQuery.data

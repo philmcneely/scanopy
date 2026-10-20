@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { collectionLookup } from '$lib/shared/entity-fields';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import {
 		useTagsQuery,
@@ -148,8 +149,12 @@
 		}
 	}
 
+	// The registry's tag group fields reach no related entity.
+	const lookup = collectionLookup({});
+
 	let fields = $derived(
 		tagGroupColumns({
+			lookup: () => lookup,
 			tags: () => tags,
 			groups: () => groups
 		})

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { collectionLookup } from '$lib/shared/entity-fields';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { siteColumns } from './SitesTab.columns';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
@@ -210,8 +211,12 @@
 		sort: { field: 'name', direction: 'asc' }
 	};
 
+	// The registry's site fields reach no related entity.
+	const lookup = collectionLookup({});
+
 	let siteFields = $derived(
 		siteColumns({
+			lookup: () => lookup,
 			tags: () => tagsData,
 			daemons: () => daemonsData,
 			daemonHosts: () => daemonHosts,

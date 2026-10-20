@@ -1,5 +1,5 @@
-import { defineFields } from '$lib/shared/components/data/types';
-import { withColumnGroups } from '$lib/shared/entity-fields/table';
+import { defineRegistryFields } from '$lib/shared/entity-fields/table';
+import type { EntityLookup } from '$lib/shared/entity-fields';
 import { siteItems } from '$lib/features/sites/columns';
 import { permissions } from '$lib/shared/stores/metadata';
 import type { components, operations } from '$lib/api/schema';
@@ -28,13 +28,17 @@ type UserApiKeyListParam = keyof NonNullable<
 
 /** What the user API key columns read from the tab, each as a getter so values stay live. */
 export interface UserApiKeyColumnsContext {
+	/** Related entities the registry's key fields read; none beyond the key itself. */
+	lookup: () => EntityLookup;
 	sites: () => Site[];
 	tags: () => Tag[];
 }
 
 /** Every UserApiKeyOrderField value is listed; the server sorts, groups and filters each. */
 export function userApiKeyColumns(ctx: UserApiKeyColumnsContext) {
-	const fields = defineFields<UserApiKey, UserApiKeyOrderField, UserApiKeyListParam>(
+	return defineRegistryFields<UserApiKey, UserApiKeyOrderField, UserApiKeyListParam>(
+		'UserApiKey',
+		ctx.lookup,
 		{
 			name: {
 				label: common_name(),
@@ -140,7 +144,8 @@ export function userApiKeyColumns(ctx: UserApiKeyColumnsContext) {
 						.filter((name): name is string => !!name);
 				}
 			}
-		]
+		],
+		// Every key on this list is the viewer's: the list handler filters to the caller's own keys.
+		{ omit: ['user_id'] }
 	);
-	return withColumnGroups('UserApiKey', fields);
 }

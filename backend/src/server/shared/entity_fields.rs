@@ -455,7 +455,8 @@ const TAG_GROUP_COLUMNS: &[C] = &[C::new("ordered", G::Configuration), CREATED_A
 
 const USER_API_KEY_COLUMNS: &[C] = &[C::new("site_ids", G::Relationships), CREATED_AT, UPDATED_AT];
 
-// The Users tab lists pending invites beside users, so the invite columns are listed here too.
+// The User list table is the members list (`users/members.rs`): users and the invites waiting to
+// become users. Its columns that aren't user fields, the invite ones included, are declared here.
 const USER_COLUMNS: &[C] = &[
     C::new("oidc_linked_at", G::Access),
     C::new("invite_status", G::Access),
