@@ -19,21 +19,18 @@ impl ServiceDefinition for SpringBoot {
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
         // Actuator exposes its health endpoint by default, on the app's port or on a separate
-        // management port, conventionally 8081.
-        Pattern::AnyOf(vec![
-            Pattern::Endpoint(
-                PortType::Http8080,
-                "/actuator/health",
-                "\"status\":\"up\"",
-                Some(200..300),
-            ),
-            Pattern::Endpoint(
-                PortType::new_tcp(8081),
-                "/actuator/health",
-                "\"status\":\"up\"",
-                Some(200..300),
-            ),
-        ])
+        // management port, conventionally 8081. It answers 200 when UP and 503 when DOWN, and a
+        // down app is still a Spring Boot app.
+        Pattern::AnyOf(
+            [PortType::Http8080, PortType::Http8081]
+                .into_iter()
+                .flat_map(|port| {
+                    [200..300, 503..504].map(|status| {
+                        Pattern::Endpoint(port, "/actuator/health", "\"status\":\"", Some(status))
+                    })
+                })
+                .collect(),
+        )
     }
     fn logo_url(&self) -> &'static str {
         "https://www.vectorlogo.zone/logos/springio/springio-icon.svg"
