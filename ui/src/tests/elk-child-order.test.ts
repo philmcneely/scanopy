@@ -56,7 +56,8 @@ function input(
 	nodes: TopologyNode[],
 	edges: TopologyEdge[],
 	sizes: Map<string, { x: number; y: number }>,
-	collapsed: Set<string> = new Set()
+	collapsed: Set<string> = new Set(),
+	preserveChildOrder = true
 ): ElkLayoutInput {
 	return {
 		nodes,
@@ -64,7 +65,7 @@ function input(
 		view: 'L3Logical',
 		elementNodeSizes: sizes,
 		collapsedContainers: collapsed,
-		preserveChildOrder: true,
+		preserveChildOrder,
 		topology: {
 			nodes,
 			edges,
@@ -147,5 +148,100 @@ describe('computeElkLayout with preserveChildOrder', () => {
 			e2
 		]);
 		expect(readingOrder(result.nodePositions, nodes, expanded)).toEqual([a1, a2]);
+	});
+});
+
+/** A dependency hop: drawn in every view that shows it, but laying nothing out in L3. */
+function dependencyEdge(source: string, target: string, affectsLayout: boolean): TopologyEdge {
+	const edge = layoutEdge(source, target);
+	return {
+		...edge,
+		edge_type: 'RequestPath',
+		view_config: { ...edge.view_config, affects_layout: affectsLayout }
+	} as TopologyEdge;
+}
+
+function centre(
+	positions: Map<string, { x: number; y: number }>,
+	sizes: Map<string, { width: number; height: number }>,
+	id: string
+): { x: number; y: number } {
+	const pos = positions.get(id)!;
+	const size = sizes.get(id)!;
+	return { x: pos.x + size.width / 2, y: pos.y + size.height / 2 };
+}
+
+describe('computeElkLayout with inner edges', () => {
+	const card = { x: 200, y: 60 };
+
+	it('stacks a chain of cards in its edge order, each below the one before', async () => {
+		const box = uuid();
+		const [a, b, c, d] = Array.from({ length: 4 }, () => uuid());
+		// Listed against the chain, so input order and id order both disagree with it.
+		const nodes = [container(box), ...[d, b, a, c].map((id) => element(id, box))];
+		const sizes = new Map([a, b, c, d].map((id) => [id, card]));
+		const edges = [
+			dependencyEdge(c, d, true),
+			dependencyEdge(a, b, true),
+			dependencyEdge(b, c, true)
+		];
+
+		const result = await computeElkLayout(input(nodes, edges, sizes, new Set(), false));
+
+		const y = (id: string) => result.nodePositions.get(id)!.y;
+		expect(y(a)).toBeLessThan(y(b));
+		expect(y(b)).toBeLessThan(y(c));
+		expect(y(c)).toBeLessThan(y(d));
+	});
+
+	it('puts a hub above its spokes', async () => {
+		const box = uuid();
+		const [hub, s1, s2] = Array.from({ length: 3 }, () => uuid());
+		const nodes = [container(box), ...[s2, s1, hub].map((id) => element(id, box))];
+		const sizes = new Map([hub, s1, s2].map((id) => [id, card]));
+		const edges = [dependencyEdge(hub, s1, true), dependencyEdge(hub, s2, true)];
+
+		const result = await computeElkLayout(input(nodes, edges, sizes, new Set(), false));
+
+		const y = (id: string) => result.nodePositions.get(id)!.y;
+		expect(y(hub)).toBeLessThan(y(s1));
+		expect(y(hub)).toBeLessThan(y(s2));
+	});
+});
+
+describe('repacking disconnected containers', () => {
+	it('places a container next to the one it shares a drawn edge with', async () => {
+		const [hub, runtime, linked, loose] = Array.from({ length: 4 }, () => uuid());
+		const [hubA, hubB, runtimeA, linkedA, looseA] = Array.from({ length: 5 }, () => uuid());
+		// Unlinked containers listed first and made tallest, so the shelf would reach them first.
+		const nodes = [
+			container(loose),
+			element(looseA, loose),
+			container(hub),
+			element(hubA, hub),
+			element(hubB, hub),
+			container(runtime),
+			element(runtimeA, runtime),
+			container(linked),
+			element(linkedA, linked)
+		];
+		const card = { x: 200, y: 60 };
+		const sizes = new Map([
+			[hubA, card],
+			[hubB, card],
+			[runtimeA, card],
+			[linkedA, card],
+			[looseA, { x: 200, y: 300 }]
+		]);
+		const edges = [layoutEdge(hubA, runtimeA), dependencyEdge(hubB, linkedA, false)];
+
+		const result = await computeElkLayout(input(nodes, edges, sizes, new Set(), false));
+
+		const distance = (id: string) => {
+			const a = centre(result.nodePositions, result.containerSizes, hub);
+			const b = centre(result.nodePositions, result.containerSizes, id);
+			return Math.hypot(a.x - b.x, a.y - b.y);
+		};
+		expect(distance(linked)).toBeLessThan(distance(loose));
 	});
 });

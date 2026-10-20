@@ -1,123 +1,203 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import {
+	enablePerfInstrumentation,
+	readPipelinePerf,
+	signIn,
+	waitForStableLayout
+} from '../tests-support/topology-harness';
 
-interface NodeInfo {
+/**
+ * Layout quality for every view of every topology in the signed-in organization.
+ *
+ * Scores what is drawn: node positions come from the node store (`__scanopyTopologyLayout`) and
+ * edge geometry from the rendered SVG paths, sampled in flow coordinates, so a crossing counted
+ * here is a crossing on screen.
+ *
+ * Metrics, per view:
+ *  - inner edges (both endpoints inside one root container): crossings between them, how many pass
+ *    through a card that is not an endpoint, and their total and longest drawn length;
+ *  - dependency order: share of inner dependency edges whose target reads after its source (a
+ *    lower row, or the same row to the right);
+ *  - edges between root containers: total and longest drawn length;
+ *  - root containers: overlaps, bounding box, and the share of it no container covers;
+ *  - ELK time per layout run.
+ *
+ * Prerequisites:
+ *   1. `npm run dev` (Vite) plus a running backend, with the demo organization seeded.
+ *   2. SESSION_ID from a logged-in session (`POST /api/auth/login`).
+ *
+ * Run:
+ *   SESSION_ID=<session> npx playwright test tests/topology-layout-eval.ts --project=chromium
+ *
+ * Writes `tests/screenshots/layout-eval.json` and one screenshot per view.
+ */
+
+const VIEWS = ['L3Logical', 'Application', 'Workloads', 'L2Physical'] as const;
+
+/** Dependency edge types, whose direction is the dependency's member order. */
+const DEPENDENCY_EDGE_TYPES = new Set(['RequestPath', 'HubAndSpoke']);
+
+/** Same-row tolerance for reading order, in flow pixels. */
+const ROW_TOLERANCE = 10;
+
+/** Distance between path samples, in flow pixels. */
+const SAMPLE_STEP = 6;
+
+/**
+ * Regression bounds, keyed by `<site> <view>`. Each sits between the baseline recorded before the
+ * layout fixes and the result after them, so the eval fails when a fix stops working.
+ */
+const THRESHOLDS: Record<
+	string,
+	Partial<Record<keyof ViewMetrics, { max?: number; min?: number }>>
+> = {
+	// Baseline 1 crossing, 1049px inner, 2878px / 1725px between subnets, 49% empty.
+	'Headquarters L3Logical': {
+		innerCrossings: { max: 0 },
+		innerLengthTotal: { max: 800 },
+		crossLengthTotal: { max: 2200 },
+		crossLengthMax: { max: 1100 },
+		emptyAreaPct: { max: 40 }
+	},
+	// Baseline 1215px longest edge between subnets.
+	'Data Center L3Logical': { crossLengthMax: { max: 1050 } },
+	// Baseline 2 edges behind cards, 70% of dependency hops in order.
+	'Headquarters Application': {
+		innerBehindCards: { max: 1 },
+		dependencyInOrderPct: { min: 85 }
+	},
+	// Baseline 2 crossings, 4 edges behind cards, 1170px inner, 63% in order.
+	'Data Center Application': {
+		innerCrossings: { max: 1 },
+		innerBehindCards: { max: 2 },
+		innerLengthTotal: { max: 600 },
+		dependencyInOrderPct: { min: 85 }
+	}
+};
+
+interface SnapshotNode {
 	id: string;
-	type: string; // 'ContainerNode' | 'LeafNode'
+	parentId: string | null;
+	type: string | undefined;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	header: string | null;
+}
+
+interface SnapshotEdge {
+	id: string;
+	source: string;
+	target: string;
+	edgeType: string | null;
+	affectsLayout: boolean;
+	label: string | null;
+}
+
+type Point = { x: number; y: number };
+
+interface Box {
 	x: number;
 	y: number;
 	width: number;
 	height: number;
 }
 
-interface EdgeInfo {
-	source: string;
-	target: string;
+interface ViewMetrics {
+	nodes: number;
+	rootContainers: number;
+	rootOverlaps: number;
+	innerEdges: number;
+	innerCrossings: number;
+	innerBehindCards: number;
+	innerLengthTotal: number;
+	innerLengthMax: number;
+	dependencyEdges: number;
+	dependencyInOrderPct: number;
+	crossEdges: number;
+	crossLengthTotal: number;
+	crossLengthMax: number;
+	boundsWidth: number;
+	boundsHeight: number;
+	emptyAreaPct: number;
+	elkMsPerRun: number;
 }
 
-interface LayoutMetrics {
-	overlapCount: number;
-	hierarchyFlowPercent: number;
-	spreadRatio: number;
-	avgEdgeLength: number;
-	maxEdgeLength: number;
-	nodeCount: number;
-}
-
-/** Extract node positions and sizes from the rendered SvelteFlow DOM. */
-async function extractNodes(page: import('@playwright/test').Page): Promise<NodeInfo[]> {
-	return page.evaluate(() => {
-		const nodes: NodeInfo[] = [];
-		const nodeElements = document.querySelectorAll('.svelte-flow__node');
-
-		for (const el of nodeElements) {
-			const id = el.getAttribute('data-id') ?? '';
-			const style = (el as HTMLElement).style;
-			const transform = style.transform || '';
-
-			// Parse transform: translate(Xpx, Ypx)
-			const match = transform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
-			if (!match) continue;
-
-			const x = parseFloat(match[1]);
-			const y = parseFloat(match[2]);
-			const width = (el as HTMLElement).offsetWidth;
-			const height = (el as HTMLElement).offsetHeight;
-
-			// Determine type from class or data attribute
-			const classList = Array.from(el.classList);
-			const isContainer =
-				classList.some((c) => c.toLowerCase().includes('container')) ||
-				el.getAttribute('data-type') === 'ContainerNode';
-			const type = isContainer ? 'ContainerNode' : 'LeafNode';
-
-			nodes.push({ id, type, x, y, width, height });
-		}
-
-		return nodes;
-	});
-}
-
-/** Extract edges (source/target IDs) from the rendered SvelteFlow DOM. */
-async function extractEdges(page: import('@playwright/test').Page): Promise<EdgeInfo[]> {
-	return page.evaluate(() => {
-		const edges: { source: string; target: string }[] = [];
-		const edgeElements = document.querySelectorAll('[class*="svelte-flow__edge"]');
-
-		for (const el of edgeElements) {
-			// Try data attributes first, then parse from aria-label or data-id
-			let source = el.getAttribute('data-source') ?? '';
-			let target = el.getAttribute('data-target') ?? '';
-
-			// SvelteFlow edge IDs often encode source-target as "reactflow__edge-{source}-{target}"
-			if (!source || !target) {
-				const edgeId = el.getAttribute('data-id') ?? el.getAttribute('data-testid') ?? '';
-				const parts = edgeId.split('-');
-				// Look for UUID patterns (8-4-4-4-12)
-				const uuids = edgeId.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g);
-				if (uuids && uuids.length >= 2) {
-					source = uuids[0];
-					target = uuids[1];
-				} else if (parts.length >= 2) {
-					source = parts[0];
-					target = parts[parts.length - 1];
-				}
+/** Read the node store and the drawn path of every visible edge, in flow coordinates. */
+async function readLayout(
+	page: Page
+): Promise<{ nodes: SnapshotNode[]; edges: SnapshotEdge[]; paths: Record<string, Point[]> }> {
+	return page.evaluate((step) => {
+		const read = (
+			window as unknown as {
+				__scanopyTopologyLayout?: () => { nodes: SnapshotNode[]; edges: SnapshotEdge[] };
 			}
+		).__scanopyTopologyLayout;
+		if (!read) throw new Error('__scanopyTopologyLayout is not installed');
+		const { nodes, edges } = read();
 
-			if (source && target && source !== target) {
-				edges.push({ source, target });
+		const paths: Record<string, Point[]> = {};
+		for (const group of document.querySelectorAll<SVGGElement>('.svelte-flow__edge')) {
+			const id = group.dataset.id ?? group.getAttribute('data-id');
+			const path = group.querySelector<SVGPathElement>('path.svelte-flow__edge-path');
+			if (!id || !path) continue;
+			const style = getComputedStyle(path);
+			if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+				continue;
 			}
+			const length = path.getTotalLength();
+			if (!(length > 0)) continue;
+			const samples = Math.min(400, Math.max(2, Math.ceil(length / step)));
+			const points: Point[] = [];
+			for (let i = 0; i <= samples; i++) {
+				const p = path.getPointAtLength((length * i) / samples);
+				points.push({ x: p.x, y: p.y });
+			}
+			paths[id] = points;
 		}
-
-		return edges;
-	});
+		return { nodes, edges, paths };
+	}, SAMPLE_STEP);
 }
 
-/** Wait for layout to settle by polling positions until stable. */
-async function waitForStableLayout(page: import('@playwright/test').Page): Promise<NodeInfo[]> {
-	let previousPositions = '';
-	let stableCount = 0;
-	let nodes: NodeInfo[] = [];
-
-	for (let i = 0; i < 20; i++) {
-		nodes = await extractNodes(page);
-		const currentPositions = JSON.stringify(nodes.map((n) => ({ id: n.id, x: n.x, y: n.y })));
-
-		if (currentPositions === previousPositions && nodes.length > 0) {
-			stableCount++;
-			if (stableCount >= 2) break;
-		} else {
-			stableCount = 0;
-		}
-
-		previousPositions = currentPositions;
-		await page.waitForTimeout(500);
+function polylineLength(points: Point[]): number {
+	let total = 0;
+	for (let i = 1; i < points.length; i++) {
+		total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
 	}
-
-	return nodes;
+	return total;
 }
 
-/** Check if two bounding boxes overlap. */
-function boxesOverlap(a: NodeInfo, b: NodeInfo): boolean {
+function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
+	const cross = (p: Point, q: Point, r: Point) =>
+		(q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+	const d1 = cross(c, d, a);
+	const d2 = cross(c, d, b);
+	const d3 = cross(a, b, c);
+	const d4 = cross(a, b, d);
+	return d1 * d2 < 0 && d3 * d4 < 0;
+}
+
+function polylinesCross(a: Point[], b: Point[]): boolean {
+	for (let i = 1; i < a.length; i++) {
+		for (let j = 1; j < b.length; j++) {
+			if (segmentsCross(a[i - 1], a[i], b[j - 1], b[j])) return true;
+		}
+	}
+	return false;
+}
+
+function insideBox(p: Point, box: Box, inset: number): boolean {
+	return (
+		p.x > box.x + inset &&
+		p.x < box.x + box.width - inset &&
+		p.y > box.y + inset &&
+		p.y < box.y + box.height - inset
+	);
+}
+
+function boxesOverlap(a: Box, b: Box): boolean {
 	return !(
 		a.x + a.width <= b.x ||
 		b.x + b.width <= a.x ||
@@ -126,165 +206,211 @@ function boxesOverlap(a: NodeInfo, b: NodeInfo): boolean {
 	);
 }
 
-/** Compute layout quality metrics. */
-function computeMetrics(nodes: NodeInfo[], edges: EdgeInfo[]): LayoutMetrics {
-	const containers = nodes.filter((n) => n.type === 'ContainerNode');
+function computeMetrics(
+	nodes: SnapshotNode[],
+	edges: SnapshotEdge[],
+	paths: Record<string, Point[]>,
+	elkMsPerRun: number
+): ViewMetrics {
+	const byId = new Map(nodes.map((n) => [n.id, n]));
 
-	// Overlap count (between containers only — leaves are inside containers)
-	let overlapCount = 0;
-	for (let i = 0; i < containers.length; i++) {
-		for (let j = i + 1; j < containers.length; j++) {
-			if (boxesOverlap(containers[i], containers[j])) {
-				overlapCount++;
+	const absolute = new Map<string, Box>();
+	const absoluteOf = (id: string): Box | undefined => {
+		const cached = absolute.get(id);
+		if (cached) return cached;
+		const node = byId.get(id);
+		if (!node) return undefined;
+		const parent = node.parentId ? absoluteOf(node.parentId) : undefined;
+		const box = {
+			x: node.x + (parent?.x ?? 0),
+			y: node.y + (parent?.y ?? 0),
+			width: node.width,
+			height: node.height
+		};
+		absolute.set(id, box);
+		return box;
+	};
+	const rootOf = (id: string): string => {
+		let node = byId.get(id);
+		while (node?.parentId && byId.has(node.parentId)) node = byId.get(node.parentId);
+		return node?.id ?? id;
+	};
+	const ancestors = (id: string): Set<string> => {
+		const out = new Set<string>();
+		let node = byId.get(id);
+		while (node?.parentId) {
+			out.add(node.parentId);
+			node = byId.get(node.parentId);
+		}
+		return out;
+	};
+
+	const drawn = edges.filter((e) => paths[e.id] && byId.has(e.source) && byId.has(e.target));
+	const inner = drawn.filter((e) => rootOf(e.source) === rootOf(e.target));
+	const cross = drawn.filter((e) => rootOf(e.source) !== rootOf(e.target));
+
+	// Crossings between inner edges of the same root container that share no endpoint.
+	let innerCrossings = 0;
+	const innerByRoot = new Map<string, SnapshotEdge[]>();
+	for (const e of inner) {
+		const root = rootOf(e.source);
+		if (!innerByRoot.has(root)) innerByRoot.set(root, []);
+		innerByRoot.get(root)!.push(e);
+	}
+	for (const group of innerByRoot.values()) {
+		for (let i = 0; i < group.length; i++) {
+			for (let j = i + 1; j < group.length; j++) {
+				const a = group[i];
+				const b = group[j];
+				if (
+					a.source === b.source ||
+					a.source === b.target ||
+					a.target === b.source ||
+					a.target === b.target
+				) {
+					continue;
+				}
+				if (polylinesCross(paths[a.id], paths[b.id])) innerCrossings++;
 			}
 		}
 	}
 
-	// Hierarchy flow: are containers distributed vertically (not all in one row)?
-	// Score = % of distinct Y-bands used. With few containers, having 2+ levels is sufficient.
-	const containerYs = containers.map((c) => c.y);
-	const uniqueYLevels = new Set(containerYs.map((y) => Math.round(y / 50))).size;
-	const hierarchyFlowPercent = containers.length <= 1 ? 100 : uniqueYLevels <= 1 ? 0 : 100;
-
-	// Spread ratio: bounding box area / sum of container areas (not leaves,
-	// since leaves are inside containers and would double-count area)
-	const topLevel =
-		containers.length > 0 ? containers : nodes.filter((n) => n.width > 0 && n.height > 0);
-	if (topLevel.length === 0) {
-		return {
-			overlapCount: 0,
-			hierarchyFlowPercent: 100,
-			spreadRatio: 1,
-			avgEdgeLength: 0,
-			maxEdgeLength: 0,
-			nodeCount: 0
-		};
+	// Inner edges whose drawn path enters a card that is neither endpoint nor an endpoint's ancestor.
+	const elements = nodes.filter((n) => n.type === 'Element' && n.width > 0 && n.height > 0);
+	let innerBehindCards = 0;
+	for (const e of inner) {
+		const skip = new Set([e.source, e.target, ...ancestors(e.source), ...ancestors(e.target)]);
+		const root = rootOf(e.source);
+		const points = paths[e.id];
+		const hit = elements.some((card) => {
+			if (skip.has(card.id) || rootOf(card.id) !== root) return false;
+			const box = absoluteOf(card.id)!;
+			return points.some((p) => insideBox(p, box, 2));
+		});
+		if (hit) innerBehindCards++;
 	}
 
-	const minX = Math.min(...topLevel.map((n) => n.x));
-	const minY = Math.min(...topLevel.map((n) => n.y));
-	const maxX = Math.max(...topLevel.map((n) => n.x + n.width));
-	const maxY = Math.max(...topLevel.map((n) => n.y + n.height));
-	const boundingArea = (maxX - minX) * (maxY - minY);
-	const sumNodeArea = topLevel.reduce((sum, n) => sum + n.width * n.height, 0);
-	const spreadRatio = boundingArea > 0 ? boundingArea / sumNodeArea : 1;
+	const innerLengths = inner.map((e) => polylineLength(paths[e.id]));
+	const crossLengths = cross.map((e) => polylineLength(paths[e.id]));
 
-	// Edge length (informational): Euclidean distance between node centers.
-	// Note: leaf positions are container-relative in SvelteFlow, so cross-container
-	// edge lengths are approximate. Handle positions also affect real visual length.
-	const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-	const edgeLengths: number[] = [];
-	for (const edge of edges) {
-		const src = nodeMap.get(edge.source);
-		const tgt = nodeMap.get(edge.target);
-		if (src && tgt) {
-			const dx = src.x + src.width / 2 - (tgt.x + tgt.width / 2);
-			const dy = src.y + src.height / 2 - (tgt.y + tgt.height / 2);
-			edgeLengths.push(Math.sqrt(dx * dx + dy * dy));
+	const dependencyEdges = inner.filter((e) => e.edgeType && DEPENDENCY_EDGE_TYPES.has(e.edgeType));
+	const inOrder = dependencyEdges.filter((e) => {
+		const s = absoluteOf(e.source)!;
+		const t = absoluteOf(e.target)!;
+		if (t.y > s.y + ROW_TOLERANCE) return true;
+		return Math.abs(t.y - s.y) <= ROW_TOLERANCE && t.x > s.x;
+	});
+
+	const roots = nodes.filter((n) => !n.parentId && n.type === 'Container');
+	const rootBoxes = roots.map((r) => absoluteOf(r.id)!);
+	let rootOverlaps = 0;
+	for (let i = 0; i < rootBoxes.length; i++) {
+		for (let j = i + 1; j < rootBoxes.length; j++) {
+			if (boxesOverlap(rootBoxes[i], rootBoxes[j])) rootOverlaps++;
 		}
 	}
-	const avgEdgeLength =
-		edgeLengths.length > 0 ? edgeLengths.reduce((a, b) => a + b, 0) / edgeLengths.length : 0;
-	const maxEdgeLength = edgeLengths.length > 0 ? Math.max(...edgeLengths) : 0;
+	const minX = Math.min(...rootBoxes.map((b) => b.x));
+	const minY = Math.min(...rootBoxes.map((b) => b.y));
+	const maxX = Math.max(...rootBoxes.map((b) => b.x + b.width));
+	const maxY = Math.max(...rootBoxes.map((b) => b.y + b.height));
+	const boundsArea = rootBoxes.length ? (maxX - minX) * (maxY - minY) : 0;
+	const coveredArea = rootBoxes.reduce((sum, b) => sum + b.width * b.height, 0);
+
+	const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+	const max = (xs: number[]) => (xs.length ? Math.max(...xs) : 0);
 
 	return {
-		overlapCount,
-		hierarchyFlowPercent,
-		spreadRatio,
-		avgEdgeLength,
-		maxEdgeLength,
-		nodeCount: nodes.length
+		nodes: nodes.length,
+		rootContainers: roots.length,
+		rootOverlaps,
+		innerEdges: inner.length,
+		innerCrossings,
+		innerBehindCards,
+		innerLengthTotal: Math.round(sum(innerLengths)),
+		innerLengthMax: Math.round(max(innerLengths)),
+		dependencyEdges: dependencyEdges.length,
+		dependencyInOrderPct: dependencyEdges.length
+			? Math.round((100 * inOrder.length) / dependencyEdges.length)
+			: 100,
+		crossEdges: cross.length,
+		crossLengthTotal: Math.round(sum(crossLengths)),
+		crossLengthMax: Math.round(max(crossLengths)),
+		boundsWidth: rootBoxes.length ? Math.round(maxX - minX) : 0,
+		boundsHeight: rootBoxes.length ? Math.round(maxY - minY) : 0,
+		emptyAreaPct: boundsArea > 0 ? Math.round(100 * (1 - coveredArea / boundsArea)) : 0,
+		elkMsPerRun: Math.round(elkMsPerRun)
 	};
 }
 
-test('topology layout quality evaluation', async ({ page, context }) => {
-	// Inject session cookie for auth
-	await context.addCookies([
-		{
-			name: 'session_id',
-			value: process.env.SESSION_ID ?? '',
-			domain: 'localhost',
-			path: '/'
+/** The topology page picks its site from this key, not from the URL. */
+const SELECTED_SITE_KEY = 'scanopy_topology_selected_site_id';
+
+test('topology layout quality evaluation', async ({ context }) => {
+	test.setTimeout(600_000);
+	await signIn(context);
+
+	const sites = (await (await context.request.get('/api/v1/sites')).json()).data as {
+		id: string;
+		name: string;
+	}[];
+	expect(sites.length, 'no sites visible to this session').toBeGreaterThan(0);
+
+	mkdirSync('tests/screenshots', { recursive: true });
+	const results: Record<string, ViewMetrics> = {};
+	const roots: Record<string, Partial<SnapshotNode>[]> = {};
+	const failures: string[] = [];
+
+	for (const { id: siteId, name: site } of sites) {
+		// A page per site, so each one's init script selects only that site.
+		const page = await context.newPage();
+		await page.setViewportSize({ width: 1920, height: 1200 });
+		await enablePerfInstrumentation(page);
+		// Every node has to be in the DOM to be scored, so culling stays off.
+		await page.addInitScript(
+			([key, value]) => {
+				(window as unknown as { __topoNoCull: boolean }).__topoNoCull = true;
+				localStorage.setItem(key, value);
+			},
+			[SELECTED_SITE_KEY, siteId]
+		);
+		for (const view of VIEWS) {
+			const name = `${site} ${view}`;
+			await page.goto(`/?view=${view}#topology`);
+			await page.waitForSelector('.svelte-flow__node', { timeout: 60_000 });
+			await waitForStableLayout(page);
+
+			const perf = await readPipelinePerf(page);
+			const elkRuns = perf.counts['layout.elk-compute'] ?? 0;
+			const elkMs = elkRuns ? (perf.durations['layout.elk-compute'] ?? 0) / elkRuns : 0;
+
+			const { nodes, edges, paths } = await readLayout(page);
+			const metrics = computeMetrics(nodes, edges, paths, elkMs);
+			results[name] = metrics;
+			roots[name] = nodes
+				.filter((n) => !n.parentId && n.type === 'Container')
+				.map(({ header, x, y, width, height }) => ({ header, x, y, width, height }));
+
+			const file = name.replace(/\s+/g, '-').toLowerCase();
+			await page.screenshot({ path: `tests/screenshots/layout-${file}.png` });
+
+			if (metrics.rootOverlaps > 0) failures.push(`${name}: ${metrics.rootOverlaps} root overlaps`);
+			for (const [key, bound] of Object.entries(THRESHOLDS[name] ?? {})) {
+				const value = metrics[key as keyof ViewMetrics];
+				if (bound?.max !== undefined && value > bound.max) {
+					failures.push(`${name}: ${key} ${value} > ${bound.max}`);
+				}
+				if (bound?.min !== undefined && value < bound.min) {
+					failures.push(`${name}: ${key} ${value} < ${bound.min}`);
+				}
+			}
 		}
-	]);
-
-	// Layout quality is scored from the DOM, so every node has to be present.
-	// Without this, culling would silently reduce the sample to whatever is
-	// on screen and report a clean score for a graph it never measured.
-	await page.addInitScript(() => {
-		(window as unknown as { __topoNoCull: boolean }).__topoNoCull = true;
-	});
-
-	// Navigate to topology page
-	await page.goto('/#topology');
-
-	// Wait for SvelteFlow nodes to appear
-	await page.waitForSelector('.svelte-flow__node', { timeout: 30000 });
-
-	// Wait for layout to settle
-	const nodes = await waitForStableLayout(page);
-
-	console.log(`\n=== Topology Layout Evaluation ===`);
-	console.log(`Nodes found: ${nodes.length}`);
-
-	if (nodes.length === 0) {
-		console.log('No nodes found — skipping evaluation');
-		return;
+		await page.close();
 	}
 
-	// Extract edges
-	const edges = await extractEdges(page);
+	console.log('\n=== Topology layout evaluation ===');
+	console.table(results);
+	writeFileSync('tests/screenshots/layout-eval.json', JSON.stringify(results, null, 2));
+	writeFileSync('tests/screenshots/layout-eval-roots.json', JSON.stringify(roots, null, 2));
 
-	// Compute metrics
-	const metrics = computeMetrics(nodes, edges);
-
-	console.log(`\nMetrics:`);
-	console.log(`  Overlap count:        ${metrics.overlapCount} (target: 0)`);
-	console.log(`  Hierarchy flow:       ${metrics.hierarchyFlowPercent.toFixed(1)}% (target: >80%)`);
-	console.log(`  Spread ratio:         ${metrics.spreadRatio.toFixed(2)} (target: 1.0-10.0)`);
-	console.log(
-		`  Avg edge length:      ${metrics.avgEdgeLength.toFixed(0)}px (${edges.length} edges)`
-	);
-	console.log(`  Max edge length:      ${metrics.maxEdgeLength.toFixed(0)}px`);
-
-	// Take screenshot
-	await page.screenshot({
-		path: 'tests/screenshots/topology-layout.png',
-		fullPage: true
-	});
-	console.log(`\nScreenshot saved to tests/screenshots/topology-layout.png`);
-
-	// Pass/fail thresholds
-	const results = [
-		{
-			name: 'No overlaps',
-			pass: metrics.overlapCount === 0,
-			detail: `${metrics.overlapCount} overlaps`
-		},
-		{
-			name: 'Hierarchy flow',
-			pass: metrics.hierarchyFlowPercent > 80,
-			detail: `${metrics.hierarchyFlowPercent.toFixed(1)}%`
-		},
-		{
-			name: 'Spread ratio',
-			pass: metrics.spreadRatio >= 1.0 && metrics.spreadRatio <= 10.0,
-			detail: `${metrics.spreadRatio.toFixed(2)}`
-		}
-	];
-
-	console.log(`\nResults:`);
-	for (const r of results) {
-		console.log(`  ${r.pass ? 'PASS' : 'FAIL'}: ${r.name} (${r.detail})`);
-	}
-
-	const allPassed = results.every((r) => r.pass);
-	console.log(`\nOverall: ${allPassed ? 'PASS' : 'FAIL'}\n`);
-
-	// Assert
-	expect(metrics.overlapCount, 'Container nodes should not overlap').toBe(0);
-	expect(
-		metrics.hierarchyFlowPercent,
-		'Containers should be distributed across vertical layers'
-	).toBeGreaterThan(80);
+	expect(failures, failures.join('\n')).toEqual([]);
 });
