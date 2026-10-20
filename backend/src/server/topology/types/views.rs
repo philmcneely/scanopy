@@ -336,7 +336,8 @@ pub enum MetadataFilterType {
     /// and zoomed-out fill show.
     OperStatus,
     /// Whether a guest (a Proxmox guest or a container host) was running at the last scan.
-    /// Declared on Host and Service in Workloads, where it is the status dot on an icon card.
+    /// Declared on Host and Service in Workloads, and on Service in Application, where it is the
+    /// status dot on an icon card.
     GuestState,
 }
 
@@ -813,8 +814,9 @@ impl TopologyView {
     ///
     /// Every view fills a zoomed-out card amber when its element is stale. L2 adds port status
     /// (down above stale, up below it, so a dead link is never hidden behind a quiet one) and
-    /// colours each port's dot. Workloads colours a guest card's title by what kind of guest it
-    /// is. L3 and Application colour no titles: neither declares a Host filter to explain one.
+    /// colours each port's dot. Workloads and Application put a status dot on a guest's or
+    /// container's icon card in its run-state colour. L3 marks no run state: it declares no guest
+    /// state filter to explain one.
     fn element_marks(&self, config: &ViewElementConfig) -> Vec<ElementMark> {
         use EntityDiscriminants::{Host, Interface, Service};
         use MarkChannel::*;
@@ -855,7 +857,12 @@ impl TopologyView {
                 })
                 .chain(stale_fill)
                 .collect(),
-            Self::L3Logical | Self::Application => stale_fill,
+            // A containerized service's run state, as its card's status dot.
+            Self::Application => GuestState::iter()
+                .map(|g| ElementMark::new(Status, Service, GuestStateFilter, &g))
+                .chain(stale_fill)
+                .collect(),
+            Self::L3Logical => stale_fill,
         }
     }
 
@@ -1001,13 +1008,23 @@ impl TopologyView {
                     entity_type: EntityDiscriminants::Service,
                     inline_entities: vec![],
                 }],
-                metadata_filters: vec![MetadataFilter {
-                    filter_type: MetadataFilterType::Category,
-                    entities: vec![EntityDiscriminants::Service],
-                    label: "By category".to_string(),
-                    values: filter_values_from_enum::<ServiceCategory>(),
-                    applies: FilterApplication::Client,
-                }],
+                metadata_filters: vec![
+                    MetadataFilter {
+                        filter_type: MetadataFilterType::Category,
+                        entities: vec![EntityDiscriminants::Service],
+                        label: "By category".to_string(),
+                        values: filter_values_from_enum::<ServiceCategory>(),
+                        applies: FilterApplication::Client,
+                    },
+                    // A containerized service's run state, which its card's status dot shows.
+                    MetadataFilter {
+                        filter_type: MetadataFilterType::GuestState,
+                        entities: vec![EntityDiscriminants::Service],
+                        label: "By guest state".to_string(),
+                        values: filter_values_from_enum::<GuestState>(),
+                        applies: FilterApplication::Client,
+                    },
+                ],
                 // Populated by `element_config`, which is the only public constructor.
                 default_hidden_values: HashMap::new(),
                 collective_noun: None,

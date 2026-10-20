@@ -1329,6 +1329,30 @@
         ],
         "element_marks": [
           {
+            "channel": "Status",
+            "entity": "Service",
+            "filter_type": "GuestState",
+            "value": "Running"
+          },
+          {
+            "channel": "Status",
+            "entity": "Service",
+            "filter_type": "GuestState",
+            "value": "Paused"
+          },
+          {
+            "channel": "Status",
+            "entity": "Service",
+            "filter_type": "GuestState",
+            "value": "Restarting"
+          },
+          {
+            "channel": "Status",
+            "entity": "Service",
+            "filter_type": "GuestState",
+            "value": "Stopped"
+          },
+          {
             "channel": "StateFill",
             "entity": "Service",
             "filter_type": "Staleness",
@@ -1583,6 +1607,40 @@
                 "icon": "fingerprint-pattern",
                 "id": "NetworkIdentities",
                 "label": "Network Identities"
+              }
+            ]
+          },
+          {
+            "applies": "Client",
+            "entities": [
+              "Service"
+            ],
+            "filter_type": "GuestState",
+            "label": "By guest state",
+            "values": [
+              {
+                "color": "Green",
+                "icon": "circle-play",
+                "id": "Running",
+                "label": "Running"
+              },
+              {
+                "color": "Yellow",
+                "icon": "circle-pause",
+                "id": "Paused",
+                "label": "Paused"
+              },
+              {
+                "color": "Blue",
+                "icon": "refresh-cw",
+                "id": "Restarting",
+                "label": "Restarting"
+              },
+              {
+                "color": "Gray",
+                "icon": "circle-stop",
+                "id": "Stopped",
+                "label": "Stopped"
               }
             ]
           },
