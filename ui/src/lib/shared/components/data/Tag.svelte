@@ -3,7 +3,7 @@
 	import { createColorHelper, type Color } from '$lib/shared/utils/styling';
 	import { common_remove, common_unknown } from '$lib/paraglide/messages';
 	import type { IconComponent } from '$lib/shared/utils/types';
-	import { tooltip } from '$lib/shared/actions/tooltip';
+	import { tooltip, type TooltipContent } from '$lib/shared/actions/tooltip';
 
 	let {
 		icon = null,
@@ -30,7 +30,8 @@
 		badge?: string;
 		href?: string;
 		pill?: boolean;
-		title?: string;
+		/** Hover text, or structured tooltip content. A native tooltip shows text only. */
+		title?: string | TooltipContent | null;
 		removable?: boolean;
 		isShiny?: boolean;
 		nativeTooltip?: boolean;
@@ -42,6 +43,10 @@
 	} = $props();
 
 	let interactive = $derived(!!href || !!onclick);
+	let titleText = $derived(typeof title === 'string' ? title : '');
+	let tooltipContent = $derived(
+		nativeTooltip || !title || typeof title === 'string' ? null : title
+	);
 	let fadedClasses = $derived(
 		faded ? 'opacity-50 grayscale hover:opacity-75 hover:grayscale-[50%] dark:opacity-40' : ''
 	);
@@ -124,9 +129,9 @@
 		{href}
 		target="_blank"
 		rel="noopener noreferrer"
-		use:tooltip
-		data-tooltip={nativeTooltip ? null : title || null}
-		title={nativeTooltip ? title || undefined : undefined}
+		use:tooltip={{ content: tooltipContent }}
+		data-tooltip={nativeTooltip ? null : titleText || null}
+		title={nativeTooltip ? titleText || undefined : undefined}
 		class="inline-flex max-w-full flex-shrink-0 items-center gap-1 whitespace-nowrap rounded brightness-100 transition-all hover:brightness-90 dark:hover:brightness-125 {fadedClasses}"
 		onclick={(e) => e.stopPropagation()}
 	>
@@ -135,9 +140,9 @@
 {:else if interactive}
 	<button
 		type="button"
-		use:tooltip
-		data-tooltip={nativeTooltip ? null : title || null}
-		title={nativeTooltip ? title || undefined : undefined}
+		use:tooltip={{ content: tooltipContent }}
+		data-tooltip={nativeTooltip ? null : titleText || null}
+		title={nativeTooltip ? titleText || undefined : undefined}
 		class="inline-flex max-w-full flex-shrink-0 cursor-pointer appearance-none items-center gap-1 whitespace-nowrap rounded brightness-100 transition-all hover:brightness-90 dark:hover:brightness-125 {fadedClasses}"
 		{onclick}
 		{onmouseenter}
@@ -148,9 +153,9 @@
 	</button>
 {:else}
 	<div
-		use:tooltip
-		data-tooltip={nativeTooltip ? null : title || null}
-		title={nativeTooltip ? title || undefined : undefined}
+		use:tooltip={{ content: tooltipContent }}
+		data-tooltip={nativeTooltip ? null : titleText || null}
+		title={nativeTooltip ? titleText || undefined : undefined}
 		class="inline-flex max-w-full flex-shrink-0 items-center gap-1 whitespace-nowrap rounded {fadedClasses}"
 	>
 		{@render content()}
