@@ -37,7 +37,7 @@ use crate::server::shared::types::metadata::{
 use crate::server::subnets::r#impl::types::SubnetType;
 use crate::server::tags::r#impl::base::TagIcon;
 use crate::server::topology::types::edges::EdgeType;
-use crate::server::topology::types::grouping::{ContainerRule, ElementRule, ElementSort};
+use crate::server::topology::types::grouping::{ContainerRule, ElementRule, ElementSort, ViewMode};
 use crate::server::topology::types::nodes::ContainerType;
 use crate::server::topology::types::views::{InspectorSection, TopologyView};
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
@@ -379,6 +379,9 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
 
     let element_sorts: Vec<TypeMetadata> = ElementSort::iter().map(|s| s.to_metadata()).collect();
     write_fixture(&element_sorts, output_dir, "element-sorts.json");
+
+    let view_modes: Vec<TypeMetadata> = ViewMode::iter().map(|m| m.to_metadata()).collect();
+    write_fixture(&view_modes, output_dir, "view-modes.json");
 
     let device_roles: Vec<TypeMetadata> = DeviceRole::iter().map(|r| r.to_metadata()).collect();
     write_fixture(&device_roles, output_dir, "device-roles.json");

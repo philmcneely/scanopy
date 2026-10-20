@@ -72,6 +72,7 @@ use crate::server::{
         groups::base::TagGroup,
         r#impl::base::{Tag, TagBase},
     },
+    topology::types::grouping::ViewMode,
     topology::types::{
         base::{Topology, TopologyBase, TopologyOptions, TopologyRequestOptions},
         edges::EdgeStyle,

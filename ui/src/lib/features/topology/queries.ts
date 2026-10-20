@@ -160,7 +160,7 @@ function defaultLocalOptions(): TopologyLocalOptions {
 		bundle_edges: true,
 		tag_filter: {},
 		show_minimap: true,
-		icon_nodes: false
+		view_mode: 'Detailed'
 	};
 }
 

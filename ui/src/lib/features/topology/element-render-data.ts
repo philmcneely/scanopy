@@ -38,6 +38,7 @@ import { formatInterfaceSpeed } from '$lib/shared/utils/formatting';
 import type { Site } from '$lib/features/sites/types';
 import { get } from 'svelte/store';
 import { activeView, topologyOptions } from './queries';
+import { effectiveViewMode } from './view-mode';
 import { hiddenEntityIds } from './interactions';
 import { expandedInlineGroups, inlineGroupKey } from './collapse';
 import { queryClient, queryKeys } from '$lib/api/query-client';
@@ -70,14 +71,14 @@ export interface ElementRenderResult {
 	/** The colours the view paints on this card, each decoded by one of its filter values. */
 	marks: ElementMarks;
 	/**
-	 * The icon-first card, when the `icon_nodes` option is on and the element has one. Replaces
+	 * The icon card, when the view draws in the `Icons` view mode and the element has one. Replaces
 	 * every row of `data` on the card, so it decides the card's height in that mode.
 	 */
 	iconCard: ElementIconCard | null;
 }
 
 /**
- * An icon-first card: one large glyph, a short label, and the rest of the card's text on hover.
+ * An icon card: one large glyph, a short label, and the rest of the card's text on hover.
  */
 export interface ElementIconCard {
 	/**
@@ -182,19 +183,22 @@ export function buildElementRender(inputs: ElementRenderInputs): ElementRenderRe
 	return {
 		...content,
 		marks: elementMarks(inputs.activeView, inputs.node, inputs.sites, inputs.topology),
-		iconCard: inputs.options.local.icon_nodes ? buildIconCard(resolved, content.data) : null
+		iconCard:
+			effectiveViewMode(inputs.options.local, inputs.activeView) === 'Icons'
+				? buildIconCard(resolved, content.data)
+				: null
 	};
 }
 
 /**
- * The icon-first card for an element, or null for one that keeps the detailed card: an
- * interface, which stands for a port rather than a device, or an element with nothing resolved.
+ * The icon card for an element, or null for an element with nothing resolved, which keeps the
+ * detailed card.
  */
 function buildIconCard(
 	resolved: ReturnType<typeof resolveElementNode>,
 	data: ElementRenderData | null
 ): ElementIconCard | null {
-	if (!data || data.elementType === 'Interface') return null;
+	if (!data) return null;
 	const host = resolved.host;
 
 	if (data.elementType === 'Service') {
@@ -217,12 +221,15 @@ function buildIconCard(
 		} | null;
 		return meta?.has_logo && meta.device_role === role;
 	});
-	const label = data.headerText ?? hostDisplayName(host);
+	const hostName = data.headerText ?? hostDisplayName(host);
+	// An address card is labelled with its address, so two addresses on one host stay apart. The
+	// container subnet's placeholder address names nothing, so that card keeps the host name.
+	const address = data.subtitleText ? resolved.ipAddress?.ip_address : null;
 	return {
 		glyph: { type: 'role', role },
 		badgeDefinition: badge?.service_definition ?? null,
-		label,
-		title: [label, data.subtitleText, deviceRoles.getName(role)].filter(Boolean).join('\n')
+		label: address ?? hostName,
+		title: [hostName, data.subtitleText, deviceRoles.getName(role)].filter(Boolean).join('\n')
 	};
 }
 

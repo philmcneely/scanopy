@@ -13,8 +13,7 @@
 	import {
 		serviceCategories,
 		serviceDefinitions,
-		containerTypes,
-		deviceRoles
+		containerTypes
 	} from '$lib/shared/stores/metadata';
 	import { findInfraRuleId, getInfrastructureRuleIdForTopology } from '../../queries';
 	import { formatElementSummary, tallyContainerElements, tallyDirectElements } from '../../labels';
@@ -26,7 +25,7 @@
 		selectedEdge as globalSelectedEdge
 	} from '../../queries';
 	import { useTopology, selectedTopologyId } from '../../context';
-	import type { RenderableTopology, TopologyHost, TopologyNode } from '../../types/base';
+	import type { RenderableTopology, TopologyNode } from '../../types/base';
 	import { containerEntity, resolveContainerNode } from '../../resolvers';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { getFreshnessTag } from '$lib/shared/utils/freshness';
@@ -211,14 +210,7 @@
 	// Icon and color: from node fields, falling back to ContainerType fixture icon when fillIcon
 	let nodeIcon = $derived((data as Record<string, unknown>)?.icon as string | undefined);
 	let nodeColor = $derived((data as Record<string, unknown>)?.color as string | undefined);
-	// Icon mode: a host container wears its host's device role, as an icon card would.
-	let hostRole = $derived(
-		$topologyOptions.local.icon_nodes && entityType === 'Host'
-			? ((entity as TopologyHost | undefined)?.device_role ?? 'Unidentified')
-			: null
-	);
 	let iconComponent: IconComponent | null = $derived.by(() => {
-		if (hostRole) return deviceRoles.getIconComponent(hostRole);
 		if (nodeIcon) return createIconComponent(nodeIcon);
 		if (fillIcon) return containerTypes.getIconComponent(containerType);
 		return null;
@@ -232,11 +224,9 @@
 		serviceDefId ? serviceDefinitions.getIconComponent(serviceDefId) : null
 	);
 	let colorHelper: ColorStyle = $derived(
-		hostRole
-			? deviceRoles.getColorHelper(hostRole)
-			: nodeColor
-				? createColorHelper(nodeColor as Parameters<typeof createColorHelper>[0])
-				: containerTypes.getColorHelper(containerType)
+		nodeColor
+			? createColorHelper(nodeColor as Parameters<typeof createColorHelper>[0])
+			: containerTypes.getColorHelper(containerType)
 	);
 
 	// Element rule header + tag pills (for subcontainers created by element rules)

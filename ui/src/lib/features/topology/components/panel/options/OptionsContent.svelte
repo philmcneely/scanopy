@@ -41,6 +41,7 @@
 	import FilterGroup from './FilterGroup.svelte';
 	import GroupingRuleEditor from './GroupingRuleEditor.svelte';
 	import ElementSortSelect from './ElementSortSelect.svelte';
+	import ViewModeSelect from './ViewModeSelect.svelte';
 	import EntityFilterHeader from './EntityFilterHeader.svelte';
 	import { useTagGroupsQuery, useTagsQuery } from '$lib/features/tags/queries';
 	import { compareTagsByGroup } from '$lib/features/tags/groups';
@@ -54,8 +55,6 @@
 		topology_dontFadeEdgesHelp,
 		topology_showMinimap,
 		topology_showMinimapHelp,
-		topology_iconNodes,
-		topology_iconNodesHelp,
 		common_byTag,
 		common_edges,
 		common_clearAll,
@@ -594,15 +593,6 @@
 			key: 'show_minimap',
 			helpText: () => topology_showMinimapHelp(),
 			section: () => common_visual()
-		},
-		{
-			id: 'icon_nodes',
-			label: () => topology_iconNodes(),
-			type: 'boolean',
-			path: 'local',
-			key: 'icon_nodes',
-			helpText: () => topology_iconNodesHelp(),
-			section: () => common_visual()
 		}
 	];
 
@@ -773,6 +763,7 @@
 	<!-- Sort and group -->
 	<div class="space-y-3">
 		<p class="text-tertiary text-xs">{topology_layoutHelp()}</p>
+		<ViewModeSelect />
 		<ElementSortSelect
 			disabled={!editState.isEditable}
 			disabledReason={editState.isEditable ? '' : getOptionDisabledTooltip()}

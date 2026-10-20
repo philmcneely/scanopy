@@ -3,6 +3,7 @@ import type { LayoutGraph } from '../layout/layout-graph';
 import type { RenderableTopology, TopologyNode } from '../types/base';
 import type { XY } from './types';
 import { getTopologyIndex } from '../entity-index';
+import type { ViewMode } from '../view-mode';
 
 export interface BuildFlowNodesParams {
 	visibleNodes: TopologyNode[];
@@ -27,8 +28,8 @@ export interface BuildFlowNodesParams {
 	 * declares all eight as before.
 	 */
 	usedHandles?: Map<string, Set<string>> | null;
-	/** The `icon_nodes` option: element cards other than interfaces render icon-first, narrower. */
-	iconNodes?: boolean;
+	/** The view mode this view draws in (`effectiveViewMode`). `Icons` builds narrower element cards. */
+	viewMode?: ViewMode;
 }
 
 /**
@@ -49,17 +50,12 @@ const EMPTY_HANDLE_SET: ReadonlySet<string> = new Set<string>();
 /** Literal width every element card is built at, and the fallback for handle geometry. */
 export const ELEMENT_WIDTH_PX = 250;
 
-/** Width of an icon-first element card (the `icon_nodes` option). */
+/** Width of an element card in the `Icons` view mode. */
 export const ICON_ELEMENT_WIDTH_PX = 120;
 
-/**
- * The width an element card is built at. Interface cards keep the detailed card in icon mode, as
- * `buildIconCard` does: a port is not a device and has no role to draw.
- */
-export function elementWidthPx(node: TopologyNode, iconNodes: boolean): number {
-	return iconNodes && node.node_type === 'Element' && node.element_type !== 'Interface'
-		? ICON_ELEMENT_WIDTH_PX
-		: ELEMENT_WIDTH_PX;
+/** The width an element card is built at in a view mode. */
+export function elementWidthPx(viewMode: ViewMode): number {
+	return viewMode === 'Icons' ? ICON_ELEMENT_WIDTH_PX : ELEMENT_WIDTH_PX;
 }
 
 /** Horizontal padding on an element card's text, mirroring `px-2` in `ElementNode.svelte`. */
@@ -196,7 +192,7 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 		editMode,
 		sizeHints,
 		usedHandles,
-		iconNodes = false
+		viewMode = 'Detailed'
 	} = params;
 
 	const currentPositions = new Map(liveNodes.map((n) => [n.id, n.position]));
@@ -227,7 +223,7 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 		let measurementPlacement = false;
 
 		const isElement = node.node_type === 'Element';
-		const elementWidth = elementWidthPx(node, iconNodes);
+		const elementWidth = elementWidthPx(viewMode);
 
 		// Container size from layout graph (collapsed = metadata size, expanded = ELK size)
 		const containerSize =

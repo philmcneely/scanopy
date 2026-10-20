@@ -4,6 +4,7 @@
 	import SearchOverlay from '$lib/features/topology/components/visualization/SearchOverlay.svelte';
 	import ShortcutsHelpOverlay from '$lib/features/topology/components/visualization/ShortcutsHelpOverlay.svelte';
 	import type { RenderableTopology } from '$lib/features/topology/types/base';
+	import type { ViewMode } from '$lib/features/topology/view-mode';
 	import { setContext, onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import ReadOnlyInspectorPanel from './ReadOnlyInspectorPanel.svelte';
@@ -36,7 +37,7 @@
 	export let isEmbed: boolean = false;
 	export let shareName: string = '';
 	export let showMinimap: boolean = false;
-	export let iconNodes: boolean = false;
+	export let viewMode: ViewMode = 'Detailed';
 	export let exportFeatures: ExportFeatures | undefined = undefined;
 	export let enabledViews: string[] = [];
 	export let currentView: string = 'L3Logical';
@@ -66,7 +67,7 @@
 	// it and refetches per view) — the view is no longer persisted on the row.
 	// Set it before hydrating so local options are keyed to the right view.
 	activeView.set(currentView as TopologyView);
-	hydrateStoresFromTopology(topology, true, true, { icon_nodes: iconNodes });
+	hydrateStoresFromTopology(topology, true, true, { view_mode: viewMode });
 
 	// Shares/embeds are view-only — drive the single read-only signal so the
 	// shared inspectors (descriptions/tags) and multi-select are gated the same
@@ -93,7 +94,7 @@
 	$: {
 		activeView.set(currentView as TopologyView);
 		topologyContext.set(topology);
-		hydrateStoresFromTopology(topology, true, true, { icon_nodes: iconNodes });
+		hydrateStoresFromTopology(topology, true, true, { view_mode: viewMode });
 	}
 
 	// Keyboard shortcuts — same shared handler, no edit-only callbacks
