@@ -253,10 +253,12 @@ pub mod redis_db;
 // Message Queues
 pub mod activemq;
 pub mod ampq;
+pub mod celery;
 pub mod kafka;
 pub mod mqtt;
 pub mod ntfy;
 pub mod rabbitmq;
+pub mod sidekiq;
 
 // Development
 
@@ -289,6 +291,7 @@ pub mod teamcity;
 // Web
 pub mod ghost;
 pub mod mendelson_as2;
+pub mod spring_boot;
 pub mod tomcat;
 pub mod web_service;
 pub mod wordpress;
