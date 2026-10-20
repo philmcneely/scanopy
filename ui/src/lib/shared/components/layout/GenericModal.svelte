@@ -40,6 +40,7 @@
 	import { toolbarButtonClass } from '$lib/shared/components/data/controls/actionShortcuts';
 	import {
 		assignModalKeys,
+		closesModalOnEscape,
 		ENTER_KEY,
 		isTopmostModal,
 		keyPausedAt,
@@ -445,7 +446,7 @@
 	// because closing the topmost modal can make the one beneath topmost before its listener runs.
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.defaultPrevented || !isOpen || !isTopmost()) return;
-		if (event.key === 'Escape') {
+		if (closesModalOnEscape(event)) {
 			event.preventDefault();
 			handleClose();
 			return;
@@ -495,7 +496,7 @@
 		aria-modal="true"
 		aria-labelledby="modal-title"
 		onkeydown={(e) => {
-			if (e.key !== 'Escape' || e.defaultPrevented || !isTopmost()) return;
+			if (!closesModalOnEscape(e) || !isTopmost()) return;
 			e.preventDefault();
 			handleClose();
 		}}

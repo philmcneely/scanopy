@@ -143,6 +143,16 @@ export function resolveModalKeydown(
 	return { action: match.action, preventDefault: true };
 }
 
+/**
+ * Whether a keydown closes the topmost modal: Escape, unless a control inside it (an open picker
+ * or dropdown) already answered it by closing itself.
+ */
+export function closesModalOnEscape(
+	event: Pick<KeyboardEvent, 'key' | 'defaultPrevented' | 'isComposing'>
+): boolean {
+	return event.key === ESCAPE_KEY && !event.defaultPrevented && !event.isComposing;
+}
+
 /** Whether plain Enter on this target means the primary action rather than its own job. */
 function takesEnterForPrimary(target: EventTarget | null): boolean {
 	const el = target as HTMLElement | null;

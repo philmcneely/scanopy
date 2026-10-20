@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
 	assignModalKeys,
+	closesModalOnEscape,
 	isTopmostModal,
 	keyPausedAt,
 	registerOpenModal,
@@ -251,5 +252,36 @@ describe('chips that dim while typing', () => {
 				expect(keyPausedAt(key, target)).toBe(!fires(key, target));
 			}
 		}
+	});
+});
+
+describe('a tag picker open in a modal', () => {
+	// The picker's search input, with its dropdown showing.
+	const search = element('INPUT', { attributes: { 'aria-expanded': 'true' } });
+	const keyed = assignModalKeys([
+		action('danger', 'Delete'),
+		action('secondary', 'Back'),
+		action('cancel', 'Cancel'),
+		action('primary', 'Save')
+	]);
+
+	it('leaves Enter to pick a tag, and dims the Enter chip', () => {
+		expect(resolveModalKeydown(keydown('Enter', search), keyed).action).toBe(null);
+		expect(keyPausedAt(ENTER_KEY, search)).toBe(true);
+	});
+
+	it('leaves Backspace and Delete to the search, never running danger', () => {
+		for (const key of ['Backspace', 'Delete']) {
+			expect(resolveModalKeydown(keydown(key, search), keyed).action).toBe(null);
+		}
+	});
+
+	it('leaves letters to type into the search', () => {
+		expect(resolveModalKeydown(keydown('b', search), keyed).action).toBe(null);
+	});
+
+	it('lets Escape close the picker without closing the modal', () => {
+		expect(closesModalOnEscape(keydown('Escape', search, { defaultPrevented: true }))).toBe(false);
+		expect(closesModalOnEscape(keydown('Escape', textInput))).toBe(true);
 	});
 });

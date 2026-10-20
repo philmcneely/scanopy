@@ -9,7 +9,7 @@
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import type { Subnet } from '../../types/base';
 	import SelectSite from '$lib/features/sites/components/SelectSite.svelte';
-	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
+	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
@@ -20,6 +20,7 @@
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
+		common_tags,
 		common_cancel,
 		common_cidr,
 		common_create,
@@ -269,8 +270,9 @@
 					<!-- Tags -->
 					<form.Field name="tags">
 						{#snippet children(field)}
-							<TagPicker
+							<TagPickerInline
 								entityType="Subnet"
+								label={common_tags()}
 								selectedTagIds={field.state.value || []}
 								onChange={(tags) => field.handleChange(tags)}
 							/>

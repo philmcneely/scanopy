@@ -17,7 +17,7 @@
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	import { UserDisplay } from '$lib/shared/components/forms/selection/display/UserDisplay.svelte';
-	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
+	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import { entities } from '$lib/shared/stores/metadata';
 	import { Info, KeyRound } from 'lucide-svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
@@ -362,7 +362,7 @@
 
 						<detailsForm.Field name="tags">
 							{#snippet children(field)}
-								<TagPicker
+								<TagPickerInline
 									entityType="Daemon"
 									label={common_tags()}
 									selectedTagIds={field.state.value || []}
