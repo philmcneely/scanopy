@@ -419,6 +419,8 @@
 						     under the tile, spaced to fit inside the card. Offsets are from the tile's
 						     centre to each badge's left edge. -->
 						{@const count = iconCard.badgeDefinitions.length}
+						{@const pileX = TILE_PX / 2 + 4 - BADGE_PX}
+						<!-- A lone badge has nothing to fan out from: it stays on the corner on hover. -->
 						{@const fanStep =
 							count > 1 ? Math.min(BADGE_PX + 2, (CARD_INNER_PX - BADGE_PX) / (count - 1)) : 0}
 						<!-- Every badge is a flex box, off the text baseline: an <img> logo and an <svg> glyph sit on a
@@ -427,8 +429,9 @@
 							{#each iconCard.badgeDefinitions as definition, i (definition)}
 								<span
 									class="absolute left-[var(--stack-x)] top-0 flex leading-none transition-[left] duration-150 group-hover/icon-card:left-[var(--fan-x)]"
-									style="--stack-x: {TILE_PX / 2 + 4 - BADGE_PX}px; --fan-x: {(i - (count - 1) / 2) * fanStep -
-										BADGE_PX / 2}px; z-index: {count - i};"
+									style="--stack-x: {pileX}px; --fan-x: {count > 1
+										? (i - (count - 1) / 2) * fanStep - BADGE_PX / 2
+										: pileX}px; z-index: {count - i};"
 								>
 									<SoftwareGlyph {definition} />
 								</span>
