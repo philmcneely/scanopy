@@ -412,12 +412,6 @@
 		@apply border-red-500 focus:border-red-500 focus:ring-red-500;
 	}
 
-	.select-dropdown {
-		@apply rounded-md shadow-lg;
-		border: 1px solid var(--color-border-input);
-		background: var(--color-bg-elevated);
-	}
-
 	.select-option {
 		@apply w-full px-3 py-3 text-left transition-colors;
 		@apply hover:bg-gray-100 dark:hover:bg-gray-600;

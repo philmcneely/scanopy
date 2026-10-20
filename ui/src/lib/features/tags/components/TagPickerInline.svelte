@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Plus } from 'lucide-svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
+	import Popover from '$lib/shared/components/data/Popover.svelte';
 	import TagCompletionGhost from './TagCompletionGhost.svelte';
 	import InputGhost from '$lib/shared/components/forms/input/InputGhost.svelte';
 	import { tagCompletion } from '$lib/features/tags/completion';
@@ -17,7 +18,7 @@
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { permissions, billingPlans } from '$lib/shared/stores/metadata';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import { onMount, tick, untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import {
 		common_creating,
@@ -105,99 +106,7 @@
 	let inputValue = $state('');
 	let inputElement: HTMLInputElement | undefined = $state();
 	let triggerElement: HTMLDivElement | undefined = $state();
-	let dropdownElement: HTMLDivElement | undefined = $state();
 	const dropdownId = $props.id();
-	/**
-	 * Below the trigger, `top` is set; flipped above it, `bottom` is. Either way the list grows to
-	 * fit every tag, up to the screen edge less `EDGE_GAP_PX`, and scrolls past that.
-	 */
-	let dropdownPosition = $state<{
-		top: number | null;
-		bottom: number | null;
-		left: number;
-		maxHeight: number;
-	}>({ top: 0, bottom: null, left: 0, maxHeight: 192 });
-
-	/** Same gap the column config panel keeps from the bottom of the screen. */
-	const EDGE_GAP_PX = 16;
-	/** Below this much room under the trigger, the list opens above it when there's more room there. */
-	const MIN_DROPDOWN_PX = 160;
-	const TRIGGER_GAP_PX = 4;
-
-	// Portal container for escaping stacking contexts
-	let portalContainer: HTMLDivElement | null = $state(null);
-
-	onMount(() => {
-		portalContainer = document.createElement('div');
-		portalContainer.style.position = 'absolute';
-		portalContainer.style.top = '0';
-		portalContainer.style.left = '0';
-		portalContainer.style.width = '0';
-		portalContainer.style.height = '0';
-		document.body.appendChild(portalContainer);
-
-		return () => {
-			portalContainer?.remove();
-		};
-	});
-
-	// Portal action to move element to body
-	function portal(node: HTMLElement) {
-		if (portalContainer) {
-			portalContainer.appendChild(node);
-		}
-		return {
-			destroy() {}
-		};
-	}
-
-	function calculatePosition() {
-		if (!triggerElement) return;
-		const rect = triggerElement.getBoundingClientRect();
-		const viewportHeight = window.innerHeight;
-		const viewportWidth = window.innerWidth;
-
-		// Vertical: open below unless the list doesn't fit there and there's more room above.
-		const contentHeight = dropdownElement?.scrollHeight ?? MIN_DROPDOWN_PX;
-		const spaceBelow = viewportHeight - rect.bottom - TRIGGER_GAP_PX - EDGE_GAP_PX;
-		const spaceAbove = rect.top - TRIGGER_GAP_PX - EDGE_GAP_PX;
-		const below =
-			spaceBelow >= Math.min(contentHeight, MIN_DROPDOWN_PX) || spaceBelow >= spaceAbove;
-
-		// Horizontal: clamp to viewport edges
-		let left = rect.left;
-		left = Math.max(8, Math.min(left, viewportWidth - 160 - 8)); // min-w-40 = 160px
-
-		dropdownPosition = below
-			? { top: rect.bottom + TRIGGER_GAP_PX, bottom: null, left, maxHeight: spaceBelow }
-			: {
-					top: null,
-					bottom: viewportHeight - rect.top + TRIGGER_GAP_PX,
-					left,
-					maxHeight: spaceAbove
-				};
-	}
-
-	// Recalculate position once dropdown renders (so we measure real height for flip)
-	$effect(() => {
-		if (open && dropdownElement) {
-			calculatePosition();
-		}
-	});
-
-	// Reposition dropdown on scroll when open
-	$effect(() => {
-		if (!open) return;
-
-		const handleScroll = () => calculatePosition();
-		window.addEventListener('scroll', handleScroll, true);
-		window.addEventListener('resize', handleScroll);
-		return () => {
-			window.removeEventListener('scroll', handleScroll, true);
-			window.removeEventListener('resize', handleScroll);
-		};
-	});
-
 	// Query and mutation
 	const tagsQuery = useTagsQuery();
 	const tagGroupsQuery = useTagGroupsQuery();
@@ -493,10 +402,9 @@
 	}
 
 	// When the dropdown opens (via button click or parent programmatically setting `open`),
-	// compute position and focus the input.
+	// focus the input.
 	$effect(() => {
 		if (open && !disabled) {
-			calculatePosition();
 			setTimeout(() => inputElement?.focus(), 0);
 		}
 	});
@@ -581,50 +489,47 @@
 	{@render picker()}
 {/if}
 
-<!-- Portal dropdown to body to escape stacking contexts -->
-{#if showDropdown && portalContainer}
-	<div
-		bind:this={dropdownElement}
-		id={dropdownId}
-		use:portal
-		class="select-dropdown fixed z-[9999] min-w-40 overflow-y-auto rounded-md shadow-lg"
-		style:top={dropdownPosition.top === null ? undefined : `${dropdownPosition.top}px`}
-		style:bottom={dropdownPosition.bottom === null ? undefined : `${dropdownPosition.bottom}px`}
-		style:left="{dropdownPosition.left}px"
-		style:max-height="{dropdownPosition.maxHeight}px"
+<!-- Focus stays in the input, whose keydown drives the list. -->
+<Popover
+	triggerElement={triggerElement ?? null}
+	isOpen={showDropdown}
+	role="presentation"
+	id={dropdownId}
+	align="start"
+	minWidth="10rem"
+	onClose={() => (open = false)}
+>
+	{#if unavailableNote}
+		<p class="text-tertiary border-b px-3 py-2 text-xs" style="border-color: var(--color-border)">
+			{unavailableNote}
+		</p>
+	{/if}
+	<CreatableOptionList
+		options={availableTags.map((tag) => ({
+			id: tag.id,
+			label: tag.name,
+			group: tagGroupLabel(groupOf(tag, tagGroups))
+		}))}
+		onSelect={handleAddTag}
+		createLabel={showCreateOption
+			? isCreating
+				? common_creating()
+				: tags_createTagQuoted({ name: inputValue.trim() })
+			: null}
+		onCreate={handleCreateTag}
+		createOnEnter
+		{highlighted}
+		creating={isCreating}
 	>
-		{#if unavailableNote}
-			<p class="text-tertiary border-b px-3 py-2 text-xs" style="border-color: var(--color-border)">
-				{unavailableNote}
-			</p>
-		{/if}
-		<CreatableOptionList
-			options={availableTags.map((tag) => ({
-				id: tag.id,
-				label: tag.name,
-				group: tagGroupLabel(groupOf(tag, tagGroups))
-			}))}
-			onSelect={handleAddTag}
-			createLabel={showCreateOption
-				? isCreating
-					? common_creating()
-					: tags_createTagQuoted({ name: inputValue.trim() })
-				: null}
-			onCreate={handleCreateTag}
-			createOnEnter
-			{highlighted}
-			creating={isCreating}
-		>
-			{#snippet row(option)}
-				{@const tag = getTag(option.id)}
-				<Tag
-					label={tag?.name}
-					color={tag?.color}
-					icon={tagIcon(tag, applicationGroup)}
-					title={tagTooltip(tag, tagGroups)}
-					isShiny={isApplicationTag(tag, applicationGroup)}
-				/>
-			{/snippet}
-		</CreatableOptionList>
-	</div>
-{/if}
+		{#snippet row(option)}
+			{@const tag = getTag(option.id)}
+			<Tag
+				label={tag?.name}
+				color={tag?.color}
+				icon={tagIcon(tag, applicationGroup)}
+				title={tagTooltip(tag, tagGroups)}
+				isShiny={isApplicationTag(tag, applicationGroup)}
+			/>
+		{/snippet}
+	</CreatableOptionList>
+</Popover>

@@ -1,7 +1,10 @@
+import { createRawSnippet, mount, unmount } from 'svelte';
+import Popover from '$lib/shared/components/data/Popover.svelte';
+
 /**
- * Svelte action that shows a fixed-position tooltip on hover.
+ * Svelte action that shows a tooltip on hover.
  * Shows `content` when given, otherwise the plain text of the element's data-tooltip attribute.
- * Uses position:fixed and appends to document.body to escape overflow containers.
+ * Rendered in a `Popover`, so it places, sizes and looks the same as every other popover.
  *
  * `anchorClosest` places the tooltip against the nearest ancestor matching that selector instead
  * of the node itself, so a tooltip on part of a card clears the whole card.
@@ -147,57 +150,44 @@ export function renderTooltip(doc: TooltipDocument, content: string | TooltipCon
 }
 
 export function tooltip(node: HTMLElement, options: TooltipOptions = {}) {
-	let tip: HTMLDivElement | null = null;
+	let host: HTMLDivElement | null = null;
+	let popover: ReturnType<typeof mount> | null = null;
 
 	function show() {
 		const content = options.content ?? node.getAttribute('data-tooltip');
 		if (!content) return;
 
-		tip = document.createElement('div');
-		tip.appendChild(renderTooltip(document, content));
-		Object.assign(tip.style, {
-			position: 'fixed',
-			zIndex: '9999',
-			maxWidth: options.content ? '300px' : '250px',
-			padding: '6px 10px',
-			borderRadius: '6px',
-			fontSize: '12px',
-			lineHeight: '1.25',
-			color: 'var(--color-text-secondary)',
-			background: 'var(--color-bg-elevated)',
-			border: '1px solid var(--color-border)',
-			boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.3)',
-			pointerEvents: 'none',
-			wordWrap: 'break-word',
-			transform: 'translateX(-50%) translateY(-100%)'
+		const anchor =
+			(options.anchorClosest && node.closest<HTMLElement>(options.anchorClosest)) || node;
+		const body = createRawSnippet(() => ({
+			render: () => '<div class="text-secondary break-words text-xs leading-tight"></div>',
+			setup(el: Element) {
+				el.appendChild(renderTooltip(document, content));
+			}
+		}));
+
+		host = document.createElement('div');
+		document.body.appendChild(host);
+		popover = mount(Popover, {
+			target: host,
+			props: {
+				triggerElement: anchor,
+				isOpen: true,
+				role: 'tooltip',
+				prefer: 'above',
+				minWidth: '0',
+				maxWidth: options.content ? '300px' : '250px',
+				onClose: hide,
+				children: body
+			}
 		});
-		document.body.appendChild(tip);
-
-		const anchor = (options.anchorClosest && node.closest(options.anchorClosest)) || node;
-		const rect = anchor.getBoundingClientRect();
-		const tipHeight = tip.offsetHeight;
-
-		// Auto-detect: if tooltip would overflow above viewport, position below instead
-		if (rect.top - tipHeight - 6 < 0) {
-			tip.style.transform = 'translateX(-50%)';
-			tip.style.top = `${rect.bottom + 6}px`;
-		} else {
-			tip.style.top = `${rect.top - 6}px`;
-		}
-
-		// The tooltip is centred on the node via translateX(-50%). Clamp that centre
-		// so a wide tooltip on an edge (first/last) element stays fully in the
-		// viewport instead of being clipped off the left/right edge.
-		const margin = 6;
-		const half = tip.offsetWidth / 2;
-		const centre = rect.left + rect.width / 2;
-		const clamped = Math.max(margin + half, Math.min(centre, window.innerWidth - margin - half));
-		tip.style.left = `${clamped}px`;
 	}
 
 	function hide() {
-		tip?.remove();
-		tip = null;
+		if (popover) unmount(popover);
+		popover = null;
+		host?.remove();
+		host = null;
 	}
 
 	node.addEventListener('mouseenter', show);
@@ -207,7 +197,7 @@ export function tooltip(node: HTMLElement, options: TooltipOptions = {}) {
 		update(next: TooltipOptions = {}) {
 			options = next;
 			// A tooltip open while its content changes redraws with the new content.
-			if (tip) {
+			if (popover) {
 				hide();
 				show();
 			}
@@ -215,7 +205,7 @@ export function tooltip(node: HTMLElement, options: TooltipOptions = {}) {
 		destroy() {
 			node.removeEventListener('mouseenter', show);
 			node.removeEventListener('mouseleave', hide);
-			tip?.remove();
+			hide();
 		}
 	};
 }
