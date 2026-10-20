@@ -407,7 +407,7 @@
 					use:tooltip={{ anchorClosest: '.svelte-flow__node' }}
 					data-tooltip={iconCard.title}
 				>
-					<!-- my-1: the service badges (bottom-right) and the status dot (top-left) are
+					<!-- my-1: the service badges (bottom-right) and the status dot (top-right) are
 					     centred on the tile's corners and overhang it by half their size, more than the card's
 					     gap and padding. On every icon card, so heights match. -->
 					<div class="relative my-1">
@@ -418,12 +418,12 @@
 						{/if}
 						{#if marks.Status}
 							<!-- A guest's run state, from the view's Status mark: a dot in the state's colour,
-							     centred on the tile's top-left corner, with nothing inside it. Hovering the card
-							     expands it rightwards to name the state; the width is capped to
+							     centred on the tile's top-right corner, with nothing inside it. Hovering the card
+							     expands it leftwards to name the state, staying right-aligned; the width is capped to
 							     stay inside the card. The value is the filter chip's own. -->
 							{@const runState = marks.Status}
 							<span
-								class="absolute -left-2 -top-2 z-10 flex h-4 items-center rounded-full border border-gray-300 dark:border-gray-600"
+								class="absolute -right-2 -top-2 z-10 flex h-4 flex-row-reverse items-center rounded-full border border-gray-300 dark:border-gray-600"
 								style="background: var(--color-topology-node-bg);"
 							>
 								<span class="flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center">
@@ -433,7 +433,7 @@
 									></span>
 								</span>
 								<span
-									class="text-primary flex max-w-0 items-center justify-end gap-1 overflow-hidden whitespace-nowrap text-right text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[72px] group-hover/icon-card:pr-2"
+									class="text-primary flex max-w-0 items-center justify-end gap-1 overflow-hidden whitespace-nowrap text-right text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[72px] group-hover/icon-card:pl-2"
 								>
 									{runState.label}
 								</span>
