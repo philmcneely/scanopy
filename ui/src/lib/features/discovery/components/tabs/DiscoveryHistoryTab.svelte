@@ -239,6 +239,7 @@
 		const details: CardAction = {
 			label: common_details(),
 			icon: Info,
+			isOpen: true,
 			onClick: () => handleEditDiscovery(discovery)
 		};
 		if (isReadOnly) return [details];

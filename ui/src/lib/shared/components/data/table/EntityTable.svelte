@@ -649,21 +649,31 @@
 	{@const item = row.original}
 	{@const itemId = getItemId(item)}
 	{@const isSelected = selectedIds.has(itemId)}
+	{@const rowActions = getActions ? getActions(item) : null}
+	{@const openAction = rowActions?.find((a) => a.isOpen && !a.unavailable)}
 	<!-- The checkbox is the keyboard path; the row click is a larger mouse target for the same. -->
 	<tr
 		data-keeps-selection
-		class="border-t bg-[var(--row-tint)] transition-colors {selectable
+		class="border-t bg-[var(--row-tint)] transition-colors {selectable || openAction
 			? 'cursor-pointer'
 			: ''} {isSelected
 			? '[--row-tint:rgb(0_0_0/0.05)] dark:[--row-tint:rgb(255_255_255/0.05)]'
 			: 'hover:[--row-tint:rgb(0_0_0/0.03)] dark:hover:[--row-tint:rgb(255_255_255/0.03)]'}"
 		style="border-color: var(--color-border)"
 		onmousedown={(e) => {
-			// Shift+click would otherwise select the text between the two rows.
-			if (selectable && e.shiftKey) e.preventDefault();
+			// Shift+click would otherwise select the text between the two rows, and a double-click
+			// the word under the pointer.
+			if ((selectable && e.shiftKey) || (openAction && e.detail > 1 && isRowSelectClick(e))) {
+				e.preventDefault();
+			}
 		}}
 		onclick={(e) => {
+			// The second click of a double-click opens the row; it doesn't undo the first's selection.
+			if (openAction && e.detail > 1) return;
 			if (selectable && isRowSelectClick(e)) onClickRow(itemId, e.shiftKey);
+		}}
+		ondblclick={(e) => {
+			if (openAction && isRowSelectClick(e)) openAction.onClick();
 		}}
 	>
 		{#if selectable}
@@ -727,8 +737,8 @@
 			{/if}
 		{/each}
 
-		{#if getActions}
-			{@const actions = shownActions(getActions(item))}
+		{#if rowActions}
+			{@const actions = shownActions(rowActions)}
 			<td class="pin-right px-[var(--cell-px)] py-[var(--cell-py)] text-right align-middle">
 				<div class="flex items-center justify-end gap-1">
 					{#each actions as action (action.label)}

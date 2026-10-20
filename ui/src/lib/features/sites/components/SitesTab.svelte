@@ -138,7 +138,7 @@
 		if (!canManageSites) return [];
 
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEditSite(site) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditSite(site) },
 			{
 				label: common_delete(),
 				icon: Trash2,

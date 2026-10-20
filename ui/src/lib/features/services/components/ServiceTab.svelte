@@ -302,7 +302,7 @@
 		if (isReadOnly) return [];
 
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEditService(service) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditService(service) },
 			{
 				label: common_delete(),
 				icon: Trash2,

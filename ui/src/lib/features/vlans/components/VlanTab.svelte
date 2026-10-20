@@ -120,7 +120,7 @@
 	function vlanActions(vlan: Vlan): CardAction[] {
 		if (isReadOnly) return [];
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEditVlan(vlan) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditVlan(vlan) },
 			{
 				label: common_delete(),
 				icon: Trash2,

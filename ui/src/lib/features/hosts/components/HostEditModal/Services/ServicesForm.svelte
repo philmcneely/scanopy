@@ -10,7 +10,8 @@
 	import { pushError } from '$lib/shared/stores/feedback';
 	import { virtualizedSummary } from '$lib/features/services/virtualized-count';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
-	import ServiceConfigPanel from './ServiceConfigPanel.svelte';
+	import ServiceConfigPanel, { validateServiceName } from './ServiceConfigPanel.svelte';
+	import type { AnyFieldApi } from '@tanstack/svelte-form';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
 	import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
 	import { ArrowRightLeft } from 'lucide-svelte';
@@ -23,6 +24,7 @@
 		hosts_services_helpText,
 		hosts_services_invalidIndex,
 		hosts_services_placeholder,
+		hosts_services_portRequired,
 		hosts_services_selectToConfig,
 		hosts_services_transferBindingsTitle,
 		hosts_services_transferPorts
@@ -198,9 +200,10 @@
 		</svelte:fragment>
 
 		<svelte:fragment slot="config" let:selectedItem let:selectedIndex>
-			<!-- Render all service config panels to register form fields, but only show the selected one -->
-			{#each formData.services as service, index (`${service.id}-${index}`)}
-				<div class:hidden={selectedIndex !== index}>
+			<!-- Only the selected service mounts its panel. Every service keeps its fields registered,
+			     so saving validates them all. -->
+			{#each formData.services as service, index (service.id)}
+				{#if selectedIndex === index}
 					<ServiceConfigPanel
 						host={formData}
 						{index}
@@ -210,7 +213,31 @@
 						bind:selectedPortBindings
 						currentServices={formData.services}
 					/>
-				</div>
+				{:else}
+					<form.Field
+						name={`services[${index}].name`}
+						validators={{ onBlur: validateServiceName, onChange: validateServiceName }}
+					>
+						{#snippet children(field: AnyFieldApi)}
+							<input type="hidden" value={field.state.value} />
+						{/snippet}
+					</form.Field>
+				{/if}
+				{#each service.bindings as binding, bindingIndex (binding.id)}
+					{#if binding.type === 'Port'}
+						<form.Field
+							name={`services[${index}].bindings[${bindingIndex}].port_id`}
+							validators={{
+								onChange: () => (!binding.port_id ? hosts_services_portRequired() : undefined),
+								onBlur: () => (!binding.port_id ? hosts_services_portRequired() : undefined)
+							}}
+						>
+							{#snippet children(field: AnyFieldApi)}
+								<input type="hidden" value={field.state.value} />
+							{/snippet}
+						</form.Field>
+					{/if}
+				{/each}
 			{/each}
 
 			{#if !selectedItem}

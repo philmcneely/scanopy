@@ -232,7 +232,7 @@
 	function userActions(item: UserOrInvite): CardAction[] {
 		if (isUser(item)) {
 			const actions: CardAction[] = [
-				{ label: common_edit(), icon: Edit, onClick: () => handleEditUser(item.data) }
+				{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditUser(item.data) }
 			];
 			if (managesUsers) {
 				actions.push({

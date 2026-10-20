@@ -2,14 +2,14 @@
  * A modal's footer actions, declared as data, and the keys that run them.
  *
  * The primary action takes Enter (and Mod+Enter, which also works from a textarea). Cancel shows
- * Escape, which the modal already answers by closing. A danger action takes Mod+Delete, never a
- * bare letter. Every other action takes a letter from `assignActionKeys`, as the list toolbar's
- * actions do. Only the topmost open modal answers keys.
+ * Escape, which the modal already answers by closing. A danger action takes Delete or Backspace,
+ * with no modifier. Every other action takes a letter from `assignActionKeys`, as the list
+ * toolbar's actions do. Only the topmost open modal answers keys.
  */
 import type { ActionTone } from '$lib/shared/components/data/types';
 import type { IconComponent } from '$lib/shared/utils/types';
 import { assignActionKeys, DELETE_KEY } from '$lib/shared/components/data/controls/actionShortcuts';
-import { isEditableTarget, keyLabel, shortcutLabel } from '$lib/shared/utils/shortcuts';
+import { isEditableTarget } from '$lib/shared/utils/shortcuts';
 
 export type ModalActionRole = 'primary' | 'secondary' | 'danger' | 'cancel';
 
@@ -42,14 +42,14 @@ export const ESCAPE_KEY = 'Escape';
 
 export interface KeyedModalAction {
 	action: ModalAction;
-	/** `ENTER_KEY`, `ESCAPE_KEY`, `DELETE_KEY` (held with Mod), a capital letter, or null. */
+	/** `ENTER_KEY`, `ESCAPE_KEY`, `DELETE_KEY`, a capital letter, or null. */
 	key: string | null;
 }
 
 /**
  * Each action's key. The first primary takes Enter and the first cancel Escape. The first danger
- * action takes Delete, held with Mod; any other danger action goes without a key rather than take
- * a bare letter. Secondary actions take letters as the toolbar's do.
+ * action takes Delete; any other danger action goes without a key rather than take a letter.
+ * Secondary actions take letters as the toolbar's do.
  */
 export function assignModalKeys(actions: ModalAction[]): KeyedModalAction[] {
 	const primary = actions.find((a) => a.role === 'primary');
@@ -72,15 +72,10 @@ export function assignModalKeys(actions: ModalAction[]): KeyedModalAction[] {
 	});
 }
 
-/** A key from `assignModalKeys` as its chip shows it. */
-export function modalKeyLabel(key: string): string {
-	return key === DELETE_KEY ? shortcutLabel(keyLabel(DELETE_KEY)) : keyLabel(key);
-}
-
 /**
- * Whether `key` does nothing while focus sits on `target`, so its chip dims. Letters and Mod+Delete
- * pause in any text field. Enter pauses where the field keeps it (a textarea types a newline), and
- * Mod+Enter runs the action there instead. Escape never pauses.
+ * Whether `key` does nothing while focus sits on `target`, so its chip dims. Letters and Delete
+ * pause in any text field, where they type or erase. Enter pauses where the field keeps it (a
+ * textarea types a newline), and Mod+Enter runs the action there instead. Escape never pauses.
  */
 export function keyPausedAt(key: string, target: EventTarget | null): boolean {
 	if (key === ESCAPE_KEY || !isEditableTarget(target)) return false;
@@ -120,7 +115,7 @@ const NOTHING: ModalKeydownResult = { action: null, preventDefault: false };
  * primary action. In a text input Enter is stopped even while the primary action is disabled,
  * so the browser's implicit form submission can't run what the button won't.
  *
- * Letters and Mod+Delete never fire while focus is in a text field.
+ * Letters and Delete never fire while focus is in a text field, where those keys edit text.
  */
 export function resolveModalKeydown(
 	event: ModalKeydown,
@@ -141,7 +136,7 @@ export function resolveModalKeydown(
 	if (editable || event.altKey || event.shiftKey) return NOTHING;
 	const match = keyed.find(({ key }) => {
 		if (key === null || key === ENTER_KEY || key === ESCAPE_KEY) return false;
-		if (key === DELETE_KEY) return mod && (event.key === 'Delete' || event.key === 'Backspace');
+		if (key === DELETE_KEY) return !mod && (event.key === 'Delete' || event.key === 'Backspace');
 		return !mod && event.key.toUpperCase() === key;
 	});
 	if (!match || match.action.disabled) return NOTHING;

@@ -1163,7 +1163,7 @@
 				onNextPage={() => page.canGoNext && goToPage(effectiveCurrentPage + 1)}
 				onPageSizeChange={handlePageSizeChange}
 				onExport={onExportClick ?? onCsvExport}
-				pageShortcuts={{ prev: '←', next: '→' }}
+				pageShortcuts={{ prev: keyLabel(PREV_PAGE_KEY), next: keyLabel(NEXT_PAGE_KEY) }}
 			>
 				{#snippet columnMenu()}
 					<ColumnVisibilityMenu

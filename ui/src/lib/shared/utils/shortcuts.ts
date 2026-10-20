@@ -28,6 +28,10 @@ export function keyLabel(key: string, platform = currentPlatform): string {
 		// Delete or Backspace, spelled out: the ⌫ glyph reads poorly at key-chip size.
 		case 'Delete':
 			return 'DEL';
+		case 'ArrowLeft':
+			return '←';
+		case 'ArrowRight':
+			return '→';
 		default:
 			return key;
 	}

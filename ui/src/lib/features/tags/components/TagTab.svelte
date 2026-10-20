@@ -118,7 +118,7 @@
 		if (!canManage) return [];
 
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEditTag(tag) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditTag(tag) },
 			{
 				label: common_delete(),
 				icon: Trash2,

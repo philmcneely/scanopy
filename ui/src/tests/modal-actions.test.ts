@@ -163,19 +163,31 @@ describe('keys for the other actions', () => {
 		expect(resolveModalKeydown(keydown('b', body), keyed).action?.label).toBe('Back');
 	});
 
-	it('never fires a letter or Delete while the user types in a field', () => {
+	it('never fires a letter while the user types in a field', () => {
 		expect(resolveModalKeydown(keydown('b', textInput), keyed).action).toBe(null);
-		expect(
-			resolveModalKeydown(keydown('Backspace', textInput, { metaKey: true }), keyed).action
-		).toBe(null);
 	});
 
-	it('runs danger only with the modifier held', () => {
-		expect(resolveModalKeydown(keydown('Backspace', body), keyed).action).toBe(null);
-		expect(resolveModalKeydown(keydown('Delete', body), keyed).action).toBe(null);
-		expect(
-			resolveModalKeydown(keydown('Backspace', body, { metaKey: true }), keyed).action?.label
-		).toBe('Delete');
+	it('leaves bare Delete and Backspace to a field that edits text', () => {
+		const contentEditable = element('DIV', { isContentEditable: true });
+		for (const target of [textInput, textarea, element('SELECT'), contentEditable]) {
+			for (const key of ['Delete', 'Backspace']) {
+				expect(resolveModalKeydown(keydown(key, target), keyed)).toEqual({
+					action: null,
+					preventDefault: false
+				});
+			}
+		}
+	});
+
+	it('runs danger on bare Delete or Backspace, not with a modifier held', () => {
+		expect(resolveModalKeydown(keydown('Delete', body), keyed).action?.label).toBe('Delete');
+		expect(resolveModalKeydown(keydown('Backspace', body), keyed).action?.label).toBe('Delete');
+		expect(resolveModalKeydown(keydown('Delete', body, { metaKey: true }), keyed).action).toBe(
+			null
+		);
+		expect(resolveModalKeydown(keydown('Delete', body, { ctrlKey: true }), keyed).action).toBe(
+			null
+		);
 	});
 
 	it('gives a second danger action no key rather than a bare letter', () => {
@@ -218,9 +230,7 @@ describe('chips that dim while typing', () => {
 		action('primary', 'Save')
 	]);
 	const fires = (key: string, target: EventTarget) => {
-		const event =
-			key === DELETE_KEY ? keydown('Delete', target, { metaKey: true }) : keydown(key, target);
-		return resolveModalKeydown(event, keyed).action !== null;
+		return resolveModalKeydown(keydown(key, target), keyed).action !== null;
 	};
 
 	it('dims Enter and the letters in a textarea, where typing goes into the field', () => {

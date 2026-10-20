@@ -54,6 +54,8 @@ export interface CardAction {
 	tone?: ActionTone;
 	/** This action deletes the row: it takes the Delete key, and running it clears the selection. */
 	isDelete?: boolean;
+	/** This action opens the row's modal: double-clicking the row runs it. */
+	isOpen?: boolean;
 	onClick: () => void;
 	/**
 	 * Runs the action on every selected row, given their ids. With it, the action runs in the

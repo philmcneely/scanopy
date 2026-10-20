@@ -17,7 +17,7 @@
 
 <script lang="ts">
 	import { tick, untrack, type Snippet } from 'svelte';
-	import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-svelte';
+	import { ArrowLeft, Loader2, X } from 'lucide-svelte';
 	import type { AnyFormApi } from '@tanstack/form-core';
 	import {
 		common_closeModal,
@@ -43,7 +43,6 @@
 		ENTER_KEY,
 		isTopmostModal,
 		keyPausedAt,
-		modalKeyLabel,
 		registerOpenModal,
 		resolveModalKeydown,
 		type ModalAction
@@ -722,7 +721,7 @@
 						? common_shortcutWhileTyping({ shortcut: shortcutLabel(keyLabel(ENTER_KEY)) })
 						: common_shortcutsPausedWhileTyping()}
 			>
-				<KbdKey key={modalKeyLabel(key)} size="xs" tone="inherit" />
+				<KbdKey key={keyLabel(key)} size="xs" tone="inherit" />
 			</span>
 		{/if}
 	</button>
@@ -733,19 +732,11 @@
 		type="button"
 		disabled={!targetId}
 		onclick={() => targetId && requestNavigation(targetId)}
-		class="fixed {side} top-1/2 z-50 hidden -translate-y-1/2 rounded-full p-1 text-gray-200 transition-colors hover:text-white disabled:cursor-default disabled:opacity-30 sm:flex"
+		class="fixed {side} top-1/2 z-50 hidden -translate-y-1/2 rounded p-1 text-gray-200 transition-colors hover:text-white disabled:cursor-default disabled:opacity-30 sm:flex"
 		aria-label={label}
 		title={label}
 	>
-		<span
-			class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/20"
-		>
-			{#if key === 'ArrowLeft'}
-				<ChevronLeft class="h-6 w-6" />
-			{:else}
-				<ChevronRight class="h-6 w-6" />
-			{/if}
-		</span>
+		<KbdKey key={keyLabel(key)} size="lg" tone="inherit" />
 	</button>
 {/snippet}
 

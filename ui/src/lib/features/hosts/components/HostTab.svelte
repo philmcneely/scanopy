@@ -347,7 +347,7 @@
 		if (isReadOnly) return [];
 
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEditHost(host) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditHost(host) },
 			// A rescan targets the host's known addresses, so a host with none (a device identified
 			// purely by a MAC) has nothing to scan, and the endpoint answers 400.
 			{
