@@ -690,6 +690,15 @@ pub fn probe_pattern(probe: &dyn crate::daemon::utils::app_probe::AppProbe) -> P
     }
 }
 
+/// Whether an address can be a gateway at all: a router another host reaches. A loopback, unspecified
+/// or multicast address never is. macOS lists `127.0.0.1` as the gateway of its loopback routes, and
+/// `127.0.0.1` also ends in .1, so without this the daemon's own host matched the Gateway service
+/// by both of [`Pattern::IsGateway`]'s rules. An IPv6 link-local gateway (`fe80::1`) is a real
+/// router and passes.
+pub fn is_router_gateway(ip: &IpAddr) -> bool {
+    !ip.is_loopback() && !ip.is_unspecified() && !ip.is_multicast()
+}
+
 impl Pattern<'_> {
     pub fn matches(
         &self,
@@ -1086,6 +1095,11 @@ impl Pattern<'_> {
             }
 
             Pattern::IsGateway => {
+                if !is_router_gateway(&ip_address.base.ip_address) {
+                    return Err(anyhow!(
+                        "A loopback, unspecified or multicast address is never a gateway"
+                    ));
+                }
                 let gateway_ips_in_subnet: Vec<_> = gateway_ips
                     .iter()
                     .filter(|g| subnet.base.cidr.contains(g))

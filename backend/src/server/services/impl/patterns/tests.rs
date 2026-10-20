@@ -859,3 +859,32 @@ fn a_gateway_running_dhcp_still_matches_the_generic_gateway() {
         "a gateway-specific definition already matched displaces the generic Gateway"
     );
 }
+
+/// Only an address a router can hold is a gateway, under either of `IsGateway`'s rules. A Mac's
+/// loopback routes name 127.0.0.1 as their gateway, and with those dropped the subnet has no
+/// gateway, so 127.0.0.1 ending in .1 then matched the fallback rule instead.
+#[test]
+fn a_loopback_address_is_never_a_gateway() {
+    let ip = |s: &str| s.parse::<IpAddr>().unwrap();
+    assert!(!super::is_router_gateway(&ip("127.0.0.1")));
+    assert!(!super::is_router_gateway(&ip("::1")));
+    assert!(!super::is_router_gateway(&ip("0.0.0.0")));
+    assert!(!super::is_router_gateway(&ip("224.0.0.1")));
+    assert!(super::is_router_gateway(&ip("fe80::1")));
+
+    let matches_gateway = |address: &str, gateways: Vec<IpAddr>| {
+        let mut ctx = TestContext::new();
+        ctx.ip_address.base.ip_address = ip(address);
+        ctx.gateway_ips = gateways;
+        let ports = vec![];
+        let baseline = ctx.create_baseline_params(&ports);
+        Pattern::IsGateway
+            .matches(&ctx.create_params_with_ports(&baseline, &ports))
+            .is_ok()
+    };
+    // The .1 fallback rule, with no routing-table gateways known.
+    assert!(!matches_gateway("127.0.0.1", vec![]));
+    assert!(matches_gateway("192.168.1.1", vec![]));
+    // The routing-table rule.
+    assert!(!matches_gateway("127.0.0.1", vec![ip("127.0.0.1")]));
+}

@@ -23,6 +23,8 @@ use net_route::Handle;
 use pnet::ipnetwork::IpNetwork;
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
+
+use crate::server::services::r#impl::patterns::is_router_gateway;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
@@ -642,14 +644,6 @@ pub trait DaemonUtils {
     ) -> Result<usize, Error>;
 }
 
-/// Whether a routing-table gateway is a router another host could be. A loopback, unspecified or
-/// multicast address never is: macOS lists `127.0.0.1` as the gateway of its loopback routes,
-/// which matched the daemon's own host as a Gateway service. An IPv6 link-local gateway
-/// (`fe80::1`) is a real router and stays.
-pub fn is_router_gateway(ip: &IpAddr) -> bool {
-    !ip.is_loopback() && !ip.is_unspecified() && !ip.is_multicast()
-}
-
 /// Merge host (physical) and Docker subnets, giving host subnets precedence.
 /// - Host subnets are always kept
 /// - Docker subnets with CIDRs matching host subnets are dropped (host wins),
@@ -741,17 +735,6 @@ pub fn create_system_utils() -> PlatformDaemonUtils {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn only_addresses_a_router_can_hold_count_as_routing_table_gateways() {
-        let ip = |s: &str| s.parse::<IpAddr>().unwrap();
-        assert!(!super::is_router_gateway(&ip("127.0.0.1")));
-        assert!(!super::is_router_gateway(&ip("::1")));
-        assert!(!super::is_router_gateway(&ip("0.0.0.0")));
-        assert!(!super::is_router_gateway(&ip("224.0.0.1")));
-        assert!(super::is_router_gateway(&ip("192.168.1.1")));
-        assert!(super::is_router_gateway(&ip("fe80::1")));
-    }
-
     use super::*;
     use crate::server::shared::attribution::AttributeSource;
     use crate::server::shared::storage::traits::Storable;
