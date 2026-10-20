@@ -10,11 +10,7 @@
 	// import { NodeResizeControl } from '@xyflow/svelte';
 	import { createColorHelper } from '$lib/shared/utils/styling';
 	import type { Color, ColorStyle } from '$lib/shared/utils/styling';
-	import {
-		serviceCategories,
-		serviceDefinitions,
-		containerTypes
-	} from '$lib/shared/stores/metadata';
+	import { serviceCategories, containerTypes } from '$lib/shared/stores/metadata';
 	import { findInfraRuleId, getInfrastructureRuleIdForTopology } from '../../queries';
 	import { formatElementSummary, tallyContainerElements, tallyDirectElements } from '../../labels';
 	import {
@@ -27,6 +23,7 @@
 	import { useTopology, selectedTopologyId } from '../../context';
 	import type { RenderableTopology, TopologyNode } from '../../types/base';
 	import { containerEntity, resolveContainerNode } from '../../resolvers';
+	import { entityGlyph } from '../../entity-glyph';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { getFreshnessTag } from '$lib/shared/utils/freshness';
 	import { entities } from '$lib/shared/stores/metadata';
@@ -220,9 +217,14 @@
 	let serviceDefId = $derived(
 		(data as Record<string, unknown>)?.associated_service_definition as string | undefined
 	);
-	let logoComponent: IconComponent | null = $derived(
-		serviceDefId ? serviceDefinitions.getIconComponent(serviceDefId) : null
+	// A container standing for a device (a host) draws its role tile in place of its icon. The rule is
+	// the entity type's `glyph` metadata, the same one element cards follow.
+	let containerGlyph = $derived(
+		topology && containerSubject
+			? entityGlyph(containerSubject.entityType, containerSubject.entity, topology)
+			: null
 	);
+	let deviceRole = $derived(containerGlyph?.type === 'device' ? containerGlyph.role : null);
 	let colorHelper: ColorStyle = $derived(
 		nodeColor
 			? createColorHelper(nodeColor as Parameters<typeof createColorHelper>[0])
@@ -348,9 +350,6 @@
 					: null;
 				const groupServiceDef = (groupNode as Record<string, unknown>)
 					?.associated_service_definition as string | undefined;
-				const groupLogoComponent = groupServiceDef
-					? serviceDefinitions.getIconComponent(groupServiceDef)
-					: null;
 
 				const labels: GroupPill[] = (() => {
 					if (!rule) return [];
@@ -374,7 +373,7 @@
 					? formatElementSummary(tallyContainerElements(summary.groupId, topology), $activeView)
 					: '';
 				return {
-					logoComponent: groupLogoComponent,
+					logoDefinition: groupServiceDef ?? null,
 					headerText: sHeader,
 					labels: isInfra ? [] : labels,
 					childCount: summary.childCount,
@@ -460,7 +459,8 @@
 			{isCollapsible}
 			{headerText}
 			{iconComponent}
-			{logoComponent}
+			logoDefinition={serviceDefId ?? null}
+			{deviceRole}
 			{fillIcon}
 			{colorHelper}
 			{groupLabels}
@@ -479,7 +479,8 @@
 			{isCollapsible}
 			{headerText}
 			{iconComponent}
-			{logoComponent}
+			logoDefinition={serviceDefId ?? null}
+			{deviceRole}
 			{fillIcon}
 			{colorHelper}
 			{groupLabels}
@@ -517,7 +518,8 @@
 				{isCollapsible}
 				{headerText}
 				{iconComponent}
-				{logoComponent}
+				logoDefinition={serviceDefId ?? null}
+				{deviceRole}
 				{fillIcon}
 				{colorHelper}
 				{groupLabels}
@@ -535,7 +537,8 @@
 				{isCollapsible}
 				{headerText}
 				{iconComponent}
-				{logoComponent}
+				logoDefinition={serviceDefId ?? null}
+				{deviceRole}
 				{fillIcon}
 				{colorHelper}
 				{groupLabels}

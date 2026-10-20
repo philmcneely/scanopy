@@ -428,8 +428,8 @@ impl TypeMetadataProvider for ViewMode {
 
     fn description(&self) -> &'static str {
         match self {
-            ViewMode::Detailed => "Each card lists its services and addresses",
-            ViewMode::Icons => "Each card shows its device icon and a label",
+            ViewMode::Detailed => "Each card shows what it is and lists what it holds",
+            ViewMode::Icons => "Each card shows what it is and its name or address",
         }
     }
 

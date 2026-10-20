@@ -7,7 +7,7 @@
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import Checkbox from '$lib/shared/components/forms/input/Checkbox.svelte';
-	import SelectInput from '$lib/shared/components/forms/input/SelectInput.svelte';
+	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	import viewModesJson from '$lib/data/view-modes.json';
 	import { metaName, metaDescription } from '$lib/i18n/metadata';
 	import DateInput from '$lib/shared/components/forms/input/DateInput.svelte';
@@ -101,7 +101,7 @@
 	let viewModeFieldName = $derived(`shares[${index}].view_mode`);
 	// Every mode, not one view's: a share opens on any of its views, and each falls back to
 	// `Detailed` where the chosen mode does not apply (`effectiveViewMode`).
-	const viewModeOptions = viewModesJson.map((mode) => ({
+	const viewModeOptions: SimpleOption[] = viewModesJson.map((mode) => ({
 		value: mode.id,
 		label: metaName('view_modes', mode.id, mode.name),
 		description: metaDescription('view_modes', mode.id, mode.description)
@@ -333,11 +333,12 @@
 				</form.Field>
 				<form.Field name={viewModeFieldName}>
 					{#snippet children(field: AnyFieldApi)}
-						<SelectInput
+						<RichSelect
 							label={topology_viewMode()}
-							id="view-mode-{index}"
+							selectedValue={field.state.value}
 							options={viewModeOptions}
-							{field}
+							displayComponent={SimpleOptionDisplay}
+							onSelect={(value) => field.handleChange(value)}
 						/>
 					{/snippet}
 				</form.Field>
