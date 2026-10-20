@@ -422,7 +422,10 @@
 	}
 
 	function removeTag(tagId: string) {
-		const index = removeButtons().indexOf(document.activeElement as HTMLElement);
+		// Only a keyboard removal moves focus on. A clicked button also takes focus, unringed, and
+		// handing that to the next tag's button would let Enter remove it instead of saving.
+		const active = document.activeElement as HTMLElement | null;
+		const index = active?.matches(':focus-visible') ? removeButtons().indexOf(active) : -1;
 		refocusIndex = index === -1 ? null : index;
 		handleRemoveTag(tagId);
 	}
