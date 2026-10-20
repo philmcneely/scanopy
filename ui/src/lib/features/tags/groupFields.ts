@@ -72,7 +72,7 @@ export function tagGroupFields<T>({
 			getFilterValue: (item: T) => held(item)?.id ?? null,
 			display: {
 				hiddenByDefault: true,
-				section: tags_tagGroups(),
+				section: { id: 'tag_groups', label: tags_tagGroups() },
 				cell,
 				getItems: (item: T) => {
 					const tag = held(item);

@@ -264,6 +264,7 @@
 	// and handed to table-core as controlled state rather than kept in parallel.
 	let columnVisibility = $state<Record<string, boolean>>({});
 	let columnOrder = $state<string[]>([]);
+	let columnGroupOrder = $state<string[]>([]);
 	let columnSizing = $state<Record<string, number>>({});
 
 	// Pagination state. `currentPage` is the page restored from storage or a link, handed to the
@@ -289,6 +290,7 @@
 
 		if (state.columnVisibility) columnVisibility = state.columnVisibility;
 		if (state.columnOrder) columnOrder = state.columnOrder;
+		if (state.columnGroupOrder) columnGroupOrder = state.columnGroupOrder;
 		if (state.columnSizing) columnSizing = state.columnSizing;
 
 		if (state.pageSize) {
@@ -368,6 +370,7 @@
 					pageSize,
 					columnVisibility,
 					columnOrder,
+					columnGroupOrder,
 					columnSizing
 				})
 			);
@@ -419,6 +422,7 @@
 					void pageSize;
 					void columnVisibility;
 					void columnOrder;
+					void columnGroupOrder;
 					void columnSizing;
 
 					// Debounce saves
@@ -463,7 +467,12 @@
 	let columnState = $derived(
 		reconcileColumnState(
 			allColumns,
-			{ visibility: columnVisibility, order: columnOrder, sizing: columnSizing },
+			{
+				visibility: columnVisibility,
+				order: columnOrder,
+				groupOrder: columnGroupOrder,
+				sizing: columnSizing
+			},
 			tagColumn ? [tagColumn] : []
 		)
 	);
@@ -819,6 +828,10 @@
 		columnOrder = order;
 	}
 
+	function reorderColumnGroups(groupOrder: string[]) {
+		columnGroupOrder = groupOrder;
+	}
+
 	function resizeColumns(sizing: Record<string, number>) {
 		columnSizing = sizing;
 	}
@@ -826,6 +839,7 @@
 	function resetColumns() {
 		columnVisibility = {};
 		columnOrder = [];
+		columnGroupOrder = [];
 		columnSizing = {};
 		dropHiddenColumns();
 	}
@@ -1169,9 +1183,11 @@
 					<ColumnVisibilityMenu
 						columns={allColumns}
 						order={columnState.order}
+						groupOrder={columnState.groupOrder}
 						visibility={columnState.visibility}
 						onToggle={toggleColumn}
 						onReorder={reorderColumns}
+						onReorderGroups={reorderColumnGroups}
 						onReset={resetColumns}
 					/>
 				{/snippet}

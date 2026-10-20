@@ -41,6 +41,11 @@ export const TAG_COLUMN_ID = 'tags';
 export interface ColumnState {
 	visibility: Record<string, boolean>;
 	order: string[];
+	/**
+	 * The column-menu headings (`columnSectionKey`) in the user's order. Columns sort by heading in
+	 * this order first, then by `order` within each heading.
+	 */
+	groupOrder: string[];
 	/** Widths the user resized to, in px. A column without an entry uses its default. */
 	sizing: Record<string, number>;
 }
@@ -114,22 +119,41 @@ export function defaultColumnVisibility<T>(columns: EntityColumn<T>[]): Record<s
 
 /**
  * The column-menu heading a column is listed under: its field group, else its `display.section`,
- * else `null` (listed first, under no heading). The table keeps each heading's columns together.
+ * else `null` (listed first, under no heading).
  */
 export function columnSectionKey<T>(column: EntityColumn<T>): string | null {
 	if (column.display.group) return column.display.group;
-	return column.display.section ? `section:${column.display.section}` : null;
-}
-
-/** Where a column's heading falls by default: unheaded, the field groups in order, then sections. */
-function defaultSectionRank<T>(column: EntityColumn<T>): number {
-	const { group, section } = column.display;
-	if (group) return 1 + fieldGroups.getItems().findIndex((item) => item.id === group);
-	return section ? Number.MAX_SAFE_INTEGER : 0;
+	return column.display.section ? `section:${column.display.section.id}` : null;
 }
 
 /**
- * Default order: by heading (`defaultSectionRank`), then an explicit `display.order`, then
+ * The headings among `columns` in their default order: field groups as `field-groups.json` lists
+ * them, then sections in declaration order.
+ */
+export function defaultGroupOrder<T>(columns: EntityColumn<T>[]): string[] {
+	const keys = new Set(columns.map(columnSectionKey).filter((key) => key !== null));
+	const groups = fieldGroups
+		.getItems()
+		.map((group) => group.id)
+		.filter((id) => keys.has(id));
+	return [...groups, ...[...keys].filter((key) => !groups.includes(key))];
+}
+
+/**
+ * `ids` sorted by heading, unheaded first and then as `groupOrder` lists them, keeping their order
+ * within each heading.
+ */
+function sortByGroup<T>(ids: string[], columns: EntityColumn<T>[], groupOrder: string[]): string[] {
+	const byId = new Map(columns.map((c) => [c.id, c]));
+	const rank = (id: string) => {
+		const key = columnSectionKey(byId.get(id)!);
+		return key === null ? -1 : groupOrder.indexOf(key);
+	};
+	return [...ids].sort((a, b) => rank(a) - rank(b));
+}
+
+/**
+ * Default order: by heading (`defaultGroupOrder`), then an explicit `display.order`, then
  * declaration order.
  *
  * Declaration order alone cannot express what a reader wants, because
@@ -138,15 +162,15 @@ function defaultSectionRank<T>(column: EntityColumn<T>): number {
  * sortability put it.
  */
 export function defaultColumnOrder<T>(columns: EntityColumn<T>[]): string[] {
-	return columns
-		.map((column, index) => ({ column, index, rank: defaultSectionRank(column) }))
+	const declared = columns
+		.map((column, index) => ({ column, index }))
 		.sort((a, b) => {
-			if (a.rank !== b.rank) return a.rank - b.rank;
 			const orderA = a.column.display.order ?? Number.POSITIVE_INFINITY;
 			const orderB = b.column.display.order ?? Number.POSITIVE_INFINITY;
 			return orderA === orderB ? a.index - b.index : orderA - orderB;
 		})
 		.map(({ column }) => column.id);
+	return sortByGroup(declared, columns, defaultGroupOrder(columns));
 }
 
 /**
@@ -181,6 +205,7 @@ function pinColumns<T>(order: string[], columns: EntityColumn<T>[]): string[] {
  * Renaming or removing a field must not leave a stale entry deciding anything,
  * a stored order cannot unpin a pinned column, and a newly added field lands
  * beside the column it is declared after rather than at the end.
+ * Headings fold the same way, and the columns sort by heading first.
  *
  * `appended` are columns the list renders outside the order (the tags column):
  * they take no part in order or visibility, but their widths are kept too.
@@ -204,102 +229,77 @@ export function reconcileColumnState<T>(
 		visibility[column.id] = typeof persisted === 'boolean' ? persisted : defaults[column.id];
 	}
 
-	const defaultOrder = defaultColumnOrder(columns);
-	const known = new Set(defaultOrder);
-	const order = (stored?.order ?? []).filter((id) => known.has(id));
+	const groupOrder = mergeStoredOrder(defaultGroupOrder(columns), stored?.groupOrder);
+	const order = mergeStoredOrder(defaultColumnOrder(columns), stored?.order);
+
+	return {
+		visibility,
+		order: pinColumns(sortByGroup(order, columns, groupOrder), columns),
+		groupOrder,
+		sizing
+	};
+}
+
+/**
+ * A stored order folded onto the ids that exist now: ids no longer in `defaults` are dropped, and
+ * an id the stored order never knew about goes straight after its nearest default-order
+ * predecessor, wherever the user has since moved that one. Its default index would mean nothing
+ * in an order the user rearranged.
+ */
+function mergeStoredOrder(defaults: string[], stored: string[] | undefined): string[] {
+	const known = new Set(defaults);
+	const order = (stored ?? []).filter((id) => known.has(id));
 	const placed = new Set(order);
 
-	// A column the stored order never knew about goes straight after its nearest
-	// default-order predecessor, wherever the user has since moved that one. Its
-	// default index would mean nothing in an order the user rearranged.
-	defaultOrder.forEach((id, index) => {
+	defaults.forEach((id, index) => {
 		if (placed.has(id)) return;
-		const anchor = defaultOrder
+		const anchor = defaults
 			.slice(0, index)
 			.reverse()
 			.find((candidate) => placed.has(candidate));
 		order.splice(anchor === undefined ? 0 : order.indexOf(anchor) + 1, 0, id);
 		placed.add(id);
 	});
-
-	const pinned = pinColumns(order, columns);
-	return {
-		visibility,
-		order: withMovableOrder(pinned, columns, bySection(pinned, columns)),
-		sizing
-	};
+	return order;
 }
 
-/**
- * The movable ids of `order`, each heading's columns brought together where that heading's first
- * movable column stands. A stored order from before headings, or one a new column was spliced
- * into, comes back with every heading in one piece.
- */
-function bySection<T>(order: string[], columns: EntityColumn<T>[]): string[] {
-	const byId = new Map(columns.map((c) => [c.id, c]));
-	const movable = movableIds(order, columns);
-	const keyOf = (id: string) => columnSectionKey(byId.get(id)!);
-	const keys = [...new Set(movable.map(keyOf))];
-	return keys.flatMap((key) => movable.filter((id) => keyOf(id) === key));
+/** The headings in `groupOrder` the user can move: those with a movable column. */
+export function movableGroups<T>(groupOrder: string[], columns: EntityColumn<T>[]): string[] {
+	const keys = new Set(columns.filter(isMovableColumn).map(columnSectionKey));
+	return groupOrder.filter((key) => keys.has(key));
 }
 
-/** `order` with its movable ids replaced, in turn, by `movable`; pinned columns stay put. */
-function withMovableOrder<T>(
-	order: string[],
-	columns: EntityColumn<T>[],
-	movable: string[]
-): string[] {
-	const slots = new Set(movableIds(order, columns));
-	let next = 0;
-	return order.map((id) => (slots.has(id) ? movable[next++] : id));
-}
-
-/**
- * Drop every movable column of one heading before or after another heading's columns.
- *
- * Returns the order unchanged when either heading has no movable column. Pinned columns of
- * either heading stay where pinning puts them.
- */
-export function moveSectionTo<T>(
-	order: string[],
-	columns: EntityColumn<T>[],
+/** Drop a heading before or after another one. */
+export function moveGroupTo(
+	groupOrder: string[],
 	key: string,
 	targetKey: string,
 	position: 'before' | 'after'
 ): string[] {
-	const byId = new Map(columns.map((c) => [c.id, c]));
-	const keyOf = (id: string) => columnSectionKey(byId.get(id)!);
-	const movable = movableIds(order, columns);
-	const block = movable.filter((id) => keyOf(id) === key);
-	const rest = movable.filter((id) => keyOf(id) !== key);
-	const target = rest.filter((id) => keyOf(id) === targetKey);
-	if (key === targetKey || block.length === 0 || target.length === 0) return order;
-
-	const at =
-		position === 'before' ? rest.indexOf(target[0]) : rest.indexOf(target[target.length - 1]) + 1;
-	rest.splice(at, 0, ...block);
-	return withMovableOrder(order, columns, rest);
+	if (key === targetKey || !groupOrder.includes(key) || !groupOrder.includes(targetKey)) {
+		return groupOrder;
+	}
+	const without = groupOrder.filter((candidate) => candidate !== key);
+	const targetIndex = without.indexOf(targetKey);
+	without.splice(position === 'before' ? targetIndex : targetIndex + 1, 0, key);
+	return without;
 }
 
-/** The headings, in table order, whose columns the user can move. */
-export function movableSectionKeys<T>(order: string[], columns: EntityColumn<T>[]): string[] {
-	const byId = new Map(columns.map((c) => [c.id, c]));
-	const keys = movableIds(order, columns).map((id) => columnSectionKey(byId.get(id)!));
-	return [...new Set(keys)].filter((key): key is string => key !== null);
-}
-
-/** Move a heading's columns one heading up or down (`delta` of -1 or 1). */
-export function moveSection<T>(
-	order: string[],
-	columns: EntityColumn<T>[],
+/**
+ * Move a heading one step among the `movable` ones (`delta` of -1 or 1).
+ *
+ * Returns the order unchanged for a step past either end.
+ */
+export function moveGroup(
+	groupOrder: string[],
+	movable: string[],
 	key: string,
 	delta: -1 | 1
 ): string[] {
-	const keys = movableSectionKeys(order, columns);
-	const index = keys.indexOf(key);
-	const target = keys[index + delta];
-	if (index === -1 || target === undefined) return order;
-	return moveSectionTo(order, columns, key, target, delta < 0 ? 'before' : 'after');
+	const index = movable.indexOf(key);
+	const target = movable[index + delta];
+	if (index === -1 || target === undefined) return groupOrder;
+	return moveGroupTo(groupOrder, key, target, delta < 0 ? 'before' : 'after');
 }
 
 /**
@@ -425,7 +425,8 @@ export function columnSections<T>(columns: EntityColumn<T>[]): ColumnSection<T>[
 		const listed = columns.filter((column) => columnSectionKey(column) === key);
 		if (listed.length === 0) return [];
 		const { group, section } = listed[0].display;
-		const heading = key === null ? null : group ? fieldGroups.getName(group) : (section ?? null);
+		const heading =
+			key === null ? null : group ? fieldGroups.getName(group) : (section?.label ?? null);
 		return [{ key, heading, columns: listed }];
 	});
 }
