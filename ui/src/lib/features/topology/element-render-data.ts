@@ -217,7 +217,7 @@ function tooltipText(
 	rows: [label: string, value: string | null | undefined][],
 	list?: { header: string; items: string[] }
 ): string {
-	const lines = rows
+	const lines: string[] = rows
 		.filter(([, value]) => value)
 		.map(([label, value]) => common_labeledValue({ label, value: value as string }));
 	if (list && list.items.length > 0) {

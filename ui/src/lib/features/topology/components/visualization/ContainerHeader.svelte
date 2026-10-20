@@ -203,7 +203,7 @@
 		{/if}
 
 		{#if deviceType}
-			<DeviceGlyph deviceType={deviceType} framed={false} />
+			<DeviceGlyph {deviceType} framed={false} />
 		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<IconComp class={`h-5 w-5 ${colorHelper.icon}`} fill={fillIcon ? 'currentColor' : 'none'} />
@@ -269,7 +269,7 @@
 			>
 		{/if}
 		{#if deviceType}
-			<span data-fixed><DeviceGlyph deviceType={deviceType} framed={false} /></span>
+			<span data-fixed><DeviceGlyph {deviceType} framed={false} /></span>
 		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<span data-fixed

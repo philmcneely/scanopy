@@ -4900,7 +4900,7 @@ export interface components {
              *       "created_at": "2026-01-15T10:30:00Z",
              *       "credential_assignments": [],
              *       "description": "Primary web server",
-             *       "device_role": "Server",
+             *       "device_type": "Server",
              *       "display_name": "web-server-01",
              *       "display_name_rung": "Name",
              *       "firmware_revision": null,
@@ -5107,10 +5107,10 @@ export interface components {
                 description?: string | null;
                 /**
                  * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
-                 *     by [`Host::device_role`] from its services, then its OS, as the topology computes it.
+                 *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
                  *     Read-only.
                  */
-                device_role?: components["schemas"]["DeviceRole"];
+                device_type?: components["schemas"]["DeviceType"];
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -8921,15 +8921,15 @@ export interface components {
         /**
          * @description What a host is, as a device: the class its icon stands for on the map.
          *
-         *     Declaration order is precedence, highest first. A host whose services claim several roles takes
+         *     Declaration order is precedence, highest first. A host whose services claim several device types takes
          *     the first one here, so a firewall that also serves files reads as a firewall, and `Server`,
-         *     which any application implies, never hides a more specific role.
+         *     which any application implies, never hides a more specific device type.
          *
          *     `Unidentified` means no evidence yet, not a device class outside this list: every class the
          *     evidence names gets its own variant.
          * @enum {string}
          */
-        DeviceRole: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Mobile" | "Industrial" | "IoT" | "Server" | "Unidentified";
+        DeviceType: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Mobile" | "Industrial" | "IoT" | "Server" | "Unidentified";
         Discovery: components["schemas"]["DiscoveryBase"] & {
             /**
              * Format: date-time
@@ -10644,7 +10644,7 @@ export interface components {
          *       "created_at": "2026-01-15T10:30:00Z",
          *       "credential_assignments": [],
          *       "description": "Primary web server",
-         *       "device_role": "Server",
+         *       "device_type": "Server",
          *       "display_name": "web-server-01",
          *       "display_name_rung": "Name",
          *       "firmware_revision": null,
@@ -10851,10 +10851,10 @@ export interface components {
             description?: string | null;
             /**
              * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
-             *     by [`Host::device_role`] from its services, then its OS, as the topology computes it.
+             *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
              *     Read-only.
              */
-            device_role?: components["schemas"]["DeviceRole"];
+            device_type?: components["schemas"]["DeviceType"];
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.
@@ -12800,10 +12800,10 @@ export interface components {
                 description?: string | null;
                 /**
                  * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
-                 *     by [`Host::device_role`] from its services, then its OS, as the topology computes it.
+                 *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
                  *     Read-only.
                  */
-                device_role?: components["schemas"]["DeviceRole"];
+                device_type?: components["schemas"]["DeviceType"];
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -15394,8 +15394,8 @@ export interface components {
          *     host has no name".
          */
         TopologyHost: components["schemas"]["Host"] & {
-            /** @description What this host is, as a device: the role its icon shows. See [`Host::device_role`]. */
-            device_role?: components["schemas"]["DeviceRole"];
+            /** @description What this host is, as a device: the device type its icon shows. See [`Host::device_type`]. */
+            device_type?: components["schemas"]["DeviceType"];
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.

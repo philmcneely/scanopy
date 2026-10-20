@@ -3,7 +3,8 @@
 	import { deviceTypes } from '$lib/shared/stores/metadata';
 
 	/** A host's device type as text with its glyph: the hosts table's cell and the editor's fact. */
-	let { deviceType }: { deviceType: components['schemas']['DeviceType'] | null | undefined } = $props();
+	let { deviceType }: { deviceType: components['schemas']['DeviceType'] | null | undefined } =
+		$props();
 
 	let resolved = $derived(deviceType ?? 'Unidentified');
 	let RoleIcon = $derived(deviceTypes.getIconComponent(resolved));
