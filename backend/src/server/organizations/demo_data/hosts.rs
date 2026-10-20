@@ -691,6 +691,47 @@ pub(super) fn generate_hosts_and_services(
         }
         gitlab_vm.services.push(svc);
     }
+    // The runner's job cache and its queue run beside it in the same Compose project, on the
+    // engine's default bridge, so they publish ports on the VM's address instead of taking their own.
+    for (def_id, name, pt, cname, cid) in [
+        (
+            "MinIO",
+            "Runner Cache",
+            PortType::Http9000,
+            "runner-cache",
+            "c4d5e6f7a8b9",
+        ),
+        (
+            "Redis",
+            "Runner Queue",
+            PortType::Redis,
+            "runner-queue",
+            "d5e6f7a8b9c0",
+        ),
+    ] {
+        if let Some((mut svc, port)) = create_container_service(
+            def_id,
+            name,
+            &gitlab_vm.host,
+            &gitlab_vm.ip_addresses[0],
+            Some(pt),
+            cname,
+            cid,
+            docker_gitlab_svc_id,
+            ci_cd_tag.into_iter().collect(),
+            now,
+        ) {
+            if let Some(ServiceVirtualization::Docker(docker)) =
+                svc.base.virtualization_metadata.as_mut()
+            {
+                docker.compose_project = Some("ci".to_string());
+            }
+            if let Some(p) = port {
+                gitlab_vm.ports.push(p);
+            }
+            gitlab_vm.services.push(svc);
+        }
+    }
     result.push(gitlab_vm);
 
     // 10b. gitlab-runner — the CI runner container on gitlab-vm's macvlan network
