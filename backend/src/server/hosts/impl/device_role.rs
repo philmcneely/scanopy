@@ -1,7 +1,9 @@
 use crate::server::hosts::r#impl::base::Host;
 use crate::server::services::r#impl::base::Service;
 use crate::server::services::r#impl::categories::ServiceCategory;
-use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::services::r#impl::definitions::{
+    ServiceDefinition, ServiceDefinitionExt, VirtualizationRole,
+};
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider};
 use crate::server::shared::types::{Color, Icon};
@@ -135,12 +137,29 @@ impl TypeMetadataProvider for DeviceRole {
 impl Host {
     /// The device role this host's icon shows.
     ///
-    /// The ladder: the highest-precedence role any of its services' definitions declares, then
-    /// the role its OS family implies, then `Unidentified`. Services come first because a matched
-    /// definition names the product the host runs; an OS family only narrows the device class.
+    /// The ladder, first answer wins:
+    /// 1. The highest-precedence role the host's own services declare. A matched definition names
+    ///    the product the host runs, so it outranks the OS.
+    /// 2. The role its OS family implies.
+    /// 3. `Server`, when the host runs containers: a container runtime, or software inside one.
+    /// 4. `Unidentified`.
+    ///
+    /// Containerized software sits below the OS because it says what the container does, not what
+    /// the machine is: a laptop running Postgres in Docker is still a laptop. A Linux host gives no
+    /// OS role, so the same containers still make it a server.
     pub fn device_role<'a>(&self, services: impl IntoIterator<Item = &'a Service>) -> DeviceRole {
-        services
+        let (containerized, own): (Vec<&Service>, Vec<&Service>) = services
             .into_iter()
+            .partition(|s| s.base.virtualization_metadata.is_some());
+        let runs_containers = !containerized.is_empty()
+            || own.iter().any(|s| {
+                matches!(
+                    s.base.service_definition.virtualization_role(),
+                    Some(VirtualizationRole::ContainerRuntime { .. })
+                )
+            });
+
+        own.iter()
             .filter_map(|s| s.base.service_definition.device_role())
             .min()
             .or_else(|| {
@@ -149,6 +168,7 @@ impl Host {
                     .as_ref()
                     .and_then(|os| os.value().0.device_role())
             })
+            .or(runs_containers.then_some(DeviceRole::Server))
             .unwrap_or_default()
     }
 }
@@ -159,10 +179,13 @@ mod tests {
     use crate::server::hosts::r#impl::attributes::HostOsValue;
     use crate::server::hosts::r#impl::os::{HostOs, HostOsFamily};
     use crate::server::services::definitions::{
-        pf_sense::PfSense, postgresql::PostgreSQL, proxmox::Proxmox, samba::Samba, snmp::Snmp,
-        true_nas::TrueNAS,
+        docker_daemon::Docker, pf_sense::PfSense, postgresql::PostgreSQL, proxmox::Proxmox,
+        samba::Samba, snmp::Snmp, true_nas::TrueNAS,
     };
     use crate::server::services::r#impl::base::ServiceBase;
+    use crate::server::services::r#impl::virtualization::{
+        DockerVirtualization, ServiceVirtualization,
+    };
     use crate::server::shared::attribution::{AttributeSource, Attributed};
 
     fn host_with_os(os: Option<HostOs>) -> Host {
@@ -180,6 +203,59 @@ mod tests {
             },
             ..Default::default()
         }
+    }
+
+    fn containerized(definition: Box<dyn ServiceDefinition>) -> Service {
+        let mut service = service(definition);
+        service.base.virtualization_metadata =
+            Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
+                container_name: None,
+                container_id: None,
+                compose_project: None,
+            }));
+        service
+    }
+
+    /// Software in a container says what the container does, not what the machine is: it ranks
+    /// below the OS, and makes a host a server only when nothing else names it.
+    #[test]
+    fn containers_rank_below_the_os_and_above_nothing() {
+        let os = |family| Some(HostOs::family_only(family));
+        let db_in_docker = [
+            service(Box::new(Docker)),
+            containerized(Box::new(PostgreSQL)),
+        ];
+
+        // A Mac running Postgres in Docker is a workstation.
+        assert_eq!(
+            host_with_os(os(HostOsFamily::MacOs)).device_role(&db_in_docker),
+            DeviceRole::Workstation
+        );
+        // A Linux host gives no OS role, so the same containers make it a server, and so does the
+        // runtime alone.
+        assert_eq!(
+            host_with_os(os(HostOsFamily::Linux)).device_role(&db_in_docker),
+            DeviceRole::Server
+        );
+        assert_eq!(
+            host_with_os(os(HostOsFamily::Linux)).device_role(&db_in_docker[..1]),
+            DeviceRole::Server
+        );
+        // Software installed on the host itself still outranks the OS.
+        assert_eq!(
+            host_with_os(os(HostOsFamily::MacOs)).device_role(&[service(Box::new(PostgreSQL))]),
+            DeviceRole::Server
+        );
+        // And a host's own device role outranks its containers.
+        let nas_with_containers = [
+            service(Box::new(TrueNAS)),
+            containerized(Box::new(PostgreSQL)),
+        ];
+        assert_eq!(
+            host_with_os(os(HostOsFamily::Linux)).device_role(&nas_with_containers),
+            DeviceRole::Storage
+        );
     }
 
     /// The ladder from most specific evidence to none: a service's role beats every lower-ranked
