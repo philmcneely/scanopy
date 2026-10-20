@@ -478,7 +478,11 @@ function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): 
 	return {
 		groupId: group.groupId,
 		headerDefinition: group.header?.service_definition ?? null,
-		headerName: group.header?.name ?? common_containers(),
+		// The runtime's type ("Docker"), not its service's name ("Docker Daemon"), which the narrow
+		// card truncates.
+		headerName: group.header
+			? serviceDefinitions.getName(group.header.service_definition)
+			: common_containers(),
 		members: [...services, ...hosts]
 	};
 }
