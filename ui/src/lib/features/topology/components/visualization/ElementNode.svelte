@@ -400,10 +400,11 @@
 			     node's first icon as its shape icon. -->
 			<div class="group/icon-card flex flex-col items-center gap-1.5 px-2 py-2">
 				<!-- The card's tooltip sits on the tile and label only: a group member below carries its
-				     own, and nested tooltips would show both at once. -->
+				     own, and nested tooltips would show both at once. It shows above the whole card, so
+				     it never covers the status indicator. -->
 				<div
 					class="flex w-full flex-col items-center gap-1.5"
-					use:tooltip
+					use:tooltip={{ anchorClosest: '.svelte-flow__node' }}
 					data-tooltip={iconCard.title}
 				>
 					<!-- my-1: the service badges (bottom-right) and the status dot (top-left) are
@@ -432,7 +433,7 @@
 									></span>
 								</span>
 								<span
-									class="text-primary flex max-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[72px] group-hover/icon-card:pr-2"
+									class="text-primary flex max-w-0 items-center justify-end gap-1 overflow-hidden whitespace-nowrap text-right text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[72px] group-hover/icon-card:pr-2"
 								>
 									{runState.label}
 								</span>
@@ -546,7 +547,7 @@
 			     them contributed one element per card and nothing else. -->
 				<div
 					data-entity-header
-					class={`relative flex flex-shrink-0 items-center justify-center gap-1 px-2 pt-2 text-xs font-medium leading-none text-tertiary`}
+					class={`text-tertiary relative flex flex-shrink-0 items-center justify-center gap-1 px-2 pt-2 text-xs font-medium leading-none`}
 				>
 					{#if headerGlyph}
 						<DeviceGlyph deviceType={headerGlyph.deviceType} />

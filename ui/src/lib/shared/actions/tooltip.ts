@@ -2,8 +2,11 @@
  * Svelte action that shows a fixed-position tooltip on hover.
  * Reads tooltip text from the element's data-tooltip attribute.
  * Uses position:fixed and appends to document.body to escape overflow containers.
+ *
+ * `anchorClosest` places the tooltip against the nearest ancestor matching that selector instead
+ * of the node itself, so a tooltip on part of a card clears the whole card.
  */
-export function tooltip(node: HTMLElement) {
+export function tooltip(node: HTMLElement, options: { anchorClosest?: string } = {}) {
 	let tip: HTMLDivElement | null = null;
 
 	function show() {
@@ -32,7 +35,8 @@ export function tooltip(node: HTMLElement) {
 		});
 		document.body.appendChild(tip);
 
-		const rect = node.getBoundingClientRect();
+		const anchor = (options.anchorClosest && node.closest(options.anchorClosest)) || node;
+		const rect = anchor.getBoundingClientRect();
 		const tipHeight = tip.offsetHeight;
 
 		// Auto-detect: if tooltip would overflow above viewport, position below instead
