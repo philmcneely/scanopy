@@ -235,6 +235,7 @@ directories-next = "2.0.0"
 # === Data Structures and Algorithms ===
 petgraph = { version = "0.8.2", features = ["serde-1"] }
 itertools = "0.14.0"
+treediff = { version = "5.0.0", features = ["with-serde-json"] }
 
 # === Code Generation and Macros ===
 strum = "0.27.2"

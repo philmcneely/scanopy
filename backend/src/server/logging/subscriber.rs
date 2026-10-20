@@ -1,12 +1,10 @@
 //! Logging subscriber for every operation type.
 //!
-//! Emits one line per event: a `log_label` field (e.g. `subnet_created`) plus a
-//! `log_color` ANSI code, with the event rendered as JSON via
-//! `Display for Event<Op>` as the message, at the event's declared `log_level`.
-//! An operation with a `log_detail` gets a second, readable line at the same level.
-//! The `logging::format::LabelFields` formatter turns those into a color-coded
-//! `<label>: <json>` line. Honours `flags.suppress_logs` to keep noisy
-//! emissions out of the logs.
+//! Writes each event as its `EventLog` says: a `log_label` field (e.g. `subnet_created`) plus a
+//! `log_color` ANSI code, with a JSON body at the event's declared `log_level`: the whole event,
+//! or for an update only the fields that changed, or nothing. A readable line, when the event has
+//! one, follows at its own level. The `logging::format::LabelFields` formatter turns those into a
+//! color-coded `<label>: <message>` line.
 
 use anyhow::Error;
 use async_trait::async_trait;
@@ -17,6 +15,7 @@ use crate::{
         dependencies::r#impl::member_events::DependencyMemberChange,
         logging::service::LoggingService,
         shared::events::{
+            log::LogBody,
             registry::SubscriberRegistration,
             traits::{EntityEventFilter, Event, EventFilter, Operation, Subscriber},
             types::{
@@ -53,16 +52,19 @@ fn log_at_level(
     }
 }
 
-fn log_event<Op: Operation>(event: &Event<Op>, suppress: bool) {
-    if suppress {
-        return;
-    }
-    let level = event.operation.log_level();
+/// Writes the event as its [`EventLog`](crate::server::shared::events::log::EventLog) says: the
+/// body at the operation's level, then any line at its own.
+fn log_event<Op: Operation>(event: &Event<Op>) {
     let label = event.log_label();
     let color = event.operation.log_color().ansi_code();
-    log_at_level(level, &label, color, event);
-    if let Some(detail) = event.operation.log_detail(&event.scope) {
-        log_at_level(level, &label, color, detail);
+    let level = event.operation.log_level();
+    match &event.log.body {
+        LogBody::Full => log_at_level(level, &label, color, event),
+        LogBody::Changes(changes) => log_at_level(level, &label, color, changes),
+        LogBody::Hidden => {}
+    }
+    if let Some(line) = &event.log.line {
+        log_at_level(line.level, &label, color, &line.text);
     }
 }
 
@@ -74,7 +76,7 @@ impl Subscriber<BillingOperation> for LoggingService {
 
     async fn handle(&self, events: Vec<Event<BillingOperation>>) -> Result<(), Error> {
         for event in events {
-            log_event(&event, event.flags.suppress_logs);
+            log_event(&event);
         }
         Ok(())
     }
@@ -92,7 +94,7 @@ impl Subscriber<OnboardingOperation> for LoggingService {
 
     async fn handle(&self, events: Vec<Event<OnboardingOperation>>) -> Result<(), Error> {
         for event in events {
-            log_event(&event, event.flags.suppress_logs);
+            log_event(&event);
         }
         Ok(())
     }
@@ -110,7 +112,7 @@ impl Subscriber<AnalyticsOperation> for LoggingService {
 
     async fn handle(&self, events: Vec<Event<AnalyticsOperation>>) -> Result<(), Error> {
         for event in events {
-            log_event(&event, event.flags.suppress_logs);
+            log_event(&event);
         }
         Ok(())
     }
@@ -128,7 +130,7 @@ impl Subscriber<AuthOperation> for LoggingService {
 
     async fn handle(&self, events: Vec<Event<AuthOperation>>) -> Result<(), Error> {
         for event in events {
-            log_event(&event, event.flags.suppress_logs);
+            log_event(&event);
         }
         Ok(())
     }
@@ -143,7 +145,7 @@ impl Subscriber<EntityOperation> for LoggingService {
 
     async fn handle(&self, events: Vec<Event<EntityOperation>>) -> Result<(), Error> {
         for event in events {
-            log_event(&event, event.flags.suppress_logs);
+            log_event(&event);
         }
         Ok(())
     }
@@ -158,7 +160,7 @@ impl Subscriber<DiscoveryPhase> for LoggingService {
 
     async fn handle(&self, events: Vec<Event<DiscoveryPhase>>) -> Result<(), Error> {
         for event in events {
-            log_event(&event, event.flags.suppress_logs);
+            log_event(&event);
         }
         Ok(())
     }
@@ -179,7 +181,7 @@ impl Subscriber<DiscoveryWarningCode> for LoggingService {
     /// warning itself, so the log and the scan record say the same thing from one source.
     async fn handle(&self, events: Vec<Event<DiscoveryWarningCode>>) -> Result<(), Error> {
         for event in events {
-            log_event(&event, event.flags.suppress_logs);
+            log_event(&event);
         }
         Ok(())
     }
@@ -201,7 +203,7 @@ impl Subscriber<SubnetCorrection> for LoggingService {
     /// nothing else remembers the old range. This line is the record.
     async fn handle(&self, events: Vec<Event<SubnetCorrection>>) -> Result<(), Error> {
         for event in events {
-            log_event(&event, event.flags.suppress_logs);
+            log_event(&event);
         }
         Ok(())
     }
@@ -220,7 +222,7 @@ impl Subscriber<DependencyMemberChange> for LoggingService {
     /// One line per member at `Warn`: the dependency is short a member until the user replaces it.
     async fn handle(&self, events: Vec<Event<DependencyMemberChange>>) -> Result<(), Error> {
         for event in events {
-            log_event(&event, event.flags.suppress_logs);
+            log_event(&event);
         }
         Ok(())
     }
@@ -245,8 +247,9 @@ mod tests {
         shared::{
             entities::Entity,
             events::{
+                log::{EventLog, changes_log},
                 traits::{EntityScope, OrgScope},
-                types::DeletionReason,
+                types::{DeletionReason, UpdateReason},
             },
         },
     };
@@ -279,7 +282,7 @@ mod tests {
     fn lines_for<Op: Operation>(event: &Event<Op>) -> Vec<(Level, String)> {
         let captured = Captured::default();
         let subscriber = Registry::default().with(captured.clone());
-        tracing::subscriber::with_default(subscriber, || log_event(event, false));
+        tracing::subscriber::with_default(subscriber, || log_event(event));
         captured.0.lock().unwrap().clone()
     }
 
@@ -295,7 +298,7 @@ mod tests {
                 entity_type: Entity::Host(Default::default()),
             },
             EntityOperation::Deleted {
-                reason: DeletionReason::MergedInto {
+                reason: DeletionReason::HostMergedInto {
                     host_id: destination,
                     proven_by: vec!["10.0.0.7".parse().unwrap()],
                 },
@@ -350,5 +353,49 @@ mod tests {
             AuthenticatedEntity::System,
         );
         assert_eq!(lines_for(&event).len(), 1);
+    }
+
+    fn host_updated() -> Event<EntityOperation> {
+        Event::new(
+            EntityScope::Site {
+                site_id: Uuid::new_v4(),
+                entity_id: Uuid::new_v4(),
+                entity_type: Entity::Host(Default::default()),
+            },
+            EntityOperation::Updated {
+                reason: UpdateReason::EntityRequested,
+            },
+            AuthenticatedEntity::System,
+        )
+    }
+
+    /// An update whose log is its changes writes those, not the entity it carries.
+    #[test]
+    fn an_update_logged_as_changes_writes_only_the_changes() {
+        let before = serde_json::json!({ "name": "before-name", "note": "unchanged-marker" });
+        let after = serde_json::json!({ "name": "after-name", "note": "unchanged-marker" });
+        let event = host_updated().with_log(changes_log(
+            &before,
+            &after,
+            Uuid::new_v4(),
+            &UpdateReason::EntityRequested,
+            &[],
+        ));
+
+        let lines = lines_for(&event);
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(lines[0].1.contains("after-name"), "{}", lines[0].1);
+        assert!(lines[0].1.contains("before-name"), "{}", lines[0].1);
+        assert!(!lines[0].1.contains("unchanged-marker"), "{}", lines[0].1);
+    }
+
+    /// A hidden update writes nothing, and a line is written at its own level, not the event's.
+    #[test]
+    fn a_line_keeps_its_own_level_and_a_hidden_body_writes_nothing() {
+        assert!(lines_for(&host_updated().with_log(EventLog::hidden())).is_empty());
+
+        let event = host_updated()
+            .with_log(EventLog::hidden().with_line(EventLogLevel::Warn, "transition"));
+        assert_eq!(lines_for(&event), vec![(Level::WARN, "transition".to_string())]);
     }
 }

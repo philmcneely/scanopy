@@ -165,6 +165,8 @@ impl PartialEq for Credential {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Credential {}
+
 impl ChangeTriggersTopologyStaleness<Credential> for Credential {
     fn triggers_staleness(&self, _other: Option<Credential>) -> bool {
         false

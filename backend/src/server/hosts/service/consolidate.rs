@@ -226,6 +226,7 @@ impl HostService {
         mut existing_host: Host,
         new_host_data: Host,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<Host> {
         let host_before_updates = existing_host.clone();
         let mut has_updates = false;
@@ -311,25 +312,8 @@ impl HostService {
         self.storage().update(&mut existing_host).await?;
 
         if has_updates {
-            let trigger_stale = existing_host.triggers_staleness(Some(host_before_updates));
-
-            if let Some(scope) = EntityScope::from_ids(
-                existing_host.id(),
-                existing_host.clone().into(),
-                self.get_site_id(&existing_host),
-                self.get_organization_id(&existing_host),
-            ) {
-                self.event_bus()
-                    .publish(
-                        Event::new(scope, EntityOperation::Updated, authentication).with_flags(
-                            EntityEventFlags {
-                                trigger_stale,
-                                ..Default::default()
-                            },
-                        ),
-                    )
-                    .await?;
-            }
+            self.publish_updated(&host_before_updates, &existing_host, authentication, reason)
+                .await?;
         } else {
             tracing::debug!(
                 "No new data to upsert from host {} to {} (last_seen_at refresh only)",
@@ -451,7 +435,7 @@ impl HostService {
                 let mut transferred = other_iface.clone();
                 transferred.base.host_id = destination_host.id;
                 self.ip_address_service
-                    .update(&mut transferred, authentication.clone())
+                    .update(&mut transferred, authentication.clone(), UpdateReason::EntityMergedFrom { host_id: other_host.id })
                     .await?;
                 // Map to itself (ID unchanged, just host_id changed)
                 interface_id_map.insert(other_iface.id, other_iface.id);
@@ -485,7 +469,7 @@ impl HostService {
                 let mut transferred =
                     other_port.with_host(destination_host.id, destination_host.base.site_id);
                 self.port_service
-                    .update(&mut transferred, authentication.clone())
+                    .update(&mut transferred, authentication.clone(), UpdateReason::EntityMergedFrom { host_id: other_host.id })
                     .await?;
                 // Map to itself (ID unchanged, just host_id changed)
                 port_id_map.insert(other_port.id, other_port.id);
@@ -525,7 +509,7 @@ impl HostService {
                         .ip_address_id
                         .filter(|id| interface_id_map.get(id) == Some(id));
                     self.interface_service
-                        .update(&mut moved, authentication.clone())
+                        .update(&mut moved, authentication.clone(), UpdateReason::EntityMergedFrom { host_id: other_host.id })
                         .await?;
                 }
             }
@@ -537,6 +521,9 @@ impl HostService {
                 destination_host.clone(),
                 other_host.clone(),
                 authentication.clone(),
+                UpdateReason::EntityMergedFrom {
+                    host_id: other_host.id,
+                },
             )
             .await?;
 
@@ -636,7 +623,7 @@ impl HostService {
             }
 
             self.service_service
-                .update(&mut service, authentication.clone())
+                .update(&mut service, authentication.clone(), UpdateReason::EntityMergedFrom { host_id: other_host.id })
                 .await
                 .map_err(|e| {
                     tracing::error!(
@@ -846,7 +833,8 @@ impl HostService {
             .await?;
         for mut host in presented {
             host.base.virtualization_interface_id = Some(to);
-            self.update(&mut host, authentication.clone()).await?;
+            self.update(&mut host, authentication.clone(), UpdateReason::EntityVirtualizerRepointed)
+                .await?;
         }
         Ok(())
     }
@@ -870,7 +858,8 @@ impl HostService {
             .await?;
         for mut guest in guests {
             guest.base.virtualization_service_id = Some(to);
-            self.update(&mut guest, authentication.clone()).await?;
+            self.update(&mut guest, authentication.clone(), UpdateReason::EntityVirtualizerRepointed)
+                .await?;
         }
         let subnets = self
             .subnet_service
@@ -883,7 +872,7 @@ impl HostService {
         for mut subnet in subnets {
             subnet.base.virtualization_service_id = Some(to);
             self.subnet_service
-                .update(&mut subnet, authentication.clone())
+                .update(&mut subnet, authentication.clone(), UpdateReason::EntityVirtualizerRepointed)
                 .await?;
         }
         Ok(())

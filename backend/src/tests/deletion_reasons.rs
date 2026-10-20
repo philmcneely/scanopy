@@ -89,7 +89,7 @@ async fn a_handover_names_who_took_the_port() {
         .await;
     let caddy = lab.named("Caddy").await.unwrap();
 
-    let handed_over = DeletionReason::PortsHandedOver {
+    let handed_over = DeletionReason::ServicePortsHandedOver {
         to_service_id: caddy.id,
         to: definition("Caddy"),
     };
@@ -120,7 +120,7 @@ async fn a_stale_release_says_nothing_answered() {
 
     assert_eq!(
         reason_for(&services, &deletions, traefik.id).await,
-        DeletionReason::PortsReleased
+        DeletionReason::ServicePortsReleased
     );
 }
 
@@ -142,7 +142,7 @@ async fn an_emptied_open_ports_names_its_claimant() {
 
     assert_eq!(
         reason_for(&services, &deletions, open_ports.id).await,
-        DeletionReason::OpenPortsReclaimed {
+        DeletionReason::ServiceOpenPortsReclaimed {
             to_service_id: caddy.id,
             by: definition("Caddy"),
         }
@@ -171,7 +171,7 @@ async fn an_absorbed_placeholder_names_its_identification() {
 
     assert_eq!(
         reason_for(&services, &deletions, placeholder.id).await,
-        DeletionReason::IdentifiedAs {
+        DeletionReason::ServiceIdentifiedAs {
             service_id: kuma.id
         }
     );
@@ -200,7 +200,7 @@ async fn a_removed_container_names_its_runtime() {
 
     assert_eq!(
         reason_for(&services, &deletions, kuma.id).await,
-        DeletionReason::GuestNoLongerListed {
+        DeletionReason::EntityGuestNoLongerListed {
             parent_service_id: runtime.id
         }
     );
@@ -226,18 +226,18 @@ async fn a_cascaded_container_names_its_runtime() {
         .delete(
             &runtime.id,
             AuthenticatedEntity::System,
-            DeletionReason::Requested,
+            DeletionReason::EntityRequested,
         )
         .await
         .unwrap();
 
     assert_eq!(
         reason_for(&services, &deletions, runtime.id).await,
-        DeletionReason::Requested
+        DeletionReason::EntityRequested
     );
     assert_eq!(
         reason_for(&services, &deletions, kuma.id).await,
-        DeletionReason::VirtualizerDeleted {
+        DeletionReason::EntityVirtualizerDeleted {
             virtualizer_service_id: runtime.id
         }
     );
@@ -260,14 +260,14 @@ async fn a_hosts_services_name_the_host() {
         .delete_host(
             &lab.host_id,
             AuthenticatedEntity::System,
-            DeletionReason::Requested,
+            DeletionReason::EntityRequested,
         )
         .await
         .unwrap();
 
     assert_eq!(
         reason_for(&services, &deletions, pve.id).await,
-        DeletionReason::HostDeleted {
+        DeletionReason::ServiceHostDeleted {
             host_id: lab.host_id
         }
     );

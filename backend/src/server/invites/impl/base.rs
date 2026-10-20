@@ -109,6 +109,8 @@ impl Invite {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Invite {}
+
 impl ChangeTriggersTopologyStaleness<Invite> for Invite {
     fn triggers_staleness(&self, _other: Option<Invite>) -> bool {
         false

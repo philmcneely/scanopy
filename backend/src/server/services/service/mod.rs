@@ -17,7 +17,7 @@ use crate::server::{
         entities::ChangeTriggersTopologyStaleness,
         events::{
             bus::EventBus,
-            types::{DeletionReason, EntityOperation},
+            types::{DeletionReason, EntityOperation, UpdateReason},
         },
         position::next_position,
         services::traits::{ChildCrudService, CrudService, EventBusService},
@@ -251,7 +251,8 @@ impl CrudService<Service> for ServiceService {
                         &created.id,
                         &bindings_with_ids,
                         authentication.clone(),
-                        DeletionReason::Requested,
+                        DeletionReason::EntityRequested,
+                        UpdateReason::EntityRequested,
                     )
                     .await?;
 
@@ -305,6 +306,7 @@ impl CrudService<Service> for ServiceService {
         &self,
         service: &mut Service,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<Service> {
         let lock_guard = self
             .storage
@@ -356,7 +358,8 @@ impl CrudService<Service> for ServiceService {
                 &updated.id,
                 &bindings_with_ids,
                 authentication.clone(),
-                DeletionReason::Requested,
+                DeletionReason::EntityRequested,
+                reason.clone(),
             )
             .await?;
 
@@ -378,25 +381,8 @@ impl CrudService<Service> for ServiceService {
             updated.base.tags = service.base.tags.clone();
         }
 
-        let trigger_stale = updated.triggers_staleness(Some(current_service));
-
-        if let Some(scope) = EntityScope::from_ids(
-            updated.id,
-            updated.clone().into(),
-            self.get_site_id(&updated),
-            self.get_organization_id(&updated),
-        ) {
-            self.event_bus()
-                .publish(
-                    Event::new(scope, EntityOperation::Updated, authentication.clone()).with_flags(
-                        EntityEventFlags {
-                            trigger_stale,
-                            ..Default::default()
-                        },
-                    ),
-                )
-                .await?;
-        }
+        self.publish_updated(&current_service, &updated, authentication, reason)
+            .await?;
 
         lock_guard.release().await?;
         Ok(updated)

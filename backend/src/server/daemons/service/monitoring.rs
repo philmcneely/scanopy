@@ -50,7 +50,7 @@ impl DaemonService {
 
             if should_standby {
                 daemon.base.standby = true;
-                self.update(&mut daemon, AuthenticatedEntity::System)
+                self.update(&mut daemon, AuthenticatedEntity::System, UpdateReason::DaemonStandbyChanged)
                     .await?;
 
                 // Send notification emails if email service is available

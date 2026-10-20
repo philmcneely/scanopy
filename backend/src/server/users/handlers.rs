@@ -2,6 +2,7 @@ use crate::server::auth::middleware::permissions::{
     Admin, Authorized, IsUser, Member, RequireVerified,
 };
 use crate::server::openapi::tags as api_tags;
+use crate::server::shared::events::types::UpdateReason;
 use crate::server::shared::extractors::Query;
 use crate::server::shared::handlers::query::{FilterQueryExtractor, NoFilterQuery};
 use crate::server::shared::handlers::traits::{BulkDeleteResponse, CrudHandlers, delete_handler};
@@ -284,7 +285,7 @@ pub async fn update_user(
     }
 
     let updated = service
-        .update(&mut request, auth.into_entity())
+        .update(&mut request, auth.into_entity(), UpdateReason::EntityRequested)
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 
@@ -375,7 +376,7 @@ async fn admin_update_user(
     let site_ids = request.base.site_ids.clone();
 
     let updated = service
-        .update(&mut request, auth.into_entity())
+        .update(&mut request, auth.into_entity(), UpdateReason::EntityRequested)
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 

@@ -5,6 +5,7 @@
 //! has it. A removed one is not, and once a run lists the runtime's guests in full, it goes.
 //! Shares `discovery_stale_port_guards`'s `Lab`.
 
+use crate::server::shared::events::types::UpdateReason;
 use secrecy::SecretString;
 use uuid::Uuid;
 
@@ -293,7 +294,7 @@ async fn a_manual_container_is_not_removed() {
     manual.base.virtualization_service_id = Some(runtime_id);
     services
         .service_service
-        .update(&mut manual, AuthenticatedEntity::System)
+        .update(&mut manual, AuthenticatedEntity::System, UpdateReason::EntityRequested)
         .await
         .unwrap();
 

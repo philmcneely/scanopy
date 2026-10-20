@@ -1,4 +1,4 @@
-use crate::server::shared::events::types::DeletionReason;
+use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     shared::{
@@ -84,6 +84,7 @@ impl CrudService<Tag> for TagService {
         &self,
         entity: &mut Tag,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<Tag, anyhow::Error> {
         let current = self
             .get_by_id(&entity.id)
@@ -106,25 +107,8 @@ impl CrudService<Tag> for TagService {
 
         let updated = SnapshotMutator::close_and_clone(self, entity.clone()).await?;
 
-        let trigger_stale = updated.triggers_staleness(Some(current));
-
-        if let Some(scope) = EntityScope::from_ids(
-            updated.id(),
-            updated.clone().into(),
-            self.get_site_id(&updated),
-            self.get_organization_id(&updated),
-        ) {
-            self.event_bus()
-                .publish(
-                    Event::new(scope, EntityOperation::Updated, authentication).with_flags(
-                        EntityEventFlags {
-                            trigger_stale,
-                            ..Default::default()
-                        },
-                    ),
-                )
-                .await?;
-        }
+        self.publish_updated(&current, &updated, authentication, reason)
+            .await?;
 
         Ok(updated)
     }

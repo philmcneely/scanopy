@@ -87,6 +87,8 @@ impl CrudHandlers for Snapshot {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Snapshot {}
+
 impl ChangeTriggersTopologyStaleness<Snapshot> for Snapshot {
     fn triggers_staleness(&self, _other: Option<Snapshot>) -> bool {
         false

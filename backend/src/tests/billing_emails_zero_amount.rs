@@ -7,6 +7,7 @@
 //! the customer can do (a lapse, a cancellation, a new card, a new air-gapped
 //! key) go out at any amount.
 
+use crate::server::shared::events::types::UpdateReason;
 use chrono::{DateTime, Utc};
 
 use super::self_hosted_license_emails::{campaign, create_owner, handle_billing, sent};
@@ -209,7 +210,7 @@ async fn a_zero_dollar_air_gapped_renewal_still_says_to_copy_the_key() {
     state
         .services
         .organization_service
-        .update(&mut air_gapped, AuthenticatedEntity::System)
+        .update(&mut air_gapped, AuthenticatedEntity::System, UpdateReason::EntityRequested)
         .await
         .unwrap();
     create_owner(&state, org.id).await;

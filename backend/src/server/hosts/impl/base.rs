@@ -575,6 +575,8 @@ impl Host {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Host {}
+
 impl ChangeTriggersTopologyStaleness<Host> for Host {
     fn triggers_staleness(&self, other: Option<Host>) -> bool {
         if let Some(other_host) = other {

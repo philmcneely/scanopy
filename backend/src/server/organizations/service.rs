@@ -8,7 +8,9 @@ use crate::server::organizations::demo_status::DemoPopulateStatus;
 use crate::server::organizations::r#impl::base::LICENSE_SILENCE_THRESHOLD_DAYS;
 use crate::server::shared::events::bus::EventBus;
 use crate::server::shared::events::traits::{Event, OrgScope};
-use crate::server::shared::events::types::{BillingOperation, OnboardingOperationDiscriminants};
+use crate::server::shared::events::types::{
+    BillingOperation, OnboardingOperationDiscriminants, UpdateReason,
+};
 use crate::server::shared::services::traits::EventBusService;
 use crate::server::shared::storage::filter::StorableFilter;
 use crate::server::shared::storage::lock::{
@@ -129,8 +131,12 @@ impl LockedOrganization<'_> {
     pub async fn save(
         mut self,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<Organization, Error> {
-        let updated = self.service.update(&mut self.org, authentication).await?;
+        let updated = self
+            .service
+            .update(&mut self.org, authentication, reason)
+            .await?;
         self.lock.release().await?;
         Ok(updated)
     }
@@ -190,13 +196,14 @@ impl OrganizationService {
         &self,
         organization_id: Uuid,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
         change: impl FnOnce(&mut Organization) -> T,
     ) -> Result<Option<T>, Error> {
         let Some(mut locked) = self.lock_for_update(organization_id).await? else {
             return Ok(None);
         };
         let result = change(&mut locked.org);
-        locked.save(authentication).await?;
+        locked.save(authentication, reason).await?;
         Ok(Some(result))
     }
 
@@ -215,7 +222,12 @@ impl OrganizationService {
             return Ok(false);
         }
         locked.org.base.onboarding.push(step);
-        locked.save(AuthenticatedEntity::System).await?;
+        locked
+            .save(
+                AuthenticatedEntity::System,
+                UpdateReason::OrganizationOnboardingMilestone,
+            )
+            .await?;
         Ok(true)
     }
 
@@ -446,7 +458,9 @@ impl OrganizationService {
             return Err(SwitchKeyTypeError::Mint(e));
         }
 
-        let updated = locked.save(authentication).await?;
+        let updated = locked
+            .save(authentication, UpdateReason::OrganizationLicenseKeyChanged)
+            .await?;
         tracing::info!(
             organization_id = %organization_id,
             key_type = %key_type,
@@ -477,7 +491,12 @@ impl OrganizationService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Organization {organization_id} not found"))?;
         locked.org.base.license_key_type = Some(LicenseKeyType::Online);
-        let updated = locked.save(AuthenticatedEntity::System).await?;
+        let updated = locked
+            .save(
+                AuthenticatedEntity::System,
+                UpdateReason::OrganizationLicenseKeyChanged,
+            )
+            .await?;
         tracing::warn!(
             organization_id = %organization_id,
             key_version = updated.base.license_key_version,
@@ -507,7 +526,9 @@ impl OrganizationService {
         // Move the stamp too. The version alone already changes the key; this
         // keeps the stamp honest about when the current key was issued.
         locked.org.base.license_key_issued_at = Some(whole_second(Utc::now()));
-        let updated = locked.save(authentication).await?;
+        let updated = locked
+            .save(authentication, UpdateReason::OrganizationLicenseKeyChanged)
+            .await?;
         tracing::info!(
             organization_id = %organization_id,
             key_version = updated.base.license_key_version,

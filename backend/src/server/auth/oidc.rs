@@ -20,7 +20,7 @@ use crate::server::{
         events::{
             bus::EventBus,
             traits::{AuthScope, Event},
-            types::{AuthMethod, AuthOperation},
+            types::{AuthMethod, AuthOperation, UpdateReason},
         },
         services::traits::CrudService,
         storage::filter::StorableFilter,
@@ -456,7 +456,9 @@ impl OidcService {
             ))
             .await?;
 
-        self.user_service.update(&mut user, authentication).await
+        self.user_service
+            .update(&mut user, authentication, UpdateReason::UserOidcLinked)
+            .await
     }
 
     /// Unlink OIDC from user
@@ -509,6 +511,8 @@ impl OidcService {
             ))
             .await?;
 
-        self.user_service.update(&mut user, authentication).await
+        self.user_service
+            .update(&mut user, authentication, UpdateReason::UserOidcUnlinked)
+            .await
     }
 }

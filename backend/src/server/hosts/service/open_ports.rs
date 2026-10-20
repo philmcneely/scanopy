@@ -40,7 +40,7 @@ impl HostService {
         claimant: &Service,
         authentication: AuthenticatedEntity,
     ) {
-        let reason = DeletionReason::OpenPortsReclaimed {
+        let reason = DeletionReason::ServiceOpenPortsReclaimed {
             to_service_id: claimant.id,
             by: claimant.base.service_definition.clone(),
         };

@@ -1,5 +1,6 @@
 pub mod bus;
 pub mod dispatch;
+pub mod log;
 pub mod operations;
 pub mod registry;
 pub mod traits;

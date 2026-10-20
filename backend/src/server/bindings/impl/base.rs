@@ -189,6 +189,8 @@ impl Default for Binding {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Binding {}
+
 impl ChangeTriggersTopologyStaleness<Binding> for Binding {
     fn triggers_staleness(&self, other: Option<Binding>) -> bool {
         if let Some(other_binding) = other {

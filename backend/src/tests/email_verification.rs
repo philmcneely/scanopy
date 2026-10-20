@@ -2,6 +2,7 @@
 //! lifted on a server with no email transport. Also covers how a new account starts
 //! (verified or not) and the verify, resend, reset and email-change paths.
 
+use crate::server::shared::events::types::UpdateReason;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -388,7 +389,7 @@ async fn an_unknown_or_expired_verification_token_gets_a_coded_400() {
     state
         .services
         .user_service
-        .update(&mut expired, AuthenticatedEntity::System)
+        .update(&mut expired, AuthenticatedEntity::System, UpdateReason::EntityRequested)
         .await
         .unwrap();
     let err = auth
@@ -485,7 +486,7 @@ async fn completing_a_password_reset_verifies_the_address() {
     state
         .services
         .user_service
-        .update(&mut pending, AuthenticatedEntity::System)
+        .update(&mut pending, AuthenticatedEntity::System, UpdateReason::EntityRequested)
         .await
         .unwrap();
 

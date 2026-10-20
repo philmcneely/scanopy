@@ -395,7 +395,12 @@ impl HostService {
                     existing_host.id
                 );
 
-                self.upsert_host(existing_host, host, authentication)
+                self.upsert_host(
+                    existing_host,
+                    host,
+                    authentication,
+                    UpdateReason::EntityRediscovered,
+                )
                     .await?
             }
             _ => {
@@ -1329,7 +1334,7 @@ impl HostService {
                         // Mirror the stored result so later services in the payload see it.
                         if let Ok(saved) = self
                             .service_service
-                            .update(&mut updated, authentication.clone())
+                            .update(&mut updated, authentication.clone(), UpdateReason::ServiceContainerAdopted)
                             .await
                             && let Some(stored) = existing_services_for_match
                                 .iter_mut()
@@ -1606,7 +1611,7 @@ impl HostService {
                 let mut updated = svc.clone();
                 updated.base.virtualization_service_id = resolved;
                 self.service_service
-                    .update(&mut updated, authentication.clone())
+                    .update(&mut updated, authentication.clone(), UpdateReason::EntityMaintained)
                     .await?;
             }
         }
@@ -1673,7 +1678,7 @@ impl HostService {
                         }
                         let _ = self
                             .service_service
-                            .update(&mut updated, authentication.clone())
+                            .update(&mut updated, authentication.clone(), UpdateReason::EntityMaintained)
                             .await;
                     }
                 }
@@ -1780,7 +1785,7 @@ impl HostService {
                         .delete(
                             &iface.id,
                             authentication.clone(),
-                            DeletionReason::NoLongerReported,
+                            DeletionReason::EntityNoLongerReported,
                         )
                         .await
                     {
@@ -1898,7 +1903,7 @@ impl HostService {
             .get_by_id(&proven.host_id)
             .await?
             .ok_or_else(|| anyhow!("host {} is no longer live", proven.host_id))?;
-        let reason = DeletionReason::MergedInto {
+        let reason = DeletionReason::HostMergedInto {
             host_id: destination.id,
             proven_by: proven.addresses.clone(),
         };
@@ -2225,7 +2230,7 @@ mod tests {
 
 /// Why a holder gives up the ports `claimant` takes.
 fn handed_over_to(claimant: &Service) -> DeletionReason {
-    DeletionReason::PortsHandedOver {
+    DeletionReason::ServicePortsHandedOver {
         to_service_id: claimant.id,
         to: claimant.base.service_definition.clone(),
     }

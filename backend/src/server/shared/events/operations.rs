@@ -11,6 +11,7 @@ use crate::server::{
     discovery::r#impl::types::DiscoveryType,
     shared::{
         events::{
+            log::EventLog,
             registry::to_snake_case,
             traits::{
                 Attribution, AuthScope, DiscoveryScope, EntityEventFilter, EntityEventFlags,
@@ -44,8 +45,12 @@ impl Operation for BillingOperation {
         self.to_string().into()
     }
 
-    fn log_detail(&self, _scope: &OrgScope) -> Option<String> {
-        self.describe_log_only_fields()
+    /// The Stripe ids kept out of PostHog, on a line at the event's level.
+    fn log(&self, _scope: &OrgScope) -> EventLog {
+        match self.describe_log_only_fields() {
+            Some(detail) => EventLog::default().with_line(self.log_level(), detail),
+            None => EventLog::default(),
+        }
     }
 }
 
@@ -141,22 +146,27 @@ impl Operation for EntityOperation {
     fn log_color(&self) -> LabelColor {
         match self {
             EntityOperation::Created => LabelColor::Green,
-            EntityOperation::Updated => LabelColor::Blue,
+            EntityOperation::Updated { .. } => LabelColor::Blue,
             EntityOperation::Deleted { .. } => LabelColor::Red,
             EntityOperation::Get | EntityOperation::GetAll => LabelColor::Neutral,
         }
     }
 
-    /// For a delete, what went and why.
-    fn log_detail(&self, scope: &EntityScope) -> Option<String> {
+    /// The whole entity; a delete adds a line saying what went and why. An update's log is the
+    /// entity's [`EntityLog`](super::log::EntityLog), set by the CRUD layer, which has both
+    /// versions.
+    fn log(&self, scope: &EntityScope) -> EventLog {
         match self {
-            EntityOperation::Deleted { reason } => Some(format!(
-                "{} {} deleted: {}",
-                scope.entity_discriminant(),
-                scope.entity_id(),
-                reason.describe()
-            )),
-            _ => None,
+            EntityOperation::Deleted { reason } => EventLog::default().with_line(
+                self.log_level(),
+                format!(
+                    "{} {} deleted: {}",
+                    scope.entity_discriminant(),
+                    scope.entity_id(),
+                    reason.describe()
+                ),
+            ),
+            _ => EventLog::default(),
         }
     }
 
@@ -289,7 +299,7 @@ pub(crate) mod tests {
                         entity_type: examples::organization().into(),
                     },
                     EntityOperation::Deleted {
-                        reason: crate::server::shared::events::types::DeletionReason::Requested,
+                        reason: crate::server::shared::events::types::DeletionReason::EntityRequested,
                     },
                     system(),
                 ),

@@ -171,7 +171,10 @@ pub enum EntityOperation {
     Get,
     GetAll,
     Created,
-    Updated,
+    /// Always says why: an update has to name its reason.
+    Updated {
+        reason: UpdateReason,
+    },
     /// Always says why: a delete has to name its reason.
     Deleted {
         reason: DeletionReason,
@@ -180,94 +183,337 @@ pub enum EntityOperation {
 
 /// Why an entity was deleted. Every Deleted event carries one, and every delete names it, so a subscriber can tell a person's delete from one discovery made
 /// and say what took a port or removed a guest.
+///
+/// A variant one entity type uses is named after it (`ServiceIdentifiedAs`); one several types
+/// use takes `Entity` (`EntityRequested`).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(tag = "type")]
 pub enum DeletionReason {
     /// A person or an API key asked for it.
-    Requested,
+    EntityRequested,
     /// Another service answered on its ports and took them.
-    PortsHandedOver {
+    ServicePortsHandedOver {
         to_service_id: Uuid,
         to: Box<dyn ServiceDefinition>,
     },
     /// Nothing answered on its ports past the site's stale window.
-    PortsReleased,
+    ServicePortsReleased,
     /// A service claimed the ports Unclaimed Open Ports held.
-    OpenPortsReclaimed {
+    ServiceOpenPortsReclaimed {
         to_service_id: Uuid,
         by: Box<dyn ServiceDefinition>,
     },
     /// A generic container placeholder, now identified as this service.
-    IdentifiedAs { service_id: Uuid },
-    /// Its runtime or hypervisor listed its guests in full and no longer has it.
-    GuestNoLongerListed { parent_service_id: Uuid },
-    /// The runtime or hypervisor running it was deleted.
-    VirtualizerDeleted { virtualizer_service_id: Uuid },
+    ServiceIdentifiedAs { service_id: Uuid },
+    /// Its runtime or hypervisor listed its guests in full and no longer has it: a container
+    /// service or a VM host.
+    EntityGuestNoLongerListed { parent_service_id: Uuid },
+    /// The runtime or hypervisor running it was deleted: a container service or a VM host.
+    EntityVirtualizerDeleted { virtualizer_service_id: Uuid },
     /// The host it ran on was deleted.
-    HostDeleted { host_id: Uuid },
+    ServiceHostDeleted { host_id: Uuid },
     /// Merged into another host: discovery found the two to be the same device, or a person
     /// merged them. `proven_by` holds the addresses discovery found both answering on, and is
     /// empty for a person's merge.
-    MergedInto {
+    HostMergedInto {
         host_id: Uuid,
         #[serde(default)]
         proven_by: Vec<IpAddr>,
     },
     /// An assumed range found inside another range, and merged into it.
-    MergedIntoSubnet { subnet_id: Uuid },
+    SubnetMergedInto { subnet_id: Uuid },
     /// A complete reading of what it belonged to no longer has it: an interface a full ifTable
     /// walk didn't return, a binding a broader one replaced.
-    NoLongerReported,
-    /// A newer record replaced it.
-    Superseded,
-    /// It was used up: an invite someone followed.
-    Consumed,
+    EntityNoLongerReported,
+    /// A newer record replaced it: a binding, a discovery, a daemon's API key.
+    EntitySuperseded,
+    /// Someone followed it.
+    InviteConsumed,
+    /// It passed its expiry unused.
+    InviteExpired,
     /// Its organization was deleted.
-    OrganizationDeleted,
+    EntityOrganizationDeleted,
+    /// Capturing its rows failed, so the empty snapshot was removed.
+    SnapshotCaptureFailed { error: String },
 }
 
 impl DeletionReason {
     /// The reason as the end of a sentence about the deleted entity: "deleted: <this>".
     pub fn describe(&self) -> String {
         match self {
-            Self::Requested => "requested".to_string(),
-            Self::PortsHandedOver { to_service_id, to } => {
+            Self::EntityRequested => "requested".to_string(),
+            Self::ServicePortsHandedOver { to_service_id, to } => {
                 format!("its ports were taken by {} ({to_service_id})", to.name())
             }
-            Self::PortsReleased => {
+            Self::ServicePortsReleased => {
                 "its ports went unanswered past the site's stale window".to_string()
             }
-            Self::OpenPortsReclaimed { to_service_id, by } => {
+            Self::ServiceOpenPortsReclaimed { to_service_id, by } => {
                 format!("its ports were claimed by {} ({to_service_id})", by.name())
             }
-            Self::IdentifiedAs { service_id } => format!("identified as service {service_id}"),
-            Self::GuestNoLongerListed { parent_service_id } => {
+            Self::ServiceIdentifiedAs { service_id } => {
+                format!("identified as service {service_id}")
+            }
+            Self::EntityGuestNoLongerListed { parent_service_id } => {
                 format!("service {parent_service_id} no longer runs it")
             }
-            Self::VirtualizerDeleted {
+            Self::EntityVirtualizerDeleted {
                 virtualizer_service_id,
             } => format!("service {virtualizer_service_id}, which ran it, was deleted"),
-            Self::HostDeleted { host_id } => {
+            Self::ServiceHostDeleted { host_id } => {
                 format!("host {host_id}, which it ran on, was deleted")
             }
-            Self::MergedInto { host_id, proven_by } if proven_by.is_empty() => {
+            Self::HostMergedInto { host_id, proven_by } if proven_by.is_empty() => {
                 format!("merged into host {host_id}")
             }
-            Self::MergedInto { host_id, proven_by } => format!(
+            Self::HostMergedInto { host_id, proven_by } => format!(
                 "merged into host {host_id}, the same device at {}",
-                proven_by
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                join(proven_by)
             ),
-            Self::MergedIntoSubnet { subnet_id } => format!("merged into subnet {subnet_id}"),
-            Self::NoLongerReported => "no longer reported".to_string(),
-            Self::Superseded => "superseded by a newer record".to_string(),
-            Self::Consumed => "it was used".to_string(),
-            Self::OrganizationDeleted => "its organization was deleted".to_string(),
+            Self::SubnetMergedInto { subnet_id } => format!("merged into subnet {subnet_id}"),
+            Self::EntityNoLongerReported => "no longer reported".to_string(),
+            Self::EntitySuperseded => "superseded by a newer record".to_string(),
+            Self::InviteConsumed => "it was used".to_string(),
+            Self::InviteExpired => "it expired unused".to_string(),
+            Self::EntityOrganizationDeleted => "its organization was deleted".to_string(),
+            Self::SnapshotCaptureFailed { error } => format!("capturing its rows failed: {error}"),
         }
     }
+}
+
+/// Why an entity was updated. Every Updated event carries one, and every update names it, so the
+/// log says what made the change and a subscriber can tell a person's edit from discovery's.
+/// Named like [`DeletionReason`]: after the one entity type that uses a variant, or `Entity` for
+/// several.
+///
+/// `error` fields hold the failure's text for the log line. Entity events send PostHog only ids
+/// ([`EntityMetadata`](super::operations)), so none of this leaves the server.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(tag = "type")]
+pub enum UpdateReason {
+    /// A person or an API key edited it.
+    EntityRequested,
+    /// Its tags changed. The tag service publishes this for every tagged entity.
+    EntityTagsChanged,
+    /// Discovery reported it again and its data was merged in.
+    EntityRediscovered,
+    /// Host `host_id` was merged into this one: the surviving host, or a row that moved over
+    /// from it.
+    EntityMergedFrom { host_id: Uuid },
+    /// The hypervisor or runtime it points at was merged into another, so it points at the
+    /// survivor.
+    EntityVirtualizerRepointed,
+    /// A daemon and its API key were bound to each other during provisioning.
+    EntityKeyBound,
+    /// The API key passed its expiry and was disabled.
+    EntityKeyExpired,
+    /// The API key authenticated a request, moving its last-used time.
+    EntityKeyUsed,
+    /// It belonged to another device sharing a host, and moved off `from_host_id`.
+    EntityAddressesDetached { from_host_id: Uuid },
+    /// Server-side bookkeeping no one asked for: a foreign key refreshed, a cached value
+    /// recomputed.
+    EntityMaintained,
+    /// The daemon checked in.
+    DaemonHeartbeat,
+    /// The daemon reported its status, version or capabilities.
+    DaemonStatusReported,
+    /// The daemon started and reported its version.
+    DaemonStarted,
+    /// The daemon registered again with the same identity.
+    DaemonReregistered,
+    /// The server could not poll the daemon and stopped. `rejected_by_daemon` when the daemon
+    /// answered with a client error (a key mismatch), not a network failure.
+    DaemonPollFailed {
+        error: String,
+        rejected_by_daemon: bool,
+    },
+    /// A person asked the server to try an unreachable daemon again.
+    DaemonRetryRequested,
+    /// The daemon went quiet and was put on standby, or came back from it.
+    DaemonStandbyChanged,
+    /// Discovery matched this host to an existing one, by `matched_by`.
+    HostRediscovered { matched_by: HostMatchedBy },
+    /// Its bindings were deduplicated: specific-address bindings an all-addresses one covers,
+    /// or exact repeats.
+    ServiceBindingsDeduplicated,
+    /// Its bindings moved from `from_service_id`, whose ports it took.
+    ServiceBindingsReassigned { from_service_id: Uuid },
+    /// Container details that named the service as its own owner were dropped.
+    ServiceContainerDetailsRejected,
+    /// It took the container details of the generic container service discovery found on its
+    /// port.
+    ServiceContainerAdopted,
+    /// A neighbour advertised its OS over LLDP.
+    HostOsAdvertisedOverLldp,
+    /// A MAC address tied it to its IP address.
+    InterfaceLinkedByMac,
+    /// Its interface moved to a new address in the same range.
+    IpAddressRehomed,
+    /// Its subnet was merged into a range that contains it.
+    IpAddressSubnetMerged,
+    /// Its subnet was narrowed and no longer held it, so it moved to one that does.
+    IpAddressSubnetNarrowed,
+    /// A member service changed or went, so the members were updated.
+    DependencyMembersChanged,
+    /// Discovery read the range again: last seen refreshed, type corrected, or an owner adopted.
+    SubnetRediscovered,
+    /// Scheduling it failed, so it was disabled.
+    DiscoveryScheduleFailed { error: String },
+    /// Billing changed: Stripe reported a subscription, invoice or payment change.
+    OrganizationBillingSynced,
+    /// Its licence key was issued, rotated, or switched type.
+    OrganizationLicenseKeyChanged,
+    /// It reached an onboarding milestone.
+    OrganizationOnboardingMilestone,
+    /// Demo data was seeded into it.
+    OrganizationDemoPopulated,
+    /// A notification was sent, and recorded so it isn't sent again.
+    OrganizationNotificationRecorded,
+    /// Its email preferences changed from an unsubscribe or a complaint.
+    UserEmailSettingsChanged,
+    /// It was given a token for one-click unsubscribe links.
+    UserUnsubscribeTokenIssued,
+    /// It linked an OIDC account.
+    UserOidcLinked,
+    /// It unlinked an OIDC account.
+    UserOidcUnlinked,
+    /// Its password was changed.
+    UserPasswordChanged,
+    /// A password reset was requested for it.
+    UserPasswordResetRequested,
+    /// Its password reset token expired and was cleared.
+    UserPasswordResetExpired,
+    /// Its password was reset with a reset token.
+    UserPasswordReset,
+    /// A verification email was requested for it.
+    UserVerificationRequested,
+    /// It confirmed a new email address.
+    UserEmailChanged,
+    /// It verified its email address.
+    UserEmailVerified,
+    /// It joined an organization by invite.
+    UserJoinedOrganization,
+    /// It has seen the release notes up to a version.
+    UserReleaseNotesSeen,
+    /// It accepted the terms.
+    UserTermsAccepted,
+    /// It was emailed notice of a terms update.
+    UserTermsNotified,
+    /// The API key was rotated.
+    EntityKeyRotated,
+}
+
+/// How discovery matched a reported host to an existing one.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(tag = "type")]
+pub enum HostMatchedBy {
+    Mac,
+    IpAddress { ip: IpAddr },
+    VirtualRouterIp { ip: IpAddr },
+    ChassisId { chassis_id: String },
+    /// The daemon reported the host's id.
+    DaemonReportedId,
+}
+
+impl UpdateReason {
+    /// The reason as the end of a sentence about the updated entity: "updated: <this>".
+    pub fn describe(&self) -> String {
+        match self {
+            Self::EntityRequested => "requested".to_string(),
+            Self::EntityTagsChanged => "its tags changed".to_string(),
+            Self::EntityRediscovered => "discovery reported it again".to_string(),
+            Self::EntityMergedFrom { host_id } => format!("host {host_id} was merged in"),
+            Self::EntityVirtualizerRepointed => {
+                "its hypervisor or runtime was merged into another".to_string()
+            }
+            Self::EntityKeyBound => "a daemon and its API key were bound".to_string(),
+            Self::EntityKeyExpired => "the key expired and was disabled".to_string(),
+            Self::EntityKeyUsed => "the key was used".to_string(),
+            Self::EntityAddressesDetached { from_host_id } => {
+                format!("moved off host {from_host_id}, which another device shares")
+            }
+            Self::EntityMaintained => "server bookkeeping".to_string(),
+            Self::DaemonHeartbeat => "the daemon checked in".to_string(),
+            Self::DaemonStatusReported => "the daemon reported its status".to_string(),
+            Self::DaemonStarted => "the daemon started".to_string(),
+            Self::DaemonReregistered => "the daemon registered again".to_string(),
+            Self::DaemonPollFailed {
+                error,
+                rejected_by_daemon: true,
+            } => format!(
+                "the daemon rejected the poll ({error}), likely an API key mismatch. \
+                 Re-provision or reinstall the daemon so its key matches the server"
+            ),
+            Self::DaemonPollFailed { error, .. } => format!("polling failed: {error}"),
+            Self::DaemonRetryRequested => "a retry was requested".to_string(),
+            Self::DaemonStandbyChanged => "its standby state changed".to_string(),
+            Self::HostRediscovered { matched_by } => match matched_by {
+                HostMatchedBy::Mac => "rediscovered, matched by MAC address".to_string(),
+                HostMatchedBy::IpAddress { ip } => format!("rediscovered, matched by address {ip}"),
+                HostMatchedBy::VirtualRouterIp { ip } => {
+                    format!("rediscovered, matched by virtual router address {ip}")
+                }
+                HostMatchedBy::ChassisId { chassis_id } => {
+                    format!("rediscovered, matched by chassis id {chassis_id}")
+                }
+                HostMatchedBy::DaemonReportedId => {
+                    "rediscovered, matched by the id the daemon reported".to_string()
+                }
+            },
+            Self::ServiceBindingsDeduplicated => "its bindings were deduplicated".to_string(),
+            Self::ServiceBindingsReassigned { from_service_id } => {
+                format!("it took the bindings of service {from_service_id}")
+            }
+            Self::ServiceContainerDetailsRejected => {
+                "container details naming it as its own owner were dropped".to_string()
+            }
+            Self::ServiceContainerAdopted => {
+                "it took the details of the generic container on its port".to_string()
+            }
+            Self::HostOsAdvertisedOverLldp => "a neighbour advertised its OS".to_string(),
+            Self::InterfaceLinkedByMac => "linked to its address by MAC".to_string(),
+            Self::IpAddressRehomed => "its interface changed address".to_string(),
+            Self::IpAddressSubnetMerged => "its subnet was merged into another".to_string(),
+            Self::IpAddressSubnetNarrowed => {
+                "its subnet was narrowed and no longer held it".to_string()
+            }
+            Self::DependencyMembersChanged => "a member service changed".to_string(),
+            Self::SubnetRediscovered => "discovery read the range again".to_string(),
+            Self::DiscoveryScheduleFailed { error } => {
+                format!("scheduling failed, so it was disabled: {error}")
+            }
+            Self::OrganizationBillingSynced => "billing changed".to_string(),
+            Self::OrganizationLicenseKeyChanged => "its licence key changed".to_string(),
+            Self::OrganizationOnboardingMilestone => "it reached a milestone".to_string(),
+            Self::OrganizationDemoPopulated => "demo data was seeded".to_string(),
+            Self::OrganizationNotificationRecorded => "a notification was recorded".to_string(),
+            Self::UserEmailSettingsChanged => "its email preferences changed".to_string(),
+            Self::UserUnsubscribeTokenIssued => "an unsubscribe token was issued".to_string(),
+            Self::UserOidcLinked => "an OIDC account was linked".to_string(),
+            Self::UserOidcUnlinked => "an OIDC account was unlinked".to_string(),
+            Self::UserPasswordChanged => "its password was changed".to_string(),
+            Self::UserPasswordResetRequested => "a password reset was requested".to_string(),
+            Self::UserPasswordResetExpired => "its reset token expired".to_string(),
+            Self::UserPasswordReset => "its password was reset".to_string(),
+            Self::UserVerificationRequested => "a verification email was requested".to_string(),
+            Self::UserEmailChanged => "it confirmed a new email address".to_string(),
+            Self::UserEmailVerified => "it verified its email address".to_string(),
+            Self::UserJoinedOrganization => "it joined an organization by invite".to_string(),
+            Self::UserReleaseNotesSeen => "it saw the release notes".to_string(),
+            Self::UserTermsAccepted => "it accepted the terms".to_string(),
+            Self::UserTermsNotified => "it was emailed a terms notice".to_string(),
+            Self::EntityKeyRotated => "the key was rotated".to_string(),
+        }
+    }
+}
+
+fn join(addresses: &[IpAddr]) -> String {
+    addresses
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display, EnumDiscriminants)]

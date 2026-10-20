@@ -1,5 +1,7 @@
 use crate::server::shared::events::traits::{Event, OrgScope};
-use crate::server::shared::events::types::{OnboardingOperation, OnboardingOperationDiscriminants};
+use crate::server::shared::events::types::{
+    OnboardingOperation, OnboardingOperationDiscriminants, UpdateReason,
+};
 use crate::server::shared::extractors::Query;
 use crate::server::shared::storage::traits::Entity;
 use crate::server::shared::types::api::ApiJson;
@@ -338,7 +340,7 @@ pub async fn update_user_api_key(
 
     // Update the entity
     let updated = service
-        .update(&mut request, auth.into_entity())
+        .update(&mut request, auth.into_entity(), UpdateReason::EntityRequested)
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 

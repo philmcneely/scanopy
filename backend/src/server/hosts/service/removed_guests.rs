@@ -127,7 +127,7 @@ impl HostService {
 
 /// The reason for deleting a guest of `parent`, which the filter that found it guarantees is set.
 fn no_longer_listed(parent: &Option<Uuid>) -> DeletionReason {
-    DeletionReason::GuestNoLongerListed {
+    DeletionReason::EntityGuestNoLongerListed {
         parent_service_id: parent.unwrap_or_default(),
     }
 }

@@ -258,6 +258,8 @@ impl Display for User {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for User {}
+
 impl ChangeTriggersTopologyStaleness<User> for User {
     fn triggers_staleness(&self, _other: Option<User>) -> bool {
         false

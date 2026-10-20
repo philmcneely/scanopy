@@ -91,6 +91,8 @@ impl TopologyBase {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Topology {}
+
 impl ChangeTriggersTopologyStaleness<Topology> for Topology {
     fn triggers_staleness(&self, other: Option<Topology>) -> bool {
         if let Some(other_topology) = other {

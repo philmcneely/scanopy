@@ -84,7 +84,7 @@ impl ServiceService {
         if !deps_to_update.is_empty() {
             for mut dep in deps_to_update {
                 self.dependency_service
-                    .update(&mut dep, authenticated.clone())
+                    .update(&mut dep, authenticated.clone(), UpdateReason::DependencyMembersChanged)
                     .await?;
             }
         }

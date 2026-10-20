@@ -263,8 +263,9 @@ pub trait Storable: Sized + Clone + Send + Sync + 'static + Default {
 }
 
 /// Extended trait for user-facing domain entities (excludes junction tables).
-/// Provides entity metadata, tenant scoping, timestamps, and tagging support.
-pub trait Entity: Storable {
+/// Provides entity metadata, tenant scoping, timestamps, and tagging support. Every entity has a
+/// logging policy for its updates ([`EntityLog`](crate::server::shared::events::log::EntityLog)), which the CRUD layer applies.
+pub trait Entity: Storable + crate::server::shared::events::log::EntityLog {
     /// Primary key
     fn id(&self) -> Uuid;
     fn created_at(&self) -> DateTime<Utc>;

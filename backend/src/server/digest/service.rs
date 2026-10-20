@@ -15,7 +15,7 @@ use crate::server::services::r#impl::definitions::{ServiceDefinition, ServiceDef
 use crate::server::shared::storage::snapshot::DiscoveryTracked;
 use crate::server::{
     digest::payload::{
-        AffectedHostCard, DigestRecipient, DiscoveryDigestFlags, DiscoveryDigestOperation,
+        AffectedHostCard, DigestRecipient, DiscoveryDigestOperation,
         DiscoveryDigestPayload, DiscoveryDigestScope, EntityFreshness, HostSummary,
         InterfaceSummary, IpAddressSummary, PortSummary, ServiceSummary, SubnetSummary,
         VlanSummary,
@@ -165,7 +165,7 @@ impl DiscoveryDigestService {
             },
             AuthenticatedEntity::System,
         )
-        .with_flags(DiscoveryDigestFlags::default());
+        ;
         self.event_bus.publish(event).await?;
         Ok(())
     }

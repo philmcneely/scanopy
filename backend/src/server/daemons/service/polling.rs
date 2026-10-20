@@ -78,11 +78,14 @@ impl DaemonService {
         Ok(reachable_server_poll_daemons)
     }
 
-    /// Mark a daemon as unreachable in the database and send notification
+    /// Mark a daemon as unreachable in the database and send notification. `error` is why the
+    /// poll gave up; `rejected_by_daemon` when the daemon answered with a client error.
     async fn mark_daemon_unreachable(
         &self,
         daemon_id: Uuid,
         email_service: Option<&EmailService>,
+        error: &anyhow::Error,
+        rejected_by_daemon: bool,
     ) -> Result<()> {
         let mut daemon = self
             .get_by_id(&daemon_id)
@@ -94,8 +97,15 @@ impl DaemonService {
 
         daemon.base.is_unreachable = true;
 
-        self.update(&mut daemon, AuthenticatedEntity::System)
-            .await?;
+        self.update(
+            &mut daemon,
+            AuthenticatedEntity::System,
+            UpdateReason::DaemonPollFailed {
+                error: error.to_string(),
+                rejected_by_daemon,
+            },
+        )
+        .await?;
 
         if should_notify
             && let Some(email_service) = email_service
@@ -227,7 +237,14 @@ impl DaemonService {
                         UNREACHABLE_THRESHOLD
                     );
                     if let Err(mark_err) =
-                        self.mark_daemon_unreachable(daemon.id, email_service).await
+                        self.mark_daemon_unreachable(
+                            daemon.id,
+                            email_service,
+                            &e,
+                            e.downcast_ref::<super::http::DaemonHttpError>()
+                                .is_some_and(|h| h.status.is_client_error()),
+                        )
+                        .await
                     {
                         tracing::error!(
                             daemon_id = %daemon.id,
@@ -267,7 +284,7 @@ impl DaemonService {
                         );
                     }
                     if let Err(mark_err) =
-                        self.mark_daemon_unreachable(daemon.id, email_service).await
+                        self.mark_daemon_unreachable(daemon.id, email_service, &e, is_auth_failure).await
                     {
                         tracing::error!(
                             daemon_id = %daemon.id,

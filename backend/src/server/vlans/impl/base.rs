@@ -111,6 +111,8 @@ pub struct Vlan {
     pub base: VlanBase,
 }
 
+impl crate::server::shared::events::log::EntityLog for Vlan {}
+
 impl ChangeTriggersTopologyStaleness<Vlan> for Vlan {
     fn triggers_staleness(&self, other: Option<Vlan>) -> bool {
         match other {

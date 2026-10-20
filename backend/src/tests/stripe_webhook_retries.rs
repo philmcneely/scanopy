@@ -4,6 +4,7 @@
 //! event before failing would send it again, so these pin that each one either
 //! fails before its first email or is gated on state the first attempt wrote.
 
+use crate::server::shared::events::types::UpdateReason;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -238,7 +239,7 @@ impl LicenseResumeCase {
         org.base.plan = Some(plan);
         org.base.plan_status = Some(PlanStatus::Cancelled);
         service
-            .update(&mut org, AuthenticatedEntity::System)
+            .update(&mut org, AuthenticatedEntity::System, UpdateReason::EntityRequested)
             .await
             .unwrap();
         assert!(reload(state, org_id).await.is_lapsed());

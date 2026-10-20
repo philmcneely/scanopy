@@ -89,7 +89,7 @@ impl DaemonService {
         if let Some(old_key_id) = existing_daemon.as_ref().and_then(|d| d.base.api_key_id) {
             let old_key = self.daemon_api_key_service.get_by_id(&old_key_id).await?;
             self.daemon_api_key_service
-                .delete(&old_key_id, auth.clone(), DeletionReason::Superseded)
+                .delete(&old_key_id, auth.clone(), DeletionReason::EntitySuperseded)
                 .await
                 .map_err(|e| {
                     tracing::error!(error = %e, api_key_id = %old_key_id, "Failed to remove superseded daemon api key");
@@ -146,7 +146,9 @@ impl DaemonService {
                 // Provisioning is what establishes ownership, so the member doing it becomes the
                 // maintainer — the same rule the create path applies.
                 daemon.base.user_id = user_id;
-                self.update(&mut daemon, auth.clone()).await.map_err(|e| {
+                self.update(&mut daemon, auth.clone(), UpdateReason::EntityKeyBound)
+                    .await
+                    .map_err(|e| {
                     tracing::error!(error = %e, daemon_id = %daemon.id, "Failed to bind api key to existing daemon");
                     ApiError::internal_error(&format!("Failed to bind api key to daemon: {}", e))
                 })?;
@@ -174,7 +176,7 @@ impl DaemonService {
                 api_key_to_bind.base.daemon_id = Some(created_daemon.id);
                 if let Err(e) = self
                     .daemon_api_key_service
-                    .update(&mut api_key_to_bind, auth.clone())
+                    .update(&mut api_key_to_bind, auth.clone(), UpdateReason::EntityKeyBound)
                     .await
                 {
                     tracing::error!(error = %e, daemon_id = %created_daemon.id, "Failed to bind api key to provisioned daemon");

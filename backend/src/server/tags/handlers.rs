@@ -1,9 +1,10 @@
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::auth::middleware::permissions::{Admin, Authorized, Member, Viewer};
 use crate::server::shared::entities::{Entity as EntityEnum, EntityDiscriminants};
-use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event, OrgScope};
+use crate::server::shared::events::log::EventLog;
+use crate::server::shared::events::traits::{EntityScope, Event, OrgScope};
 use crate::server::shared::events::types::{
-    EntityOperation, OnboardingOperation, OnboardingOperationDiscriminants,
+    EntityOperation, OnboardingOperation, OnboardingOperationDiscriminants, UpdateReason,
 };
 use crate::server::shared::extractors::Query;
 use crate::server::shared::handlers::list::list_page;
@@ -451,13 +452,17 @@ async fn emit_tag_change_events(
             let _ = state
                 .services
                 .event_bus
+                // A refresh signal that carries a default entity in place of the real one, so
+                // it has nothing to log.
                 .publish(
-                    Event::new(scope, EntityOperation::Updated, auth.clone()).with_flags(
-                        EntityEventFlags {
-                            suppress_logs: true,
-                            ..Default::default()
+                    Event::new(
+                        scope,
+                        EntityOperation::Updated {
+                            reason: UpdateReason::EntityTagsChanged,
                         },
-                    ),
+                        auth.clone(),
+                    )
+                    .with_log(EventLog::hidden()),
                 )
                 .await;
         }

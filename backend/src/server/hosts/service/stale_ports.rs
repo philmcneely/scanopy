@@ -331,7 +331,7 @@ impl HostService {
                 .clear_bindings(
                     &placeholder.id,
                     authentication.clone(),
-                    DeletionReason::IdentifiedAs {
+                    DeletionReason::ServiceIdentifiedAs {
                         service_id: claimant.id,
                     },
                 )
@@ -376,7 +376,7 @@ impl HostService {
                 .delete(
                     &placeholder.id,
                     authentication.clone(),
-                    DeletionReason::IdentifiedAs {
+                    DeletionReason::ServiceIdentifiedAs {
                         service_id: claimant.id,
                     },
                 )
@@ -435,7 +435,7 @@ impl HostService {
                 &[service_id],
                 &claims,
                 services,
-                DeletionReason::PortsReleased,
+                DeletionReason::ServicePortsReleased,
                 authentication.clone(),
             )
             .await?;

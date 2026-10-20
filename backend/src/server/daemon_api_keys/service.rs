@@ -57,17 +57,6 @@ impl EventBusService<DaemonApiKey> for DaemonApiKeyService {
     fn get_organization_id(&self, _entity: &DaemonApiKey) -> Option<Uuid> {
         None
     }
-
-    fn suppress_logs(
-        &self,
-        current: Option<&DaemonApiKey>,
-        updated: Option<&DaemonApiKey>,
-    ) -> bool {
-        match (current, updated) {
-            (Some(current), Some(updated)) => updated.suppress_logs(current),
-            _ => false,
-        }
-    }
 }
 
 #[async_trait]

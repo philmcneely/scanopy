@@ -189,7 +189,7 @@ async fn create_binding(
                     .delete(
                         &existing_binding.id,
                         auth.entity.clone(),
-                        DeletionReason::Superseded,
+                        DeletionReason::EntitySuperseded,
                     )
                     .await?;
             }

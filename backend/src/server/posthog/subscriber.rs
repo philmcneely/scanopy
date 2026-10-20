@@ -131,8 +131,7 @@ impl Subscriber<EntityOperation> for PosthogService {
         entity_filter()
     }
 
-    async fn handle(&self, mut events: Vec<Event<EntityOperation>>) -> Result<(), Error> {
-        events.retain(|e| !e.flags.suppress_logs);
+    async fn handle(&self, events: Vec<Event<EntityOperation>>) -> Result<(), Error> {
         failures_to_result(self.capture_all(&events).await)
     }
 
@@ -148,8 +147,7 @@ impl Subscriber<AuthOperation> for PosthogService {
         EventFilter::ops(vec![AuthOperationDiscriminants::LoginSuccess])
     }
 
-    async fn handle(&self, mut events: Vec<Event<AuthOperation>>) -> Result<(), Error> {
-        events.retain(|e| !e.flags.suppress_logs);
+    async fn handle(&self, events: Vec<Event<AuthOperation>>) -> Result<(), Error> {
         failures_to_result(self.capture_all(&events).await)
     }
 
@@ -173,9 +171,6 @@ impl Subscriber<BillingOperation> for PosthogService {
     async fn handle(&self, events: Vec<Event<BillingOperation>>) -> Result<(), Error> {
         let mut failures = Vec::new();
         for event in events {
-            if event.flags.suppress_logs {
-                continue;
-            }
             if event.operation.is_zero_dollar_notice() {
                 tracing::debug!(
                     operation = %event.operation,
@@ -262,9 +257,6 @@ impl Subscriber<OnboardingOperation> for PosthogService {
     async fn handle(&self, events: Vec<Event<OnboardingOperation>>) -> Result<(), Error> {
         let mut failures = Vec::new();
         for event in events {
-            if event.flags.suppress_logs {
-                continue;
-            }
             let Some((distinct_id, result)) = self.capture_event(&event).await else {
                 continue;
             };
@@ -322,7 +314,7 @@ impl Subscriber<AnalyticsOperation> for PosthogService {
 
     async fn handle(&self, mut events: Vec<Event<AnalyticsOperation>>) -> Result<(), Error> {
         // Skip the demo org's share views and emails to avoid skewing metrics
-        events.retain(|e| !e.flags.suppress_logs && e.scope.organization_id != DEMO_ORG_ID);
+        events.retain(|e| e.scope.organization_id != DEMO_ORG_ID);
         failures_to_result(self.capture_all(&events).await)
     }
 
@@ -346,8 +338,7 @@ impl Subscriber<DiscoveryPhase> for PosthogService {
         ])
     }
 
-    async fn handle(&self, mut events: Vec<Event<DiscoveryPhase>>) -> Result<(), Error> {
-        events.retain(|e| !e.flags.suppress_logs);
+    async fn handle(&self, events: Vec<Event<DiscoveryPhase>>) -> Result<(), Error> {
         failures_to_result(self.capture_all(&events).await)
     }
 
@@ -383,9 +374,6 @@ impl Subscriber<DiscoveryWarningCode> for PosthogService {
         let mut grouped: BTreeMap<(Uuid, DiscoveryWarningCode, Option<String>), Grouped> =
             BTreeMap::new();
         for event in events {
-            if event.flags.suppress_logs {
-                continue;
-            }
             let integration = event.scope.integration.map(|i| i.to_string());
             grouped
                 .entry((event.scope.session_id, event.operation, integration))
@@ -783,7 +771,7 @@ mod tests {
         };
 
         assert!(entity_filter().matches(&event(EntityOperation::Deleted {
-            reason: crate::server::shared::events::types::DeletionReason::Requested,
+            reason: crate::server::shared::events::types::DeletionReason::EntityRequested,
         })));
         // Creation is `org_created` from onboarding; forwarding it too would double-count.
         assert!(!entity_filter().matches(&event(EntityOperation::Created)));

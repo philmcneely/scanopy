@@ -37,7 +37,7 @@ use crate::server::{
     shared::{
         events::{
             traits::{Event, OrgScope},
-            types::AnalyticsOperation,
+            types::{AnalyticsOperation, UpdateReason},
         },
         services::traits::{CrudService, EventBusService},
         storage::filter::StorableFilter,
@@ -1176,7 +1176,11 @@ impl EmailService {
         // concurrent write to another column isn't reverted.
         if !recorded.is_empty() {
             self.organization_service
-                .modify(org_id, AuthenticatedEntity::System, |org| {
+                .modify(
+                    org_id,
+                    AuthenticatedEntity::System,
+                    UpdateReason::OrganizationNotificationRecorded,
+                    |org| {
                     for change in &recorded {
                         change.record(&mut org.base.notifications, &Ok(()));
                     }
@@ -1258,7 +1262,11 @@ impl EmailService {
         .await?;
 
         self.organization_service
-            .modify(organization.id, AuthenticatedEntity::System, |org| {
+            .modify(
+                organization.id,
+                AuthenticatedEntity::System,
+                UpdateReason::OrganizationNotificationRecorded,
+                |org| {
                 org.base.notifications.airgap_expiry_notified_through = Some(paid_through);
             })
             .await?;
@@ -1432,7 +1440,11 @@ impl EmailService {
         // don't re-send for this floor (or any lower one). Monotonic: it only
         // ever moves up.
         self.organization_service
-            .modify(org_id, AuthenticatedEntity::System, |org| {
+            .modify(
+                org_id,
+                AuthenticatedEntity::System,
+                UpdateReason::OrganizationNotificationRecorded,
+                |org| {
                 let notifications = &mut org.base.notifications;
                 if notifications
                     .sunset_notified_floor

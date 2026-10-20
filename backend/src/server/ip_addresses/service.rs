@@ -4,7 +4,7 @@ use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     ip_addresses::r#impl::base::IPAddress,
     shared::{
-        events::bus::EventBus,
+        events::{bus::EventBus, types::UpdateReason},
         services::traits::{ChildCrudService, CrudService, EventBusService},
         storage::{filter::StorableFilter, generic::GenericPostgresStorage, traits::Storage},
         types::api::ValidationError,
@@ -181,7 +181,8 @@ impl IPAddressService {
         // Only update if there are gaps to close
         if needs_update {
             for ip in &mut ip_addresses {
-                self.update(ip, authentication.clone()).await?;
+                self.update(ip, authentication.clone(), UpdateReason::EntityMaintained)
+                    .await?;
             }
         }
 

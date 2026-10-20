@@ -296,6 +296,8 @@ impl IPAddress {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for IPAddress {}
+
 impl ChangeTriggersTopologyStaleness<IPAddress> for IPAddress {
     fn triggers_staleness(&self, other: Option<IPAddress>) -> bool {
         if let Some(other_ip_address) = other {

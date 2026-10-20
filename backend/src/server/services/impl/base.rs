@@ -76,6 +76,8 @@ impl Default for ServiceBase {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Service {}
+
 impl ChangeTriggersTopologyStaleness<Service> for Service {
     fn triggers_staleness(&self, other: Option<Service>) -> bool {
         if let Some(other_service) = other {

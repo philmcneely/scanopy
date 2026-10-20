@@ -228,6 +228,8 @@ impl PaginatedList for Site {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Site {}
+
 impl ChangeTriggersTopologyStaleness<Site> for Site {
     fn triggers_staleness(&self, _other: Option<Site>) -> bool {
         false

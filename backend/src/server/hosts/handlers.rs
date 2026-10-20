@@ -942,7 +942,7 @@ async fn consolidate_hosts(
         )));
     }
 
-    let reason = DeletionReason::MergedInto {
+    let reason = DeletionReason::HostMergedInto {
         host_id: destination_host.id,
         proven_by: Vec::new(),
     };

@@ -69,7 +69,7 @@ impl HostService {
             if rows.contains(&row.id) {
                 row.base.host_id = to.id;
                 self.ip_address_service
-                    .update(&mut row, authentication.clone())
+                    .update(&mut row, authentication.clone(), UpdateReason::EntityAddressesDetached { from_host_id: from.id })
                     .await?;
             }
         }
@@ -82,7 +82,7 @@ impl HostService {
             {
                 interface.base.ip_address_id = None;
                 self.interface_service
-                    .update(&mut interface, authentication.clone())
+                    .update(&mut interface, authentication.clone(), UpdateReason::EntityAddressesDetached { from_host_id: from.id })
                     .await?;
             }
         }
@@ -136,7 +136,7 @@ impl HostService {
             } else {
                 let mut moved = port.with_host(to.id, to.base.site_id);
                 self.port_service
-                    .update(&mut moved, authentication.clone())
+                    .update(&mut moved, authentication.clone(), UpdateReason::EntityAddressesDetached { from_host_id: from.id })
                     .await?;
                 port_id
             };
@@ -153,7 +153,7 @@ impl HostService {
                 }
             }
             self.service_service
-                .update(&mut service, authentication.clone())
+                .update(&mut service, authentication.clone(), UpdateReason::EntityAddressesDetached { from_host_id: from.id })
                 .await?;
         }
         for mut service in staying {
@@ -161,7 +161,7 @@ impl HostService {
             service.base.bindings.retain(|b| !binds_moved_row(b));
             if service.base.bindings.len() != before {
                 self.service_service
-                    .update(&mut service, authentication.clone())
+                    .update(&mut service, authentication.clone(), UpdateReason::EntityAddressesDetached { from_host_id: from.id })
                     .await?;
             }
         }

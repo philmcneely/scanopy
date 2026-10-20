@@ -11,7 +11,7 @@ use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use super::metadata_filter;
-use crate::server::shared::entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants};
+use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event};
 use crate::server::topology::types::views::{FilterValueContext, MetadataFilterType};
 use crate::server::{
@@ -29,7 +29,10 @@ use crate::server::{
     ports::{r#impl::base::Port, service::PortService},
     services::{r#impl::base::Service, service::ServiceService},
     shared::{
-        events::{bus::EventBus, types::EntityOperation},
+        events::{
+            bus::EventBus,
+            types::{EntityOperation, UpdateReason},
+        },
         services::traits::{CrudService, EventBusService},
         storage::{
             filter::StorableFilter,
@@ -151,33 +154,17 @@ impl CrudService<Topology> for TopologyService {
         &self,
         entity: &mut Topology,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<Topology, Error> {
         let current = self
             .get_by_id(&entity.id())
             .await?
             .ok_or_else(|| anyhow::anyhow!("Could not find topology {}", entity.id()))?;
 
-        let trigger_stale = entity.triggers_staleness(Some(current.clone()));
-
         let updated = self.storage().update(entity).await?;
 
-        if let Some(scope) = EntityScope::from_ids(
-            updated.id(),
-            updated.clone().into(),
-            self.get_site_id(&updated),
-            self.get_organization_id(&updated),
-        ) {
-            self.event_bus()
-                .publish(
-                    Event::new(scope, EntityOperation::Updated, authentication).with_flags(
-                        EntityEventFlags {
-                            trigger_stale,
-                            ..Default::default()
-                        },
-                    ),
-                )
-                .await?;
-        }
+        self.publish_updated(&current, &updated, authentication, reason)
+            .await?;
 
         Ok(updated)
     }

@@ -3,7 +3,10 @@ use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     shared::{
         entities::ChangeTriggersTopologyStaleness,
-        events::{bus::EventBus, types::EntityOperation},
+        events::{
+            bus::EventBus,
+            types::{EntityOperation, UpdateReason},
+        },
         services::traits::{CrudService, EventBusService},
         storage::{
             filter::StorableFilter,
@@ -156,7 +159,11 @@ impl UserService {
         let token = Uuid::new_v4();
         let mut updated = user.clone();
         updated.base.email_unsubscribe_token = Some(token);
-        self.update(&mut updated, AuthenticatedEntity::System)
+        self.update(
+            &mut updated,
+            AuthenticatedEntity::System,
+            UpdateReason::UserUnsubscribeTokenIssued,
+        )
             .await?;
         Ok(token)
     }
@@ -171,7 +178,12 @@ impl UserService {
         if !change(&mut user.base.email_settings) {
             return Ok(false);
         }
-        self.update(&mut user, AuthenticatedEntity::System).await?;
+        self.update(
+            &mut user,
+            AuthenticatedEntity::System,
+            UpdateReason::UserEmailSettingsChanged,
+        )
+        .await?;
         Ok(true)
     }
 
@@ -189,7 +201,12 @@ impl UserService {
             return Ok(());
         }
         user.base.release_notes_seen_version = Some(version.to_string());
-        self.update(&mut user, AuthenticatedEntity::System).await?;
+        self.update(
+            &mut user,
+            AuthenticatedEntity::System,
+            UpdateReason::UserReleaseNotesSeen,
+        )
+        .await?;
         Ok(())
     }
 
@@ -197,7 +214,8 @@ impl UserService {
     pub async fn accept_terms(&self, mut user: User) -> Result<User> {
         user.base.terms_accepted_at = Some(Utc::now());
         let actor = AuthenticatedEntity::from(user.clone());
-        self.update(&mut user, actor).await
+        self.update(&mut user, actor, UpdateReason::UserTermsAccepted)
+            .await
     }
 
     /// Record that the user `user_id` has been emailed notice of the terms
@@ -211,7 +229,12 @@ impl UserService {
             return Ok(());
         }
         user.base.terms_notice_version = Some(version);
-        self.update(&mut user, AuthenticatedEntity::System).await?;
+        self.update(
+            &mut user,
+            AuthenticatedEntity::System,
+            UpdateReason::UserTermsNotified,
+        )
+        .await?;
         Ok(())
     }
 

@@ -79,7 +79,8 @@ impl DaemonService {
         self.set_interfaced_subnet_ids(&daemon_id, &subnet_ids)
             .await?;
 
-        self.update(&mut daemon, auth).await?;
+        self.update(&mut daemon, auth, UpdateReason::DaemonStatusReported)
+            .await?;
         Ok(())
     }
 
@@ -199,7 +200,8 @@ impl DaemonService {
             daemon.base.standby_cleared_at = Some(Utc::now());
         }
 
-        self.update(&mut daemon, auth).await?;
+        self.update(&mut daemon, auth, UpdateReason::DaemonStarted)
+            .await?;
 
         tracing::info!(daemon_id = %daemon_id, version = %version, "Daemon startup");
 
@@ -372,7 +374,9 @@ impl DaemonService {
                 existing_daemon.base.version = Some(v);
             }
 
-            let updated_daemon = self.update(&mut existing_daemon, auth).await?;
+            let updated_daemon = self
+                .update(&mut existing_daemon, auth, UpdateReason::DaemonReregistered)
+                .await?;
 
             // A provisioned daemon's FIRST contact lands here (its record already exists from
             // provisioning), not in the new-registration branch — so emit the onboarding
@@ -1384,7 +1388,7 @@ impl DaemonService {
                 .delete(
                     &old.id,
                     AuthenticatedEntity::System,
-                    DeletionReason::Superseded,
+                    DeletionReason::EntitySuperseded,
                 )
                 .await
             {
