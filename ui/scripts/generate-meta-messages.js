@@ -101,6 +101,7 @@ export const COVERED_FIXTURES = [
 	{ file: 'container-network-types.json', key: 'container_network_types', kind: 'typeMetadata' },
 	// A container's or VM's run state at the last scan, keyed by `GuestState`.
 	{ file: 'guest-states.json', key: 'guest_states', kind: 'typeMetadata' },
+	{ file: 'device-roles.json', key: 'device_roles', kind: 'typeMetadata' },
 	// Scan warnings. Descriptions here are templates with `{named}` slots, unlike every other
 	// entry above: the values are copied through verbatim, paraglide compiles them into functions
 	// that take an inputs object, and `metaDescriptionWith` in src/lib/i18n/metadata.ts is what

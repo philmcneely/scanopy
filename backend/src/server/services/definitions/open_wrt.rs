@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::device_role::DeviceRole;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
@@ -16,6 +17,9 @@ impl ServiceDefinition for OpenWrt {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkAppliance
+    }
+    fn device_role(&self) -> Option<DeviceRole> {
+        Some(DeviceRole::Router)
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Endpoint(

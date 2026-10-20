@@ -54,6 +54,8 @@
 		topology_dontFadeEdgesHelp,
 		topology_showMinimap,
 		topology_showMinimapHelp,
+		topology_iconNodes,
+		topology_iconNodesHelp,
 		common_byTag,
 		common_edges,
 		common_clearAll,
@@ -591,6 +593,15 @@
 			path: 'local',
 			key: 'show_minimap',
 			helpText: () => topology_showMinimapHelp(),
+			section: () => common_visual()
+		},
+		{
+			id: 'icon_nodes',
+			label: () => topology_iconNodes(),
+			type: 'boolean',
+			path: 'local',
+			key: 'icon_nodes',
+			helpText: () => topology_iconNodesHelp(),
 			section: () => common_visual()
 		}
 	];

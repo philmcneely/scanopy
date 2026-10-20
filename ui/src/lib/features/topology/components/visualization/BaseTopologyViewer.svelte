@@ -592,6 +592,7 @@
 
 	// Trigger loadTopologyData on topology or store changes
 	const bundleEdgesStore = derived(topologyOptions, (o) => o.local.bundle_edges ?? false);
+	const iconNodesStore = derived(topologyOptions, (o) => o.local.icon_nodes ?? false);
 	const hideEdgeTypesStore = derived(hiddenEdgeTypes, (hidden) => hidden.join(','));
 	// Metadata-value filters (e.g. hiding the OpenPorts service category) are read at render
 	// time straight from the options, so no hidden-id store ever fires for them. Without this
@@ -646,6 +647,7 @@
 			expandedPorts: get(expandedPortNodeIds),
 			expandedInlineGroups: get(expandedInlineGroups),
 			bundleEdges: get(topologyOptions).local.bundle_edges ?? false,
+			iconNodes: get(topologyOptions).local.icon_nodes ?? false,
 			hiddenEdgeTypes: get(hiddenEdgeTypes).join(','),
 			tagHidden: get(tagHiddenNodeIds),
 			hiddenEntities: get(hiddenEntityIds),
@@ -786,6 +788,9 @@
 	bundleEdgesStore.subscribe(() => {
 		if (storesInitialized) triggerLoad('bundle-option');
 	});
+	iconNodesStore.subscribe(() => {
+		if (storesInitialized) triggerLoad('icon-nodes-option');
+	});
 	hideEdgeTypesStore.subscribe(() => {
 		if (storesInitialized) triggerLoad('hidden-edge-types');
 	});
@@ -921,7 +926,8 @@
 					infraRuleId: getInfrastructureRuleId(),
 					editMode: editMode ?? false,
 					sizeHints: runSizes ?? layoutState.viewSizeCache.get(viewCacheKey) ?? null,
-					usedHandles: forMeasurement ? NO_HANDLES : runUsedHandles
+					usedHandles: forMeasurement ? NO_HANDLES : runUsedHandles,
+					iconNodes: get(topologyOptions).local.icon_nodes
 				})
 			);
 

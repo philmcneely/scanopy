@@ -21,7 +21,8 @@ export type Vlan = components['schemas']['Vlan'];
  * Bundle entities carrying the metadata filter values the backend stamps on them
  * (`filter_values`, read through `filterValueOf`).
  */
-export type TopologyHost = Host & Pick<components['schemas']['TopologyHost'], 'filter_values'>;
+export type TopologyHost = Host &
+	Pick<components['schemas']['TopologyHost'], 'filter_values' | 'device_role'>;
 export type TopologyService = components['schemas']['TopologyService'];
 export type TopologyInterface = components['schemas']['TopologyInterface'];
 

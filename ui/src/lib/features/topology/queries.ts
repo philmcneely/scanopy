@@ -159,7 +159,8 @@ function defaultLocalOptions(): TopologyLocalOptions {
 		no_fade_edges: false,
 		bundle_edges: true,
 		tag_filter: {},
-		show_minimap: true
+		show_minimap: true,
+		icon_nodes: false
 	};
 }
 
@@ -665,7 +666,8 @@ let hydrating = false;
 export function hydrateStoresFromTopology(
 	topology: Topology | RenderableTopology,
 	isInitial = true,
-	useDefaultLocal = false
+	useDefaultLocal = false,
+	sharedLocal: Partial<TopologyLocalOptions> = {}
 ): void {
 	hydrating = true;
 	try {
@@ -676,10 +678,11 @@ export function hydrateStoresFromTopology(
 		// depend on which view is active and may run before the URL view is applied.
 		if (isInitial) {
 			// When useDefaultLocal is true (share/embed), use defaults: the viewer has no
-			// stored preferences and the creator's must not leak.
+			// stored preferences and the creator's must not leak. `sharedLocal` carries the few
+			// local options a share sets for its viewers.
 			topologyOptionsStore.set({
 				request: { ...opts.request },
-				local: useDefaultLocal ? defaultLocalOptions() : opts.local
+				local: useDefaultLocal ? { ...defaultLocalOptions(), ...sharedLocal } : opts.local
 			});
 		} else {
 			// SSE update or topology switch: update request options, preserve

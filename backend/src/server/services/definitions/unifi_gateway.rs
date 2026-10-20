@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::device_role::DeviceRole;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -15,6 +16,9 @@ impl ServiceDefinition for UnifiGateway {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkCore
+    }
+    fn device_role(&self) -> Option<DeviceRole> {
+        Some(DeviceRole::Router)
     }
 
     /// Covers both the standalone security gateway (`ugw`) and the Dream Machine family

@@ -1,5 +1,6 @@
 use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::sip::SipProbe;
+use crate::server::hosts::r#impl::device_role::DeviceRole;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -17,6 +18,9 @@ impl ServiceDefinition for SIPServer {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Telephony
+    }
+    fn device_role(&self) -> Option<DeviceRole> {
+        Some(DeviceRole::Server)
     }
     /// Derived from the probe, so a listener on 5060 that does not answer an `OPTIONS` is not
     /// claimed as SIP. This used to be `AnyOf([Port(Sip), Port(SipTls)])`, which a FortiGate

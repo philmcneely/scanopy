@@ -44,6 +44,10 @@ pub struct ShareOptions {
     #[serde(default)]
     #[schema(required)]
     pub show_minimap: bool,
+    /// Viewer sees icon-first nodes: each card leads with its device icon and name.
+    #[serde(default)]
+    #[schema(required)]
+    pub icon_nodes: bool,
 }
 
 impl Default for ShareOptions {
@@ -53,6 +57,7 @@ impl Default for ShareOptions {
             show_zoom_controls: true,
             show_export_button: true,
             show_minimap: false,
+            icon_nodes: false,
         }
     }
 }

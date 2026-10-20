@@ -32830,6 +32830,27 @@
           }
         }
       },
+      "DeviceRole": {
+        "type": "string",
+        "description": "What a host is, as a device: the class its icon stands for on the map.\n\nDeclaration order is precedence, highest first. A host whose services claim several roles takes\nthe first one here, so a firewall that also serves files reads as a firewall, and `Server`,\nwhich any application implies, never hides a more specific role.\n\n`Unidentified` means no evidence yet, not a device class outside this list: every class the\nevidence names gets its own variant.",
+        "enum": [
+          "Firewall",
+          "Router",
+          "Switch",
+          "AccessPoint",
+          "Hypervisor",
+          "Storage",
+          "Printer",
+          "Camera",
+          "Phone",
+          "Workstation",
+          "Mobile",
+          "Industrial",
+          "IoT",
+          "Server",
+          "Unidentified"
+        ]
+      },
       "Discovery": {
         "allOf": [
           {
@@ -45588,9 +45609,14 @@
           "show_inspect_panel",
           "show_zoom_controls",
           "show_export_button",
-          "show_minimap"
+          "show_minimap",
+          "icon_nodes"
         ],
         "properties": {
+          "icon_nodes": {
+            "type": "boolean",
+            "description": "Viewer sees icon-first nodes: each card leads with its device icon and name."
+          },
           "show_export_button": {
             "type": "boolean",
             "description": "Viewer sees the export button."
@@ -47153,6 +47179,10 @@
           {
             "type": "object",
             "properties": {
+              "device_role": {
+                "$ref": "#/components/schemas/DeviceRole",
+                "description": "What this host is, as a device: the role its icon shows. See [`Host::device_role`]."
+              },
               "display_name": {
                 "type": [
                   "string",
@@ -47263,6 +47293,11 @@
                 "Application"
               ]
             }
+          },
+          "icon_nodes": {
+            "type": "boolean",
+            "description": "Lead each node with its device icon and name, leaving the rest to the inspector.",
+            "default": false
           },
           "no_fade_edges": {
             "type": "boolean",

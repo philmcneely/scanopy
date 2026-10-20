@@ -4,7 +4,7 @@ use crate::server::topology::types::views::{
 use crate::server::{
     bindings::r#impl::base::Binding,
     dependencies::r#impl::base::Dependency,
-    hosts::r#impl::base::Host,
+    hosts::r#impl::{base::Host, device_role::DeviceRole},
     interface_neighbors::r#impl::base::{InterfaceNeighborCandidate, InterfaceNeighborRow},
     interfaces::r#impl::base::Interface,
     ip_addresses::r#impl::base::IPAddress,
@@ -46,6 +46,10 @@ pub struct TopologyHost {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schema(read_only)]
     pub display_name: Option<String>,
+    /// What this host is, as a device: the role its icon shows. See [`Host::device_role`].
+    #[serde(default)]
+    #[schema(read_only)]
+    pub device_role: DeviceRole,
     /// This host's value for each metadata filter it takes part in, keyed by filter. See
     /// [`TopologyData::stamp_filter_values`].
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -113,10 +117,21 @@ impl TopologyHost {
     /// header picks — by construction, not by luck.
     ///
     /// [`TopologyContext::get_ip_addresses_for_host`]: crate::server::topology::service::context::TopologyContext::get_ip_addresses_for_host
-    pub fn wrap_all(hosts: Vec<Host>, ip_addresses: &[IPAddress]) -> Vec<Self> {
+    pub fn wrap_all(
+        hosts: Vec<Host>,
+        ip_addresses: &[IPAddress],
+        services: &[Service],
+    ) -> Vec<Self> {
         let mut by_host: HashMap<Uuid, Vec<&IPAddress>> = HashMap::new();
         for ip in ip_addresses {
             by_host.entry(ip.base.host_id).or_default().push(ip);
+        }
+        let mut services_by_host: HashMap<Uuid, Vec<&Service>> = HashMap::new();
+        for service in services {
+            services_by_host
+                .entry(service.base.host_id)
+                .or_default()
+                .push(service);
         }
 
         hosts
@@ -124,9 +139,17 @@ impl TopologyHost {
             .map(|host| {
                 let display_name =
                     host.display_name(by_host.get(&host.id).into_iter().flatten().copied());
+                let device_role = host.device_role(
+                    services_by_host
+                        .get(&host.id)
+                        .into_iter()
+                        .flatten()
+                        .copied(),
+                );
                 Self {
                     host,
                     display_name,
+                    device_role,
                     filter_values: BTreeMap::new(),
                 }
             })
@@ -324,7 +347,7 @@ mod tests {
             ..Default::default()
         });
         TopologyData {
-            hosts: TopologyHost::wrap_all(vec![Host::new(HostBase::default())], &[]),
+            hosts: TopologyHost::wrap_all(vec![Host::new(HostBase::default())], &[], &[]),
             services: vec![
                 containerized.into(),
                 Service::new(ServiceBase::default()).into(),

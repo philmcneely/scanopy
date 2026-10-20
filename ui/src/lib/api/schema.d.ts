@@ -8911,6 +8911,18 @@ export interface components {
             /** @description Date after which this daemon version stops being supported. */
             sunset_date?: string | null;
         };
+        /**
+         * @description What a host is, as a device: the class its icon stands for on the map.
+         *
+         *     Declaration order is precedence, highest first. A host whose services claim several roles takes
+         *     the first one here, so a firewall that also serves files reads as a firewall, and `Server`,
+         *     which any application implies, never hides a more specific role.
+         *
+         *     `Unidentified` means no evidence yet, not a device class outside this list: every class the
+         *     evidence names gets its own variant.
+         * @enum {string}
+         */
+        DeviceRole: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Mobile" | "Industrial" | "IoT" | "Server" | "Unidentified";
         Discovery: components["schemas"]["DiscoveryBase"] & {
             /**
              * Format: date-time
@@ -14586,6 +14598,8 @@ export interface components {
         };
         /** @description Share display options */
         ShareOptions: {
+            /** @description Viewer sees icon-first nodes: each card leads with its device icon and name. */
+            icon_nodes: boolean;
             /** @description Viewer sees the export button. */
             show_export_button: boolean;
             /** @description Viewer can open the inspector for a selected element. */
@@ -15360,6 +15374,8 @@ export interface components {
          *     host has no name".
          */
         TopologyHost: components["schemas"]["Host"] & {
+            /** @description What this host is, as a device: the role its icon shows. See [`Host::device_role`]. */
+            device_role?: components["schemas"]["DeviceRole"];
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.
@@ -15427,6 +15443,11 @@ export interface components {
             hide_edge_types: {
                 [key: string]: components["schemas"]["EdgeTypeDiscriminants"][];
             };
+            /**
+             * @description Lead each node with its device icon and name, leaving the rest to the inspector.
+             * @default false
+             */
+            icon_nodes: boolean;
             /**
              * @description Keep unrelated edges at full opacity when something is selected.
              * @default false

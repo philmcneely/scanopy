@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { type NodeProps, useInternalNode } from '@xyflow/svelte';
 	import NodeHandles from './NodeHandles.svelte';
-	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
+	import { deviceRoles, entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import {
 		selectedEdge as globalSelectedEdge,
 		selectedNode as globalSelectedNode,
@@ -142,6 +142,22 @@
 	// Staleness pill — computed with the rest of the card content because it
 	// renders in flow and therefore affects card height.
 	let staleTag = $derived(elementRender?.staleTag ?? null);
+	// Icon-first card (the `icon_nodes` option): a role glyph for a host-backed element, the
+	// definition's logo for a service element.
+	let iconCard = $derived(elementRender?.iconCard ?? null);
+	let IconGlyph = $derived(
+		iconCard?.glyph.type === 'role'
+			? deviceRoles.getIconComponent(iconCard.glyph.role)
+			: serviceDefinitions.getIconComponent(iconCard?.glyph.definition ?? null)
+	);
+	let iconTile = $derived(
+		iconCard?.glyph.type === 'role'
+			? deviceRoles.getColorHelper(iconCard.glyph.role)
+			: serviceDefinitions.getColorHelper(iconCard?.glyph.definition ?? null)
+	);
+	let BadgeIcon = $derived(
+		iconCard?.badgeDefinition ? serviceDefinitions.getIconComponent(iconCard.badgeDefinition) : null
+	);
 	/**
 	 * The fill a reduced card paints itself, from the one state signal it has.
 	 *
@@ -383,7 +399,35 @@
 			unchanged; without that the empty card collapses and ELK's next input shifts, which
 			would make the graph reflow as you zoom.
 		-->
-		{#if !simplified}
+		{#if !simplified && iconCard}
+			<!-- Icon-first card. The glyph comes first in DOM order: the diagram exports take each
+			     node's first icon as its shape icon. -->
+			<div class="flex flex-col items-center gap-1.5 px-2 py-2" title={iconCard.title}>
+				<div class="relative flex h-12 w-12 items-center justify-center rounded-lg {iconTile.bg}">
+					<IconGlyph class="h-7 w-7 {iconTile.icon}" />
+					{#if BadgeIcon}
+						<div
+							class="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded bg-white shadow-sm"
+						>
+							<BadgeIcon class="h-3.5 w-3.5" />
+						</div>
+					{/if}
+				</div>
+				{#if staleTag}
+					<div class="scale-90">
+						<Tag {...staleTag} pill />
+					</div>
+				{/if}
+				<div
+					data-entity-header
+					class="line-clamp-2 w-full break-words text-center text-xs font-medium leading-tight {marks.Title
+						? titleColorClass
+						: 'text-primary'}"
+				>
+					{iconCard.label}
+				</div>
+			</div>
+		{:else if !simplified}
 			<!-- Staleness tag: the same Tag component, label, colour and icon the
 		     inventory card badge uses (both come from `getFreshnessTag`), so one
 		     entity reads identically in the list, the map and the digest.
