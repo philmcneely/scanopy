@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { type NodeProps, useInternalNode } from '@xyflow/svelte';
 	import NodeHandles from './NodeHandles.svelte';
-	import { deviceRoles, entities, serviceDefinitions } from '$lib/shared/stores/metadata';
+	import { entities } from '$lib/shared/stores/metadata';
+	import DeviceGlyph from './DeviceGlyph.svelte';
+	import SoftwareGlyph from './SoftwareGlyph.svelte';
+	import { entityGlyph } from '../../entity-glyph';
 	import {
 		selectedEdge as globalSelectedEdge,
 		selectedNode as globalSelectedNode,
@@ -143,22 +146,13 @@
 	// Staleness pill — computed with the rest of the card content because it
 	// renders in flow and therefore affects card height.
 	let staleTag = $derived(elementRender?.staleTag ?? null);
-	// Icon card (the `Icons` view mode): a role glyph for a host-backed element, the
-	// definition's logo for a service element.
+	// What the element is (a device's role tile, software's logo), drawn in both view modes; and
+	// the icon card that replaces the card's rows in the `Icons` view mode.
+	let glyph = $derived(elementRender?.glyph ?? null);
 	let iconCard = $derived(elementRender?.iconCard ?? null);
-	let IconGlyph = $derived(
-		iconCard?.glyph.type === 'role'
-			? deviceRoles.getIconComponent(iconCard.glyph.role)
-			: serviceDefinitions.getIconComponent(iconCard?.glyph.definition ?? null)
-	);
-	let iconTile = $derived(
-		iconCard?.glyph.type === 'role'
-			? deviceRoles.getColorHelper(iconCard.glyph.role)
-			: serviceDefinitions.getColorHelper(iconCard?.glyph.definition ?? null)
-	);
-	let BadgeIcon = $derived(
-		iconCard?.badgeDefinition ? serviceDefinitions.getIconComponent(iconCard.badgeDefinition) : null
-	);
+	// Software elements show their logo on their own service row, so only a device's glyph joins the
+	// header row of a detailed card.
+	let headerGlyph = $derived(glyph?.type === 'device' ? glyph : null);
 	/**
 	 * The fill a reduced card paints itself, from the one state signal it has.
 	 *
@@ -204,9 +198,6 @@
 
 	let nodeOpacity = $derived(shouldFadeOut ? 0.3 : 1);
 
-	// Marks a host inlined in a manager's box (a network identity, a macvlan container).
-	const hostColorHelper = entities.getColorHelper('Host');
-	const HostIcon = entities.getIconComponent('Host');
 	const discoveryColorHelper = entities.getColorHelper('Discovery');
 
 	// How does the hovered entity type relate to this card?
@@ -408,13 +399,17 @@
 				use:tooltip
 				data-tooltip={iconCard.title}
 			>
-				<div class="relative flex h-12 w-12 items-center justify-center rounded-lg {iconTile.bg}">
-					<IconGlyph class="h-7 w-7 {iconTile.icon}" />
-					{#if BadgeIcon}
-						<!-- No backdrop of its own: `LogoIcon` adds one when the definition asks for it. -->
-						<div class="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center">
-							<BadgeIcon class="h-4 w-4" />
-						</div>
+				<div class="relative">
+					{#if iconCard.glyph.type === 'device'}
+						<DeviceGlyph role={iconCard.glyph.role} size="lg" />
+					{:else}
+						<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
+					{/if}
+					{#if iconCard.badgeDefinition}
+						<!-- Round like every software glyph: this device, running this. -->
+						<span class="absolute -bottom-1 -right-1">
+							<SoftwareGlyph definition={iconCard.badgeDefinition} />
+						</span>
 					{/if}
 				</div>
 				{#if staleTag}
@@ -458,21 +453,27 @@
 			     them contributed one element per card and nothing else. -->
 				<div
 					data-entity-header
-					class={`relative flex-shrink-0 truncate px-2 pt-2 text-center text-xs font-medium leading-none ${titleColorClass}`}
+					class={`relative flex flex-shrink-0 items-center justify-center gap-1 px-2 pt-2 text-xs font-medium leading-none ${titleColorClass}`}
 				>
-					{nodeRenderData.headerText}
+					{#if headerGlyph}
+						<DeviceGlyph role={headerGlyph.role} />
+					{/if}
+					<span class="truncate">{nodeRenderData.headerText}</span>
 				</div>
 			{/if}
 
 			{#if nodeRenderData.subtitleText}
 				<div
 					data-entity-header
-					class="text-primary truncate px-2 pt-2 text-center text-sm font-medium {!nodeRenderData.headerText &&
+					class="text-primary flex items-center justify-center gap-1 px-2 pt-2 text-sm font-medium {!nodeRenderData.headerText &&
 					!nodeRenderData.showServices
 						? 'pb-2'
 						: ''}"
 				>
-					{nodeRenderData.subtitleText}
+					{#if headerGlyph && !nodeRenderData.headerText}
+						<DeviceGlyph role={headerGlyph.role} />
+					{/if}
+					<span class="truncate">{nodeRenderData.subtitleText}</span>
 				</div>
 			{/if}
 
@@ -487,10 +488,6 @@
 			>
 				{#if nodeRenderData.showServices}
 					{#snippet serviceCard(service: (typeof nodeRenderData.services)[number])}
-						{@const ServiceIcon = serviceDefinitions.getIconComponent(service.service_definition)}
-						{@const serviceColorHelper = serviceDefinitions.getColorHelper(
-							service.service_definition
-						)}
 						{@const serviceTagHighlight = inlineRowPulse('Service', service.tags)}
 						{@const serviceMetadataHighlight = (() => {
 							if (metadataHoverContext?.mode !== 'inline') return '';
@@ -523,7 +520,7 @@
 									style="line-height: 1.3; width: 100%; min-width: 0; max-width: 100%;"
 									title={service.name}
 								>
-									<ServiceIcon class="h-5 w-5 flex-shrink-0 {serviceColorHelper.icon}" />
+									<SoftwareGlyph definition={service.service_definition} />
 									<span
 										class="text-m text-secondary truncate {serviceTagHighlight ||
 										serviceMetadataHighlight
@@ -573,9 +570,6 @@
 						<!-- Manager groups from inline_groups, each in a dashed box: a runtime with its
 						  containers, a guest's Network Identities with its identity hosts. -->
 						{#each nodeRenderData.inlineGroups as group (group.groupId)}
-							{@const HeaderIcon = group.header
-								? serviceDefinitions.getIconComponent(group.header.service_definition)
-								: null}
 							<div
 								class="mb-1 mt-1 w-full rounded-md border border-dashed border-gray-300 px-1 py-0.5 dark:border-gray-600"
 							>
@@ -596,8 +590,8 @@
 									{:else}
 										<ChevronDown class="text-tertiary h-3.5 w-3.5 flex-shrink-0" />
 									{/if}
-									{#if HeaderIcon}
-										<HeaderIcon class="h-5 w-5 flex-shrink-0" />
+									{#if group.header}
+										<SoftwareGlyph definition={group.header.service_definition} />
 									{/if}
 									<span class="text-secondary truncate text-xs font-medium">
 										{group.header?.name ?? common_containers()}
@@ -619,6 +613,9 @@
 											{@const hostPulse = matchingInlineHosts.has(member.host.id)
 												? inlineHostPulseStyle
 												: ''}
+											{@const memberGlyph = topology
+												? entityGlyph('Host', member.host, topology)
+												: null}
 											<div
 												class="flex w-full flex-col items-center py-1"
 												style="min-width: 0; max-width: 100%;"
@@ -628,7 +625,9 @@
 													style="min-width: 0;"
 													title={hostDisplayName(member.host)}
 												>
-													<HostIcon class="h-4 w-4 flex-shrink-0 {hostColorHelper.icon}" />
+													{#if memberGlyph?.type === 'device'}
+														<DeviceGlyph role={memberGlyph.role} />
+													{/if}
 													<span
 														class="text-secondary truncate text-xs font-medium {hostPulse
 															? 'animate-text-pulse-highlight'
@@ -650,10 +649,6 @@
 						{#if nodeRenderData.hiddenOpenPorts.length > 0 && nodeRenderData.elementType !== 'Host'}
 							{#if expandedOpenPorts}
 								{#each nodeRenderData.hiddenOpenPorts as service (service.id)}
-									{@const ServiceIcon = serviceDefinitions.getIconComponent(
-										service.service_definition
-									)}
-									{@const svcColor = serviceDefinitions.getColorHelper(service.service_definition)}
 									<div
 										class="flex flex-col items-center justify-center"
 										style="min-width: 0; max-width: 100%; width: 100%;"
@@ -664,7 +659,7 @@
 												style="line-height: 1.3; width: 100%; min-width: 0; max-width: 100%;"
 												title={service.name}
 											>
-												<ServiceIcon class="h-5 w-5 flex-shrink-0 {svcColor.icon}" />
+												<SoftwareGlyph definition={service.service_definition} />
 												<span
 													class="text-m text-secondary truncate"
 													style="transition: color 0.15s;"

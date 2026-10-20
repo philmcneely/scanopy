@@ -362,6 +362,46 @@ impl EntityDiscriminants {
             | EntityDiscriminants::Snapshot => None,
         }
     }
+
+    /// What the topology draws as this entity's glyph, and so its shape: a device is a square tile
+    /// in its host's device-role colour, software a round frame around its logo. `None` keeps the
+    /// entity's plain icon. One rule for every view and both view modes.
+    pub fn glyph(&self) -> Option<EntityGlyph> {
+        match self {
+            // An address stands for a place on its host's machine, so it wears that machine's role.
+            EntityDiscriminants::Host | EntityDiscriminants::IPAddress => Some(EntityGlyph::Device),
+            EntityDiscriminants::Service => Some(EntityGlyph::Software),
+            EntityDiscriminants::Interface
+            | EntityDiscriminants::Port
+            | EntityDiscriminants::Binding
+            | EntityDiscriminants::Organization
+            | EntityDiscriminants::Site
+            | EntityDiscriminants::User
+            | EntityDiscriminants::Invite
+            | EntityDiscriminants::Share
+            | EntityDiscriminants::Tag
+            | EntityDiscriminants::TagGroup
+            | EntityDiscriminants::DaemonApiKey
+            | EntityDiscriminants::UserApiKey
+            | EntityDiscriminants::Daemon
+            | EntityDiscriminants::Discovery
+            | EntityDiscriminants::Credential
+            | EntityDiscriminants::Subnet
+            | EntityDiscriminants::Vlan
+            | EntityDiscriminants::Dependency
+            | EntityDiscriminants::Topology
+            | EntityDiscriminants::Snapshot => None,
+        }
+    }
+}
+
+/// The kind of glyph an entity is drawn with in the topology. See [`EntityDiscriminants::glyph`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub enum EntityGlyph {
+    /// A machine: its host's device role.
+    Device,
+    /// Software: its service definition's logo.
+    Software,
 }
 
 impl EntityMetadataProvider for EntityDiscriminants {
@@ -459,6 +499,9 @@ impl TypeMetadataProvider for EntityDiscriminants {
             "drawn_in_topology".to_string(),
             serde_json::json!(self.drawn_in_topology()),
         );
+        if let Some(glyph) = self.glyph() {
+            m.insert("glyph".to_string(), serde_json::json!(glyph));
+        }
         m.insert(
             "entity_name_singular".to_string(),
             serde_json::json!(self.entity_name_singular()),

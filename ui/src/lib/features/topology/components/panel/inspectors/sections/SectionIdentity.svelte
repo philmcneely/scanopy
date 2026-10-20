@@ -9,9 +9,13 @@
 	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
 	import { SubnetDisplay } from '$lib/shared/components/forms/selection/display/SubnetDisplay.svelte';
-	import type { RenderableTopology } from '$lib/features/topology/types/base';
+	import type { RenderableTopology, TopologyNode } from '$lib/features/topology/types/base';
+	import { entityGlyph } from '$lib/features/topology/entity-glyph';
+	import DeviceGlyph from '$lib/features/topology/components/visualization/DeviceGlyph.svelte';
+	import SoftwareGlyph from '$lib/features/topology/components/visualization/SoftwareGlyph.svelte';
 	import type { TopologyEditState } from '$lib/features/topology/state';
 	import {
+		nodeEntity,
 		interfaceRelations,
 		type ElementRenderContext,
 		type ContainerRenderContext
@@ -69,6 +73,12 @@
 			return inspector_thisEntity({ name: containerTypes.getName(containerContext.containerType) });
 		}
 		return '';
+	});
+
+	// The selection's glyph, by the same entity-type rule its card and header follow.
+	let selectionGlyph = $derived.by(() => {
+		const subject = nodeEntity(node.data as TopologyNode, topology);
+		return subject ? entityGlyph(subject.entityType, subject.entity, topology) : null;
 	});
 
 	let sections = $derived.by(() => {
@@ -188,6 +198,13 @@
 
 {#if hasBody}
 	<InspectorSection id="Identity" section="Identity" title={sectionLabel}>
+		{#snippet glyph()}
+			{#if selectionGlyph?.type === 'device'}
+				<DeviceGlyph role={selectionGlyph.role} />
+			{:else if selectionGlyph?.type === 'software'}
+				<SoftwareGlyph definition={selectionGlyph.definition} />
+			{/if}
+		{/snippet}
 		{#snippet actions()}
 			<button
 				class="btn-icon p-0.5"

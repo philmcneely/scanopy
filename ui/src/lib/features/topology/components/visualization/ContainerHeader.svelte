@@ -13,6 +13,9 @@
 	import type { ColorStyle, Color } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import type { TagProps } from '$lib/shared/components/data/types';
+	import type { components } from '$lib/api/schema';
+	import DeviceGlyph from './DeviceGlyph.svelte';
+	import SoftwareGlyph from './SoftwareGlyph.svelte';
 	import {
 		topology_elementCount,
 		topology_ungroupedCount,
@@ -23,7 +26,8 @@
 	export type GroupPill = { label: string; color: Color; title?: string };
 
 	export type SubgroupRow = {
-		logoComponent: IconComponent | null;
+		/** Service definition whose logo marks the subgroup, drawn round as software. */
+		logoDefinition: string | null;
 		headerText: string;
 		labels: GroupPill[];
 		childCount: number;
@@ -38,7 +42,8 @@
 		isCollapsible,
 		headerText,
 		iconComponent = null,
-		logoComponent = null,
+		logoDefinition = null,
+		deviceRole = null,
 		fillIcon = false,
 		colorHelper,
 		groupLabels = [],
@@ -59,7 +64,10 @@
 		isCollapsible: boolean;
 		headerText: string;
 		iconComponent: IconComponent | null;
-		logoComponent: IconComponent | null;
+		/** Service definition whose logo marks the container, drawn round as software. */
+		logoDefinition: string | null;
+		/** The device role a container standing for a device draws, as a square tile, in place of its icon. */
+		deviceRole?: components['schemas']['DeviceRole'] | null;
 		fillIcon: boolean;
 		colorHelper: ColorStyle;
 		groupLabels: GroupPill[];
@@ -194,7 +202,9 @@
 			<span class="caret text-secondary" class:caret-collapsed={isCollapsed}></span>
 		{/if}
 
-		{#if iconComponent}
+		{#if deviceRole}
+			<DeviceGlyph role={deviceRole} />
+		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<IconComp class={`h-5 w-5 ${colorHelper.icon}`} fill={fillIcon ? 'currentColor' : 'none'} />
 		{/if}
@@ -218,9 +228,8 @@
 		{#if isCollapsible}
 			<span data-fixed class="flex items-center"><span class="caret text-secondary"></span></span>
 		{/if}
-		{#if logoComponent}
-			{@const LogoComp = logoComponent}
-			<span data-fixed><LogoComp class="h-4 w-4 flex-shrink-0" /></span>
+		{#if logoDefinition}
+			<span data-fixed><SoftwareGlyph definition={logoDefinition} /></span>
 		{/if}
 		{#if headerText}
 			<span
@@ -259,7 +268,9 @@
 				><span class="caret caret-collapsed text-secondary"></span></span
 			>
 		{/if}
-		{#if iconComponent}
+		{#if deviceRole}
+			<span data-fixed><DeviceGlyph role={deviceRole} /></span>
+		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<span data-fixed
 				><IconComp
@@ -268,9 +279,8 @@
 				/></span
 			>
 		{/if}
-		{#if logoComponent}
-			{@const LogoComp = logoComponent}
-			<span data-fixed><LogoComp class="h-4 w-4 flex-shrink-0" /></span>
+		{#if logoDefinition}
+			<span data-fixed><SoftwareGlyph definition={logoDefinition} /></span>
 		{/if}
 		{#if headerText}
 			<span
@@ -342,9 +352,8 @@
 					class="flex items-center gap-1 whitespace-nowrap rounded-md border border-dashed border-gray-300 px-2 py-1 dark:border-gray-600"
 					style="background: var(--color-topology-subgroup-bg);"
 				>
-					{#if summary.logoComponent}
-						{@const GroupLogo = summary.logoComponent}
-						<GroupLogo class="h-4 w-4 flex-shrink-0" />
+					{#if summary.logoDefinition}
+						<SoftwareGlyph definition={summary.logoDefinition} />
 					{/if}
 					{#if summary.headerText}
 						<span class="text-tertiary text-xs"

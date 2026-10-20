@@ -11,7 +11,7 @@ use super::{
 };
 use crate::server::{
     interfaces::r#impl::base::{InterfaceLinkState, Neighbor, if_type::EXCLUDED_IF_TYPES},
-    shared::{entities::EntityDiscriminants, types::metadata::EntityMetadataProvider},
+    shared::entities::EntityDiscriminants,
     topology::types::{
         edges::{DiscoveryProtocol, Edge, EdgeHandle, EdgeType, EdgeViewConfig},
         grouping::GroupingConfig,
@@ -171,17 +171,14 @@ impl ViewBuilder for L2Builder {
             };
 
             let container_id = Self::container_id_for_host(host_id);
-            // Every L2 host container wears its device role, in every view mode: on this view the
-            // host is the device and its elements are only ports.
-            let role = host.device_role(ctx.get_services_for_host(host_id));
             nodes.push(Node {
                 id: container_id,
                 node_type: NodeType::Container {
                     container_type: ContainerType::Host,
                     parent_container_id: None,
                     entity_id: Some(host_id),
-                    icon: Some(role.icon().to_string()),
-                    color: Some(role.color()),
+                    icon: None,
+                    color: None,
                     associated_service_definition: None,
                     element_rule_id: None,
                     will_accept_edges: false,

@@ -28,7 +28,8 @@ import type {
 	TopologyNode,
 	TopologyOptions
 } from './types/base';
-import { elementEntity, resolveElementNode } from './resolvers';
+import { elementEntity, nodeEntity, resolveElementNode } from './resolvers';
+import { entityGlyph, type EntityGlyph } from './entity-glyph';
 import { elementMarks, type ElementMarks } from './element-marks';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 import { getTopologyIndex } from './entity-index';
@@ -71,29 +72,29 @@ export interface ElementRenderResult {
 	/** The colours the view paints on this card, each decoded by one of its filter values. */
 	marks: ElementMarks;
 	/**
-	 * The icon card, when the view draws in the `Icons` view mode and the element has one. Replaces
-	 * every row of `data` on the card, so it decides the card's height in that mode.
+	 * What the element is, drawn in both view modes: a device's role tile or software's logo, by
+	 * its entity type's `glyph` metadata. Null for an element type that has none (a port).
+	 */
+	glyph: EntityGlyph | null;
+	/**
+	 * The icon card, when the view draws in the `Icons` view mode and the element has a glyph.
+	 * Replaces every row of `data` on the card, so it decides the card's height in that mode.
 	 */
 	iconCard: ElementIconCard | null;
 }
 
 /**
- * An icon card: one large glyph, a short label, and the rest of the card's text on hover.
+ * An icon card: the element's glyph, large, with a short label and the rest of the card's text on
+ * hover.
  */
 export interface ElementIconCard {
-	/**
-	 * The host's device role, for an element standing for a host. A service element shows its own
-	 * definition's logo instead: there the product is the identity, and the host's role is not.
-	 */
-	glyph: { type: 'role'; role: DeviceRole } | { type: 'service'; definition: string };
-	/** Definition whose logo badges a role glyph: the service that decided the role. */
+	glyph: EntityGlyph;
+	/** Definition whose logo badges a device glyph: the service that decided the role. */
 	badgeDefinition: string | null;
 	label: string;
 	/** Hover text: the label, then each line the card no longer shows. */
 	title: string;
 }
-
-type DeviceRole = components['schemas']['DeviceRole'];
 
 export interface ElementRenderInputs {
 	nodeId: string;
@@ -180,32 +181,37 @@ function resolveStaleTag(
 export function buildElementRender(inputs: ElementRenderInputs): ElementRenderResult {
 	const resolved = resolveElementNode(inputs.nodeId, inputs.node, inputs.topology);
 	const content = buildElementContent(inputs, resolved);
+	const subject = nodeEntity(inputs.node, inputs.topology);
+	const glyph = subject ? entityGlyph(subject.entityType, subject.entity, inputs.topology) : null;
 	return {
 		...content,
 		marks: elementMarks(inputs.activeView, inputs.node, inputs.sites, inputs.topology),
+		glyph,
 		iconCard:
-			effectiveViewMode(inputs.options.local, inputs.activeView) === 'Icons'
-				? buildIconCard(resolved, content.data)
+			glyph && effectiveViewMode(inputs.options.local, inputs.activeView) === 'Icons'
+				? buildIconCard(resolved, content.data, glyph)
 				: null
 	};
 }
 
 /**
- * The icon card for an element, or null for an element with nothing resolved, which keeps the
- * detailed card.
+ * The icon card for an element with a glyph, or null for one with nothing resolved, which keeps
+ * the detailed card. Software is labelled with its name; a device with its address on an address
+ * card, so two addresses on one host stay apart, and with its host's name otherwise.
  */
 function buildIconCard(
 	resolved: ReturnType<typeof resolveElementNode>,
-	data: ElementRenderData | null
+	data: ElementRenderData | null,
+	glyph: EntityGlyph
 ): ElementIconCard | null {
 	if (!data) return null;
 	const host = resolved.host;
 
-	if (data.elementType === 'Service') {
+	if (glyph.type === 'software') {
 		const service = resolved.services[0];
 		if (!service) return null;
 		return {
-			glyph: { type: 'service', definition: service.service_definition },
+			glyph,
 			badgeDefinition: null,
 			label: service.name,
 			title: [service.name, host ? hostDisplayName(host) : null].filter(Boolean).join('\n')
@@ -213,20 +219,19 @@ function buildIconCard(
 	}
 
 	if (!host) return null;
-	const role: DeviceRole = host.device_role ?? 'Unidentified';
+	const role = glyph.role;
 	const badge = (resolved.services ?? []).find((s) => {
 		const meta = serviceDefinitions.getMetadata(s.service_definition) as {
-			device_role?: DeviceRole | null;
+			device_role?: string | null;
 			has_logo?: boolean;
 		} | null;
 		return meta?.has_logo && meta.device_role === role;
 	});
 	const hostName = data.headerText ?? hostDisplayName(host);
-	// An address card is labelled with its address, so two addresses on one host stay apart. The
-	// container subnet's placeholder address names nothing, so that card keeps the host name.
+	// The container subnet's placeholder address names nothing, so that card keeps the host name.
 	const address = data.subtitleText ? resolved.ipAddress?.ip_address : null;
 	return {
-		glyph: { type: 'role', role },
+		glyph,
 		badgeDefinition: badge?.service_definition ?? null,
 		label: address ?? hostName,
 		title: [hostName, data.subtitleText, deviceRoles.getName(role)].filter(Boolean).join('\n')
@@ -236,7 +241,7 @@ function buildIconCard(
 function buildElementContent(
 	inputs: ElementRenderInputs,
 	resolved: ReturnType<typeof resolveElementNode>
-): Omit<ElementRenderResult, 'marks' | 'iconCard'> {
+): Omit<ElementRenderResult, 'marks' | 'glyph' | 'iconCard'> {
 	const { nodeId, node, topology, activeView, options, hiddenEntityIds } = inputs;
 
 	const flags = elementInlineFlags(inputs, resolved.elementType);
@@ -557,6 +562,8 @@ export function elementShapeKey(result: ElementRenderResult): string {
 
 	const parts: (string | number)[] = [
 		d.elementType,
+		// The glyph sits in the header row beside the header text.
+		result.glyph?.type ?? '-',
 		lines(d.headerText),
 		lines(d.subtitleText),
 		lines(d.bodyText),

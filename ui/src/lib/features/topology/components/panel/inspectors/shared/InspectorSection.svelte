@@ -22,6 +22,7 @@
 		iconClass,
 		description,
 		count,
+		glyph,
 		actions,
 		children
 	}: {
@@ -33,6 +34,8 @@
 		iconClass?: string;
 		description?: string | null;
 		count?: number;
+		/** Drawn in place of the icon: the selection's own glyph, for a section about one entity. */
+		glyph?: Snippet;
 		/** Controls on the heading's right, outside the collapse button (e.g. focus). */
 		actions?: Snippet;
 		children: Snippet;
@@ -67,7 +70,9 @@
 			{:else}
 				<ChevronDown class="text-tertiary h-4 w-4 flex-shrink-0" />
 			{/if}
-			{#if Icon}
+			{#if glyph}
+				{@render glyph()}
+			{:else if Icon}
 				<Icon class="h-4 w-4 flex-shrink-0 {resolvedIconClass}" />
 			{/if}
 			<span class="text-primary truncate text-sm font-semibold">{resolvedTitle}</span>
