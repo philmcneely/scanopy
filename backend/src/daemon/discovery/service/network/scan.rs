@@ -2312,6 +2312,7 @@ mod tests {
 
     fn subnet(cidr: &str) -> Subnet {
         Subnet::new(SubnetBase {
+            vlan_ids: Vec::new(),
             cidr: SubnetCidr::new(
                 SubnetCidrValue(cidr::IpCidr::from_str(cidr).unwrap()),
                 AttributeSource::DaemonSelfReport,

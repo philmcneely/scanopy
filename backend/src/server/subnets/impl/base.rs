@@ -138,6 +138,12 @@ pub struct SubnetBase {
     #[schema(required)]
     /// Will be automatically set to Manual for creation through API
     pub source: EntitySource,
+    /// VLANs associated with this subnet, through the `subnet_vlans` junction (the reverse of
+    /// `Vlan::subnet_ids`). Hydrated by `SubnetService` on read; it is not a column on `subnets`,
+    /// so anything sent here on create/update is ignored by `to_params`.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub vlan_ids: Vec<Uuid>,
     /// Tags assigned to this entity.
     #[serde(default)]
     #[schema(required)]
@@ -159,6 +165,7 @@ impl Default for SubnetBase {
             subnet_type: SubnetType::Unknown,
             virtualization_service_id: None,
             source: EntitySource::Manual,
+            vlan_ids: Vec::new(),
             tags: Vec::new(),
         }
     }
@@ -296,6 +303,7 @@ impl Subnet {
                 let cidr = IpCidr::V4(Ipv4Cidr::new(network_addr, prefix_len).ok()?);
 
                 Some(Subnet::new(SubnetBase {
+                    vlan_ids: Vec::new(),
                     cidr: SubnetCidr::new(SubnetCidrValue(cidr), cidr_source),
                     site_id,
                     description: None,
@@ -494,6 +502,7 @@ mod tests {
         source: EntitySource,
     ) -> Subnet {
         Subnet::new(SubnetBase {
+            vlan_ids: Vec::new(),
             cidr: SubnetCidr::new(
                 SubnetCidrValue(cidr::IpCidr::from_str("172.30.10.0/24").unwrap()),
                 AttributeSource::DaemonSelfReport,

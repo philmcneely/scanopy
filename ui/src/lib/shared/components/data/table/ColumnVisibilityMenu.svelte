@@ -324,7 +324,7 @@
 						<!-- Flush left, with its columns indented beneath it. Dragging the heading, or its
 							arrows, moves every column under it. -->
 						<div
-							class="text-tertiary mt-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide"
+							class="text-tertiary mt-2 flex items-center gap-1 pr-1 text-xs font-semibold uppercase tracking-wide"
 							draggable={sectionIndex !== -1}
 							ondragstart={(event) => handleSectionDragStart(event, key)}
 							ondragend={clearDrag}

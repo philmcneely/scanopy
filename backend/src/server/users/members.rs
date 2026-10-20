@@ -158,7 +158,6 @@ pub enum MemberOrderField {
     ExpiresAt,
     EmailVerified,
     OidcLinkedAt,
-    TermsAcceptedAt,
 }
 
 impl OrderField for MemberOrderField {
@@ -300,9 +299,6 @@ fn computed(field: &MemberOrderField, member: &Member) -> Option<Computed> {
         MemberOrderField::ExpiresAt => time(member.invite_data().map(|i| i.base.expires_at)),
         MemberOrderField::OidcLinkedAt => {
             time(member.user_data().and_then(|u| u.base.oidc_linked_at))
-        }
-        MemberOrderField::TermsAcceptedAt => {
-            time(member.user_data().and_then(|u| u.base.terms_accepted_at))
         }
     })
 }

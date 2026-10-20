@@ -31,6 +31,7 @@
 		useBulkDeleteSubnetsMutation
 	} from '../queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
+	import { useVlansQuery } from '$lib/features/vlans/queries';
 	import { useServicesByIds } from '$lib/features/services/queries';
 	import type { Service } from '$lib/features/services/types/base';
 	import { useDiscoveriesByIds } from '$lib/features/discovery/queries';
@@ -100,6 +101,8 @@
 		() => isActive
 	);
 	const sitesQuery = useSitesQuery();
+	// Shared full-list VLANs cache, for the VLANs each subnet's hydrated `vlan_ids` names.
+	const vlansQuery = useVlansQuery();
 	// The container runtimes that manage some subnet, fetched by id: the page's, for its cells, and
 	// every one the filter offers, for their labels.
 	const runtimesQuery = useServicesByIds(() => [
@@ -135,6 +138,7 @@
 	let tagsData = $derived(tagsQuery.data ?? []);
 	let subnetsPagination = $derived(subnetsQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
+	let vlansData = $derived(vlansQuery.data ?? []);
 	let runtimesData = $derived(runtimesQuery.data ?? []);
 	let discoveryRunsData = $derived(discoveryRunsQuery.data ?? []);
 
@@ -352,8 +356,10 @@
 		sort: { field: 'cidr', direction: 'asc' }
 	};
 
-	// Related entities the registry's subnet fields read: the managing runtime, the site.
-	let lookup = $derived(collectionLookup({ Service: runtimesData, Site: sitesData }));
+	// Related entities the registry's subnet fields read: the managing runtime, the site, the VLANs.
+	let lookup = $derived(
+		collectionLookup({ Service: runtimesData, Site: sitesData, Vlan: vlansData })
+	);
 
 	let subnetFields = $derived(
 		subnetColumns({

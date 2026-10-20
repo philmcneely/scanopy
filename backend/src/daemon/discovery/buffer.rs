@@ -562,6 +562,7 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 name: "test-subnet".to_string(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
@@ -619,6 +620,7 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 name: "subnet-1".to_string(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
@@ -645,6 +647,7 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 name: "subnet-2".to_string(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
@@ -702,6 +705,7 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 name: "subnet-1".to_string(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
@@ -728,6 +732,7 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 name: "subnet-2".to_string(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
@@ -798,6 +803,7 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 name: "discovered-subnet".to_string(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
@@ -1124,6 +1130,7 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 name: "pending".to_string(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
@@ -1152,6 +1159,7 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 name: "created".to_string(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(

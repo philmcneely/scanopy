@@ -54,9 +54,9 @@ pub struct UserBase {
     #[serde(default)]
     #[schema(required)]
     pub site_ids: Vec<Uuid>,
-    /// When the user accepted the terms of service.
-    #[serde(default)]
-    #[schema(read_only)]
+    /// When the user accepted the terms of service. Server-owned and read only by the
+    /// terms gate, so never sent to the client.
+    #[serde(skip)]
     pub terms_accepted_at: Option<DateTime<Utc>>,
     /// Whether the user must accept the current terms before the API serves
     /// their session. Computed, never stored: set only on the signed-in user's
@@ -561,7 +561,6 @@ mod tests {
         body["created_at"] = serde_json::json!(Utc::now());
         body["email"] = serde_json::json!("attacker@example.com");
         body["email_verified"] = serde_json::json!(true);
-        body["terms_accepted_at"] = serde_json::Value::Null;
         body["has_password"] = serde_json::json!(false);
         body["permissions"] = serde_json::json!(UserOrgPermissions::Member);
         body["email_settings"]["discovery_digest"] = serde_json::json!(false);

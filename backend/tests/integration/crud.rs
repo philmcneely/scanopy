@@ -52,6 +52,7 @@ async fn test_subnet_crud(ctx: &TestContext) -> Result<(), String> {
     println!("Testing Subnet CRUD...");
 
     let subnet = Subnet::new(SubnetBase {
+        vlan_ids: Vec::new(),
         name: "Test Subnet".to_string(),
         description: Some("Test description".to_string()),
         site_id: ctx.site_id,
@@ -595,6 +596,7 @@ async fn test_user_api_key_authentication(ctx: &TestContext) -> Result<(), Strin
 
     // Test: Access POST /api/v1/subnets with Bearer token (should fail - requires Member)
     let test_subnet = Subnet::new(SubnetBase {
+        vlan_ids: Vec::new(),
         name: "API Key Test Subnet".to_string(),
         description: None,
         site_id: ctx.site_id,
@@ -906,6 +908,7 @@ async fn test_user_api_key_site_access(ctx: &TestContext) -> Result<(), String> 
 
     // Create a subnet on the other site to query
     let other_subnet = Subnet::new(SubnetBase {
+        vlan_ids: Vec::new(),
         name: "Other Site Subnet".to_string(),
         description: None,
         site_id: other_site.id,

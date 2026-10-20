@@ -281,7 +281,6 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				oidc_linked_at: 'oidc_linked_at',
 				oidc_provider: 'oidc_provider',
 				permissions: 'permissions',
-				terms_accepted_at: 'terms_accepted_at',
 				updated_at: 'updated_at',
 				// Auth method names the provider and/or password sign-in.
 				has_password: 'oidc_provider',
@@ -416,6 +415,7 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				tags: 'tags',
 				updated_at: 'updated_at',
 				virtualization_service_id: 'managed_by',
+				vlan_ids: 'vlan_ids',
 				// CIDR renders an assumed range as the "Range assumed" chip.
 				cidr_source: 'cidr',
 				...FOUND_BY,

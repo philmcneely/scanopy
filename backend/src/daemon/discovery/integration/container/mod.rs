@@ -161,6 +161,7 @@ impl ContainerRuntime {
             (subnet_type == bridge_subnet_type).then_some(runtime_service_id);
 
         Some(Subnet::new(SubnetBase {
+            vlan_ids: Vec::new(),
             // The runtime's own IPAM config: it defined this bridge, but it is describing
             // something it manages rather than itself, which is what `Probe` means here.
             cidr: SubnetCidr::new(

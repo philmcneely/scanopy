@@ -28,8 +28,7 @@ import {
 	users_authMethod,
 	users_authMethodOidcAndPassword,
 	users_emailVerified,
-	users_providerLinked,
-	users_termsAccepted
+	users_providerLinked
 } from '$lib/paraglide/messages';
 
 type MemberOrderField = components['schemas']['MemberOrderField'];
@@ -237,13 +236,6 @@ export function userColumns(ctx: UserColumnsContext) {
 				type: 'date',
 				groupable: false,
 				getValue: (item) => (isUser(item) ? (item.data.oidc_linked_at ?? null) : null),
-				display: { hiddenByDefault: true }
-			},
-			terms_accepted_at: {
-				label: users_termsAccepted(),
-				type: 'date',
-				groupable: false,
-				getValue: (item) => (isUser(item) ? (item.data.terms_accepted_at ?? null) : null),
 				display: { hiddenByDefault: true }
 			}
 		},

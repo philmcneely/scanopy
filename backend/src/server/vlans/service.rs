@@ -15,6 +15,7 @@ use crate::server::{
 };
 use anyhow::Result;
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -133,6 +134,15 @@ impl VlanService {
             vlan.base.interface_ids = interfaces_map.remove(&vlan.id).unwrap_or_default();
         }
         Ok(())
+    }
+
+    /// Subnet ID → the VLANs linked to it through the `subnet_vlans` junction (live links), for
+    /// `SubnetService` to hydrate `Subnet::vlan_ids`.
+    pub async fn get_ids_for_subnets(
+        &self,
+        subnet_ids: &[Uuid],
+    ) -> Result<HashMap<Uuid, Vec<Uuid>>> {
+        self.subnet_vlan_storage.get_for_subnets(subnet_ids).await
     }
 
     /// Upsert a VLAN from discovery. Creates if new, updates name if changed.

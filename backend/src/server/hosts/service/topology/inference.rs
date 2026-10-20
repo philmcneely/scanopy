@@ -54,6 +54,7 @@ impl HostService {
         let mut observed = ScannedEntityIds::default();
         for range in infer_ranges(&far_ends, &live) {
             let mut subnet = Subnet::new(SubnetBase {
+                vlan_ids: Vec::new(),
                 // The whole point: a range nothing read, only inferred, so the row asks to be
                 // confirmed rather than asserting itself.
                 cidr: SubnetCidr::new(

@@ -15,7 +15,7 @@ use crate::server::{
         storage::{
             filter::StorableFilter,
             generic::GenericPostgresStorage,
-            traits::{Storable, Storage},
+            traits::{PaginatedResult, Storable, Storage, Unique},
         },
         types::entities::EntitySource,
     },
@@ -27,6 +27,7 @@ use crate::server::{
         types::SubnetType,
     },
     tags::entity_tags::EntityTagService,
+    vlans::service::VlanService,
 };
 use anyhow::{Error, Result};
 use async_trait::async_trait;
@@ -48,6 +49,9 @@ pub struct SubnetService {
     ip_address_service: Arc<IPAddressService>,
     /// For where an assumed range came from, which only its creating scan's warning records.
     warning_service: Arc<DiscoveryWarningService>,
+    /// For each subnet's VLANs (`Subnet::vlan_ids`), which `VlanService` reads from its
+    /// `subnet_vlans` junction. No cycle: `VlanService` is built before this one.
+    vlan_service: Arc<VlanService>,
 }
 
 impl EventBusService<Subnet> for SubnetService {
@@ -421,6 +425,59 @@ impl CrudService<Subnet> for SubnetService {
         Some(&self.entity_tag_service)
     }
 
+    async fn get_by_id(&self, id: &Uuid) -> Result<Option<Subnet>, anyhow::Error> {
+        match self.storage().get_by_id(id).await? {
+            Some(mut subnet) => {
+                self.hydrate_vlans(std::slice::from_mut(&mut subnet))
+                    .await?;
+                self.hydrate_tags(&mut subnet).await?;
+                Ok(Some(subnet))
+            }
+            None => Ok(None),
+        }
+    }
+
+    async fn get_all(&self, filter: StorableFilter<Subnet>) -> Result<Vec<Subnet>, anyhow::Error> {
+        let mut subnets = self.storage().get_all(filter).await?;
+        self.hydrate_vlans(&mut subnets).await?;
+        self.bulk_hydrate_tags(&mut subnets, None).await?;
+        Ok(subnets)
+    }
+
+    async fn get_unique(
+        &self,
+        filter: StorableFilter<Subnet>,
+    ) -> Result<Unique<Subnet>, anyhow::Error> {
+        match self.storage().get_unique(filter).await? {
+            Unique::One(mut subnet) => {
+                self.hydrate_vlans(std::slice::from_mut(&mut subnet))
+                    .await?;
+                self.hydrate_tags(&mut subnet).await?;
+                Ok(Unique::One(subnet))
+            }
+            Unique::None => Ok(Unique::None),
+            Unique::Multiple => Ok(Unique::Multiple),
+        }
+    }
+
+    async fn get_paginated(
+        &self,
+        filter: StorableFilter<Subnet>,
+    ) -> Result<PaginatedResult<Subnet>, anyhow::Error> {
+        self.get_paginated_ordered(filter, "created_at ASC").await
+    }
+
+    async fn get_paginated_ordered(
+        &self,
+        filter: StorableFilter<Subnet>,
+        order_by: &str,
+    ) -> Result<PaginatedResult<Subnet>, anyhow::Error> {
+        let mut paginated = self.storage().get_paginated(filter, order_by).await?;
+        self.hydrate_vlans(&mut paginated.items).await?;
+        self.bulk_hydrate_tags(&mut paginated.items, None).await?;
+        Ok(paginated)
+    }
+
     /// Counts only the subnets the user curates, so the dashboard's per-site
     /// subnet count agrees with the rows the management lists show.
     ///
@@ -643,6 +700,7 @@ impl SubnetService {
         };
 
         let mut subnet = Subnet::new(SubnetBase {
+            vlan_ids: Vec::new(),
             // A range nothing read, only inferred — the whole reason this rung exists.
             cidr: SubnetCidr::new(SubnetCidrValue(cidr), AttributeSource::LldpNeighbourAddress),
             site_id,
@@ -662,12 +720,26 @@ impl SubnetService {
         Ok(Placement::Inferred(created.id))
     }
 
+    /// Fill each subnet's read-only `vlan_ids` from the live `subnet_vlans` links.
+    async fn hydrate_vlans(&self, subnets: &mut [Subnet]) -> Result<()> {
+        if subnets.is_empty() {
+            return Ok(());
+        }
+        let ids: Vec<Uuid> = subnets.iter().map(|s| s.id).collect();
+        let mut vlans_map = self.vlan_service.get_ids_for_subnets(&ids).await?;
+        for subnet in subnets.iter_mut() {
+            subnet.base.vlan_ids = vlans_map.remove(&subnet.id).unwrap_or_default();
+        }
+        Ok(())
+    }
+
     pub fn new(
         storage: Arc<GenericPostgresStorage<Subnet>>,
         event_bus: Arc<EventBus>,
         entity_tag_service: Arc<EntityTagService>,
         ip_address_service: Arc<IPAddressService>,
         warning_service: Arc<DiscoveryWarningService>,
+        vlan_service: Arc<VlanService>,
     ) -> Self {
         Self {
             storage,
@@ -675,6 +747,7 @@ impl SubnetService {
             entity_tag_service,
             ip_address_service,
             warning_service,
+            vlan_service,
         }
     }
 }

@@ -86,6 +86,8 @@ impl Storable for Subnet {
                     subnet_type,
                     description,
                     virtualization_service_id,
+                    // Hydrated from the `subnet_vlans` junction on read; not a column.
+                    vlan_ids: _,
                     tags: _, // Stored in entity_tags junction table
                 },
         } = self.clone();
@@ -164,7 +166,8 @@ impl Storable for Subnet {
                 cidr,
                 subnet_type,
                 virtualization_service_id: row.get("virtualization_service_id"),
-                tags: Vec::new(), // Hydrated from entity_tags junction table
+                vlan_ids: Vec::new(), // Hydrated from the `subnet_vlans` junction
+                tags: Vec::new(),     // Hydrated from entity_tags junction table
             },
         })
     }

@@ -742,6 +742,7 @@ mod tests {
 
     fn make_subnet(cidr: &str, subnet_type: SubnetType) -> Subnet {
         Subnet::new(SubnetBase {
+            vlan_ids: Vec::new(),
             cidr: SubnetCidr::new(
                 SubnetCidrValue(IpCidr::from_str(cidr).unwrap()),
                 AttributeSource::DaemonSelfReport,
