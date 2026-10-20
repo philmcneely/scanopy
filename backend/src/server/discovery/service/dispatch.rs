@@ -415,9 +415,7 @@ impl DiscoveryService {
             let mut daemon_sessions = self.daemon_sessions.write().await;
             let mut pull_cancellations = self.daemon_pull_cancellations.write().await;
             let mut discovery_sessions = self.discovery_sessions.write().await;
-            let previous = sessions
-                .get(&update.session_id)
-                .map(|s| (s.phase, s.started_at));
+            let previous = sessions.get(&update.session_id).map(|s| s.phase);
 
             let outcome = apply(
                 &mut SessionMaps {
@@ -440,31 +438,17 @@ impl DiscoveryService {
             (outcome, previous)
         };
 
-        // Once per transition, so a session's log reads as its sequence of phases. A session the
-        // server had no record of (after a server restart) logs its first phase with no previous.
-        if !matches!(outcome, UpdateOutcome::Ignored)
-            && previous.map(|(phase, _)| phase) != Some(update.phase)
-        {
-            let started_at = previous.and_then(|(_, s)| s).or(update.started_at);
-            tracing::info!(
-                session_id = %update.session_id,
-                daemon_id = %update.daemon_id,
-                previous_phase = ?previous.map(|(phase, _)| phase),
-                phase = %update.phase,
-                elapsed_secs = started_at.map(|s| (Utc::now() - s).num_seconds()),
-                "Discovery session changed phase"
-            );
-        }
-
         let effects = match outcome {
             UpdateOutcome::Ignored => return,
             UpdateOutcome::Progress => {
-                tracing::debug!(
-                    session_id = %update.session_id,
-                    phase = %update.phase,
-                    progress = %update.progress,
-                    "Updated session",
-                );
+                // Once per transition, so a session's events read as its sequence of phases. A
+                // session the server had no record of (after a server restart) publishes its first
+                // phase with no previous. A terminal phase is published by `finish_terminal`.
+                if previous != Some(update.phase) {
+                    let mut event = update.into_discovery_event();
+                    event.scope.previous_phase = previous;
+                    self.event_bus().publish(event).await;
+                }
                 return;
             }
             UpdateOutcome::Terminal(effects) => *effects,

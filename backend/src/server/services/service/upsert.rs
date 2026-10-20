@@ -191,11 +191,6 @@ impl ServiceService {
                 reason,
             )
             .await;
-        } else {
-            tracing::debug!(
-                service_id = %existing_service.id,
-                "Service upsert - no binding or virtualization changes"
-            );
         }
 
         Ok(existing_service)

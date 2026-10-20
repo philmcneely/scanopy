@@ -302,12 +302,6 @@ impl HostService {
         if has_updates {
             self.publish_updated(&host_before_updates, &existing_host, authentication, reason)
                 .await;
-        } else {
-            tracing::debug!(
-                "No new data to upsert from host {} to {} (last_seen_at refresh only)",
-                new_host_data.base.name,
-                existing_host.base.name
-            );
         }
 
         Ok(existing_host)

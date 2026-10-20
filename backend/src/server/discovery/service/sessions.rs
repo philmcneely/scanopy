@@ -110,19 +110,26 @@ impl DiscoveryService {
     /// Transition a session from Pending to Starting phase.
     /// Called when the session is dispatched to the daemon.
     pub async fn transition_session_to_starting(&self, session_id: Uuid) {
-        let mut sessions = self.sessions.write().await;
-        if let Some(session) = sessions.get_mut(&session_id)
-            && session.phase == DiscoveryPhase::Pending
-        {
-            session.phase = DiscoveryPhase::Starting;
-            self.session_last_updated
-                .write()
-                .await
-                .insert(session_id, Utc::now());
-            tracing::debug!(
-                session_id = %session_id,
-                "Transitioned session to Starting phase"
-            );
+        let starting = {
+            let mut sessions = self.sessions.write().await;
+            match sessions.get_mut(&session_id) {
+                Some(session) if session.phase == DiscoveryPhase::Pending => {
+                    session.phase = DiscoveryPhase::Starting;
+                    self.session_last_updated
+                        .write()
+                        .await
+                        .insert(session_id, Utc::now());
+                    Some(session.clone())
+                }
+                _ => None,
+            }
+        };
+
+        // Published once the lock is released, as `record_update` does.
+        if let Some(session) = starting {
+            let mut event = session.into_discovery_event();
+            event.scope.previous_phase = Some(DiscoveryPhase::Pending);
+            self.event_bus().publish(event).await;
         }
     }
 
