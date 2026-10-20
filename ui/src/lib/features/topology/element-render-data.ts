@@ -89,8 +89,13 @@ export interface ElementRenderResult {
  */
 export interface ElementIconCard {
 	glyph: EntityGlyph;
-	/** Definition whose logo badges a device glyph: the service that decided the role. */
+	/**
+	 * Definition whose logo badges a device glyph: a service running on what the card stands for,
+	 * the one that decided the role when it is among them.
+	 */
 	badgeDefinition: string | null;
+	/** How many more services run there beyond the badge's, drawn as "+N". */
+	badgeMore: number;
 	label: string;
 	/** Hover text: the label, then each line the card no longer shows. */
 	title: string;
@@ -213,6 +218,7 @@ function buildIconCard(
 		return {
 			glyph,
 			badgeDefinition: null,
+			badgeMore: 0,
 			label: service.name,
 			title: [service.name, host ? hostDisplayName(host) : null].filter(Boolean).join('\n')
 		};
@@ -220,21 +226,32 @@ function buildIconCard(
 
 	if (!host) return null;
 	const role = glyph.role;
-	const badge = (resolved.services ?? []).find((s) => {
-		const meta = serviceDefinitions.getMetadata(s.service_definition) as {
+	// The badge is what runs on the thing the card stands for: the services bound to an address,
+	// or a host's own services, the same list the detailed card draws. The service that decided
+	// the device role leads when it is among them, so the badge agrees with the glyph.
+	const meta = (s: Service) =>
+		serviceDefinitions.getMetadata(s.service_definition) as {
 			device_role?: string | null;
 			has_logo?: boolean;
 		} | null;
-		return meta?.has_logo && meta.device_role === role;
-	});
+	const withLogo = data.services.filter((s) => meta(s)?.has_logo);
+	const badge = withLogo.find((s) => meta(s)?.device_role === role) ?? withLogo[0];
 	const hostName = data.headerText ?? hostDisplayName(host);
 	// The container subnet's placeholder address names nothing, so that card keeps the host name.
 	const address = data.subtitleText ? resolved.ipAddress?.ip_address : null;
 	return {
 		glyph,
 		badgeDefinition: badge?.service_definition ?? null,
+		badgeMore: badge ? data.services.length - 1 : 0,
 		label: address ?? hostName,
-		title: [hostName, data.subtitleText, deviceRoles.getName(role)].filter(Boolean).join('\n')
+		title: [
+			hostName,
+			data.subtitleText,
+			deviceRoles.getName(role),
+			...data.services.map((s) => s.name)
+		]
+			.filter(Boolean)
+			.join('\n')
 	};
 }
 
