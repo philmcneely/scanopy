@@ -42,7 +42,7 @@ pub struct ApplicationBuilder;
 
 impl ApplicationBuilder {
     /// Find the application tag for a service: direct tag first, then inherit from host.
-    fn find_app_tag<'a>(
+    pub(crate) fn find_app_tag<'a>(
         service: &crate::server::services::r#impl::base::Service,
         hosts: &[crate::server::hosts::r#impl::base::Host],
         app_tags: &'a HashMap<Uuid, &'a Tag>,

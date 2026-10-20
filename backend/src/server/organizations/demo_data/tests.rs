@@ -414,6 +414,64 @@ fn no_demo_entity_holds_two_tags_of_one_tag_group() {
     }
 }
 
+/// The Application view draws a dependency between the application groups its members sit in.
+/// A member with no Application tag lands in Ungrouped, and its edge runs into that box. Members
+/// that name no service (the retired Zabbix in Monitoring Stack) draw nothing and are skipped.
+#[test]
+fn every_dependency_member_sits_in_an_application() {
+    use crate::server::tags::groups::base::TagGroupType;
+    use crate::server::topology::service::application_builder::ApplicationBuilder;
+
+    let demo = DemoData::generate(Uuid::new_v4(), Uuid::new_v4(), UseCase::default());
+    let application_group = demo
+        .tag_groups
+        .iter()
+        .find(|g| g.base.group_type == TagGroupType::Application)
+        .map(|g| g.id);
+    let app_tags: HashMap<Uuid, &Tag> = demo
+        .tags
+        .iter()
+        .filter(|t| t.in_group(application_group))
+        .map(|t| (t.id, t))
+        .collect();
+    let hosts: Vec<Host> = demo
+        .hosts_with_services
+        .iter()
+        .map(|h| h.host.clone())
+        .collect();
+    let services: Vec<&Service> = demo
+        .hosts_with_services
+        .iter()
+        .flat_map(|h| &h.services)
+        .collect();
+
+    for dependency in &demo.dependencies {
+        let members: Vec<&Service> = match &dependency.base.members {
+            DependencyMembers::Services { service_ids } => service_ids
+                .iter()
+                .filter_map(|id| services.iter().copied().find(|s| s.id == *id))
+                .collect(),
+            DependencyMembers::Bindings { binding_ids } => binding_ids
+                .iter()
+                .filter_map(|id| {
+                    services
+                        .iter()
+                        .copied()
+                        .find(|s| s.base.bindings.iter().any(|b| b.id == *id))
+                })
+                .collect(),
+        };
+        for service in members {
+            assert!(
+                ApplicationBuilder::find_app_tag(service, &hosts, &app_tags).is_some(),
+                "dependency {} has member {}, which is in no application",
+                dependency.base.name,
+                service.base.name
+            );
+        }
+    }
+}
+
 #[test]
 fn every_daemon_api_key_is_bound_one_to_one() {
     let demo = DemoData::generate(Uuid::new_v4(), Uuid::new_v4(), UseCase::default());
