@@ -8,6 +8,7 @@ import {
 	stepExpand,
 	collapseLevel,
 	collapsedContainers,
+	computeCollapsedEdges,
 	stepCollapse,
 	expandedInlineGroups,
 	inlineGroupKey
@@ -330,5 +331,42 @@ describe('level 5 opens manager boxes on host cards', () => {
 		expandedInlineGroups.set(new Set());
 
 		expect(nextEffectiveLevel('expand', plain, containerTypes, null)).toBe(null);
+	});
+});
+
+describe('computeCollapsedEdges — edges the view disables', () => {
+	type TopologyEdge = components['schemas']['Edge'];
+	const edge = (id: string, edge_type: string, view_config: { type: string }): TopologyEdge =>
+		({
+			id,
+			source: 'inside',
+			target: 'outside',
+			edge_type,
+			view_config
+		}) as unknown as TopologyEdge;
+	const nodes = [container('subnet', 'Subnet'), element('inside', 'subnet')];
+
+	// The L3 view disables PhysicalLink; collapsing a subnet merged them into visible edges.
+	it('leaves a disabled edge out of the merged edge, as the expanded view does', () => {
+		const result = computeCollapsedEdges(
+			[
+				edge('physical', 'PhysicalLink', { type: 'disabled' }),
+				edge('same-host', 'SameHost', { type: 'active' })
+			],
+			new Set(['subnet']),
+			nodes,
+			[]
+		);
+		expect(result.map((agg) => agg.originalEdges.map((e) => e.id))).toEqual([['same-host']]);
+	});
+
+	it('draws no merged edge when every crossing edge is disabled', () => {
+		const result = computeCollapsedEdges(
+			[edge('physical', 'PhysicalLink', { type: 'disabled' })],
+			new Set(['subnet']),
+			nodes,
+			[]
+		);
+		expect(result).toEqual([]);
 	});
 });

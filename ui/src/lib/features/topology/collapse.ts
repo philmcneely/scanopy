@@ -16,6 +16,7 @@ import { get, writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import type { TopologyEdge, TopologyNode } from './types/base';
 import type { ContainerTypeMetadata } from '$lib/shared/stores/metadata';
+import { isDisabledEdge } from './layout/edge-classification';
 import { persistedSet, toggleInSet } from '$lib/shared/stores/persisted-set';
 
 // ---------------------------------------------------------------------------
@@ -687,6 +688,10 @@ export function computeCollapsedEdges(
 	const groups = new Map<string, TopologyEdge[]>();
 
 	for (const edge of edges) {
+		// A type the view disables never draws expanded (`buildFlowEdges` drops it), so it can't
+		// draw merged into a collapsed container either.
+		if (isDisabledEdge(edge)) continue;
+
 		let src = edge.source as string;
 		let tgt = edge.target as string;
 
