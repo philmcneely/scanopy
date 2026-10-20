@@ -2530,8 +2530,8 @@ pub(super) fn generate_hosts_and_services(
         ),
     ));
 
-    // 12b. Order worker: consumes the portal's order queue and indexes orders for search. It
-    // listens only for health checks.
+    // 12b. Order worker: a Spring Boot service that consumes the portal's order queue and indexes
+    // orders for search. It listens only for Actuator health checks.
     result.push(host_with_services!(
         with_mac(
             create_host(
@@ -2550,7 +2550,7 @@ pub(super) fn generate_hosts_and_services(
         ),
         now,
         (
-            "Web Service",
+            "Spring Boot",
             "Order Worker",
             Some(PortType::Http8080),
             vec![]

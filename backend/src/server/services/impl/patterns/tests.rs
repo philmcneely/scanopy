@@ -296,12 +296,25 @@ fn test_pattern_or_logic() {
     );
 }
 
-/// Whether the registered definition `id` matches one response from `path` on `port` carrying
+/// Whether the registered definition `id` matches one 200 response from `path` on `port` carrying
 /// `headers`.
 fn definition_matches_response(
     id: &str,
     port: PortType,
     path: &str,
+    headers: &[(&str, &str)],
+    body: &str,
+) -> bool {
+    definition_matches_status(id, port, path, 200, headers, body)
+}
+
+/// Whether the registered definition `id` matches one response with `status` from `path` on
+/// `port` carrying `headers`.
+fn definition_matches_status(
+    id: &str,
+    port: PortType,
+    path: &str,
+    status: u16,
     headers: &[(&str, &str)],
     body: &str,
 ) -> bool {
@@ -316,7 +329,7 @@ fn definition_matches_response(
             .iter()
             .map(|(name, value)| (name.to_string(), value.to_string()))
             .collect(),
-        status: 200,
+        status,
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -469,6 +482,112 @@ fn dawarich_is_identified_by_its_health_endpoints_version_header() {
         "Dawarich",
         PortType::Http3000,
         "/",
+        &[NGINX],
+        NGINX_WELCOME
+    ));
+}
+
+/// Bodies captured from a Spring Boot 3 app built from start.spring.io with web and actuator.
+#[test]
+fn spring_boot_is_identified_by_its_actuator_health_endpoint_up_or_down() {
+    let up = "{\"groups\":[\"liveness\",\"readiness\"],\"status\":\"UP\"}";
+    let down = "{\"groups\":[\"liveness\",\"readiness\"],\"status\":\"DOWN\"}";
+    for port in [PortType::Http8080, PortType::Http8081] {
+        assert!(definition_matches_status(
+            "Spring Boot",
+            port,
+            "/actuator/health",
+            200,
+            &[],
+            up
+        ));
+        assert!(definition_matches_status(
+            "Spring Boot",
+            port,
+            "/actuator/health",
+            503,
+            &[],
+            down
+        ));
+    }
+
+    // With Actuator on a separate management port, the app port answers the health path with
+    // Spring's error body. Nothing else at that path is identified either.
+    assert!(!definition_matches_status(
+        "Spring Boot",
+        PortType::Http8080,
+        "/actuator/health",
+        404,
+        &[],
+        "{\"timestamp\":\"2026-10-20T20:40:54.744Z\",\"status\":404,\"error\":\"Not Found\",\"path\":\"/actuator/health\"}"
+    ));
+    assert!(!definition_matches_response(
+        "Spring Boot",
+        PortType::Http8080,
+        "/actuator/health",
+        &[NGINX],
+        NGINX_WELCOME
+    ));
+}
+
+/// Captured from `mher/flower:2.0` against a Redis broker.
+#[test]
+fn celery_is_identified_by_its_flower_dashboard() {
+    let port = PortType::new_tcp(5555);
+    let flower = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Flower</title><link href=\"/static/css/flower.css\" rel=\"stylesheet\"></head><body><nav class=\"navbar\"><a class=\"navbar-brand\" href=\"/\">Flower</a><a class=\"nav-link\" href=\"https://flower.readthedocs.io/\">Documentation</a></nav></body></html>";
+    assert!(definition_matches_response(
+        "Celery",
+        port,
+        "/",
+        &[],
+        flower
+    ));
+
+    assert!(!definition_matches_response(
+        "Celery",
+        port,
+        "/",
+        &[NGINX],
+        NGINX_WELCOME
+    ));
+    // A page that only links to Flower is not Flower.
+    assert!(!definition_matches_response(
+        "Celery",
+        port,
+        "/",
+        &[],
+        "<html><head><title>Homepage</title></head><body><a href=\"http://flower.lan\">Flower</a></body></html>"
+    ));
+}
+
+/// Captured from `Sidekiq::Web` mounted at /sidekiq in a Rack app. Every asset and link sits
+/// under /sidekiq, so the title and the navbar brand are what name it once the requested path is
+/// set aside.
+#[test]
+fn sidekiq_is_identified_by_its_web_dashboard() {
+    let dashboard = "<!doctype html><html dir=\"ltr\"><head><title>[DEVELOPMENT] Sidekiq</title><link href=\"/sidekiq/stylesheets/style.css\" media=\"screen\" rel=\"stylesheet\" type=\"text/css\"><script type=\"text/javascript\" src=\"/sidekiq/javascripts/application.js\"></script></head><body><nav class=\"navbar\"><a class=\"navbar-brand\" href=\"/sidekiq/\">Sidekiq</a><ul><li><a href=\"/sidekiq/\">Dashboard</a></li><li><a href=\"/sidekiq/busy\">Busy</a></li><li><a href=\"/sidekiq/queues\">Queues</a></li><li><a href=\"/sidekiq/retries\">Retries</a></li></ul></nav></body></html>";
+    for port in [PortType::Http3000, PortType::Http] {
+        assert!(definition_matches_response(
+            "Sidekiq",
+            port,
+            "/sidekiq",
+            &[],
+            dashboard
+        ));
+    }
+
+    // A Rails page that links to the dashboard names only the path.
+    assert!(!definition_matches_response(
+        "Sidekiq",
+        PortType::Http3000,
+        "/sidekiq",
+        &[],
+        "<html><head><title>Admin</title></head><body><a href=\"/sidekiq\">Background jobs</a></body></html>"
+    ));
+    assert!(!definition_matches_response(
+        "Sidekiq",
+        PortType::Http,
+        "/sidekiq",
         &[NGINX],
         NGINX_WELCOME
     ));
