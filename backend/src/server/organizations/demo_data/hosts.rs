@@ -362,6 +362,7 @@ pub(super) fn generate_hosts_and_services(
             Some("UI7845C4ABCD01"),
         ),
         now,
+        ("UniFi Switch", "UniFi Switch", None, vec![]),
         ("SNMP", "SNMP", Some(PortType::Snmp), vec![]),
     );
     let switch_revision_source = AttributeSource::Probe(ClientProbe::Snmp);
