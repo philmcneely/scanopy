@@ -433,7 +433,7 @@
 									></span>
 								</span>
 								<span
-									class="text-primary flex max-w-0 items-center justify-end gap-1 overflow-hidden whitespace-nowrap text-right text-[10px] font-medium leading-none transition-[max-width] duration-150 group-hover/icon-card:max-w-[72px]"
+									class="text-primary flex max-w-0 items-center justify-end gap-1 overflow-hidden whitespace-nowrap text-right text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[72px] group-hover/icon-card:pr-1"
 								>
 									{runState.label}
 								</span>
