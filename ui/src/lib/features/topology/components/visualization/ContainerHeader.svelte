@@ -14,7 +14,7 @@
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import type { TagProps } from '$lib/shared/components/data/types';
 	import type { components } from '$lib/api/schema';
-	import DeviceGlyph from './DeviceGlyph.svelte';
+	import DeviceGlyph from '$lib/features/hosts/components/DeviceGlyph.svelte';
 	import SoftwareGlyph from './SoftwareGlyph.svelte';
 	import {
 		topology_elementCount,

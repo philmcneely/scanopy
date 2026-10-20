@@ -2,7 +2,7 @@
 	import { type NodeProps, useInternalNode } from '@xyflow/svelte';
 	import NodeHandles from './NodeHandles.svelte';
 	import { entities } from '$lib/shared/stores/metadata';
-	import DeviceGlyph from './DeviceGlyph.svelte';
+	import DeviceGlyph from '$lib/features/hosts/components/DeviceGlyph.svelte';
 	import SoftwareGlyph from './SoftwareGlyph.svelte';
 	import { entityGlyph } from '../../entity-glyph';
 	import {
@@ -39,6 +39,7 @@
 		common_collapse,
 		common_containers,
 		common_expand,
+		common_plusCount,
 		topology_hideOpenPorts,
 		topology_openPortsSummary
 	} from '$lib/paraglide/messages';
@@ -410,6 +411,14 @@
 						<span class="absolute -bottom-1 -right-1">
 							<SoftwareGlyph definition={iconCard.badgeDefinition} />
 						</span>
+						{#if iconCard.badgeMore > 0}
+							<!-- More services run here than the badge shows; the tooltip lists them. -->
+							<span
+								class="text-secondary absolute -bottom-1 left-full ml-1 whitespace-nowrap text-[10px] font-medium leading-5"
+							>
+								{common_plusCount({ count: String(iconCard.badgeMore) })}
+							</span>
+						{/if}
 					{/if}
 				</div>
 				{#if staleTag}

@@ -11,7 +11,7 @@
 	import { SubnetDisplay } from '$lib/shared/components/forms/selection/display/SubnetDisplay.svelte';
 	import type { RenderableTopology, TopologyNode } from '$lib/features/topology/types/base';
 	import { entityGlyph } from '$lib/features/topology/entity-glyph';
-	import DeviceGlyph from '$lib/features/topology/components/visualization/DeviceGlyph.svelte';
+	import DeviceGlyph from '$lib/features/hosts/components/DeviceGlyph.svelte';
 	import SoftwareGlyph from '$lib/features/topology/components/visualization/SoftwareGlyph.svelte';
 	import type { TopologyEditState } from '$lib/features/topology/state';
 	import {

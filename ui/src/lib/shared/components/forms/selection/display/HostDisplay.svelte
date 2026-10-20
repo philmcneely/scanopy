@@ -1,7 +1,7 @@
 <script lang="ts" context="module">
 	import type { Host, Interface, IPAddress, Port, Service } from '$lib/features/hosts/types/base';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
-	import { hostIcon } from '$lib/features/hosts/host-icon';
+	import { hostTile } from '$lib/features/hosts/host-icon';
 	import {
 		containerNetworkTypes,
 		entities,
@@ -137,7 +137,7 @@
 				.join(', ');
 		},
 		// The host's device role, as on every other surface, not its first service's logo.
-		getIcon: (host) => hostIcon(host),
+		getIcon: (host) => hostTile(host),
 		getIconColor: () => entities.getColorHelper('Host').icon,
 		// What kind of guest the host is (VM, LXC, macvlan container, network identity) is part of
 		// what the host is, so it shows even in compact rows; its services only in full ones. A view
