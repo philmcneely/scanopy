@@ -423,7 +423,7 @@
 						<span class="absolute -bottom-1 left-1/2 flex h-5 w-0">
 							{#each iconCard.badgeDefinitions as definition, i (definition)}
 								<span
-									class="absolute top-0 flex leading-none left-[var(--stack-x)] transition-[left] duration-150 group-hover/icon-card:left-[var(--fan-x)]"
+									class="absolute left-[var(--stack-x)] top-0 flex leading-none transition-[left] duration-150 group-hover/icon-card:left-[var(--fan-x)]"
 									style="--stack-x: {4 + i * 6}px; --fan-x: {(i - (count - 1) / 2) * fanStep -
 										BADGE_PX / 2}px; z-index: {count - i};"
 								>
