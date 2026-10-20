@@ -422,7 +422,9 @@ impl AuthService {
         Ok(user)
     }
 
-    /// Login with username and password
+    /// Login with username and password. A failure publishes `LoginFailed`; the
+    /// handler publishes the success, with [`Self::publish_login_success`], once
+    /// the session is saved.
     pub async fn login(
         &self,
         request: LoginRequest,
@@ -444,24 +446,6 @@ impl AuthService {
             Ok(user) => {
                 // Success - clear attempts
                 self.login_attempts.write().await.remove(&request.email);
-
-                let authentication: AuthenticatedEntity = user.clone().into();
-                self.event_bus
-                    .publish(Event::new(
-                        AuthScope {
-                            user_id: Some(user.id),
-                            organization_id: Some(user.base.organization_id),
-                            ip_address: ip,
-                            user_agent,
-                        },
-                        AuthOperation::LoginSuccess {
-                            method: AuthMethod::Password,
-                            via_register_flow: false,
-                        },
-                        authentication,
-                    ))
-                    .await?;
-
                 Ok(user)
             }
             Err(e) => {
@@ -492,6 +476,30 @@ impl AuthService {
                 Err(e)
             }
         }
+    }
+
+    /// Publish `LoginSuccess` for a password login whose session is saved.
+    pub async fn publish_login_success(
+        &self,
+        user: &User,
+        ip: IpAddr,
+        user_agent: Option<String>,
+    ) -> Result<()> {
+        self.event_bus
+            .publish(Event::new(
+                AuthScope {
+                    user_id: Some(user.id),
+                    organization_id: Some(user.base.organization_id),
+                    ip_address: ip,
+                    user_agent,
+                },
+                AuthOperation::LoginSuccess {
+                    method: AuthMethod::Password,
+                    via_register_flow: false,
+                },
+                user.clone().into(),
+            ))
+            .await
     }
 
     /// Check if user is locked out due to too many login attempts
