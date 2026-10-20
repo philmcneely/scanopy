@@ -28,7 +28,7 @@
 	<Logo size={16} class="text-primary" />
 {:else}
 	<span
-		class="inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-300 dark:border-gray-600 {size ===
+		class="inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full border align-top border-gray-300 dark:border-gray-600 {size ===
 		'lg'
 			? 'h-12 w-12 border-2'
 			: 'h-5 w-5'}"
