@@ -12184,7 +12184,7 @@ export interface components {
          * @description Where on an element card a mark paints.
          * @enum {string}
          */
-        MarkChannel: "StatusDot" | "StateFill" | "Corner" | "CornerRing";
+        MarkChannel: "StatusDot" | "StateFill" | "Status";
         /** @enum {string} */
         MatchConfidence: "NotApplicable" | "Low" | "Medium" | "High" | "Certain";
         MatchDetails: {

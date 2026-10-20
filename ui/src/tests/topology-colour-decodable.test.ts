@@ -237,7 +237,7 @@ describe('topology card colours are decodable in their view', () => {
 		});
 	}
 
-	it('L3 does not mark a virtualized host', () => {
+	it('L3 does not mark a guest's run state', () => {
 		const vm = topology.hosts.find((h) => h.virtualization_metadata != null);
 		const node = cardNodes(topology, 'IPAddress').find(
 			(n) => (n as { host_id?: string }).host_id === vm?.id
@@ -252,6 +252,6 @@ describe('topology card colours are decodable in their view', () => {
 			expandedInlineGroups: new Set(),
 			sites: [SITE]
 		});
-		expect(result.marks.Corner).toBeUndefined();
+		expect(result.marks.Status).toBeUndefined();
 	});
 });

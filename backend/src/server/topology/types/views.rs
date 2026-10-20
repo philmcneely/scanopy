@@ -153,12 +153,9 @@ pub enum MarkChannel {
     StatusDot,
     /// The whole card, when it draws as a bare box below the detail threshold.
     StateFill,
-    /// A marker on an icon card's device tile, top-left corner, drawing the value's icon in its
-    /// colour. Workloads uses it for how a host is virtualized.
-    Corner,
-    /// The `Corner` marker's outline, in the value's colour; the marker expands to name the value on
-    /// hover. Workloads uses it for a guest's run state.
-    CornerRing,
+    /// A dot on an icon card's device tile, top-left corner, in the value's colour; it expands to
+    /// name the value on hover. Workloads uses it for a guest's run state.
+    Status,
 }
 
 /// A colour a view paints on its element cards, named by the filter value that decodes it.
@@ -339,7 +336,7 @@ pub enum MetadataFilterType {
     /// and zoomed-out fill show.
     OperStatus,
     /// Whether a guest (a Proxmox guest or a container host) was running at the last scan.
-    /// Declared on Host in Workloads, where it outlines an icon card's virtualization marker.
+    /// Declared on Host in Workloads, where it is the status dot on an icon card.
     GuestState,
 }
 
@@ -821,9 +818,7 @@ impl TopologyView {
     fn element_marks(&self, config: &ViewElementConfig) -> Vec<ElementMark> {
         use EntityDiscriminants::{Host, Interface};
         use MarkChannel::*;
-        use MetadataFilterType::{
-            GuestState as GuestStateFilter, OperStatus, Staleness, Virtualization,
-        };
+        use MetadataFilterType::{GuestState as GuestStateFilter, OperStatus, Staleness};
 
         let stale_fill: Vec<ElementMark> = config
             .element_entities
@@ -849,14 +844,10 @@ impl TopologyView {
                 status(StatusDot, IfOperStatus::LowerLayerDown),
             ])
             .collect(),
-            // How a host is virtualized: the corner marker on its icon card, outlined in the guest's run
-            // state. Bare metal is unmarked.
-            Self::Workloads => HostVirtualizationState::iter()
-                .filter(|s| *s != HostVirtualizationState::BareMetal)
-                .map(|s| ElementMark::new(Corner, Host, Virtualization, &s))
-                .chain(
-                    GuestState::iter().map(|g| ElementMark::new(CornerRing, Host, GuestStateFilter, &g)),
-                )
+            // A guest's run state, as a status dot on its icon card. A host with no run state (bare
+            // metal, a vCenter or ESXi guest, a network identity) is unmarked.
+            Self::Workloads => GuestState::iter()
+                .map(|g| ElementMark::new(Status, Host, GuestStateFilter, &g))
                 .chain(stale_fill)
                 .collect(),
             Self::L3Logical | Self::Application => stale_fill,

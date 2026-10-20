@@ -801,43 +801,25 @@
         ],
         "element_marks": [
           {
-            "channel": "Corner",
-            "entity": "Host",
-            "filter_type": "Virtualization",
-            "value": "Virtualized"
-          },
-          {
-            "channel": "Corner",
-            "entity": "Host",
-            "filter_type": "Virtualization",
-            "value": "Containerized"
-          },
-          {
-            "channel": "Corner",
-            "entity": "Host",
-            "filter_type": "Virtualization",
-            "value": "NetworkIdentity"
-          },
-          {
-            "channel": "CornerRing",
+            "channel": "Status",
             "entity": "Host",
             "filter_type": "GuestState",
             "value": "Running"
           },
           {
-            "channel": "CornerRing",
+            "channel": "Status",
             "entity": "Host",
             "filter_type": "GuestState",
             "value": "Paused"
           },
           {
-            "channel": "CornerRing",
+            "channel": "Status",
             "entity": "Host",
             "filter_type": "GuestState",
             "value": "Restarting"
           },
           {
-            "channel": "CornerRing",
+            "channel": "Status",
             "entity": "Host",
             "filter_type": "GuestState",
             "value": "Stopped"

@@ -403,7 +403,7 @@
 				use:tooltip
 				data-tooltip={iconCard.title}
 			>
-				<!-- my-1: the service badges (bottom-right) and the virtualization marker (top-left) are
+				<!-- my-1: the service badges (bottom-right) and the status dot (top-left) are
 				     centred on the tile's corners and overhang it by half their size, more than the card's
 				     gap and padding. On every icon card, so heights match. -->
 				<div class="relative my-1">
@@ -412,39 +412,30 @@
 					{:else}
 						<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
 					{/if}
-					{#if marks.Corner}
-						<!-- How the host is virtualized, from the view's Corner mark: the value's icon in
-						     its colour, centred on the tile's top-left corner. Its outline is the guest's
-						     run state (CornerRing), or neutral when the guest reports none. Hovering the
-						     card expands the marker rightwards to name the run state, or the virtualization
-						     when there is none; its width is capped to stay inside the card. Both values
-						     are the filter chips' own. -->
-						{@const marker = marks.Corner}
-						{@const runState = marks.CornerRing}
-						{@const MarkerIcon = createIconComponent(marker.icon ?? null)}
-						{@const RunStateIcon = runState ? createIconComponent(runState.icon ?? null) : null}
+					{#if marks.Status}
+						<!-- A guest's run state, from the view's Status mark: a dot in the state's colour,
+						     centred on the tile's top-left corner, with nothing inside it. Hovering the card
+						     expands it rightwards to name the state with its icon; the width is capped to
+						     stay inside the card. The value is the filter chip's own. -->
+						{@const runState = marks.Status}
+						{@const RunStateIcon = createIconComponent(runState.icon ?? null)}
 						<span
-							class="absolute -left-2.5 -top-2.5 z-10 flex h-5 items-center rounded-full border-[1.5px] {runState
-								? ''
-								: 'border-gray-300 dark:border-gray-600'}"
-							style="background: var(--color-topology-node-bg);{runState
-								? ` border-color: ${createColorHelper(runState.color).rgb};`
-								: ''}"
+							class="absolute -left-2 -top-2 z-10 flex h-4 items-center rounded-full border border-gray-300 dark:border-gray-600"
+							style="background: var(--color-topology-node-bg);"
 						>
-							<span class="flex h-[17px] w-[17px] flex-shrink-0 items-center justify-center">
-								<MarkerIcon class="h-3.5 w-3.5 {createColorHelper(marker.color).icon}" />
+							<span class="flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center">
+								<span
+									class="h-2.5 w-2.5 rounded-full"
+									style="background: {createColorHelper(runState.color).rgb};"
+								></span>
 							</span>
 							<span
-								class="text-primary flex max-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[64px] group-hover/icon-card:pr-2"
+								class="text-primary flex max-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[72px] group-hover/icon-card:pr-2"
 							>
-								{#if runState && RunStateIcon}
-									<RunStateIcon
-										class="h-3 w-3 flex-shrink-0 {createColorHelper(runState.color).icon}"
-									/>
-									{runState.label}
-								{:else}
-									{marker.label}
-								{/if}
+								<RunStateIcon
+									class="h-3 w-3 flex-shrink-0 {createColorHelper(runState.color).icon}"
+								/>
+								{runState.label}
 							</span>
 						</span>
 					{/if}

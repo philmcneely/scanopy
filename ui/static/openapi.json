@@ -40349,8 +40349,7 @@
         "enum": [
           "StatusDot",
           "StateFill",
-          "Corner",
-          "CornerRing"
+          "Status"
         ]
       },
       "MatchConfidence": {
