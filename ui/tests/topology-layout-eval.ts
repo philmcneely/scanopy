@@ -48,8 +48,33 @@ const SAMPLE_STEP = 6;
  * Regression bounds, keyed by `<site> <view>`. Each sits between the baseline recorded before the
  * layout fixes and the result after them, so the eval fails when a fix stops working.
  */
-const THRESHOLDS: Record<string, Partial<Record<keyof ViewMetrics, { max?: number; min?: number }>>> =
-	{};
+const THRESHOLDS: Record<
+	string,
+	Partial<Record<keyof ViewMetrics, { max?: number; min?: number }>>
+> = {
+	// Baseline 1 crossing, 1049px inner, 2878px / 1725px between subnets, 49% empty.
+	'Headquarters L3Logical': {
+		innerCrossings: { max: 0 },
+		innerLengthTotal: { max: 800 },
+		crossLengthTotal: { max: 2200 },
+		crossLengthMax: { max: 1100 },
+		emptyAreaPct: { max: 40 }
+	},
+	// Baseline 1215px longest edge between subnets.
+	'Data Center L3Logical': { crossLengthMax: { max: 1050 } },
+	// Baseline 2 edges behind cards, 70% of dependency hops in order.
+	'Headquarters Application': {
+		innerBehindCards: { max: 1 },
+		dependencyInOrderPct: { min: 85 }
+	},
+	// Baseline 2 crossings, 4 edges behind cards, 1170px inner, 63% in order.
+	'Data Center Application': {
+		innerCrossings: { max: 1 },
+		innerBehindCards: { max: 2 },
+		innerLengthTotal: { max: 600 },
+		dependencyInOrderPct: { min: 85 }
+	}
+};
 
 interface SnapshotNode {
 	id: string;
@@ -145,7 +170,8 @@ function polylineLength(points: Point[]): number {
 }
 
 function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
-	const cross = (p: Point, q: Point, r: Point) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+	const cross = (p: Point, q: Point, r: Point) =>
+		(q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
 	const d1 = cross(c, d, a);
 	const d2 = cross(c, d, b);
 	const d3 = cross(a, b, c);
@@ -331,6 +357,7 @@ test('topology layout quality evaluation', async ({ context }) => {
 
 	mkdirSync('tests/screenshots', { recursive: true });
 	const results: Record<string, ViewMetrics> = {};
+	const roots: Record<string, Partial<SnapshotNode>[]> = {};
 	const failures: string[] = [];
 
 	for (const { id: siteId, name: site } of sites) {
@@ -359,6 +386,9 @@ test('topology layout quality evaluation', async ({ context }) => {
 			const { nodes, edges, paths } = await readLayout(page);
 			const metrics = computeMetrics(nodes, edges, paths, elkMs);
 			results[name] = metrics;
+			roots[name] = nodes
+				.filter((n) => !n.parentId && n.type === 'Container')
+				.map(({ header, x, y, width, height }) => ({ header, x, y, width, height }));
 
 			const file = name.replace(/\s+/g, '-').toLowerCase();
 			await page.screenshot({ path: `tests/screenshots/layout-${file}.png` });
@@ -380,6 +410,7 @@ test('topology layout quality evaluation', async ({ context }) => {
 	console.log('\n=== Topology layout evaluation ===');
 	console.table(results);
 	writeFileSync('tests/screenshots/layout-eval.json', JSON.stringify(results, null, 2));
+	writeFileSync('tests/screenshots/layout-eval-roots.json', JSON.stringify(roots, null, 2));
 
 	expect(failures, failures.join('\n')).toEqual([]);
 });

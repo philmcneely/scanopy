@@ -1,6 +1,6 @@
 import type { ElkNode, ElkExtendedEdge } from 'elkjs';
 import type { TopologyNode } from '../types/base';
-import { affectsLayout } from './edge-classification';
+import { affectsLayout, getViewConfig } from './edge-classification';
 import {
 	containerTypes,
 	getIrrelevantServiceCategories,
@@ -12,7 +12,7 @@ import { getTopologyIndex } from '../entity-index';
 import * as perf from '../perf';
 import { resolveCollapsedAncestor } from '../collapse';
 import { noteElkRun } from '../diagnostics';
-import { pinChildOrder } from './child-order';
+import { dependencyOrder, pinChildOrder } from './child-order';
 import { getViewLayout, type ViewLayoutConfig } from './view-layout';
 
 /**
@@ -787,70 +787,82 @@ function buildElkGraph(
 		container.layoutOptions['elk.portConstraints'] = portConstraintFor(container.ports);
 	}
 
-	// Detect cross-child edges within the same root container (e.g., element → ByHypervisor
-	// subcontainer, or Docker element → ByStack subcontainer). These edges need inner ELK edges
-	// so the root container can use layered algorithm to position connected children adjacently.
-	const resolveEndpoint = (id: string): string | undefined => {
-		// Known visible element → its immediate container
-		const imm = elementToImmediateContainer.get(id);
-		if (imm) return imm;
-		// Known container → itself
-		if (containerIds.has(id)) return id;
-		// Hidden element → resolve to nearest collapsed container ancestor
-		const ancestor = resolveCollapsedAncestor(id, collapsed, fullParentMap);
-		if (ancestor && containerIds.has(ancestor)) return ancestor;
-		return undefined;
+	// Edges between two children of one container: element to element, element to subcontainer, or
+	// subcontainer to subcontainer (e.g. a Docker element to its ByStack subcontainer, or two cards on
+	// one dependency). Each is added to the lowest container holding both endpoints, between the two
+	// children of it that contain them, so that container can lay them out layered and put linked
+	// children next to each other in edge order.
+	const inGraph = new Set<string>();
+	for (const container of containers.values()) {
+		for (const child of container.children ?? []) inGraph.add(child.id);
+	}
+	for (const id of containerIds) {
+		if (!parentContainerMap.has(id)) inGraph.add(id);
+	}
+	const parentOf = (id: string): string | undefined =>
+		elementToImmediateContainer.get(id) ?? parentContainerMap.get(id) ?? fullParentMap.get(id);
+	// The endpoint as the graph holds it (a hidden element becomes the collapsed container standing
+	// in for it), followed by every container enclosing it, innermost first.
+	const enclosingChain = (id: string): string[] => {
+		let node: string | undefined = id;
+		while (node && !inGraph.has(node)) node = parentOf(node);
+		const chain: string[] = [];
+		while (node) {
+			chain.push(node);
+			node = parentOf(node);
+		}
+		return chain;
 	};
 
-	// resolveRoot now handles hidden elements, so resolveEndpointRoot is just an alias
-	const resolveEndpointRoot = resolveRoot;
+	const innerEdgesByContainer = new Map<string, { source: string; target: string }[]>();
+	const seenInnerEdges = new Set<string>();
 
-	const rootsWithCrossChildEdges = new Set<string>();
-	const seenInnerEdges = new Map<string, Set<string>>();
-
-	// A container with cross-child edges switches to layered, which assigns rows from those edges,
-	// so no model-order option would keep a reading order. Under a server-side sort containers stay
+	// A container with inner edges switches to layered, which assigns rows from those edges, so no
+	// model-order option would keep a reading order. Under a server-side sort containers stay
 	// box-packed and connected children are no longer pulled together.
-	const crossChildCandidates = preserveOrder ? [] : input.edges;
-	for (const edge of crossChildCandidates) {
+	const innerEdgeCandidates = preserveOrder ? [] : input.edges;
+	for (const edge of innerEdgeCandidates) {
 		if (!affectsLayout(edge)) continue;
+		const srcChain = enclosingChain(edge.source);
+		const tgtChain = enclosingChain(edge.target);
+		const srcDepth = srcChain.findIndex((id) => tgtChain.includes(id));
+		// Different root containers: a cross-container edge, routed through ports above.
+		if (srcDepth === -1) continue;
+		const tgtDepth = tgtChain.indexOf(srcChain[srcDepth]);
+		// An endpoint that is the shared container itself has no child to place.
+		if (srcDepth === 0 || tgtDepth === 0) continue;
+		const containerId = srcChain[srcDepth];
+		const srcNode = srcChain[srcDepth - 1];
+		const tgtNode = tgtChain[tgtDepth - 1];
+		if (srcNode === tgtNode || !containers.has(containerId)) continue;
 
-		const srcImm = resolveEndpoint(edge.source);
-		const tgtImm = resolveEndpoint(edge.target);
-		const srcRoot = resolveEndpointRoot(edge.source);
-		const tgtRoot = resolveEndpointRoot(edge.target);
-
-		if (!srcImm || !tgtImm) continue;
-		if (srcImm === tgtImm) continue;
-		if (!srcRoot || !tgtRoot || srcRoot !== tgtRoot) continue;
-
-		// Cross-child edge within same root
-		const srcNode = srcImm === srcRoot ? edge.source : srcImm;
-		const tgtNode = tgtImm === tgtRoot ? edge.target : tgtImm;
-		if (srcNode === tgtNode) continue;
-
-		rootsWithCrossChildEdges.add(srcRoot);
 		const key = `${srcNode}->${tgtNode}`;
-		if (!seenInnerEdges.has(srcRoot)) seenInnerEdges.set(srcRoot, new Set());
-		const seen = seenInnerEdges.get(srcRoot)!;
-		if (!seen.has(key) && !seen.has(`${tgtNode}->${srcNode}`)) {
-			seen.add(key);
-			const rootContainer = containers.get(srcRoot);
-			if (rootContainer) {
-				if (!rootContainer.edges) rootContainer.edges = [];
-				rootContainer.edges.push({
-					id: `elk-inner-edge-${edgeIndex++}`,
-					sources: [srcNode],
-					targets: [tgtNode]
-				});
-			}
-		}
+		if (seenInnerEdges.has(key) || seenInnerEdges.has(`${tgtNode}->${srcNode}`)) continue;
+		seenInnerEdges.add(key);
+		if (!innerEdgesByContainer.has(containerId)) innerEdgesByContainer.set(containerId, []);
+		innerEdgesByContainer.get(containerId)!.push({ source: srcNode, target: tgtNode });
 	}
 
-	// Switch root containers with cross-child edges from box to layered
-	for (const rootId of rootsWithCrossChildEdges) {
-		const container = containers.get(rootId);
-		if (container?.layoutOptions) {
+	// Switch containers with inner edges from box to layered, children in edge order
+	for (const [containerId, innerEdges] of innerEdgesByContainer) {
+		const container = containers.get(containerId);
+		if (!container?.children) continue;
+		container.edges = [
+			...(container.edges ?? []),
+			...innerEdges.map((e) => ({
+				id: `elk-inner-edge-${edgeIndex++}`,
+				sources: [e.source],
+				targets: [e.target]
+			}))
+		];
+		if (!orderByOperStatus) {
+			const childById = new Map(container.children.map((child) => [child.id, child]));
+			container.children = dependencyOrder(
+				container.children.map((child) => child.id),
+				innerEdges
+			).map((id) => childById.get(id)!);
+		}
+		if (container.layoutOptions) {
 			container.layoutOptions['elk.algorithm'] = 'layered';
 			container.layoutOptions['elk.direction'] = useLayeredChildren ? 'RIGHT' : 'DOWN';
 			container.layoutOptions['elk.hierarchyHandling'] = 'SEPARATE_CHILDREN';
@@ -858,7 +870,9 @@ function buildElkGraph(
 			container.layoutOptions['elk.layered.crossingMinimization.strategy'] = 'LAYER_SWEEP';
 			container.layoutOptions['elk.layered.layering.strategy'] = 'SITE_SIMPLEX';
 			container.layoutOptions['elk.spacing.nodeNode'] = '15';
-			container.layoutOptions['elk.layered.spacing.nodeNodeBetweenLayers'] = '10';
+			// The gap a hop between two linked cards is drawn in, so it matches box packing's spacing
+			// rather than hiding the edge between touching cards.
+			container.layoutOptions['elk.layered.spacing.nodeNodeBetweenLayers'] = '25';
 			container.layoutOptions['elk.layered.spacing.edgeNodeBetweenLayers'] = '5';
 			container.layoutOptions['elk.layered.compaction.postCompaction.strategy'] = 'EDGE_LENGTH';
 			if (orderByOperStatus) {
@@ -866,38 +880,13 @@ function buildElkGraph(
 				// Up ports next, Down ports last) is preserved
 				container.layoutOptions['elk.layered.crossingMinimization.forceNodeModelOrder'] = 'true';
 				container.layoutOptions['elk.layered.considerModelOrder.strategy'] = 'NODES_AND_EDGES';
+			} else {
+				// Prefer the dependency order above where crossing minimization has a free choice,
+				// and lay unconnected groups out in it too.
+				container.layoutOptions['elk.layered.considerModelOrder.strategy'] = 'NODES_AND_EDGES';
+				container.layoutOptions['elk.layered.considerModelOrder.components'] = 'MODEL_ORDER';
 			}
 			delete container.layoutOptions['elk.box.packingMode'];
-		}
-	}
-
-	// For layered containers, also add element↔element edges within the same container
-	if (rootsWithCrossChildEdges.size > 0) {
-		for (const edge of input.edges) {
-			if (!affectsLayout(edge)) continue;
-			const srcImm =
-				elementToImmediateContainer.get(edge.source) ??
-				(containerIds.has(edge.source) ? edge.source : undefined);
-			const tgtImm =
-				elementToImmediateContainer.get(edge.target) ??
-				(containerIds.has(edge.target) ? edge.target : undefined);
-			if (srcImm && tgtImm && srcImm === tgtImm && rootsWithCrossChildEdges.has(srcImm)) {
-				const key = `${edge.source}->${edge.target}`;
-				if (!seenInnerEdges.has(srcImm)) seenInnerEdges.set(srcImm, new Set());
-				const seen = seenInnerEdges.get(srcImm)!;
-				if (!seen.has(key) && !seen.has(`${edge.target}->${edge.source}`)) {
-					seen.add(key);
-					const container = containers.get(srcImm);
-					if (container) {
-						if (!container.edges) container.edges = [];
-						container.edges.push({
-							id: `elk-inner-edge-${edgeIndex++}`,
-							sources: [edge.source],
-							targets: [edge.target]
-						});
-					}
-				}
-			}
 		}
 	}
 
@@ -1413,53 +1402,173 @@ function repackDisconnectedContainers(
 
 	if (disconnectedIds.length === 0 || connectedIds.size === 0) return result;
 
-	// Compute bounding box of connected containers
+	// The connected containers stay where the layout put them; everything else is placed around them.
 	const SPACING = 75;
-	let connTop = Infinity;
-	let connRight = 0;
-	let connBottom = 0;
+	const VIEW_ASPECT = Number(ROOT_LAYOUT_OPTIONS['elk.aspectRatio']);
+	const placed = new Map<string, { x: number; y: number; width: number; height: number }>();
 	for (const id of connectedIds) {
 		const pos = result.nodePositions.get(id);
 		const size = result.containerSizes.get(id);
 		if (pos && size) {
-			connTop = Math.min(connTop, pos.y);
-			connRight = Math.max(connRight, pos.x + size.width);
-			connBottom = Math.max(connBottom, pos.y + size.height);
+			placed.set(id, { x: pos.x, y: pos.y, width: size.width, height: size.height });
 		}
 	}
 
-	// Sort disconnected containers by height descending for better shelf packing
-	disconnectedIds.sort((a, b) => {
+	const nodePositions = new Map(result.nodePositions);
+
+	// Drawn edges between root containers, counted per pair. The layout above only saw edges that
+	// affect layout, so a container linked by anything else (a dependency in L3, say) landed in the
+	// shelf below with no regard for where its partner is. Read from the view's edge config rather
+	// than the user's edge toggles, so hiding an edge type never moves a container.
+	const links = new Map<string, Map<string, number>>();
+	for (const edge of input.edges) {
+		const config = getViewConfig(edge);
+		if (config.type !== 'active' || config.default_visibility !== 'visible') continue;
+		const a = resolveToRootContainer(
+			edge.source,
+			elementToRoot,
+			allContainerIds,
+			parentContainerMap
+		);
+		const b = resolveToRootContainer(
+			edge.target,
+			elementToRoot,
+			allContainerIds,
+			parentContainerMap
+		);
+		if (!a || !b || a === b) continue;
+		for (const [from, to] of [
+			[a, b],
+			[b, a]
+		]) {
+			if (!links.has(from)) links.set(from, new Map());
+			links.get(from)!.set(to, (links.get(from)!.get(to) ?? 0) + 1);
+		}
+	}
+
+	const overlapsPlaced = (box: { x: number; y: number; width: number; height: number }) => {
+		for (const other of placed.values()) {
+			if (
+				box.x < other.x + other.width + SPACING &&
+				other.x < box.x + box.width + SPACING &&
+				box.y < other.y + other.height + SPACING &&
+				other.y < box.y + box.height + SPACING
+			) {
+				return other;
+			}
+		}
+		return undefined;
+	};
+
+	// The two free slots flush against a placed box: below it, moved down past anything in the way,
+	// and right of it, moved right past anything in the way.
+	const slotsBeside = (
+		p: { x: number; y: number; width: number; height: number },
+		size: { width: number; height: number }
+	) => {
+		const below = { x: p.x, y: p.y + p.height + SPACING, ...size };
+		for (let hit = overlapsPlaced(below); hit; hit = overlapsPlaced(below)) {
+			below.y = hit.y + hit.height + SPACING;
+		}
+		const right = { x: p.x + p.width + SPACING, y: p.y, ...size };
+		for (let hit = overlapsPlaced(right); hit; hit = overlapsPlaced(right)) {
+			right.x = hit.x + hit.width + SPACING;
+		}
+		return [below, right];
+	};
+
+	const place = (id: string, slot: { x: number; y: number; width: number; height: number }) => {
+		nodePositions.set(id, { x: slot.x, y: slot.y });
+		placed.set(id, slot);
+	};
+
+	// Place each linked disconnected container in the free slot, flush below or right of one of its
+	// placed partners, that is closest to all of them. The container with the most links to what is
+	// already placed goes first (ties by id), so a chain of linked containers is placed outward from
+	// the connected group.
+	const unplaced = new Set(disconnectedIds);
+	for (;;) {
+		let next: { id: string; weight: number } | undefined;
+		for (const id of [...unplaced].sort()) {
+			let weight = 0;
+			for (const [partner, count] of links.get(id) ?? []) {
+				if (placed.has(partner)) weight += count;
+			}
+			if (weight > 0 && (!next || weight > next.weight)) next = { id, weight };
+		}
+		if (!next) break;
+
+		const size = result.containerSizes.get(next.id)!;
+		const partners = [...(links.get(next.id) ?? [])].filter(([partner]) => placed.has(partner));
+		const distanceTo = (x: number, y: number) =>
+			partners.reduce((sum, [partner, count]) => {
+				const p = placed.get(partner)!;
+				const dx = x + size.width / 2 - (p.x + p.width / 2);
+				const dy = y + size.height / 2 - (p.y + p.height / 2);
+				return sum + count * Math.hypot(dx, dy);
+			}, 0);
+
+		let best:
+			{ slot: { x: number; y: number; width: number; height: number }; score: number } | undefined;
+		for (const [partner] of partners.sort(([a], [b]) => a.localeCompare(b))) {
+			for (const slot of slotsBeside(placed.get(partner)!, size)) {
+				const score = distanceTo(slot.x, slot.y);
+				if (!best || score < best.score) best = { slot, score };
+			}
+		}
+
+		place(next.id, best!.slot);
+		unplaced.delete(next.id);
+	}
+
+	// Pack the rest, tallest first, into whichever free slot beside a placed container grows the
+	// bounding box least, so they fill the gaps the layout left before widening it. Ties go to the
+	// higher slot, then the one further left.
+	const shelved = disconnectedIds.filter((id) => unplaced.has(id));
+	shelved.sort((a, b) => {
 		const sA = result.containerSizes.get(a)?.height ?? 0;
 		const sB = result.containerSizes.get(b)?.height ?? 0;
-		return sB - sA;
+		return sB - sA || a.localeCompare(b);
 	});
 
-	// Place disconnected containers beside the connected layout using shelf packing.
-	// Fill a column to the right of the connected group. When the column exceeds
-	// the connected group's height, start a new row below everything.
-	const nodePositions = new Map(result.nodePositions);
-	let x = connRight + SPACING;
-	let y = connTop;
-	const shelfBottom = connBottom;
-	let maxColumnWidth = 0;
-
-	for (const id of disconnectedIds) {
+	for (const id of shelved) {
 		const size = result.containerSizes.get(id);
 		if (!size) continue;
 
-		// If this container would overflow the connected group's height,
-		// start a new column or row
-		if (y + size.height > shelfBottom + SPACING && y > connTop) {
-			// Move to next column
-			x += maxColumnWidth + SPACING;
-			y = connTop;
-			maxColumnWidth = 0;
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		for (const box of placed.values()) {
+			minX = Math.min(minX, box.x);
+			minY = Math.min(minY, box.y);
+			maxX = Math.max(maxX, box.x + box.width);
+			maxY = Math.max(maxY, box.y + box.height);
 		}
+		// The bounding box as a screen fits it: the smallest rectangle of the root layout's aspect
+		// ratio that holds it, so a tall, narrow packing costs what it costs to view.
+		const areaWith = (slot: { x: number; y: number; width: number; height: number }) => {
+			const width = Math.max(maxX, slot.x + slot.width) - Math.min(minX, slot.x);
+			const height = Math.max(maxY, slot.y + slot.height) - Math.min(minY, slot.y);
+			return Math.max(width, height * VIEW_ASPECT) * Math.max(height, width / VIEW_ASPECT);
+		};
 
-		nodePositions.set(id, { x, y });
-		y += size.height + SPACING;
-		maxColumnWidth = Math.max(maxColumnWidth, size.width);
+		let best:
+			{ slot: { x: number; y: number; width: number; height: number }; area: number } | undefined;
+		for (const box of placed.values()) {
+			for (const slot of slotsBeside(box, size)) {
+				const area = areaWith(slot);
+				if (
+					!best ||
+					area < best.area ||
+					(area === best.area &&
+						(slot.y < best.slot.y || (slot.y === best.slot.y && slot.x < best.slot.x)))
+				) {
+					best = { slot, area };
+				}
+			}
+		}
+		if (best) place(id, best.slot);
 	}
 
 	return { ...result, nodePositions };

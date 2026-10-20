@@ -1073,7 +1073,8 @@ export function installLayoutSnapshot(
 				header: typeof n.data?.header === 'string' ? n.data.header : null
 			})),
 			edges: edges.map((e) => {
-				const viewConfig = e.data?.view_config as { type?: string; affects_layout?: boolean } | undefined;
+				const viewConfig = e.data?.view_config as
+					{ type?: string; affects_layout?: boolean } | undefined;
 				return {
 					id: e.id,
 					source: e.source,
