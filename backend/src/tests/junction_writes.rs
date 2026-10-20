@@ -25,7 +25,7 @@ use crate::server::{
     shared::{
         entities::EntityDiscriminants,
         events::types::{DeletionReason, UpdateReason},
-        services::traits::CrudService,
+        services::{factory::ServiceFactory, traits::CrudService},
         storage::{
             factory::StorageFactory,
             filter::StorableFilter,
@@ -52,7 +52,7 @@ async fn rows<T: Storable + Display>(
     storage: &StorageFactory,
     filter: StorableFilter<T>,
 ) -> Vec<T> {
-    GenericPostgresStorage::<T>::new(storage.pool.clone())
+    GenericPostgresStorage::<T>::new(storage.pool().clone())
         .get_all(filter)
         .await
         .unwrap()
@@ -598,7 +598,7 @@ async fn entity_tags_diff_by_soft_close() {
 
 #[tokio::test]
 async fn subnet_vlan_links_diff_by_soft_close() {
-    let (storage, _services, _container) = test_services().await;
+    let (storage, services, _container) = test_services().await;
     let (org_id, s) = org_with_sites(&storage, 1).await;
     let sn = subnet(&s[0]);
     storage.subnets.create(&sn).await.unwrap();
@@ -616,13 +616,13 @@ async fn subnet_vlan_links_diff_by_soft_close() {
     }
     let links = || StorableFilter::<SubnetVlanRecord>::new_from_uuid_column("subnet_id", &sn.id);
 
-    save_subnet_vlans(&storage, &sn.id, &[vlans[0], vlans[1]]).await;
+    save_subnet_vlans(&services, &sn.id, &[vlans[0], vlans[1]]).await;
     let kept_before = rows(&storage, links().live())
         .await
         .into_iter()
         .find(|r| r.vlan_id() == vlans[1])
         .unwrap();
-    save_subnet_vlans(&storage, &sn.id, &[vlans[1], vlans[2]]).await;
+    save_subnet_vlans(&services, &sn.id, &[vlans[1], vlans[2]]).await;
 
     let all = rows(&storage, links()).await;
     let live: Vec<&SubnetVlanRecord> = all.iter().filter(|r| r.valid_to.is_none()).collect();
@@ -641,27 +641,30 @@ async fn subnet_vlan_links_diff_by_soft_close() {
     );
 
     // Read back by VLAN, live links only.
-    let by_vlan = read_vlan_subnets(&storage, &vlans).await;
+    let by_vlan = read_vlan_subnets(&services, &vlans).await;
     assert_eq!(by_vlan.get(&vlans[0]), None);
     assert_eq!(by_vlan.get(&vlans[2]), Some(&vec![sn.id]));
 }
 
-/// The subnet-VLAN write `HostService` makes at the end of a scan. The one call in this file
-/// that names the junction's storage, since no service exposes the write on its own.
-async fn save_subnet_vlans(storage: &StorageFactory, subnet_id: &Uuid, vlan_ids: &[Uuid]) {
-    storage
-        .subnet_vlan
-        .save_for_subnet(subnet_id, vlan_ids)
+/// The subnet-VLAN write `HostService` makes at the end of a scan.
+async fn save_subnet_vlans(services: &ServiceFactory, subnet_id: &Uuid, vlan_ids: &[Uuid]) {
+    services
+        .vlan_service
+        .set_subnet_vlans(subnet_id, vlan_ids)
         .await
         .unwrap();
 }
 
 /// The read `VlanService` hydrates each VLAN's subnets from.
 async fn read_vlan_subnets(
-    storage: &StorageFactory,
+    services: &ServiceFactory,
     vlan_ids: &[Uuid],
 ) -> std::collections::HashMap<Uuid, Vec<Uuid>> {
-    storage.subnet_vlan.get_for_vlans(vlan_ids).await.unwrap()
+    services
+        .vlan_service
+        .subnet_ids_for_vlans(vlan_ids)
+        .await
+        .unwrap()
 }
 
 /// A group's tags as (name, position), by name.

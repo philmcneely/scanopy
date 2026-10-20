@@ -1,24 +1,20 @@
-//! Subnet-VLAN junction table and storage.
+//! Subnet-VLAN junction table.
 //!
 //! Manages the many-to-many relationship between subnets and VLANs.
 
-use std::collections::HashMap;
 use std::fmt::Display;
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::Row;
 use sqlx::postgres::PgRow;
-use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
-use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::storage::{
-    filter::StorableFilter,
-    generic::GenericPostgresStorage,
-    lock::{DEFAULT_LOCK_TIMEOUT, LockKey},
+    child::ChildStorableEntity,
     snapshot::{FkMaps, Snapshotable},
-    traits::{SqlValue, Storable, Storage},
+    traits::{SqlValue, Storable},
 };
 
 /// The base data for a SubnetVlanRecord junction record
@@ -181,149 +177,13 @@ impl Snapshotable for SubnetVlanRecord {
     }
 }
 
-/// Storage operations for subnet_vlans junction table.
-pub struct SubnetVlanStorage {
-    storage: GenericPostgresStorage<SubnetVlanRecord>,
-}
-
-impl SubnetVlanStorage {
-    pub fn new(pool: PgPool) -> Self {
-        Self {
-            storage: GenericPostgresStorage::new(pool),
-        }
+// Written from the subnet's side (the end-of-scan reconcile), so the subnet is the parent.
+impl ChildStorableEntity for SubnetVlanRecord {
+    fn parent_column() -> &'static str {
+        "subnet_id"
     }
 
-    /// Get all VLAN IDs linked to a subnet (live links only).
-    pub async fn get_vlan_ids_for_subnet(&self, subnet_id: &Uuid) -> Result<Vec<Uuid>> {
-        let filter =
-            StorableFilter::<SubnetVlanRecord>::new_from_uuid_column("subnet_id", subnet_id).live();
-        let records = self.storage.get_all(filter).await?;
-        Ok(records.iter().map(|r| r.vlan_id()).collect())
-    }
-
-    /// Batch get: VLAN ID → subnet IDs for multiple VLANs (live links only).
-    pub async fn get_for_vlans(&self, vlan_ids: &[Uuid]) -> Result<HashMap<Uuid, Vec<Uuid>>> {
-        if vlan_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-
-        let filter =
-            StorableFilter::<SubnetVlanRecord>::new_from_uuids_column("vlan_id", vlan_ids).live();
-        let records = self.storage.get_all(filter).await?;
-
-        let mut result: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
-        for record in records {
-            result
-                .entry(record.vlan_id())
-                .or_default()
-                .push(record.subnet_id());
-        }
-
-        Ok(result)
-    }
-
-    /// Bulk-insert pre-built subnet↔VLAN links in a single INSERT, with no
-    /// per-subnet lock or delete-first pass. For seed paths (demo populate) on a
-    /// freshly reset org. Callers must pre-dedup on `(subnet_id, vlan_id)` (the
-    /// partial unique index allows at most one live link per pair).
-    pub async fn create_many(&self, records: &[SubnetVlanRecord]) -> Result<()> {
-        if records.is_empty() {
-            return Ok(());
-        }
-        self.storage.create_many(records).await?;
-        Ok(())
-    }
-
-    /// Link a subnet to a VLAN (idempotent against live rows; the partial
-    /// unique index `(subnet_id, vlan_id) WHERE valid_to IS NULL` enforces
-    /// at-most-one live link per pair).
-    pub async fn link(&self, subnet_id: &Uuid, vlan_id: &Uuid) -> Result<()> {
-        let record = SubnetVlanRecord::new(SubnetVlanRecordBase::new(*subnet_id, *vlan_id));
-        // Ignore unique constraint violations (idempotent)
-        let _ = self.storage.create(&record).await;
-        Ok(())
-    }
-
-    /// Soft-close the live link between a subnet and a VLAN.
-    ///
-    /// Sets `valid_to = NOW()` instead of hard-deleting so the historical
-    /// "this VLAN was associated with this subnet during [valid_from, valid_to]"
-    /// answer remains queryable via SCD2 `as_of` reads. Hard delete would
-    /// erase that history.
-    pub async fn unlink(&self, subnet_id: &Uuid, vlan_id: &Uuid) -> Result<()> {
-        let filter =
-            StorableFilter::<SubnetVlanRecord>::new_from_uuid_column("subnet_id", subnet_id)
-                .uuid_column("vlan_id", vlan_id)
-                .live();
-        let mut rows = self.storage.get_all(filter).await?;
-        if rows.is_empty() {
-            return Ok(());
-        }
-        let now = Utc::now();
-        for row in rows.iter_mut() {
-            row.valid_to = Some(now);
-        }
-        self.storage.update_many(&rows).await?;
-        Ok(())
-    }
-
-    /// Replace all VLAN links for a subnet. Soft-closes live links not in
-    /// the new set, INSERTs new live links for additions, leaves unchanged
-    /// links alone.
-    pub async fn save_for_subnet(&self, subnet_id: &Uuid, vlan_ids: &[Uuid]) -> Result<()> {
-        // Read-diff-write under a per-subnet advisory lock so concurrent
-        // saves can't interleave into duplicate/merged link sets.
-        let mut tx = self.storage.begin_transaction().await?;
-        tx.lock(
-            LockKey::JunctionSync {
-                parent: EntityDiscriminants::Subnet,
-                parent_id: *subnet_id,
-            },
-            DEFAULT_LOCK_TIMEOUT,
-        )
-        .await?;
-
-        let existing_filter =
-            StorableFilter::<SubnetVlanRecord>::new_from_uuid_column("subnet_id", subnet_id).live();
-        let existing = tx.get_all(existing_filter).await?;
-
-        let new_set: std::collections::HashSet<Uuid> = vlan_ids.iter().copied().collect();
-        let existing_vlan_ids: std::collections::HashSet<Uuid> =
-            existing.iter().map(|r| r.vlan_id()).collect();
-
-        let now = Utc::now();
-
-        // Soft-close removed links.
-        for row in existing.iter().filter(|r| !new_set.contains(&r.vlan_id())) {
-            let mut closed = row.clone();
-            closed.valid_to = Some(now);
-            tx.update(&mut closed).await?;
-        }
-
-        // INSERT new links.
-        for vlan_id in vlan_ids.iter().filter(|v| !existing_vlan_ids.contains(v)) {
-            let record = SubnetVlanRecord::new(SubnetVlanRecordBase::new(*subnet_id, *vlan_id));
-            tx.create(&record).await?;
-        }
-
-        tx.commit().await?;
-        Ok(())
-    }
-
-    /// Soft-close all subnet links for a VLAN (called on VLAN delete).
-    /// Preserves historical association data via `valid_to`.
-    pub async fn delete_for_vlan(&self, vlan_id: &Uuid) -> Result<()> {
-        let filter =
-            StorableFilter::<SubnetVlanRecord>::new_from_uuid_column("vlan_id", vlan_id).live();
-        let mut rows = self.storage.get_all(filter).await?;
-        if rows.is_empty() {
-            return Ok(());
-        }
-        let now = Utc::now();
-        for row in rows.iter_mut() {
-            row.valid_to = Some(now);
-        }
-        self.storage.update_many(&rows).await?;
-        Ok(())
+    fn parent_id(&self) -> Uuid {
+        self.base.subnet_id
     }
 }

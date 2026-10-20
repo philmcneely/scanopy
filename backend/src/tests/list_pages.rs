@@ -117,9 +117,10 @@ async fn a_grouped_vlan_page_counts_every_group_and_stays_in_the_callers_sites()
     // A subnet filter narrows through the link table.
     let lab_subnet = subnet(&lab.id);
     storage.subnets.create(&lab_subnet).await.unwrap();
-    storage
-        .subnet_vlan
-        .link(&lab_subnet.id, &lab_vlan.id)
+    state
+        .services
+        .vlan_service
+        .set_subnet_vlans(&lab_subnet.id, &[lab_vlan.id])
         .await
         .unwrap();
     let on_subnet = VlanFilterQuery {

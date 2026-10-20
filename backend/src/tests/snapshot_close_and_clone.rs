@@ -48,7 +48,7 @@ use crate::server::{
 
 /// The rows of `T` stamped with `snapshot_id`.
 async fn closed<T: Storable + Display>(storage: &StorageFactory, snapshot_id: Uuid) -> Vec<T> {
-    GenericPostgresStorage::<T>::new(storage.pool.clone())
+    GenericPostgresStorage::<T>::new(storage.pool().clone())
         .get_all(StorableFilter::<T>::new().snapshot_id(&snapshot_id))
         .await
         .unwrap()
@@ -122,9 +122,9 @@ async fn a_snapshot_closes_every_site_row_onto_closed_parents() {
         ..Default::default()
     });
     storage.vlans.create(&vlan).await.unwrap();
-    storage
-        .subnet_vlan
-        .save_for_subnet(&sn.id, &[vlan.id])
+    services
+        .vlan_service
+        .set_subnet_vlans(&sn.id, &[vlan.id])
         .await
         .unwrap();
 

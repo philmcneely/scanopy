@@ -2,13 +2,14 @@ use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     shared::{
-        entities::ChangeTriggersTopologyStaleness,
+        entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants},
         events::{
             bus::EventBus,
             types::{EntityOperation, UpdateReason},
         },
         services::traits::{CrudService, EventBusService},
         storage::{
+            child::{GenericChildStorage, ParentRef},
             filter::StorableFilter,
             generic::GenericPostgresStorage,
             traits::{Entity, Storable, Storage},
@@ -16,8 +17,10 @@ use crate::server::{
     },
     tags::entity_tags::EntityTagService,
     users::r#impl::{
-        base::User, email_settings::EmailSettings, permissions::UserOrgPermissions,
-        site_access::UserSiteAccessStorage,
+        base::User,
+        email_settings::EmailSettings,
+        permissions::UserOrgPermissions,
+        site_access::{UserSiteAccess, UserSiteAccessBase},
     },
 };
 use anyhow::Error;
@@ -30,7 +33,7 @@ use uuid::Uuid;
 
 pub struct UserService {
     user_storage: Arc<GenericPostgresStorage<User>>,
-    site_access_storage: Arc<UserSiteAccessStorage>,
+    site_access_storage: Arc<GenericChildStorage<UserSiteAccess>>,
     event_bus: Arc<EventBus>,
 }
 
@@ -112,7 +115,7 @@ impl CrudService<User> for UserService {
 impl UserService {
     pub fn new(
         user_storage: Arc<GenericPostgresStorage<User>>,
-        site_access_storage: Arc<UserSiteAccessStorage>,
+        site_access_storage: Arc<GenericChildStorage<UserSiteAccess>>,
         event_bus: Arc<EventBus>,
     ) -> Self {
         Self {
@@ -164,7 +167,7 @@ impl UserService {
             AuthenticatedEntity::System,
             UpdateReason::UserUnsubscribeTokenIssued,
         )
-            .await?;
+        .await?;
         Ok(token)
     }
 
@@ -260,10 +263,16 @@ impl UserService {
         site_id: &Uuid,
         organization_id: &Uuid,
     ) -> Result<Vec<User>> {
-        let explicit_user_ids = self
+        let explicit_user_ids: Vec<Uuid> = self
             .site_access_storage
-            .get_user_ids_for_site(site_id)
-            .await?;
+            .inner()
+            .get_all(StorableFilter::<UserSiteAccess>::new_from_site_ids(&[
+                *site_id,
+            ]))
+            .await?
+            .iter()
+            .map(|a| a.user_id())
+            .collect();
 
         let explicit = if explicit_user_ids.is_empty() {
             Vec::new()
@@ -291,29 +300,44 @@ impl UserService {
 
     /// Get site_ids for a user from the user_site_access junction table
     pub async fn get_site_ids(&self, user_id: &Uuid) -> Result<Vec<Uuid>> {
-        self.site_access_storage.get_for_user(user_id).await
+        let access = self.site_access_storage.get_for_parent(user_id).await?;
+        Ok(access.iter().map(|a| a.site_id()).collect())
     }
 
     /// Set site_ids for a user - replaces all existing entries in user_site_access
     pub async fn set_site_ids(&self, user_id: &Uuid, site_ids: &[Uuid]) -> Result<()> {
+        let rows: Vec<UserSiteAccess> = site_ids
+            .iter()
+            .map(|site_id| UserSiteAccess::new(UserSiteAccessBase::new(*user_id, *site_id)))
+            .collect();
         self.site_access_storage
-            .save_for_user(user_id, site_ids)
-            .await
+            .save_for_parent(&ParentRef::new(EntityDiscriminants::User, *user_id), &rows)
+            .await?;
+        Ok(())
     }
 
     /// Add a site_id to a user's access
     pub async fn add_site_access(&self, user_id: &Uuid, site_id: &Uuid) -> Result<()> {
-        self.site_access_storage.add_site(user_id, site_id).await
+        let access = UserSiteAccess::new(UserSiteAccessBase::new(*user_id, *site_id));
+        // The storage will handle the unique constraint violation gracefully
+        let _ = self.site_access_storage.inner().create(&access).await;
+        Ok(())
     }
 
     /// Remove a site_id from a user's access
     pub async fn remove_site_access(&self, user_id: &Uuid, site_id: &Uuid) -> Result<()> {
-        self.site_access_storage.remove_site(user_id, site_id).await
+        let filter = StorableFilter::<UserSiteAccess>::new_from_user_id(user_id)
+            .uuid_column("site_id", site_id);
+        self.site_access_storage
+            .inner()
+            .delete_by_filter(filter)
+            .await?;
+        Ok(())
     }
 
     /// Hydrate site_ids for a single user
     pub async fn hydrate_site_ids(&self, user: &mut User) -> Result<()> {
-        user.base.site_ids = self.site_access_storage.get_for_user(&user.id).await?;
+        user.base.site_ids = self.get_site_ids(&user.id).await?;
         Ok(())
     }
 
@@ -324,10 +348,15 @@ impl UserService {
         }
 
         let user_ids: Vec<Uuid> = users.iter().map(|u| u.id).collect();
-        let mut site_map = self.site_access_storage.get_for_users(&user_ids).await?;
+        let mut access_map = self.site_access_storage.get_for_parents(&user_ids).await?;
 
         for user in users.iter_mut() {
-            user.base.site_ids = site_map.remove(&user.id).unwrap_or_default();
+            user.base.site_ids = access_map
+                .remove(&user.id)
+                .unwrap_or_default()
+                .iter()
+                .map(|a| a.site_id())
+                .collect();
         }
 
         Ok(())

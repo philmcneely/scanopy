@@ -1,16 +1,17 @@
-//! Bespoke read/write paths for the three GH #701 tables.
+//! Read/write paths for the three GH #701 tables.
 //!
 //! No `CrudService`/`ChildCrudService` here — both require `Entity` (`shared/services/traits.rs`),
-//! which these tables deliberately don't implement (see `impl/base.rs`'s module docs). Instead:
-//! `GenericChildStorage<T>` gives parent-scoped reads and a replace-all write for the disposable
-//! candidates table for free, and this service hand-writes the natural-key reconciliation the two
-//! resolved tables need — the same shape as `Interface::create_or_update_from_discovery`, at
-//! per-adjacency-row granularity instead of per-interface.
+//! which these tables deliberately don't implement (see `impl/base.rs`'s module docs). Each
+//! table is a `GenericChildStorage<T>` from `StorageFactory`, which gives parent-scoped reads and
+//! the replace-all write the disposable candidates table needs; this service hand-writes the
+//! natural-key reconciliation the two resolved tables need — the same shape as
+//! `Interface::create_or_update_from_discovery`, at per-adjacency-row granularity instead of
+//! per-interface.
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::server::{
@@ -20,21 +21,32 @@ use crate::server::{
         InterfaceNeighborInterfaceBase, InterfaceNeighborRow, Neighbor,
     },
     interfaces::r#impl::base::InterfaceDataComplete,
-    shared::storage::{child::GenericChildStorage, filter::StorableFilter, traits::Storage},
+    shared::{
+        entities::EntityDiscriminants,
+        storage::{
+            child::{GenericChildStorage, ParentRef},
+            filter::StorableFilter,
+            traits::Storage,
+        },
+    },
 };
 
 pub struct InterfaceNeighborService {
-    candidates: GenericChildStorage<InterfaceNeighborCandidate>,
-    resolved_interfaces: GenericChildStorage<InterfaceNeighborInterface>,
-    resolved_hosts: GenericChildStorage<InterfaceNeighborHost>,
+    candidates: Arc<GenericChildStorage<InterfaceNeighborCandidate>>,
+    resolved_interfaces: Arc<GenericChildStorage<InterfaceNeighborInterface>>,
+    resolved_hosts: Arc<GenericChildStorage<InterfaceNeighborHost>>,
 }
 
 impl InterfaceNeighborService {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(
+        candidates: Arc<GenericChildStorage<InterfaceNeighborCandidate>>,
+        resolved_interfaces: Arc<GenericChildStorage<InterfaceNeighborInterface>>,
+        resolved_hosts: Arc<GenericChildStorage<InterfaceNeighborHost>>,
+    ) -> Self {
         Self {
-            candidates: GenericChildStorage::new(pool.clone()),
-            resolved_interfaces: GenericChildStorage::new(pool.clone()),
-            resolved_hosts: GenericChildStorage::new(pool),
+            candidates,
+            resolved_interfaces,
+            resolved_hosts,
         }
     }
 
@@ -125,22 +137,12 @@ impl InterfaceNeighborService {
             }
         }
 
-        // Replace-all by hand rather than `GenericChildStorage::save_for_parent`/`ChildStorage::
-        // save_for_parent`: neither has a real implementation (the `ChildStorage` trait impl in
-        // `shared/storage/child.rs` calls its own trait method — an infinite-recursion stub, not
-        // dead code caught here only because nothing else calls it yet). Mirrors
-        // `DependencyMemberStorage::save_for_dependency`'s delete-then-insert-in-one-transaction
-        // shape instead.
-        let mut tx = self.candidates.inner().begin_transaction().await?;
-        let filter = StorableFilter::<InterfaceNeighborCandidate>::new_from_uuids_column(
-            "interface_id",
-            &[interface_id],
-        );
-        tx.delete_by_filter(filter).await?;
-        for row in &rows {
-            tx.create(row).await?;
-        }
-        tx.commit().await?;
+        self.candidates
+            .save_for_parent(
+                &ParentRef::new(EntityDiscriminants::Interface, interface_id),
+                &rows,
+            )
+            .await?;
         Ok(())
     }
 

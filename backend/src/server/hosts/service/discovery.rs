@@ -366,7 +366,11 @@ impl HostService {
             interface.base.ip_address_id = Some(ip_address_id);
             if let Err(e) = self
                 .interface_service
-                .update(&mut interface, authentication.clone(), UpdateReason::InterfaceLinkedByMac)
+                .update(
+                    &mut interface,
+                    authentication.clone(),
+                    UpdateReason::InterfaceLinkedByMac,
+                )
                 .await
             {
                 tracing::warn!(
@@ -435,10 +439,7 @@ impl HostService {
             let subnet_ip_addresses = self.ip_address_service.get_for_subnet(&subnet_id).await?;
             if subnet_ip_addresses.is_empty() {
                 // Subnet has no ip_addresses at all; drop any leftover links.
-                self.vlan_service
-                    .subnet_vlan_storage
-                    .save_for_subnet(&subnet_id, &[])
-                    .await?;
+                self.vlan_service.set_subnet_vlans(&subnet_id, &[]).await?;
                 reconciled += 1;
                 continue;
             }
@@ -463,8 +464,7 @@ impl HostService {
             fresh_vlan_ids.dedup();
 
             self.vlan_service
-                .subnet_vlan_storage
-                .save_for_subnet(&subnet_id, &fresh_vlan_ids)
+                .set_subnet_vlans(&subnet_id, &fresh_vlan_ids)
                 .await?;
             reconciled += 1;
         }

@@ -189,8 +189,7 @@ impl Lab {
     async fn linked_vlans(&self) -> Vec<Uuid> {
         self.services
             .vlan_service
-            .subnet_vlan_storage
-            .get_vlan_ids_for_subnet(&self.subnet_id)
+            .vlan_ids_for_subnet(&self.subnet_id)
             .await
             .unwrap()
     }

@@ -42,14 +42,6 @@ where
         }
     }
 
-    /// Access the underlying connection pool. Lets callers (e.g.
-    /// `SnapshotService`) open one transaction and run multi-table
-    /// operations through the static `*_in_tx` methods on the typed
-    /// `GenericPostgresStorage<T>` namespaces.
-    pub fn pool(&self) -> &PgPool {
-        &self.pool
-    }
-
     /// Generate INSERT query dynamically
     fn build_insert_query(columns: &[&str]) -> String {
         let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("${}", i)).collect();
@@ -387,6 +379,14 @@ where
         super::lock::session_lock_many(&self.pool, keys, timeout).await
     }
 
+    /// Begin a bare transaction for work spanning several tables through the static `*_in_tx`
+    /// methods, such as `SnapshotService`'s close-and-clone of every site-scoped table.
+    pub async fn begin_multi_table_transaction(
+        &self,
+    ) -> Result<sqlx::Transaction<'static, Postgres>, anyhow::Error> {
+        Ok(self.pool.begin().await?)
+    }
+
     /// Begin a new transaction. Use the returned `StorageTransaction` for
     /// transactional operations, then call `commit()` to persist changes.
     /// If dropped without committing, the transaction is automatically rolled back.
@@ -468,6 +468,28 @@ where
         }
 
         Ok(entities.to_vec())
+    }
+
+    /// Set `snapshot_id` on the rows `ids` name, within an externally-owned transaction.
+    ///
+    /// `snapshot_id` isn't in `to_params`, so the other `*_in_tx` writes neither set nor clear
+    /// it; this is its one write path, used by snapshot close-and-clone to stamp the closed
+    /// copies it just inserted.
+    pub async fn stamp_snapshot_id_in_tx(
+        ids: &[Uuid],
+        snapshot_id: Uuid,
+        tx: &mut sqlx::Transaction<'_, Postgres>,
+    ) -> Result<(), anyhow::Error> {
+        let query_str = format!(
+            "UPDATE {} SET snapshot_id = $1 WHERE id = ANY($2)",
+            T::table_name()
+        );
+        sqlx::query(&query_str)
+            .bind(snapshot_id)
+            .bind(ids)
+            .execute(&mut **tx)
+            .await?;
+        Ok(())
     }
 
     /// Bulk UPDATE within an externally-owned transaction. Same per-entity

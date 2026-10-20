@@ -242,13 +242,14 @@ pub trait Storable: Sized + Clone + Send + Sync + 'static + Default {
     ///
     /// When `true`, reads filter to live rows (`valid_to IS NULL`) so closed historical
     /// copies don't leak: frontend-facing GET handlers drop them from list responses,
-    /// `GET /{id}` of a closed row 404s, and [`ChildStorage`] excludes them when loading
+    /// `GET /{id}` of a closed row 404s, and
+    /// [`GenericChildStorage`](super::child::GenericChildStorage) excludes them when loading
     /// children for a parent.
     ///
     /// **Deliberately has no default.** It used to default to `false`, which meant an entity
     /// whose table had the columns but whose impl stayed silent was indistinguishable from one
     /// that genuinely had none. Three of them accumulated that way (`dependency_members`,
-    /// `entity_tags`, `subnet_vlans`), unnoticed only because `ChildStorage` hard-coded the
+    /// `entity_tags`, `subnet_vlans`), unnoticed only because `GenericChildStorage` hard-coded the
     /// filter instead of consulting this. Answer it for every entity; the value must match
     /// what the table actually has.
     const HAS_SCD2: bool;

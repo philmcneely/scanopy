@@ -79,11 +79,7 @@ impl Subscriber<EntityOperation> for DependencyService {
                     let Some(change) = port_change(reason) else {
                         continue;
                     };
-                    for record in self
-                        .member_storage()
-                        .records_for_binding(&binding.id)
-                        .await?
-                    {
+                    for record in self.member_records_for_binding(&binding.id).await? {
                         self.announce(
                             DependencyMemberChangeScope {
                                 site_id: binding.base.site_id,
@@ -112,11 +108,7 @@ impl Subscriber<EntityOperation> for DependencyService {
                         _ => DependencyMemberChange::MemberDeleted,
                     };
                     let held: Vec<_> = service.base.bindings.iter().map(|b| b.id()).collect();
-                    for record in self
-                        .member_storage()
-                        .records_for_service(&service.id)
-                        .await?
-                    {
+                    for record in self.member_records_for_service(&service.id).await? {
                         // A member on a binding the service gave up before it was deleted has
                         // already heard where that binding went.
                         if let Some(binding_id) = record.binding_id()

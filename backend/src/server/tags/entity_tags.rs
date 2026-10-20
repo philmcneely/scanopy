@@ -5,7 +5,7 @@
 use anyhow::{Error, Result, anyhow};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, postgres::PgRow};
+use sqlx::{Row, postgres::PgRow};
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::sync::Arc;
@@ -13,9 +13,8 @@ use uuid::Uuid;
 
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::storage::{
+    child::{ChildStorableEntity, GenericChildStorage, ParentRef},
     filter::StorableFilter,
-    generic::GenericPostgresStorage,
-    lock::{DEFAULT_LOCK_TIMEOUT, LockKey},
     snapshot::{FkMaps, Snapshotable},
     traits::{Entity, SqlValue, Storable, Storage},
 };
@@ -202,273 +201,20 @@ impl Snapshotable for EntityTag {
     }
 }
 
-// =============================================================================
-// Entity Tag Storage
-// =============================================================================
-
-/// Storage operations for the entity_tags junction table.
-/// Manages tag assignments for all taggable entities.
-pub struct EntityTagStorage {
-    storage: GenericPostgresStorage<EntityTag>,
-}
-
-impl EntityTagStorage {
-    pub fn new(pool: PgPool) -> Self {
-        Self {
-            storage: GenericPostgresStorage::new(pool),
-        }
+// Rows are scoped by `entity_id` and `entity_type` together: the parent column alone names
+// an id, not which kind of entity holds it.
+impl ChildStorableEntity for EntityTag {
+    fn parent_column() -> &'static str {
+        "entity_id"
     }
 
-    /// Get all tag IDs for a single entity. SCD2: live rows only.
-    pub async fn get_for_entity(
-        &self,
-        entity_id: &Uuid,
-        entity_type: &EntityDiscriminants,
-    ) -> Result<Vec<Uuid>> {
-        let filter = StorableFilter::<EntityTag>::new_from_uuid_column("entity_id", entity_id)
-            .entity_type(entity_type)
-            .live();
-        let records = self.storage.get_all(filter).await?;
-        Ok(records.iter().map(|r| r.base.tag_id).collect())
+    fn parent_id(&self) -> Uuid {
+        self.base.entity_id
     }
 
-    /// Get tag IDs for multiple entities of the same type (batch loading).
-    /// Returns a map of entity_id -> Vec<tag_id>.
-    ///
-    /// `snapshot_id = None` reads live associations (`valid_to IS NULL`).
-    /// `snapshot_id = Some(id)` reads the closed copies captured under that
-    /// snapshot — `entity_ids` are then the closed-copy entity ids (matching
-    /// the snapshot entities the topology read loads).
-    pub async fn get_for_entities(
-        &self,
-        entity_ids: &[Uuid],
-        entity_type: &EntityDiscriminants,
-        snapshot_id: Option<Uuid>,
-    ) -> Result<HashMap<Uuid, Vec<Uuid>>> {
-        if entity_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-
-        let records = self
-            .storage
-            .get_all(entity_tags_filter(entity_ids, entity_type, snapshot_id))
-            .await?;
-
-        let mut result: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
-        for record in records {
-            result
-                .entry(record.base.entity_id)
-                .or_default()
-                .push(record.base.tag_id);
-        }
-
-        Ok(result)
-    }
-
-    /// Every live assignment of any of `tag_ids`, across all entity types.
-    pub async fn get_live_for_tags(&self, tag_ids: &[Uuid]) -> Result<Vec<EntityTag>> {
-        if tag_ids.is_empty() {
-            return Ok(Vec::new());
-        }
-        let filter = StorableFilter::<EntityTag>::new_from_uuids_column("tag_id", tag_ids).live();
-        self.storage.get_all(filter).await
-    }
-
-    /// Add a tag to an entity
-    /// Returns Ok(true) if added, Ok(false) if already existed
-    pub async fn add(
-        &self,
-        entity_id: Uuid,
-        entity_type: EntityDiscriminants,
-        tag_id: Uuid,
-    ) -> Result<bool> {
-        let entity_tag = EntityTag::new(EntityTagBase::new(entity_id, entity_type, tag_id));
-
-        match self.storage.create(&entity_tag).await {
-            Ok(_) => Ok(true),
-            Err(e) => {
-                // Check if it's a unique constraint violation (already exists)
-                if e.to_string().contains("already exists") {
-                    Ok(false)
-                } else {
-                    Err(e)
-                }
-            }
-        }
-    }
-
-    /// Remove a tag from an entity (soft-close — `valid_to = NOW()` on the
-    /// live junction row). Hard delete would break as-of joins for any
-    /// snapshot taken while the association was live.
-    /// Returns Ok(true) if a live row was closed, Ok(false) if none existed.
-    pub async fn remove(
-        &self,
-        entity_id: Uuid,
-        entity_type: EntityDiscriminants,
-        tag_id: Uuid,
-    ) -> Result<bool> {
-        let filter = StorableFilter::<EntityTag>::new_from_uuid_column("entity_id", &entity_id)
-            .entity_type(&entity_type)
-            .tag_id(&tag_id)
-            .live();
-
-        let mut rows = self.storage.get_all(filter).await?;
-        if rows.is_empty() {
-            return Ok(false);
-        }
-
-        let now = chrono::Utc::now();
-        for row in rows.iter_mut() {
-            row.valid_to = Some(now);
-        }
-        self.storage.update_many(&rows).await?;
-        Ok(true)
-    }
-
-    /// Replace all tags for an entity with a new set. Soft-closes existing
-    /// live junction rows that aren't in the new set, INSERTs new live
-    /// rows for additions, and leaves rows that are unchanged alone.
-    ///
-    /// The whole read-diff-write runs inside one transaction holding a
-    /// per-parent advisory lock, so concurrent set calls for the same
-    /// entity can't interleave into duplicate or merged tag sets. Tag sets
-    /// per entity are small (typically < 10), so per-row inside the
-    /// transaction is fine — the bulk-in-tx APIs used by SnapshotService
-    /// aren't needed here.
-    pub async fn set(
-        &self,
-        entity_id: Uuid,
-        entity_type: EntityDiscriminants,
-        tag_ids: Vec<Uuid>,
-    ) -> Result<()> {
-        let mut tx = self.storage.begin_transaction().await?;
-        tx.lock(
-            LockKey::JunctionSync {
-                parent: entity_type,
-                parent_id: entity_id,
-            },
-            DEFAULT_LOCK_TIMEOUT,
-        )
-        .await?;
-
-        let existing_filter =
-            StorableFilter::<EntityTag>::new_from_uuid_column("entity_id", &entity_id)
-                .entity_type(&entity_type)
-                .live();
-        let existing = tx.get_all(existing_filter).await?;
-
-        let new_set: std::collections::HashSet<Uuid> = tag_ids.iter().copied().collect();
-        let existing_tag_ids: std::collections::HashSet<Uuid> =
-            existing.iter().map(|r| r.base.tag_id).collect();
-
-        let now = chrono::Utc::now();
-
-        // Soft-close rows for tags removed from the set.
-        for row in existing
-            .iter()
-            .filter(|row| !new_set.contains(&row.base.tag_id))
-        {
-            let mut closed = row.clone();
-            closed.valid_to = Some(now);
-            tx.update(&mut closed).await?;
-        }
-
-        // INSERT live rows for tags newly assigned. Existing live rows whose
-        // tag_id is still in the set are left untouched.
-        for tid in tag_ids
-            .into_iter()
-            .filter(|t| !existing_tag_ids.contains(t))
-        {
-            let new_row = EntityTag::new(EntityTagBase::new(entity_id, entity_type, tid));
-            tx.create(&new_row).await?;
-        }
-
-        tx.commit().await?;
-        Ok(())
-    }
-
-    /// Remove all tags for an entity (used when an entity is deleted).
-    /// Soft-close the live junction rows so as-of reads can still resolve
-    /// the associations that existed before deletion.
-    pub async fn remove_all_for_entity(
-        &self,
-        entity_id: Uuid,
-        entity_type: EntityDiscriminants,
-    ) -> Result<()> {
-        let filter = StorableFilter::<EntityTag>::new_from_uuid_column("entity_id", &entity_id)
-            .entity_type(&entity_type)
-            .live();
-
-        let mut rows = self.storage.get_all(filter).await?;
-        if rows.is_empty() {
-            return Ok(());
-        }
-
-        let now = chrono::Utc::now();
-        for row in rows.iter_mut() {
-            row.valid_to = Some(now);
-        }
-        self.storage.update_many(&rows).await?;
-        Ok(())
-    }
-
-    /// Bulk insert pre-built EntityTag records. Skips validation — caller must
-    /// ensure tags exist. Uses a single INSERT for all records.
-    pub async fn create_many(&self, entity_tags: &[EntityTag]) -> Result<Vec<EntityTag>> {
-        self.storage.create_many(entity_tags).await
-    }
-
-    /// Bulk add a tag to multiple entities.
-    /// Silently skips entities that already have the tag.
-    pub async fn bulk_add(
-        &self,
-        entity_ids: &[Uuid],
-        entity_type: EntityDiscriminants,
-        tag_id: Uuid,
-    ) -> Result<usize> {
-        if entity_ids.is_empty() {
-            return Ok(0);
-        }
-
-        let mut added = 0;
-        for entity_id in entity_ids {
-            if self.add(*entity_id, entity_type, tag_id).await? {
-                added += 1;
-            }
-        }
-
-        Ok(added)
-    }
-
-    /// Bulk remove a tag from multiple entities (soft-close).
-    /// Returns the number of live junction rows that were closed.
-    pub async fn bulk_remove(
-        &self,
-        entity_ids: &[Uuid],
-        entity_type: EntityDiscriminants,
-        tag_id: Uuid,
-    ) -> Result<usize> {
-        if entity_ids.is_empty() {
-            return Ok(0);
-        }
-
-        let filter = StorableFilter::<EntityTag>::new_from_uuids_column("entity_id", entity_ids)
-            .entity_type(&entity_type)
-            .tag_id(&tag_id)
-            .live();
-
-        let mut rows = self.storage.get_all(filter).await?;
-        if rows.is_empty() {
-            return Ok(0);
-        }
-
-        let now = chrono::Utc::now();
-        for row in rows.iter_mut() {
-            row.valid_to = Some(now);
-        }
-        let count = rows.len();
-        self.storage.update_many(&rows).await?;
-        Ok(count)
+    fn parent_filter(parent: &ParentRef) -> StorableFilter<Self> {
+        StorableFilter::<Self>::new_from_uuid_column("entity_id", &parent.id)
+            .entity_type(&parent.entity_type)
     }
 }
 
@@ -483,12 +229,12 @@ impl EntityTagStorage {
 /// - Tag assignment/removal with validation
 /// - Bulk operations for efficient multi-entity updates
 pub struct EntityTagService {
-    storage: Arc<EntityTagStorage>,
+    storage: Arc<GenericChildStorage<EntityTag>>,
     tag_service: Arc<TagService>,
 }
 
 impl EntityTagService {
-    pub fn new(storage: Arc<EntityTagStorage>, tag_service: Arc<TagService>) -> Self {
+    pub fn new(storage: Arc<GenericChildStorage<EntityTag>>, tag_service: Arc<TagService>) -> Self {
         Self {
             storage,
             tag_service,
@@ -505,15 +251,12 @@ impl EntityTagService {
         entity_id: &Uuid,
         entity_type: &EntityDiscriminants,
     ) -> Result<Vec<Uuid>, Error> {
-        self.storage.get_for_entity(entity_id, entity_type).await
+        self.held_tag_ids(entity_id, entity_type).await
     }
 
     /// Hydrate tags for a single entity.
     pub async fn hydrate_tags<T: Entity>(&self, entity: &mut T) -> Result<()> {
-        let tags = self
-            .storage
-            .get_for_entity(&entity.id(), &T::entity_type())
-            .await?;
+        let tags = self.held_tag_ids(&entity.id(), &T::entity_type()).await?;
         entity.set_tags(tags);
         Ok(())
     }
@@ -528,8 +271,7 @@ impl EntityTagService {
 
         let ids: Vec<Uuid> = entities.iter().map(|e| e.id()).collect();
         let tags_map = self
-            .storage
-            .get_for_entities(&ids, &T::entity_type(), None)
+            .tag_ids_by_entity(&ids, &T::entity_type(), None)
             .await?;
 
         for entity in entities {
@@ -550,8 +292,7 @@ impl EntityTagService {
         entity_type: EntityDiscriminants,
         snapshot_id: Option<Uuid>,
     ) -> Result<HashMap<Uuid, Vec<Uuid>>> {
-        self.storage
-            .get_for_entities(entity_ids, &entity_type, snapshot_id)
+        self.tag_ids_by_entity(entity_ids, &entity_type, snapshot_id)
             .await
     }
 
@@ -581,8 +322,7 @@ impl EntityTagService {
             .await?;
 
         // Add to junction table
-        self.storage
-            .add(entity_id, entity_type, tag_id)
+        self.insert_tag(entity_id, entity_type, tag_id)
             .await
             .map_err(|e| anyhow!("Failed to add tag: {}", e))?;
 
@@ -596,8 +336,7 @@ impl EntityTagService {
         entity_type: EntityDiscriminants,
         tag_id: Uuid,
     ) -> Result<(), Error> {
-        self.storage
-            .remove(entity_id, entity_type, tag_id)
+        self.close_tag(entity_id, entity_type, tag_id)
             .await
             .map_err(|e| anyhow!("Failed to remove tag: {}", e))?;
 
@@ -633,16 +372,12 @@ impl EntityTagService {
         }
         // Only tags the entity doesn't already hold are checked against scope, so one it was
         // given before its group's scope narrowed doesn't block every later save.
-        let held = self
-            .storage
-            .get_for_entity(&entity_id, &entity_type)
-            .await?;
+        let held = self.held_tag_ids(&entity_id, &entity_type).await?;
         let added: Vec<Tag> = tags.into_iter().filter(|t| !held.contains(&t.id)).collect();
         self.refuse_out_of_scope(&added, entity_type).await?;
 
         // Replace tags
-        self.storage
-            .set(entity_id, entity_type, tag_ids)
+        self.sync_tags(entity_id, entity_type, tag_ids)
             .await
             .map_err(|e| anyhow!("Failed to set tags: {}", e))?;
 
@@ -656,8 +391,12 @@ impl EntityTagService {
         entity_type: EntityDiscriminants,
     ) -> Result<()> {
         self.storage
-            .remove_all_for_entity(entity_id, entity_type)
-            .await
+            .close_matching(EntityTag::parent_filter(&ParentRef::new(
+                entity_type,
+                entity_id,
+            )))
+            .await?;
+        Ok(())
     }
 
     // =========================================================================
@@ -667,7 +406,7 @@ impl EntityTagService {
     /// Bulk insert pre-built EntityTag records. Skips validation — caller must
     /// ensure tags exist. Single INSERT for all records.
     pub async fn create_many(&self, entity_tags: &[EntityTag]) -> Result<Vec<EntityTag>> {
-        self.storage.create_many(entity_tags).await
+        self.storage.inner().create_many(entity_tags).await
     }
 
     /// Add a tag to multiple entities.
@@ -700,8 +439,7 @@ impl EntityTagService {
 
         // Bulk add
         let count = self
-            .storage
-            .bulk_add(entity_ids, entity_type, tag_id)
+            .insert_tag_many(entity_ids, entity_type, tag_id)
             .await
             .map_err(|e| ApiError::internal_error(&format!("Failed to bulk add tag: {}", e)))?;
 
@@ -720,8 +458,7 @@ impl EntityTagService {
         }
 
         let count = self
-            .storage
-            .bulk_remove(entity_ids, entity_type, tag_id)
+            .close_tag_many(entity_ids, entity_type, tag_id)
             .await
             .map_err(|e| anyhow!("Failed to bulk remove tag: {}", e))?;
 
@@ -783,8 +520,7 @@ impl EntityTagService {
         }
 
         let held = self
-            .storage
-            .get_for_entities(entity_ids, &entity_type, None)
+            .tag_ids_by_entity(entity_ids, &entity_type, None)
             .await?;
         let mut held_tag_ids: Vec<Uuid> = held.values().flatten().copied().collect();
         held_tag_ids.sort();
@@ -805,12 +541,149 @@ impl EntityTagService {
 
         for (entity_id, tag_ids) in &held {
             for tag_id in tag_ids.iter().filter(|id| displaced.contains(id)) {
-                self.storage
-                    .remove(*entity_id, entity_type, *tag_id)
-                    .await?;
+                self.close_tag(*entity_id, entity_type, *tag_id).await?;
             }
         }
         Ok(())
+    }
+}
+
+// =============================================================================
+// Junction rows
+// =============================================================================
+
+impl EntityTagService {
+    /// The tag ids an entity holds. Live rows only.
+    async fn held_tag_ids(
+        &self,
+        entity_id: &Uuid,
+        entity_type: &EntityDiscriminants,
+    ) -> Result<Vec<Uuid>> {
+        let filter = StorableFilter::<EntityTag>::new_from_uuid_column("entity_id", entity_id)
+            .entity_type(entity_type)
+            .live();
+        let records = self.storage.inner().get_all(filter).await?;
+        Ok(records.iter().map(|r| r.base.tag_id).collect())
+    }
+
+    /// Entity id → tag ids for entities of one type, in one query.
+    ///
+    /// `snapshot_id = None` reads live associations (`valid_to IS NULL`).
+    /// `snapshot_id = Some(id)` reads the closed copies captured under that
+    /// snapshot — `entity_ids` are then the closed-copy entity ids (matching
+    /// the snapshot entities the topology read loads).
+    async fn tag_ids_by_entity(
+        &self,
+        entity_ids: &[Uuid],
+        entity_type: &EntityDiscriminants,
+        snapshot_id: Option<Uuid>,
+    ) -> Result<HashMap<Uuid, Vec<Uuid>>> {
+        if entity_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let records = self
+            .storage
+            .inner()
+            .get_all(entity_tags_filter(entity_ids, entity_type, snapshot_id))
+            .await?;
+
+        let mut result: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
+        for record in records {
+            result
+                .entry(record.base.entity_id)
+                .or_default()
+                .push(record.base.tag_id);
+        }
+        Ok(result)
+    }
+
+    /// Add a tag to an entity. Ok(true) if added, Ok(false) if it already held it.
+    async fn insert_tag(
+        &self,
+        entity_id: Uuid,
+        entity_type: EntityDiscriminants,
+        tag_id: Uuid,
+    ) -> Result<bool> {
+        let entity_tag = EntityTag::new(EntityTagBase::new(entity_id, entity_type, tag_id));
+
+        match self.storage.inner().create(&entity_tag).await {
+            Ok(_) => Ok(true),
+            Err(e) => {
+                // Check if it's a unique constraint violation (already exists)
+                if e.to_string().contains("already exists") {
+                    Ok(false)
+                } else {
+                    Err(e)
+                }
+            }
+        }
+    }
+
+    /// Add a tag to each entity, skipping those that already hold it. Returns how many were
+    /// added.
+    async fn insert_tag_many(
+        &self,
+        entity_ids: &[Uuid],
+        entity_type: EntityDiscriminants,
+        tag_id: Uuid,
+    ) -> Result<usize> {
+        let mut added = 0;
+        for entity_id in entity_ids {
+            if self.insert_tag(*entity_id, entity_type, tag_id).await? {
+                added += 1;
+            }
+        }
+        Ok(added)
+    }
+
+    /// Take a tag off an entity by soft-closing its live row. Hard delete would break as-of
+    /// joins for any snapshot taken while the association was live. Ok(true) if a live row was
+    /// closed, Ok(false) if none existed.
+    async fn close_tag(
+        &self,
+        entity_id: Uuid,
+        entity_type: EntityDiscriminants,
+        tag_id: Uuid,
+    ) -> Result<bool> {
+        Ok(self
+            .close_tag_many(&[entity_id], entity_type, tag_id)
+            .await?
+            > 0)
+    }
+
+    /// Take a tag off each entity (soft-close). Returns how many live rows were closed.
+    async fn close_tag_many(
+        &self,
+        entity_ids: &[Uuid],
+        entity_type: EntityDiscriminants,
+        tag_id: Uuid,
+    ) -> Result<usize> {
+        if entity_ids.is_empty() {
+            return Ok(0);
+        }
+        let filter = StorableFilter::<EntityTag>::new_from_uuids_column("entity_id", entity_ids)
+            .entity_type(&entity_type)
+            .tag_id(&tag_id);
+        self.storage.close_matching(filter).await
+    }
+
+    /// Make `tag_ids` an entity's tags: soft-close rows for tags removed from the set, insert
+    /// live rows for tags newly assigned, and leave unchanged rows alone.
+    async fn sync_tags(
+        &self,
+        entity_id: Uuid,
+        entity_type: EntityDiscriminants,
+        tag_ids: Vec<Uuid>,
+    ) -> Result<()> {
+        self.storage
+            .sync_for_parent(
+                &ParentRef::new(entity_type, entity_id),
+                &tag_ids,
+                |row| row.base.tag_id,
+                |tag_id| EntityTag::new(EntityTagBase::new(entity_id, entity_type, tag_id)),
+            )
+            .await
     }
 }
 
