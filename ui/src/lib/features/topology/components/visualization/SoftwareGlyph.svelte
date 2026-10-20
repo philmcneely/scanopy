@@ -2,9 +2,11 @@
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
 
 	/**
-	 * Software: its service definition's logo in a neutral round frame. The circle is the shape the topology
-	 * gives every entity whose `glyph` metadata is `Software`. The frame takes the card's own surface,
-	 * so a logo gets a white backdrop only when its definition asks for one (`LogoIcon` adds it).
+	 * Software: its service definition's logo in a neutral round frame. The circle is the shape the
+	 * topology gives every entity whose `glyph` metadata is `Software`. The frame fills with the
+	 * topology card's opaque background: the dark-mode surface token is 70% translucent, which let the
+	 * tile behind a badge show through the logo. A logo gets a white backdrop only when its definition
+	 * asks for one (`LogoIcon` adds it).
 	 */
 	let {
 		definition,
@@ -32,7 +34,7 @@
 		'lg'
 			? 'h-12 w-12 border-2'
 			: 'h-5 w-5'}"
-		style="background: var(--color-bg-surface);"
+		style="background: var(--color-topology-node-bg);"
 	>
 		<!-- A logo draws in its own colours; a definition with no logo falls back to a glyph, drawn in the
 	     text colour like a device's so the two read alike. -->
