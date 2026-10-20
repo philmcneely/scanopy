@@ -105,7 +105,7 @@ impl BillingService {
             ..Default::default()
         };
 
-        let updated = UpdateSubscription::new(&sub.id)
+        UpdateSubscription::new(&sub.id)
             .pause_collection(UpdateSubscriptionPauseCollection {
                 behavior: UpdateSubscriptionPauseCollectionBehavior::KeepAsDraft,
                 resumes_at: Some(resumes_at.timestamp()),
@@ -124,15 +124,6 @@ impl BillingService {
                 );
                 anyhow!("Stripe rejected the pause request: {e}")
             })?;
-
-        tracing::info!(
-            organization_id = %organization_id,
-            subscription_id = %updated.id,
-            subscription_status = %updated.status,
-            pause_collection_set = updated.pause_collection.is_some(),
-            pause_collection_resumes_at = ?updated.pause_collection.as_ref().and_then(|p| p.resumes_at),
-            "Stripe accepted pause_collection"
-        );
 
         Ok(format!(
             "Subscription paused until {}.",
@@ -419,14 +410,6 @@ impl BillingService {
                 anyhow!("Stripe rejected the cancel request: {e}")
             })?;
 
-        tracing::info!(
-            organization_id = %organization_id,
-            subscription_id = %updated.id,
-            cancel_at_period_end = updated.cancel_at_period_end,
-            cancel_at = ?updated.cancel_at,
-            "Stripe accepted cancel_at_period_end"
-        );
-
         // Period end: read back the cancel_at Stripe just set. Fall back to
         // the first item's current_period_end in the unlikely event the API
         // response omits cancel_at.
@@ -469,7 +452,7 @@ impl BillingService {
         // only SDK-supported path. Stripe interprets it as "clear all
         // scheduled cancellation state" regardless of how cancel_at was
         // originally set.
-        let updated = UpdateSubscription::new(&sub.id)
+        UpdateSubscription::new(&sub.id)
             .cancel_at_period_end(false)
             .send(&self.stripe)
             .await
@@ -483,13 +466,6 @@ impl BillingService {
                 );
                 anyhow!("Stripe rejected the reactivate request: {e}")
             })?;
-
-        tracing::info!(
-            organization_id = %organization_id,
-            subscription_id = %updated.id,
-            cancel_at_period_end = updated.cancel_at_period_end,
-            "Stripe accepted reactivate"
-        );
 
         Ok("Subscription reactivated.".to_string())
     }

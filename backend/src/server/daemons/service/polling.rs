@@ -200,8 +200,8 @@ impl DaemonService {
                 Err(e) => {
                     // First contact failed - abort poll entirely; the unreachable event's WARN
                     // line carries the error. Retried next cycle.
-                    if let Err(mark_err) =
-                        self.mark_daemon_unreachable(
+                    if let Err(mark_err) = self
+                        .mark_daemon_unreachable(
                             daemon.id,
                             email_service,
                             &e,
@@ -231,8 +231,9 @@ impl DaemonService {
                     let is_auth_failure = e
                         .downcast_ref::<super::http::DaemonHttpError>()
                         .is_some_and(|h| h.status.is_client_error());
-                    if let Err(mark_err) =
-                        self.mark_daemon_unreachable(daemon.id, email_service, &e, is_auth_failure).await
+                    if let Err(mark_err) = self
+                        .mark_daemon_unreachable(daemon.id, email_service, &e, is_auth_failure)
+                        .await
                     {
                         tracing::error!(
                             daemon_id = %daemon.id,

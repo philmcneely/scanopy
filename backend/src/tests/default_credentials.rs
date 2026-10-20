@@ -165,7 +165,11 @@ async fn a_second_copy_of_a_default_is_refused_on_create_and_update() {
     ordinary.base.credential_type = community("public");
     let turned_into_copy = services
         .credential_service
-        .update(&mut ordinary, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut ordinary,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await;
     assert!(matches!(
         error_code(turned_into_copy),
@@ -190,7 +194,11 @@ async fn a_default_can_be_renamed_and_unassigned_but_not_changed_or_deleted() {
     renamed.base.credential_type = community(REDACTED_SECRET_SENTINEL);
     let renamed = services
         .credential_service
-        .update(&mut renamed, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut renamed,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
     assert!(renamed.is_default);
@@ -199,7 +207,11 @@ async fn a_default_can_be_renamed_and_unassigned_but_not_changed_or_deleted() {
     changed.base.credential_type = community("private");
     let changed = services
         .credential_service
-        .update(&mut changed, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut changed,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await;
     assert!(matches!(
         error_code(changed),

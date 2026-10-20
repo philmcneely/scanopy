@@ -186,6 +186,7 @@ async fn a_free_customer_still_gets_the_emails_that_change_something() {
                 save_offer_shown: vec![],
                 save_offer_redeemed: None,
                 planned_period_end: period_end,
+                subscription_id: String::new(),
             },
             "cancellation_initiated",
         ),
@@ -210,7 +211,11 @@ async fn a_zero_dollar_air_gapped_renewal_still_says_to_copy_the_key() {
     state
         .services
         .organization_service
-        .update(&mut air_gapped, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut air_gapped,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
     create_owner(&state, org.id).await;

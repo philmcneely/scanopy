@@ -692,7 +692,7 @@ where
         + Into<EntityEnum>
         + Default
         + Display
-        + ChangeTriggersTopologyStaleness<T>
+        + ChangeTriggersTopologyStaleness<T>,
 {
     /// Get all entities for a single parent
     async fn get_for_parent(&self, parent_id: &Uuid) -> Result<Vec<T>, anyhow::Error> {

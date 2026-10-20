@@ -6,10 +6,10 @@ use crate::server::config::AppState;
 use crate::server::invites::r#impl::base::Invite;
 use crate::server::organizations::r#impl::api::CreateInviteRequest;
 use crate::server::shared::events::traits::{Event, OrgScope};
-use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 use crate::server::shared::events::types::{
     BillingOperation, OnboardingOperation, OnboardingOperationDiscriminants,
 };
+use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 use crate::server::shared::services::traits::{CrudService, EventBusService};
 use crate::server::shared::storage::filter::StorableFilter;
 use crate::server::shared::storage::traits::Entity;
@@ -319,7 +319,11 @@ async fn revoke_invite(
     state
         .services
         .invite_service
-        .delete(&invite.id, auth.into_entity(), DeletionReason::EntityRequested)
+        .delete(
+            &invite.id,
+            auth.into_entity(),
+            DeletionReason::EntityRequested,
+        )
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 
@@ -506,7 +510,11 @@ async fn accept_invite_link(
             if let Err(e) = state
                 .services
                 .invite_service
-                .delete(&id, AuthenticatedEntity::System, DeletionReason::InviteConsumed)
+                .delete(
+                    &id,
+                    AuthenticatedEntity::System,
+                    DeletionReason::InviteConsumed,
+                )
                 .await
             {
                 tracing::warn!("Failed to revoke invite {}: {}", id, e);
@@ -563,7 +571,11 @@ async fn accept_invite_link(
             state
                 .services
                 .user_service
-                .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserJoinedOrganization)
+                .update(
+                    &mut user,
+                    AuthenticatedEntity::System,
+                    UpdateReason::UserJoinedOrganization,
+                )
                 .await
                 .map_err(|_| {
                     Redirect::to(&format!(

@@ -416,7 +416,11 @@ where
     )?;
 
     let updated = service
-        .update(&mut entity, auth.into_entity(), UpdateReason::EntityRequested)
+        .update(
+            &mut entity,
+            auth.into_entity(),
+            UpdateReason::EntityRequested,
+        )
         .await
         .map_err(|e| {
             // Use From<anyhow::Error> to properly handle ValidationError (400) vs internal errors (500)
@@ -552,7 +556,11 @@ where
     let valid_ids: Vec<Uuid> = entities.iter().map(|e| e.id()).collect();
 
     let deleted_count = service
-        .delete_many(&valid_ids, auth.into_entity(), DeletionReason::EntityRequested)
+        .delete_many(
+            &valid_ids,
+            auth.into_entity(),
+            DeletionReason::EntityRequested,
+        )
         .await
         .map_err(|e| {
             // Use From<anyhow::Error> to properly handle ValidationError (400) vs internal errors (500)

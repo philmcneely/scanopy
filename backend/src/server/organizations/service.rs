@@ -17,7 +17,6 @@ use crate::server::shared::storage::lock::{
     DEFAULT_LOCK_TIMEOUT, LockError, LockKey, SessionLockGuard,
 };
 use crate::server::shared::storage::traits::Storage;
-use crate::server::shared::types::metadata::HasId;
 use crate::server::tags::entity_tags::EntityTagService;
 use crate::server::{
     organizations::r#impl::base::Organization,
@@ -325,12 +324,6 @@ impl OrganizationService {
             }
         }
 
-        if reported > 0 {
-            tracing::info!(
-                count = reported,
-                "Reported license keys that stopped checking in"
-            );
-        }
         Ok(reported)
     }
 
@@ -449,12 +442,6 @@ impl OrganizationService {
         let updated = locked
             .save(authentication, UpdateReason::OrganizationLicenseKeyChanged)
             .await?;
-        tracing::info!(
-            organization_id = %organization_id,
-            key_type = %key_type,
-            key_version = updated.base.license_key_version,
-            "Switched license key type"
-        );
 
         Ok(updated)
     }
@@ -517,11 +504,6 @@ impl OrganizationService {
         let updated = locked
             .save(authentication, UpdateReason::OrganizationLicenseKeyChanged)
             .await?;
-        tracing::info!(
-            organization_id = %organization_id,
-            key_version = updated.base.license_key_version,
-            "Rotated license key"
-        );
         Ok(updated)
     }
 }
@@ -634,14 +616,6 @@ impl OrganizationService {
                     "Failed to reconcile license plan for org",
                 ),
             }
-        }
-
-        if upgraded > 0 {
-            tracing::info!(
-                count = upgraded,
-                plan = %target.id(),
-                "Reconciled self-hosted org plan(s) to license entitlement",
-            );
         }
 
         Ok(upgraded)

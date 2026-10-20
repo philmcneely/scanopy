@@ -115,6 +115,16 @@ impl Operation for AuthOperation {
     fn attribution(&self, scope: &AuthScope) -> Attribution {
         scope.user_id.map_or(Attribution::Actor, Attribution::User)
     }
+
+    /// A failed login says why on a line of its own, at the event's level.
+    fn log(&self, _scope: &AuthScope) -> EventLog {
+        match self {
+            AuthOperation::LoginFailed { reason, .. } if !reason.is_empty() => {
+                EventLog::default().with_line(self.log_level(), format!("Login failed: {reason}"))
+            }
+            _ => EventLog::default(),
+        }
+    }
 }
 
 /// Entity events send the entity's id, never the entity.
@@ -299,7 +309,8 @@ pub(crate) mod tests {
                         entity_type: examples::organization().into(),
                     },
                     EntityOperation::Deleted {
-                        reason: crate::server::shared::events::types::DeletionReason::EntityRequested,
+                        reason:
+                            crate::server::shared::events::types::DeletionReason::EntityRequested,
                     },
                     system(),
                 ),

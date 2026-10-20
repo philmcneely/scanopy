@@ -39,7 +39,7 @@ use crate::server::{
         entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants},
         events::{
             bus::EventBus,
-            types::{DeletionReason, EntityOperation, UpdateReason},
+            types::{DeletionReason, EntityOperation, HostMatchedBy, UpdateReason},
         },
         position::resolve_and_validate_input_positions,
         services::traits::{ChildCrudService, CrudService, EventBusService},
@@ -182,7 +182,7 @@ impl CrudService<Host> for HostService {
                 DEFAULT_LOCK_TIMEOUT,
             )
             .await?;
-        let created = self.create_unlocked(host, authentication).await?;
+        let created = self.create_unlocked(host, authentication, None).await?;
         dedup_guard.release().await?;
         Ok(created)
     }
@@ -451,7 +451,7 @@ fn select_matching_host(
     incoming: &[IPAddress],
     incoming_chassis_id: Option<&str>,
     candidates: &[HostCandidate],
-) -> Option<Uuid> {
+) -> Option<(Uuid, HostMatchedBy)> {
     if candidates.is_empty() {
         return None;
     }
@@ -486,21 +486,25 @@ fn select_matching_host(
         };
         let found = pairs()
             .find(|(_, incoming_ip, existing_ip)| ip_addresses_coincide(incoming_ip, existing_ip))
+            .map(|(candidate, incoming_ip, _)| {
+                (
+                    candidate.id,
+                    HostMatchedBy::IpAddress {
+                        ip: incoming_ip.base.ip_address,
+                    },
+                )
+            })
             .or_else(|| {
-                pairs().find(|(candidate, incoming_ip, existing_ip)| {
-                    candidate.macs_identify_host()
-                        && macs_match(incoming_ip, existing_ip, &incoming_mac_counts)
-                        && !candidate.lists_other_addresses_for(incoming_ip)
-                })
+                pairs()
+                    .find(|(candidate, incoming_ip, existing_ip)| {
+                        candidate.macs_identify_host()
+                            && macs_match(incoming_ip, existing_ip, &incoming_mac_counts)
+                            && !candidate.lists_other_addresses_for(incoming_ip)
+                    })
+                    .map(|(candidate, _, _)| (candidate.id, HostMatchedBy::Mac))
             });
-        if let Some((candidate, incoming_ip, existing_ip)) = found {
-            tracing::debug!(
-                incoming_ip = %incoming_ip.base.ip_address,
-                existing_ip = %existing_ip.base.ip_address,
-                existing_host_id = %candidate.id,
-                "Found matching host via IP-address comparison"
-            );
-            return Some(candidate.id);
+        if found.is_some() {
+            return found;
         }
 
         return match_by_chassis_id(incoming_chassis_id, candidates);
@@ -535,12 +539,12 @@ fn select_matching_host(
                     continue;
                 }
                 if ip_addresses_share_address(incoming_ip, existing_ip) {
-                    tracing::debug!(
-                        virtual_ip = %incoming_ip.base.ip_address,
-                        existing_host_id = %host_id,
-                        "Found matching host for virtual router IP via address comparison"
-                    );
-                    return Some(*host_id);
+                    return Some((
+                        *host_id,
+                        HostMatchedBy::VirtualRouterIp {
+                            ip: incoming_ip.base.ip_address,
+                        },
+                    ));
                 }
             }
         }
@@ -554,7 +558,10 @@ fn select_matching_host(
 /// Resolves on a single match only, for the same reason every other chassis lookup does: two hosts
 /// carrying one identifier are a duplicate this cannot choose between, and picking either would
 /// merge a scan into an arbitrary one of them.
-fn match_by_chassis_id(chassis_id: Option<&str>, candidates: &[HostCandidate]) -> Option<Uuid> {
+fn match_by_chassis_id(
+    chassis_id: Option<&str>,
+    candidates: &[HostCandidate],
+) -> Option<(Uuid, HostMatchedBy)> {
     let chassis_id = chassis_id.map(str::trim).filter(|id| !id.is_empty())?;
     let mut matched = candidates
         .iter()
@@ -567,12 +574,12 @@ fn match_by_chassis_id(chassis_id: Option<&str>, candidates: &[HostCandidate]) -
         );
         return None;
     }
-    tracing::debug!(
-        chassis_id = %chassis_id,
-        existing_host_id = %first.id,
-        "Found matching host via chassis id"
-    );
-    Some(first.id)
+    Some((
+        first.id,
+        HostMatchedBy::ChassisId {
+            chassis_id: chassis_id.to_string(),
+        },
+    ))
 }
 
 /// The host a payload matched, with its **full, unfiltered** live IP rows (discovery derives
@@ -580,6 +587,8 @@ fn match_by_chassis_id(chassis_id: Option<&str>, candidates: &[HostCandidate]) -
 /// the payload proves are the same device.
 pub(crate) struct HostMatch {
     pub host: Host,
+    /// Which identity matched it, for the upsert's `HostRediscovered` reason.
+    pub matched_by: HostMatchedBy,
     pub ip_addresses: Vec<IPAddress>,
     pub same_device: Vec<SameDevice>,
 }
@@ -928,7 +937,8 @@ mod tests {
         )];
 
         assert_eq!(
-            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates),
+            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates)
+                .map(|(id, _)| id),
             Some(known)
         );
     }
@@ -954,7 +964,8 @@ mod tests {
         let incoming = vec![make_interface(ip, subnet, None)];
 
         assert_eq!(
-            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates),
+            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates)
+                .map(|(id, _)| id),
             Some(by_address)
         );
     }
@@ -975,7 +986,8 @@ mod tests {
         )];
 
         assert_eq!(
-            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates),
+            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates)
+                .map(|(id, _)| id),
             None
         );
     }
@@ -995,7 +1007,7 @@ mod tests {
         let incoming = vec![make_interface(vip, subnet, Some(vrrp_mac()))];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             Some(vip_host),
             "A rediscovered CARP/VRRP VIP must update its existing host, not create a new one"
         );
@@ -1031,7 +1043,7 @@ mod tests {
         ];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             None,
             "Two physical HA peers advertising the same VIP must remain separate hosts"
         );
@@ -1062,7 +1074,7 @@ mod tests {
         let incoming = vec![make_interface(vip, subnet, Some(vrrp_mac()))];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             None,
             "A VIP payload must not match a host that has real-MAC hardware identity"
         );
@@ -1097,7 +1109,7 @@ mod tests {
         let incoming = vec![make_interface(vip, subnet, Some(vrrp_mac()))];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             Some(vip_host),
             "The VIP must resolve to its own host, not to a peer that advertises it"
         );
@@ -1116,7 +1128,7 @@ mod tests {
         let incoming = vec![make_interface(vip, subnet, Some(vrrp_mac()))];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             Some(vip_host),
             "A VIP host first recorded without a MAC must still be re-found"
         );
@@ -1144,7 +1156,7 @@ mod tests {
         )];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             None,
             "Distinct VIPs sharing a VRID must not collapse via their shared MAC"
         );
@@ -1166,7 +1178,7 @@ mod tests {
         let incoming = vec![make_interface(vip, subnet, Some(ipv6_mac))];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             Some(vip_host),
             "An IPv6 VRRP VIP must re-match like its IPv4 counterpart"
         );
@@ -1204,7 +1216,7 @@ mod tests {
         let incoming = vec![make_interface(vip, subnet, Some(vrrp_mac()))];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             Some(newest),
             "Pre-existing VIP duplicates must collapse onto the most recently created host"
         );
@@ -1232,7 +1244,7 @@ mod tests {
         )];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             Some(host)
         );
     }
@@ -1263,7 +1275,8 @@ mod tests {
         )];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &[candidate(host, vec![existing])]),
+            select_matching_host(&incoming, None, &[candidate(host, vec![existing])])
+                .map(|(id, _)| id),
             Some(host),
             "a NIC is the same NIC however each scan came to hear about it"
         );
@@ -1320,13 +1333,13 @@ mod tests {
 
         let runtime_address = vec![row("192.168.4.63", lan, parent_mac())];
         assert_eq!(
-            select_matching_host(&runtime_address, None, &candidates),
+            select_matching_host(&runtime_address, None, &candidates).map(|(id, _)| id),
             None
         );
 
         let own_address = vec![row("192.168.7.231", lan, parent_mac())];
         assert_eq!(
-            select_matching_host(&own_address, None, &candidates),
+            select_matching_host(&own_address, None, &candidates).map(|(id, _)| id),
             Some(ipvlan)
         );
     }
@@ -1345,7 +1358,7 @@ mod tests {
 
         let moved = vec![row("192.168.7.240", lan, own_mac)];
         assert_eq!(
-            select_matching_host(&moved, None, &candidates),
+            select_matching_host(&moved, None, &candidates).map(|(id, _)| id),
             Some(macvlan)
         );
     }
@@ -1415,7 +1428,7 @@ mod tests {
             Some(ens19),
         )];
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             Some(newer)
         );
     }
@@ -1481,7 +1494,7 @@ mod tests {
             Some(lab_ens19()),
         )];
         assert_eq!(
-            select_matching_host(&incoming, None, &candidates),
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
             Some(host)
         );
     }
@@ -1500,7 +1513,10 @@ mod tests {
             other,
             Some(lab_ens19()),
         )];
-        assert_eq!(select_matching_host(&incoming, None, &candidates), Some(vm));
+        assert_eq!(
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
+            Some(vm)
+        );
     }
 
     /// A payload with no addresses claims no address, so the list excludes nothing from the tier.

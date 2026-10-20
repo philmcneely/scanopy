@@ -60,10 +60,7 @@ async fn finished_session_stamps_scanned_host_with_its_historical_discovery() {
         ..Default::default()
     });
 
-    services
-        .discovery_service
-        .update_session(update)
-        .await;
+    services.discovery_service.update_session(update).await;
 
     let stamped = storage
         .hosts

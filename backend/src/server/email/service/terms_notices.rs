@@ -156,13 +156,6 @@ impl EmailService {
                     }
                 }
             }
-            tracing::info!(
-                %version,
-                sent,
-                failed,
-                recipients = due.len(),
-                "Terms notice done"
-            );
         }
         Ok(())
     }

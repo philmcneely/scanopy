@@ -13,26 +13,15 @@ impl ServiceService {
         let mut binding_updates = 0;
 
         let service_before_updates = existing_service.clone();
-
-        tracing::trace!(
-            "Upserting new service data {:?} into {:?}",
-            new_service_data,
-            existing_service
-        );
+        let mut reason = UpdateReason::EntityRediscovered;
 
         for new_service_binding in &new_service_data.base.bindings {
             // Check if this binding is already covered by existing bindings
             // (e.g., a specific interface binding is covered by an "all ip_addresses" binding for the same port)
-            let is_covered = Self::is_binding_covered_by_existing(
+            if Self::is_binding_covered_by_existing(
                 new_service_binding,
                 &existing_service.base.bindings,
-            );
-
-            if is_covered {
-                tracing::trace!(
-                    "Skipping binding {:?} - already covered by existing all-ip_addresses binding",
-                    new_service_binding.base.binding_type
-                );
+            ) {
                 continue;
             }
 
@@ -88,21 +77,14 @@ impl ServiceService {
         // proxy's container identity onto the runtime the proxy fronts, leaving the runtime owned
         // by itself. Such a stored row is cleared here, and incoming container details naming the
         // service as its own owner are not taken, since that identity is another container's.
+        // Either names the update's reason, which Service's log writes at WARN.
         if existing_service.base.virtualization_service_id == Some(existing_service.id) {
-            tracing::warn!(
-                service_id = %existing_service.id,
-                service_name = %existing_service.base.name,
-                "Clearing container details that name the service as its own owner"
-            );
             existing_service.base.virtualization_service_id = None;
             existing_service.base.virtualization_metadata = None;
+            reason = UpdateReason::ServiceContainerDetailsRejected;
         }
         if new_service_data.base.virtualization_service_id == Some(existing_service.id) {
-            tracing::warn!(
-                service_id = %existing_service.id,
-                service_name = %existing_service.base.name,
-                "Ignoring container details whose owner is the service itself"
-            );
+            reason = UpdateReason::ServiceContainerDetailsRejected;
         } else {
             if let Some(virtualization_metadata) = &new_service_data.base.virtualization_metadata {
                 existing_service.base.virtualization_metadata =
@@ -197,21 +179,16 @@ impl ServiceService {
         // Update service with the saved bindings (which have actual IDs and preserved created_at)
         existing_service.base.bindings = saved_bindings;
 
-        let mut data = Vec::new();
-
-        if binding_updates > 0 {
-            data.push(format!("{} bindings", binding_updates))
-        };
-        if virtualization_changed {
-            data.push("virtualization".to_string());
-        }
-
-        if !data.is_empty() {
+        // A rejection publishes even when nothing else changed, so its WARN line is written.
+        if binding_updates > 0
+            || virtualization_changed
+            || reason == UpdateReason::ServiceContainerDetailsRejected
+        {
             self.publish_updated(
                 &service_before_updates,
                 &existing_service,
                 authentication,
-                UpdateReason::EntityRediscovered,
+                reason,
             )
             .await;
         } else {

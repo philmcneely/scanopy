@@ -462,6 +462,7 @@ impl AuthService {
                         AuthOperation::LoginFailed {
                             method: AuthMethod::Password,
                             attempted_email: Some(request.email.clone()),
+                            reason: e.to_string(),
                         },
                         AuthenticatedEntity::Anonymous,
                     ))
@@ -479,12 +480,7 @@ impl AuthService {
     }
 
     /// Publish `LoginSuccess` for a password login whose session is saved.
-    pub async fn publish_login_success(
-        &self,
-        user: &User,
-        ip: IpAddr,
-        user_agent: Option<String>,
-    ) {
+    pub async fn publish_login_success(&self, user: &User, ip: IpAddr, user_agent: Option<String>) {
         self.event_bus
             .publish(Event::new(
                 AuthScope {
@@ -630,7 +626,11 @@ impl AuthService {
         user.base.password_reset_token = Some(token.clone());
         user.base.password_reset_expires = Some(expires);
         self.user_service
-            .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserPasswordResetRequested)
+            .update(
+                &mut user,
+                AuthenticatedEntity::System,
+                UpdateReason::UserPasswordResetRequested,
+            )
             .await?;
 
         self.event_bus
@@ -677,7 +677,11 @@ impl AuthService {
                 user.base.password_reset_token = None;
                 user.base.password_reset_expires = None;
                 self.user_service
-                    .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserPasswordResetExpired)
+                    .update(
+                        &mut user,
+                        AuthenticatedEntity::System,
+                        UpdateReason::UserPasswordResetExpired,
+                    )
                     .await?;
                 return Err(anyhow!("Password reset token has expired"));
             }
@@ -718,7 +722,11 @@ impl AuthService {
         // session with the new epoch.
         user.base.session_epoch += 1;
         self.user_service
-            .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserPasswordReset)
+            .update(
+                &mut user,
+                AuthenticatedEntity::System,
+                UpdateReason::UserPasswordReset,
+            )
             .await?;
 
         Ok(user.clone())
@@ -762,7 +770,11 @@ impl AuthService {
         user.base.email_verification_token = Some(token.clone());
         user.base.email_verification_expires = Some(expiry);
         self.user_service
-            .update(user, AuthenticatedEntity::System, UpdateReason::UserVerificationRequested)
+            .update(
+                user,
+                AuthenticatedEntity::System,
+                UpdateReason::UserVerificationRequested,
+            )
             .await?;
 
         Ok(EmailAndToken {
@@ -911,7 +923,11 @@ impl AuthService {
             user.base.email_verification_expires = None;
 
             self.user_service
-                .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserEmailChanged)
+                .update(
+                    &mut user,
+                    AuthenticatedEntity::System,
+                    UpdateReason::UserEmailChanged,
+                )
                 .await?;
 
             let new_email = user.base.email.clone();
@@ -938,7 +954,11 @@ impl AuthService {
             user.base.email_verification_expires = None;
 
             self.user_service
-                .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserEmailVerified)
+                .update(
+                    &mut user,
+                    AuthenticatedEntity::System,
+                    UpdateReason::UserEmailVerified,
+                )
                 .await?;
 
             self.event_bus

@@ -69,7 +69,13 @@ impl HostService {
             if rows.contains(&row.id) {
                 row.base.host_id = to.id;
                 self.ip_address_service
-                    .update(&mut row, authentication.clone(), UpdateReason::EntityAddressesDetached { from_host_id: from.id })
+                    .update(
+                        &mut row,
+                        authentication.clone(),
+                        UpdateReason::EntityAddressesDetached {
+                            from_host_id: from.id,
+                        },
+                    )
                     .await?;
             }
         }
@@ -82,7 +88,13 @@ impl HostService {
             {
                 interface.base.ip_address_id = None;
                 self.interface_service
-                    .update(&mut interface, authentication.clone(), UpdateReason::EntityAddressesDetached { from_host_id: from.id })
+                    .update(
+                        &mut interface,
+                        authentication.clone(),
+                        UpdateReason::EntityAddressesDetached {
+                            from_host_id: from.id,
+                        },
+                    )
                     .await?;
             }
         }
@@ -136,7 +148,13 @@ impl HostService {
             } else {
                 let mut moved = port.with_host(to.id, to.base.site_id);
                 self.port_service
-                    .update(&mut moved, authentication.clone(), UpdateReason::EntityAddressesDetached { from_host_id: from.id })
+                    .update(
+                        &mut moved,
+                        authentication.clone(),
+                        UpdateReason::EntityAddressesDetached {
+                            from_host_id: from.id,
+                        },
+                    )
                     .await?;
                 port_id
             };
@@ -153,7 +171,13 @@ impl HostService {
                 }
             }
             self.service_service
-                .update(&mut service, authentication.clone(), UpdateReason::EntityAddressesDetached { from_host_id: from.id })
+                .update(
+                    &mut service,
+                    authentication.clone(),
+                    UpdateReason::EntityAddressesDetached {
+                        from_host_id: from.id,
+                    },
+                )
                 .await?;
         }
         for mut service in staying {
@@ -161,7 +185,13 @@ impl HostService {
             service.base.bindings.retain(|b| !binds_moved_row(b));
             if service.base.bindings.len() != before {
                 self.service_service
-                    .update(&mut service, authentication.clone(), UpdateReason::EntityAddressesDetached { from_host_id: from.id })
+                    .update(
+                        &mut service,
+                        authentication.clone(),
+                        UpdateReason::EntityAddressesDetached {
+                            from_host_id: from.id,
+                        },
+                    )
                     .await?;
             }
         }
@@ -201,12 +231,6 @@ impl HostService {
                 .await?;
         }
 
-        tracing::info!(
-            from_host_id = %from.id,
-            to_host_id = %to.id,
-            addresses = rows.len(),
-            "Took a container's addresses off a host that also holds another device's"
-        );
         guard.release().await?;
         Ok(())
     }
@@ -244,6 +268,7 @@ mod tests {
         host.base.virtualization_metadata = virtualization;
         HostMatch {
             host,
+            matched_by: HostMatchedBy::Mac,
             ip_addresses: rows,
             same_device: vec![],
         }

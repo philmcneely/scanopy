@@ -1172,10 +1172,11 @@ impl EmailService {
                     AuthenticatedEntity::System,
                     UpdateReason::OrganizationNotificationRecorded,
                     |org| {
-                    for change in &recorded {
-                        change.record(&mut org.base.notifications, &Ok(()));
-                    }
-                })
+                        for change in &recorded {
+                            change.record(&mut org.base.notifications, &Ok(()));
+                        }
+                    },
+                )
                 .await?;
         }
 
@@ -1258,15 +1259,11 @@ impl EmailService {
                 AuthenticatedEntity::System,
                 UpdateReason::OrganizationNotificationRecorded,
                 |org| {
-                org.base.notifications.airgap_expiry_notified_through = Some(paid_through);
-            })
+                    org.base.notifications.airgap_expiry_notified_through = Some(paid_through);
+                },
+            )
             .await?;
 
-        tracing::info!(
-            organization_id = %organization.id,
-            paid_through = %paid_through,
-            "Warned an air-gapped organization that its license key expires soon"
-        );
         Ok(())
     }
 
@@ -1436,15 +1433,16 @@ impl EmailService {
                 AuthenticatedEntity::System,
                 UpdateReason::OrganizationNotificationRecorded,
                 |org| {
-                let notifications = &mut org.base.notifications;
-                if notifications
-                    .sunset_notified_floor
-                    .as_ref()
-                    .is_none_or(|notified| floor > notified)
-                {
-                    notifications.sunset_notified_floor = Some(floor.clone());
-                }
-            })
+                    let notifications = &mut org.base.notifications;
+                    if notifications
+                        .sunset_notified_floor
+                        .as_ref()
+                        .is_none_or(|notified| floor > notified)
+                    {
+                        notifications.sunset_notified_floor = Some(floor.clone());
+                    }
+                },
+            )
             .await?;
         Ok(())
     }

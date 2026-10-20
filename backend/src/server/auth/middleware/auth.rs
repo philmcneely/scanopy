@@ -504,7 +504,11 @@ impl AuthenticatedEntity {
                                 user_api_key.set_is_enabled(false);
                                 tokio::spawn(async move {
                                     let _ = service
-                                        .update(&mut user_api_key, AuthenticatedEntity::System, UpdateReason::EntityKeyExpired)
+                                        .update(
+                                            &mut user_api_key,
+                                            AuthenticatedEntity::System,
+                                            UpdateReason::EntityKeyExpired,
+                                        )
                                         .await;
                                 });
                             }
@@ -541,7 +545,11 @@ impl AuthenticatedEntity {
                         user_api_key.set_last_used(Some(Utc::now()));
                         tokio::spawn(async move {
                             let _ = service
-                                .update(&mut user_api_key, AuthenticatedEntity::System, UpdateReason::EntityKeyUsed)
+                                .update(
+                                    &mut user_api_key,
+                                    AuthenticatedEntity::System,
+                                    UpdateReason::EntityKeyUsed,
+                                )
                                 .await;
                         });
 
@@ -698,7 +706,11 @@ impl AuthenticatedEntity {
                                 api_key.set_is_enabled(false);
                                 tokio::spawn(async move {
                                     let _ = service
-                                        .update(&mut api_key, AuthenticatedEntity::System, UpdateReason::EntityKeyExpired)
+                                        .update(
+                                            &mut api_key,
+                                            AuthenticatedEntity::System,
+                                            UpdateReason::EntityKeyExpired,
+                                        )
                                         .await;
                                 });
                             }
@@ -711,7 +723,11 @@ impl AuthenticatedEntity {
                         api_key.set_last_used(Some(Utc::now()));
                         tokio::spawn(async move {
                             let _ = service
-                                .update(&mut api_key, AuthenticatedEntity::System, UpdateReason::EntityKeyUsed)
+                                .update(
+                                    &mut api_key,
+                                    AuthenticatedEntity::System,
+                                    UpdateReason::EntityKeyUsed,
+                                )
                                 .await;
                         });
 

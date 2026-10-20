@@ -9,6 +9,10 @@ use crate::server::services::r#impl::endpoints::{Endpoint, EndpointResponse};
 use crate::server::services::r#impl::patterns::{MatchConfidence, MatchReason};
 use crate::server::services::r#impl::virtualization::ServiceVirtualization;
 use crate::server::shared::entities::ChangeTriggersTopologyStaleness;
+use crate::server::shared::events::{
+    log::{EntityLog, EventLog, changes_log},
+    types::{EventLogLevel, UpdateReason},
+};
 use crate::server::shared::position::Positioned;
 use crate::server::shared::storage::traits::Storable;
 use crate::server::shared::types::entities::EntitySource;
@@ -76,7 +80,20 @@ impl Default for ServiceBase {
     }
 }
 
-impl crate::server::shared::events::log::EntityLog for Service {}
+/// Container details naming the service as its own owner are another container's identity that
+/// leaked onto it: dropping them gets a WARN line, whether or not anything else changed.
+impl EntityLog for Service {
+    fn update_log(&self, before: &Self, id: Uuid, reason: &UpdateReason) -> EventLog {
+        let log = changes_log(before, self, id, reason, Self::LOG_IGNORED_PATHS);
+        match reason {
+            UpdateReason::ServiceContainerDetailsRejected => log.with_line(
+                EventLogLevel::Warn,
+                format!("Service {}: {}", self.base.name, reason.describe()),
+            ),
+            _ => log,
+        }
+    }
+}
 
 impl ChangeTriggersTopologyStaleness<Service> for Service {
     fn triggers_staleness(&self, other: Option<Service>) -> bool {

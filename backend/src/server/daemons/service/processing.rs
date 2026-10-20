@@ -605,10 +605,7 @@ impl DaemonService {
     /// deliberate trade: the scan record is written before the daemon is acknowledged, so a failure
     /// here is one the daemon sees and can retry, rather than a session silently lost after a
     /// successful ack.
-    pub async fn process_discovery_progress(
-        &self,
-        mut update: DiscoveryUpdatePayload,
-    ) {
+    pub async fn process_discovery_progress(&self, mut update: DiscoveryUpdatePayload) {
         if update.phase == DiscoveryPhase::Complete
             && update.discovery_type.rescan_target_host_ids().is_none()
         {
@@ -996,8 +993,7 @@ impl DaemonService {
                     {
                         limit_event_emitted = true;
                         billing_limit_reached = Some((ctx.limit, ctx.org_id));
-                        self
-                            .event_bus
+                        self.event_bus
                             .publish(Event::new(
                                 OrgScope {
                                     organization_id: ctx.org_id,
@@ -1049,8 +1045,7 @@ impl DaemonService {
                 )
                 .await
         {
-            self
-                .event_bus
+            self.event_bus
                 .publish(Event::new(
                     OrgScope {
                         organization_id: org.id,

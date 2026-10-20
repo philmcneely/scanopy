@@ -362,7 +362,11 @@ async fn a_dependency_with_a_missing_member_can_be_saved() {
     chain.base.name = "Renamed".to_string();
     services
         .dependency_service
-        .update(&mut chain, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut chain,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .expect("a missing member does not block a save");
 

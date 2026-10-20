@@ -9,7 +9,7 @@ impl ServiceService {
     pub async fn reassign_service_interface_bindings(
         &self,
         service: Service,
-        original_host: &Host,
+        _original_host: &Host,
         original_interfaces: &[IPAddress],
         original_ports: &[Port],
         updated_host: &Host,
@@ -37,13 +37,6 @@ impl ServiceService {
                 None
             }
         };
-
-        tracing::trace!(
-            "Preparing service {:?} for transfer from host {:?} to host {:?}",
-            service,
-            original_host,
-            updated_host
-        );
 
         let mut mutable_service = service.clone();
 
@@ -174,13 +167,6 @@ impl ServiceService {
         mutable_service.base.host_id = updated_host.id;
 
         mutable_service.base.site_id = updated_host.base.site_id;
-
-        tracing::trace!(
-            "Reassigned service {:?} bindings for from host {:?} to host {:?}",
-            mutable_service,
-            original_host,
-            updated_host
-        );
 
         mutable_service
     }

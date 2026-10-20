@@ -281,8 +281,7 @@ impl DiscoveryService {
         for warning in warnings {
             let scope = DiscoveryWarningScope::new(site_id, session_id, daemon_id, warning.clone());
             let code = warning.code();
-            self
-                .event_bus
+            self.event_bus
                 .publish(Event::new(scope, code, AuthenticatedEntity::System))
                 .await;
         }

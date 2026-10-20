@@ -190,7 +190,11 @@ async fn a_renewal_on_an_unchanged_plan_is_not_a_checkout() {
         state
             .services
             .organization_service
-            .update(&mut org, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+            .update(
+                &mut org,
+                AuthenticatedEntity::System,
+                UpdateReason::EntityRequested,
+            )
             .await
             .unwrap();
         let mut events = billing_events(&state);
@@ -263,7 +267,11 @@ async fn the_portal_cancel_pair_announces_the_cancellation_once() {
     state
         .services
         .organization_service
-        .update(&mut org, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut org,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
     let mut events = billing_events(&state);

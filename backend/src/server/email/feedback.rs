@@ -31,6 +31,7 @@ use sha2::Sha256;
 use x509_cert::Certificate;
 use x509_cert::der::{Decode, Encode};
 
+use crate::server::shared::events::types::UpdateReason;
 use crate::server::users::{r#impl::email_settings::EmailSettings, service::UserService};
 
 /// Signing certificates kept in memory. SNS signs with one certificate per
@@ -442,16 +443,13 @@ impl EmailFeedbackService {
                         tracing::info!("SES reported a complaint from an address with no account");
                         continue;
                     };
-                    let user_id = user.id;
-                    let changed = self
-                        .user_service
-                        .update_email_settings(user, EmailSettings::pause_all)
+                    self.user_service
+                        .update_email_settings(
+                            user,
+                            UpdateReason::UserEmailComplaintReceived,
+                            EmailSettings::pause_all,
+                        )
                         .await?;
-                    tracing::info!(
-                        %user_id,
-                        paused = changed,
-                        "SES reported a complaint; turned off every pausable email for the user"
-                    );
                 }
             }
             SesFeedback::Ignored => {}

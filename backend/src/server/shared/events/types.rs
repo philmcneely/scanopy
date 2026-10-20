@@ -112,6 +112,10 @@ pub enum AuthOperation {
         method: AuthMethod,
         /// `None` when an OIDC provider failed before naming an address, or named none.
         attempted_email: Option<EmailAddress>,
+        /// Why it failed, as the user was told. Log only: never serialized, so it reaches
+        /// neither the JSON line nor PostHog.
+        #[serde(skip)]
+        reason: String,
     },
     PasswordResetRequested {
         email_and_token: EmailAndToken,
@@ -343,11 +347,6 @@ pub enum UpdateReason {
     DaemonStandbyChanged,
     /// Discovery matched this host to an existing one, by `matched_by`.
     HostRediscovered { matched_by: HostMatchedBy },
-    /// Its bindings were deduplicated: specific-address bindings an all-addresses one covers,
-    /// or exact repeats.
-    ServiceBindingsDeduplicated,
-    /// Its bindings moved from `from_service_id`, whose ports it took.
-    ServiceBindingsReassigned { from_service_id: Uuid },
     /// Container details that named the service as its own owner were dropped.
     ServiceContainerDetailsRejected,
     /// It took the container details of the generic container service discovery found on its
@@ -379,8 +378,11 @@ pub enum UpdateReason {
     OrganizationDemoPopulated,
     /// A notification was sent, and recorded so it isn't sent again.
     OrganizationNotificationRecorded,
-    /// Its email preferences changed from an unsubscribe or a complaint.
-    UserEmailSettingsChanged,
+    /// It turned off one email category from an unsubscribe link. `category` is the category's
+    /// id, e.g. `discovery_digest`.
+    UserUnsubscribed { category: String },
+    /// SES reported a spam complaint from its address, so every pausable email was turned off.
+    UserEmailComplaintReceived,
     /// It was given a token for one-click unsubscribe links.
     UserUnsubscribeTokenIssued,
     /// It linked an OIDC account.
@@ -418,9 +420,15 @@ pub enum UpdateReason {
 #[serde(tag = "type")]
 pub enum HostMatchedBy {
     Mac,
-    IpAddress { ip: IpAddr },
-    VirtualRouterIp { ip: IpAddr },
-    ChassisId { chassis_id: String },
+    IpAddress {
+        ip: IpAddr,
+    },
+    VirtualRouterIp {
+        ip: IpAddr,
+    },
+    ChassisId {
+        chassis_id: String,
+    },
     /// The daemon reported the host's id.
     DaemonReportedId,
 }
@@ -470,10 +478,6 @@ impl UpdateReason {
                     "rediscovered, matched by the id the daemon reported".to_string()
                 }
             },
-            Self::ServiceBindingsDeduplicated => "its bindings were deduplicated".to_string(),
-            Self::ServiceBindingsReassigned { from_service_id } => {
-                format!("it took the bindings of service {from_service_id}")
-            }
             Self::ServiceContainerDetailsRejected => {
                 "container details naming it as its own owner were dropped".to_string()
             }
@@ -497,7 +501,12 @@ impl UpdateReason {
             Self::OrganizationOnboardingMilestone => "it reached a milestone".to_string(),
             Self::OrganizationDemoPopulated => "demo data was seeded".to_string(),
             Self::OrganizationNotificationRecorded => "a notification was recorded".to_string(),
-            Self::UserEmailSettingsChanged => "its email preferences changed".to_string(),
+            Self::UserUnsubscribed { category } => {
+                format!("it unsubscribed from {category} emails")
+            }
+            Self::UserEmailComplaintReceived => {
+                "SES reported a complaint, so its pausable emails were turned off".to_string()
+            }
             Self::UserUnsubscribeTokenIssued => "an unsubscribe token was issued".to_string(),
             Self::UserOidcLinked => "an OIDC account was linked".to_string(),
             Self::UserOidcUnlinked => "an OIDC account was unlinked".to_string(),
@@ -710,6 +719,9 @@ pub enum BillingOperation {
         plan: BillingPlan,
         duration_days: u32,
         resumes_at: DateTime<Utc>,
+        /// Log only.
+        #[serde(skip)]
+        subscription_id: String,
     },
     Resumed {
         was_early: bool,
@@ -737,6 +749,9 @@ pub enum BillingOperation {
         save_offer_shown: Vec<SaveOffer>,
         save_offer_redeemed: Option<SaveOffer>,
         planned_period_end: DateTime<Utc>,
+        /// Log only.
+        #[serde(skip)]
+        subscription_id: String,
     },
     /// User-provided cancellation reason/comment, captured on a follow-up
     /// Stripe webhook (Portal-with-reason flow) ~hundreds of ms after the
@@ -758,6 +773,9 @@ pub enum BillingOperation {
         trialing: bool,
         /// `sub.items.data[0].current_period_end` after the cancel was cleared.
         next_renewal_at: Option<DateTime<Utc>>,
+        /// Log only.
+        #[serde(skip)]
+        subscription_id: String,
     },
     /// Save-offer discount applied — applying it persists the
     /// percent + expiry so the eligibility gate (once per org) can read
@@ -898,6 +916,15 @@ impl BillingOperation {
             Self::LicenseKeyIssued { key_version, .. } => {
                 Some(format!("key version {key_version}"))
             }
+            Self::Paused {
+                subscription_id, ..
+            }
+            | Self::CancellationInitiated {
+                subscription_id, ..
+            }
+            | Self::Reactivated {
+                subscription_id, ..
+            } => Some(format!("subscription {subscription_id}")),
             _ => None,
         }
     }
@@ -1289,6 +1316,7 @@ mod tests {
             save_offer_shown: vec![],
             save_offer_redeemed: None,
             planned_period_end: DateTime::<Utc>::from_timestamp(1_700_000_000, 0).unwrap(),
+            subscription_id: String::new(),
         });
     }
 
@@ -1303,6 +1331,7 @@ mod tests {
             save_offer_shown: vec![],
             save_offer_redeemed: None,
             planned_period_end: DateTime::<Utc>::from_timestamp(1_700_000_000, 0).unwrap(),
+            subscription_id: String::new(),
         });
     }
 
@@ -1400,6 +1429,7 @@ mod tests {
         round_trip(BillingOperation::Reactivated {
             trialing: false,
             next_renewal_at: DateTime::<Utc>::from_timestamp(1_800_000_000, 0),
+            subscription_id: String::new(),
         });
     }
 
@@ -1435,6 +1465,7 @@ mod tests {
                 save_offer_shown: vec![],
                 save_offer_redeemed: None,
                 planned_period_end: DateTime::<Utc>::from_timestamp(1_700_000_000, 0).unwrap(),
+                subscription_id: String::new(),
             },
         ] {
             let mut json = serde_json::to_value(&op).expect("serialize");

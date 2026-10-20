@@ -389,7 +389,11 @@ async fn an_unknown_or_expired_verification_token_gets_a_coded_400() {
     state
         .services
         .user_service
-        .update(&mut expired, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut expired,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
     let err = auth
@@ -486,7 +490,11 @@ async fn completing_a_password_reset_verifies_the_address() {
     state
         .services
         .user_service
-        .update(&mut pending, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut pending,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
 

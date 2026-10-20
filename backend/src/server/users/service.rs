@@ -164,7 +164,7 @@ impl UserService {
             AuthenticatedEntity::System,
             UpdateReason::UserUnsubscribeTokenIssued,
         )
-            .await?;
+        .await?;
         Ok(token)
     }
 
@@ -173,17 +173,14 @@ impl UserService {
     pub async fn update_email_settings(
         &self,
         mut user: User,
+        reason: UpdateReason,
         change: impl FnOnce(&mut EmailSettings) -> bool + Send,
     ) -> Result<bool> {
         if !change(&mut user.base.email_settings) {
             return Ok(false);
         }
-        self.update(
-            &mut user,
-            AuthenticatedEntity::System,
-            UpdateReason::UserEmailSettingsChanged,
-        )
-        .await?;
+        self.update(&mut user, AuthenticatedEntity::System, reason)
+            .await?;
         Ok(true)
     }
 

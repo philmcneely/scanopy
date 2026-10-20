@@ -521,8 +521,7 @@ impl DiscoveryService {
                     )
                     .await
             {
-                self
-                    .event_bus
+                self.event_bus
                     .publish(Event::new(
                         OrgScope {
                             organization_id: site.base.organization_id,
