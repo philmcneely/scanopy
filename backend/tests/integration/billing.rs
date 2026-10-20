@@ -60,6 +60,7 @@ async fn test_billing_past_due_blocks_requests(ctx: &TestContext) -> Result<(), 
     set_plan_status(Some("past_due"))?;
 
     let subnet = Subnet::new(SubnetBase {
+        vlan_ids: Vec::new(),
         name: "Blocked Subnet".to_string(),
         description: None,
         site_id: ctx.site_id,
@@ -109,6 +110,7 @@ async fn test_billing_canceled_blocks_requests(ctx: &TestContext) -> Result<(), 
     println!("  ✓ canceled allows GET /api/v1/hosts (200)");
 
     let subnet = Subnet::new(SubnetBase {
+        vlan_ids: Vec::new(),
         name: "Lapsed Subnet".to_string(),
         description: None,
         site_id: ctx.site_id,

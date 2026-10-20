@@ -193,6 +193,7 @@ pub fn port(site_id: &Uuid, host_id: &Uuid) -> Port {
 
 pub fn subnet(site_id: &Uuid) -> Subnet {
     Subnet::new(SubnetBase {
+        vlan_ids: Vec::new(),
         name: "Test Subnet".to_string(),
         description: None,
         site_id: *site_id,

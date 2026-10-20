@@ -184,6 +184,7 @@ impl DaemonResponse for Subnet {
                     subnet_type: _,
                     virtualization_service_id: _,
                     source: _,
+                    vlan_ids: _,
                     tags: _,
                 },
         } = &instance;

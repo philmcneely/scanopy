@@ -18,20 +18,30 @@ use utoipa::ToSchema;
 /// The heading a field is listed under wherever fields are picked, such as a table's column
 /// menu. One vocabulary for every entity: a MAC address is `Network` on hosts and interfaces
 /// alike. Variant order is display order.
+///
+/// A field that points at other entities takes the first of these that fits:
+/// `Virtualization` when it says what virtualizes, contains or manages the entity; `Network`
+/// when the entities it reaches are addressing or connectivity (interfaces, IP addresses, ports,
+/// bindings, subnets, VLANs); `Relationships` otherwise. A host's services are
+/// `Relationships`: a service is what runs on the host, not how it is reached, and its ports
+/// already show as the host's `Network` ports.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash, ToSchema, EnumIter, IntoStaticStr)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldGroup {
-    /// Name, type, description, colour and icon.
+    /// Name, type, description, colour and icon, and identifiers unique to this one instance (a
+    /// serial number, an asset tag, a chassis ID).
     Identity,
     /// Values that address something on the network, even the entity's own key (a port number,
-    /// a CIDR, a VLAN number), and membership in VLANs and subnets.
+    /// a CIDR, a VLAN number), and the interfaces, IP addresses, ports, bindings, subnets and
+    /// VLANs it reaches.
     Network,
     /// Hardware and system facts read from the device.
     Device,
     /// What the entity runs under, or the virtual network it manages.
     Virtualization,
-    /// Other entities it belongs to or holds.
+    /// Other entities it belongs to or holds that are not network addressing or virtualization:
+    /// its host, services, site, daemon, user, tag group.
     Relationships,
     /// Current state and recent activity.
     Status,

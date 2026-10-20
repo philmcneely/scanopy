@@ -221,6 +221,9 @@ const SUBNET: &[F] = &[
         .metadata(Fx::SubnetTypes)
         .summary(),
     DESCRIPTION,
+    F::new("vlan_ids", "VLANs", G::Network)
+        .entity(&[Hop::parent(E::Vlan, "vlan_ids")])
+        .many(),
     F::new("managed_by", "Managed By", G::Virtualization)
         .entity(&[Hop::parent(E::Service, "virtualization_service_id")]),
     SOURCE,
@@ -333,7 +336,6 @@ const USER: &[F] = &[
         .summary(),
     F::new("email_verified", "Email Verified", G::Access).format(FieldFormat::Boolean),
     F::new("oidc_provider", "OIDC Provider", G::Access),
-    F::new("terms_accepted_at", "Terms Accepted", G::Access).format(TIMESTAMP),
 ];
 
 const SHARE: &[F] = &[

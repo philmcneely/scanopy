@@ -317,7 +317,6 @@ const DECISIONS: Record<string, TabDecisions> = {
 			expires_at: DATE,
 			updated_at: DATE,
 			oidc_linked_at: DATE,
-			terms_accepted_at: DATE,
 			email_verified: server('email_verified')
 		}
 	},
@@ -349,6 +348,10 @@ const DECISIONS: Record<string, TabDecisions> = {
 			description: TEXT,
 			source: server('sources'),
 			managed_by: server('managed_by'),
+			vlan_ids: {
+				...SHARED_ARRAY,
+				filter: 'The subnets list is paged on the server, which has no VLAN filter'
+			},
 			first_found_by: FOUND_BY,
 			last_found_by: FOUND_BY,
 			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } },

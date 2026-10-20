@@ -27,6 +27,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 1, 0), 24).unwrap(),
@@ -53,6 +54,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 10, 0), 24).unwrap(),
@@ -79,6 +81,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 20, 0), 24).unwrap(),
@@ -105,6 +108,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 40, 0), 24).unwrap(),
@@ -131,6 +135,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 30, 0), 24).unwrap(),
@@ -157,6 +162,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 17, 0, 0), 16).unwrap(),
@@ -183,6 +189,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 100, 0), 24).unwrap(),
@@ -214,6 +221,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 50, 0), 24).unwrap(),
@@ -244,6 +252,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 0, 0), 16).unwrap(),
@@ -271,6 +280,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 16, 0, 0), 24).unwrap(),
@@ -297,6 +307,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 16, 10, 0), 24).unwrap(),
@@ -323,6 +334,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 16, 20, 0), 24).unwrap(),
@@ -349,6 +361,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 16, 30, 0), 24).unwrap(),
@@ -375,6 +388,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 18, 0, 0), 16).unwrap(),
@@ -401,6 +415,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 8, 0, 0), 24).unwrap(),

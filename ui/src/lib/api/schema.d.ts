@@ -6404,7 +6404,8 @@ export interface components {
              *       "updated_at": "2026-01-15T10:30:00Z",
              *       "valid_from": "2026-01-15T10:30:00Z",
              *       "valid_to": null,
-             *       "virtualization_service_id": null
+             *       "virtualization_service_id": null,
+             *       "vlan_ids": []
              *     }
              */
             data?: components["schemas"]["SubnetBase"] & {
@@ -10254,6 +10255,13 @@ export interface components {
          * @description The heading a field is listed under wherever fields are picked, such as a table's column
          *     menu. One vocabulary for every entity: a MAC address is `Network` on hosts and interfaces
          *     alike. Variant order is display order.
+         *
+         *     A field that points at other entities takes the first of these that fits:
+         *     `Virtualization` when it says what virtualizes, contains or manages the entity; `Network`
+         *     when the entities it reaches are addressing or connectivity (interfaces, IP addresses, ports,
+         *     bindings, subnets, VLANs); `Relationships` otherwise. A host's services are
+         *     `Relationships`: a service is what runs on the host, not how it is reached, and its ports
+         *     already show as the host's `Network` ports.
          * @enum {string}
          */
         FieldGroup: "identity" | "network" | "device" | "virtualization" | "relationships" | "status" | "configuration" | "access" | "discovery" | "timestamps";
@@ -12213,7 +12221,7 @@ export interface components {
          * @description Fields the members list can be ordered and grouped by. Every one is derived in Rust.
          * @enum {string}
          */
-        MemberOrderField: "created_at" | "email" | "invite_status" | "permissions" | "oidc_provider" | "updated_at" | "invited_by" | "expires_at" | "email_verified" | "oidc_linked_at" | "terms_accepted_at";
+        MemberOrderField: "created_at" | "email" | "invite_status" | "permissions" | "oidc_provider" | "updated_at" | "invited_by" | "expires_at" | "email_verified" | "oidc_linked_at";
         /**
          * @description A member's place in the organization, as the status column shows it.
          * @enum {string}
@@ -14908,7 +14916,8 @@ export interface components {
          *       "updated_at": "2026-01-15T10:30:00Z",
          *       "valid_from": "2026-01-15T10:30:00Z",
          *       "valid_to": null,
-         *       "virtualization_service_id": null
+         *       "virtualization_service_id": null,
+         *       "vlan_ids": []
          *     }
          */
         Subnet: components["schemas"]["SubnetBase"] & {
@@ -14985,6 +14994,12 @@ export interface components {
              *     cannot be written at all.
              */
             virtualization_service_id: string | null;
+            /**
+             * @description VLANs associated with this subnet, through the `subnet_vlans` junction (the reverse of
+             *     `Vlan::subnet_ids`). Hydrated by `SubnetService` on read; it is not a column on `subnets`,
+             *     so anything sent here on create/update is ignored by `to_params`.
+             */
+            vlan_ids?: string[];
         };
         SubnetCidr: {
             /**
@@ -15982,11 +15997,6 @@ export interface components {
              *     own record (`/api/auth/me`, login, accept), false everywhere else.
              */
             readonly terms_acceptance_required?: boolean;
-            /**
-             * Format: date-time
-             * @description When the user accepted the terms of service.
-             */
-            readonly terms_accepted_at?: string | null;
         };
         /** @enum {string} */
         UserOrgPermissions: "Owner" | "Admin" | "Member" | "Viewer";
@@ -21017,11 +21027,6 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
-                /**
-                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
-                 *     several.
-                 */
-                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -21286,11 +21291,6 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
-                /**
-                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
-                 *     several.
-                 */
-                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -21403,11 +21403,6 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
-                /**
-                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
-                 *     several.
-                 */
-                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */
@@ -21520,11 +21515,6 @@ export interface operations {
                 sys_locations?: string[] | null;
                 /** @description Filter by operating system family. Repeat for several. */
                 os_families?: components["schemas"]["HostOsFamily"][] | null;
-                /**
-                 * @description Filter by the run state of the VM or container a host is, at the last scan. Repeat for
-                 *     several.
-                 */
-                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter to hosts assigned one of these credentials. Repeat for several. */
                 credential_ids?: string[] | null;
                 /** @description Filter by tag IDs (returns hosts that have ANY of the specified tags) */

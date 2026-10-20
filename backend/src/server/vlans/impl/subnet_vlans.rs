@@ -222,6 +222,28 @@ impl SubnetVlanStorage {
         Ok(result)
     }
 
+    /// Batch get: subnet ID → VLAN IDs for multiple subnets (live links only).
+    pub async fn get_for_subnets(&self, subnet_ids: &[Uuid]) -> Result<HashMap<Uuid, Vec<Uuid>>> {
+        if subnet_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let filter =
+            StorableFilter::<SubnetVlanRecord>::new_from_uuids_column("subnet_id", subnet_ids)
+                .live();
+        let records = self.storage.get_all(filter).await?;
+
+        let mut result: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
+        for record in records {
+            result
+                .entry(record.subnet_id())
+                .or_default()
+                .push(record.vlan_id());
+        }
+
+        Ok(result)
+    }
+
     /// Bulk-insert pre-built subnet↔VLAN links in a single INSERT, with no
     /// per-subnet lock or delete-first pass. For seed paths (demo populate) on a
     /// freshly reset org. Callers must pre-dedup on `(subnet_id, vlan_id)` (the

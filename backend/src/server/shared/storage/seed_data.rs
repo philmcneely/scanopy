@@ -42,6 +42,7 @@ pub fn create_site(organization_id: Uuid) -> Site {
 
 pub fn create_wan_subnet(site_id: Uuid) -> Subnet {
     let base = SubnetBase {
+        vlan_ids: Vec::new(),
         name: "Internet".to_string(),
         site_id,
         tags: Vec::new(),
@@ -246,6 +247,7 @@ pub fn create_starter_tags(organization_id: Uuid, groups: &[TagGroup]) -> Vec<Ta
 
 pub fn create_remote_subnet(site_id: Uuid) -> Subnet {
     let base = SubnetBase {
+        vlan_ids: Vec::new(),
         name: "Remote Network".to_string(),
         site_id,
         tags: Vec::new(),

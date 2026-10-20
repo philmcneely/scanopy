@@ -170,6 +170,7 @@ async fn test_cannot_create_subnet_on_other_site(
     println!("Testing: Cannot create subnet on inaccessible site...");
 
     let subnet = Subnet::new(SubnetBase {
+        vlan_ids: Vec::new(),
         name: "Unauthorized Subnet".to_string(),
         description: None,
         site_id: other_site_id, // Site user doesn't have access to

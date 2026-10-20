@@ -9794,21 +9794,6 @@
             }
           },
           {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
-              }
-            }
-          },
-          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -10434,21 +10419,6 @@
             }
           },
           {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
-              }
-            }
-          },
-          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -10841,21 +10811,6 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
-              }
-            }
-          },
-          {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -11261,21 +11216,6 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
-              }
-            }
-          },
-          {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -27213,7 +27153,8 @@
               "updated_at": "2026-01-15T10:30:00Z",
               "valid_from": "2026-01-15T10:30:00Z",
               "valid_to": null,
-              "virtualization_service_id": null
+              "virtualization_service_id": null,
+              "vlan_ids": []
             }
           },
           "error": {
@@ -36440,7 +36381,7 @@
       },
       "FieldGroup": {
         "type": "string",
-        "description": "The heading a field is listed under wherever fields are picked, such as a table's column\nmenu. One vocabulary for every entity: a MAC address is `Network` on hosts and interfaces\nalike. Variant order is display order.",
+        "description": "The heading a field is listed under wherever fields are picked, such as a table's column\nmenu. One vocabulary for every entity: a MAC address is `Network` on hosts and interfaces\nalike. Variant order is display order.\n\nA field that points at other entities takes the first of these that fits:\n`Virtualization` when it says what virtualizes, contains or manages the entity; `Network`\nwhen the entities it reaches are addressing or connectivity (interfaces, IP addresses, ports,\nbindings, subnets, VLANs); `Relationships` otherwise. A host's services are\n`Relationships`: a service is what runs on the host, not how it is reached, and its ports\nalready show as the host's `Network` ports.",
         "enum": [
           "identity",
           "network",
@@ -40489,8 +40430,7 @@
           "invited_by",
           "expires_at",
           "email_verified",
-          "oidc_linked_at",
-          "terms_accepted_at"
+          "oidc_linked_at"
         ]
       },
       "MemberStatus": {
@@ -46328,7 +46268,8 @@
           "updated_at": "2026-01-15T10:30:00Z",
           "valid_from": "2026-01-15T10:30:00Z",
           "valid_to": null,
-          "virtualization_service_id": null
+          "virtualization_service_id": null,
+          "vlan_ids": []
         }
       },
       "SubnetBase": {
@@ -46387,6 +46328,15 @@
                 ],
                 "format": "uuid",
                 "description": "The container runtime service that owns this bridge network.\n\nLoad-bearing for dedup: the same CIDR on two different Docker daemons is two distinct\nsubnets, so bridge rows only merge when this matches as well as the CIDR and site.\nA foreign key rather than a field inside a JSONB blob because a stale value here is\nprecisely what made a scan add a duplicate bridge row every time (GH #650) — now it\ncannot be written at all."
+              },
+              "vlan_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "readOnly": true
+                },
+                "description": "VLANs associated with this subnet, through the `subnet_vlans` junction (the reverse of\n`Vlan::subnet_ids`). Hydrated by `SubnetService` on read; it is not a column on `subnets`,\nso anything sent here on create/update is ignored by `to_params`."
               }
             }
           }
@@ -48317,15 +48267,6 @@
           "terms_acceptance_required": {
             "type": "boolean",
             "description": "Whether the user must accept the current terms before the API serves\ntheir session. Computed, never stored: set only on the signed-in user's\nown record (`/api/auth/me`, login, accept), false everywhere else.",
-            "readOnly": true
-          },
-          "terms_accepted_at": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time",
-            "description": "When the user accepted the terms of service.",
             "readOnly": true
           }
         }

@@ -177,6 +177,7 @@ pub fn subnet() -> Subnet {
         last_discovery_id: None,
         first_discovery_id: None,
         base: SubnetBase {
+            vlan_ids: Vec::new(),
             name: "LAN".to_string(),
             description: Some("Local area network".to_string()),
             site_id: ids::SITE,

@@ -236,6 +236,31 @@ impl ServiceFactory {
         let discovery_warning_service =
             Arc::new(DiscoveryWarningService::new(storage.pool.clone()));
 
+        // GH #701 multi-neighbour tables: no CrudService, so constructed straight from the pool
+        // rather than a StorageFactory field (see interface_neighbors/service.rs). Built before
+        // InterfaceService, which needs it to persist candidates on the discovery ingest path.
+        let interface_neighbor_service =
+            Arc::new(InterfaceNeighborService::new(storage.pool.clone()));
+
+        // InterfaceService needs IPAddressService for validation and InterfaceNeighborService to
+        // persist candidate evidence on discovery ingest.
+        let interface_service = Arc::new(InterfaceService::new(
+            storage.interfaces.clone(),
+            event_bus.clone(),
+            ip_address_service.clone(),
+            interface_neighbor_service.clone(),
+        ));
+
+        // VlanService reads each VLAN's serving interfaces through InterfaceService. Built before
+        // SubnetService, which reads each subnet's VLANs through it.
+        let vlan_service = Arc::new(VlanService::new(
+            storage.vlans.clone(),
+            event_bus.clone(),
+            entity_tag_service.clone(),
+            storage.subnet_vlan.clone(),
+            interface_service.clone(),
+        ));
+
         let subnet_service = Arc::new(SubnetService::new(
             storage.subnets.clone(),
             event_bus.clone(),
@@ -244,6 +269,7 @@ impl ServiceFactory {
             // depends on no service and is constructed above.
             ip_address_service.clone(),
             discovery_warning_service.clone(),
+            vlan_service.clone(),
         ));
 
         let site_service = Arc::new(SiteService::new(
@@ -266,30 +292,6 @@ impl ServiceFactory {
             event_bus.clone(),
             entity_tag_service.clone(),
             subnet_service.clone(),
-        ));
-
-        // GH #701 multi-neighbour tables: no CrudService, so constructed straight from the pool
-        // rather than a StorageFactory field (see interface_neighbors/service.rs). Built before
-        // InterfaceService, which needs it to persist candidates on the discovery ingest path.
-        let interface_neighbor_service =
-            Arc::new(InterfaceNeighborService::new(storage.pool.clone()));
-
-        // InterfaceService needs IPAddressService for validation and InterfaceNeighborService to
-        // persist candidate evidence on discovery ingest.
-        let interface_service = Arc::new(InterfaceService::new(
-            storage.interfaces.clone(),
-            event_bus.clone(),
-            ip_address_service.clone(),
-            interface_neighbor_service.clone(),
-        ));
-
-        // VlanService reads each VLAN's serving interfaces through InterfaceService.
-        let vlan_service = Arc::new(VlanService::new(
-            storage.vlans.clone(),
-            event_bus.clone(),
-            entity_tag_service.clone(),
-            storage.subnet_vlan.clone(),
-            interface_service.clone(),
         ));
 
         let credential_service = Arc::new(CredentialService::new(
