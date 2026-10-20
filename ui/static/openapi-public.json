@@ -42313,6 +42313,10 @@
               "null"
             ],
             "format": "date-time",
+          },
+          "view_mode": {
+            "$ref": "#/components/schemas/ViewMode",
+            "description": "How the viewer's element cards draw."
             "description": "When this record stops being valid."
           },
           "is_enabled": {
@@ -42355,13 +42359,9 @@
           "show_zoom_controls",
           "show_export_button",
           "show_minimap",
-          "icon_nodes"
+          "view_mode"
         ],
         "properties": {
-          "icon_nodes": {
-            "type": "boolean",
-            "description": "Viewer sees icon-first nodes: each card leads with its device icon and name."
-          },
           "show_export_button": {
             "type": "boolean",
             "description": "Viewer sees the export button."
@@ -44006,6 +44006,15 @@
             "description": "Edge types to leave out of the drawing, per view. A view with no entry hides the edge\ntypes that view hides by default. Unknown edge types and views are dropped on read rather\nthan failing the topology.",
             "default": {
               "Application": [
+          },
+          "view_mode": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ViewMode",
+                "description": "How element cards draw. Views where the mode does not apply draw `Detailed`."
+              }
+            ],
+            "default": "Detailed"
                 "ContainerRuntime"
               ],
               "L2Physical": [
@@ -44038,11 +44047,6 @@
                 "Application"
               ]
             }
-          },
-          "icon_nodes": {
-            "type": "boolean",
-            "description": "Lead each node with its device icon and name, leaving the rest to the inspector.",
-            "default": false
           },
           "no_fade_edges": {
             "type": "boolean",
@@ -45386,6 +45390,14 @@
             "type": "boolean",
             "description": "Whether the inspector offers the application picker."
           },
+      "ViewMode": {
+        "type": "string",
+        "description": "How element cards draw: every row of detail, or the host's device-role icon and a short label.",
+        "enum": [
+          "Detailed",
+          "Icons"
+        ]
+      },
           "show_service_network_detail": {
             "type": "boolean",
             "description": "Whether a service card shows the IP address and ports it is reached on. Application\ngroups services by what they do, not where they listen, so it leaves these out."

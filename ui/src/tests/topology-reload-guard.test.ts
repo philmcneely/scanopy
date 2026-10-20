@@ -12,7 +12,7 @@ function inputs(overrides: Partial<ReloadInputs> = {}): ReloadInputs {
 		expandedPorts: new Set(),
 		expandedInlineGroups: new Set(),
 		bundleEdges: false,
-		iconNodes: false,
+		viewMode: 'Detailed',
 		hiddenEdgeTypes: '',
 		tagHidden: new Set(),
 		hiddenEntities: new Set(),

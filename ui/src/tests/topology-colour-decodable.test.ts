@@ -111,7 +111,7 @@ function buildTopology(): RenderableTopology {
 	return {
 		id: 'topo',
 		site_id: SITE.id,
-		options: { request: { element_rules: [] }, local: { icon_nodes: false } },
+		options: { request: { element_rules: [] }, local: { view_mode: 'Detailed' } },
 		hosts,
 		subnets: [],
 		ip_addresses: ipAddresses,

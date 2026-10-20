@@ -14598,8 +14598,6 @@ export interface components {
         };
         /** @description Share display options */
         ShareOptions: {
-            /** @description Viewer sees icon-first nodes: each card leads with its device icon and name. */
-            icon_nodes: boolean;
             /** @description Viewer sees the export button. */
             show_export_button: boolean;
             /** @description Viewer can open the inspector for a selected element. */
@@ -14608,6 +14606,8 @@ export interface components {
             show_minimap: boolean;
             /** @description Viewer sees the zoom controls. */
             show_zoom_controls: boolean;
+            /** @description How the viewer's element cards draw. */
+            view_mode: components["schemas"]["ViewMode"];
         };
         ShareTopologyRequest: {
             /** @description Server-issued access token obtained from `/verify`. Required when the share has a password. */
@@ -15444,11 +15444,6 @@ export interface components {
                 [key: string]: components["schemas"]["EdgeTypeDiscriminants"][];
             };
             /**
-             * @description Lead each node with its device icon and name, leaving the rest to the inspector.
-             * @default false
-             */
-            icon_nodes: boolean;
-            /**
              * @description Keep unrelated edges at full opacity when something is selected.
              * @default false
              */
@@ -15465,6 +15460,8 @@ export interface components {
             tag_filter: {
                 [key: string]: components["schemas"]["TopologyTagFilter"];
             };
+            /** @default Detailed */
+            view_mode: components["schemas"]["ViewMode"];
         };
         TopologyOptions: {
             /** @description Settings applied in the viewer, which do not change what the server returns. */
@@ -16178,6 +16175,11 @@ export interface components {
             root_edges: boolean;
             root_order: components["schemas"]["ViewRootOrder"];
         };
+        /**
+         * @description How element cards draw: every row of detail, or the host's device-role icon and a short label.
+         * @enum {string}
+         */
+        ViewMode: "Detailed" | "Icons";
         /**
          * @description How root containers are ordered before layout.
          * @enum {string}

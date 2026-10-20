@@ -7,6 +7,9 @@
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import Checkbox from '$lib/shared/components/forms/input/Checkbox.svelte';
+	import SelectInput from '$lib/shared/components/forms/input/SelectInput.svelte';
+	import viewModesJson from '$lib/data/view-modes.json';
+	import { metaName, metaDescription } from '$lib/i18n/metadata';
 	import DateInput from '$lib/shared/components/forms/input/DateInput.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
@@ -60,7 +63,7 @@
 		shares_urlAvailableAfterSaveTitle,
 		shares_urlAvailableAfterSaveBody,
 		topology_showMinimap,
-		topology_iconNodes,
+		topology_viewMode,
 		common_details,
 		shares_enableShare
 	} from '$lib/paraglide/messages';
@@ -95,7 +98,14 @@
 	let showInspectPanelFieldName = $derived(`shares[${index}].show_inspect_panel`);
 	let showExportButtonFieldName = $derived(`shares[${index}].show_export_button`);
 	let showMinimapFieldName = $derived(`shares[${index}].show_minimap`);
-	let iconNodesFieldName = $derived(`shares[${index}].icon_nodes`);
+	let viewModeFieldName = $derived(`shares[${index}].view_mode`);
+	// Every mode, not one view's: a share opens on any of its views, and each falls back to
+	// `Detailed` where the chosen mode does not apply (`effectiveViewMode`).
+	const viewModeOptions = viewModesJson.map((mode) => ({
+		value: mode.id,
+		label: metaName('view_modes', mode.id, mode.name),
+		description: metaDescription('view_modes', mode.id, mode.description)
+	}));
 	let embedWidthFieldName = $derived(`shares[${index}].embed_width`);
 	let embedHeightFieldName = $derived(`shares[${index}].embed_height`);
 
@@ -321,9 +331,14 @@
 						<Checkbox label={topology_showMinimap()} id="show-minimap-{index}" {field} />
 					{/snippet}
 				</form.Field>
-				<form.Field name={iconNodesFieldName}>
+				<form.Field name={viewModeFieldName}>
 					{#snippet children(field: AnyFieldApi)}
-						<Checkbox label={topology_iconNodes()} id="icon-nodes-{index}" {field} />
+						<SelectInput
+							label={topology_viewMode()}
+							id="view-mode-{index}"
+							options={viewModeOptions}
+							{field}
+						/>
 					{/snippet}
 				</form.Field>
 			</div>

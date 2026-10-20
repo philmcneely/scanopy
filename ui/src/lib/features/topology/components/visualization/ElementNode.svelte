@@ -40,6 +40,7 @@
 		topology_openPortsSummary
 	} from '$lib/paraglide/messages';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { ChevronDown, ChevronRight } from 'lucide-svelte';
 	import { ELEMENT_HANDLE_SIZE_PX } from '../../pipeline/build-flow-nodes';
 	import { stateFill as markedStateFill, statusDot } from '../../element-marks';
@@ -142,7 +143,7 @@
 	// Staleness pill — computed with the rest of the card content because it
 	// renders in flow and therefore affects card height.
 	let staleTag = $derived(elementRender?.staleTag ?? null);
-	// Icon-first card (the `icon_nodes` option): a role glyph for a host-backed element, the
+	// Icon card (the `Icons` view mode): a role glyph for a host-backed element, the
 	// definition's logo for a service element.
 	let iconCard = $derived(elementRender?.iconCard ?? null);
 	let IconGlyph = $derived(
@@ -400,16 +401,19 @@
 			would make the graph reflow as you zoom.
 		-->
 		{#if !simplified && iconCard}
-			<!-- Icon-first card. The glyph comes first in DOM order: the diagram exports take each
+			<!-- Icon card. The glyph comes first in DOM order: the diagram exports take each
 			     node's first icon as its shape icon. -->
-			<div class="flex flex-col items-center gap-1.5 px-2 py-2" title={iconCard.title}>
+			<div
+				class="flex flex-col items-center gap-1.5 px-2 py-2"
+				use:tooltip
+				data-tooltip={iconCard.title}
+			>
 				<div class="relative flex h-12 w-12 items-center justify-center rounded-lg {iconTile.bg}">
 					<IconGlyph class="h-7 w-7 {iconTile.icon}" />
 					{#if BadgeIcon}
-						<div
-							class="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded bg-white shadow-sm"
-						>
-							<BadgeIcon class="h-3.5 w-3.5" />
+						<!-- No backdrop of its own: `LogoIcon` adds one when the definition asks for it. -->
+						<div class="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center">
+							<BadgeIcon class="h-4 w-4" />
 						</div>
 					{/if}
 				</div>
