@@ -31,7 +31,7 @@
 	} from '../../interactions';
 	import { toggleInlineGroup } from '../../collapse';
 	import * as sharedStores from '../../reactive-stores.svelte';
-	import { createColorHelper, createIconComponent } from '$lib/shared/utils/styling';
+	import { createColorHelper } from '$lib/shared/utils/styling';
 	import { getContext } from 'svelte';
 	import type { Port } from '$lib/features/hosts/types/base';
 	import type { Node, Edge } from '@xyflow/svelte';
@@ -415,10 +415,9 @@
 					{#if marks.Status}
 						<!-- A guest's run state, from the view's Status mark: a dot in the state's colour,
 						     centred on the tile's top-left corner, with nothing inside it. Hovering the card
-						     expands it rightwards to name the state with its icon; the width is capped to
+						     expands it rightwards to name the state; the width is capped to
 						     stay inside the card. The value is the filter chip's own. -->
 						{@const runState = marks.Status}
-						{@const RunStateIcon = createIconComponent(runState.icon ?? null)}
 						<span
 							class="absolute -left-2 -top-2 z-10 flex h-4 items-center rounded-full border border-gray-300 dark:border-gray-600"
 							style="background: var(--color-topology-node-bg);"
@@ -432,9 +431,6 @@
 							<span
 								class="text-primary flex max-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[72px] group-hover/icon-card:pr-2"
 							>
-								<RunStateIcon
-									class="h-3 w-3 flex-shrink-0 {createColorHelper(runState.color).icon}"
-								/>
 								{runState.label}
 							</span>
 						</span>

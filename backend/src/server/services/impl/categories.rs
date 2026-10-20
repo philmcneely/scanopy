@@ -445,6 +445,12 @@ impl HasFilterValues for Service {
                 HostVirtualizationState::Containerized.id().to_string(),
             );
         }
+        if let Some(virtualization) = &self.base.virtualization_metadata {
+            values.insert(
+                MetadataFilterType::GuestState,
+                virtualization.guest_state().id().to_string(),
+            );
+        }
         values
     }
 }

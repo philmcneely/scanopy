@@ -65,6 +65,14 @@ pub struct PodmanVirtualization {
 }
 
 impl ServiceVirtualization {
+    /// Whether the container was running at the last scan; every container runtime reports it.
+    pub fn guest_state(&self) -> GuestState {
+        match self {
+            Self::Docker(docker) => docker.state,
+            Self::Podman(podman) => podman.state,
+        }
+    }
+
     // The runtime service that owns this container is `Service::virtualization_service_id`, a
     // real foreign key, rather than a field inside each payload — see the note on
     // `HostVirtualization`.

@@ -336,7 +336,7 @@ pub enum MetadataFilterType {
     /// and zoomed-out fill show.
     OperStatus,
     /// Whether a guest (a Proxmox guest or a container host) was running at the last scan.
-    /// Declared on Host in Workloads, where it is the status dot on an icon card.
+    /// Declared on Host and Service in Workloads, where it is the status dot on an icon card.
     GuestState,
 }
 
@@ -816,7 +816,7 @@ impl TopologyView {
     /// colours each port's dot. Workloads colours a guest card's title by what kind of guest it
     /// is. L3 and Application colour no titles: neither declares a Host filter to explain one.
     fn element_marks(&self, config: &ViewElementConfig) -> Vec<ElementMark> {
-        use EntityDiscriminants::{Host, Interface};
+        use EntityDiscriminants::{Host, Interface, Service};
         use MarkChannel::*;
         use MetadataFilterType::{GuestState as GuestStateFilter, OperStatus, Staleness};
 
@@ -844,10 +844,15 @@ impl TopologyView {
                 status(StatusDot, IfOperStatus::LowerLayerDown),
             ])
             .collect(),
-            // A guest's run state, as a status dot on its icon card. A host with no run state (bare
-            // metal, a vCenter or ESXi guest, a network identity) is unmarked.
-            Self::Workloads => GuestState::iter()
-                .map(|g| ElementMark::new(Status, Host, GuestStateFilter, &g))
+            // A guest's run state, as a status dot on its icon card: a container's own (a bridge
+            // container is a Service card), then a guest host's. Service first, so a container card
+            // shows its own state over its host's. Anything with no run state (bare metal, a vCenter or
+            // ESXi guest, a network identity, a service not in a container) is unmarked.
+            Self::Workloads => [Service, Host]
+                .into_iter()
+                .flat_map(|entity| {
+                    GuestState::iter().map(move |g| ElementMark::new(Status, entity, GuestStateFilter, &g))
+                })
                 .chain(stale_fill)
                 .collect(),
             Self::L3Logical | Self::Application => stale_fill,
@@ -979,7 +984,7 @@ impl TopologyView {
                     },
                     MetadataFilter {
                         filter_type: MetadataFilterType::GuestState,
-                        entities: vec![EntityDiscriminants::Host],
+                        entities: vec![EntityDiscriminants::Host, EntityDiscriminants::Service],
                         label: "By guest state".to_string(),
                         values: filter_values_from_enum::<GuestState>(),
                         applies: FilterApplication::Client,

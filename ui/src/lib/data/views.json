@@ -802,6 +802,30 @@
         "element_marks": [
           {
             "channel": "Status",
+            "entity": "Service",
+            "filter_type": "GuestState",
+            "value": "Running"
+          },
+          {
+            "channel": "Status",
+            "entity": "Service",
+            "filter_type": "GuestState",
+            "value": "Paused"
+          },
+          {
+            "channel": "Status",
+            "entity": "Service",
+            "filter_type": "GuestState",
+            "value": "Restarting"
+          },
+          {
+            "channel": "Status",
+            "entity": "Service",
+            "filter_type": "GuestState",
+            "value": "Stopped"
+          },
+          {
+            "channel": "Status",
             "entity": "Host",
             "filter_type": "GuestState",
             "value": "Running"
@@ -1126,7 +1150,8 @@
           {
             "applies": "Client",
             "entities": [
-              "Host"
+              "Host",
+              "Service"
             ],
             "filter_type": "GuestState",
             "label": "By guest state",
