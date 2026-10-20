@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { collectionLookup } from '$lib/shared/entity-fields';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import type { CardAction } from '$lib/shared/components/data/types';
@@ -149,8 +150,12 @@
 		sort: { field: 'name', direction: 'asc' }
 	};
 
+	// The registry's key fields reach no related entity.
+	const lookup = collectionLookup({});
+
 	let apiKeyFields = $derived(
 		userApiKeyColumns({
+			lookup: () => lookup,
 			sites: () => sitesData,
 			tags: () => tagsData
 		})

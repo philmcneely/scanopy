@@ -107,7 +107,7 @@ describe('registry-backed table columns', () => {
 			() => collectionLookup({ Subnet: subnets, Interface: interfaces }),
 			{ name: { searchable: true } },
 			[{ key: 'description', display: { hiddenByDefault: false } }],
-			['source']
+			{ omit: ['source'] }
 		);
 
 	it('keeps the tab’s settings on listed columns and takes the rest from the registry', () => {
@@ -151,6 +151,23 @@ describe('registry-backed table columns', () => {
 			['Interface', 'if1']
 		]);
 		expect(items?.[0].label).toContain('Gi1/0/1');
+	});
+
+	it('reads values from the entity a row wraps when the tab names its root', () => {
+		type Wrapped = { data: { id: string; subnet_ids: string[] } };
+		const wrapped = defineRegistryFields<Wrapped, never>(
+			'Vlan',
+			() => collectionLookup({ Subnet: subnets }),
+			{} as Record<never, never>,
+			[],
+			{ root: (item) => item.data }
+		);
+		const subnetsColumn = wrapped.find((c) => getFieldKey(c) === 'subnet_ids')!;
+		const row = { data: { id: 'v1', subnet_ids: ['sn1'] } };
+		expect(subnetsColumn.getValue?.(row)).toEqual(['LAN']);
+		expect(subnetsColumn.display?.getItems?.(row)?.map((i) => i.entityRef?.entityId)).toEqual([
+			'sn1'
+		]);
 	});
 });
 

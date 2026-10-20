@@ -1,7 +1,8 @@
 import { credentialItems } from '$lib/features/credentials/columns';
 import { tagNames } from '$lib/features/tags/columns';
-import { defineFields, entityRef } from '$lib/shared/components/data/types';
-import { withColumnGroups } from '$lib/shared/entity-fields/table';
+import { entityRef } from '$lib/shared/components/data/types';
+import { defineRegistryFields } from '$lib/shared/entity-fields/table';
+import type { EntityLookup } from '$lib/shared/entity-fields';
 import type { components, operations } from '$lib/api/schema';
 import { fieldValueOptions, type FieldValueCount } from '$lib/shared/api/field-values';
 import { entities } from '$lib/shared/stores/metadata';
@@ -28,6 +29,8 @@ import {
 
 /** What the site columns read from the tab, each as a getter so values stay live. */
 export interface SiteColumnsContext {
+	/** Related entities the registry's site fields read; none beyond the site itself. */
+	lookup: () => EntityLookup;
 	tags: () => Tag[];
 	daemons: () => Daemon[];
 	/** The hosts the daemons run on, for each daemon chip's host name. */
@@ -81,7 +84,9 @@ function staleWindowLabel(value: string): string {
 
 /** Every SiteOrderField value is listed; the server sorts, groups and filters each. */
 export function siteColumns(ctx: SiteColumnsContext) {
-	const fields = defineFields<Site, SiteOrderField, SiteListParam>(
+	return defineRegistryFields<Site, SiteOrderField, SiteListParam>(
+		'Site',
+		ctx.lookup,
 		{
 			name: {
 				label: common_name(),
@@ -201,7 +206,9 @@ export function siteColumns(ctx: SiteColumnsContext) {
 						}))
 				}
 			}
-		]
+		],
+		// The table shows the window in effect, the site's own or the organization default, as
+		// `effective_stale_after_hours`.
+		{ omit: ['stale_after_hours'] }
 	);
-	return withColumnGroups('Site', fields);
 }

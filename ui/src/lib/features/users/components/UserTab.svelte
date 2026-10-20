@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { collectionLookup } from '$lib/shared/entity-fields';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { userColumns } from './UserTab.columns';
@@ -268,8 +269,12 @@
 		sort: { field: 'email', direction: 'asc' }
 	};
 
+	// The registry's user fields reach no related entity.
+	const lookup = collectionLookup({});
+
 	let userFields = $derived(
 		userColumns({
+			lookup: () => lookup,
 			members: () => membersData,
 			sites: () => sitesData,
 			inviteUrl: formatInviteUrl
