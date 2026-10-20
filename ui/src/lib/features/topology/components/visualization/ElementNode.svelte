@@ -418,10 +418,12 @@
 						{@const count = iconCard.badgeDefinitions.length}
 						{@const fanStep =
 							count > 1 ? Math.min(BADGE_PX + 2, (CARD_INNER_PX - BADGE_PX) / (count - 1)) : 0}
-						<span class="absolute -bottom-1 left-1/2 h-5 w-0">
+						<!-- Every badge is a flex box, off the text baseline: an <img> logo and an <svg> glyph sit on a
+						     baseline at different heights, which bent the fanned row into a descending curve. -->
+						<span class="absolute -bottom-1 left-1/2 flex h-5 w-0">
 							{#each iconCard.badgeDefinitions as definition, i (definition)}
 								<span
-									class="absolute top-0 left-[var(--stack-x)] transition-[left] duration-150 group-hover/icon-card:left-[var(--fan-x)]"
+									class="absolute top-0 flex leading-none left-[var(--stack-x)] transition-[left] duration-150 group-hover/icon-card:left-[var(--fan-x)]"
 									style="--stack-x: {4 + i * 6}px; --fan-x: {(i - (count - 1) / 2) * fanStep -
 										BADGE_PX / 2}px; z-index: {count - i};"
 								>

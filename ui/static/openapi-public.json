@@ -21430,9 +21430,9 @@
                 ],
                 "description": "Free-text notes about the host."
               },
-              "device_role": {
-                "$ref": "#/components/schemas/DeviceRole",
-                "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_role`] from its services, then its OS, as the topology computes it.\nRead-only."
+              "device_type": {
+                "$ref": "#/components/schemas/DeviceType",
+                "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only."
               },
               "display_name": {
                 "type": [
@@ -21766,7 +21766,7 @@
               "created_at": "2026-01-15T10:30:00Z",
               "credential_assignments": [],
               "description": "Primary web server",
-              "device_role": "Server",
+              "device_type": "Server",
               "display_name": "web-server-01",
               "display_name_rung": "Name",
               "firmware_revision": null,
@@ -29580,9 +29580,9 @@
           }
         }
       },
-      "DeviceRole": {
+      "DeviceType": {
         "type": "string",
-        "description": "What a host is, as a device: the class its icon stands for on the map.\n\nDeclaration order is precedence, highest first. A host whose services claim several roles takes\nthe first one here, so a firewall that also serves files reads as a firewall, and `Server`,\nwhich any application implies, never hides a more specific role.\n\n`Unidentified` means no evidence yet, not a device class outside this list: every class the\nevidence names gets its own variant.",
+        "description": "What a host is, as a device: the class its icon stands for on the map.\n\nDeclaration order is precedence, highest first. A host whose services claim several device types takes\nthe first one here, so a firewall that also serves files reads as a firewall, and `Server`,\nwhich any application implies, never hides a more specific device type.\n\n`Unidentified` means no evidence yet, not a device class outside this list: every class the\nevidence names gets its own variant.",
         "enum": [
           "Firewall",
           "Router",
@@ -34178,9 +34178,9 @@
             ],
             "description": "Free-text notes about the host."
           },
-          "device_role": {
-            "$ref": "#/components/schemas/DeviceRole",
-            "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_role`] from its services, then its OS, as the topology computes it.\nRead-only."
+          "device_type": {
+            "$ref": "#/components/schemas/DeviceType",
+            "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only."
           },
           "display_name": {
             "type": [
@@ -34514,7 +34514,7 @@
           "created_at": "2026-01-15T10:30:00Z",
           "credential_assignments": [],
           "description": "Primary web server",
-          "device_role": "Server",
+          "device_type": "Server",
           "display_name": "web-server-01",
           "display_name_rung": "Name",
           "firmware_revision": null,
@@ -38425,9 +38425,9 @@
                   ],
                   "description": "Free-text notes about the host."
                 },
-                "device_role": {
-                  "$ref": "#/components/schemas/DeviceRole",
-                  "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_role`] from its services, then its OS, as the topology computes it.\nRead-only."
+                "device_type": {
+                  "$ref": "#/components/schemas/DeviceType",
+                  "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only."
                 },
                 "display_name": {
                   "type": [
@@ -38761,7 +38761,7 @@
                 "created_at": "2026-01-15T10:30:00Z",
                 "credential_assignments": [],
                 "description": "Primary web server",
-                "device_role": "Server",
+                "device_type": "Server",
                 "display_name": "web-server-01",
                 "display_name_rung": "Name",
                 "firmware_revision": null,
@@ -43939,9 +43939,9 @@
           {
             "type": "object",
             "properties": {
-              "device_role": {
-                "$ref": "#/components/schemas/DeviceRole",
-                "description": "What this host is, as a device: the role its icon shows. See [`Host::device_role`]."
+              "device_type": {
+                "$ref": "#/components/schemas/DeviceType",
+                "description": "What this host is, as a device: the device type its icon shows. See [`Host::device_type`]."
               },
               "display_name": {
                 "type": [
