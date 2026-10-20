@@ -50,6 +50,9 @@
 	// A service badge's size, and the icon card's width inside its px-2 padding: the badge fan
 	// spreads within it.
 	const BADGE_PX = 20;
+	// The large device tile, whose bottom-right corner the stack's top badge overhangs by 4px, as a
+	// single badge always did; the rest peek out leftwards behind it.
+	const TILE_PX = 48;
 	const CARD_INNER_PX = ICON_ELEMENT_WIDTH_PX - 16;
 	import { stateFill as markedStateFill, statusDot } from '../../element-marks';
 
@@ -424,7 +427,7 @@
 							{#each iconCard.badgeDefinitions as definition, i (definition)}
 								<span
 									class="absolute left-[var(--stack-x)] top-0 flex leading-none transition-[left] duration-150 group-hover/icon-card:left-[var(--fan-x)]"
-									style="--stack-x: {4 + i * 6}px; --fan-x: {(i - (count - 1) / 2) * fanStep -
+									style="--stack-x: {TILE_PX / 2 + 4 - BADGE_PX - i * 6}px; --fan-x: {(i - (count - 1) / 2) * fanStep -
 										BADGE_PX / 2}px; z-index: {count - i};"
 								>
 									<SoftwareGlyph {definition} />
