@@ -19,6 +19,7 @@ function field(path: EntityField['path'], value: string | null, many = false): E
 	return {
 		id: 'f',
 		label: 'F',
+		group: 'identity',
 		path,
 		field: value,
 		format: { type: 'Text' },

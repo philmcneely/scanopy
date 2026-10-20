@@ -15,6 +15,7 @@ import { formatBitsPerSecond, formatPort, formatTimestamp } from '$lib/shared/ut
 import { hostOsLabel } from '$lib/features/hosts/host-os';
 import type { Port } from '$lib/features/hosts/types/base';
 import type { AttributeSource } from '$lib/shared/utils/attribute-source';
+import type { FieldGroup } from '$lib/shared/components/data/types';
 
 export type EntityField = components['schemas']['EntityField'];
 export type FieldFormat = components['schemas']['FieldFormat'];
@@ -159,6 +160,18 @@ export function fieldText(field: EntityField, root: object, lookup: EntityLookup
 /** The registry fields of an entity type. */
 export function entityFields(type: EntityType): EntityField[] {
 	return entities.getMetadata(type).fields ?? [];
+}
+
+/**
+ * The column-menu group of a list-table column: its registry field's, else the one the backend
+ * declares for the table's own column. `undefined` for a key neither declares.
+ */
+export function columnGroup(type: EntityType, key: string): FieldGroup | undefined {
+	const metadata = entities.getMetadata(type);
+	return (
+		metadata.fields?.find((field) => field.id === key)?.group ??
+		metadata.table_columns?.find((column) => column.id === key)?.group
+	);
 }
 
 /** The registry fields of an edge type, read from the edge's own data. */

@@ -469,6 +469,10 @@ impl TypeMetadataProvider for EntityDiscriminants {
         );
         m.insert("fields".to_string(), serde_json::json!(self.fields()));
         m.insert(
+            "table_columns".to_string(),
+            serde_json::json!(self.table_columns()),
+        );
+        m.insert(
             "display_fields".to_string(),
             serde_json::json!(self.display_fields()),
         );

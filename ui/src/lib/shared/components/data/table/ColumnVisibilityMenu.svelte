@@ -18,6 +18,7 @@
 		common_shortcutsPausedInSearch
 	} from '$lib/paraglide/messages';
 	import { isShiftShortcut, shiftShortcutLabel } from '$lib/shared/utils/shortcuts';
+	import { fieldGroups } from '$lib/shared/stores/metadata';
 	import { isFreeKeydown, useListShortcuts } from '../controls/listShortcuts';
 
 	let {
@@ -25,6 +26,7 @@
 		order,
 		visibility,
 		onToggle,
+		onToggleGroup,
 		onReorder,
 		onReset
 	}: {
@@ -33,6 +35,8 @@
 		order: string[];
 		visibility: Record<string, boolean>;
 		onToggle: (id: string) => void;
+		/** Show or hide every column under one heading. */
+		onToggleGroup: (ids: string[], visible: boolean) => void;
 		onReorder: (order: string[]) => void;
 		onReset: () => void;
 	} = $props();
@@ -229,12 +233,25 @@
 					{common_resetColumns()}
 				</button>
 			</div>
-			{#each sections as { section, columns: sectionColumns } (section)}
+			{#each sections as { group, columns: sectionColumns } (group)}
 				{@const movable = movableIds(order, sectionColumns)}
-				{#if section}
-					<div class="text-tertiary mb-1 mt-3 px-1 text-xs font-semibold uppercase tracking-wide">
-						{section}
-					</div>
+				{#if group}
+					{@const ids = sectionColumns.map((column) => column.id)}
+					{@const shown = ids.filter((id) => visibility[id] !== false).length}
+					<!-- Checked when every column under the heading shows; a click shows them all, or
+						hides them all once they all show. -->
+					<label
+						class="text-tertiary mb-1 mt-3 flex cursor-pointer items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide"
+					>
+						<input
+							type="checkbox"
+							checked={shown === ids.length}
+							indeterminate={shown > 0 && shown < ids.length}
+							onchange={() => onToggleGroup(ids, shown < ids.length)}
+							class="checkbox-card ml-5 h-3.5 w-3.5 rounded"
+						/>
+						{fieldGroups.getName(group)}
+					</label>
 				{/if}
 				<ul class="space-y-0.5">
 					{#each sectionColumns as column (column.id)}

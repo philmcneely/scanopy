@@ -1,4 +1,5 @@
 import { defineFields } from '$lib/shared/components/data/types';
+import { withColumnGroups } from '$lib/shared/entity-fields/table';
 import { siteItems } from '$lib/features/sites/columns';
 import type { components, operations } from '$lib/api/schema';
 import type { FieldValueCount } from '$lib/shared/api/field-values';
@@ -35,7 +36,7 @@ export interface ApiKeyColumnsContext {
 
 /** Every DaemonApiKeyOrderField value is listed; the server sorts, groups and filters each. */
 export function apiKeyColumns(ctx: ApiKeyColumnsContext) {
-	return defineFields<ApiKey, DaemonApiKeyOrderField, DaemonApiKeyListParam>(
+	const fields = defineFields<ApiKey, DaemonApiKeyOrderField, DaemonApiKeyListParam>(
 		{
 			name: {
 				label: common_name(),
@@ -113,4 +114,5 @@ export function apiKeyColumns(ctx: ApiKeyColumnsContext) {
 			}
 		]
 	);
+	return withColumnGroups('DaemonApiKey', fields);
 }

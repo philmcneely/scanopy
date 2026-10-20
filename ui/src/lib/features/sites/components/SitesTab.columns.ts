@@ -1,6 +1,7 @@
 import { credentialItems } from '$lib/features/credentials/columns';
 import { tagNames } from '$lib/features/tags/columns';
 import { defineFields, entityRef } from '$lib/shared/components/data/types';
+import { withColumnGroups } from '$lib/shared/entity-fields/table';
 import type { components, operations } from '$lib/api/schema';
 import { fieldValueOptions, type FieldValueCount } from '$lib/shared/api/field-values';
 import { entities } from '$lib/shared/stores/metadata';
@@ -80,7 +81,7 @@ function staleWindowLabel(value: string): string {
 
 /** Every SiteOrderField value is listed; the server sorts, groups and filters each. */
 export function siteColumns(ctx: SiteColumnsContext) {
-	return defineFields<Site, SiteOrderField, SiteListParam>(
+	const fields = defineFields<Site, SiteOrderField, SiteListParam>(
 		{
 			name: {
 				label: common_name(),
@@ -202,4 +203,5 @@ export function siteColumns(ctx: SiteColumnsContext) {
 			}
 		]
 	);
+	return withColumnGroups('Site', fields);
 }

@@ -1,4 +1,4 @@
-use crate::server::shared::types::entity_field::{EntityField, Hop, MetadataFixture};
+use crate::server::shared::types::entity_field::{EntityField, FieldGroup, Hop, MetadataFixture};
 use crate::server::{
     dependencies::r#impl::types::DependencyTypeDiscriminants,
     shared::{
@@ -546,53 +546,71 @@ impl TypeMetadataProvider for EdgeType {
 
 use EntityDiscriminants as E;
 
-const DEPENDENCY_FIELDS: &[EntityField] = &[EntityField::new("dependency_id", "Dependency")
-    .entity(&[Hop::parent(E::Dependency, "dependency_id")])
-    .summary()];
-const SAME_HOST_FIELDS: &[EntityField] = &[EntityField::new("host_id", "Host")
-    .entity(&[Hop::parent(E::Host, "host_id")])
-    .summary()];
-const HYPERVISOR_FIELDS: &[EntityField] =
-    &[EntityField::new("hypervisor_service_id", "Hypervisor")
-        .entity(&[Hop::parent(E::Service, "hypervisor_service_id")])
-        .summary()];
-const NETWORK_IDENTITY_FIELDS: &[EntityField] =
+const DEPENDENCY_FIELDS: &[EntityField] =
     &[
-        EntityField::new("identities_service_id", "Identity Service")
-            .entity(&[Hop::parent(E::Service, "identities_service_id")])
+        EntityField::new("dependency_id", "Dependency", FieldGroup::Relationships)
+            .entity(&[Hop::parent(E::Dependency, "dependency_id")])
             .summary(),
     ];
+const SAME_HOST_FIELDS: &[EntityField] =
+    &[
+        EntityField::new("host_id", "Host", FieldGroup::Relationships)
+            .entity(&[Hop::parent(E::Host, "host_id")])
+            .summary(),
+    ];
+const HYPERVISOR_FIELDS: &[EntityField] = &[EntityField::new(
+    "hypervisor_service_id",
+    "Hypervisor",
+    FieldGroup::Virtualization,
+)
+.entity(&[Hop::parent(E::Service, "hypervisor_service_id")])
+.summary()];
+const NETWORK_IDENTITY_FIELDS: &[EntityField] = &[EntityField::new(
+    "identities_service_id",
+    "Identity Service",
+    FieldGroup::Relationships,
+)
+.entity(&[Hop::parent(E::Service, "identities_service_id")])
+.summary()];
 const CONTAINER_RUNTIME_FIELDS: &[EntityField] = &[
-    EntityField::new("host_id", "Host").entity(&[Hop::parent(E::Host, "host_id")]),
-    EntityField::new("service_id", "Runtime")
+    EntityField::new("host_id", "Host", FieldGroup::Relationships)
+        .entity(&[Hop::parent(E::Host, "host_id")]),
+    EntityField::new("service_id", "Runtime", FieldGroup::Virtualization)
         .entity(&[Hop::parent(E::Service, "service_id")])
         .summary(),
-    EntityField::new("containerized_service_ids", "Containers")
-        .entity(&[Hop::parent(E::Service, "containerized_service_ids")])
-        .many(),
-    EntityField::new("subnet_ids", "Bridge Subnets")
+    EntityField::new(
+        "containerized_service_ids",
+        "Containers",
+        FieldGroup::Virtualization,
+    )
+    .entity(&[Hop::parent(E::Service, "containerized_service_ids")])
+    .many(),
+    EntityField::new("subnet_ids", "Bridge Subnets", FieldGroup::Network)
         .entity(&[Hop::parent(E::Subnet, "subnet_ids")])
         .many(),
 ];
-const SAME_CONTAINER_FIELDS: &[EntityField] = &[EntityField::new("service_id", "Service")
-    .entity(&[Hop::parent(E::Service, "service_id")])
-    .summary()];
-const PROTOCOL: EntityField =
-    EntityField::new("protocol", "Protocol").metadata(MetadataFixture::DiscoveryProtocols);
+const SAME_CONTAINER_FIELDS: &[EntityField] =
+    &[
+        EntityField::new("service_id", "Service", FieldGroup::Relationships)
+            .entity(&[Hop::parent(E::Service, "service_id")])
+            .summary(),
+    ];
+const PROTOCOL: EntityField = EntityField::new("protocol", "Protocol", FieldGroup::Network)
+    .metadata(MetadataFixture::DiscoveryProtocols);
 const PHYSICAL_LINK_FIELDS: &[EntityField] = &[
-    EntityField::new("source_entity_id", "From Interface")
+    EntityField::new("source_entity_id", "From Interface", FieldGroup::Network)
         .entity(&[Hop::parent(E::Interface, "source_entity_id")])
         .summary(),
-    EntityField::new("target_entity_id", "To Interface")
+    EntityField::new("target_entity_id", "To Interface", FieldGroup::Network)
         .entity(&[Hop::parent(E::Interface, "target_entity_id")])
         .summary(),
     PROTOCOL,
 ];
 const NEIGHBOR_LINK_FIELDS: &[EntityField] = &[
-    EntityField::new("source_host_id", "From Host")
+    EntityField::new("source_host_id", "From Host", FieldGroup::Relationships)
         .entity(&[Hop::parent(E::Host, "source_host_id")])
         .summary(),
-    EntityField::new("target_host_id", "To Host")
+    EntityField::new("target_host_id", "To Host", FieldGroup::Relationships)
         .entity(&[Hop::parent(E::Host, "target_host_id")])
         .summary(),
     PROTOCOL,
