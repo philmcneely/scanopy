@@ -30,7 +30,7 @@ impl ServiceDefinition for Gateway {
                         .service_params
                         .matched_services
                         .iter()
-                        .any(|s| !s.base.service_definition.is_gateway())
+                        .any(|s| s.base.service_definition.is_gateway())
                 },
                 |_| Vec::new(),
                 "No other gateway services matched",

@@ -821,3 +821,41 @@ fn an_unbrowsed_host_is_distinguished_from_one_that_did_not_answer() {
          without this service"
     );
 }
+
+/// A routing-table gateway is a Gateway even when a DHCP or DNS server matched on it first. Those
+/// are generic definitions sorted ahead of Gateway, and a gateway nearly always runs one. Only a
+/// gateway-specific definition (an Eero, a Fios router) already matched displaces the generic one.
+#[test]
+fn a_gateway_running_dhcp_still_matches_the_generic_gateway() {
+    let service = |id: &str| Service {
+        base: crate::server::services::r#impl::base::ServiceBase {
+            service_definition: ServiceDefinitionRegistry::find_by_id(id).expect("definition"),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let mut ctx = TestContext::new();
+    ctx.gateway_ips = vec![ctx.ip_address.base.ip_address];
+    ctx.pi = ServiceDefinitionRegistry::find_by_id("Gateway").expect("Gateway");
+    let pattern = ctx.pi.discovery_pattern();
+    let ports = vec![];
+
+    ctx.matched_services = vec![service("DHCP Server"), service("DNS Server")];
+    let baseline = ctx.create_baseline_params(&ports);
+    assert!(
+        pattern
+            .matches(&ctx.create_params_with_ports(&baseline, &ports))
+            .is_ok(),
+        "DHCP and DNS on the gateway must not block the Gateway match"
+    );
+
+    ctx.matched_services = vec![service("Eero Gateway")];
+    let baseline = ctx.create_baseline_params(&ports);
+    assert!(
+        pattern
+            .matches(&ctx.create_params_with_ports(&baseline, &ports))
+            .is_err(),
+        "a gateway-specific definition already matched displaces the generic Gateway"
+    );
+}
