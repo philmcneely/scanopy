@@ -108,10 +108,7 @@ impl DaemonService {
 #[async_trait]
 impl Subscriber<DiscoveryPhase> for DaemonService {
     fn filter(&self) -> EventFilter<DiscoveryPhase> {
-        EventFilter::ops(vec![
-            DiscoveryPhaseDiscriminants::Started,
-            DiscoveryPhaseDiscriminants::Cancelled,
-        ])
+        EventFilter::ops(vec![DiscoveryPhaseDiscriminants::Cancelled])
     }
 
     async fn handle(&self, events: Vec<Event<DiscoveryPhase>>) -> Result<(), anyhow::Error> {
@@ -120,13 +117,6 @@ impl Subscriber<DiscoveryPhase> for DaemonService {
             let session_id = event.scope.session_id;
 
             match event.operation {
-                DiscoveryPhase::Started => {
-                    tracing::debug!(
-                        daemon_id = %daemon_id,
-                        session_id = %session_id,
-                        "Discovery session queued — will dispatch when daemon reports ready"
-                    );
-                }
                 DiscoveryPhase::Cancelled => {
                     let delivery = self.deliver_cancellation(daemon_id, session_id).await;
                     match &delivery {
@@ -153,19 +143,13 @@ impl Subscriber<DiscoveryPhase> for DaemonService {
                         // coming. Should the daemon turn out to be alive and report one later,
                         // the session's tombstone ignores it.
                         CancelDelivery::Undeliverable(_) | CancelDelivery::Failed(_) => {
-                            tracing::warn!(
-                                daemon_id = %daemon_id,
-                                session_id = %session_id,
-                                delivery = delivery.outcome(),
-                                detail = delivery.detail(),
-                                "Cancellation could not be passed to the daemon; failing the session"
-                            );
                             self.discovery_service
                                 .fail_session(
                                     session_id,
                                     DiscoveryTerminalReason::DaemonUnreachable,
                                     format!(
-                                        "Cancellation could not reach the daemon: {}",
+                                        "Cancellation could not reach the daemon ({}): {}",
+                                        delivery.outcome(),
                                         delivery.detail().unwrap_or_default()
                                     ),
                                 )

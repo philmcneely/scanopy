@@ -423,7 +423,7 @@ async fn handle_login_flow(
 
     // Login user
     match oidc_service
-        .login(slug, code, pending_auth, ip, user_agent)
+        .login(slug, code, pending_auth, ip, user_agent.clone())
         .await
     {
         Ok(user) => {
@@ -488,6 +488,13 @@ async fn handle_login_flow(
                     return_url,
                     urlencoding::encode(&format!("Failed to create session: {}", e))
                 )));
+            }
+
+            if let Err(e) = oidc_service
+                .publish_login_success(&user, slug, false, ip, user_agent)
+                .await
+            {
+                tracing::error!(error = %e, "Failed to publish the OIDC login event");
             }
 
             Ok(Redirect::to(&format!(
@@ -573,7 +580,7 @@ async fn handle_register_flow(
                 provision_org: provision_org.clone(),
                 permissions,
                 ip,
-                user_agent,
+                user_agent: user_agent.clone(),
                 site_ids,
                 invited_as,
             },
@@ -587,9 +594,9 @@ async fn handle_register_flow(
         .await
     {
         Ok(result) => {
-            let user = match result {
-                OidcRegisterResult::NewUser(user) => user,
-                OidcRegisterResult::ExistingUser(user) => user,
+            let (user, signed_in_existing) = match result {
+                OidcRegisterResult::NewUser(user) => (user, false),
+                OidcRegisterResult::ExistingUser(user) => (user, true),
                 OidcRegisterResult::EmailAlreadyExists => {
                     return Err(ErrorRedirect::to(&format!(
                         "{}?error={}&error_code=user_email_in_use",
@@ -623,6 +630,14 @@ async fn handle_register_flow(
                     return_url,
                     urlencoding::encode(&format!("Failed to create session: {}", e))
                 )));
+            }
+
+            if signed_in_existing
+                && let Err(e) = oidc_service
+                    .publish_login_success(&user, slug, true, ip, user_agent)
+                    .await
+            {
+                tracing::error!(error = %e, "Failed to publish the OIDC login event");
             }
 
             // If this is a new org, provision the integrated daemon on the site

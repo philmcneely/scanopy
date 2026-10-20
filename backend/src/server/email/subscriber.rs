@@ -675,6 +675,7 @@ impl Subscriber<OnboardingOperation> for EmailService {
             if let OnboardingOperation::FirstDaemonRegistered {
                 daemon_name,
                 site_name,
+                ..
             } = &event.operation
             {
                 self.send_discovery_guide_for_org(org_id, daemon_name, site_name)

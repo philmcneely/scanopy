@@ -187,15 +187,6 @@ impl DaemonService {
             }
         };
 
-        tracing::info!(
-            daemon_id = %created_daemon.id,
-            site_id = %site_id,
-            user_id = %user_id,
-            mode = ?created_daemon.base.mode,
-            reprovisioned = request.daemon_id.is_some(),
-            "Daemon provisioned"
-        );
-
         Ok((created_daemon, plaintext))
     }
 

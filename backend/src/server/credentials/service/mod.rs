@@ -924,14 +924,6 @@ pub(crate) fn retain_daemon_compatible(
     mappings.retain(|credential_id, typed| {
         let compatible = typed.discriminant.compatible_with_daemon(daemon_version);
         if !compatible {
-            tracing::warn!(
-                %credential_id,
-                credential_type = %typed.discriminant.display_name(),
-                minimum_daemon_version = %typed.discriminant.minimum_daemon_version(),
-                daemon_version = daemon_version.map(|v| v.to_string()).unwrap_or_else(|| "unknown".to_string()),
-                "Not dispatching a credential this daemon is too old to use; upgrade the daemon \
-                 or the credential will keep being skipped on its scans"
-            );
             withheld.push(DiscoveryWarning::CredentialDaemonTooOld {
                 integration: typed
                     .discriminant

@@ -251,12 +251,6 @@ impl BillingService {
         .await
         .map_err(|e| anyhow!("Stripe rejected pause-credit balance transaction: {e}"))?;
 
-        tracing::info!(
-            subscription_id = %sub.id,
-            credit_cents,
-            "Applied pause credit to customer balance"
-        );
-
         Ok(Some(credit_cents))
     }
 
@@ -665,14 +659,6 @@ impl BillingService {
                 anyhow!("Stripe rejected the discount: {e}")
             })?;
 
-        tracing::info!(
-            organization_id = %organization_id,
-            subscription_id = %updated.id,
-            discounts_count = updated.discounts.len(),
-            first_discount_id = ?updated.discounts.first().map(|d| d.id()),
-            "Stripe accepted discount apply"
-        );
-
         // Look up the coupon to read percent_off + duration_in_months so the
         // DiscountApplied event carries the live values. This lets the
         // BillingTab chip render the actual percent (not a hard-coded one)
@@ -701,6 +687,12 @@ impl BillingService {
                     BillingOperation::DiscountApplied {
                         percent_off,
                         expires_at,
+                        subscription_id: updated.id.to_string(),
+                        discount_ids: updated
+                            .discounts
+                            .iter()
+                            .map(|d| d.id().to_string())
+                            .collect(),
                     },
                     authentication,
                 )],
@@ -785,6 +777,7 @@ impl BillingService {
             plan,
             resumed_through,
             subscription,
+            invoice_id,
         }) = resume
         {
             events.push(Event::new(
@@ -795,6 +788,8 @@ impl BillingService {
                     plan,
                     resumed_through,
                     next_renewal_at: next_renewal_from_subscription(&subscription),
+                    subscription_id: subscription.id.to_string(),
+                    invoice_id,
                 },
                 AuthenticatedEntity::System,
             ));
@@ -864,6 +859,7 @@ impl BillingService {
                     plan,
                     resumed_through,
                     subscription: existing,
+                    invoice_id: snapshot.stripe_invoice_id.to_string(),
                 }));
             }
             tracing::debug!(
@@ -880,17 +876,11 @@ impl BillingService {
             .resume_license_subscription(organization, plan, resumed_through, idempotency_key)
             .await?;
 
-        tracing::info!(
-            organization_id = %organization.id,
-            invoice_id = %snapshot.stripe_invoice_id,
-            subscription_id = %subscription.id,
-            resumed_through = %resumed_through,
-            "Resumed a lapsed licence: the written-off invoice was settled"
-        );
         Ok(Some(LicenseResume {
             plan,
             resumed_through,
             subscription,
+            invoice_id: snapshot.stripe_invoice_id.to_string(),
         }))
     }
 }
@@ -900,4 +890,6 @@ struct LicenseResume {
     plan: BillingPlan,
     resumed_through: DateTime<Utc>,
     subscription: Subscription,
+    /// The written-off invoice that was settled.
+    invoice_id: String,
 }

@@ -106,6 +106,7 @@ impl DaemonApiKey {
             && self.base.expires_at == other.base.expires_at
             && self.base.site_id == other.base.site_id
             && self.base.is_enabled == other.base.is_enabled
+            && self.base.daemon_id == other.base.daemon_id
     }
 }
 

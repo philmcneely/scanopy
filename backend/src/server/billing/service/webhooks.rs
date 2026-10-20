@@ -509,7 +509,8 @@ impl BillingService {
         {
             let resumed_at = chrono::DateTime::<Utc>::from_timestamp(event_created, 0)
                 .ok_or_else(|| anyhow!("Invalid event timestamp {event_created}"))?;
-            self.apply_pause_credit_if_due(&sub, &organization, resumed_at)
+            let pause_credit_cents = self
+                .apply_pause_credit_if_due(&sub, &organization, resumed_at)
                 .await
                 .map_err(|e| {
                     e.context(format!(
@@ -522,7 +523,11 @@ impl BillingService {
                 OrgScope {
                     organization_id: org_id,
                 },
-                BillingOperation::Resumed { was_early: false },
+                BillingOperation::Resumed {
+                    was_early: false,
+                    subscription_id: sub.id.to_string(),
+                    pause_credit_cents,
+                },
                 owner.clone().into(),
             ));
         }
@@ -675,12 +680,6 @@ impl BillingService {
             );
             return Ok(());
         };
-
-        tracing::info!(
-            organization_id = %org_id,
-            has_payment_method = organization.base.has_payment_method,
-            "Trial ending soon"
-        );
 
         // Publish TrialWillEnd event for email automation
         let owners = self

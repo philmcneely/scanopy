@@ -90,15 +90,6 @@ impl HostService {
                 }
             };
 
-            tracing::info!(
-                site_id = %site_id,
-                cidr = %range.cidr,
-                subnet_id = %created.id,
-                addresses = range.far_ends.len(),
-                widened_by_vlan = range.widened_by_vlan,
-                "Inferred a subnet from far-end addresses"
-            );
-
             observed.found_subnet_ids.push(created.id);
             for addressed in &range.far_ends {
                 placements.insert(addressed.far_end.chassis_id.clone(), created.id);

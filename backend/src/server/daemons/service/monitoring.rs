@@ -52,10 +52,6 @@ impl DaemonService {
                 daemon.base.standby = true;
                 self.update(&mut daemon, AuthenticatedEntity::System)
                     .await?;
-                tracing::info!(
-                    daemon_id = %daemon.id,
-                    "Set daemon to standby (inactive for 30+ days)"
-                );
 
                 // Send notification emails if email service is available
                 if let Some(email_service) = email_service

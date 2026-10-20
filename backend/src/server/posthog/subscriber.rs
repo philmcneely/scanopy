@@ -580,6 +580,7 @@ mod tests {
                         &owner,
                         BillingOperation::LicenseKeyIssued {
                             plan: Some(get_commercial_self_hosted_plan()),
+                            key_version: 1,
                         },
                     ),
                     organization_id,
@@ -606,6 +607,7 @@ mod tests {
                         organization_id,
                         &system,
                         OnboardingOperation::FirstDaemonRegistered {
+                            daemon_id: Uuid::new_v4(),
                             daemon_name: "edge".to_string(),
                             site_name: "HQ".to_string(),
                         },
@@ -648,6 +650,8 @@ mod tests {
                             discovery_type: DiscoveryType::default(),
                             error_reason: None,
                             reason: None,
+                            last_update_at: None,
+                            previous_phase: None,
                         },
                         DiscoveryPhase::Complete,
                         AuthenticatedEntity::System,
@@ -722,6 +726,7 @@ mod tests {
 
         let operation = BillingOperation::LicenseKeyIssued {
             plan: Some(get_commercial_self_hosted_plan()),
+            key_version: 1,
         };
         let metadata = serde_json::to_value(&operation).expect("serializes");
         assert_eq!(
@@ -740,7 +745,10 @@ mod tests {
         user.base.organization_id = organization_id;
         let event = Event::new(
             OrgScope { organization_id },
-            BillingOperation::LicenseKeyIssued { plan: None },
+            BillingOperation::LicenseKeyIssued {
+                plan: None,
+                key_version: 1,
+            },
             user.clone().into(),
         );
 

@@ -804,6 +804,5 @@ async fn cancel_discovery(
         .cancel_session(session_id, auth.into_entity())
         .await?;
 
-    tracing::info!("Discovery session was {} cancelled", session_id);
     Ok(Json(ApiResponse::success(())))
 }

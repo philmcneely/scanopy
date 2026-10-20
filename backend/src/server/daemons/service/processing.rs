@@ -92,15 +92,8 @@ impl DaemonService {
         reported: Option<DaemonOs>,
     ) -> Result<(), ApiError> {
         match daemon.base.accept_reported_os(reported) {
-            Ok(ReportedOsOutcome::Unchanged) => Ok(()),
-            Ok(ReportedOsOutcome::Recorded) => {
-                tracing::info!(
-                    daemon_id = %daemon.id,
-                    os = ?daemon.base.os,
-                    "Recorded the OS a daemon reported"
-                );
-                Ok(())
-            }
+            // The caller's update logs the recorded OS.
+            Ok(ReportedOsOutcome::Unchanged | ReportedOsOutcome::Recorded) => Ok(()),
             Ok(ReportedOsOutcome::Adopted { picked }) => {
                 tracing::info!(
                     daemon_id = %daemon.id,
@@ -204,11 +197,6 @@ impl DaemonService {
         if daemon.base.standby {
             daemon.base.standby = false;
             daemon.base.standby_cleared_at = Some(Utc::now());
-            tracing::info!(
-                daemon_id = %daemon_id,
-                "Cleared daemon standby on restart ({}-day grace granted)",
-                STANDBY_GRACE_PERIOD_DAYS
-            );
         }
 
         self.update(&mut daemon, auth).await?;
@@ -1272,14 +1260,6 @@ impl DaemonService {
             return Ok(());
         }
 
-        tracing::info!(
-            daemon_id = %daemon_id,
-            site_id = %site_id,
-            host_id = %host_id,
-            is_free_plan,
-            "Creating default discovery jobs for daemon"
-        );
-
         // Free plans use AdHoc (run once immediately), paid plans use Scheduled
         let default_run_type = if is_free_plan {
             RunType::AdHoc { last_run: None }
@@ -1460,18 +1440,13 @@ impl DaemonService {
                 .map(|d| d.base.name.clone())
                 .unwrap_or_else(|| "your daemon".to_string());
 
-            tracing::info!(
-                daemon_id = %daemon_id,
-                organization_id = %org.id,
-                "Emitting FirstDaemonRegistered telemetry on first contact"
-            );
-
             self.event_bus
                 .publish(Event::new(
                     OrgScope {
                         organization_id: org.id,
                     },
                     OnboardingOperation::FirstDaemonRegistered {
+                        daemon_id,
                         daemon_name: daemon_name.to_string(),
                         site_name: site.base.name.clone(),
                     },

@@ -453,11 +453,6 @@ impl HostService {
                 self.ip_address_service
                     .update(&mut transferred, authentication.clone())
                     .await?;
-                tracing::debug!(
-                    ip_address_id = %other_iface.id,
-                    ip = %other_iface.base.ip_address,
-                    "Transferred ip_address to destination host"
-                );
                 // Map to itself (ID unchanged, just host_id changed)
                 interface_id_map.insert(other_iface.id, other_iface.id);
             }
@@ -492,11 +487,6 @@ impl HostService {
                 self.port_service
                     .update(&mut transferred, authentication.clone())
                     .await?;
-                tracing::debug!(
-                    port_id = %other_port.id,
-                    port = %other_config.number,
-                    "Transferred port to destination host"
-                );
                 // Map to itself (ID unchanged, just host_id changed)
                 port_id_map.insert(other_port.id, other_port.id);
             }
@@ -812,16 +802,6 @@ impl HostService {
         // cascade). Inner variant: this task already holds Host(other_host.id).
         self.delete_host_inner(&other_host.id, authentication, reason)
             .await?;
-
-        tracing::info!(
-            source_host_id = %other_host.id,
-            source_host_name = %other_host.base.name,
-            dest_host_id = %updated_host.id,
-            dest_host_name = %updated_host.base.name,
-            ip_addresses_mapped = %interface_id_map.len(),
-            ports_mapped = %port_id_map.len(),
-            "Hosts consolidated"
-        );
 
         crate::server::shared::storage::lock::release_all(lock_guards).await?;
 

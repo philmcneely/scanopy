@@ -31,12 +31,21 @@ impl Operation for BillingOperation {
     type Scope = OrgScope;
     type Flags = EventFlags;
     type Filter = EventFilter<BillingOperation>;
+    /// `Error` for an invoice Stripe could not finalize: nothing was sent, and the customer gets
+    /// no licence period until someone fixes the billing details.
     fn log_level(&self) -> EventLogLevel {
-        EventLogLevel::Info
+        match self {
+            BillingOperation::InvoiceFinalizationFailed { .. } => EventLogLevel::Error,
+            _ => EventLogLevel::Info,
+        }
     }
 
     fn event_name(&self, _scope: &OrgScope) -> Cow<'static, str> {
         self.to_string().into()
+    }
+
+    fn log_detail(&self, _scope: &OrgScope) -> Option<String> {
+        self.describe_log_only_fields()
     }
 }
 
@@ -135,6 +144,19 @@ impl Operation for EntityOperation {
             EntityOperation::Updated => LabelColor::Blue,
             EntityOperation::Deleted { .. } => LabelColor::Red,
             EntityOperation::Get | EntityOperation::GetAll => LabelColor::Neutral,
+        }
+    }
+
+    /// For a delete, what went and why.
+    fn log_detail(&self, scope: &EntityScope) -> Option<String> {
+        match self {
+            EntityOperation::Deleted { reason } => Some(format!(
+                "{} {} deleted: {}",
+                scope.entity_discriminant(),
+                scope.entity_id(),
+                reason.describe()
+            )),
+            _ => None,
         }
     }
 
@@ -340,6 +362,8 @@ pub(crate) mod tests {
                         discovery_type: DiscoveryType::default(),
                         error_reason: None,
                         reason: None,
+                        last_update_at: None,
+                        previous_phase: None,
                     },
                     DiscoveryPhase::Complete,
                     system(),
@@ -459,6 +483,8 @@ pub(crate) mod tests {
             discovery_type: DiscoveryType::default(),
             error_reason: None,
             reason: None,
+            last_update_at: None,
+            previous_phase: None,
         };
         let names: std::collections::HashSet<_> = DiscoveryPhase::iter()
             .map(|phase| phase.event_name(&scope))

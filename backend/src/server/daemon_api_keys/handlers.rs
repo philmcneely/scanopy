@@ -197,13 +197,6 @@ pub async fn create_daemon_api_key(
         .ok_or_else(ApiError::organization_required)?;
     let user_id = auth.user_id();
 
-    tracing::debug!(
-        api_key_name = %api_key.base.name,
-        site_id = %api_key.base.site_id,
-        user_id = ?user_id,
-        "Daemon API key create request received"
-    );
-
     validate_site_access(Some(api_key.base.site_id), &site_ids, "create")?;
 
     let (plaintext, hashed) = generate_api_key_for_storage(ApiKeyType::Daemon);

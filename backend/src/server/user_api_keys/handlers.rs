@@ -228,13 +228,6 @@ pub async fn create_user_api_key(
     let user_site_ids = auth.site_ids();
     let entity = auth.entity.clone();
 
-    tracing::debug!(
-        api_key_name = %api_key.base.name,
-        permissions = %api_key.base.permissions,
-        user_id = %user_id,
-        "User API key create request received"
-    );
-
     // Validate permissions don't exceed user's permissions
     UserApiKeyService::validate_permissions(api_key.base.permissions, user_permissions)
         .map_err(|_| ApiError::permission_denied())?;

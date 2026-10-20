@@ -3,6 +3,7 @@
 //! Emits one line per event: a `log_label` field (e.g. `subnet_created`) plus a
 //! `log_color` ANSI code, with the event rendered as JSON via
 //! `Display for Event<Op>` as the message, at the event's declared `log_level`.
+//! An operation with a `log_detail` gets a second, readable line at the same level.
 //! The `logging::format::LabelFields` formatter turns those into a color-coded
 //! `<label>: <json>` line. Honours `flags.suppress_logs` to keep noisy
 //! emissions out of the logs.
@@ -56,12 +57,13 @@ fn log_event<Op: Operation>(event: &Event<Op>, suppress: bool) {
     if suppress {
         return;
     }
-    log_at_level(
-        event.operation.log_level(),
-        &event.log_label(),
-        event.operation.log_color().ansi_code(),
-        event,
-    );
+    let level = event.operation.log_level();
+    let label = event.log_label();
+    let color = event.operation.log_color().ansi_code();
+    log_at_level(level, &label, color, event);
+    if let Some(detail) = event.operation.log_detail(&event.scope) {
+        log_at_level(level, &label, color, detail);
+    }
 }
 
 #[async_trait]
@@ -139,21 +141,9 @@ impl Subscriber<EntityOperation> for LoggingService {
         EntityEventFilter::all()
     }
 
-    /// The event as JSON, and for a delete a line a person can read: what went and why.
     async fn handle(&self, events: Vec<Event<EntityOperation>>) -> Result<(), Error> {
         for event in events {
             log_event(&event, event.flags.suppress_logs);
-            if let EntityOperation::Deleted { reason } = &event.operation
-                && !event.flags.suppress_logs
-            {
-                tracing::info!(
-                    target: "events",
-                    "{} {} deleted: {}",
-                    event.scope.entity_discriminant(),
-                    event.scope.entity_id(),
-                    reason.describe()
-                );
-            }
         }
         Ok(())
     }
@@ -239,3 +229,126 @@ inventory::submit!(SubscriberRegistration::new::<
     LoggingService,
     DependencyMemberChange,
 >());
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use tracing::{Level, field::Field};
+    use tracing_subscriber::{Registry, layer::Context, layer::SubscriberExt};
+    use uuid::Uuid;
+
+    use super::*;
+    use crate::server::{
+        auth::middleware::auth::AuthenticatedEntity,
+        billing::plans::get_free_plan,
+        shared::{
+            entities::Entity,
+            events::{
+                traits::{EntityScope, OrgScope},
+                types::DeletionReason,
+            },
+        },
+    };
+
+    /// Every line the subscriber writes, as its level and message.
+    #[derive(Clone, Default)]
+    struct Captured(Arc<Mutex<Vec<(Level, String)>>>);
+
+    struct Message(String);
+
+    impl tracing::field::Visit for Message {
+        fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
+            if field.name() == "message" {
+                self.0 = format!("{value:?}");
+            }
+        }
+    }
+
+    impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for Captured {
+        fn on_event(&self, event: &tracing::Event<'_>, _ctx: Context<'_, S>) {
+            let mut message = Message(String::new());
+            event.record(&mut message);
+            self.0
+                .lock()
+                .unwrap()
+                .push((*event.metadata().level(), message.0));
+        }
+    }
+
+    fn lines_for<Op: Operation>(event: &Event<Op>) -> Vec<(Level, String)> {
+        let captured = Captured::default();
+        let subscriber = Registry::default().with(captured.clone());
+        tracing::subscriber::with_default(subscriber, || log_event(event, false));
+        captured.0.lock().unwrap().clone()
+    }
+
+    /// A delete gets a second line, at the event's level, naming the entity and why it went.
+    #[test]
+    fn a_delete_is_logged_with_a_line_saying_why() {
+        let entity_id = Uuid::new_v4();
+        let destination = Uuid::new_v4();
+        let event = Event::new(
+            EntityScope::Site {
+                site_id: Uuid::new_v4(),
+                entity_id,
+                entity_type: Entity::Host(Default::default()),
+            },
+            EntityOperation::Deleted {
+                reason: DeletionReason::MergedInto {
+                    host_id: destination,
+                    proven_by: vec!["10.0.0.7".parse().unwrap()],
+                },
+            },
+            AuthenticatedEntity::System,
+        );
+
+        let lines = lines_for(&event);
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        let (level, detail) = &lines[1];
+        assert_eq!(*level, Level::INFO);
+        for fact in [
+            entity_id.to_string(),
+            destination.to_string(),
+            "10.0.0.7".to_string(),
+        ] {
+            assert!(detail.contains(&fact), "{detail}");
+        }
+    }
+
+    /// Stripe ids kept off a billing event's JSON still reach the log, on the readable line.
+    #[test]
+    fn log_only_billing_fields_reach_the_log_and_not_the_json() {
+        let event = Event::new(
+            OrgScope {
+                organization_id: Uuid::new_v4(),
+            },
+            BillingOperation::CheckoutStarted {
+                plan: get_free_plan(),
+                has_trial: false,
+                stripe_id: "cs_test_log_only".to_string(),
+                subscription_status: None,
+            },
+            AuthenticatedEntity::System,
+        );
+
+        let lines = lines_for(&event);
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert!(!lines[0].1.contains("cs_test_log_only"), "{}", lines[0].1);
+        assert_eq!(lines[1].0, Level::INFO);
+        assert!(lines[1].1.contains("cs_test_log_only"), "{}", lines[1].1);
+    }
+
+    /// An event without a readable detail writes its JSON line only.
+    #[test]
+    fn an_event_without_detail_writes_one_line() {
+        let event = Event::new(
+            OrgScope {
+                organization_id: Uuid::new_v4(),
+            },
+            BillingOperation::PaymentMethodAdded,
+            AuthenticatedEntity::System,
+        );
+        assert_eq!(lines_for(&event).len(), 1);
+    }
+}

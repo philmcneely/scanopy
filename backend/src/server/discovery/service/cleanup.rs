@@ -196,18 +196,22 @@ impl DiscoveryService {
 
     /// The storage and event work for reaped sessions. Runs with no session lock held.
     async fn finish_reaped(&self, reaped: Vec<state::ReapedSession>, now: chrono::DateTime<Utc>) {
-        for state::ReapedSession { session, promoted } in reaped {
+        for state::ReapedSession {
+            session,
+            promoted,
+            previous_phase,
+        } in reaped
+        {
             let daemon_id = session.daemon_id;
             let site_id = session.site_id;
             super::dispatch::record_session_duration(&session);
 
-            // The one event a stall produces: `Failed`, carrying why. Metrics and analytics used
-            // to see a stall as a user's cancel.
-            if let Err(e) = self
-                .event_bus()
-                .publish(session.into_discovery_event())
-                .await
-            {
+            // The one event a stall produces: `Failed`, carrying why, the phase it stalled in and
+            // when the daemon was last heard from. Metrics and analytics used to see a stall as a
+            // user's cancel.
+            let mut event = session.into_discovery_event();
+            event.scope.previous_phase = Some(previous_phase);
+            if let Err(e) = self.event_bus().publish(event).await {
                 tracing::error!(
                     session_id = %session.session_id,
                     error = %e,

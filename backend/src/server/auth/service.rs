@@ -477,7 +477,7 @@ impl AuthService {
                         },
                         AuthOperation::LoginFailed {
                             method: AuthMethod::Password,
-                            attempted_email: request.email.clone(),
+                            attempted_email: Some(request.email.clone()),
                         },
                         AuthenticatedEntity::Anonymous,
                     ))
