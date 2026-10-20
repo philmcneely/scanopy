@@ -217,14 +217,14 @@
 	let serviceDefId = $derived(
 		(data as Record<string, unknown>)?.associated_service_definition as string | undefined
 	);
-	// A container standing for a device (a host) draws its role tile in place of its icon. The rule is
+	// A container standing for a device (a host) draws its device-type tile in place of its icon. The rule is
 	// the entity type's `glyph` metadata, the same one element cards follow.
 	let containerGlyph = $derived(
 		topology && containerSubject
 			? entityGlyph(containerSubject.entityType, containerSubject.entity, topology)
 			: null
 	);
-	let deviceRole = $derived(containerGlyph?.type === 'device' ? containerGlyph.role : null);
+	let deviceType = $derived(containerGlyph?.type === 'device' ? containerGlyph.deviceType : null);
 	let colorHelper: ColorStyle = $derived(
 		nodeColor
 			? createColorHelper(nodeColor as Parameters<typeof createColorHelper>[0])
@@ -460,7 +460,7 @@
 			{headerText}
 			{iconComponent}
 			logoDefinition={serviceDefId ?? null}
-			{deviceRole}
+			{deviceType}
 			{fillIcon}
 			{colorHelper}
 			{groupLabels}
@@ -480,7 +480,7 @@
 			{headerText}
 			{iconComponent}
 			logoDefinition={serviceDefId ?? null}
-			{deviceRole}
+			{deviceType}
 			{fillIcon}
 			{colorHelper}
 			{groupLabels}
@@ -519,7 +519,7 @@
 				{headerText}
 				{iconComponent}
 				logoDefinition={serviceDefId ?? null}
-				{deviceRole}
+				{deviceType}
 				{fillIcon}
 				{colorHelper}
 				{groupLabels}
@@ -538,7 +538,7 @@
 				{headerText}
 				{iconComponent}
 				logoDefinition={serviceDefId ?? null}
-				{deviceRole}
+				{deviceType}
 				{fillIcon}
 				{colorHelper}
 				{groupLabels}

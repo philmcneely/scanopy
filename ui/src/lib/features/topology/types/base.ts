@@ -22,7 +22,7 @@ export type Vlan = components['schemas']['Vlan'];
  * (`filter_values`, read through `filterValueOf`).
  */
 export type TopologyHost = Host &
-	Pick<components['schemas']['TopologyHost'], 'filter_values' | 'device_role'>;
+	Pick<components['schemas']['TopologyHost'], 'filter_values' | 'device_type'>;
 export type TopologyService = components['schemas']['TopologyService'];
 export type TopologyInterface = components['schemas']['TopologyInterface'];
 

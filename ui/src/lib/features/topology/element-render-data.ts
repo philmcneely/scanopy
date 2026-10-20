@@ -33,7 +33,7 @@ import { entityGlyph, type EntityGlyph } from './entity-glyph';
 import { elementMarks, type ElementMarks } from './element-marks';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 import { getTopologyIndex } from './entity-index';
-import { deviceRoles, entities, serviceDefinitions, views } from '$lib/shared/stores/metadata';
+import { deviceTypes, entities, serviceDefinitions, views } from '$lib/shared/stores/metadata';
 import { getFreshnessTag } from '$lib/shared/utils/freshness';
 import { formatInterfaceSpeed } from '$lib/shared/utils/formatting';
 import type { Site } from '$lib/features/sites/types';
@@ -43,6 +43,14 @@ import { effectiveViewMode } from './view-mode';
 import { hiddenEntityIds } from './interactions';
 import { expandedInlineGroups, inlineGroupKey } from './collapse';
 import { queryClient, queryKeys } from '$lib/api/query-client';
+import {
+	common_host,
+	common_ipAddress,
+	common_labeledValue,
+	common_service,
+	common_services,
+	hosts_deviceType
+} from '$lib/paraglide/messages';
 
 type InlineGroup = components['schemas']['InlineGroup'];
 
@@ -72,7 +80,7 @@ export interface ElementRenderResult {
 	/** The colours the view paints on this card, each decoded by one of its filter values. */
 	marks: ElementMarks;
 	/**
-	 * What the element is, drawn in both view modes: a device's role tile or software's logo, by
+	 * What the element is, drawn in both view modes: a device's device-type tile or software's logo, by
 	 * its entity type's `glyph` metadata. Null for an element type that has none (a port).
 	 */
 	glyph: EntityGlyph | null;
@@ -91,13 +99,13 @@ export interface ElementIconCard {
 	glyph: EntityGlyph;
 	/**
 	 * Definition whose logo badges a device glyph: a service running on what the card stands for,
-	 * the one that decided the role when it is among them.
+	 * the one that decided the device type when it is among them.
 	 */
 	badgeDefinition: string | null;
 	/** How many more services run there beyond the badge's, drawn as "+N". */
 	badgeMore: number;
 	label: string;
-	/** Hover text: the label, then each line the card no longer shows. */
+	/** Hover text: labelled rows for what the card no longer shows, then its services. */
 	title: string;
 }
 
@@ -200,6 +208,23 @@ export function buildElementRender(inputs: ElementRenderInputs): ElementRenderRe
 }
 
 /**
+ * An icon card's hover text: one labelled row per value present ("IP Address: 10.0.1.1"), then a
+ * headed list. Plain text with line breaks, which the shared tooltip action keeps.
+ */
+function tooltipText(
+	rows: [label: string, value: string | null | undefined][],
+	list?: { header: string; items: string[] }
+): string {
+	const lines = rows
+		.filter(([, value]) => value)
+		.map(([label, value]) => common_labeledValue({ label, value: value as string }));
+	if (list && list.items.length > 0) {
+		lines.push('', list.header, ...list.items.map((item) => `• ${item}`));
+	}
+	return lines.join('\n');
+}
+
+/**
  * The icon card for an element with a glyph, or null for one with nothing resolved, which keeps
  * the detailed card. Software is labelled with its name; a device with its address on an address
  * card, so two addresses on one host stay apart, and with its host's name otherwise.
@@ -220,22 +245,25 @@ function buildIconCard(
 			badgeDefinition: null,
 			badgeMore: 0,
 			label: service.name,
-			title: [service.name, host ? hostDisplayName(host) : null].filter(Boolean).join('\n')
+			title: tooltipText([
+				[common_service(), service.name],
+				[common_host(), host ? hostDisplayName(host) : null]
+			])
 		};
 	}
 
 	if (!host) return null;
-	const role = glyph.role;
+	const deviceType = glyph.deviceType;
 	// The badge is what runs on the thing the card stands for: the services bound to an address,
 	// or a host's own services, the same list the detailed card draws. The service that decided
-	// the device role leads when it is among them, so the badge agrees with the glyph.
+	// the device type leads when it is among them, so the badge agrees with the glyph.
 	const meta = (s: Service) =>
 		serviceDefinitions.getMetadata(s.service_definition) as {
-			device_role?: string | null;
+			device_type?: string | null;
 			has_logo?: boolean;
 		} | null;
 	const withLogo = data.services.filter((s) => meta(s)?.has_logo);
-	const badge = withLogo.find((s) => meta(s)?.device_role === role) ?? withLogo[0];
+	const badge = withLogo.find((s) => meta(s)?.device_type === deviceType) ?? withLogo[0];
 	const hostName = data.headerText ?? hostDisplayName(host);
 	// The container subnet's placeholder address names nothing, so that card keeps the host name.
 	const address = data.subtitleText ? resolved.ipAddress?.ip_address : null;
@@ -244,14 +272,14 @@ function buildIconCard(
 		badgeDefinition: badge?.service_definition ?? null,
 		badgeMore: badge ? data.services.length - 1 : 0,
 		label: address ?? hostName,
-		title: [
-			hostName,
-			data.subtitleText,
-			deviceRoles.getName(role),
-			...data.services.map((s) => s.name)
-		]
-			.filter(Boolean)
-			.join('\n')
+		title: tooltipText(
+			[
+				[common_host(), hostName],
+				[common_ipAddress(), address],
+				[hosts_deviceType(), deviceTypes.getName(deviceType)]
+			],
+			{ header: common_services(), items: data.services.map((s) => s.name) }
+		)
 	};
 }
 

@@ -147,7 +147,7 @@
 	// Staleness pill — computed with the rest of the card content because it
 	// renders in flow and therefore affects card height.
 	let staleTag = $derived(elementRender?.staleTag ?? null);
-	// What the element is (a device's role tile, software's logo), drawn in both view modes; and
+	// What the element is (a device's device-type tile, software's logo), drawn in both view modes; and
 	// the icon card that replaces the card's rows in the `Icons` view mode.
 	let glyph = $derived(elementRender?.glyph ?? null);
 	let iconCard = $derived(elementRender?.iconCard ?? null);
@@ -402,7 +402,7 @@
 			>
 				<div class="relative">
 					{#if iconCard.glyph.type === 'device'}
-						<DeviceGlyph role={iconCard.glyph.role} size="lg" />
+						<DeviceGlyph deviceType={iconCard.glyph.deviceType} size="lg" />
 					{:else}
 						<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
 					{/if}
@@ -465,7 +465,7 @@
 					class={`relative flex flex-shrink-0 items-center justify-center gap-1 px-2 pt-2 text-xs font-medium leading-none ${titleColorClass}`}
 				>
 					{#if headerGlyph}
-						<DeviceGlyph role={headerGlyph.role} />
+						<DeviceGlyph deviceType={headerGlyph.deviceType} />
 					{/if}
 					<span class="truncate">{nodeRenderData.headerText}</span>
 				</div>
@@ -480,7 +480,7 @@
 						: ''}"
 				>
 					{#if headerGlyph && !nodeRenderData.headerText}
-						<DeviceGlyph role={headerGlyph.role} />
+						<DeviceGlyph deviceType={headerGlyph.deviceType} />
 					{/if}
 					<span class="truncate">{nodeRenderData.subtitleText}</span>
 				</div>
@@ -635,7 +635,7 @@
 													title={hostDisplayName(member.host)}
 												>
 													{#if memberGlyph?.type === 'device'}
-														<DeviceGlyph role={memberGlyph.role} />
+														<DeviceGlyph deviceType={memberGlyph.deviceType} />
 													{/if}
 													<span
 														class="text-secondary truncate text-xs font-medium {hostPulse

@@ -443,7 +443,7 @@ impl TopologyService {
 
         // Title the hosts once, here, from the addresses this same bundle carries — so the map,
         // the host list and every by-id lookup on the frontend read one value rather than each
-        // re-deriving the ladder. The device role comes from the same bundle's services. Last,
+        // re-deriving the ladder. The device type comes from the same bundle's services. Last,
         // because `get_entity_tags` above wants plain `&[Host]`.
         let hosts = TopologyHost::wrap_all(hosts, &ip_addresses, &services);
         // Interfaces likewise, as `HostResponse` titles them: the inspector cards label an

@@ -336,7 +336,7 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				created_at: 'created_at',
 				credential_assignments: 'credentials',
 				description: 'description',
-				device_role: 'device_role',
+				device_type: 'device_type',
 				firmware_revision: 'firmware_revision',
 				hidden: excluded(
 					'Always false, kept for older daemons; the Visibility tag group hides a host'

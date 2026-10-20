@@ -4,7 +4,7 @@
 	import AttributeSourceTag from '$lib/shared/components/data/AttributeSourceTag.svelte';
 	import { type HostOs } from '$lib/features/hosts/host-os';
 	import OsTag from '../../OsTag.svelte';
-	import DeviceRoleLabel from '../../DeviceRoleLabel.svelte';
+	import DeviceTypeLabel from '../../DeviceTypeLabel.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import CopyableValue from '$lib/shared/components/data/CopyableValue.svelte';
 	import GuestStateTag from '$lib/shared/components/virtualization/GuestStateTag.svelte';
@@ -12,7 +12,7 @@
 	import type { Color } from '$lib/shared/utils/styling';
 	import {
 		containerNetworkTypes,
-		deviceRoles,
+		deviceTypes,
 		entities,
 		guestStates,
 		hostVirtualizations,
@@ -59,7 +59,7 @@
 
 	let { host }: { host: HostFormData } = $props();
 
-	type DeviceRole = components['schemas']['DeviceRole'];
+	type DeviceType = components['schemas']['DeviceType'];
 
 	interface Fact {
 		label: string;
@@ -84,8 +84,8 @@
 		os?: HostOs;
 		/** Drawn as a clickable entity tag labelled with `value`, with `icon` when the entity has its own. */
 		entity?: { ref: EntityRef; color: Color; icon?: IconComponent };
-		/** Drawn as the device role's glyph beside `value`, its name. */
-		role?: DeviceRole;
+		/** Drawn as the device type's glyph beside `value`, its name. */
+		deviceType?: DeviceType;
 		/** Drawn as the guest's run-state chip. */
 		guestState?: string;
 	}
@@ -225,8 +225,8 @@
 	// Derived from the host's services, then its OS, so it carries no source of its own. Shown even
 	// when nothing identifies the host: "Unidentified" is the answer, not a missing value.
 	let deviceTypeFact = $derived.by((): Fact => {
-		const role = host.device_role ?? 'Unidentified';
-		return { ...sourceless(hosts_deviceType(), deviceRoles.getName(role)), role };
+		const deviceType = host.device_type ?? 'Unidentified';
+		return { ...sourceless(hosts_deviceType(), deviceTypes.getName(deviceType)), deviceType };
 	});
 
 	// Grouped by what each value describes, not by the protocol that carried it. A model arrives
@@ -315,8 +315,8 @@
 										icon={fact.entity.icon ?? entities.getIconComponent(fact.entity.ref.entityType)}
 										color={fact.entity.color}
 									/>
-								{:else if fact.role}
-									<DeviceRoleLabel role={fact.role} />
+								{:else if fact.deviceType}
+									<DeviceTypeLabel deviceType={fact.deviceType} />
 								{:else if fact.os}
 									<!-- The same tooltip the hosts table shows: every detail and the source. -->
 									<OsTag os={fact.os} source={fact.source} />

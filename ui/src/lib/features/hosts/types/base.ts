@@ -21,7 +21,7 @@ export type Host = components['schemas']['Host'] &
 		| 'display_name'
 		| 'display_name_rung'
 		| 'name_ladder'
-		| 'device_role'
+		| 'device_type'
 		| 'virtualization_parent_host_id'
 		| 'virtualization_root_host_id'
 		| 'virtualization_depth'
@@ -84,7 +84,7 @@ type HostSourceKeys = Extract<keyof HostResponse, `${string}_source`>;
 export interface HostFormData extends Partial<
 	Pick<
 		HostResponse,
-		'display_name' | 'display_name_rung' | 'name_ladder' | 'device_role' | HostSourceKeys
+		'display_name' | 'display_name_rung' | 'name_ladder' | 'device_type' | HostSourceKeys
 	>
 > {
 	// Host primitive fields

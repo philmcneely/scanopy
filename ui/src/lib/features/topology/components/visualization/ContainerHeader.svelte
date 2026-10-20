@@ -43,7 +43,7 @@
 		headerText,
 		iconComponent = null,
 		logoDefinition = null,
-		deviceRole = null,
+		deviceType = null,
 		fillIcon = false,
 		colorHelper,
 		groupLabels = [],
@@ -66,8 +66,8 @@
 		iconComponent: IconComponent | null;
 		/** Service definition whose logo marks the container, drawn round as software. */
 		logoDefinition: string | null;
-		/** The device role a container standing for a device draws, as a square tile, in place of its icon. */
-		deviceRole?: components['schemas']['DeviceRole'] | null;
+		/** The device type a container standing for a device draws, as a square tile, in place of its icon. */
+		deviceType?: components['schemas']['DeviceType'] | null;
 		fillIcon: boolean;
 		colorHelper: ColorStyle;
 		groupLabels: GroupPill[];
@@ -202,8 +202,8 @@
 			<span class="caret text-secondary" class:caret-collapsed={isCollapsed}></span>
 		{/if}
 
-		{#if deviceRole}
-			<DeviceGlyph role={deviceRole} framed={false} />
+		{#if deviceType}
+			<DeviceGlyph deviceType={deviceType} framed={false} />
 		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<IconComp class={`h-5 w-5 ${colorHelper.icon}`} fill={fillIcon ? 'currentColor' : 'none'} />
@@ -268,8 +268,8 @@
 				><span class="caret caret-collapsed text-secondary"></span></span
 			>
 		{/if}
-		{#if deviceRole}
-			<span data-fixed><DeviceGlyph role={deviceRole} framed={false} /></span>
+		{#if deviceType}
+			<span data-fixed><DeviceGlyph deviceType={deviceType} framed={false} /></span>
 		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<span data-fixed

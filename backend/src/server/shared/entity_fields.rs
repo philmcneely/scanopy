@@ -370,7 +370,7 @@ const LAST_FOUND_BY: C = C::new("last_found_by", G::Discovery);
 
 const HOST_COLUMNS: &[C] = &[
     // Read from `HostResponse`, not the stored `Host`, which is why it is a column, not a field.
-    C::new("device_role", G::Device),
+    C::new("device_type", G::Device),
     C::new("mac_address", G::Network),
     C::new("credentials", G::Relationships),
     LAST_SEEN_AT,

@@ -34,7 +34,7 @@ import proxmoxGuestTypesJson from '$lib/data/proxmox-guest-types.json';
 import containerNetworkTypesJson from '$lib/data/container-network-types.json';
 import ifOperStatusesJson from '$lib/data/if-oper-statuses.json';
 import guestStatesJson from '$lib/data/guest-states.json';
-import deviceRolesJson from '$lib/data/device-roles.json';
+import deviceTypesJson from '$lib/data/device-types.json';
 import {
 	createColorHelper,
 	createIconComponent,
@@ -144,7 +144,7 @@ export interface MetadataRegistry {
 	container_network_types: TypeMetadata[];
 	if_oper_statuses: TypeMetadata[];
 	guest_states: TypeMetadata[];
-	device_roles: TypeMetadata[];
+	device_types: TypeMetadata[];
 }
 
 // Utility type to add proper typing to the metadata field
@@ -345,7 +345,7 @@ export const metadata = writable<MetadataRegistry>({
 	container_network_types: containerNetworkTypesJson,
 	if_oper_statuses: ifOperStatusesJson,
 	guest_states: guestStatesJson,
-	device_roles: deviceRolesJson
+	device_types: deviceTypesJson
 } as unknown as MetadataRegistry);
 
 // Shared color helper functions that work for both TypeMetadata and EntityMetadata
@@ -596,7 +596,7 @@ export const ifOperStatuses = createTypeMetadataHelpers<'if_oper_statuses', obje
 );
 /** A container's or VM's run state at the last scan (label, colour, icon), keyed by `GuestState`. */
 export const guestStates = createTypeMetadataHelpers<'guest_states', object>('guest_states');
-export const deviceRoles = createTypeMetadataHelpers<'device_roles', object>('device_roles');
+export const deviceTypes = createTypeMetadataHelpers<'device_types', object>('device_types');
 export const discoveryTypes = createTypeMetadataHelpers<'discovery_types', DiscoveryTypeMetadata>(
 	'discovery_types'
 );

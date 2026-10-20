@@ -398,7 +398,7 @@ impl EntityDiscriminants {
 /// The kind of glyph an entity is drawn with in the topology. See [`EntityDiscriminants::glyph`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum EntityGlyph {
-    /// A machine: its host's device role.
+    /// A machine: its host's device type.
     Device,
     /// Software: its service definition's logo.
     Software,

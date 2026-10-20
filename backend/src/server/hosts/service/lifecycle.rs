@@ -184,21 +184,21 @@ impl HostService {
                 Default::default(),
             )
         };
-        // The device role is read off a host's services, which a children-less response leaves
-        // out. Load them anyway for the role alone, so a picker, a hover card and global search
+        // The device type is read off a host's services, which a children-less response leaves
+        // out. Load them anyway for the device type alone, so a picker, a hover card and global search
         // draw the same icon as the host list. Like the IP addresses above: one query per page.
-        let children_less_roles: HashMap<
+        let children_less_device_types: HashMap<
             Uuid,
-            crate::server::hosts::r#impl::device_role::DeviceRole,
+            crate::server::hosts::r#impl::device_type::DeviceType,
         > = if include_children {
             HashMap::new()
         } else {
-            let services_for_roles = self.load_services_for_hosts(&host_ids, at).await?;
+            let services_for_device_types = self.load_services_for_hosts(&host_ids, at).await?;
             hosts
                 .iter()
                 .map(|h| {
-                    let services = services_for_roles.get(&h.id).into_iter().flatten();
-                    (h.id, h.device_role(services))
+                    let services = services_for_device_types.get(&h.id).into_iter().flatten();
+                    (h.id, h.device_type(services))
                 })
                 .collect()
         };
@@ -220,7 +220,7 @@ impl HostService {
                 let ports = ports_map.get(&host.id).cloned().unwrap_or_default();
                 let services = services_map.get(&host.id).cloned().unwrap_or_default();
                 let interfaces = interfaces_map.get(&host.id).cloned().unwrap_or_default();
-                let role = children_less_roles.get(&host.id).copied();
+                let device_type = children_less_device_types.get(&host.id).copied();
                 let mut response = HostResponse::from_host_with_children(
                     host,
                     ip_addresses,
@@ -228,8 +228,8 @@ impl HostService {
                     services,
                     interfaces,
                 );
-                if let Some(role) = role {
-                    response.device_role = role;
+                if let Some(device_type) = device_type {
+                    response.device_type = device_type;
                 }
                 response
             })
