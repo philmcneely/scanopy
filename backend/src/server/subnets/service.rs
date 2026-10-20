@@ -1,6 +1,6 @@
 use crate::server::shared::attribution::AttributeSource;
-use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event};
 use crate::server::shared::events::log::{EntityLog, changes};
+use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event};
 use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 use crate::server::shared::handlers::tree::TreePosition;
 use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
@@ -221,7 +221,11 @@ impl SubnetService {
         for mut address in self.ip_address_service.get_for_subnet(&source.id).await? {
             address.base.subnet_id = target.id;
             self.ip_address_service
-                .update(&mut address, authentication.clone(), UpdateReason::IpAddressSubnetMerged)
+                .update(
+                    &mut address,
+                    authentication.clone(),
+                    UpdateReason::IpAddressSubnetMerged,
+                )
                 .await?;
         }
 
@@ -340,7 +344,11 @@ impl SubnetService {
             address.base.subnet_id = subnet_id;
             match self
                 .ip_address_service
-                .update(&mut address, AuthenticatedEntity::System, UpdateReason::IpAddressSubnetNarrowed)
+                .update(
+                    &mut address,
+                    AuthenticatedEntity::System,
+                    UpdateReason::IpAddressSubnetNarrowed,
+                )
                 .await
             {
                 Ok(_) => moved += 1,

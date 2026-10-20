@@ -239,7 +239,11 @@ impl LicenseResumeCase {
         org.base.plan = Some(plan);
         org.base.plan_status = Some(PlanStatus::Cancelled);
         service
-            .update(&mut org, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+            .update(
+                &mut org,
+                AuthenticatedEntity::System,
+                UpdateReason::EntityRequested,
+            )
             .await
             .unwrap();
         assert!(reload(state, org_id).await.is_lapsed());

@@ -177,8 +177,12 @@ impl DaemonService {
         }
         daemon.base.standby = false;
         daemon.base.standby_cleared_at = Some(Utc::now());
-        self.update(daemon, AuthenticatedEntity::System, UpdateReason::DaemonStandbyChanged)
-            .await?;
+        self.update(
+            daemon,
+            AuthenticatedEntity::System,
+            UpdateReason::DaemonStandbyChanged,
+        )
+        .await?;
         Ok(())
     }
 

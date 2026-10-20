@@ -420,9 +420,15 @@ pub enum UpdateReason {
 #[serde(tag = "type")]
 pub enum HostMatchedBy {
     Mac,
-    IpAddress { ip: IpAddr },
-    VirtualRouterIp { ip: IpAddr },
-    ChassisId { chassis_id: String },
+    IpAddress {
+        ip: IpAddr,
+    },
+    VirtualRouterIp {
+        ip: IpAddr,
+    },
+    ChassisId {
+        chassis_id: String,
+    },
     /// The daemon reported the host's id.
     DaemonReportedId,
 }

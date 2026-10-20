@@ -133,10 +133,7 @@ async fn finish_run(
     update.started_at = Some(Utc::now() - Duration::minutes(1));
     update.finished_at = Some(Utc::now());
     update.warnings = warnings;
-    services
-        .discovery_service
-        .update_session(update)
-        .await;
+    services.discovery_service.update_session(update).await;
 
     storage
         .discovery

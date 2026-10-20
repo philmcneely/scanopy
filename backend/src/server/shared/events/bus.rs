@@ -1,6 +1,5 @@
 use std::{sync::Arc, time::Duration};
 
-
 use crate::{
     daemon::discovery::types::{base::DiscoveryPhase, warnings::DiscoveryWarningCode},
     server::{

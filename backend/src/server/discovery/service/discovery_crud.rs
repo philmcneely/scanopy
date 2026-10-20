@@ -57,11 +57,12 @@ impl DiscoveryService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Created, authentication.clone())
-                        .with_flags(EntityEventFlags {
+                    Event::new(scope, EntityOperation::Created, authentication.clone()).with_flags(
+                        EntityEventFlags {
                             trigger_stale,
                             ..Default::default()
-                        }),
+                        },
+                    ),
                 )
                 .await;
         }

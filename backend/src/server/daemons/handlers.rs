@@ -5,9 +5,8 @@ use crate::server::auth::middleware::permissions::{
 };
 use crate::server::credentials::r#impl::mapping::IntegrationTarget;
 use crate::server::daemons::r#impl::api::{
-    DaemonHealth, DaemonHeartbeatPayload, ProvisionDaemonRequest,
-    ProvisionDaemonResponse, ProvisionEligibility, TestReachabilityRequest,
-    TestReachabilityResponse,
+    DaemonHealth, DaemonHeartbeatPayload, ProvisionDaemonRequest, ProvisionDaemonResponse,
+    ProvisionEligibility, TestReachabilityRequest, TestReachabilityResponse,
 };
 use crate::server::daemons::r#impl::base::DaemonOs;
 use crate::server::metrics::dependency::{Dependency, observe_http};

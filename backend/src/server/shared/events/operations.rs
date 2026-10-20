@@ -309,7 +309,8 @@ pub(crate) mod tests {
                         entity_type: examples::organization().into(),
                     },
                     EntityOperation::Deleted {
-                        reason: crate::server::shared::events::types::DeletionReason::EntityRequested,
+                        reason:
+                            crate::server::shared::events::types::DeletionReason::EntityRequested,
                     },
                     system(),
                 ),

@@ -221,8 +221,12 @@ impl InterfaceService {
             updated.id = existing_entry.id;
             updated.preserve_immutable_fields(&existing_entry);
             updated.preserve_uncollected_data(&existing_entry, collected);
-            self.update(&mut updated, authentication, UpdateReason::EntityRediscovered)
-                .await?
+            self.update(
+                &mut updated,
+                authentication,
+                UpdateReason::EntityRediscovered,
+            )
+            .await?
         } else {
             // SCD2 origin: no match found, this is a new insert. Stamp
             // created_at + valid_from to the entity's already-refreshed

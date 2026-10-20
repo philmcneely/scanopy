@@ -610,9 +610,14 @@ async fn run_populate_demo(
     state
         .services
         .organization_service
-        .modify(id, entity.clone(), UpdateReason::OrganizationDemoPopulated, |org| {
-            org.base.onboarding = OnboardingOperationDiscriminants::iter().collect();
-        })
+        .modify(
+            id,
+            entity.clone(),
+            UpdateReason::OrganizationDemoPopulated,
+            |org| {
+                org.base.onboarding = OnboardingOperationDiscriminants::iter().collect();
+            },
+        )
         .await?;
 
     seed_demo_data(&state.services, id, user_id, org.base.use_case, entity).await

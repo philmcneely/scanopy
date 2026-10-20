@@ -176,7 +176,11 @@ impl DaemonService {
                 api_key_to_bind.base.daemon_id = Some(created_daemon.id);
                 if let Err(e) = self
                     .daemon_api_key_service
-                    .update(&mut api_key_to_bind, auth.clone(), UpdateReason::EntityKeyBound)
+                    .update(
+                        &mut api_key_to_bind,
+                        auth.clone(),
+                        UpdateReason::EntityKeyBound,
+                    )
                     .await
                 {
                     tracing::error!(error = %e, daemon_id = %created_daemon.id, "Failed to bind api key to provisioned daemon");

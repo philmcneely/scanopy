@@ -411,7 +411,13 @@ impl HostService {
                 let mut transferred = other_iface.clone();
                 transferred.base.host_id = destination_host.id;
                 self.ip_address_service
-                    .update(&mut transferred, authentication.clone(), UpdateReason::EntityMergedFrom { host_id: other_host.id })
+                    .update(
+                        &mut transferred,
+                        authentication.clone(),
+                        UpdateReason::EntityMergedFrom {
+                            host_id: other_host.id,
+                        },
+                    )
                     .await?;
                 // Map to itself (ID unchanged, just host_id changed)
                 interface_id_map.insert(other_iface.id, other_iface.id);
@@ -439,7 +445,13 @@ impl HostService {
                 let mut transferred =
                     other_port.with_host(destination_host.id, destination_host.base.site_id);
                 self.port_service
-                    .update(&mut transferred, authentication.clone(), UpdateReason::EntityMergedFrom { host_id: other_host.id })
+                    .update(
+                        &mut transferred,
+                        authentication.clone(),
+                        UpdateReason::EntityMergedFrom {
+                            host_id: other_host.id,
+                        },
+                    )
                     .await?;
                 // Map to itself (ID unchanged, just host_id changed)
                 port_id_map.insert(other_port.id, other_port.id);
@@ -479,7 +491,13 @@ impl HostService {
                         .ip_address_id
                         .filter(|id| interface_id_map.get(id) == Some(id));
                     self.interface_service
-                        .update(&mut moved, authentication.clone(), UpdateReason::EntityMergedFrom { host_id: other_host.id })
+                        .update(
+                            &mut moved,
+                            authentication.clone(),
+                            UpdateReason::EntityMergedFrom {
+                                host_id: other_host.id,
+                            },
+                        )
                         .await?;
                 }
             }
@@ -588,7 +606,13 @@ impl HostService {
             }
 
             self.service_service
-                .update(&mut service, authentication.clone(), UpdateReason::EntityMergedFrom { host_id: other_host.id })
+                .update(
+                    &mut service,
+                    authentication.clone(),
+                    UpdateReason::EntityMergedFrom {
+                        host_id: other_host.id,
+                    },
+                )
                 .await
                 .map_err(|e| {
                     tracing::error!(
@@ -798,8 +822,12 @@ impl HostService {
             .await?;
         for mut host in presented {
             host.base.virtualization_interface_id = Some(to);
-            self.update(&mut host, authentication.clone(), UpdateReason::EntityVirtualizerRepointed)
-                .await?;
+            self.update(
+                &mut host,
+                authentication.clone(),
+                UpdateReason::EntityVirtualizerRepointed,
+            )
+            .await?;
         }
         Ok(())
     }
@@ -823,8 +851,12 @@ impl HostService {
             .await?;
         for mut guest in guests {
             guest.base.virtualization_service_id = Some(to);
-            self.update(&mut guest, authentication.clone(), UpdateReason::EntityVirtualizerRepointed)
-                .await?;
+            self.update(
+                &mut guest,
+                authentication.clone(),
+                UpdateReason::EntityVirtualizerRepointed,
+            )
+            .await?;
         }
         let subnets = self
             .subnet_service
@@ -837,7 +869,11 @@ impl HostService {
         for mut subnet in subnets {
             subnet.base.virtualization_service_id = Some(to);
             self.subnet_service
-                .update(&mut subnet, authentication.clone(), UpdateReason::EntityVirtualizerRepointed)
+                .update(
+                    &mut subnet,
+                    authentication.clone(),
+                    UpdateReason::EntityVirtualizerRepointed,
+                )
                 .await?;
         }
         Ok(())

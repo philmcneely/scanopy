@@ -421,6 +421,9 @@ mod tests {
 
         let event = host_updated()
             .with_log(EventLog::hidden().with_line(EventLogLevel::Warn, "transition"));
-        assert_eq!(lines_for(&event), vec![(Level::WARN, "transition".to_string())]);
+        assert_eq!(
+            lines_for(&event),
+            vec![(Level::WARN, "transition".to_string())]
+        );
     }
 }

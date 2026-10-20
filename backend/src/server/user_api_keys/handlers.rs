@@ -340,7 +340,11 @@ pub async fn update_user_api_key(
 
     // Update the entity
     let updated = service
-        .update(&mut request, auth.into_entity(), UpdateReason::EntityRequested)
+        .update(
+            &mut request,
+            auth.into_entity(),
+            UpdateReason::EntityRequested,
+        )
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 

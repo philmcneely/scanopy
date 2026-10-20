@@ -114,7 +114,11 @@ async fn set_plan(state: &AppState, organization_id: Uuid, plan: BillingPlan) {
     let mut org = service.get_by_id(&organization_id).await.unwrap().unwrap();
     org.base.plan = Some(plan);
     service
-        .update(&mut org, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut org,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
 }
@@ -328,7 +332,11 @@ async fn air_gapped_orgs_cannot_return_to_an_online_key_until_the_period_ends() 
     let mut expired = reload(&state, org.id).await;
     expired.base.license_paid_through = Some(whole_seconds_from_now(-1));
     service
-        .update(&mut expired, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut expired,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
     service
@@ -433,7 +441,11 @@ async fn set_plan_status(state: &AppState, organization_id: Uuid, status: Option
     let mut org = service.get_by_id(&organization_id).await.unwrap().unwrap();
     org.base.plan_status = status;
     service
-        .update(&mut org, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut org,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
 }
@@ -457,7 +469,11 @@ async fn a_cloud_org_lapses_on_its_plan_when_the_subscription_ends() {
     row.base.discount_save_offer_percent_off = Some(20);
     row.base.discount_save_offer_active_until = Some(whole_seconds_from_now(30));
     service
-        .update(&mut row, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut row,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
 
@@ -900,7 +916,11 @@ async fn a_stranded_air_gapped_organization_heals_on_read() {
     let mut stranded = reload(&state, org.id).await;
     stranded.base.license_key_type = Some(LicenseKeyType::Offline);
     service
-        .update(&mut stranded, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut stranded,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
 
@@ -960,7 +980,11 @@ async fn the_airgap_renewal_email_dates_the_key_already_installed() {
     let mut air_gapped = reload(&state, org.id).await;
     air_gapped.base.license_key_type = Some(LicenseKeyType::Offline);
     service
-        .update(&mut air_gapped, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut air_gapped,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
 
@@ -1197,7 +1221,11 @@ async fn the_airgap_expiry_sweep_warns_once_per_licence_period() {
             let mut org = service.get_by_id(&id).await.unwrap().unwrap();
             org.base.license_key_type = Some(LicenseKeyType::Offline);
             service
-                .update(&mut org, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+                .update(
+                    &mut org,
+                    AuthenticatedEntity::System,
+                    UpdateReason::EntityRequested,
+                )
                 .await
                 .unwrap();
         }
@@ -1292,7 +1320,11 @@ async fn the_airgap_expiry_sweep_warns_once_per_licence_period() {
     let mut renewed = reload(&state, warned.id).await;
     renewed.base.license_paid_through = Some(renewed_through);
     service
-        .update(&mut renewed, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut renewed,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
     email_service.warn_expiring_airgap_keys().await.unwrap();

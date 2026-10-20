@@ -294,7 +294,11 @@ async fn a_manual_container_is_not_removed() {
     manual.base.virtualization_service_id = Some(runtime_id);
     services
         .service_service
-        .update(&mut manual, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut manual,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
 

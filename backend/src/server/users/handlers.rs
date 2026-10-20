@@ -285,7 +285,11 @@ pub async fn update_user(
     }
 
     let updated = service
-        .update(&mut request, auth.into_entity(), UpdateReason::EntityRequested)
+        .update(
+            &mut request,
+            auth.into_entity(),
+            UpdateReason::EntityRequested,
+        )
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 
@@ -376,7 +380,11 @@ async fn admin_update_user(
     let site_ids = request.base.site_ids.clone();
 
     let updated = service
-        .update(&mut request, auth.into_entity(), UpdateReason::EntityRequested)
+        .update(
+            &mut request,
+            auth.into_entity(),
+            UpdateReason::EntityRequested,
+        )
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 

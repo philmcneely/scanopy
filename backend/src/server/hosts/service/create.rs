@@ -1308,7 +1308,11 @@ impl HostService {
                         // Mirror the stored result so later services in the payload see it.
                         if let Ok(saved) = self
                             .service_service
-                            .update(&mut updated, authentication.clone(), UpdateReason::ServiceContainerAdopted)
+                            .update(
+                                &mut updated,
+                                authentication.clone(),
+                                UpdateReason::ServiceContainerAdopted,
+                            )
                             .await
                             && let Some(stored) = existing_services_for_match
                                 .iter_mut()
@@ -1580,7 +1584,11 @@ impl HostService {
                 let mut updated = svc.clone();
                 updated.base.virtualization_service_id = resolved;
                 self.service_service
-                    .update(&mut updated, authentication.clone(), UpdateReason::EntityMaintained)
+                    .update(
+                        &mut updated,
+                        authentication.clone(),
+                        UpdateReason::EntityMaintained,
+                    )
                     .await?;
             }
         }
@@ -1647,7 +1655,11 @@ impl HostService {
                         }
                         let _ = self
                             .service_service
-                            .update(&mut updated, authentication.clone(), UpdateReason::EntityMaintained)
+                            .update(
+                                &mut updated,
+                                authentication.clone(),
+                                UpdateReason::EntityMaintained,
+                            )
                             .await;
                     }
                 }

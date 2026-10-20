@@ -35,8 +35,9 @@ async fn overlapping_writers_of_different_columns_both_persist() {
                     AuthenticatedEntity::System,
                     UpdateReason::OrganizationNotificationRecorded,
                     |org| {
-                    org.base.notifications.hosts = LimitNotificationLevel::Reached;
-                })
+                        org.base.notifications.hosts = LimitNotificationLevel::Reached;
+                    },
+                )
                 .await
                 .unwrap()
         }

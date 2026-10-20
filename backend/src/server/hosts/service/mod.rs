@@ -937,7 +937,8 @@ mod tests {
         )];
 
         assert_eq!(
-            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates).map(|(id, _)| id),
+            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates)
+                .map(|(id, _)| id),
             Some(known)
         );
     }
@@ -963,7 +964,8 @@ mod tests {
         let incoming = vec![make_interface(ip, subnet, None)];
 
         assert_eq!(
-            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates).map(|(id, _)| id),
+            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates)
+                .map(|(id, _)| id),
             Some(by_address)
         );
     }
@@ -984,7 +986,8 @@ mod tests {
         )];
 
         assert_eq!(
-            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates).map(|(id, _)| id),
+            select_matching_host(&incoming, Some("00:ad:24:89:cc:f0"), &candidates)
+                .map(|(id, _)| id),
             None
         );
     }
@@ -1272,7 +1275,8 @@ mod tests {
         )];
 
         assert_eq!(
-            select_matching_host(&incoming, None, &[candidate(host, vec![existing])]).map(|(id, _)| id),
+            select_matching_host(&incoming, None, &[candidate(host, vec![existing])])
+                .map(|(id, _)| id),
             Some(host),
             "a NIC is the same NIC however each scan came to hear about it"
         );
@@ -1509,7 +1513,10 @@ mod tests {
             other,
             Some(lab_ens19()),
         )];
-        assert_eq!(select_matching_host(&incoming, None, &candidates).map(|(id, _)| id), Some(vm));
+        assert_eq!(
+            select_matching_host(&incoming, None, &candidates).map(|(id, _)| id),
+            Some(vm)
+        );
     }
 
     /// A payload with no addresses claims no address, so the list excludes nothing from the tier.

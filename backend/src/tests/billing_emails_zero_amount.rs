@@ -211,7 +211,11 @@ async fn a_zero_dollar_air_gapped_renewal_still_says_to_copy_the_key() {
     state
         .services
         .organization_service
-        .update(&mut air_gapped, AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .update(
+            &mut air_gapped,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
     create_owner(&state, org.id).await;

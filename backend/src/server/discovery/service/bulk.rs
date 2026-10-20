@@ -99,8 +99,12 @@ impl DiscoveryService {
         {
             *current = enabled;
         }
-        self.update(&mut discovery, authentication, UpdateReason::EntityRequested)
-            .await
+        self.update(
+            &mut discovery,
+            authentication,
+            UpdateReason::EntityRequested,
+        )
+        .await
     }
 }
 

@@ -136,7 +136,11 @@ impl HostService {
         }
 
         let updated = self
-            .update(&mut updated_host, authentication.clone(), UpdateReason::EntityRequested)
+            .update(
+                &mut updated_host,
+                authentication.clone(),
+                UpdateReason::EntityRequested,
+            )
             .await?;
 
         // Sync ip_addresses only if provided (None means preserve existing)
@@ -223,7 +227,11 @@ impl HostService {
                 }
 
                 self.ip_address_service
-                    .update(&mut ip_address, authentication.clone(), UpdateReason::EntityRequested)
+                    .update(
+                        &mut ip_address,
+                        authentication.clone(),
+                        UpdateReason::EntityRequested,
+                    )
                     .await?;
             } else {
                 // Create new interface with client-provided ID
@@ -278,7 +286,11 @@ impl HostService {
                 }
 
                 self.port_service
-                    .update(&mut port, authentication.clone(), UpdateReason::EntityRequested)
+                    .update(
+                        &mut port,
+                        authentication.clone(),
+                        UpdateReason::EntityRequested,
+                    )
                     .await?;
             } else {
                 // Create new port with client-provided ID
@@ -333,7 +345,11 @@ impl HostService {
                 }
 
                 self.interface_service
-                    .update(&mut interface, authentication.clone(), UpdateReason::EntityRequested)
+                    .update(
+                        &mut interface,
+                        authentication.clone(),
+                        UpdateReason::EntityRequested,
+                    )
                     .await?;
             } else {
                 // Create new interface with client-provided ID
@@ -455,7 +471,11 @@ impl HostService {
                 }
 
                 self.service_service
-                    .update(&mut service, authentication.clone(), UpdateReason::EntityRequested)
+                    .update(
+                        &mut service,
+                        authentication.clone(),
+                        UpdateReason::EntityRequested,
+                    )
                     .await?;
             } else {
                 // Create new service with client-provided ID

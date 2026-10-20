@@ -365,7 +365,11 @@ impl HostService {
             interface.base.ip_address_id = Some(ip_address_id);
             if let Err(e) = self
                 .interface_service
-                .update(&mut interface, authentication.clone(), UpdateReason::InterfaceLinkedByMac)
+                .update(
+                    &mut interface,
+                    authentication.clone(),
+                    UpdateReason::InterfaceLinkedByMac,
+                )
                 .await
             {
                 tracing::warn!(

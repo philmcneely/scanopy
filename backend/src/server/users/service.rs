@@ -164,7 +164,7 @@ impl UserService {
             AuthenticatedEntity::System,
             UpdateReason::UserUnsubscribeTokenIssued,
         )
-            .await?;
+        .await?;
         Ok(token)
     }
 
