@@ -381,8 +381,7 @@ pub(crate) async fn insert_demo_data(
     // reconciler, so demo subnets show their VLANs like a real deployment.
     services
         .vlan_service
-        .subnet_vlan_storage
-        .create_many(&demo_data.subnet_vlan_records)
+        .create_subnet_links(&demo_data.subnet_vlan_records)
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 

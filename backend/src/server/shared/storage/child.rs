@@ -1,24 +1,58 @@
 use std::{collections::HashMap, fmt::Display};
 
 use anyhow::Result;
-use async_trait::async_trait;
+use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use super::{generic::GenericPostgresStorage, traits::Storable};
+use super::{
+    filter::StorableFilter,
+    generic::GenericPostgresStorage,
+    lock::{DEFAULT_LOCK_TIMEOUT, LockKey},
+    snapshot::Snapshotable,
+    traits::{Storable, Storage},
+};
+use crate::server::shared::entities::EntityDiscriminants;
 
-/// Trait for entities that are children of a parent entity and stored in a separate table.
-/// Extends Storable to reuse all the standard CRUD infrastructure while adding
-/// parent-scoped batch operations.
+/// The parent a set of child rows belongs to: which entity, and which one of it.
 ///
-/// The key addition is the "replace all" pattern: when saving via `save_for_parent`,
-/// all existing children for that parent are deleted and the new set is inserted.
+/// The entity type names the `LockKey::JunctionSync` a write to the set serializes on, and for a
+/// table whose parent column is shared by several entity types (`entity_tags`) it also scopes the
+/// rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParentRef {
+    pub entity_type: EntityDiscriminants,
+    pub id: Uuid,
+}
+
+impl ParentRef {
+    pub fn new(entity_type: EntityDiscriminants, id: Uuid) -> Self {
+        Self { entity_type, id }
+    }
+
+    fn lock_key(&self) -> LockKey {
+        LockKey::JunctionSync {
+            parent: self.entity_type,
+            parent_id: self.id,
+        }
+    }
+}
+
+/// A row stored in its own table under a parent: an entity's children (ports, bindings), a
+/// junction table's links, or the non-entity rows a parent owns (neighbour evidence, discovery
+/// warnings).
 pub trait ChildStorableEntity: Storable {
     /// The column name for the parent foreign key (e.g., "host_id", "service_id")
     fn parent_column() -> &'static str;
 
     /// Get the parent ID for this entity
     fn parent_id(&self) -> Uuid;
+
+    /// The rows belonging to `parent`. Matches on the parent column alone, which is enough for
+    /// every table whose parent column names a single entity type.
+    fn parent_filter(parent: &ParentRef) -> StorableFilter<Self> {
+        StorableFilter::<Self>::new_from_uuid_column(Self::parent_column(), &parent.id)
+    }
 }
 
 /// Generic storage implementation for child entities.
@@ -109,33 +143,92 @@ impl<T: ChildStorableEntity + Display> GenericChildStorage<T> {
 
         Ok(result)
     }
+
+    /// Replace the rows matching `filter` with `rows`, in one transaction holding `lock`'s
+    /// `JunctionSync` lock so concurrent replaces of one set can't interleave into a duplicate
+    /// or merged set.
+    ///
+    /// For a junction written from its other end, whose rows the parent column doesn't select.
+    /// Writes from the declared parent use [`Self::save_for_parent`].
+    pub async fn replace_matching(
+        &self,
+        lock: &ParentRef,
+        filter: StorableFilter<T>,
+        rows: &[T],
+    ) -> Result<Vec<T>> {
+        let mut tx = self.inner.begin_transaction().await?;
+        tx.lock(lock.lock_key(), DEFAULT_LOCK_TIMEOUT).await?;
+        tx.delete_by_filter(filter).await?;
+        let mut saved = Vec::with_capacity(rows.len());
+        for row in rows {
+            saved.push(tx.create(row).await?);
+        }
+        tx.commit().await?;
+        Ok(saved)
+    }
+
+    /// Replace every row of `parent` with `rows`. See [`Self::replace_matching`].
+    pub async fn save_for_parent(&self, parent: &ParentRef, rows: &[T]) -> Result<Vec<T>> {
+        self.replace_matching(parent, T::parent_filter(parent), rows)
+            .await
+    }
+
+    /// Delete every row of `parent`.
+    pub async fn delete_for_parent(&self, parent: &ParentRef) -> Result<usize> {
+        self.inner.delete_by_filter(T::parent_filter(parent)).await
+    }
 }
 
-/// Async trait for child storage operations (for use with dependency injection)
-#[async_trait]
-pub trait ChildStorage<T: ChildStorableEntity + Display>: Send + Sync {
-    async fn get_for_parent(&self, parent_id: &Uuid) -> Result<Vec<T>>;
-    async fn get_for_parents(&self, parent_ids: &[Uuid]) -> Result<HashMap<Uuid, Vec<T>>>;
-    /// Save children for a parent, returning the saved entities with actual IDs
-    async fn save_for_parent(&self, parent_id: &Uuid, children: &[T]) -> Result<Vec<T>>;
-    async fn delete_for_parent(&self, parent_id: &Uuid) -> Result<()>;
-}
+impl<T: ChildStorableEntity + Snapshotable + Display> GenericChildStorage<T> {
+    /// Make `member_ids` the live members of `parent`, keeping history: a live row whose member
+    /// left the set is soft-closed (`valid_to = now`), a new member gets a new live row from
+    /// `new_row`, and a row whose member stays is left alone, id included.
+    ///
+    /// The read-diff-write runs in one transaction holding the parent's `JunctionSync` lock, so
+    /// concurrent syncs can't interleave into duplicate or merged sets.
+    pub async fn sync_for_parent(
+        &self,
+        parent: &ParentRef,
+        member_ids: &[Uuid],
+        member_of: impl Fn(&T) -> Uuid,
+        new_row: impl Fn(Uuid) -> T,
+    ) -> Result<()> {
+        let mut tx = self.inner.begin_transaction().await?;
+        tx.lock(parent.lock_key(), DEFAULT_LOCK_TIMEOUT).await?;
 
-#[async_trait]
-impl<T: ChildStorableEntity + Display> ChildStorage<T> for GenericChildStorage<T> {
-    async fn get_for_parent(&self, parent_id: &Uuid) -> Result<Vec<T>> {
-        self.get_for_parent(parent_id).await
+        let existing = tx.get_all(T::parent_filter(parent).live()).await?;
+        let wanted: std::collections::HashSet<Uuid> = member_ids.iter().copied().collect();
+        let held: std::collections::HashSet<Uuid> = existing.iter().map(&member_of).collect();
+
+        let now = Utc::now();
+        for row in existing
+            .iter()
+            .filter(|row| !wanted.contains(&member_of(row)))
+        {
+            let mut closed = row.clone();
+            closed.set_valid_to(Some(now));
+            tx.update(&mut closed).await?;
+        }
+        for member_id in member_ids.iter().filter(|id| !held.contains(id)) {
+            tx.create(&new_row(*member_id)).await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
     }
 
-    async fn get_for_parents(&self, parent_ids: &[Uuid]) -> Result<HashMap<Uuid, Vec<T>>> {
-        self.get_for_parents(parent_ids).await
-    }
-
-    async fn save_for_parent(&self, parent_id: &Uuid, children: &[T]) -> Result<Vec<T>> {
-        self.save_for_parent(parent_id, children).await
-    }
-
-    async fn delete_for_parent(&self, parent_id: &Uuid) -> Result<()> {
-        self.delete_for_parent(parent_id).await
+    /// Soft-close every live row matching `filter` (`valid_to = now`), keeping it for as-of
+    /// reads. Returns how many rows were closed.
+    pub async fn close_matching(&self, filter: StorableFilter<T>) -> Result<usize> {
+        let mut rows = self.inner.get_all(filter.live()).await?;
+        if rows.is_empty() {
+            return Ok(0);
+        }
+        let now = Utc::now();
+        for row in rows.iter_mut() {
+            row.set_valid_to(Some(now));
+        }
+        self.inner.update_many(&rows).await?;
+        Ok(rows.len())
     }
 }

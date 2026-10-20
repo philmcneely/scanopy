@@ -5,7 +5,7 @@ use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     credentials::r#impl::{
         base::Credential,
-        junction::{HostCredentialStorage, SiteCredential, SiteCredentialStorage},
+        junction::{HostCredential, SiteCredential},
         mapping::{
             CredentialMapping, CredentialQueryPayload, IntegrationTarget, IpOverride,
             SnmpCredentialMapping, SnmpQueryCredential,
@@ -19,13 +19,19 @@ use crate::server::{
     ip_addresses::{r#impl::base::IPAddress, service::IPAddressService},
     organizations::service::OrganizationService,
     shared::{
+        entities::EntityDiscriminants,
         events::{
             bus::EventBus,
             traits::{Event, OrgScope},
             types::{OnboardingOperation, OnboardingOperationDiscriminants},
         },
         services::traits::{CrudService, EventBusService},
-        storage::{filter::StorableFilter, generic::GenericPostgresStorage},
+        storage::{
+            child::{GenericChildStorage, ParentRef},
+            filter::StorableFilter,
+            generic::GenericPostgresStorage,
+            traits::Storage,
+        },
     },
     sites::service::SiteService,
     tags::entity_tags::EntityTagService,
@@ -41,6 +47,7 @@ use uuid::Uuid;
 
 mod coverage;
 mod defaults;
+mod junctions;
 
 pub use coverage::{FoundIntegration, IntegrationCoverage, SiteTriedAt, find_uncovered};
 
@@ -129,8 +136,8 @@ pub struct CredentialService {
     ip_address_service: Arc<IPAddressService>,
     organization_service: Arc<OrganizationService>,
     host_service: OnceLock<Arc<HostService>>,
-    site_credential_storage: SiteCredentialStorage,
-    host_credential_storage: HostCredentialStorage,
+    site_credential_storage: Arc<GenericChildStorage<SiteCredential>>,
+    host_credential_storage: Arc<GenericChildStorage<HostCredential>>,
 }
 
 impl EventBusService<Credential> for CredentialService {
@@ -279,7 +286,8 @@ impl CredentialService {
         site_service: Arc<SiteService>,
         ip_address_service: Arc<IPAddressService>,
         organization_service: Arc<OrganizationService>,
-        pool: sqlx::PgPool,
+        site_credential_storage: Arc<GenericChildStorage<SiteCredential>>,
+        host_credential_storage: Arc<GenericChildStorage<HostCredential>>,
     ) -> Self {
         Self {
             storage,
@@ -289,203 +297,14 @@ impl CredentialService {
             ip_address_service,
             organization_service,
             host_service: OnceLock::new(),
-            site_credential_storage: SiteCredentialStorage::new(pool.clone()),
-            host_credential_storage: HostCredentialStorage::new(pool),
+            site_credential_storage,
+            host_credential_storage,
         }
     }
 
     /// Set the host service dependency after construction (breaks circular dep).
     pub fn set_host_service(&self, service: Arc<HostService>) -> Result<(), Arc<HostService>> {
         self.host_service.set(service)
-    }
-
-    // ========================================================================
-    // Junction table methods — delegates to typed storage
-    // ========================================================================
-
-    /// Get credential IDs for a site from the junction table.
-    pub async fn get_credential_ids_for_site(&self, site_id: &Uuid) -> Result<Vec<Uuid>, Error> {
-        self.site_credential_storage
-            .get_credential_ids_for_site(site_id)
-            .await
-    }
-
-    /// Get credential IDs for multiple sites (batch).
-    pub async fn get_credential_ids_for_sites(
-        &self,
-        site_ids: &[Uuid],
-    ) -> Result<std::collections::HashMap<Uuid, Vec<Uuid>>, Error> {
-        self.site_credential_storage
-            .get_credential_ids_for_sites(site_ids)
-            .await
-    }
-
-    /// Get credential assignments for a host from the junction table.
-    pub async fn get_credential_assignments_for_host(
-        &self,
-        host_id: &Uuid,
-    ) -> Result<Vec<CredentialAssignment>, Error> {
-        self.host_credential_storage
-            .get_assignments_for_host(host_id)
-            .await
-    }
-
-    /// Get credential assignments for multiple hosts (batch).
-    pub async fn get_credential_assignments_for_hosts(
-        &self,
-        host_ids: &[Uuid],
-    ) -> Result<std::collections::HashMap<Uuid, Vec<CredentialAssignment>>, Error> {
-        self.host_credential_storage
-            .get_assignments_for_hosts(host_ids)
-            .await
-    }
-
-    /// Replace all credentials for a site (atomic).
-    pub async fn set_site_credentials(
-        &self,
-        site_id: &Uuid,
-        credential_ids: &[Uuid],
-    ) -> Result<(), Error> {
-        self.site_credential_storage
-            .save_for_site(site_id, credential_ids)
-            .await
-    }
-
-    /// Bulk-insert many site↔credential assignments at once, skipping the
-    /// per-site lock/delete. For seed paths on a freshly reset org. Each
-    /// pair is `(site_id, credential_id)`.
-    pub async fn create_site_credentials(&self, pairs: &[(Uuid, Uuid)]) -> Result<(), Error> {
-        let records: Vec<SiteCredential> = pairs
-            .iter()
-            .map(|&(site_id, credential_id)| SiteCredential {
-                site_id,
-                credential_id,
-            })
-            .collect();
-        self.site_credential_storage.create_many(&records).await
-    }
-
-    /// Merge `incoming` credentials into a site's junction (additive — never prunes).
-    ///
-    /// The site-side counterpart of [`Self::merge_host_credentials`], for promoting a
-    /// discovery's one-shot `IntegrationTarget::Site` targets into the durable site-wide
-    /// channel when the scan completes. Replacing would delete credentials assigned from the
-    /// sites page or the credential modal, which this path knows nothing about.
-    pub async fn merge_site_credentials(
-        &self,
-        site_id: &Uuid,
-        incoming: &[Uuid],
-    ) -> Result<(), Error> {
-        let existing = self.get_credential_ids_for_site(site_id).await?;
-        let mut merged = existing;
-        for credential_id in incoming {
-            if !merged.contains(credential_id) {
-                merged.push(*credential_id);
-            }
-        }
-        self.set_site_credentials(site_id, &merged).await
-    }
-
-    /// Replace all credential assignments for a host (atomic).
-    pub async fn set_host_credentials(
-        &self,
-        host_id: &Uuid,
-        assignments: &[CredentialAssignment],
-    ) -> Result<(), Error> {
-        self.host_credential_storage
-            .save_for_host(host_id, assignments)
-            .await
-    }
-
-    /// Merge `incoming` credential assignments into a host's junction (additive — never prunes).
-    ///
-    /// Discovery self-reports only the credentials that probed successfully on a host. Using the
-    /// replace path (`set_host_credentials`) there would delete user/init-assigned daemon-host
-    /// credentials that didn't probe this scan (e.g. a Docker socket on a Podman-only host),
-    /// regressing the junction-as-source-of-truth model. Merge keeps existing assignments and
-    /// overlays `incoming` (incoming wins per `credential_id`, refreshing `ip_address_ids`), so
-    /// discovery only adds. Explicit user edits still go through the replace path.
-    pub async fn merge_host_credentials(
-        &self,
-        host_id: &Uuid,
-        incoming: &[CredentialAssignment],
-    ) -> Result<(), Error> {
-        let mut by_host = self
-            .get_credential_assignments_for_hosts(&[*host_id])
-            .await?;
-        let existing = by_host.remove(host_id).unwrap_or_default();
-
-        let incoming_ids: std::collections::HashSet<Uuid> =
-            incoming.iter().map(|a| a.credential_id).collect();
-        let mut merged: Vec<CredentialAssignment> = existing
-            .into_iter()
-            .filter(|a| !incoming_ids.contains(&a.credential_id))
-            .collect();
-        merged.extend(incoming.iter().cloned());
-
-        self.set_host_credentials(host_id, &merged).await
-    }
-
-    /// Get the site IDs a credential is assigned to (reverse lookup).
-    pub async fn get_site_ids_for_credential(
-        &self,
-        credential_id: &Uuid,
-    ) -> Result<Vec<Uuid>, Error> {
-        self.site_credential_storage
-            .get_site_ids_for_credential(credential_id)
-            .await
-    }
-
-    /// Get the site IDs for multiple credentials (batch, reverse lookup).
-    pub async fn get_site_ids_for_credentials(
-        &self,
-        credential_ids: &[Uuid],
-    ) -> Result<std::collections::HashMap<Uuid, Vec<Uuid>>, Error> {
-        self.site_credential_storage
-            .get_site_ids_for_credentials(credential_ids)
-            .await
-    }
-
-    /// Get the host assignments for a credential (reverse lookup).
-    pub async fn get_host_assignments_for_credential(
-        &self,
-        credential_id: &Uuid,
-    ) -> Result<Vec<CredentialHostAssignment>, Error> {
-        self.host_credential_storage
-            .get_host_assignments_for_credential(credential_id)
-            .await
-    }
-
-    /// Get the host assignments for multiple credentials (batch, reverse lookup).
-    pub async fn get_host_assignments_for_credentials(
-        &self,
-        credential_ids: &[Uuid],
-    ) -> Result<std::collections::HashMap<Uuid, Vec<CredentialHostAssignment>>, Error> {
-        self.host_credential_storage
-            .get_host_assignments_for_credentials(credential_ids)
-            .await
-    }
-
-    /// Replace the full set of sites a credential is assigned to (atomic).
-    pub async fn set_credential_sites(
-        &self,
-        credential_id: &Uuid,
-        site_ids: &[Uuid],
-    ) -> Result<(), Error> {
-        self.site_credential_storage
-            .save_sites_for_credential(credential_id, site_ids)
-            .await
-    }
-
-    /// Replace the full set of host assignments for a credential (atomic).
-    pub async fn set_credential_host_assignments(
-        &self,
-        credential_id: &Uuid,
-        assignments: &[CredentialHostAssignment],
-    ) -> Result<(), Error> {
-        self.host_credential_storage
-            .save_host_assignments_for_credential(credential_id, assignments)
-            .await
     }
 
     /// Enforce the single-endpoint-per-host invariant: integrations whose

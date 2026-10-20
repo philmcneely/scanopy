@@ -780,6 +780,7 @@ impl AppState {
         let storage =
             StorageFactory::new(&config.database_url(), config.use_secure_session_cookies).await?;
         let services = ServiceFactory::new(&storage, config.clone()).await?;
+        let (pool, session_store) = storage.into_parts();
 
         // Built by the service factory, which gives it the org service it
         // persists entitlements and reconciles plans through.
@@ -797,10 +798,10 @@ impl AppState {
         Ok(Arc::new(Self {
             config,
             services,
-            session_store: storage.sessions,
+            session_store,
             license_service,
             license_issuer,
-            pool: storage.pool,
+            pool,
             shutdown: CancellationToken::new(),
         }))
     }

@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
-use sqlx::{PgPool, Postgres};
+use sqlx::Postgres;
 use uuid::Uuid;
 
 use crate::server::organizations::service::OrganizationService;
@@ -73,7 +73,6 @@ impl VirtualizationServiceRef for Subnet {
 /// for the `Snapshot` entity so the standard handlers can read/list/delete
 /// snapshot rows.
 pub struct SnapshotService {
-    pool: Arc<PgPool>,
     storage: Arc<GenericPostgresStorage<Snapshot>>,
     event_bus: Arc<EventBus>,
     site_service: Arc<SiteService>,
@@ -82,14 +81,12 @@ pub struct SnapshotService {
 
 impl SnapshotService {
     pub fn new(
-        pool: Arc<PgPool>,
         storage: Arc<GenericPostgresStorage<Snapshot>>,
         event_bus: Arc<EventBus>,
         site_service: Arc<SiteService>,
         organization_service: Arc<OrganizationService>,
     ) -> Arc<Self> {
         Arc::new(Self {
-            pool,
             storage,
             event_bus,
             site_service,
@@ -154,7 +151,7 @@ impl SnapshotService {
         use crate::server::vlans::r#impl::base::Vlan;
         use crate::server::vlans::r#impl::subnet_vlans::SubnetVlanRecord;
 
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.storage.begin_multi_table_transaction().await?;
         let mut maps = FkMaps::default();
 
         // Top-level site-scoped entities (no within-tracked FKs to remap).
@@ -584,15 +581,7 @@ where
     // UPDATE per entity type — extending each Snapshotable struct + Storable
     // impl with a snapshot_id field would be 13 files of churn for a column
     // with no other read/write path. Confined to this transaction.
-    let stamp_sql = format!(
-        "UPDATE {} SET snapshot_id = $1 WHERE id = ANY($2)",
-        T::table_name()
-    );
-    sqlx::query(&stamp_sql)
-        .bind(snapshot_id)
-        .bind(&closed_ids)
-        .execute(&mut **tx)
-        .await?;
+    GenericPostgresStorage::<T>::stamp_snapshot_id_in_tx(&closed_ids, snapshot_id, tx).await?;
 
     // Every closed row of this type is now in the table, so a reference to any
     // of them satisfies the FK regardless of which insert chunk it landed in.

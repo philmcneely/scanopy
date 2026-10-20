@@ -280,7 +280,7 @@ pub async fn test_state() -> (StorageFactory, AppState, ContainerAsync<GenericIm
         session_store: storage.sessions.clone(),
         license_service: None,
         license_issuer: None,
-        pool: storage.pool.clone(),
+        pool: storage.pool().clone(),
         shutdown: tokio_util::sync::CancellationToken::new(),
     };
     (storage, state, _container)

@@ -14,6 +14,7 @@ use crate::server::search::{
 };
 use crate::server::shared::entities::{Entity, EntityDiscriminants};
 use crate::server::shared::storage::traits::{Storable, Storage};
+use crate::server::tags::entity_tags::{EntityTag, EntityTagBase};
 use crate::server::tags::r#impl::base::{Tag, TagBase};
 use crate::server::user_api_keys::r#impl::base::{UserApiKey, UserApiKeyBase};
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
@@ -174,7 +175,12 @@ async fn tags_narrow_every_type_to_entities_carrying_all_of_them() {
         async move {
             storage
                 .entity_tags
-                .add(entity_id, entity_type, tag_id)
+                .inner()
+                .create(&EntityTag::new(EntityTagBase::new(
+                    entity_id,
+                    entity_type,
+                    tag_id,
+                )))
                 .await
                 .unwrap();
         }

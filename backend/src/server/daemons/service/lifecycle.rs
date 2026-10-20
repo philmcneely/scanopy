@@ -5,6 +5,7 @@ impl DaemonService {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         daemon_storage: Arc<GenericPostgresStorage<Daemon>>,
+        interfaced_subnet_storage: Arc<GenericChildStorage<DaemonInterfacedSubnet>>,
         event_bus: Arc<EventBus>,
         entity_tag_service: Arc<EntityTagService>,
         discovery_service: Arc<DiscoveryService>,
@@ -18,8 +19,6 @@ impl DaemonService {
         trusted_ca: Option<&TrustedCaBundle>,
         has_email_service: bool,
     ) -> Self {
-        let interfaced_subnet_storage =
-            DaemonInterfacedSubnetStorage::new(daemon_storage.pool().clone());
         Self {
             daemon_storage,
             interfaced_subnet_storage,
@@ -49,9 +48,13 @@ impl DaemonService {
     /// `daemon_interfaced_subnets` junction. Errors degrade to an empty list — a
     /// junction read failure shouldn't fail a whole daemon fetch.
     pub async fn get_interfaced_subnet_ids(&self, daemon_id: &Uuid) -> Vec<Uuid> {
+        let filter =
+            StorableFilter::<DaemonInterfacedSubnet>::new_from_uuid_column("daemon_id", daemon_id);
         self.interfaced_subnet_storage
-            .get_subnet_ids_for_daemon(daemon_id)
+            .inner()
+            .get_all_ordered(filter, "subnet_id ASC")
             .await
+            .map(|records| records.into_iter().map(|r| r.subnet_id).collect())
             .unwrap_or_else(|e| {
                 tracing::warn!(error = ?e, "Failed to load interfaced subnet ids");
                 Vec::new()
@@ -64,9 +67,27 @@ impl DaemonService {
         &self,
         daemon_ids: &[Uuid],
     ) -> std::collections::HashMap<Uuid, Vec<Uuid>> {
+        if daemon_ids.is_empty() {
+            return std::collections::HashMap::new();
+        }
+        let filter = StorableFilter::<DaemonInterfacedSubnet>::new_from_uuids_column(
+            "daemon_id",
+            daemon_ids,
+        );
         self.interfaced_subnet_storage
-            .get_subnet_ids_for_daemons(daemon_ids)
+            .inner()
+            .get_all_ordered(filter, "daemon_id ASC")
             .await
+            .map(|records| {
+                let mut map: std::collections::HashMap<Uuid, Vec<Uuid>> =
+                    std::collections::HashMap::new();
+                for record in records {
+                    map.entry(record.daemon_id)
+                        .or_default()
+                        .push(record.subnet_id);
+                }
+                map
+            })
             .unwrap_or_else(|e| {
                 tracing::warn!(error = ?e, "Failed to batch-load interfaced subnet ids");
                 std::collections::HashMap::new()
@@ -80,9 +101,20 @@ impl DaemonService {
         daemon_id: &Uuid,
         subnet_ids: &[Uuid],
     ) -> Result<(), ApiError> {
+        let rows: Vec<DaemonInterfacedSubnet> = subnet_ids
+            .iter()
+            .map(|subnet_id| DaemonInterfacedSubnet {
+                daemon_id: *daemon_id,
+                subnet_id: *subnet_id,
+            })
+            .collect();
         self.interfaced_subnet_storage
-            .save_interfaced_subnets_for_daemon(daemon_id, subnet_ids)
+            .save_for_parent(
+                &ParentRef::new(EntityDiscriminants::Daemon, *daemon_id),
+                &rows,
+            )
             .await
+            .map(|_| ())
             .map_err(|e| {
                 ApiError::internal_error(&format!("Failed to save interfaced subnets: {e}"))
             })

@@ -6,29 +6,51 @@ use std::sync::Arc;
 use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::PostgresStore;
 
-use crate::server::dependencies::dependency_members::DependencyMemberStorage;
+use crate::server::credentials::r#impl::junction::{HostCredential, SiteCredential};
+use crate::server::daemons::r#impl::interfaced_subnets::DaemonInterfacedSubnet;
+use crate::server::dependencies::dependency_members::DependencyMemberRecord;
+use crate::server::discovery_warnings::r#impl::base::DiscoveryWarningRecord;
+use crate::server::interface_neighbors::r#impl::base::{
+    InterfaceNeighborCandidate, InterfaceNeighborHost, InterfaceNeighborInterface,
+};
 use crate::server::license::instances::{LicenseInstance, ServerInstance};
 use crate::server::release_notes::storage::ReleaseAnnouncement;
-use crate::server::tags::entity_tags::EntityTagStorage;
+use crate::server::tags::entity_tags::EntityTag;
 use crate::server::tags::groups::base::TagGroup;
-use crate::server::user_api_keys::r#impl::site_access::UserApiKeySiteAccessStorage;
-use crate::server::users::UserSiteAccessStorage;
-use crate::server::vlans::r#impl::subnet_vlans::SubnetVlanStorage;
+use crate::server::user_api_keys::r#impl::site_access::UserApiKeySiteAccess;
+use crate::server::users::r#impl::site_access::UserSiteAccess;
+use crate::server::vlans::r#impl::subnet_vlans::SubnetVlanRecord;
 use crate::server::{
-    bindings::r#impl::base::Binding, credentials::r#impl::base::Credential,
-    daemon_api_keys::r#impl::base::DaemonApiKey, daemons::r#impl::base::Daemon,
-    dependencies::r#impl::base::Dependency, discovery::r#impl::base::Discovery,
-    hosts::r#impl::base::Host, interfaces::r#impl::base::Interface, invites::r#impl::base::Invite,
-    ip_addresses::r#impl::base::IPAddress, organizations::r#impl::base::Organization,
-    ports::r#impl::base::Port, services::r#impl::base::Service,
-    shared::storage::generic::GenericPostgresStorage, shares::r#impl::base::Share,
-    sites::r#impl::Site, snapshots::types::base::Snapshot, subnets::r#impl::base::Subnet,
-    tags::r#impl::base::Tag, topology::types::base::Topology,
-    user_api_keys::r#impl::base::UserApiKey, users::r#impl::base::User, vlans::r#impl::base::Vlan,
+    bindings::r#impl::base::Binding,
+    credentials::r#impl::base::Credential,
+    daemon_api_keys::r#impl::base::DaemonApiKey,
+    daemons::r#impl::base::Daemon,
+    dependencies::r#impl::base::Dependency,
+    discovery::r#impl::base::Discovery,
+    hosts::r#impl::base::Host,
+    interfaces::r#impl::base::Interface,
+    invites::r#impl::base::Invite,
+    ip_addresses::r#impl::base::IPAddress,
+    organizations::r#impl::base::Organization,
+    ports::r#impl::base::Port,
+    services::r#impl::base::Service,
+    shared::storage::{child::GenericChildStorage, generic::GenericPostgresStorage},
+    shares::r#impl::base::Share,
+    sites::r#impl::Site,
+    snapshots::types::base::Snapshot,
+    subnets::r#impl::base::Subnet,
+    tags::r#impl::base::Tag,
+    topology::types::base::Topology,
+    user_api_keys::r#impl::base::UserApiKey,
+    users::r#impl::base::User,
+    vlans::r#impl::base::Vlan,
 };
 
+/// Every storage the server has, built once from one pool. Services take the storages they own
+/// from here; nothing outside this module can reach the pool, so nothing can build a storage of
+/// its own.
 pub struct StorageFactory {
-    pub pool: PgPool,
+    pool: PgPool,
     pub sessions: SessionManagerLayer<PostgresStore>,
     pub daemon_api_keys: Arc<GenericPostgresStorage<DaemonApiKey>>,
     pub user_api_keys: Arc<GenericPostgresStorage<UserApiKey>>,
@@ -56,12 +78,19 @@ pub struct StorageFactory {
     pub credentials: Arc<GenericPostgresStorage<Credential>>,
     pub interfaces: Arc<GenericPostgresStorage<Interface>>,
     pub vlans: Arc<GenericPostgresStorage<Vlan>>,
-    // Junction tables
-    pub entity_tags: Arc<EntityTagStorage>,
-    pub user_api_key_site_access: Arc<UserApiKeySiteAccessStorage>,
-    pub user_site_access: Arc<UserSiteAccessStorage>,
-    pub dependency_members: Arc<DependencyMemberStorage>,
-    pub subnet_vlan: Arc<SubnetVlanStorage>,
+    // Rows stored under a parent: junction tables, and the non-entity tables a parent owns
+    pub entity_tags: Arc<GenericChildStorage<EntityTag>>,
+    pub user_api_key_site_access: Arc<GenericChildStorage<UserApiKeySiteAccess>>,
+    pub user_site_access: Arc<GenericChildStorage<UserSiteAccess>>,
+    pub dependency_members: Arc<GenericChildStorage<DependencyMemberRecord>>,
+    pub subnet_vlan: Arc<GenericChildStorage<SubnetVlanRecord>>,
+    pub site_credentials: Arc<GenericChildStorage<SiteCredential>>,
+    pub host_credentials: Arc<GenericChildStorage<HostCredential>>,
+    pub daemon_interfaced_subnets: Arc<GenericChildStorage<DaemonInterfacedSubnet>>,
+    pub interface_neighbor_candidates: Arc<GenericChildStorage<InterfaceNeighborCandidate>>,
+    pub interface_neighbor_interfaces: Arc<GenericChildStorage<InterfaceNeighborInterface>>,
+    pub interface_neighbor_hosts: Arc<GenericChildStorage<InterfaceNeighborHost>>,
+    pub discovery_warnings: Arc<GenericChildStorage<DiscoveryWarningRecord>>,
 }
 
 pub async fn create_session_store(
@@ -118,12 +147,32 @@ impl StorageFactory {
             credentials: Arc::new(GenericPostgresStorage::new(pool.clone())),
             interfaces: Arc::new(GenericPostgresStorage::new(pool.clone())),
             vlans: Arc::new(GenericPostgresStorage::new(pool.clone())),
-            // Junction tables
-            entity_tags: Arc::new(EntityTagStorage::new(pool.clone())),
-            user_api_key_site_access: Arc::new(UserApiKeySiteAccessStorage::new(pool.clone())),
-            dependency_members: Arc::new(DependencyMemberStorage::new(pool.clone())),
-            subnet_vlan: Arc::new(SubnetVlanStorage::new(pool.clone())),
-            user_site_access: Arc::new(UserSiteAccessStorage::new(pool.clone())),
+            entity_tags: Arc::new(GenericChildStorage::new(pool.clone())),
+            user_api_key_site_access: Arc::new(GenericChildStorage::new(pool.clone())),
+            user_site_access: Arc::new(GenericChildStorage::new(pool.clone())),
+            dependency_members: Arc::new(GenericChildStorage::new(pool.clone())),
+            subnet_vlan: Arc::new(GenericChildStorage::new(pool.clone())),
+            site_credentials: Arc::new(GenericChildStorage::new(pool.clone())),
+            host_credentials: Arc::new(GenericChildStorage::new(pool.clone())),
+            daemon_interfaced_subnets: Arc::new(GenericChildStorage::new(pool.clone())),
+            interface_neighbor_candidates: Arc::new(GenericChildStorage::new(pool.clone())),
+            interface_neighbor_interfaces: Arc::new(GenericChildStorage::new(pool.clone())),
+            interface_neighbor_hosts: Arc::new(GenericChildStorage::new(pool.clone())),
+            discovery_warnings: Arc::new(GenericChildStorage::new(pool.clone())),
         })
+    }
+}
+
+impl StorageFactory {
+    /// The pool and session layer, for the app state once the services are built. Taking
+    /// `self` keeps the pool out of reach of `ServiceFactory::new`, which only borrows.
+    pub fn into_parts(self) -> (PgPool, SessionManagerLayer<PostgresStore>) {
+        (self.pool, self.sessions)
+    }
+
+    /// The pool, for tests that seed or read rows directly.
+    #[cfg(test)]
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
     }
 }
