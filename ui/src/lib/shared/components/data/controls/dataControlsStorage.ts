@@ -45,6 +45,7 @@ export interface StoredState {
 	pageSize?: PageSizeOption;
 	columnVisibility?: Record<string, boolean>;
 	columnOrder?: string[];
+	columnGroupOrder?: string[];
 	columnSizing?: Record<string, number>;
 }
 
@@ -141,6 +142,9 @@ export function parseStoredState(raw: string | null): StoredState | null {
 			? (state.columnVisibility as Record<string, boolean>)
 			: undefined,
 		columnOrder: Array.isArray(state.columnOrder) ? state.columnOrder.map(String) : undefined,
+		columnGroupOrder: Array.isArray(state.columnGroupOrder)
+			? state.columnGroupOrder.map(String)
+			: undefined,
 		columnSizing: isRecordOf(state.columnSizing, 'number')
 			? (state.columnSizing as Record<string, number>)
 			: undefined

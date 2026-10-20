@@ -9,9 +9,9 @@ import {
 	moveColumnTo,
 	movableIds,
 	columnSections,
-	moveSection,
-	moveSectionTo,
-	movableSectionKeys,
+	movableGroups,
+	moveGroup,
+	moveGroupTo,
 	buildTagColumn,
 	columnWidth,
 	MAX_COLUMN_WIDTH,
@@ -370,14 +370,21 @@ describe('column headings', () => {
 		{ key: 'site_id', label: 'Site', type: 'string', display: { group: 'relationships' } },
 		{ key: 'hostname', label: 'Hostname', type: 'string', display: { group: 'identity' } },
 		{ key: 'env', label: 'Environment', type: 'string', display: { group: 'status' } },
-		{ key: 'rack', label: 'Rack', type: 'string', display: { section: 'Tag Groups' } }
+		{
+			key: 'rack',
+			label: 'Rack',
+			type: 'string',
+			display: { section: { id: 'tag_groups', label: 'Tag Groups' } }
+		}
 	];
 	const columns = fieldsToColumns(grouped());
-	const TAG_GROUPS = 'section:Tag Groups';
+	const TAG_GROUPS = 'section:tag_groups';
+	const reconcile = (stored?: Partial<ColumnState>) => reconcileColumnState(columns, stored);
 
 	it('orders by default with unheaded columns first, field groups in order, sections last', () => {
-		const { order } = reconcileColumnState(columns, undefined);
+		const { order, groupOrder } = reconcile();
 
+		expect(groupOrder).toEqual(['identity', 'relationships', 'status', TAG_GROUPS]);
 		expect(order).toEqual(['name', 'port', 'hostname', 'site_id', 'status', 'env', 'rack']);
 		const byId = new Map(columns.map((c) => [c.id, c]));
 		const sections = columnSections(order.map((id) => byId.get(id)!));
@@ -390,23 +397,23 @@ describe('column headings', () => {
 		]);
 	});
 
-	it("brings a stored order's headings together where each first appears", () => {
+	it('sorts a stored order by group order first, keeping its order within each group', () => {
 		// An order saved before headings existed interleaves them.
-		const stored = ['name', 'status', 'port', 'rack', 'site_id', 'env', 'hostname'];
+		const stored = ['name', 'env', 'port', 'rack', 'site_id', 'status', 'hostname'];
 
-		expect(reconcileColumnState(columns, { order: stored }).order).toEqual([
+		expect(reconcile({ order: stored }).order).toEqual([
 			'name',
-			'status',
-			'env',
 			'port',
-			'rack',
+			'hostname',
 			'site_id',
-			'hostname'
+			'env',
+			'status',
+			'rack'
 		]);
 	});
 
 	it('moves a column only among the columns of its heading', () => {
-		const { order } = reconcileColumnState(columns, undefined);
+		const { order } = reconcile();
 		const status = columnSections(columns).find((s) => s.key === 'status')!.columns;
 
 		expect(moveColumn(order, status, 'status', 1)).toEqual([
@@ -421,37 +428,77 @@ describe('column headings', () => {
 		expect(moveColumn(order, status, 'status', -1)).toBe(order);
 	});
 
-	it('moves a heading as a block, and the move survives a reload', () => {
-		const { order } = reconcileColumnState(columns, undefined);
+	it('moves a heading by step or by drag, and its columns follow', () => {
+		const { order, groupOrder } = reconcile();
+		const movable = movableGroups(groupOrder, columns);
 
-		const up = moveSection(order, columns, 'status', -1);
-		expect(up).toEqual(['name', 'port', 'hostname', 'status', 'env', 'site_id', 'rack']);
-		expect(reconcileColumnState(columns, { order: up }).order).toEqual(up);
-
-		const dragged = moveSectionTo(order, columns, TAG_GROUPS, 'identity', 'before');
-		expect(dragged).toEqual(['name', 'port', 'rack', 'hostname', 'site_id', 'status', 'env']);
-		expect(reconcileColumnState(columns, { order: dragged }).order).toEqual(dragged);
-	});
-
-	it("keeps the primary column first when its heading moves, and the rest of that heading's columns move", () => {
-		const { order } = reconcileColumnState(columns, undefined);
-
-		const down = moveSection(order, columns, 'identity', 1);
-		expect(down).toEqual(['name', 'port', 'site_id', 'hostname', 'status', 'env', 'rack']);
-		expect(reconcileColumnState(columns, { order: down }).order).toEqual(down);
-	});
-
-	it('leaves the order alone past either end or for the unheaded columns', () => {
-		const { order } = reconcileColumnState(columns, undefined);
-
-		expect(movableSectionKeys(order, columns)).toEqual([
-			'identity',
-			'relationships',
+		const up = moveGroup(groupOrder, movable, 'status', -1);
+		expect(up).toEqual(['identity', 'status', 'relationships', TAG_GROUPS]);
+		expect(reconcile({ order, groupOrder: up }).order).toEqual([
+			'name',
+			'port',
+			'hostname',
 			'status',
-			TAG_GROUPS
+			'env',
+			'site_id',
+			'rack'
 		]);
-		expect(moveSection(order, columns, 'identity', -1)).toBe(order);
-		expect(moveSection(order, columns, TAG_GROUPS, 1)).toBe(order);
-		expect(moveSectionTo(order, columns, 'status', 'status', 'after')).toBe(order);
+
+		const dragged = moveGroupTo(groupOrder, TAG_GROUPS, 'identity', 'before');
+		expect(reconcile({ order, groupOrder: dragged }).order).toEqual([
+			'name',
+			'port',
+			'rack',
+			'hostname',
+			'site_id',
+			'status',
+			'env'
+		]);
+	});
+
+	it('keeps the primary column first when its heading moves', () => {
+		const { order, groupOrder } = reconcile();
+		const down = moveGroup(groupOrder, movableGroups(groupOrder, columns), 'identity', 1);
+
+		expect(reconcile({ order, groupOrder: down }).order).toEqual([
+			'name',
+			'port',
+			'site_id',
+			'hostname',
+			'status',
+			'env',
+			'rack'
+		]);
+	});
+
+	it('leaves the heading order alone past either end', () => {
+		const { groupOrder } = reconcile();
+		const movable = movableGroups(groupOrder, columns);
+
+		expect(moveGroup(groupOrder, movable, 'identity', -1)).toBe(groupOrder);
+		expect(moveGroup(groupOrder, movable, TAG_GROUPS, 1)).toBe(groupOrder);
+		expect(moveGroupTo(groupOrder, 'status', 'status', 'after')).toBe(groupOrder);
+	});
+
+	it('places a heading the stored order lacks after its default predecessor', () => {
+		const { groupOrder } = reconcile({ groupOrder: ['relationships', 'identity', 'gone'] });
+
+		expect(groupOrder).toEqual(['relationships', 'status', TAG_GROUPS, 'identity']);
+	});
+
+	it('keeps the heading order through a save and reload', () => {
+		const { groupOrder } = reconcile();
+		const moved = moveGroup(groupOrder, movableGroups(groupOrder, columns), TAG_GROUPS, -1);
+
+		const reloaded = parseStoredState(
+			serializeState({
+				searchQuery: '',
+				filterState: {},
+				currentPage: 1,
+				columnGroupOrder: moved
+			})
+		);
+
+		expect(reconcile({ groupOrder: reloaded!.columnGroupOrder }).groupOrder).toEqual(moved);
 	});
 });

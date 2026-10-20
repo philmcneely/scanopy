@@ -182,9 +182,10 @@ export interface DisplayConfig<T> {
 	group?: FieldGroup;
 	/**
 	 * The heading for a column that is no entity field, such as a tag group's: listed after every
-	 * field group by default. Ignored when `group` is set.
+	 * field group by default. `id` keeps the user's heading order across languages. Ignored when
+	 * `group` is set.
 	 */
-	section?: string;
+	section?: { id: string; label: string };
 	/**
 	 * Rich chips: `EntityTag` when an item carries an `entityRef`, `Tag`
 	 * otherwise. Prefer this over `cell`: it is data rather than markup, so

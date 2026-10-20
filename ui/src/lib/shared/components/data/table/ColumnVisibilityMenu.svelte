@@ -7,9 +7,9 @@
 		movableIds,
 		moveColumn,
 		moveColumnTo,
-		moveSection,
-		moveSectionTo,
-		movableSectionKeys,
+		movableGroups,
+		moveGroup,
+		moveGroupTo,
 		type EntityColumn
 	} from './columns';
 	import {
@@ -26,17 +26,22 @@
 	let {
 		columns,
 		order,
+		groupOrder,
 		visibility,
 		onToggle,
 		onReorder,
+		onReorderGroups,
 		onReset
 	}: {
 		columns: EntityColumn<T>[];
 		/** The full column order, pinned columns included. */
 		order: string[];
+		/** The headings in the user's order; columns sort by heading first. */
+		groupOrder: string[];
 		visibility: Record<string, boolean>;
 		onToggle: (id: string) => void;
 		onReorder: (order: string[]) => void;
+		onReorderGroups: (groupOrder: string[]) => void;
 		onReset: () => void;
 	} = $props();
 
@@ -191,17 +196,17 @@
 	}
 
 	/** Headings whose columns move as a block, in menu order. */
-	let movableSections = $derived(movableSectionKeys(order, toggleable));
+	let movableSections = $derived(movableGroups(groupOrder, toggleable));
 
 	let draggingSection = $state<string | null>(null);
 	let sectionDropTarget = $state<{ key: string; position: 'before' | 'after' } | null>(null);
 
 	async function stepSection(key: string, delta: -1 | 1) {
-		const next = moveSection(order, toggleable, key, delta);
-		if (next === order) return;
+		const next = moveGroup(groupOrder, movableSections, key, delta);
+		if (next === groupOrder) return;
 
 		reordering = true;
-		onReorder(next);
+		onReorderGroups(next);
 		await tick();
 		reordering = false;
 
@@ -240,14 +245,13 @@
 		if (!draggingSection) return;
 		event.preventDefault();
 		if (sectionDropTarget) {
-			const next = moveSectionTo(
-				order,
-				toggleable,
+			const next = moveGroupTo(
+				groupOrder,
 				draggingSection,
 				sectionDropTarget.key,
 				sectionDropTarget.position
 			);
-			if (next !== order) onReorder(next);
+			if (next !== groupOrder) onReorderGroups(next);
 		}
 		clearDrag();
 	}
