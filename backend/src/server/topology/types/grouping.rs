@@ -382,7 +382,7 @@ pub enum ViewMode {
 
 impl ViewMode {
     /// L2 has no `Icons` mode: its elements are ports, not devices, and its host containers show
-    /// their device role in every mode.
+    /// their device type in every mode.
     pub fn applicable_views(&self) -> &'static [TopologyView] {
         match self {
             ViewMode::Detailed => &[

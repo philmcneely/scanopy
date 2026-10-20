@@ -76,7 +76,7 @@
 	});
 
 	// The selection's own glyph heads the section. A device tile belongs to the host it names: an
-	// entity that sits on a host (an address) keeps its own entity icon here, and the host's role
+	// entity that sits on a host (an address) keeps its own entity icon here, and the host's device type
 	// shows beside the host itself, in its card below.
 	let selectionGlyph = $derived.by(() => {
 		const subject = nodeEntity(node.data as TopologyNode, topology);
@@ -207,7 +207,7 @@
 	<InspectorSection id="Identity" section="Identity" title={sectionLabel}>
 		{#snippet glyph()}
 			{#if selectionGlyph?.type === 'device'}
-				<DeviceGlyph role={selectionGlyph.role} />
+				<DeviceGlyph deviceType={selectionGlyph.deviceType} />
 			{:else if selectionGlyph?.type === 'software'}
 				<SoftwareGlyph definition={selectionGlyph.definition} />
 			{:else}

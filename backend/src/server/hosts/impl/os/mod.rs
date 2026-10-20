@@ -15,7 +15,7 @@ use strum_macros::{EnumIter, IntoStaticStr, VariantNames};
 use utoipa::ToSchema;
 
 use crate::server::daemons::r#impl::base::DaemonOs;
-use crate::server::hosts::r#impl::device_role::DeviceRole;
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::types::{
     Color, Icon,
@@ -45,23 +45,23 @@ pub struct HostOs {
 }
 
 impl HostOs {
-    /// The device role this reading implies on its own, for a host no service identifies.
+    /// The device type this reading implies on its own, for a host no service identifies.
     ///
     /// Windows is the one family that needs more than the family: a server edition or product
     /// name makes it a server, anything else a workstation.
-    pub fn device_role(&self) -> Option<DeviceRole> {
+    pub fn device_type(&self) -> Option<DeviceType> {
         if self.family == HostOsFamily::Windows {
             let names_server = [&self.name, &self.edition]
                 .into_iter()
                 .flatten()
                 .any(|s| s.to_ascii_lowercase().contains("server"));
             return Some(if names_server {
-                DeviceRole::Server
+                DeviceType::Server
             } else {
-                DeviceRole::Workstation
+                DeviceType::Workstation
             });
         }
-        self.family.device_role()
+        self.family.device_type()
     }
 
     /// Whether this reading is `other` in more detail: the same family and product, every field
@@ -213,25 +213,25 @@ impl From<DaemonOs> for HostOsFamily {
 }
 
 impl HostOsFamily {
-    /// The device role a family implies, for families that only run on one class of device.
+    /// The device type a family implies, for families that only run on one class of device.
     /// `None` for families found on many classes: Linux runs on routers, NAS boxes and cameras as
     /// much as on servers, and IOS or Junos on routers and switches alike.
-    pub fn device_role(&self) -> Option<DeviceRole> {
+    pub fn device_type(&self) -> Option<DeviceType> {
         use HostOsFamily::*;
         match self {
             CiscoAsa | CiscoFtd | ScreenOs | PanOs | FortiOs | SonicOs | GaiaOs | Ipso => {
-                Some(DeviceRole::Firewall)
+                Some(DeviceType::Firewall)
             }
-            CiscoIosXr | RouterOs | BayRs => Some(DeviceRole::Router),
-            CiscoCatOs | CiscoNxOs | ProCurve | BrocadeNetworkOs => Some(DeviceRole::Switch),
-            Esxi => Some(DeviceRole::Hypervisor),
-            DataOntap => Some(DeviceRole::Storage),
-            MacOs => Some(DeviceRole::Workstation),
-            Ios | PalmOs => Some(DeviceRole::Mobile),
-            TvOs | AudioOs => Some(DeviceRole::IoT),
+            CiscoIosXr | RouterOs | BayRs => Some(DeviceType::Router),
+            CiscoCatOs | CiscoNxOs | ProCurve | BrocadeNetworkOs => Some(DeviceType::Switch),
+            Esxi => Some(DeviceType::Hypervisor),
+            DataOntap => Some(DeviceType::Storage),
+            MacOs => Some(DeviceType::Workstation),
+            Ios | PalmOs => Some(DeviceType::Mobile),
+            TvOs | AudioOs => Some(DeviceType::IoT),
             Solaris | Aix | HpUx | Irix | Tru64 | OpenVms | ZOs | IbmI | UnixWare | OpenServer
-            | NetWare => Some(DeviceRole::Server),
-            // Decided from the edition in `HostOs::device_role`.
+            | NetWare => Some(DeviceType::Server),
+            // Decided from the edition in `HostOs::device_type`.
             Windows => None,
             Linux | FreeBsd | OpenBsd | NetBsd | Ecos | CiscoIos | CiscoIosXe | Junos | ArubaOs
             | Comware | AristaEos | HuaweiVrp | IronWare => None,

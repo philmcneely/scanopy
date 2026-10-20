@@ -1,6 +1,6 @@
 use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::ftp::FtpProbe;
-use crate::server::hosts::r#impl::device_role::DeviceRole;
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -19,8 +19,8 @@ impl ServiceDefinition for FileServer {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Storage
     }
-    fn device_role(&self) -> Option<DeviceRole> {
-        Some(DeviceRole::Server)
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::Server)
     }
 
     /// Derived from the probe, so a listener on this port that does not speak the protocol is

@@ -928,11 +928,11 @@ pub struct HostResponse {
     #[schema(read_only)]
     pub name_ladder: Vec<crate::server::hosts::r#impl::name_ladder::HostNameLadderEntry>,
     /// What this host is, as a device: the role its icon shows everywhere it appears. Computed
-    /// by [`Host::device_role`] from its services, then its OS, as the topology computes it.
+    /// by [`Host::device_type`] from its services, then its OS, as the topology computes it.
     /// Read-only.
     #[serde(default)]
     #[schema(read_only)]
-    pub device_role: crate::server::hosts::r#impl::device_role::DeviceRole,
+    pub device_type: crate::server::hosts::r#impl::device_type::DeviceType,
     /// What produced `name`. Read-only: it is decided by whoever supplied the name, not by the
     /// caller.
     #[serde(default)]

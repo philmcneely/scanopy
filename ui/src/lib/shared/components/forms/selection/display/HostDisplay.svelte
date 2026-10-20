@@ -136,7 +136,7 @@
 				.filter((value): value is string => !!value && value !== label)
 				.join(', ');
 		},
-		// The host's device role, as on every other surface, not its first service's logo.
+		// The host's device type, as on every other surface, not its first service's logo.
 		getIcon: (host) => hostTile(host),
 		getIconColor: () => entities.getColorHelper('Host').icon,
 		// What kind of guest the host is (VM, LXC, macvlan container, network identity) is part of

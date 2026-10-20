@@ -4,7 +4,7 @@ use crate::server::topology::types::views::{
 use crate::server::{
     bindings::r#impl::base::Binding,
     dependencies::r#impl::base::Dependency,
-    hosts::r#impl::{base::Host, device_role::DeviceRole},
+    hosts::r#impl::{base::Host, device_type::DeviceType},
     interface_neighbors::r#impl::base::{InterfaceNeighborCandidate, InterfaceNeighborRow},
     interfaces::r#impl::base::Interface,
     ip_addresses::r#impl::base::IPAddress,
@@ -46,10 +46,10 @@ pub struct TopologyHost {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schema(read_only)]
     pub display_name: Option<String>,
-    /// What this host is, as a device: the role its icon shows. See [`Host::device_role`].
+    /// What this host is, as a device: the device type its icon shows. See [`Host::device_type`].
     #[serde(default)]
     #[schema(read_only)]
-    pub device_role: DeviceRole,
+    pub device_type: DeviceType,
     /// This host's value for each metadata filter it takes part in, keyed by filter. See
     /// [`TopologyData::stamp_filter_values`].
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -139,7 +139,7 @@ impl TopologyHost {
             .map(|host| {
                 let display_name =
                     host.display_name(by_host.get(&host.id).into_iter().flatten().copied());
-                let device_role = host.device_role(
+                let device_type = host.device_type(
                     services_by_host
                         .get(&host.id)
                         .into_iter()
@@ -149,7 +149,7 @@ impl TopologyHost {
                 Self {
                     host,
                     display_name,
-                    device_role,
+                    device_type,
                     filter_values: BTreeMap::new(),
                 }
             })

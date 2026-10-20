@@ -119,7 +119,7 @@ const DECISIONS: Record<string, TabDecisions> = {
 			model: server('models'),
 			sys_location: server('sys_locations'),
 			os_family: server('os_families'),
-			device_role: none('Computed from services and OS when read; not a stored column to query'),
+			device_type: none('Computed from services and OS when read; not a stored column to query'),
 			description: TEXT,
 			serial_number: none('Identifier, unique per device; search finds one'),
 			asset_tag: none('Identifier, unique per device; search finds one'),

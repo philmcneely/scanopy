@@ -39,7 +39,6 @@
 		common_collapse,
 		common_containers,
 		common_expand,
-		common_plusCount,
 		topology_hideOpenPorts,
 		topology_openPortsSummary
 	} from '$lib/paraglide/messages';
@@ -147,7 +146,7 @@
 	// Staleness pill — computed with the rest of the card content because it
 	// renders in flow and therefore affects card height.
 	let staleTag = $derived(elementRender?.staleTag ?? null);
-	// What the element is (a device's role tile, software's logo), drawn in both view modes; and
+	// What the element is (a device's device-type tile, software's logo), drawn in both view modes; and
 	// the icon card that replaces the card's rows in the `Icons` view mode.
 	let glyph = $derived(elementRender?.glyph ?? null);
 	let iconCard = $derived(elementRender?.iconCard ?? null);
@@ -396,29 +395,29 @@
 			<!-- Icon card. The glyph comes first in DOM order: the diagram exports take each
 			     node's first icon as its shape icon. -->
 			<div
-				class="flex flex-col items-center gap-1.5 px-2 py-2"
+				class="group/icon-card flex flex-col items-center gap-1.5 px-2 py-2"
 				use:tooltip
 				data-tooltip={iconCard.title}
 			>
 				<div class="relative">
 					{#if iconCard.glyph.type === 'device'}
-						<DeviceGlyph role={iconCard.glyph.role} size="lg" />
+						<DeviceGlyph deviceType={iconCard.glyph.deviceType} size="lg" />
 					{:else}
 						<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
 					{/if}
-					{#if iconCard.badgeDefinition}
-						<!-- Round like every software glyph: this device, running this. -->
-						<span class="absolute -bottom-1 -right-1">
-							<SoftwareGlyph definition={iconCard.badgeDefinition} />
+					{#if iconCard.badgeDefinitions.length > 0}
+						<!-- Round like every software glyph: this device, running these. Stacked at the
+						     tile's corner, first on top; hovering the card fans them out. -->
+						<span class="absolute -bottom-1 left-[calc(100%-16px)] h-5">
+							{#each iconCard.badgeDefinitions as definition, i (definition)}
+								<span
+									class="absolute top-0 left-[calc(var(--i)*6px)] transition-[left] duration-150 group-hover/icon-card:left-[calc(var(--i)*22px)]"
+									style="--i: {i}; z-index: {iconCard.badgeDefinitions.length - i};"
+								>
+									<SoftwareGlyph {definition} />
+								</span>
+							{/each}
 						</span>
-						{#if iconCard.badgeMore > 0}
-							<!-- More services run here than the badge shows; the tooltip lists them. -->
-							<span
-								class="text-secondary absolute -bottom-1 left-full ml-1 whitespace-nowrap text-[10px] font-medium leading-5"
-							>
-								{common_plusCount({ count: String(iconCard.badgeMore) })}
-							</span>
-						{/if}
 					{/if}
 				</div>
 				{#if staleTag}
@@ -465,7 +464,7 @@
 					class={`relative flex flex-shrink-0 items-center justify-center gap-1 px-2 pt-2 text-xs font-medium leading-none ${titleColorClass}`}
 				>
 					{#if headerGlyph}
-						<DeviceGlyph role={headerGlyph.role} />
+						<DeviceGlyph deviceType={headerGlyph.deviceType} />
 					{/if}
 					<span class="truncate">{nodeRenderData.headerText}</span>
 				</div>
@@ -480,7 +479,7 @@
 						: ''}"
 				>
 					{#if headerGlyph && !nodeRenderData.headerText}
-						<DeviceGlyph role={headerGlyph.role} />
+						<DeviceGlyph deviceType={headerGlyph.deviceType} />
 					{/if}
 					<span class="truncate">{nodeRenderData.subtitleText}</span>
 				</div>
@@ -635,7 +634,7 @@
 													title={hostDisplayName(member.host)}
 												>
 													{#if memberGlyph?.type === 'device'}
-														<DeviceGlyph role={memberGlyph.role} />
+														<DeviceGlyph deviceType={memberGlyph.deviceType} />
 													{/if}
 													<span
 														class="text-secondary truncate text-xs font-medium {hostPulse

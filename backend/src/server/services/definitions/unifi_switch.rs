@@ -1,4 +1,4 @@
-use crate::server::hosts::r#impl::device_role::DeviceRole;
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -17,8 +17,8 @@ impl ServiceDefinition for UnifiSwitch {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkCore
     }
-    fn device_role(&self) -> Option<DeviceRole> {
-        Some(DeviceRole::Switch)
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::Switch)
     }
 
     /// UniFi switches expose no distinguishing network banner — that is the whole reason this

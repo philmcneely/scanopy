@@ -1,5 +1,5 @@
 use crate::daemon::utils::app_probe::AppProbe;
-use crate::server::hosts::r#impl::device_role::DeviceRole;
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::hosts::r#impl::virtualization::HostVirtualizationDiscriminants;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::definitions::docker_daemon::Docker;
@@ -116,11 +116,11 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
         false
     }
 
-    /// The device role this service implies for the host running it. Defaults to the category's;
+    /// The device type this service implies for the host running it. Defaults to the category's;
     /// override it only where the category holds several roles, as NetworkAccess holds both
     /// access points and gateways, or where the software runs on any host, as Samba does.
-    fn device_role(&self) -> Option<DeviceRole> {
-        self.category().device_role()
+    fn device_type(&self) -> Option<DeviceType> {
+        self.category().device_type()
     }
 }
 
@@ -170,8 +170,8 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
         ServiceDefinition::connect_only_rationale(&**self)
     }
 
-    fn device_role(&self) -> Option<DeviceRole> {
-        ServiceDefinition::device_role(&**self)
+    fn device_type(&self) -> Option<DeviceType> {
+        ServiceDefinition::device_type(&**self)
     }
 }
 
@@ -343,7 +343,7 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
             "manages_virtualization": role.as_ref().map(<&'static str>::from),
             "virtualization_variant": role.as_ref().map(VirtualizationRole::variant_tag),
             "is_gateway": self.is_gateway(),
-            "device_role": ServiceDefinition::device_role(&**self),
+            "device_type": ServiceDefinition::device_type(&**self),
             "is_generic": ServiceDefinition::is_generic(&**self),
             "has_logo": self.has_logo(),
             "logo_ext": logo_ext,

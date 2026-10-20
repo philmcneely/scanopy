@@ -10,7 +10,6 @@
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 	import OsTag from './OsTag.svelte';
-	import DeviceRoleLabel from './DeviceRoleLabel.svelte';
 	import HostEditor from './HostEditModal/HostEditor.svelte';
 	import HostConsolidationModal from './HostConsolidationModal.svelte';
 	import HostExportModal from './HostExportModal.svelte';
@@ -334,8 +333,7 @@
 			modelValues: () => modelValuesQuery.data,
 			sysLocationValues: () => sysLocationValuesQuery.data,
 			serviceNameValues: () => serviceNameValuesQuery.data,
-			osCell,
-			deviceRoleCell
+			osCell
 		})
 	);
 
@@ -458,10 +456,6 @@
 		setEditingHost(null);
 	}
 </script>
-
-{#snippet deviceRoleCell(host: Host)}
-	<DeviceRoleLabel role={host.device_role} />
-{/snippet}
 
 {#snippet osCell(host: Host)}
 	{#if host.os}
