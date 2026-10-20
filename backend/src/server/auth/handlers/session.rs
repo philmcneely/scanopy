@@ -36,7 +36,7 @@ pub(crate) async fn login(
     let user = state
         .services
         .auth_service
-        .login(request, ip, user_agent)
+        .login(request, ip, user_agent.clone())
         .await?;
 
     // Check if user is trying to log into demo account on non-demo and visa versa
@@ -74,6 +74,15 @@ pub(crate) async fn login(
         .insert("user_id", user.id)
         .await
         .map_err(|e| ApiError::internal_error(&format!("Failed to save session: {}", e)))?;
+
+    if let Err(e) = state
+        .services
+        .auth_service
+        .publish_login_success(&user, ip, user_agent)
+        .await
+    {
+        tracing::error!(error = %e, "Failed to publish the password login event");
+    }
 
     Ok(Json(ApiResponse::success(user)))
 }
