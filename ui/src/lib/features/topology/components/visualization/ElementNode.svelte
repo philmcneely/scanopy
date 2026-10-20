@@ -45,7 +45,12 @@
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { ChevronDown, ChevronRight } from 'lucide-svelte';
-	import { ELEMENT_HANDLE_SIZE_PX } from '../../pipeline/build-flow-nodes';
+	import { ELEMENT_HANDLE_SIZE_PX, ICON_ELEMENT_WIDTH_PX } from '../../pipeline/build-flow-nodes';
+
+	// A service badge's size, and the icon card's width inside its px-2 padding: the badge fan
+	// spreads within it.
+	const BADGE_PX = 20;
+	const CARD_INNER_PX = ICON_ELEMENT_WIDTH_PX - 16;
 	import { stateFill as markedStateFill, statusDot } from '../../element-marks';
 
 	let { id, data, width }: NodeProps = $props();
@@ -407,12 +412,18 @@
 					{/if}
 					{#if iconCard.badgeDefinitions.length > 0}
 						<!-- Round like every software glyph: this device, running these. Stacked at the
-						     tile's corner, first on top; hovering the card fans them out. -->
-						<span class="absolute -bottom-1 left-[calc(100%-16px)] h-5">
+						     tile's corner, first on top; hovering the card fans them into a row centred
+						     under the tile, spaced to fit inside the card. Offsets are from the tile's
+						     centre to each badge's left edge. -->
+						{@const count = iconCard.badgeDefinitions.length}
+						{@const fanStep =
+							count > 1 ? Math.min(BADGE_PX + 2, (CARD_INNER_PX - BADGE_PX) / (count - 1)) : 0}
+						<span class="absolute -bottom-1 left-1/2 h-5 w-0">
 							{#each iconCard.badgeDefinitions as definition, i (definition)}
 								<span
-									class="absolute top-0 left-[calc(var(--i)*6px)] transition-[left] duration-150 group-hover/icon-card:left-[calc(var(--i)*22px)]"
-									style="--i: {i}; z-index: {iconCard.badgeDefinitions.length - i};"
+									class="absolute top-0 left-[var(--stack-x)] transition-[left] duration-150 group-hover/icon-card:left-[var(--fan-x)]"
+									style="--stack-x: {4 + i * 6}px; --fan-x: {(i - (count - 1) / 2) * fanStep -
+										BADGE_PX / 2}px; z-index: {count - i};"
 								>
 									<SoftwareGlyph {definition} />
 								</span>

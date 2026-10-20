@@ -206,8 +206,8 @@ export function buildElementRender(inputs: ElementRenderInputs): ElementRenderRe
 	};
 }
 
-/** The most service badges a device glyph stacks; more would fan wider than the card. */
-const BADGE_STACK_MAX = 6;
+/** The most service badges a device glyph stacks: five fan across the card without overlapping. */
+const BADGE_STACK_MAX = 5;
 
 /**
  * An icon card's hover text: one labelled row per value present ("IP Address: 10.0.1.1"), then a
