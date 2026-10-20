@@ -37,7 +37,7 @@
 	export let isEmbed: boolean = false;
 	export let shareName: string = '';
 	export let showMinimap: boolean = false;
-	export let viewMode: ViewMode = 'Detailed';
+	export let viewMode: ViewMode = 'Icons';
 	export let exportFeatures: ExportFeatures | undefined = undefined;
 	export let enabledViews: string[] = [];
 	export let currentView: string = 'L3Logical';

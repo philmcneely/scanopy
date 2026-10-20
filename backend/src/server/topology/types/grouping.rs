@@ -373,9 +373,10 @@ impl TypeMetadataProvider for ElementSort {
 )]
 pub enum ViewMode {
     /// Cards list their services, addresses and ports.
-    #[default]
     Detailed,
-    /// Cards lead with an icon and a label; the rest is in the tooltip and the inspector.
+    /// Cards lead with an icon and a label; the rest is in the tooltip and the inspector. The default
+    /// for every topology and share; views it doesn't apply to (L2) draw `Detailed`.
+    #[default]
     Icons,
 }
 

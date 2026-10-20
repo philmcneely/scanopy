@@ -44089,7 +44089,7 @@
                 "description": "How element cards draw. Views where the mode does not apply draw `Detailed`."
               }
             ],
-            "default": "Detailed"
+            "default": "Icons"
           }
         }
       },
