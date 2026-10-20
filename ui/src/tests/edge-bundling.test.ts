@@ -123,15 +123,83 @@ describe('edge bundling', () => {
 		// containers sharing an id would expand and collapse as one.
 		const { bundles } = bundleEdges(
 			[
-				edge('api-proxy', 'api-db', 'RequestPath', 'dep-1'),
-				edge('worker-proxy', 'worker-db', 'RequestPath', 'dep-1'),
-				edge('api-proxy', 'worker-db', 'RequestPath', 'dep-2'),
-				edge('worker-proxy', 'api-db', 'RequestPath', 'dep-2')
+				edge('api-proxy', 'api-db', 'HubAndSpoke', 'dep-1'),
+				edge('api-proxy', 'api-db', 'HubAndSpoke', 'dep-1'),
+				edge('api-proxy', 'api-db', 'HubAndSpoke', 'dep-2'),
+				edge('api-proxy', 'api-db', 'HubAndSpoke', 'dep-2')
 			],
 			elementToContainer
 		);
 
 		expect(bundles).toHaveLength(2);
 		expect(new Set(bundles.map((b) => b.id)).size).toBe(2);
+	});
+
+	describe('segments of one relation crossing into a tag-group subcontainer', () => {
+		// A tag group nests inside its subnet, and `elementToContainer` maps an element to its
+		// immediate container, so a node in the group and its neighbours in the parent subnet sit
+		// in two different boxes.
+		const SUBNET = 'box-dmz';
+		const TAG_GROUP = 'box-dmz-critical';
+		const nested = new Map<string, string>([
+			['cloudflared', SUBNET],
+			['haproxy', TAG_GROUP],
+			['tomcat', SUBNET],
+			['worker', SUBNET]
+		]);
+
+		it('draws a request path into and out of the group', () => {
+			const { bundles, unbundled } = bundleEdges(
+				[
+					edge('cloudflared', 'haproxy', 'RequestPath', 'dep-portal'),
+					edge('haproxy', 'tomcat', 'RequestPath', 'dep-portal')
+				],
+				nested
+			);
+
+			expect(bundles).toHaveLength(0);
+			expect(unbundled).toHaveLength(2);
+		});
+
+		it('draws every spoke of a hub inside the group', () => {
+			const { bundles, unbundled } = bundleEdges(
+				[
+					edge('haproxy', 'cloudflared', 'HubAndSpoke', 'dep-hub'),
+					edge('haproxy', 'tomcat', 'HubAndSpoke', 'dep-hub')
+				],
+				nested
+			);
+
+			expect(bundles).toHaveLength(0);
+			expect(unbundled).toHaveLength(2);
+		});
+
+		it('draws each of one host’s addresses', () => {
+			const { bundles, unbundled } = bundleEdges(
+				[
+					edge('haproxy', 'tomcat', 'SameHost', 'host-a'),
+					edge('haproxy', 'worker', 'SameHost', 'host-a')
+				],
+				nested
+			);
+
+			expect(bundles).toHaveLength(0);
+			expect(unbundled).toHaveLength(2);
+		});
+
+		it('still bundles segments that would draw on top of each other', () => {
+			// Two spokes bound on one address land on the same pair of nodes, in either direction.
+			const { bundles, unbundled } = bundleEdges(
+				[
+					edge('haproxy', 'tomcat', 'HubAndSpoke', 'dep-hub'),
+					edge('tomcat', 'haproxy', 'HubAndSpoke', 'dep-hub')
+				],
+				nested
+			);
+
+			expect(unbundled).toHaveLength(0);
+			expect(bundles).toHaveLength(1);
+			expect(bundles[0].count).toBe(2);
+		});
 	});
 });
