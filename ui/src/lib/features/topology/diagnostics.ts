@@ -1004,6 +1004,89 @@ export function installDiagnostics(read: () => Omit<SampleInputs, 'trigger'>): v
 	};
 }
 
+/** One node of the drawn graph as the layout harness reads it. Position is parent-relative. */
+export interface LayoutSnapshotNode {
+	id: string;
+	parentId: string | null;
+	type: string | undefined;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	header: string | null;
+}
+
+/** One drawn edge as the layout harness reads it. */
+export interface LayoutSnapshotEdge {
+	id: string;
+	source: string;
+	target: string;
+	edgeType: string | null;
+	affectsLayout: boolean;
+	label: string | null;
+}
+
+interface SnapshotFlowNode {
+	id: string;
+	parentId?: string;
+	type?: string;
+	position: { x: number; y: number };
+	measured?: { width?: number; height?: number };
+	width?: number;
+	height?: number;
+	data?: Record<string, unknown>;
+}
+
+interface SnapshotFlowEdge {
+	id: string;
+	source: string;
+	target: string;
+	data?: Record<string, unknown>;
+}
+
+/**
+ * Publish `__scanopyTopologyLayout()` for the layout eval harness (`tests/topology-layout-eval.ts`).
+ *
+ * Installed only when `window.__topoPerf` is set, like the rest of the harness instrumentation.
+ * The harness scores layout quality from these positions plus the drawn edge paths in the DOM.
+ */
+export function installLayoutSnapshot(
+	read: () => { nodes: SnapshotFlowNode[]; edges: SnapshotFlowEdge[] }
+): void {
+	if (typeof window === 'undefined') return;
+	const globals = window as unknown as {
+		__topoPerf?: boolean;
+		__scanopyTopologyLayout?: () => { nodes: LayoutSnapshotNode[]; edges: LayoutSnapshotEdge[] };
+	};
+	if (globals.__topoPerf !== true) return;
+	globals.__scanopyTopologyLayout = () => {
+		const { nodes, edges } = read();
+		return {
+			nodes: nodes.map((n) => ({
+				id: n.id,
+				parentId: n.parentId ?? null,
+				type: n.type,
+				x: n.position.x,
+				y: n.position.y,
+				width: n.measured?.width ?? n.width ?? 0,
+				height: n.measured?.height ?? n.height ?? 0,
+				header: typeof n.data?.header === 'string' ? n.data.header : null
+			})),
+			edges: edges.map((e) => {
+				const viewConfig = e.data?.view_config as { type?: string; affects_layout?: boolean } | undefined;
+				return {
+					id: e.id,
+					source: e.source,
+					target: e.target,
+					edgeType: typeof e.data?.edge_type === 'string' ? e.data.edge_type : null,
+					affectsLayout: viewConfig?.type === 'active' && viewConfig.affects_layout === true,
+					label: typeof e.data?.label === 'string' ? e.data.label : null
+				};
+			})
+		};
+	};
+}
+
 /** Test seam — the ring buffer is module state and specs need a clean one. */
 export function resetDiagnostics(): void {
 	payloadSummary = null;

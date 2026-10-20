@@ -123,6 +123,7 @@
 	import { shouldCull } from '../../pipeline/render-mode';
 	import {
 		installDiagnostics,
+		installLayoutSnapshot,
 		noteNodeStoreWrite,
 		noteRunDetail,
 		noteRunEnd,
@@ -556,6 +557,7 @@
 		}
 	});
 	installDiagnostics(diagnosticInputs);
+	installLayoutSnapshot(() => ({ nodes: get(nodes), edges: get(edges) }));
 
 	/**
 	 * Single point of write for the node store.
