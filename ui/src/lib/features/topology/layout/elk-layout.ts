@@ -165,7 +165,7 @@ const ROOT_OPTIONS_BY_ALGORITHM: Record<ViewLayoutConfig['algorithm'], Record<st
 		'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
 		'elk.layered.considerModelOrder.components': 'MODEL_ORDER'
 	},
-	// For mostly independent container groups (Application's Storage, Web Tier, Database,
+	// For mostly independent container groups (Application's Customer Portal, CI/CD, Wiki,
 	// Monitoring, Ungrouped, …) with only a few cross-group flow edges. Layered layout strings the
 	// connected ones into a diagonal cascade and shelf-packs the rest, leaving large empty gaps.
 	// rectpacking instead tiles every group compactly into a landscape rectangle

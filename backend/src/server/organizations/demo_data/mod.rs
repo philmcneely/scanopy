@@ -120,36 +120,6 @@ pub struct SiteCredentialAssignment {
     pub credential_ids: Vec<Uuid>,
 }
 
-/// Pre-generated UUIDs for dependency wiring.
-/// Service IDs for HubAndSpoke deps (service-level members),
-/// binding IDs for RequestPath deps (port-level members).
-struct DependencyServiceIds {
-    // HubAndSpoke: service-level members
-    prometheus_hq: Uuid,
-    grafana_hq: Uuid,
-    uptime_kuma: Uuid,
-    // RequestPath: binding-level members
-    traefik_hq_binding: Uuid,
-    gitea_hq_binding: Uuid,
-    haproxy_dc_binding: Uuid,
-    app01_dc_binding: Uuid,
-    mariadb_dc_binding: Uuid,
-    // Backup Flow (RequestPath): binding-level members
-    pve_hq1_binding: Uuid,
-    truenas_binding: Uuid,
-    // Observability Stack (HubAndSpoke): service-level members
-    prometheus_dc: Uuid,
-    grafana_dc: Uuid,
-    jaeger_dc: Uuid,
-    // Storage Tier (HubAndSpoke): service-level members
-    minio_dc: Uuid,
-    ceph_dc: Uuid,
-    elasticsearch_dc: Uuid,
-    // Docker daemon service IDs: shared with the DockerBridge subnets' virtualization
-    docker_hq: Uuid,
-    docker_dc: Uuid,
-}
-
 /// Container for all demo data entities
 pub struct DemoData {
     pub tag_groups: Vec<TagGroup>,
@@ -188,38 +158,28 @@ impl DemoData {
     pub fn generate(organization_id: Uuid, user_id: Uuid, use_case: UseCase) -> Self {
         let now = Utc::now();
 
-        // Pre-generate service UUIDs used by both host/service and dependency generators
-        let dep_svc_ids = DependencyServiceIds {
-            prometheus_hq: Uuid::new_v4(),
-            grafana_hq: Uuid::new_v4(),
-            uptime_kuma: Uuid::new_v4(),
-            traefik_hq_binding: Uuid::new_v4(),
-            gitea_hq_binding: Uuid::new_v4(),
-            haproxy_dc_binding: Uuid::new_v4(),
-            app01_dc_binding: Uuid::new_v4(),
-            mariadb_dc_binding: Uuid::new_v4(),
-            pve_hq1_binding: Uuid::new_v4(),
-            truenas_binding: Uuid::new_v4(),
-            prometheus_dc: Uuid::new_v4(),
-            grafana_dc: Uuid::new_v4(),
-            jaeger_dc: Uuid::new_v4(),
-            minio_dc: Uuid::new_v4(),
-            ceph_dc: Uuid::new_v4(),
-            elasticsearch_dc: Uuid::new_v4(),
-            docker_hq: Uuid::new_v4(),
-            docker_dc: Uuid::new_v4(),
-        };
+        // The Docker daemons' service IDs, shared by the hosts that run them and the Docker
+        // Bridge subnets they virtualize.
+        let docker_hq = Uuid::new_v4();
+        let docker_dc = Uuid::new_v4();
 
         // Generate all entities in dependency order
         let tag_groups = generate_tag_groups(organization_id, now);
         let tags = generate_tags(organization_id, &tag_groups, now);
         let credentials = generate_credentials(organization_id, now);
         let sites = generate_sites(organization_id, &tags, &credentials, now);
-        let subnets = generate_subnets(&sites, dep_svc_ids.docker_hq, dep_svc_ids.docker_dc, now);
+        let subnets = generate_subnets(&sites, docker_hq, docker_dc, now);
         let site_credential_assignments =
             generate_site_credential_assignments(&sites, &credentials);
-        let mut hosts_with_services =
-            generate_hosts_and_services(&sites, &subnets, &tags, &credentials, &dep_svc_ids, now);
+        let mut hosts_with_services = generate_hosts_and_services(
+            &sites,
+            &subnets,
+            &tags,
+            &credentials,
+            docker_hq,
+            docker_dc,
+            now,
+        );
         // The server matches an OS in what SNMP reported when a host is ingested, after the daemon
         // has offered its own readings (an SSH banner, say), so the demo matches last too.
         for host in &mut hosts_with_services {
@@ -249,7 +209,7 @@ impl DemoData {
         let shares = generate_shares(&topologies, &sites, user_id, now);
         let user_api_keys = generate_user_api_keys(&sites, organization_id, now);
 
-        let dependencies = generate_dependencies(&sites, &dep_svc_ids);
+        let dependencies = generate_dependencies(&sites, &hosts_with_services);
 
         Self {
             tag_groups,

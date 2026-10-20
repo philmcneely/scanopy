@@ -4,11 +4,11 @@ use super::*;
 // Dependencies
 // ============================================================================
 
-/// Generate demo dependencies with pre-generated service IDs for member wiring.
-#[allow(clippy::vec_init_then_push)]
+/// Generate demo dependencies. Every member is a service in one of the demo's applications, so
+/// the Application view draws each edge between two application groups' services.
 pub(super) fn generate_dependencies(
     sites: &[Site],
-    svc_ids: &DependencyServiceIds,
+    hosts_with_services: &[HostWithServices],
 ) -> Vec<Dependency> {
     let now = Utc::now();
     let hq = sites
@@ -17,12 +17,25 @@ pub(super) fn generate_dependencies(
         .unwrap();
     let dc = sites.iter().find(|n| n.base.name == "Data Center").unwrap();
 
-    let mut dependencies = Vec::new();
+    // The service named `service` on the host named `host`.
+    let find_service = |host: &str, service: &str| {
+        hosts_with_services
+            .iter()
+            .filter(|h| h.host.base.name.value().as_str() == host)
+            .flat_map(|h| &h.services)
+            .find(|s| s.base.name == service)
+            .unwrap_or_else(|| panic!("demo service {service} on {host}"))
+    };
+    let service = |host: &str, name: &str| find_service(host, name).id;
+    let binding = |host: &str, name: &str| find_service(host, name).base.bindings[0].id;
 
-    // ===== HQ Dependencies (3) =====
-
-    // 1. Monitoring Stack: Prometheus (hub) ↔ Grafana, Uptime Kuma (spokes)
-    dependencies.push(Dependency {
+    let dependency = |name: &str,
+                      site: &Site,
+                      description: &str,
+                      dependency_type: DependencyType,
+                      members: DependencyMembers,
+                      color: Color,
+                      edge_style: EdgeStyle| Dependency {
         valid_from: now,
         valid_to: None,
         lineage_id: None,
@@ -30,154 +43,182 @@ pub(super) fn generate_dependencies(
         created_at: now,
         updated_at: now,
         base: DependencyBase {
-            name: "Monitoring Stack".to_string(),
-            site_id: hq.id,
-            description: Some(
-                "Prometheus metrics collection with Grafana visualization".to_string(),
-            ),
-            dependency_type: DependencyType::HubAndSpoke,
-            members: DependencyMembers::Services {
+            name: name.to_string(),
+            site_id: site.id,
+            description: Some(description.to_string()),
+            dependency_type,
+            members,
+            source: EntitySource::Manual,
+            color,
+            edge_style,
+            tags: vec![],
+        },
+    };
+
+    vec![
+        // ===== HQ =====
+        // Monitoring: Prometheus (hub) ↔ Grafana, Uptime Kuma (spokes)
+        dependency(
+            "Monitoring Stack",
+            hq,
+            "Prometheus metrics collection with Grafana visualization",
+            DependencyType::HubAndSpoke,
+            DependencyMembers::Services {
                 service_ids: vec![
-                    svc_ids.prometheus_hq,
-                    svc_ids.grafana_hq,
-                    svc_ids.uptime_kuma,
+                    service("prometheus", "Prometheus"),
+                    service("grafana-mon", "Grafana"),
+                    service("uptime-kuma", "Uptime Kuma"),
                     // Zabbix, retired when Prometheus replaced it. The dependency still names it,
                     // so the inspector shows a member that is no longer on the network.
                     Uuid::new_v4(),
                 ],
             },
-            source: EntitySource::Manual,
-            color: Color::Purple,
-            edge_style: EdgeStyle::Straight,
-            tags: vec![],
-        },
-    });
-
-    // 2. Backup Flow: Proxmox VE (hv01) → TrueNAS
-    dependencies.push(Dependency {
-        valid_from: now,
-        valid_to: None,
-        lineage_id: None,
-        id: Uuid::new_v4(),
-        created_at: now,
-        updated_at: now,
-        base: DependencyBase {
-            name: "Backup Flow".to_string(),
-            site_id: hq.id,
-            description: Some("Server backup targets to TrueNAS storage".to_string()),
-            dependency_type: DependencyType::RequestPath,
-            members: DependencyMembers::Bindings {
-                binding_ids: vec![svc_ids.pve_hq1_binding, svc_ids.truenas_binding],
-            },
-            source: EntitySource::Manual,
-            color: Color::Green,
-            edge_style: EdgeStyle::SmoothStep,
-            tags: vec![],
-        },
-    });
-
-    // 3. Reverse Proxy Path: Traefik → Gitea
-    dependencies.push(Dependency {
-        valid_from: now,
-        valid_to: None,
-        lineage_id: None,
-        id: Uuid::new_v4(),
-        created_at: now,
-        updated_at: now,
-        base: DependencyBase {
-            name: "Reverse Proxy Path".to_string(),
-            site_id: hq.id,
-            description: Some("Traffic path through reverse proxy to code hosting".to_string()),
-            dependency_type: DependencyType::RequestPath,
-            members: DependencyMembers::Bindings {
-                binding_ids: vec![svc_ids.traefik_hq_binding, svc_ids.gitea_hq_binding],
-            },
-            source: EntitySource::Manual,
-            color: Color::Cyan,
-            edge_style: EdgeStyle::Bezier,
-            tags: vec![],
-        },
-    });
-
-    // ===== DC Dependencies (3) =====
-
-    // 4. Web Traffic Flow: HAProxy → Tomcat → MariaDB
-    dependencies.push(Dependency {
-        valid_from: now,
-        valid_to: None,
-        lineage_id: None,
-        id: Uuid::new_v4(),
-        created_at: now,
-        updated_at: now,
-        base: DependencyBase {
-            name: "Web Traffic Flow".to_string(),
-            site_id: dc.id,
-            description: Some(
-                "Production web request path from load balancer through app servers to database"
-                    .to_string(),
-            ),
-            dependency_type: DependencyType::RequestPath,
-            members: DependencyMembers::Bindings {
+            Color::Purple,
+            EdgeStyle::Straight,
+        ),
+        // CI/CD: a push to GitLab triggers a Jenkins build
+        dependency(
+            "Build Pipeline",
+            hq,
+            "Pushes to GitLab trigger Jenkins builds",
+            DependencyType::RequestPath,
+            DependencyMembers::Bindings {
                 binding_ids: vec![
-                    svc_ids.haproxy_dc_binding,
-                    svc_ids.app01_dc_binding,
-                    svc_ids.mariadb_dc_binding,
+                    binding("gitlab-vm", "GitLab"),
+                    binding("jenkins-ci", "Jenkins"),
                 ],
             },
-            source: EntitySource::Manual,
-            color: Color::Blue,
-            edge_style: EdgeStyle::Bezier,
-            tags: vec![],
-        },
-    });
-
-    // 5. Observability Stack: Prometheus (container) → Grafana (container), Jaeger (container)
-    dependencies.push(Dependency {
-        valid_from: now,
-        valid_to: None,
-        lineage_id: None,
-        id: Uuid::new_v4(),
-        created_at: now,
-        updated_at: now,
-        base: DependencyBase {
-            name: "Observability Stack".to_string(),
-            site_id: dc.id,
-            description: Some(
-                "Containerized observability: Prometheus, Grafana, and Jaeger".to_string(),
-            ),
-            dependency_type: DependencyType::HubAndSpoke,
-            members: DependencyMembers::Services {
-                service_ids: vec![svc_ids.prometheus_dc, svc_ids.grafana_dc, svc_ids.jaeger_dc],
+            Color::Pink,
+            EdgeStyle::Bezier,
+        ),
+        // Identity & Access: Vaultwarden signs users in through Keycloak, which stores them in
+        // PostgreSQL
+        dependency(
+            "SSO Login",
+            hq,
+            "Vaultwarden sign-in through Keycloak, backed by PostgreSQL",
+            DependencyType::RequestPath,
+            DependencyMembers::Bindings {
+                binding_ids: vec![
+                    binding("docker-prod01", "Vaultwarden"),
+                    binding("keycloak-vm", "Keycloak"),
+                    binding("db-vm", "PostgreSQL"),
+                ],
             },
-            source: EntitySource::Manual,
-            color: Color::Purple,
-            edge_style: EdgeStyle::Straight,
-            tags: vec![],
-        },
-    });
-
-    // 6. Storage Tier: MinIO → Ceph, Elasticsearch
-    dependencies.push(Dependency {
-        valid_from: now,
-        valid_to: None,
-        lineage_id: None,
-        id: Uuid::new_v4(),
-        created_at: now,
-        updated_at: now,
-        base: DependencyBase {
-            name: "Storage Tier".to_string(),
-            site_id: dc.id,
-            description: Some("Object storage, distributed storage, and search".to_string()),
-            dependency_type: DependencyType::HubAndSpoke,
-            members: DependencyMembers::Services {
-                service_ids: vec![svc_ids.minio_dc, svc_ids.ceph_dc, svc_ids.elasticsearch_dc],
+            Color::Indigo,
+            EdgeStyle::Bezier,
+        ),
+        // File Sharing: Nextcloud (hub) → Redis file locking, NFS data directory
+        dependency(
+            "Nextcloud Storage",
+            hq,
+            "Nextcloud file locking in Redis and its data directory on TrueNAS NFS",
+            DependencyType::HubAndSpoke,
+            DependencyMembers::Services {
+                service_ids: vec![
+                    service("nextcloud-vm", "Nextcloud"),
+                    service("db-vm", "Redis"),
+                    service("truenas-primary", "NFS"),
+                ],
             },
-            source: EntitySource::Manual,
-            color: Color::Orange,
-            edge_style: EdgeStyle::SmoothStep,
-            tags: vec![],
-        },
-    });
-
-    dependencies
+            Color::Teal,
+            EdgeStyle::SmoothStep,
+        ),
+        // Backups: TrueNAS replicates to the Synology each week
+        dependency(
+            "Backup Replication",
+            hq,
+            "Weekly replication from TrueNAS to the Synology backup NAS",
+            DependencyType::RequestPath,
+            DependencyMembers::Bindings {
+                binding_ids: vec![
+                    binding("truenas-primary", "TrueNAS"),
+                    binding("synology-backup", "Synology DSM"),
+                ],
+            },
+            Color::Green,
+            EdgeStyle::SmoothStep,
+        ),
+        // Wiki: Confluence → its database
+        dependency(
+            "Wiki Request Path",
+            hq,
+            "Confluence pages served from its PostgreSQL database",
+            DependencyType::RequestPath,
+            DependencyMembers::Bindings {
+                binding_ids: vec![
+                    binding("atlassian-vm", "Confluence"),
+                    binding("atlassian-vm", "Confluence Database"),
+                ],
+            },
+            Color::Cyan,
+            EdgeStyle::Bezier,
+        ),
+        // Service Desk: Jira → its database
+        dependency(
+            "Service Desk Request Path",
+            hq,
+            "Jira tickets served from its PostgreSQL database",
+            DependencyType::RequestPath,
+            DependencyMembers::Bindings {
+                binding_ids: vec![
+                    binding("atlassian-vm", "Jira"),
+                    binding("atlassian-vm", "Jira Database"),
+                ],
+            },
+            Color::Amber,
+            EdgeStyle::Bezier,
+        ),
+        // ===== DC =====
+        // Customer Portal: Cloudflare tunnel → HAProxy → Tomcat → MariaDB
+        dependency(
+            "Portal Request Path",
+            dc,
+            "Customer requests from the Cloudflare tunnel through the load balancer and app servers to the database",
+            DependencyType::RequestPath,
+            DependencyMembers::Bindings {
+                binding_ids: vec![
+                    binding("cloudflared-tunnel", "Cloudflared"),
+                    binding("haproxy-lb01", "HAProxy"),
+                    binding("app-server-01", "Tomcat"),
+                    binding("mariadb-vm", "MariaDB"),
+                ],
+            },
+            Color::Blue,
+            EdgeStyle::Bezier,
+        ),
+        // Customer Portal: Tomcat → RabbitMQ → order worker → Elasticsearch
+        dependency(
+            "Order Queue",
+            dc,
+            "Orders queued in RabbitMQ, processed by the order worker and indexed for search",
+            DependencyType::RequestPath,
+            DependencyMembers::Bindings {
+                binding_ids: vec![
+                    binding("app-server-02", "Tomcat"),
+                    binding("rabbitmq-node01", "RabbitMQ"),
+                    binding("portal-worker01", "Order Worker"),
+                    binding("elasticsearch-dc", "Elasticsearch"),
+                ],
+            },
+            Color::Orange,
+            EdgeStyle::Bezier,
+        ),
+        // Monitoring: Prometheus (container hub) → Grafana, Jaeger (containers)
+        dependency(
+            "Observability Stack",
+            dc,
+            "Containerized observability: Prometheus, Grafana, and Jaeger",
+            DependencyType::HubAndSpoke,
+            DependencyMembers::Services {
+                service_ids: vec![
+                    service("dc-docker01", "Prometheus"),
+                    service("dc-docker01", "Grafana"),
+                    service("dc-docker01", "Jaeger"),
+                ],
+            },
+            Color::Purple,
+            EdgeStyle::Straight,
+        ),
+    ]
 }

@@ -109,7 +109,8 @@ pub(super) fn generate_hosts_and_services(
     subnets: &[Subnet],
     tags: &[Tag],
     credentials: &[Credential],
-    dep_svc_ids: &DependencyServiceIds,
+    docker_hq_svc_id: Uuid,
+    docker_dc_svc_id: Uuid,
     now: DateTime<Utc>,
 ) -> Vec<HostWithServices> {
     let mut result = Vec::new();
@@ -155,14 +156,17 @@ pub(super) fn generate_hosts_and_services(
     let production_tag = find_tag("Production");
     let development_tag = find_tag("Development");
     let decommissioned_tag = find_tag("Decommissioned");
-    let database_tag = find_tag("Database");
-    let monitoring_tag = find_tag("Monitoring");
     let iot_tag = find_tag("IoT Device");
-    let web_tier_tag = find_tag("Web Tier");
     let backup_tag = find_tag("Backup Target");
-    let devops_tag = find_tag("DevOps Pipeline");
-    let storage_tag = find_tag("Storage");
-    let messaging_tag = find_tag("Messaging");
+    // Application tags
+    let portal_tag = find_tag("Customer Portal");
+    let monitoring_tag = find_tag("Monitoring");
+    let ci_cd_tag = find_tag("CI/CD");
+    let identity_tag = find_tag("Identity & Access");
+    let file_sharing_tag = find_tag("File Sharing");
+    let backups_tag = find_tag("Backups");
+    let wiki_tag = find_tag("Wiki");
+    let service_desk_tag = find_tag("Service Desk");
     let staging_tag = find_tag("Staging");
     let lab_tag = find_tag("Lab");
     let medium_tag = find_tag("Medium");
@@ -176,32 +180,10 @@ pub(super) fn generate_hosts_and_services(
     // Pre-generated service UUIDs for virtualization wiring
     let pve_hq1_svc_id = Uuid::new_v4(); // Proxmox VE on proxmox-hv01
     let pve_hq2_svc_id = Uuid::new_v4(); // Proxmox VE on proxmox-hv02
-    let docker_hq_svc_id = dep_svc_ids.docker_hq; // Docker daemon on docker-prod01 (shared with HQ Docker Bridge subnet)
     let pve_dc_svc_id = Uuid::new_v4(); // Proxmox VE on dc-proxmox-hv01
-    let docker_dc_svc_id = dep_svc_ids.docker_dc; // Docker daemon on dc-docker01 (shared with DC Docker Bridge subnet)
-
-    // Service UUIDs for HubAndSpoke dependency wiring (pre-generated at top level)
-    let prometheus_hq_svc_id = dep_svc_ids.prometheus_hq;
-    let grafana_hq_svc_id = dep_svc_ids.grafana_hq;
-    let uptime_kuma_svc_id = dep_svc_ids.uptime_kuma;
-    // Binding UUIDs for RequestPath dependency wiring (pre-generated at top level)
-    let traefik_hq_binding_id = dep_svc_ids.traefik_hq_binding;
-    let gitea_hq_binding_id = dep_svc_ids.gitea_hq_binding;
-    let haproxy_dc_binding_id = dep_svc_ids.haproxy_dc_binding;
-    let app01_dc_binding_id = dep_svc_ids.app01_dc_binding;
-    let mariadb_dc_binding_id = dep_svc_ids.mariadb_dc_binding;
-    let pve_hq1_binding_id = dep_svc_ids.pve_hq1_binding;
-    let truenas_binding_id = dep_svc_ids.truenas_binding;
-    // Service UUIDs for DC HubAndSpoke dependency wiring
-    let prometheus_dc_svc_id = dep_svc_ids.prometheus_dc;
-    let grafana_dc_svc_id = dep_svc_ids.grafana_dc;
-    let jaeger_dc_svc_id = dep_svc_ids.jaeger_dc;
-    let minio_dc_svc_id = dep_svc_ids.minio_dc;
-    let ceph_dc_svc_id = dep_svc_ids.ceph_dc;
-    let elasticsearch_dc_svc_id = dep_svc_ids.elasticsearch_dc;
 
     // ========================================================================
-    // HEADQUARTERS SITE — 30 hosts
+    // HEADQUARTERS SITE — 31 hosts
     // ========================================================================
     let hq = find_site("Headquarters");
     let hq_mgmt = find_subnet("HQ Management");
@@ -378,7 +360,7 @@ pub(super) fn generate_hosts_and_services(
 
     // 4. Pi-hole DNS: a macvlan container on docker-prod01, listed after it (13b).
 
-    // 5. Grafana (pre-generated ID for dependency wiring)
+    // 5. Grafana
     {
         let (host, ip_address) = with_mac(
             create_host(
@@ -398,8 +380,7 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((svc, port)) = create_service_with_id(
-            grafana_hq_svc_id,
+        if let Some((svc, port)) = create_service(
             "Grafana",
             "Grafana",
             &host,
@@ -421,7 +402,7 @@ pub(super) fn generate_hosts_and_services(
         });
     }
 
-    // 6. Prometheus (pre-generated ID for dependency wiring)
+    // 6. Prometheus
     {
         let (host, ip_address) = with_mac(
             create_host(
@@ -441,8 +422,7 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((svc, port)) = create_service_with_id(
-            prometheus_hq_svc_id,
+        if let Some((svc, port)) = create_service(
             "Prometheus",
             "Prometheus",
             &host,
@@ -464,7 +444,7 @@ pub(super) fn generate_hosts_and_services(
         });
     }
 
-    // 7. Uptime Kuma (pre-generated ID for dependency wiring) — an LXC container on hv02, bridged
+    // 7. Uptime Kuma — an LXC container on hv02, bridged
     // onto the management VLAN it watches (vm_id=202)
     {
         let (host, ip_address) = with_mac(
@@ -493,8 +473,7 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((svc, port)) = create_service_with_id(
-            uptime_kuma_svc_id,
+        if let Some((svc, port)) = create_service(
             "UptimeKuma",
             "Uptime Kuma",
             &host,
@@ -550,7 +529,7 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((mut svc, port)) = create_service_with_id(
+        if let Some((svc, port)) = create_service_with_id(
             pve_hq1_svc_id,
             "Proxmox VE",
             "Proxmox VE",
@@ -560,7 +539,6 @@ pub(super) fn generate_hosts_and_services(
             production_tag.into_iter().collect(),
             now,
         ) {
-            svc.base.bindings[0].id = pve_hq1_binding_id;
             if let Some(p) = port {
                 ports.push(p);
             }
@@ -675,7 +653,7 @@ pub(super) fn generate_hosts_and_services(
                 hq,
                 hq_servers,
                 Ipv4Addr::new(10, 0, 20, 10),
-                production_tag.into_iter().collect(),
+                [production_tag, ci_cd_tag].into_iter().flatten().collect(),
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
@@ -695,7 +673,7 @@ pub(super) fn generate_hosts_and_services(
             "GitLab",
             "GitLab",
             Some(PortType::Https),
-            [production_tag, devops_tag].into_iter().flatten().collect()
+            [production_tag, ci_cd_tag].into_iter().flatten().collect()
         ),
     );
     if let Some((svc, port)) = create_service_with_id(
@@ -724,7 +702,7 @@ pub(super) fn generate_hosts_and_services(
             hq,
             hq_servers,
             Ipv4Addr::new(10, 0, 20, 13),
-            [devops_tag].into_iter().flatten().collect(),
+            [ci_cd_tag].into_iter().flatten().collect(),
             None,
             Some((
                 HostVirtualization::Docker(ContainerHostVirtualization {
@@ -765,7 +743,10 @@ pub(super) fn generate_hosts_and_services(
                 hq,
                 hq_servers,
                 Ipv4Addr::new(10, 0, 20, 11),
-                production_tag.into_iter().collect(),
+                [production_tag, file_sharing_tag]
+                    .into_iter()
+                    .flatten()
+                    .collect(),
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
@@ -785,7 +766,7 @@ pub(super) fn generate_hosts_and_services(
             "NextCloud",
             "Nextcloud",
             Some(PortType::Https),
-            [production_tag, web_tier_tag]
+            [production_tag, file_sharing_tag]
                 .into_iter()
                 .flatten()
                 .collect()
@@ -802,7 +783,10 @@ pub(super) fn generate_hosts_and_services(
                 hq,
                 hq_servers,
                 Ipv4Addr::new(10, 0, 20, 12),
-                production_tag.into_iter().collect(),
+                [production_tag, identity_tag]
+                    .into_iter()
+                    .flatten()
+                    .collect(),
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
@@ -823,6 +807,59 @@ pub(super) fn generate_hosts_and_services(
             "Keycloak",
             Some(PortType::Https8443),
             production_tag.into_iter().collect()
+        ),
+    ));
+
+    // 12b. atlassian-vm — VM on hv02 (vm_id=203) running Confluence and Jira, each with its own
+    // PostgreSQL cluster. The wiki and the service desk are separate applications on one VM.
+    result.push(host_with_services!(
+        with_mac(
+            reported_by_proxmox(create_host(
+                "atlassian-vm",
+                Some("atlassian.acme.local"),
+                Some("Confluence and Jira (VM on proxmox-hv02)"),
+                hq,
+                hq_servers,
+                Ipv4Addr::new(10, 0, 20, 14),
+                production_tag.into_iter().collect(),
+                None,
+                Some((
+                    HostVirtualization::Proxmox(ProxmoxVirtualization {
+                        state: Default::default(),
+                        vm_name: Some("atlassian-vm".to_string()),
+                        vm_id: Some("203".to_string()),
+                        guest_type: Some(ProxmoxGuestType::Qemu),
+                    }),
+                    pve_hq2_svc_id,
+                )),
+                now
+            )),
+            [0x52, 0x54, 0x00, 0x20, 0x14, 0x01],
+        ),
+        now,
+        (
+            "Confluence",
+            "Confluence",
+            Some(PortType::new_tcp(8090)),
+            wiki_tag.into_iter().collect()
+        ),
+        (
+            "PostgreSQL",
+            "Confluence Database",
+            Some(PortType::PostgreSQL),
+            wiki_tag.into_iter().collect()
+        ),
+        (
+            "Jira",
+            "Jira",
+            Some(PortType::Http8080),
+            service_desk_tag.into_iter().collect()
+        ),
+        (
+            "PostgreSQL",
+            "Jira Database",
+            Some(PortType::new_tcp(5433)),
+            service_desk_tag.into_iter().collect()
         ),
     ));
 
@@ -952,7 +989,7 @@ pub(super) fn generate_hosts_and_services(
             &host,
             &eth0,
             Some(PortType::Http9000),
-            [production_tag, devops_tag].into_iter().flatten().collect(),
+            production_tag.into_iter().collect(),
             now,
         ) {
             if let Some(p) = port {
@@ -961,8 +998,8 @@ pub(super) fn generate_hosts_and_services(
             services.push(svc);
         }
 
-        // Traefik container (pre-generated binding ID for dependency wiring)
-        if let Some((mut svc, port)) = create_container_service(
+        // Traefik container
+        if let Some((svc, port)) = create_container_service(
             "Traefik",
             "Traefik",
             &host,
@@ -971,17 +1008,16 @@ pub(super) fn generate_hosts_and_services(
             "traefik",
             "a1b2c3d4e5f6",
             docker_hq_svc_id,
-            web_tier_tag.into_iter().collect(),
+            vec![],
             now,
         ) {
-            svc.base.bindings[0].id = traefik_hq_binding_id;
             if let Some(p) = port {
                 ports.push(p);
             }
             services.push(svc);
         }
-        // Gitea container (pre-generated binding ID for dependency wiring)
-        if let Some((mut svc, port)) = create_container_service(
+        // Gitea container
+        if let Some((svc, port)) = create_container_service(
             "Gitea",
             "Gitea",
             &host,
@@ -990,10 +1026,9 @@ pub(super) fn generate_hosts_and_services(
             "gitea",
             "g7h8i9j0k1l2",
             docker_hq_svc_id,
-            devops_tag.into_iter().collect(),
+            ci_cd_tag.into_iter().collect(),
             now,
         ) {
-            svc.base.bindings[0].id = gitea_hq_binding_id;
             if let Some(p) = port {
                 ports.push(p);
             }
@@ -1007,7 +1042,7 @@ pub(super) fn generate_hosts_and_services(
                 Some(PortType::Http8080),
                 "vaultwarden",
                 "d4e5f6a7b8c9",
-                devops_tag.into_iter().collect::<Vec<_>>(),
+                identity_tag.into_iter().collect::<Vec<_>>(),
                 GuestState::Running,
             ),
             (
@@ -1016,7 +1051,7 @@ pub(super) fn generate_hosts_and_services(
                 Some(PortType::Https8443),
                 "mailcow",
                 "j0k1l2m3n4o5",
-                messaging_tag.into_iter().collect::<Vec<_>>(),
+                Vec::new(),
                 // Stopped while mail moves to a hosted provider; it is still on the runtime.
                 GuestState::Stopped,
             ),
@@ -1104,7 +1139,7 @@ pub(super) fn generate_hosts_and_services(
                     hq,
                     hq_servers,
                     Ipv4Addr::new(10, 0, 20, 30),
-                    development_tag.into_iter().collect(),
+                    [development_tag, ci_cd_tag].into_iter().flatten().collect(),
                     None,
                     None,
                     now
@@ -1130,10 +1165,7 @@ pub(super) fn generate_hosts_and_services(
             "Jenkins",
             "Jenkins",
             Some(PortType::Http8080),
-            [development_tag, devops_tag]
-                .into_iter()
-                .flatten()
-                .collect()
+            [development_tag, ci_cd_tag].into_iter().flatten().collect()
         ),
         ("SSH", "SSH", Some(PortType::Ssh), vec![]),
     );
@@ -1184,7 +1216,7 @@ pub(super) fn generate_hosts_and_services(
                 hq,
                 hq_storage,
                 Ipv4Addr::new(10, 0, 40, 10),
-                database_tag.into_iter().chain(critical_tag).collect(),
+                critical_tag.into_iter().collect(),
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
@@ -1204,17 +1236,17 @@ pub(super) fn generate_hosts_and_services(
             "PostgreSQL",
             "PostgreSQL",
             Some(PortType::PostgreSQL),
-            database_tag.into_iter().collect()
+            identity_tag.into_iter().collect()
         ),
         (
             "Redis",
             "Redis",
             Some(PortType::Redis),
-            database_tag.into_iter().collect()
+            file_sharing_tag.into_iter().collect()
         ),
     ));
 
-    // 17. TrueNAS Primary (pre-generated binding ID for Backup Flow dependency)
+    // 17. TrueNAS Primary
     {
         let (host, ip_address) = with_snmp(
             with_mac(
@@ -1247,16 +1279,15 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((mut svc, port)) = create_service(
+        if let Some((svc, port)) = create_service(
             "TrueNAS",
             "TrueNAS",
             &host,
             &ip_addresses[0],
             Some(PortType::Https),
-            [backup_tag, storage_tag].into_iter().flatten().collect(),
+            [backup_tag, backups_tag].into_iter().flatten().collect(),
             now,
         ) {
-            svc.base.bindings[0].id = truenas_binding_id;
             if let Some(p) = port {
                 ports.push(p);
             }
@@ -1268,7 +1299,7 @@ pub(super) fn generate_hosts_and_services(
             &host,
             &ip_addresses[0],
             Some(PortType::Nfs),
-            storage_tag.into_iter().collect(),
+            file_sharing_tag.into_iter().collect(),
             now,
         ) {
             if let Some(p) = port {
@@ -1295,7 +1326,7 @@ pub(super) fn generate_hosts_and_services(
                     hq,
                     hq_storage,
                     Ipv4Addr::new(10, 0, 40, 21),
-                    [backup_tag, medium_tag, weekly_backup_tag]
+                    [backup_tag, backups_tag, medium_tag, weekly_backup_tag]
                         .into_iter()
                         .flatten()
                         .collect(),
@@ -1319,7 +1350,7 @@ pub(super) fn generate_hosts_and_services(
             "Synology DSM",
             "Synology DSM",
             Some(PortType::Https),
-            [backup_tag, storage_tag].into_iter().flatten().collect()
+            [backup_tag, backups_tag].into_iter().flatten().collect()
         ),
     );
     synology.host.base.credential_assignments = backup_wake_cred
@@ -1818,7 +1849,7 @@ pub(super) fn generate_hosts_and_services(
     }
 
     // ========================================================================
-    // DATA CENTER SITE — 20 hosts
+    // DATA CENTER SITE — 21 hosts
     // ========================================================================
     let dc = find_site("Data Center");
     let dc_mgmt = find_subnet("DC Management");
@@ -1949,7 +1980,7 @@ pub(super) fn generate_hosts_and_services(
 
     // -- DMZ (172.16.30.x) --
 
-    // 4. HAProxy Load Balancer (pre-generated ID for dependency wiring)
+    // 4. HAProxy Load Balancer
     {
         let (host, ip_address) = with_mac(
             create_host(
@@ -1962,7 +1993,7 @@ pub(super) fn generate_hosts_and_services(
                 production_tag
                     .into_iter()
                     .chain(critical_tag)
-                    .chain(web_tier_tag)
+                    .chain(portal_tag)
                     .collect(),
                 None,
                 None,
@@ -1973,16 +2004,15 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((mut svc, port)) = create_service(
+        if let Some((svc, port)) = create_service(
             "HAProxy",
             "HAProxy",
             &host,
             &ip_addresses[0],
             Some(PortType::Https),
-            web_tier_tag.into_iter().collect(),
+            portal_tag.into_iter().collect(),
             now,
         ) {
-            svc.base.bindings[0].id = haproxy_dc_binding_id;
             if let Some(p) = port {
                 ports.push(p);
             }
@@ -1996,7 +2026,7 @@ pub(super) fn generate_hosts_and_services(
         });
     }
 
-    // 5. App Server 01 (pre-generated Tomcat ID for dependency wiring)
+    // 5. App Server 01
     {
         let (host, ip_address) = with_mac(
             create_host(
@@ -2006,7 +2036,7 @@ pub(super) fn generate_hosts_and_services(
                 dc,
                 dc_dmz,
                 Ipv4Addr::new(172, 16, 30, 20),
-                production_tag.into_iter().chain(web_tier_tag).collect(),
+                production_tag.into_iter().chain(portal_tag).collect(),
                 None,
                 None,
                 now,
@@ -2016,16 +2046,15 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((mut svc, port)) = create_service(
+        if let Some((svc, port)) = create_service(
             "Tomcat",
             "Tomcat",
             &host,
             &ip_addresses[0],
             Some(PortType::Http8080),
-            web_tier_tag.into_iter().collect(),
+            portal_tag.into_iter().collect(),
             now,
         ) {
-            svc.base.bindings[0].id = app01_dc_binding_id;
             if let Some(p) = port {
                 ports.push(p);
             }
@@ -2064,7 +2093,7 @@ pub(super) fn generate_hosts_and_services(
                     dc,
                     dc_dmz,
                     Ipv4Addr::new(172, 16, 30, 21),
-                    production_tag.into_iter().chain(web_tier_tag).collect(),
+                    production_tag.into_iter().chain(portal_tag).collect(),
                     None,
                     None,
                     now
@@ -2076,7 +2105,7 @@ pub(super) fn generate_hosts_and_services(
                 "Tomcat",
                 "Tomcat",
                 Some(PortType::Http8080),
-                web_tier_tag.into_iter().collect()
+                portal_tag.into_iter().collect()
             ),
             ("SSH", "SSH", Some(PortType::Ssh), vec![]),
             ("Podman", "Podman", Some(PortType::Docker), vec![]),
@@ -2163,7 +2192,7 @@ pub(super) fn generate_hosts_and_services(
                 dc,
                 dc_compute,
                 Ipv4Addr::new(172, 16, 10, 10),
-                production_tag.into_iter().collect(),
+                [production_tag, ci_cd_tag].into_iter().flatten().collect(),
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
@@ -2183,7 +2212,7 @@ pub(super) fn generate_hosts_and_services(
             "ArgoCD",
             "ArgoCD",
             Some(PortType::Https8443),
-            [production_tag, devops_tag].into_iter().flatten().collect()
+            [production_tag, ci_cd_tag].into_iter().flatten().collect()
         ),
     ));
 
@@ -2223,7 +2252,6 @@ pub(super) fn generate_hosts_and_services(
     ));
 
     // 10. mariadb-vm — VM on dc-proxmox-hv01 (vm_id=302, on Storage subnet)
-    // Pre-generated MariaDB service ID for dependency wiring
     {
         let (host, ip_address) = with_mac(
             create_host(
@@ -2233,7 +2261,7 @@ pub(super) fn generate_hosts_and_services(
                 dc,
                 dc_storage,
                 Ipv4Addr::new(172, 16, 20, 10),
-                database_tag.into_iter().collect(),
+                portal_tag.into_iter().collect(),
                 None,
                 Some((
                     HostVirtualization::Proxmox(ProxmoxVirtualization {
@@ -2251,16 +2279,15 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((mut svc, port)) = create_service(
+        if let Some((svc, port)) = create_service(
             "MariaDB",
             "MariaDB",
             &host,
             &ip_addresses[0],
             Some(PortType::MySql),
-            database_tag.into_iter().collect(),
+            portal_tag.into_iter().collect(),
             now,
         ) {
-            svc.base.bindings[0].id = mariadb_dc_binding_id;
             if let Some(p) = port {
                 ports.push(p);
             }
@@ -2409,15 +2436,14 @@ pub(super) fn generate_hosts_and_services(
             services.push(svc);
         }
 
-        // Container services on docker0 (pre-generated IDs for Observability Stack)
-        for (def_id, name, pt, cname, cid, override_svc_id, state) in [
+        // Container services on docker0
+        for (def_id, name, pt, cname, cid, state) in [
             (
                 "Prometheus",
                 "Prometheus",
                 Some(PortType::new_tcp(9090)),
                 "prometheus",
                 "p1r2o3m4e5t6",
-                Some(prometheus_dc_svc_id),
                 GuestState::Running,
             ),
             (
@@ -2426,7 +2452,6 @@ pub(super) fn generate_hosts_and_services(
                 Some(PortType::Http3000),
                 "grafana",
                 "g1r2a3f4a5n6",
-                Some(grafana_dc_svc_id),
                 GuestState::Running,
             ),
             (
@@ -2435,7 +2460,6 @@ pub(super) fn generate_hosts_and_services(
                 Some(PortType::Https),
                 "jaeger",
                 "j1a2e3g4e5r6",
-                Some(jaeger_dc_svc_id),
                 // Paused between tracing investigations; the runtime keeps it.
                 GuestState::Paused,
             ),
@@ -2445,7 +2469,6 @@ pub(super) fn generate_hosts_and_services(
                 Some(PortType::new_tcp(3100)),
                 "loki",
                 "l1o2k3i4d5c6",
-                None,
                 GuestState::Running,
             ),
         ] {
@@ -2461,9 +2484,6 @@ pub(super) fn generate_hosts_and_services(
                 monitoring_tag.into_iter().collect(),
                 now,
             ) {
-                if let Some(id) = override_svc_id {
-                    svc.id = id;
-                }
                 if let Some(ServiceVirtualization::Docker(docker)) =
                     svc.base.virtualization_metadata.as_mut()
                 {
@@ -2494,7 +2514,7 @@ pub(super) fn generate_hosts_and_services(
                 dc,
                 dc_compute,
                 Ipv4Addr::new(172, 16, 10, 30),
-                production_tag.into_iter().collect(),
+                [production_tag, portal_tag].into_iter().flatten().collect(),
                 None,
                 None,
                 now
@@ -2506,10 +2526,34 @@ pub(super) fn generate_hosts_and_services(
             "RabbitMQ",
             "RabbitMQ",
             Some(PortType::AMQP),
-            [production_tag, messaging_tag]
-                .into_iter()
-                .flatten()
-                .collect()
+            [production_tag, portal_tag].into_iter().flatten().collect()
+        ),
+    ));
+
+    // 12b. Order worker: consumes the portal's order queue and indexes orders for search. It
+    // listens only for health checks.
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "portal-worker01",
+                Some("worker01.dc.acme.io"),
+                Some("Customer portal order worker"),
+                dc,
+                dc_compute,
+                Ipv4Addr::new(172, 16, 10, 40),
+                [production_tag, portal_tag].into_iter().flatten().collect(),
+                None,
+                None,
+                now
+            ),
+            [0xf8, 0xbc, 0x12, 0xdc, 0x21, 0x01],
+        ),
+        now,
+        (
+            "Web Service",
+            "Order Worker",
+            Some(PortType::Http8080),
+            vec![]
         ),
     ));
 
@@ -2523,7 +2567,7 @@ pub(super) fn generate_hosts_and_services(
                 dc,
                 dc_compute,
                 Ipv4Addr::new(172, 16, 10, 31),
-                database_tag.into_iter().collect(),
+                portal_tag.into_iter().collect(),
                 None,
                 None,
                 now
@@ -2535,13 +2579,13 @@ pub(super) fn generate_hosts_and_services(
             "Redis",
             "Redis",
             Some(PortType::Redis),
-            database_tag.into_iter().collect()
+            portal_tag.into_iter().collect()
         ),
     ));
 
     // -- Storage (172.16.20.x) --
 
-    // 14. MinIO (pre-generated service ID for Storage Tier dependency)
+    // 14. MinIO
     {
         let (host, ip_address) = with_mac(
             create_host(
@@ -2551,7 +2595,7 @@ pub(super) fn generate_hosts_and_services(
                 dc,
                 dc_storage,
                 Ipv4Addr::new(172, 16, 20, 20),
-                backup_tag.into_iter().collect(),
+                [backup_tag, backups_tag].into_iter().flatten().collect(),
                 None,
                 None,
                 now,
@@ -2561,16 +2605,15 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((mut svc, port)) = create_service(
+        if let Some((svc, port)) = create_service(
             "MinIO",
             "MinIO",
             &host,
             &ip_addresses[0],
             Some(PortType::Https),
-            [backup_tag, storage_tag].into_iter().flatten().collect(),
+            [backup_tag, backups_tag].into_iter().flatten().collect(),
             now,
         ) {
-            svc.id = minio_dc_svc_id;
             if let Some(p) = port {
                 ports.push(p);
             }
@@ -2584,7 +2627,7 @@ pub(super) fn generate_hosts_and_services(
         });
     }
 
-    // 15. Ceph (pre-generated service ID for Storage Tier dependency)
+    // 15. Ceph
     {
         let (host, ip_address) = with_mac(
             create_host(
@@ -2604,16 +2647,15 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((mut svc, port)) = create_service(
+        if let Some((svc, port)) = create_service(
             "Ceph",
             "Ceph",
             &host,
             &ip_addresses[0],
             None,
-            [backup_tag, storage_tag].into_iter().flatten().collect(),
+            backup_tag.into_iter().collect(),
             now,
         ) {
-            svc.id = ceph_dc_svc_id;
             if let Some(p) = port {
                 ports.push(p);
             }
@@ -2627,7 +2669,7 @@ pub(super) fn generate_hosts_and_services(
         });
     }
 
-    // 16. Elasticsearch (pre-generated service ID for Storage Tier dependency)
+    // 16. Elasticsearch
     {
         let (host, ip_address) = with_mac(
             create_host(
@@ -2637,7 +2679,7 @@ pub(super) fn generate_hosts_and_services(
                 dc,
                 dc_storage,
                 Ipv4Addr::new(172, 16, 20, 30),
-                database_tag.into_iter().collect(),
+                portal_tag.into_iter().collect(),
                 None,
                 None,
                 now,
@@ -2647,16 +2689,15 @@ pub(super) fn generate_hosts_and_services(
         let ip_addresses = vec![ip_address];
         let mut ports = Vec::new();
         let mut services = Vec::new();
-        if let Some((mut svc, port)) = create_service(
+        if let Some((svc, port)) = create_service(
             "Elasticsearch",
             "Elasticsearch",
             &host,
             &ip_addresses[0],
             Some(PortType::Elasticsearch),
-            database_tag.into_iter().collect(),
+            portal_tag.into_iter().collect(),
             now,
         ) {
-            svc.id = elasticsearch_dc_svc_id;
             if let Some(p) = port {
                 ports.push(p);
             }
@@ -2694,7 +2735,7 @@ pub(super) fn generate_hosts_and_services(
                 "InfluxDB",
                 "InfluxDB",
                 Some(PortType::InfluxDb),
-                database_tag.into_iter().collect()
+                monitoring_tag.into_iter().collect()
             ),
         ),
         now - Duration::days(900),
@@ -2736,7 +2777,7 @@ pub(super) fn generate_hosts_and_services(
                 dc,
                 dc_dmz,
                 Ipv4Addr::new(172, 16, 30, 5),
-                production_tag.into_iter().collect(),
+                [production_tag, portal_tag].into_iter().flatten().collect(),
                 None,
                 None,
                 now

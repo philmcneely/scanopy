@@ -72,7 +72,7 @@ pub(super) fn generate_tags(
 
     // (name, description, color, group, icon), in each group's order. Application tags draw the
     // application icon, so they carry none of their own.
-    let tag_definitions: [(&str, &str, Color, Group, Option<Icon>); 12] = [
+    let tag_definitions: [(&str, &str, Color, Group, Option<Icon>); 14] = [
         (
             "Backup Target",
             "Backup destinations",
@@ -81,23 +81,58 @@ pub(super) fn generate_tags(
             Some(Icon::Archive),
         ),
         (
+            "Customer Portal",
+            "Customer-facing ordering site",
+            Color::Blue,
+            Group::Application,
+            None,
+        ),
+        (
             "Monitoring",
-            "Monitoring infrastructure",
+            "Metrics, logs, traces and uptime checks",
             Color::Purple,
             Group::Application,
             None,
         ),
         (
-            "Database",
-            "Database servers",
+            "CI/CD",
+            "Source control, builds and deployments",
+            Color::Pink,
+            Group::Application,
+            None,
+        ),
+        (
+            "Identity & Access",
+            "Single sign-on and the team password vault",
+            Color::Indigo,
+            Group::Application,
+            None,
+        ),
+        (
+            "File Sharing",
+            "Company file share",
+            Color::Teal,
+            Group::Application,
+            None,
+        ),
+        (
+            "Backups",
+            "Nightly and weekly backups",
+            Color::Lime,
+            Group::Application,
+            None,
+        ),
+        (
+            "Wiki",
+            "Internal documentation",
             Color::Cyan,
             Group::Application,
             None,
         ),
         (
-            "Web Tier",
-            "Web and application servers",
-            Color::Teal,
+            "Service Desk",
+            "Support and IT tickets",
+            Color::Amber,
             Group::Application,
             None,
         ),
@@ -121,27 +156,6 @@ pub(super) fn generate_tags(
             Color::Indigo,
             Group::None,
             Some(Icon::Briefcase),
-        ),
-        (
-            "DevOps Pipeline",
-            "CI/CD and deployment tools",
-            Color::Pink,
-            Group::Application,
-            None,
-        ),
-        (
-            "Storage",
-            "Storage and backup systems",
-            Color::Lime,
-            Group::Application,
-            None,
-        ),
-        (
-            "Messaging",
-            "Message brokers and email",
-            Color::Amber,
-            Group::Application,
-            None,
         ),
         (
             "Nightly",
