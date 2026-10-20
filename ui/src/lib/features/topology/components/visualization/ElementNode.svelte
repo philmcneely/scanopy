@@ -18,7 +18,7 @@
 	const sitesQuery = useSitesQuery();
 	import type { TopologyNode, ElementRenderData, RenderableTopology } from '../../types/base';
 	import { cardEntityForFilter, resolveTagTarget } from '../../resolvers';
-	import { buildElementRender } from '../../element-render-data';
+	import { buildElementRender, ICON_GROUP_COLUMNS } from '../../element-render-data';
 	import { getTopologyIndex } from '../../entity-index';
 	import type { Writable } from 'svelte/store';
 	import { formatPort } from '$lib/shared/utils/formatting';
@@ -398,82 +398,126 @@
 		{#if !simplified && iconCard}
 			<!-- Icon card. The glyph comes first in DOM order: the diagram exports take each
 			     node's first icon as its shape icon. -->
-			<div
-				class="group/icon-card flex flex-col items-center gap-1.5 px-2 py-2"
-				use:tooltip
-				data-tooltip={iconCard.title}
-			>
-				<!-- my-1: the service badges (bottom-right) and the status dot (top-left) are
-				     centred on the tile's corners and overhang it by half their size, more than the card's
-				     gap and padding. On every icon card, so heights match. -->
-				<div class="relative my-1">
-					{#if iconCard.glyph.type === 'device'}
-						<DeviceGlyph deviceType={iconCard.glyph.deviceType} size="lg" />
-					{:else}
-						<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
-					{/if}
-					{#if marks.Status}
-						<!-- A guest's run state, from the view's Status mark: a dot in the state's colour,
-						     centred on the tile's top-left corner, with nothing inside it. Hovering the card
-						     expands it rightwards to name the state; the width is capped to
-						     stay inside the card. The value is the filter chip's own. -->
-						{@const runState = marks.Status}
-						<span
-							class="absolute -left-2 -top-2 z-10 flex h-4 items-center rounded-full border border-gray-300 dark:border-gray-600"
-							style="background: var(--color-topology-node-bg);"
-						>
-							<span class="flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center">
-								<span
-									class="h-2.5 w-2.5 rounded-full"
-									style="background: {createColorHelper(runState.color).rgb};"
-								></span>
-							</span>
+			<div class="group/icon-card flex flex-col items-center gap-1.5 px-2 py-2">
+				<!-- The card's tooltip sits on the tile and label only: a group member below carries its
+				     own, and nested tooltips would show both at once. -->
+				<div
+					class="flex w-full flex-col items-center gap-1.5"
+					use:tooltip
+					data-tooltip={iconCard.title}
+				>
+					<!-- my-1: the service badges (bottom-right) and the status dot (top-left) are
+					     centred on the tile's corners and overhang it by half their size, more than the card's
+					     gap and padding. On every icon card, so heights match. -->
+					<div class="relative my-1">
+						{#if iconCard.glyph.type === 'device'}
+							<DeviceGlyph deviceType={iconCard.glyph.deviceType} size="lg" />
+						{:else}
+							<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
+						{/if}
+						{#if marks.Status}
+							<!-- A guest's run state, from the view's Status mark: a dot in the state's colour,
+							     centred on the tile's top-left corner, with nothing inside it. Hovering the card
+							     expands it rightwards to name the state; the width is capped to
+							     stay inside the card. The value is the filter chip's own. -->
+							{@const runState = marks.Status}
 							<span
-								class="text-primary flex max-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[72px] group-hover/icon-card:pr-2"
+								class="absolute -left-2 -top-2 z-10 flex h-4 items-center rounded-full border border-gray-300 dark:border-gray-600"
+								style="background: var(--color-topology-node-bg);"
 							>
-								{runState.label}
-							</span>
-						</span>
-					{/if}
-					{#if iconCard.badgeDefinitions.length > 0}
-						<!-- Round like every software glyph: this device, running these. The top badge is
-						     centred on the tile's bottom-right corner; each one behind it steps up and left,
-						     two layers at most, so more than one service reads as a stack. Hovering the
-						     card fans them into a row centred under the tile, spaced to fit inside the
-						     card. Offsets are from the tile's centre to each badge's left edge. -->
-						{@const count = iconCard.badgeDefinitions.length}
-						{@const pileX = TILE_PX / 2 - BADGE_PX / 2}
-						<!-- A lone badge has nothing to fan out from: it stays on the corner on hover. -->
-						{@const fanStep =
-							count > 1 ? Math.min(BADGE_PX + 2, (CARD_INNER_PX - BADGE_PX) / (count - 1)) : 0}
-						<!-- Every badge is a flex box, off the text baseline: an <img> logo and an <svg> glyph sit on a
-						     baseline at different heights, which bent the fanned row into a descending curve. -->
-						<span class="absolute -bottom-2.5 left-1/2 flex h-5 w-0">
-							{#each iconCard.badgeDefinitions as definition, i (definition)}
-								{@const layer = Math.min(i, 2) * 3}
+								<span class="flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center">
+									<span
+										class="h-2.5 w-2.5 rounded-full"
+										style="background: {createColorHelper(runState.color).rgb};"
+									></span>
+								</span>
 								<span
-									class="absolute left-[var(--stack-x)] top-[var(--stack-y)] flex leading-none transition-[left,top] duration-150 group-hover/icon-card:left-[var(--fan-x)] group-hover/icon-card:top-0"
-									style="--stack-x: {pileX - layer}px; --stack-y: {-layer}px; --fan-x: {count > 1
-										? (i - (count - 1) / 2) * fanStep - BADGE_PX / 2
-										: pileX}px; z-index: {count - i};"
+									class="text-primary flex max-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[72px] group-hover/icon-card:pr-2"
 								>
-									<SoftwareGlyph {definition} />
+									{runState.label}
+								</span>
+							</span>
+						{/if}
+						{#if iconCard.badgeDefinitions.length > 0}
+							<!-- Round like every software glyph: this device, running these. The top badge is
+							     centred on the tile's bottom-right corner; each one behind it steps up and left,
+							     two layers at most, so more than one service reads as a stack. Hovering the
+							     card fans them into a row centred under the tile, spaced to fit inside the
+							     card. Offsets are from the tile's centre to each badge's left edge. -->
+							{@const count = iconCard.badgeDefinitions.length}
+							{@const pileX = TILE_PX / 2 - BADGE_PX / 2}
+							<!-- A lone badge has nothing to fan out from: it stays on the corner on hover. -->
+							{@const fanStep =
+								count > 1 ? Math.min(BADGE_PX + 2, (CARD_INNER_PX - BADGE_PX) / (count - 1)) : 0}
+							<!-- Every badge is a flex box, off the text baseline: an <img> logo and an <svg> glyph sit on a
+							     baseline at different heights, which bent the fanned row into a descending curve. -->
+							<span class="absolute -bottom-2.5 left-1/2 flex h-5 w-0">
+								{#each iconCard.badgeDefinitions as definition, i (definition)}
+									{@const layer = Math.min(i, 2) * 3}
+									<span
+										class="absolute left-[var(--stack-x)] top-[var(--stack-y)] flex leading-none transition-[left,top] duration-150 group-hover/icon-card:left-[var(--fan-x)] group-hover/icon-card:top-0"
+										style="--stack-x: {pileX - layer}px; --stack-y: {-layer}px; --fan-x: {count > 1
+											? (i - (count - 1) / 2) * fanStep - BADGE_PX / 2
+											: pileX}px; z-index: {count - i};"
+									>
+										<SoftwareGlyph {definition} />
+									</span>
+								{/each}
+							</span>
+						{/if}
+					</div>
+					{#if staleTag}
+						<div class="scale-90">
+							<Tag {...staleTag} pill />
+						</div>
+					{/if}
+					<div
+						data-entity-header
+						class="text-primary line-clamp-2 w-full break-words text-center text-xs font-medium leading-tight"
+					>
+						{iconCard.label}
+					</div>
+				</div>
+				<!-- Manager groups inlined on a guest, in the dashed box the detailed card used: a
+				     runtime's heading, then each member as a small glyph with its own tooltip and, when the
+				     view paints run state, a dot in the state's colour on its top-left corner, as on a card. -->
+				{#each iconCard.groups as group (group.groupId)}
+					<div
+						class="w-full rounded-md border border-dashed border-gray-300 px-1 pb-1.5 pt-1 dark:border-gray-600"
+					>
+						<div class="flex items-center gap-1 pb-1.5">
+							{#if group.headerDefinition}
+								<SoftwareGlyph definition={group.headerDefinition} framed={false} />
+							{/if}
+							<span class="text-secondary truncate text-[10px] font-medium">
+								{group.headerName}
+							</span>
+							<span class="text-tertiary ml-auto flex-shrink-0 text-[10px] tabular-nums">
+								{group.members.length}
+							</span>
+						</div>
+						<div
+							class="grid justify-items-center gap-y-1.5"
+							style="grid-template-columns: repeat({ICON_GROUP_COLUMNS}, minmax(0, 1fr));"
+						>
+							{#each group.members as member (member.id)}
+								<span class="relative flex" use:tooltip data-tooltip={member.title}>
+									{#if member.glyph.type === 'device'}
+										<DeviceGlyph deviceType={member.glyph.deviceType} />
+									{:else}
+										<SoftwareGlyph definition={member.glyph.definition} />
+									{/if}
+									{#if member.status}
+										<span
+											class="absolute -left-1 -top-1 h-2 w-2 rounded-full border border-gray-300 dark:border-gray-600"
+											style="background: {createColorHelper(member.status.color).rgb};"
+										></span>
+									{/if}
 								</span>
 							{/each}
-						</span>
-					{/if}
-				</div>
-				{#if staleTag}
-					<div class="scale-90">
-						<Tag {...staleTag} pill />
+						</div>
 					</div>
-				{/if}
-				<div
-					data-entity-header
-					class="text-primary line-clamp-2 w-full break-words text-center text-xs font-medium leading-tight"
-				>
-					{iconCard.label}
-				</div>
+				{/each}
 			</div>
 		{:else if !simplified}
 			<!-- Staleness tag: the same Tag component, label, colour and icon the

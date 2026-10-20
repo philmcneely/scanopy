@@ -61,13 +61,43 @@ export function elementMarks(
 	for (const mark of config.element_marks ?? []) {
 		if (marks[mark.channel]) continue;
 		const entity = cardEntityForFilter(node, topology, mark.entity);
-		if (!entity) continue;
-		const site = sites.find((n) => n.id === (entity as { site_id?: string }).site_id);
-		if (filterValueOf(entity, mark.filter_type, site) !== mark.value) continue;
-		const value = markValue(config, mark);
+		const value = entity ? paintedValue(config, mark, entity, sites) : undefined;
 		if (value) marks[mark.channel] = value;
 	}
 	return marks;
+}
+
+/**
+ * The filter value `view` paints through `channel` on one entity drawn inside a card rather than
+ * as a card of its own: a container in a runtime's group on a VM's card.
+ */
+export function entityMark(
+	view: string,
+	channel: MarkChannel,
+	entityType: string,
+	entity: object,
+	sites: Site[]
+): MarkValue | undefined {
+	const config = viewElementConfig(view);
+	if (!config) return undefined;
+	for (const mark of config.element_marks ?? []) {
+		if (mark.channel !== channel || mark.entity !== entityType) continue;
+		const value = paintedValue(config, mark, entity, sites);
+		if (value) return value;
+	}
+	return undefined;
+}
+
+/** The chip value `mark` names, when `entity` carries it. */
+function paintedValue(
+	config: ViewElementConfig,
+	mark: ElementMark,
+	entity: object,
+	sites: Site[]
+): MarkValue | undefined {
+	const site = sites.find((n) => n.id === (entity as { site_id?: string }).site_id);
+	if (filterValueOf(entity, mark.filter_type, site) !== mark.value) return undefined;
+	return markValue(config, mark);
 }
 
 /** CSS colour for a reduced card's fill. */

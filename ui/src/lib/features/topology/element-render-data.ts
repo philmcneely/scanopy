@@ -30,10 +30,22 @@ import type {
 } from './types/base';
 import { elementEntity, nodeEntity, resolveElementNode } from './resolvers';
 import { entityGlyph, type EntityGlyph } from './entity-glyph';
-import { elementMarks, type ElementMarks } from './element-marks';
+import { elementMarks, entityMark, type ElementMarks, type MarkValue } from './element-marks';
+import type { HostVirtualization } from '$lib/features/hosts/types/base';
+import type { ServiceVirtualization } from '$lib/features/services/types/base';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 import { getTopologyIndex } from './entity-index';
-import { deviceTypes, entities, serviceDefinitions, views } from '$lib/shared/stores/metadata';
+import {
+	containerNetworkTypes,
+	deviceTypes,
+	entities,
+	guestStates,
+	hostVirtualizations,
+	proxmoxGuestTypes,
+	serviceDefinitions,
+	serviceVirtualizations,
+	views
+} from '$lib/shared/stores/metadata';
 import { getFreshnessTag } from '$lib/shared/utils/freshness';
 import { formatInterfaceSpeed } from '$lib/shared/utils/formatting';
 import type { Site } from '$lib/features/sites/types';
@@ -43,11 +55,17 @@ import { hiddenEntityIds } from './interactions';
 import { expandedInlineGroups, inlineGroupKey } from './collapse';
 import { queryClient, queryKeys } from '$lib/api/query-client';
 import {
+	common_containers,
 	common_host,
 	common_ipAddress,
 	common_labeledValue,
+	common_manager,
 	common_service,
 	common_services,
+	common_status,
+	hosts_deviceFacts_composeProject,
+	hosts_deviceFacts_guestType,
+	hosts_deviceFacts_networkType,
 	hosts_deviceType
 } from '$lib/paraglide/messages';
 
@@ -104,6 +122,30 @@ export interface ElementIconCard {
 	badgeDefinitions: string[];
 	label: string;
 	/** Hover text: labelled rows for what the card no longer shows, then its services. */
+	title: string;
+	/**
+	 * The manager groups inlined on a guest's card (a Docker engine on a VM with its containers),
+	 * each drawn under the label in a dashed box as small glyphs, one per member.
+	 */
+	groups: IconCardGroup[];
+}
+
+/** A manager group on an icon card: its heading and its members. */
+export interface IconCardGroup {
+	groupId: string;
+	/** The manager service's definition, drawn beside the heading; null when it is not on this card. */
+	headerDefinition: string | null;
+	headerName: string;
+	members: IconCardMember[];
+}
+
+/** A container (or other managed member) drawn as a small glyph inside an icon card's group. */
+export interface IconCardMember {
+	id: string;
+	glyph: EntityGlyph;
+	/** Its run state, from the view's Status mark; absent when the view paints none on it. */
+	status: MarkValue | undefined;
+	/** Hover text, as the card's own. */
 	title: string;
 }
 
@@ -200,7 +242,7 @@ export function buildElementRender(inputs: ElementRenderInputs): ElementRenderRe
 		glyph,
 		iconCard:
 			glyph
-				? buildIconCard(resolved, content.data, glyph)
+				? buildIconCard(inputs, resolved, content.data, glyph)
 				: null
 	};
 }
@@ -208,14 +250,64 @@ export function buildElementRender(inputs: ElementRenderInputs): ElementRenderRe
 /** The most service badges a device glyph stacks: five fan across the card without overlapping. */
 const BADGE_STACK_MAX = 5;
 
+/** Member glyphs per row in an icon card's group box: four small glyphs fit its width. */
+export const ICON_GROUP_COLUMNS = 4;
+
+type TooltipRow = [label: string, value: string | null | undefined];
+
+/**
+ * What a guest host's tooltip adds about how it runs: its manager, the modifiers that set it apart
+ * from a plain guest (a Proxmox guest's type, a container's macvlan or ipvlan network, its Compose
+ * project) and its run state. The same facts the host modal's virtualization section lists.
+ */
+function hostGuestRows(virtualization: HostVirtualization | null | undefined): TooltipRow[] {
+	if (!virtualization) return [];
+	const manager: TooltipRow = [common_manager(), hostVirtualizations.getName(virtualization.type)];
+	switch (virtualization.type) {
+		case 'Proxmox': {
+			const { guest_type, state } = virtualization.details;
+			return [
+				manager,
+				[hosts_deviceFacts_guestType(), guest_type ? proxmoxGuestTypes.getName(guest_type) : null],
+				[common_status(), guestStates.getName(state)]
+			];
+		}
+		case 'VCenter':
+		case 'ESXi':
+			return [manager];
+		case 'Docker':
+		case 'Podman': {
+			const { network_type, compose_project, state } = virtualization.details;
+			return [
+				manager,
+				[hosts_deviceFacts_networkType(), containerNetworkTypes.getName(network_type)],
+				[hosts_deviceFacts_composeProject(), compose_project],
+				[common_status(), guestStates.getName(state)]
+			];
+		}
+		case 'NetworkIdentity':
+			return [];
+	}
+}
+
+/** A containerized service's rows: its runtime, Compose project and run state. */
+function serviceGuestRows(
+	virtualization: ServiceVirtualization | null | undefined
+): TooltipRow[] {
+	if (!virtualization) return [];
+	const { compose_project, state } = virtualization.details;
+	return [
+		[common_manager(), serviceVirtualizations.getName(virtualization.type)],
+		[hosts_deviceFacts_composeProject(), compose_project],
+		[common_status(), guestStates.getName(state)]
+	];
+}
+
 /**
  * An icon card's hover text: one labelled row per value present ("IP Address: 10.0.1.1"), then a
  * headed list. Plain text with line breaks, which the shared tooltip action keeps.
  */
-function tooltipText(
-	rows: [label: string, value: string | null | undefined][],
-	list?: { header: string; items: string[] }
-): string {
+function tooltipText(rows: TooltipRow[], list?: { header: string; items: string[] }): string {
 	const lines: string[] = rows
 		.filter(([, value]) => value)
 		.map(([label, value]) => common_labeledValue({ label, value: value as string }));
@@ -231,6 +323,7 @@ function tooltipText(
  * card, so two addresses on one host stay apart, and with its host's name otherwise.
  */
 function buildIconCard(
+	inputs: ElementRenderInputs,
 	resolved: ReturnType<typeof resolveElementNode>,
 	data: ElementRenderData | null,
 	glyph: EntityGlyph
@@ -247,8 +340,10 @@ function buildIconCard(
 			label: service.name,
 			title: tooltipText([
 				[common_service(), service.name],
-				[common_host(), host ? hostDisplayName(host) : null]
-			])
+				[common_host(), host ? hostDisplayName(host) : null],
+				...serviceGuestRows(service.virtualization_metadata)
+			]),
+			groups: []
 		};
 	}
 
@@ -280,10 +375,57 @@ function buildIconCard(
 			[
 				[common_host(), hostName],
 				[common_ipAddress(), address],
-				[hosts_deviceType(), deviceTypes.getName(deviceType)]
+				[hosts_deviceType(), deviceTypes.getName(deviceType)],
+				...hostGuestRows(host.virtualization_metadata)
 			],
 			{ header: common_services(), items: data.services.map((s) => s.name) }
-		)
+		),
+		groups: data.inlineGroups.map((g) => iconCardGroup(inputs, g))
+	};
+}
+
+/**
+ * One inlined manager group as an icon card draws it: every member as a small glyph, whatever the
+ * detailed card's collapse state, since a row of glyphs is already the collapsed form.
+ */
+function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): IconCardGroup {
+	const { activeView, sites, topology } = inputs;
+	const services: IconCardMember[] = group.services.map((service) => ({
+		id: service.id,
+		glyph: { type: 'software', definition: service.service_definition },
+		status: entityMark(activeView, 'Status', 'Service', service, sites),
+		title: tooltipText([
+			[common_service(), service.name],
+			...serviceGuestRows(service.virtualization_metadata)
+		])
+	}));
+	const hosts: IconCardMember[] = group.hosts.map(({ host, services: hostServices }) => {
+		const glyph: EntityGlyph = entityGlyph('Host', host, topology) ?? {
+			type: 'device',
+			deviceType: 'Unidentified'
+		};
+		return {
+			id: host.id,
+			glyph,
+			status: entityMark(activeView, 'Status', 'Host', host, sites),
+			title: tooltipText(
+				[
+					[common_host(), hostDisplayName(host)],
+					[
+						hosts_deviceType(),
+						glyph.type === 'device' ? deviceTypes.getName(glyph.deviceType) : null
+					],
+					...hostGuestRows(host.virtualization_metadata)
+				],
+				{ header: common_services(), items: hostServices.map((s) => s.name) }
+			)
+		};
+	});
+	return {
+		groupId: group.groupId,
+		headerDefinition: group.header?.service_definition ?? null,
+		headerName: group.header?.name ?? common_containers(),
+		members: [...services, ...hosts]
 	};
 }
 
@@ -598,7 +740,9 @@ export function elementShapeKey(result: ElementRenderResult): string {
 			'icon',
 			d.elementType,
 			Math.min(2, Math.ceil(icon.label.length / 14)),
-			result.staleTag ? 1 : 0
+			result.staleTag ? 1 : 0,
+			// Each group box adds a heading and one row per ICON_GROUP_COLUMNS members.
+			icon.groups.map((g) => Math.ceil(g.members.length / ICON_GROUP_COLUMNS)).join(',')
 		].join('|');
 	}
 
