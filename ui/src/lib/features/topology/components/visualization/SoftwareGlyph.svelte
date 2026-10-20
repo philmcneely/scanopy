@@ -16,14 +16,18 @@
 
 	let Logo = $derived(serviceDefinitions.getIconComponent(definition));
 	let colors = $derived(serviceDefinitions.getColorHelper(definition));
+	// Pixel size, passed explicitly: `LogoIcon` sizes its image from `size` and ignores a height
+	// class. 70% of the frame is the largest square that sits inside the circle, so a square logo
+	// (pfSense) fits as well as a round one (UniFi).
+	let logoPx = $derived(size === 'lg' ? 28 : 14);
 </script>
 
 <span
-	class="inline-flex flex-shrink-0 items-center justify-center rounded-full border {colors.border} {size ===
+	class="inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full border {colors.border} {size ===
 	'lg'
 		? 'h-12 w-12 border-2'
 		: 'h-5 w-5'}"
 	style="background: var(--color-bg-surface);"
 >
-	<Logo class="{size === 'lg' ? 'h-7 w-7' : 'h-3.5 w-3.5'} {colors.icon}" />
+	<Logo size={logoPx} class={colors.icon} />
 </span>

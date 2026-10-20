@@ -217,6 +217,8 @@ impl DaemonResponse for HostResponse {
             // daemon that reads them, and the daemon never reads these.
             display_name_rung: _,
             name_ladder: _,
+            // An enum the daemon never reads; an unknown role reads as `Unidentified` (`serde(other)`).
+            device_role: _,
             name_source: _,
             site_id: _,
             hostname: _,

@@ -29,6 +29,7 @@
 
 <script lang="ts">
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import { interfaceDisplayName } from '$lib/features/hosts/interface-display-name';
 	import InfoRow from '$lib/shared/components/data/InfoRow.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
@@ -108,7 +109,7 @@
 						<EntityTag
 							entityRef={entityRef('Host', neighbour.neighborHost.id, neighbour.neighborHost)}
 							label={hostDisplayName(neighbour.neighborHost)}
-							icon={entities.getIconComponent('Host')}
+							icon={hostIcon(neighbour.neighborHost)}
 							color={entities.getColorHelper('Host').color}
 						/>
 					{/if}

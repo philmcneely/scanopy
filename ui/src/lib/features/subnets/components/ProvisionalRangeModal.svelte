@@ -24,6 +24,7 @@
 	import { entityRef } from '$lib/shared/components/data/types';
 	import { useHostsByIds } from '$lib/features/hosts/queries';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import {
 		subnets_confirmRange,
 		subnets_confirmRangeDetail,
@@ -177,7 +178,7 @@
 										<EntityTag
 											entityRef={entityRef('Host', host.id, host)}
 											label={hostDisplayName(host)}
-											icon={entities.getIconComponent('Host')}
+											icon={hostIcon(host)}
 											color={entities.getColorHelper('Host').color}
 										/>
 									{/each}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import type { Edge } from '@xyflow/svelte';
 	import EntityDisplayWrapper from '$lib/shared/components/forms/selection/display/EntityDisplayWrapper.svelte';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
@@ -52,7 +53,7 @@
 		<InspectorSection
 			id="edge:SameHost:host"
 			title={common_host()}
-			icon={entities.getIconComponent('Host')}
+			icon={hostIcon(host)}
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>

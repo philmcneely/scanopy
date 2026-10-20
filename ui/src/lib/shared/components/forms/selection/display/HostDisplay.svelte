@@ -1,6 +1,7 @@
 <script lang="ts" context="module">
 	import type { Host, Interface, IPAddress, Port, Service } from '$lib/features/hosts/types/base';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import {
 		containerNetworkTypes,
 		entities,
@@ -135,15 +136,8 @@
 				.filter((value): value is string => !!value && value !== label)
 				.join(', ');
 		},
-		getIcon: (host, context) => {
-			const services = context?.services?.filter((s) => s.host_id == host.id) ?? [];
-			const firstService = services.length > 0 ? services[0] : null;
-			if (firstService) {
-				return serviceDefinitions.getIconComponent(firstService.service_definition);
-			} else {
-				return entities.getIconComponent('Host');
-			}
-		},
+		// The host's device role, as on every other surface, not its first service's logo.
+		getIcon: (host) => hostIcon(host),
 		getIconColor: () => entities.getColorHelper('Host').icon,
 		// What kind of guest the host is (VM, LXC, macvlan container, network identity) is part of
 		// what the host is, so it shows even in compact rows; its services only in full ones. A view

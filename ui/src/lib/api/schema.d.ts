@@ -4900,6 +4900,7 @@ export interface components {
              *       "created_at": "2026-01-15T10:30:00Z",
              *       "credential_assignments": [],
              *       "description": "Primary web server",
+             *       "device_role": "Server",
              *       "display_name": "web-server-01",
              *       "display_name_rung": "Name",
              *       "firmware_revision": null,
@@ -5104,6 +5105,12 @@ export interface components {
                 credential_assignments?: components["schemas"]["CredentialAssignment"][];
                 /** @description Free-text notes about the host. */
                 description?: string | null;
+                /**
+                 * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
+                 *     by [`Host::device_role`] from its services, then its OS, as the topology computes it.
+                 *     Read-only.
+                 */
+                device_role?: components["schemas"]["DeviceRole"];
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -10637,6 +10644,7 @@ export interface components {
          *       "created_at": "2026-01-15T10:30:00Z",
          *       "credential_assignments": [],
          *       "description": "Primary web server",
+         *       "device_role": "Server",
          *       "display_name": "web-server-01",
          *       "display_name_rung": "Name",
          *       "firmware_revision": null,
@@ -10841,6 +10849,12 @@ export interface components {
             credential_assignments?: components["schemas"]["CredentialAssignment"][];
             /** @description Free-text notes about the host. */
             description?: string | null;
+            /**
+             * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
+             *     by [`Host::device_role`] from its services, then its OS, as the topology computes it.
+             *     Read-only.
+             */
+            device_role?: components["schemas"]["DeviceRole"];
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.
@@ -12784,6 +12798,12 @@ export interface components {
                 credential_assignments?: components["schemas"]["CredentialAssignment"][];
                 /** @description Free-text notes about the host. */
                 description?: string | null;
+                /**
+                 * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
+                 *     by [`Host::device_role`] from its services, then its OS, as the topology computes it.
+                 *     Read-only.
+                 */
+                device_role?: components["schemas"]["DeviceRole"];
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.

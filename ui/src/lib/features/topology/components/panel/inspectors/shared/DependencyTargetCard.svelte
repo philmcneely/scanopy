@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
 	import { X } from 'lucide-svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
@@ -141,7 +142,7 @@
 				<EntityTag
 					entityRef={entityRef('Host', host.id, host)}
 					label={hostDisplayName(host)}
-					icon={entities.getIconComponent('Host')}
+					icon={hostIcon(host)}
 					color={entities.getColorHelper('Host').color}
 				/>
 			{/if}
