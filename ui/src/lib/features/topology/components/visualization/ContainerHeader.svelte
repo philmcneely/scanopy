@@ -203,7 +203,7 @@
 		{/if}
 
 		{#if deviceRole}
-			<DeviceGlyph role={deviceRole} />
+			<DeviceGlyph role={deviceRole} framed={false} />
 		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<IconComp class={`h-5 w-5 ${colorHelper.icon}`} fill={fillIcon ? 'currentColor' : 'none'} />
@@ -229,7 +229,7 @@
 			<span data-fixed class="flex items-center"><span class="caret text-secondary"></span></span>
 		{/if}
 		{#if logoDefinition}
-			<span data-fixed><SoftwareGlyph definition={logoDefinition} /></span>
+			<span data-fixed><SoftwareGlyph definition={logoDefinition} framed={false} /></span>
 		{/if}
 		{#if headerText}
 			<span
@@ -269,7 +269,7 @@
 			>
 		{/if}
 		{#if deviceRole}
-			<span data-fixed><DeviceGlyph role={deviceRole} /></span>
+			<span data-fixed><DeviceGlyph role={deviceRole} framed={false} /></span>
 		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<span data-fixed
@@ -280,7 +280,7 @@
 			>
 		{/if}
 		{#if logoDefinition}
-			<span data-fixed><SoftwareGlyph definition={logoDefinition} /></span>
+			<span data-fixed><SoftwareGlyph definition={logoDefinition} framed={false} /></span>
 		{/if}
 		{#if headerText}
 			<span
@@ -353,7 +353,7 @@
 					style="background: var(--color-topology-subgroup-bg);"
 				>
 					{#if summary.logoDefinition}
-						<SoftwareGlyph definition={summary.logoDefinition} />
+						<SoftwareGlyph definition={summary.logoDefinition} framed={false} />
 					{/if}
 					{#if summary.headerText}
 						<span class="text-tertiary text-xs"
