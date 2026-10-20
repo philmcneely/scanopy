@@ -15480,7 +15480,7 @@ export interface components {
             tag_filter: {
                 [key: string]: components["schemas"]["TopologyTagFilter"];
             };
-            /** @default Detailed */
+            /** @default Icons */
             view_mode: components["schemas"]["ViewMode"];
         };
         TopologyOptions: {
