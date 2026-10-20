@@ -20,6 +20,7 @@
 	import type { Credential, CredentialType } from '../types/base';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import { createDefaultCredential } from '../types/base';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import { entityRef } from '$lib/shared/components/data/types';
@@ -901,7 +902,7 @@
 						<EntityTag
 							entityRef={entityRef('Host', host.id, host)}
 							label={hostDisplayName(host)}
-							icon={entities.getIconComponent('Host')}
+							icon={hostIcon(host)}
 							color={entities.getColorHelper('Host').color}
 						/>
 					{/each}

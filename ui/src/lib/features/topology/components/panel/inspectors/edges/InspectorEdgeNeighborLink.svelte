@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import EntityDisplayWrapper from '$lib/shared/components/forms/selection/display/EntityDisplayWrapper.svelte';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
 	import { useTopology, selectedTopologyId } from '$lib/features/topology/context';
@@ -49,7 +50,7 @@
 		<InspectorSection
 			id="edge:NeighborLink:source"
 			title={common_source()}
-			icon={entities.getIconComponent('Host')}
+			icon={hostIcon(sourceHost)}
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>
@@ -71,7 +72,7 @@
 		<InspectorSection
 			id="edge:NeighborLink:target"
 			title={common_target()}
-			icon={entities.getIconComponent('Host')}
+			icon={hostIcon(targetHost)}
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>

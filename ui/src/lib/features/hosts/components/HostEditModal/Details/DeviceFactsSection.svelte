@@ -4,6 +4,7 @@
 	import AttributeSourceTag from '$lib/shared/components/data/AttributeSourceTag.svelte';
 	import { type HostOs } from '$lib/features/hosts/host-os';
 	import OsTag from '../../OsTag.svelte';
+	import DeviceRoleLabel from '../../DeviceRoleLabel.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import CopyableValue from '$lib/shared/components/data/CopyableValue.svelte';
 	import GuestStateTag from '$lib/shared/components/virtualization/GuestStateTag.svelte';
@@ -11,12 +12,16 @@
 	import type { Color } from '$lib/shared/utils/styling';
 	import {
 		containerNetworkTypes,
+		deviceRoles,
 		entities,
 		guestStates,
 		hostVirtualizations,
 		proxmoxGuestTypes
 	} from '$lib/shared/stores/metadata';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+	import { hostIcon } from '$lib/features/hosts/host-icon';
+	import type { IconComponent } from '$lib/shared/utils/types';
+	import type { components } from '$lib/api/schema';
 	import { interfaceDisplayName } from '$lib/features/hosts/interface-display-name';
 	import { virtualizationSummary } from '$lib/features/hosts/host-virtualization';
 	import { useServicesByIds } from '$lib/features/services/queries';
@@ -39,6 +44,7 @@
 		common_runtime,
 		common_status,
 		common_virtualization,
+		hosts_deviceType,
 		hosts_deviceFacts_composeProject,
 		hosts_deviceFacts_containerId,
 		hosts_deviceFacts_containerName,
@@ -52,6 +58,8 @@
 	} from '$lib/paraglide/messages';
 
 	let { host }: { host: HostFormData } = $props();
+
+	type DeviceRole = components['schemas']['DeviceRole'];
 
 	interface Fact {
 		label: string;
@@ -74,8 +82,10 @@
 		mailto?: string | null;
 		/** Drawn as an OS tag rather than text. */
 		os?: HostOs;
-		/** Drawn as a clickable entity tag labelled with `value`. */
-		entity?: { ref: EntityRef; color: Color };
+		/** Drawn as a clickable entity tag labelled with `value`, with `icon` when the entity has its own. */
+		entity?: { ref: EntityRef; color: Color; icon?: IconComponent };
+		/** Drawn as the device role's glyph beside `value`, its name. */
+		role?: DeviceRole;
 		/** Drawn as the guest's run-state chip. */
 		guestState?: string;
 	}
@@ -143,7 +153,8 @@
 			entity: ownerHost
 				? {
 						ref: entityRef('Host', ownerHost.id, ownerHost),
-						color: entities.getColorHelper('Host').color
+						color: entities.getColorHelper('Host').color,
+						icon: hostIcon(ownerHost)
 					}
 				: undefined
 		});
@@ -211,6 +222,13 @@
 		}
 	});
 
+	// Derived from the host's services, then its OS, so it carries no source of its own. Shown even
+	// when nothing identifies the host: "Unidentified" is the answer, not a missing value.
+	let deviceTypeFact = $derived.by((): Fact => {
+		const role = host.device_role ?? 'Unidentified';
+		return { ...sourceless(hosts_deviceType(), deviceRoles.getName(role)), role };
+	});
+
 	// Grouped by what each value describes, not by the protocol that carried it. A model arrives
 	// from ENTITY-MIB, a controller or an industrial probe, and each value's own tag says which.
 	let sections = $derived(
@@ -218,7 +236,12 @@
 			[
 				{
 					title: hosts_deviceFacts_identityGroup(),
-					facts: [registryFact('hostname'), registryFact('sys_name'), registryFact('chassis_id')]
+					facts: [
+						deviceTypeFact,
+						registryFact('hostname'),
+						registryFact('sys_name'),
+						registryFact('chassis_id')
+					]
 				},
 				{
 					title: common_hardware(),
@@ -289,9 +312,11 @@
 									<EntityTag
 										entityRef={fact.entity.ref}
 										label={fact.value ?? undefined}
-										icon={entities.getIconComponent(fact.entity.ref.entityType)}
+										icon={fact.entity.icon ?? entities.getIconComponent(fact.entity.ref.entityType)}
 										color={fact.entity.color}
 									/>
+								{:else if fact.role}
+									<DeviceRoleLabel role={fact.role} />
 								{:else if fact.os}
 									<!-- The same tooltip the hosts table shows: every detail and the source. -->
 									<OsTag os={fact.os} source={fact.source} />

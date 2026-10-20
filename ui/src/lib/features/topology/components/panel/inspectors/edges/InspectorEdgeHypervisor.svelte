@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import type { Edge } from '@xyflow/svelte';
 	import EntityDisplayWrapper from '$lib/shared/components/forms/selection/display/EntityDisplayWrapper.svelte';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
@@ -72,7 +73,7 @@
 		<InspectorSection
 			id="edge:Hypervisor:host"
 			title={inspector_hypervisorHost()}
-			icon={entities.getIconComponent('Host')}
+			icon={hostIcon(hypervisorHost)}
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>

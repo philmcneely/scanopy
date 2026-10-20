@@ -24685,6 +24685,10 @@
                 ],
                 "description": "Free-text notes about the host."
               },
+              "device_role": {
+                "$ref": "#/components/schemas/DeviceRole",
+                "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_role`] from its services, then its OS, as the topology computes it.\nRead-only."
+              },
               "display_name": {
                 "type": [
                   "string",
@@ -25017,6 +25021,7 @@
               "created_at": "2026-01-15T10:30:00Z",
               "credential_assignments": [],
               "description": "Primary web server",
+              "device_role": "Server",
               "display_name": "web-server-01",
               "display_name_rung": "Name",
               "firmware_revision": null,
@@ -37428,6 +37433,10 @@
             ],
             "description": "Free-text notes about the host."
           },
+          "device_role": {
+            "$ref": "#/components/schemas/DeviceRole",
+            "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_role`] from its services, then its OS, as the topology computes it.\nRead-only."
+          },
           "display_name": {
             "type": [
               "string",
@@ -37760,6 +37769,7 @@
           "created_at": "2026-01-15T10:30:00Z",
           "credential_assignments": [],
           "description": "Primary web server",
+          "device_role": "Server",
           "display_name": "web-server-01",
           "display_name_rung": "Name",
           "firmware_revision": null,
@@ -41670,6 +41680,10 @@
                   ],
                   "description": "Free-text notes about the host."
                 },
+                "device_role": {
+                  "$ref": "#/components/schemas/DeviceRole",
+                  "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_role`] from its services, then its OS, as the topology computes it.\nRead-only."
+                },
                 "display_name": {
                   "type": [
                     "string",
@@ -42002,6 +42016,7 @@
                 "created_at": "2026-01-15T10:30:00Z",
                 "credential_assignments": [],
                 "description": "Primary web server",
+                "device_role": "Server",
                 "display_name": "web-server-01",
                 "display_name_rung": "Name",
                 "firmware_revision": null,
@@ -45568,10 +45583,6 @@
               "null"
             ],
             "format": "date-time",
-          },
-          "view_mode": {
-            "$ref": "#/components/schemas/ViewMode",
-            "description": "How the viewer's element cards draw."
             "description": "When this record stops being valid."
           },
           "is_enabled": {
@@ -45632,6 +45643,10 @@
           "show_zoom_controls": {
             "type": "boolean",
             "description": "Viewer sees the zoom controls."
+          },
+          "view_mode": {
+            "$ref": "#/components/schemas/ViewMode",
+            "description": "How the viewer's element cards draw."
           }
         }
       },
@@ -47261,15 +47276,6 @@
             "description": "Edge types to leave out of the drawing, per view. A view with no entry hides the edge\ntypes that view hides by default. Unknown edge types and views are dropped on read rather\nthan failing the topology.",
             "default": {
               "Application": [
-          },
-          "view_mode": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ViewMode",
-                "description": "How element cards draw. Views where the mode does not apply draw `Detailed`."
-              }
-            ],
-            "default": "Detailed"
                 "ContainerRuntime"
               ],
               "L2Physical": [
@@ -47330,6 +47336,15 @@
                 "Application"
               ]
             }
+          },
+          "view_mode": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ViewMode",
+                "description": "How element cards draw. Views where the mode does not apply draw `Detailed`."
+              }
+            ],
+            "default": "Detailed"
           }
         }
       },
@@ -48645,14 +48660,6 @@
             "type": "boolean",
             "description": "Whether the inspector offers the application picker."
           },
-      "ViewMode": {
-        "type": "string",
-        "description": "How element cards draw: every row of detail, or the host's device-role icon and a short label.",
-        "enum": [
-          "Detailed",
-          "Icons"
-        ]
-      },
           "show_service_network_detail": {
             "type": "boolean",
             "description": "Whether a service card shows the IP address and ports it is reached on. Application\ngroups services by what they do, not where they listen, so it leaves these out."
@@ -48712,6 +48719,14 @@
             "$ref": "#/components/schemas/ViewRootOrder"
           }
         }
+      },
+      "ViewMode": {
+        "type": "string",
+        "description": "How element cards draw: every row of detail, or the host's device-role icon and a short label.",
+        "enum": [
+          "Detailed",
+          "Icons"
+        ]
       },
       "ViewRootOrder": {
         "type": "string",

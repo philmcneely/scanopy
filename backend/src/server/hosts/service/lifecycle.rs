@@ -184,6 +184,24 @@ impl HostService {
                 Default::default(),
             )
         };
+        // The device role is read off a host's services, which a children-less response leaves
+        // out. Load them anyway for the role alone, so a picker, a hover card and global search
+        // draw the same icon as the host list. Like the IP addresses above: one query per page.
+        let children_less_roles: HashMap<
+            Uuid,
+            crate::server::hosts::r#impl::device_role::DeviceRole,
+        > = if include_children {
+            HashMap::new()
+        } else {
+            let services_for_roles = self.load_services_for_hosts(&host_ids, at).await?;
+            hosts
+                .iter()
+                .map(|h| {
+                    let services = services_for_roles.get(&h.id).into_iter().flatten();
+                    (h.id, h.device_role(services))
+                })
+                .collect()
+        };
 
         // Hydrate tags from junction table
         let tags_map = self
@@ -202,13 +220,18 @@ impl HostService {
                 let ports = ports_map.get(&host.id).cloned().unwrap_or_default();
                 let services = services_map.get(&host.id).cloned().unwrap_or_default();
                 let interfaces = interfaces_map.get(&host.id).cloned().unwrap_or_default();
-                HostResponse::from_host_with_children(
+                let role = children_less_roles.get(&host.id).copied();
+                let mut response = HostResponse::from_host_with_children(
                     host,
                     ip_addresses,
                     ports,
                     services,
                     interfaces,
-                )
+                );
+                if let Some(role) = role {
+                    response.device_role = role;
+                }
+                response
             })
             .collect::<Vec<_>>();
         let mut responses = responses;
@@ -250,8 +273,24 @@ impl HostService {
     )> {
         let ip_addresses_map = self.ip_address_service.get_for_hosts(host_ids, at).await?;
         let ports_map = self.port_service.get_for_hosts(host_ids, at).await?;
+        let services_map = self.load_services_for_hosts(host_ids, at).await?;
 
-        // Load services ordered by position and group by host_id.
+        // Load interfaces and group by host_id
+        let mut interfaces_map = self.interface_service.get_for_hosts(host_ids, at).await?;
+        // Sort each host's entries by if_index
+        for entries in interfaces_map.values_mut() {
+            entries.sort_by_key(|e| e.base.if_index);
+        }
+
+        Ok((ip_addresses_map, ports_map, services_map, interfaces_map))
+    }
+
+    /// Each host's services, ordered by position.
+    async fn load_services_for_hosts(
+        &self,
+        host_ids: &[Uuid],
+        at: Option<DateTime<Utc>>,
+    ) -> Result<HashMap<Uuid, Vec<Service>>> {
         let services = self
             .service_service
             .get_all_ordered(
@@ -267,14 +306,6 @@ impl HostService {
                 .or_default()
                 .push(service);
         }
-
-        // Load interfaces and group by host_id
-        let mut interfaces_map = self.interface_service.get_for_hosts(host_ids, at).await?;
-        // Sort each host's entries by if_index
-        for entries in interfaces_map.values_mut() {
-            entries.sort_by_key(|e| e.base.if_index);
-        }
-
-        Ok((ip_addresses_map, ports_map, services_map, interfaces_map))
+        Ok(services_map)
     }
 }

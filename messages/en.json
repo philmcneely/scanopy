@@ -1265,6 +1265,7 @@
 	"hosts_deviceFacts_locationGroup": "Location and management",
 	"hosts_deviceFacts_networkType": "Network type",
 	"hosts_deviceFacts_vmId": "VM ID",
+	"hosts_deviceType": "Device type",
 	"hosts_editor_basicInfo": "Basic host information and connection details",
 	"hosts_editor_credentialsTabDesc": "Credentials and system information",
 	"hosts_editor_interfacesDesc": "Network interfaces and subnet membership",

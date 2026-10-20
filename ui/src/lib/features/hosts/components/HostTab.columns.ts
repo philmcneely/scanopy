@@ -8,8 +8,9 @@ import { defineRegistryFields } from '$lib/shared/entity-fields/table';
 import type { EntityLookup } from '$lib/shared/entity-fields';
 import { tagNames } from '$lib/features/tags/columns';
 import { credentialItems } from '$lib/features/credentials/columns';
-import { entities, entitySources, concepts } from '$lib/shared/stores/metadata';
+import { deviceRoles, entities, entitySources, concepts } from '$lib/shared/stores/metadata';
 import {
+	hosts_deviceType,
 	common_created,
 	common_description,
 	common_hostname,
@@ -106,6 +107,7 @@ export interface HostColumnsContext {
 	sysLocationValues: () => FieldValueCount[] | undefined;
 	serviceNameValues: () => FieldValueCount[] | undefined;
 	osCell: Snippet<[Host, string]>;
+	deviceRoleCell: Snippet<[Host, string]>;
 }
 
 /**
@@ -352,6 +354,14 @@ export function hostColumns(ctx: HostColumnsContext) {
 			}
 		},
 		[
+			// Computed by the server from services and OS, so it can be shown but not sorted or filtered.
+			{
+				key: 'device_role',
+				label: hosts_deviceType(),
+				type: 'string',
+				getValue: (host: Host) => deviceRoles.getName(host.device_role ?? 'Unidentified'),
+				display: { cell: ctx.deviceRoleCell }
+			},
 			{
 				key: 'description',
 				label: common_description(),

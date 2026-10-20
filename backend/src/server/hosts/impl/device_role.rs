@@ -1,6 +1,8 @@
 use crate::server::hosts::r#impl::base::Host;
 use crate::server::services::r#impl::base::Service;
+use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider};
 use crate::server::shared::types::{Color, Icon};
 use serde::{Deserialize, Serialize};
@@ -46,7 +48,10 @@ pub enum DeviceRole {
     Industrial,
     IoT,
     Server,
+    /// Also what a role this build doesn't know reads as, so a newer server cannot break an older
+    /// reader.
     #[default]
+    #[serde(other)]
     Unidentified,
 }
 
@@ -57,24 +62,10 @@ impl HasId for DeviceRole {
 }
 
 impl EntityMetadataProvider for DeviceRole {
+    /// Every role wears the Host entity's colour: a device is a host first, and the glyph alone
+    /// names its role. Software takes its category's colour instead, so the two never compete.
     fn color(&self) -> Color {
-        match self {
-            DeviceRole::Firewall => Color::Red,
-            DeviceRole::Router => Color::Orange,
-            DeviceRole::Switch => Color::Yellow,
-            DeviceRole::AccessPoint => Color::Green,
-            DeviceRole::Hypervisor => Color::Amber,
-            DeviceRole::Storage => Color::Emerald,
-            DeviceRole::Printer => Color::Indigo,
-            DeviceRole::Camera => Color::Rose,
-            DeviceRole::Phone => Color::Teal,
-            DeviceRole::Workstation => Color::Blue,
-            DeviceRole::Mobile => Color::Sky,
-            DeviceRole::Industrial => Color::Fuchsia,
-            DeviceRole::IoT => Color::Lime,
-            DeviceRole::Server => Color::Violet,
-            DeviceRole::Unidentified => Color::Gray,
-        }
+        EntityDiscriminants::Host.color()
     }
 
     fn icon(&self) -> Icon {
@@ -83,7 +74,7 @@ impl EntityMetadataProvider for DeviceRole {
             DeviceRole::Router => Icon::Router,
             DeviceRole::Switch => Icon::Network,
             DeviceRole::AccessPoint => Icon::Wifi,
-            DeviceRole::Hypervisor => Icon::ServerCog,
+            DeviceRole::Hypervisor => ServiceCategory::Hypervisor.icon(),
             DeviceRole::Storage => Icon::HardDrive,
             DeviceRole::Printer => Icon::Printer,
             DeviceRole::Camera => Icon::Cctv,
@@ -92,8 +83,9 @@ impl EntityMetadataProvider for DeviceRole {
             DeviceRole::Mobile => Icon::Smartphone,
             DeviceRole::Industrial => Icon::Factory,
             DeviceRole::IoT => Icon::CircuitBoard,
-            DeviceRole::Server => Icon::Server,
-            DeviceRole::Unidentified => Icon::CircleQuestionMark,
+            DeviceRole::Server => Icon::ServerCog,
+            // A host nothing identifies looks like any host: the generic Host icon.
+            DeviceRole::Unidentified => EntityDiscriminants::Host.icon(),
         }
     }
 }

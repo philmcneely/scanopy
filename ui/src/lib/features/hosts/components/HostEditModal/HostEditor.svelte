@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import { createForm } from '@tanstack/svelte-form';
 	import { validateForm, clearStaleFieldInfo } from '$lib/shared/components/forms/form-context';
 	import { Info, ArrowRight } from 'lucide-svelte';
@@ -530,10 +531,7 @@
 	{actions}
 >
 	{#snippet headerIcon()}
-		<ModalHeaderIcon
-			Icon={entities.getIconComponent('Host')}
-			color={entities.getColorString('Host')}
-		/>
+		<ModalHeaderIcon Icon={hostIcon(host)} color={entities.getColorString('Host')} />
 	{/snippet}
 
 	<form

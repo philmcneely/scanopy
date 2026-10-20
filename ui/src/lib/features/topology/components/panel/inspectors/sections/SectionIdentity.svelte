@@ -25,7 +25,7 @@
 		inspector_thisEntity,
 		topology_focusNode
 	} from '$lib/paraglide/messages';
-	import { containerTypes, entities, views } from '$lib/shared/stores/metadata';
+	import { containerTypes, entities, inspectorSections, views } from '$lib/shared/stores/metadata';
 	import { activeView } from '$lib/features/topology/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { useUpdateHostDescriptionMutation } from '$lib/features/hosts/queries';
@@ -75,11 +75,18 @@
 		return '';
 	});
 
-	// The selection's glyph, by the same entity-type rule its card and header follow.
+	// The selection's own glyph heads the section. A device tile belongs to the host it names: an
+	// entity that sits on a host (an address) keeps its own entity icon here, and the host's role
+	// shows beside the host itself, in its card below.
 	let selectionGlyph = $derived.by(() => {
 		const subject = nodeEntity(node.data as TopologyNode, topology);
-		return subject ? entityGlyph(subject.entityType, subject.entity, topology) : null;
+		if (!subject) return null;
+		const glyph = entityGlyph(subject.entityType, subject.entity, topology);
+		return glyph?.type === 'device' && 'host_id' in subject.entity ? null : glyph;
 	});
+	let selectionEntityType = $derived(
+		nodeEntity(node.data as TopologyNode, topology)?.entityType ?? null
+	);
 
 	let sections = $derived.by(() => {
 		const config = getInspectorConfig($activeView);
@@ -203,6 +210,15 @@
 				<DeviceGlyph role={selectionGlyph.role} />
 			{:else if selectionGlyph?.type === 'software'}
 				<SoftwareGlyph definition={selectionGlyph.definition} />
+			{:else}
+				{@const SelectionIcon = selectionEntityType
+					? entities.getIconComponent(selectionEntityType)
+					: inspectorSections.getIconComponent('Identity')}
+				<SelectionIcon
+					class="h-4 w-4 flex-shrink-0 {selectionEntityType
+						? entities.getColorHelper(selectionEntityType).icon
+						: inspectorSections.getColorHelper('Identity').icon}"
+				/>
 			{/if}
 		{/snippet}
 		{#snippet actions()}
