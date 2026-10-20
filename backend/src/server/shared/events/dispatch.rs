@@ -488,7 +488,7 @@ impl<Op: Operation> TypedChannel<Op> {
 
     /// Queue `event` for each matching subscriber and return. Each subscriber receives events in
     /// the order they were published; subscribers run independently of each other.
-    pub async fn publish(&self, event: Event<Op>) -> anyhow::Result<()> {
+    pub async fn publish(&self, event: Event<Op>) {
         let _ = self.sender.send(event.clone());
         let subs = self.subscribers.read().await;
         for state in subs.iter() {
@@ -497,7 +497,6 @@ impl<Op: Operation> TypedChannel<Op> {
                 state.add_event(event.clone()).await;
             }
         }
-        Ok(())
     }
 
     /// Wait until every event published on this channel's bus has been handled.
@@ -568,8 +567,7 @@ mod tests {
                 OnboardingOperation::OnboardingModalCompleted,
                 AuthenticatedEntity::System,
             ))
-            .await
-            .expect("publish carries on past a failing subscriber");
+            .await;
         channel.flush().await;
 
         let rendered = handle
@@ -685,8 +683,7 @@ mod tests {
                 OnboardingOperation::OnboardingModalCompleted,
                 AuthenticatedEntity::System,
             ))
-            .await
-            .unwrap();
+            .await;
         channel.flush().await;
         drop(channel);
 
@@ -795,8 +792,7 @@ mod tests {
             .publish(onboarding_event(
                 OnboardingOperation::OnboardingModalCompleted,
             ))
-            .await
-            .unwrap();
+            .await;
         assert_eq!(handled.load(Ordering::SeqCst), 0);
 
         gate.notify_one();
@@ -839,7 +835,7 @@ mod tests {
         for _ in 0..100 {
             let event = onboarding_event(OnboardingOperation::OnboardingModalCompleted);
             published.push(event.id);
-            channel.publish(event).await.unwrap();
+            channel.publish(event).await;
         }
         channel.flush().await;
 
@@ -885,8 +881,7 @@ mod tests {
                 .publish(onboarding_event(
                     OnboardingOperation::OnboardingModalCompleted,
                 ))
-                .await
-                .unwrap();
+                .await;
         }
         channel.flush().await;
 
@@ -931,8 +926,7 @@ mod tests {
                 .publish(onboarding_event(
                     OnboardingOperation::OnboardingModalCompleted,
                 ))
-                .await
-                .unwrap();
+                .await;
         }
         tokio::time::timeout(Duration::from_secs(5), channel.flush())
             .await

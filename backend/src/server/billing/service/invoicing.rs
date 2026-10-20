@@ -482,7 +482,7 @@ impl BillingService {
                 },
                 AuthenticatedEntity::System,
             ))
-            .await?;
+            .await;
         Ok(())
     }
 

@@ -102,7 +102,7 @@ impl CrudService<User> for UserService {
                         },
                     ),
                 )
-                .await?;
+                .await;
         }
 
         Ok(created)

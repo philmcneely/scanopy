@@ -205,7 +205,7 @@ impl CrudService<Host> for HostService {
 
         let updated = self.storage().update(updates).await?;
         self.publish_updated(&current_host, &updated, authentication, reason)
-            .await?;
+            .await;
 
         lock_guard.release().await?;
         Ok(updated)

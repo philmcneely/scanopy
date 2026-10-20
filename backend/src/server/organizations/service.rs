@@ -281,32 +281,20 @@ impl OrganizationService {
         Ok(())
     }
 
-    /// Publish a license telemetry event. Best-effort: the state it describes
-    /// is already written, so a failed publish is logged rather than failing
-    /// the request that caused it.
+    /// Publish a license telemetry event, once the state it describes is written.
     async fn publish_license_event(
         &self,
         organization_id: Uuid,
         operation: BillingOperation,
         authentication: AuthenticatedEntity,
     ) {
-        let name = operation.to_string();
-        if let Err(e) = self
-            .event_bus()
+        self.event_bus()
             .publish(Event::new(
                 OrgScope { organization_id },
                 operation,
                 authentication,
             ))
-            .await
-        {
-            tracing::warn!(
-                organization_id = %organization_id,
-                event = %name,
-                error = %e,
-                "Failed to publish license event",
-            );
-        }
+            .await;
     }
 
     /// Report every online key that has stopped checking in. Run daily; each

@@ -167,10 +167,7 @@ async fn update_profile(
             },
             authentication,
         ))
-        .await
-        .map_err(|e| {
-            ApiError::internal_error(&format!("Failed to publish profile event: {}", e))
-        })?;
+        .await;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -243,10 +240,7 @@ async fn submit_referral_source(
             },
             authentication,
         ))
-        .await
-        .map_err(|e| {
-            ApiError::internal_error(&format!("Failed to publish referral source event: {}", e))
-        })?;
+        .await;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -314,10 +308,7 @@ async fn daemon_prompt_response(
             operation,
             authentication,
         ))
-        .await
-        .map_err(|e| {
-            ApiError::internal_error(&format!("Failed to publish daemon prompt event: {}", e))
-        })?;
+        .await;
 
     Ok(Json(ApiResponse::success(())))
 }

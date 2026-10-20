@@ -5,7 +5,7 @@ use crate::server::auth::middleware::permissions::{
 };
 use crate::server::credentials::r#impl::mapping::IntegrationTarget;
 use crate::server::daemons::r#impl::api::{
-    DaemonDiscoveryRequest, DaemonHealth, DaemonHeartbeatPayload, ProvisionDaemonRequest,
+    DaemonHealth, DaemonHeartbeatPayload, ProvisionDaemonRequest,
     ProvisionDaemonResponse, ProvisionEligibility, TestReachabilityRequest,
     TestReachabilityResponse,
 };
@@ -1127,17 +1127,7 @@ async fn receive_work_request(
                         .site_subnets(daemon_site_id)
                         .await,
                 )
-                .await
-                .unwrap_or_else(|e| {
-                    tracing::error!("Failed to build daemon request: {}", e);
-                    DaemonDiscoveryRequest {
-                        session_id: payload.session_id,
-                        discovery_id: payload.discovery_id.unwrap_or_default(),
-                        discovery_type: payload.discovery_type,
-                        credential_mappings: vec![],
-                        subnets: vec![],
-                    }
-                });
+                .await;
             Some(request.with_exposed_credentials())
         }
         Some(payload) => Some(payload.with_exposed_snmp()),

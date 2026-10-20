@@ -238,6 +238,15 @@ pub enum DeletionReason {
 }
 
 impl DeletionReason {
+    /// The level of the delete's log line. `Error` for a delete that cleans up after a failure,
+    /// where the line is the only record of it.
+    pub fn log_level(&self) -> EventLogLevel {
+        match self {
+            Self::SnapshotCaptureFailed { .. } => EventLogLevel::Error,
+            _ => EventLogLevel::Info,
+        }
+    }
+
     /// The reason as the end of a sentence about the deleted entity: "deleted: <this>".
     pub fn describe(&self) -> String {
         match self {

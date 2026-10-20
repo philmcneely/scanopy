@@ -187,7 +187,7 @@ impl CrudService<Credential> for CredentialService {
                     OnboardingOperation::FirstCredentialCreated,
                     authentication.clone(),
                 ))
-                .await?;
+                .await;
         }
 
         // Clears the interface prompts on home and the L2 view; a container or Wake-on-LAN
@@ -212,7 +212,7 @@ impl CrudService<Credential> for CredentialService {
                     OnboardingOperation::FirstInterfaceCredentialCreated,
                     authentication,
                 ))
-                .await?;
+                .await;
         }
 
         Ok(created)

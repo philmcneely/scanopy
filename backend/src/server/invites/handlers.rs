@@ -116,7 +116,7 @@ async fn create_invite(
         let total_seats_used = current_members + pending_invites;
 
         if total_seats_used >= max_seats as usize {
-            let _ = state
+            state
                 .services
                 .event_bus
                 .publish(Event::new(
@@ -195,7 +195,7 @@ async fn create_invite(
                 OnboardingOperation::InviteSent,
                 entity,
             ))
-            .await?;
+            .await;
     }
 
     if let Some(send_to) = send_to
@@ -647,7 +647,8 @@ pub async fn process_pending_invite(
             OnboardingOperationDiscriminants::InviteAccepted,
         )
         .await
-        && let Err(e) = state
+    {
+        state
             .services
             .invite_service
             .event_bus()
@@ -658,9 +659,7 @@ pub async fn process_pending_invite(
                 OnboardingOperation::InviteAccepted,
                 AuthenticatedEntity::System,
             ))
-            .await
-    {
-        tracing::warn!("Failed to emit InviteAccepted telemetry event: {}", e);
+            .await;
     }
 
     // Clear session data

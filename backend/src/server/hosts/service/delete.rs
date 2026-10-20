@@ -87,7 +87,7 @@ impl HostService {
                             ..Default::default()
                         }),
                 )
-                .await?;
+                .await;
         }
 
         Ok(())

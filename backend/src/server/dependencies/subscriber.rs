@@ -50,10 +50,10 @@ impl DependencyService {
         scope: DependencyMemberChangeScope,
         change: DependencyMemberChange,
         event: &Event<EntityOperation>,
-    ) -> Result<(), Error> {
+    ) {
         self.event_bus()
             .publish(Event::new(scope, change, event.authentication.clone()))
-            .await
+            .await;
     }
 }
 
@@ -94,7 +94,7 @@ impl Subscriber<EntityOperation> for DependencyService {
                             change.clone(),
                             &event,
                         )
-                        .await?;
+                        .await;
                     }
                 }
                 Entity::Service(service) => {
@@ -134,7 +134,7 @@ impl Subscriber<EntityOperation> for DependencyService {
                             change.clone(),
                             &event,
                         )
-                        .await?;
+                        .await;
                     }
                 }
                 _ => {}

@@ -438,7 +438,10 @@ impl Display for Subnet {
     }
 }
 
-impl crate::server::shared::events::log::EntityLog for Subnet {}
+/// Every rescan moves `last_seen_at`; on its own that is not a change worth a log line.
+impl crate::server::shared::events::log::EntityLog for Subnet {
+    const LOG_IGNORED_PATHS: &'static [&'static str] = &["last_seen_at"];
+}
 
 impl ChangeTriggersTopologyStaleness<Subnet> for Subnet {
     fn triggers_staleness(&self, _other: Option<Subnet>) -> bool {

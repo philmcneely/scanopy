@@ -136,8 +136,7 @@ async fn finish_run(
     services
         .discovery_service
         .update_session(update)
-        .await
-        .unwrap();
+        .await;
 
     storage
         .discovery

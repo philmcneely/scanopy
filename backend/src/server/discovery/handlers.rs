@@ -643,7 +643,7 @@ async fn receive_discovery_update(
         .services
         .daemon_service
         .process_discovery_progress(update)
-        .await?;
+        .await;
 
     Ok(Json(ApiResponse::success(())))
 }

@@ -437,14 +437,8 @@ impl DaemonService {
                 }
 
                 // Process progress update if available
-                if let Some(progress) = poll_response.progress
-                    && let Err(e) = self.process_discovery_progress(progress).await
-                {
-                    tracing::warn!(
-                        daemon_id = %daemon.id,
-                        error = ?e,
-                        "Failed to process discovery progress"
-                    );
+                if let Some(progress) = poll_response.progress {
+                    self.process_discovery_progress(progress).await;
                 }
                 true
             }
@@ -495,17 +489,7 @@ impl DaemonService {
                     daemon.base.version.as_ref(),
                     self.site_subnets(work.site_id).await,
                 )
-                .await
-                .unwrap_or_else(|e| {
-                    tracing::error!("Failed to build daemon request: {}", e);
-                    DaemonDiscoveryRequest {
-                        session_id: work.session_id,
-                        discovery_id: work.discovery_id.unwrap_or_default(),
-                        discovery_type: work.discovery_type,
-                        credential_mappings: vec![],
-                        subnets: vec![],
-                    }
-                });
+                .await;
             let session_id = request.session_id;
             match self
                 .send_discovery_request_to_daemon(daemon, Some(&api_key), request)
@@ -528,13 +512,17 @@ impl DaemonService {
                         )
                         .await;
                 }
+                // Any other failure leaves nothing to start it either: a Starting session counts
+                // as active, so `get_pending_work` hands this daemon nothing until it ends. End it
+                // now, with the error, rather than at the stall sweep.
                 Err(e) => {
-                    tracing::warn!(
-                        daemon_id = %daemon.id,
-                        session_id = %session_id,
-                        error = %e,
-                        "Failed to initiate discovery"
-                    );
+                    self.discovery_service
+                        .fail_session(
+                            session_id,
+                            DiscoveryTerminalReason::DaemonUnreachable,
+                            e.to_string(),
+                        )
+                        .await;
                 }
             }
         }

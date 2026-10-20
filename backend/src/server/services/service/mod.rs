@@ -291,7 +291,7 @@ impl CrudService<Service> for ServiceService {
                                 },
                             ),
                         )
-                        .await?;
+                        .await;
                 }
 
                 created
@@ -382,7 +382,7 @@ impl CrudService<Service> for ServiceService {
         }
 
         self.publish_updated(&current_service, &updated, authentication, reason)
-            .await?;
+            .await;
 
         lock_guard.release().await?;
         Ok(updated)
@@ -462,7 +462,7 @@ impl CrudService<Service> for ServiceService {
                         ..Default::default()
                     }),
                 )
-                .await?;
+                .await;
         }
 
         lock_guard.release().await?;

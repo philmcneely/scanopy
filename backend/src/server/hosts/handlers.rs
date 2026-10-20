@@ -540,7 +540,7 @@ async fn create_host(
                         .count_for_sites(&org_site_ids)
                         .await?;
                     if current_hosts >= limit {
-                        let _ = state
+                        state
                             .services
                             .event_bus
                             .publish(Event::new(

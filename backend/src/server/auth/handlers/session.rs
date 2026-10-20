@@ -75,14 +75,11 @@ pub(crate) async fn login(
         .await
         .map_err(|e| ApiError::internal_error(&format!("Failed to save session: {}", e)))?;
 
-    if let Err(e) = state
+    state
         .services
         .auth_service
         .publish_login_success(&user, ip, user_agent)
-        .await
-    {
-        tracing::error!(error = %e, "Failed to publish the password login event");
-    }
+        .await;
 
     Ok(Json(ApiResponse::success(user)))
 }

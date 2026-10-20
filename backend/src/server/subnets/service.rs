@@ -1,5 +1,6 @@
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event};
+use crate::server::shared::events::log::{EntityLog, changes};
 use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 use crate::server::shared::handlers::tree::TreePosition;
 use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
@@ -108,14 +109,7 @@ impl SubnetService {
                 correction,
                 authentication,
             ))
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!(
-                    subnet_id = %corrected.id,
-                    error = %e,
-                    "Could not report a corrected subnet range"
-                );
-            });
+            .await;
     }
 
     /// Where each of `ids` sits in its site's nesting tree, against every live subnet on the
@@ -498,14 +492,6 @@ impl CrudService<Subnet> for SubnetService {
             .or(correctable)
         {
             Some(existing_subnet) => {
-                tracing::info!(
-                    existing_subnet_id = %existing_subnet.id,
-                    existing_subnet_name = %existing_subnet.base.name,
-                    new_subnet_id = %subnet.id,
-                    new_subnet_name = %subnet.base.name,
-                    subnet_cidr = %subnet.base.cidr,
-                    "Duplicate subnet found, refreshing last_seen_at and returning existing"
-                );
                 // SCD2 semantics: every successful natural-key match advances
                 // last_seen_at, even when no field changes. Otherwise
                 // unchanged subnets falsely look stale to (future) staleness
@@ -520,23 +506,10 @@ impl CrudService<Subnet> for SubnetService {
                 // Repair rows left behind by the interface-name heuristic that
                 // used to be able to type a subnet as a container bridge (#663).
                 if subnet.corrects_container_bridge_guess(existing_subnet) {
-                    tracing::info!(
-                        subnet_id = %existing_subnet.id,
-                        subnet_cidr = %existing_subnet.base.cidr,
-                        from = ?existing_subnet.base.subnet_type,
-                        to = ?subnet.base.subnet_type,
-                        "Reclassifying subnet mistyped as a container bridge"
-                    );
                     refreshed.base.subnet_type = subnet.base.subnet_type;
                 }
 
                 if let Some(owner) = subnet.owner_for_ownerless_bridge(existing_subnet) {
-                    tracing::info!(
-                        subnet_id = %existing_subnet.id,
-                        subnet_cidr = %existing_subnet.base.cidr,
-                        owner = %owner,
-                        "Ownerless container bridge adopts the runtime that reported it"
-                    );
                     refreshed.base.virtualization_service_id = Some(owner);
                 }
 
@@ -551,6 +524,19 @@ impl CrudService<Subnet> for SubnetService {
                 let corrected = refreshed.apply_cidr(*subnet.base.cidr, subnet.base.cidr.source());
 
                 self.storage.update(&mut refreshed).await?;
+
+                // Every rescan moves last_seen_at, which subscribers don't need to hear about;
+                // anything else this path changes (the type, the owner, the range) is published,
+                // as host and service upserts do.
+                if !changes(existing_subnet, &refreshed, Subnet::LOG_IGNORED_PATHS).is_empty() {
+                    self.publish_updated(
+                        existing_subnet,
+                        &refreshed,
+                        authentication.clone(),
+                        UpdateReason::SubnetRediscovered,
+                    )
+                    .await;
+                }
 
                 if corrected {
                     self.report_correction(&refreshed, before, authentication.clone())
@@ -601,7 +587,7 @@ impl CrudService<Subnet> for SubnetService {
                                 },
                             ),
                         )
-                        .await?;
+                        .await;
                 }
 
                 subnet

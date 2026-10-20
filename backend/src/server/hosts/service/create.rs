@@ -442,7 +442,7 @@ impl HostService {
                                 },
                             ),
                         )
-                        .await?;
+                        .await;
                 }
 
                 host
@@ -908,6 +908,8 @@ impl HostService {
         // Matched-existing ip_addresses are pushed unchanged below; collect them to
         // advance last_seen_at (see the ports loop for rationale) and persist in one write.
         let mut ip_addresses_to_refresh: Vec<IPAddress> = Vec::new();
+        // Rows that moved to a new address: a real change, written with an event per row.
+        let mut ip_addresses_rehomed: Vec<IPAddress> = Vec::new();
         for mut ip_address in ip_addresses {
             ip_address.base.host_id = created_host.id;
             // Force onto the host's site (see subnet loop above): the payload
@@ -1072,17 +1074,11 @@ impl HostService {
                                 "Same MAC at another address in range; recording it as its own row"
                             );
                         } else {
-                            tracing::info!(
-                                host_id = %ip_address.base.host_id,
-                                from = %existing_iface.base.ip_address,
-                                to = %ip_address.base.ip_address,
-                                "Re-homed an interface that changed address"
-                            );
                             existing_iface.base.ip_address = ip_address.base.ip_address;
                             existing_iface.base.subnet_id = ip_address.base.subnet_id;
                             existing_iface.base.merge_discovered(&ip_address.base);
                             existing_iface.set_last_seen_at(ip_address.last_seen_at);
-                            ip_addresses_to_refresh.push(existing_iface.clone());
+                            ip_addresses_rehomed.push(existing_iface.clone());
                             created_ip_addresses.push(existing_iface);
                             continue;
                         }
@@ -1108,6 +1104,14 @@ impl HostService {
                 .update_many(&ip_addresses_to_refresh)
                 .await?;
         }
+        // Re-homed rows: their updates log the old and new address.
+        self.ip_address_service
+            .update_many_base(
+                &ip_addresses_rehomed,
+                authentication.clone(),
+                UpdateReason::IpAddressRehomed,
+            )
+            .await?;
 
         // Build scanner→DB ip_address ID mapping using positional correspondence.
         // original_ip_addresses and created_ip_addresses are 1:1 in order (the ip_address

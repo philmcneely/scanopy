@@ -74,10 +74,10 @@ impl OrganizationService {
         }
 
         if let Some(milestone) = milestone {
-            self.event_bus().publish(milestone).await?;
+            self.event_bus().publish(milestone).await;
         }
         for event in events {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event).await;
         }
         Ok(())
     }

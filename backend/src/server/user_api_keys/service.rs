@@ -131,20 +131,20 @@ impl UserApiKeyService {
         site_ids: Vec<Uuid>,
         authentication: AuthenticatedEntity,
     ) -> Result<UserApiKey> {
-        // Create the key first
-        let created = self.create(api_key.clone(), authentication).await?;
+        // Store the key first: its site access rows reference it.
+        let mut created = self.store_created(api_key, &authentication).await?;
 
-        // Then save site access
         if !site_ids.is_empty() {
             self.site_access_storage
                 .save_for_key(&created.id, &site_ids)
                 .await?;
         }
 
-        // Return with hydrated site_ids
-        let mut result = created;
-        result.base.site_ids = site_ids;
-        Ok(result)
+        // Announced once its access is saved, with the site_ids hydrated, so a failed save
+        // leaves no "created" event behind.
+        created.base.site_ids = site_ids;
+        self.publish_created(&created, authentication).await;
+        Ok(created)
     }
 
     /// Update site access for an existing key

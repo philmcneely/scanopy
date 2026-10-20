@@ -292,7 +292,7 @@ async fn create_site(
                         },
                         entity,
                     ))
-                    .await?;
+                    .await;
             }
         }
     }

@@ -113,7 +113,7 @@ impl BillingService {
                 },
                 auth_for_event,
             ))
-            .await?;
+            .await;
 
         Ok(session)
     }
@@ -233,7 +233,7 @@ impl BillingService {
                 },
                 auth_for_event,
             ))
-            .await?;
+            .await;
 
         Ok(format!("Your {} trial has started!", plan.name()))
     }
@@ -287,7 +287,7 @@ impl BillingService {
                 },
                 auth_for_event,
             ))
-            .await?;
+            .await;
 
         Ok(format!("You're on the {} plan.", plan.name()))
     }

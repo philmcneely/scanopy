@@ -986,9 +986,7 @@ async fn publish_api_key_auth_failed(
     // Fire and forget - don't block auth on event publishing
     let event_bus = app_state.services.event_bus.clone();
     tokio::spawn(async move {
-        if let Err(e) = event_bus.publish(event).await {
-            tracing::warn!(error = %e, "Failed to publish API key auth failed event");
-        }
+        event_bus.publish(event).await;
     });
 }
 

@@ -99,8 +99,7 @@ async fn publish_billing(services: &ServiceFactory, organization_id: Uuid, op: B
             op,
             AuthenticatedEntity::System,
         ))
-        .await
-        .unwrap();
+        .await;
     services.event_bus.flush().await;
 }
 

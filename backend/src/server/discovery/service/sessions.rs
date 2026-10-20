@@ -263,17 +263,9 @@ impl DiscoveryService {
         drop(sessions);
 
         for payload in to_publish {
-            if let Err(e) = self
-                .event_bus()
+            self.event_bus()
                 .publish(payload.into_discovery_event())
-                .await
-            {
-                tracing::warn!(
-                    site_id = %site_id,
-                    error = %e,
-                    "Failed to publish discovery event after release_site_for_snapshot",
-                );
-            }
+                .await;
         }
     }
 
@@ -294,7 +286,7 @@ impl DiscoveryService {
         for warning in warnings {
             let scope = DiscoveryWarningScope::new(site_id, session_id, daemon_id, warning.clone());
             let code = warning.code();
-            let _ = self
+            self
                 .event_bus
                 .publish(Event::new(scope, code, AuthenticatedEntity::System))
                 .await;

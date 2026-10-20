@@ -622,7 +622,7 @@ impl DaemonService {
     pub async fn process_discovery_progress(
         &self,
         mut update: DiscoveryUpdatePayload,
-    ) -> Result<(), ApiError> {
+    ) {
         if update.phase == DiscoveryPhase::Complete
             && update.discovery_type.rescan_target_host_ids().is_none()
         {
@@ -645,8 +645,7 @@ impl DaemonService {
             );
         }
 
-        self.discovery_service.update_session(update).await?;
-        Ok(())
+        self.discovery_service.update_session(update).await;
     }
 
     /// Fold the subnets this scan found without the daemon naming them into the terminal payload,
@@ -1024,7 +1023,7 @@ impl DaemonService {
                     {
                         limit_event_emitted = true;
                         billing_limit_reached = Some((ctx.limit, ctx.org_id));
-                        let _ = self
+                        self
                             .event_bus
                             .publish(Event::new(
                                 OrgScope {
@@ -1077,7 +1076,7 @@ impl DaemonService {
                 )
                 .await
         {
-            let _ = self
+            self
                 .event_bus
                 .publish(Event::new(
                     OrgScope {
@@ -1456,7 +1455,7 @@ impl DaemonService {
                     },
                     AuthenticatedEntity::System,
                 ))
-                .await?;
+                .await;
         }
 
         Ok(())

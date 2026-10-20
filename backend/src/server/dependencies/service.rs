@@ -201,7 +201,7 @@ impl CrudService<Dependency> for DependencyService {
                         },
                     ),
                 )
-                .await?;
+                .await;
         }
 
         // Return with members populated
@@ -247,7 +247,7 @@ impl CrudService<Dependency> for DependencyService {
         result.base.members = dependency.base.members.clone();
 
         self.publish_updated(&current, &result, authentication, reason)
-            .await?;
+            .await;
 
         Ok(result)
     }

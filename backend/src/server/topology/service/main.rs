@@ -137,7 +137,7 @@ impl CrudService<Topology> for TopologyService {
                     Event::new(scope, EntityOperation::Created, authentication)
                         .with_flags(EntityEventFlags::default()),
                 )
-                .await?;
+                .await;
         }
 
         Ok(created)
@@ -164,7 +164,7 @@ impl CrudService<Topology> for TopologyService {
         let updated = self.storage().update(entity).await?;
 
         self.publish_updated(&current, &updated, authentication, reason)
-            .await?;
+            .await;
 
         Ok(updated)
     }

@@ -166,7 +166,7 @@ impl DiscoveryDigestService {
             AuthenticatedEntity::System,
         )
         ;
-        self.event_bus.publish(event).await?;
+        self.event_bus.publish(event).await;
         Ok(())
     }
 

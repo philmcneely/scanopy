@@ -176,20 +176,6 @@ impl ScanSettings {
         ]
     }
 
-    /// Log scan settings with tracing (convenience wrapper around formatted_lines).
-    pub fn log_settings(&self) {
-        tracing::info!("  ───────────────────────────────────────────────────────────");
-        tracing::info!("  Scan Settings:");
-        for (label, value, is_override) in self.formatted_lines() {
-            let source = if is_override {
-                "(override)"
-            } else {
-                "(default)"
-            };
-            tracing::info!("    {:<20}{} {}", label, value, source);
-        }
-    }
-
     pub fn field_definitions() -> Vec<FieldDefinition> {
         // Destructure to enforce completeness — compiler errors if a field is added
         // to ScanSettings but not represented here.

@@ -211,13 +211,7 @@ impl DiscoveryService {
             // user's cancel.
             let mut event = session.into_discovery_event();
             event.scope.previous_phase = Some(previous_phase);
-            if let Err(e) = self.event_bus().publish(event).await {
-                tracing::error!(
-                    session_id = %session.session_id,
-                    error = %e,
-                    "Failed to publish the reaped session's terminal event"
-                );
-            }
+            self.event_bus().publish(event).await;
 
             self.record_stalled_session(session, now).await;
             if let Some(promoted) = promoted {

@@ -117,7 +117,7 @@ impl CrudService<TagGroup> for TagGroupService {
             self.renumber_tags(&updated).await?;
         }
         self.publish_updated(&current, &updated, authentication, reason)
-            .await?;
+            .await;
         Ok(updated)
     }
 
@@ -190,7 +190,7 @@ impl TagGroupService {
         ) {
             self.event_bus
                 .publish(Event::new(scope, operation, authentication))
-                .await?;
+                .await;
         }
         Ok(())
     }

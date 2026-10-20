@@ -108,7 +108,7 @@ impl CrudService<Tag> for TagService {
         let updated = SnapshotMutator::close_and_clone(self, entity.clone()).await?;
 
         self.publish_updated(&current, &updated, authentication, reason)
-            .await?;
+            .await;
 
         Ok(updated)
     }
@@ -153,7 +153,7 @@ impl CrudService<Tag> for TagService {
                             ..Default::default()
                         }),
                 )
-                .await?;
+                .await;
         }
 
         Ok(())

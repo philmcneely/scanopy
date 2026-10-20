@@ -78,7 +78,7 @@ impl DiscoveryService {
         integration_targets: &[IntegrationTarget],
         daemon_version: Option<&semver::Version>,
         subnets: Vec<Subnet>,
-    ) -> Result<DaemonDiscoveryRequest, anyhow::Error> {
+    ) -> DaemonDiscoveryRequest {
         let (credential_mappings, withheld) = if session.discovery_type.runs_network_scan() {
             self.credential_service
                 .build_all_credential_mappings(site_id, integration_targets, daemon_version)
@@ -91,13 +91,13 @@ impl DiscoveryService {
         self.note_withheld_credentials(session.daemon_id, withheld)
             .await;
 
-        Ok(DaemonDiscoveryRequest {
+        DaemonDiscoveryRequest {
             session_id: session.session_id,
             discovery_id: session.discovery_id.unwrap_or_default(),
             discovery_type: session.discovery_type.clone(),
             credential_mappings,
             subnets,
-        })
+        }
     }
 
     /// Create a new discovery session
@@ -243,8 +243,7 @@ impl DiscoveryService {
         if !snapshot_blocked && !daemon_is_running_discovery {
             self.event_bus()
                 .publish(session_payload.into_discovery_event_with_auth(authentication))
-                .await
-                .map_err(|e| ApiError::internal_error(&e.to_string()))?;
+                .await;
         }
 
         let _ = self.update_tx.send(session_payload.clone());
@@ -365,7 +364,7 @@ impl DiscoveryService {
         (promotable, unpromotable)
     }
 
-    pub async fn update_session(&self, mut update: DiscoveryUpdatePayload) -> Result<(), Error> {
+    pub async fn update_session(&self, mut update: DiscoveryUpdatePayload) {
         // Enrich discovery_id from authoritative server-side map.
         // Daemon-sent payloads won't have this; server always fills it in.
         if update.discovery_id.is_none() {
@@ -375,7 +374,6 @@ impl DiscoveryService {
         tracing::debug!("Updated session {:?}", update);
 
         self.record_update(update, state::apply_update).await;
-        Ok(())
     }
 
     /// End a running session on the server's own authority, for a failure the daemon cannot report:
@@ -525,7 +523,7 @@ impl DiscoveryService {
                     )
                     .await
             {
-                let _ = self
+                self
                     .event_bus
                     .publish(Event::new(
                         OrgScope {
@@ -719,19 +717,13 @@ impl DiscoveryService {
                     self.get_site_id(&historical_discovery),
                     self.get_organization_id(&historical_discovery),
                 )
-                && let Err(e) = self
-                    .event_bus()
+            {
+                self.event_bus()
                     .publish(
                         Event::new(scope, EntityOperation::Created, AuthenticatedEntity::System)
                             .with_flags(EntityEventFlags::default()),
                     )
-                    .await
-            {
-                tracing::error!(
-                    session_id = %session_id,
-                    error = %e,
-                    "Failed to publish the historical discovery record's creation"
-                );
+                    .await;
             }
 
             // The terminal phase event, for subscribers that want to know a session ended.
@@ -742,17 +734,9 @@ impl DiscoveryService {
             // That work now runs in `DaemonService::process_discovery_progress` *before* this
             // function is called, so its findings are in the row as written and there is no race
             // left to order around.
-            if let Err(e) = self
-                .event_bus()
+            self.event_bus()
                 .publish(session.into_discovery_event())
-                .await
-            {
-                tracing::error!(
-                    session_id = %session_id,
-                    error = %e,
-                    "Failed to publish the terminal discovery event"
-                );
-            }
+                .await;
 
             // A rescan's parent exists only to carry the targets to the daemon. Delete it now that
             // the historical row (which the user actually sees) is persisted and the scanned
@@ -802,17 +786,9 @@ impl DiscoveryService {
         );
         started_payload.phase = DiscoveryPhase::Pending;
 
-        if let Err(e) = self
-            .event_bus()
+        self.event_bus()
             .publish(started_payload.into_discovery_event())
-            .await
-        {
-            tracing::error!(
-                session_id = %promoted.session_id,
-                error = %e,
-                "Failed to publish the promoted session"
-            );
-        }
+            .await;
     }
 
     /// The daemon's version as the server last recorded it, for stamping a finished session.
@@ -895,14 +871,13 @@ impl DiscoveryService {
                     self.publish_promoted(daemon_id, site_id, promoted).await;
                 }
 
-                // Broadcast cancellation update so frontend knows
-                crate::server::metrics::subscriber::record_discovery_terminal(
-                    DiscoveryPhase::Cancelled,
-                    DiscoveryTerminalReason::UserCancelled,
-                );
-                let _ = self.update_tx.send(cancelled_update);
-
-                tracing::info!("Cancelled {} session {} from queue", phase, session_id);
+                // Broadcast cancellation update so frontend knows, and publish the terminal
+                // event: it carries `UserCancelled`, which the metrics subscriber counts and the
+                // daemon subscriber leaves alone, since the daemon never had this session.
+                let _ = self.update_tx.send(cancelled_update.clone());
+                self.event_bus()
+                    .publish(cancelled_update.into_discovery_event_with_auth(authentication))
+                    .await;
 
                 // A rescan cancelled before dispatch never reaches the
                 // daemon-reported terminal finalization that deletes its transient
@@ -940,7 +915,7 @@ impl DiscoveryService {
                 };
                 self.event_bus()
                     .publish(request.into_discovery_event_with_auth(authentication))
-                    .await?;
+                    .await;
 
                 // Set cancellation flag for DaemonPoll mode (checked on next poll)
                 self.daemon_pull_cancellations
