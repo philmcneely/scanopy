@@ -50,8 +50,7 @@
 	// A service badge's size, and the icon card's width inside its px-2 padding: the badge fan
 	// spreads within it.
 	const BADGE_PX = 20;
-	// The large device tile, whose bottom-right corner the badge pile overhangs by 4px, as a single
-	// badge always did. Every badge sits in that one spot, so only the top one shows until hover.
+	// The large device tile. The top service badge is centred on its bottom-right corner.
 	const TILE_PX = 48;
 	const CARD_INNER_PX = ICON_ELEMENT_WIDTH_PX - 16;
 	import { stateFill as markedStateFill, statusDot } from '../../element-marks';
@@ -407,29 +406,33 @@
 				use:tooltip
 				data-tooltip={iconCard.title}
 			>
-				<div class="relative">
+				<!-- mb-1: the badge centred on the tile's corner overhangs it by half a badge, more than
+				     the card's gap, so it would touch the label. On every icon card, so heights match. -->
+				<div class="relative mb-1">
 					{#if iconCard.glyph.type === 'device'}
 						<DeviceGlyph deviceType={iconCard.glyph.deviceType} size="lg" />
 					{:else}
 						<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
 					{/if}
 					{#if iconCard.badgeDefinitions.length > 0}
-						<!-- Round like every software glyph: this device, running these. Piled on the
-						     tile's corner, first on top, none peeking out; hovering the card fans them into a row centred
-						     under the tile, spaced to fit inside the card. Offsets are from the tile's
-						     centre to each badge's left edge. -->
+						<!-- Round like every software glyph: this device, running these. The top badge is
+						     centred on the tile's bottom-right corner; each one behind it steps up and left,
+						     two layers at most, so more than one service reads as a stack. Hovering the
+						     card fans them into a row centred under the tile, spaced to fit inside the
+						     card. Offsets are from the tile's centre to each badge's left edge. -->
 						{@const count = iconCard.badgeDefinitions.length}
-						{@const pileX = TILE_PX / 2 + 4 - BADGE_PX}
+						{@const pileX = TILE_PX / 2 - BADGE_PX / 2}
 						<!-- A lone badge has nothing to fan out from: it stays on the corner on hover. -->
 						{@const fanStep =
 							count > 1 ? Math.min(BADGE_PX + 2, (CARD_INNER_PX - BADGE_PX) / (count - 1)) : 0}
 						<!-- Every badge is a flex box, off the text baseline: an <img> logo and an <svg> glyph sit on a
 						     baseline at different heights, which bent the fanned row into a descending curve. -->
-						<span class="absolute -bottom-1 left-1/2 flex h-5 w-0">
+						<span class="absolute -bottom-2.5 left-1/2 flex h-5 w-0">
 							{#each iconCard.badgeDefinitions as definition, i (definition)}
+								{@const layer = Math.min(i, 2) * 3}
 								<span
-									class="absolute left-[var(--stack-x)] top-0 flex leading-none transition-[left] duration-150 group-hover/icon-card:left-[var(--fan-x)]"
-									style="--stack-x: {pileX}px; --fan-x: {count > 1
+									class="absolute left-[var(--stack-x)] top-[var(--stack-y)] flex leading-none transition-[left,top] duration-150 group-hover/icon-card:left-[var(--fan-x)] group-hover/icon-card:top-0"
+									style="--stack-x: {pileX - layer}px; --stack-y: {-layer}px; --fan-x: {count > 1
 										? (i - (count - 1) / 2) * fanStep - BADGE_PX / 2
 										: pileX}px; z-index: {count - i};"
 								>
