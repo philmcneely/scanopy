@@ -341,14 +341,6 @@ async fn create_subnet(
     let site_ids = auth.site_ids();
     let entity = auth.into_entity();
 
-    tracing::debug!(
-        subnet_name = %request.base.name,
-        subnet_cidr = %request.base.cidr,
-        site_id = %request.base.site_id,
-        entity_id = %entity.entity_id().unwrap_or_default(),
-        "Subnet create request received"
-    );
-
     if let Err(err) = request.validate() {
         tracing::warn!(
             subnet_name = %request.base.name,

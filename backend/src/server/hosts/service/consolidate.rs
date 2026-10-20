@@ -65,9 +65,9 @@ impl HostService {
             })
             .collect();
 
-        let matched_id =
+        let (matched_id, matched_by) =
             match select_matching_host(incoming_ip_addresses, incoming_chassis_id, &candidates) {
-                Some(id) => id,
+                Some(found) => found,
                 // The MAC tier, consulted only once addresses and the chassis id have both failed.
                 // That ordering is what keeps MAC off the fleet-wide identity path: a device with an
                 // address matches on IP and subnet long before it reaches here, so nothing changes for
@@ -81,7 +81,7 @@ impl HostService {
                     )
                     .await?
                 {
-                    Some(id) => id,
+                    Some(id) => (id, HostMatchedBy::Mac),
                     None => return Ok(None),
                 },
             };
@@ -99,17 +99,11 @@ impl HostService {
         Ok(all_hosts
             .into_iter()
             .find(|h| h.id == matched_id)
-            .map(|host| {
-                tracing::debug!(
-                    existing_host_id = %host.id,
-                    existing_host_name = %host.base.name,
-                    "Matched incoming IP addresses to existing host"
-                );
-                HostMatch {
-                    host,
-                    ip_addresses: host_ip_addresses,
-                    same_device,
-                }
+            .map(|host| HostMatch {
+                host,
+                matched_by,
+                ip_addresses: host_ip_addresses,
+                same_device,
             }))
     }
 
@@ -243,12 +237,6 @@ impl HostService {
         // one can be older than the host it merges into.
         existing_host.last_seen_at = existing_host.last_seen_at.max(new_host_data.last_seen_at);
 
-        tracing::trace!(
-            "Upserting new host data {:?} to host {:?}",
-            new_host_data,
-            existing_host
-        );
-
         // The name. Only names travel through here: the hostname and the other identifiers are
         // merged with the attributes below by source rank, and are never copied into `name` (see
         // the placement rule in `hosts::impl::name`). The incoming name carries the rank of
@@ -360,12 +348,6 @@ impl HostService {
             )
             .await?;
 
-        tracing::trace!(
-            "Consolidating host {:?} into host {:?}",
-            other_host,
-            destination_host
-        );
-
         // Get ip_addresses and ports for both hosts
         let dest_interfaces = self
             .ip_address_service
@@ -423,12 +405,6 @@ impl HostService {
 
             if let Some(dest_iface) = matching_dest_iface {
                 // Conflict: map source ID to destination ID
-                tracing::debug!(
-                    source_interface_id = %other_iface.id,
-                    dest_interface_id = %dest_iface.id,
-                    ip = %other_iface.base.ip_address,
-                    "IP address conflict - mapping to existing destination ip_address"
-                );
                 interface_id_map.insert(other_iface.id, dest_iface.id);
             } else {
                 // No conflict: transfer interface to destination host
@@ -457,12 +433,6 @@ impl HostService {
 
             if let Some(dest_port) = matching_dest_port {
                 // Conflict: map source ID to destination ID
-                tracing::debug!(
-                    source_port_id = %other_port.id,
-                    dest_port_id = %dest_port.id,
-                    port = %other_config.number,
-                    "Port conflict - mapping to existing destination port"
-                );
                 port_id_map.insert(other_port.id, dest_port.id);
             } else {
                 // No conflict: transfer port to destination host
@@ -547,11 +517,6 @@ impl HostService {
             });
 
             if let Some(dest_svc) = duplicate_of {
-                tracing::debug!(
-                    service_name = %service.base.name,
-                    service_def = %service.base.service_definition.id(),
-                    "Skipping duplicate service during consolidation"
-                );
                 // The duplicate is deleted with its host. Everything that points at it moves to
                 // the destination's copy first, or deleting it would unlink its guests and
                 // containers and drop it from dependencies.

@@ -201,12 +201,6 @@ impl HostService {
                 .await?;
         }
 
-        tracing::info!(
-            from_host_id = %from.id,
-            to_host_id = %to.id,
-            addresses = rows.len(),
-            "Took a container's addresses off a host that also holds another device's"
-        );
         guard.release().await?;
         Ok(())
     }
@@ -244,6 +238,7 @@ mod tests {
         host.base.virtualization_metadata = virtualization;
         HostMatch {
             host,
+            matched_by: HostMatchedBy::Mac,
             ip_addresses: rows,
             same_device: vec![],
         }

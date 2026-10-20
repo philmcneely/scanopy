@@ -343,11 +343,6 @@ pub enum UpdateReason {
     DaemonStandbyChanged,
     /// Discovery matched this host to an existing one, by `matched_by`.
     HostRediscovered { matched_by: HostMatchedBy },
-    /// Its bindings were deduplicated: specific-address bindings an all-addresses one covers,
-    /// or exact repeats.
-    ServiceBindingsDeduplicated,
-    /// Its bindings moved from `from_service_id`, whose ports it took.
-    ServiceBindingsReassigned { from_service_id: Uuid },
     /// Container details that named the service as its own owner were dropped.
     ServiceContainerDetailsRejected,
     /// It took the container details of the generic container service discovery found on its
@@ -470,10 +465,6 @@ impl UpdateReason {
                     "rediscovered, matched by the id the daemon reported".to_string()
                 }
             },
-            Self::ServiceBindingsDeduplicated => "its bindings were deduplicated".to_string(),
-            Self::ServiceBindingsReassigned { from_service_id } => {
-                format!("it took the bindings of service {from_service_id}")
-            }
             Self::ServiceContainerDetailsRejected => {
                 "container details naming it as its own owner were dropped".to_string()
             }

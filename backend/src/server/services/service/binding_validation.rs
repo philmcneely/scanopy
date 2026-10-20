@@ -184,20 +184,12 @@ impl ServiceService {
             } = &binding.base.binding_type
                 && all_interface_port_ids.contains(port_id)
             {
-                tracing::debug!(
-                    port_id = %port_id,
-                    "Deduplicating specific-ip_address binding superseded by all-ip_addresses binding"
-                );
                 continue;
             }
 
             // Create a key for deduplication based on binding type
             let key = format!("{:?}", binding.base.binding_type);
             if seen_binding_types.contains(&key) {
-                tracing::debug!(
-                    binding_type = %key,
-                    "Deduplicating duplicate binding"
-                );
                 continue;
             }
 

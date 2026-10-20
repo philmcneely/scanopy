@@ -357,7 +357,6 @@ impl HostService {
             .into_iter()
             .collect();
 
-        let mut linked_count = 0;
         for mut interface in interfaces {
             let Some(&ip_address_id) = planned.get(&interface.id) else {
                 continue;
@@ -374,17 +373,7 @@ impl HostService {
                     error = %e,
                     "Failed to link Interface to IPAddress"
                 );
-            } else {
-                linked_count += 1;
             }
-        }
-
-        if linked_count > 0 {
-            tracing::debug!(
-                host_id = %host_id,
-                linked = linked_count,
-                "Linked Interfaces to IPAddresses via MAC address and loopback type"
-            );
         }
 
         Ok(())
