@@ -17,6 +17,7 @@
 		gettingStarted_title
 	} from '$lib/paraglide/messages';
 	import DaemonTroubleshootingModal from './DaemonTroubleshootingModal.svelte';
+	import { tooltip } from '$lib/shared/actions/tooltip';
 
 	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 	type DaemonStatus = 'idle' | 'waiting' | 'connected' | 'trouble';
@@ -57,6 +58,10 @@
 	let allComplete = $derived(isAllComplete(onboarding));
 	let showTroubleshootingModal = $state(false);
 
+	let progressText = $derived(
+		gettingStarted_complete({ completed: completedCount, total: CHECKLIST_STEPS.length })
+	);
+
 	function isDaemonTrouble(stepId: string, complete: boolean): boolean {
 		return (
 			stepId === 'daemon' && !complete && (daemonStatus === 'waiting' || daemonStatus === 'trouble')
@@ -75,10 +80,10 @@
 			<button
 				onclick={onExpandSidebar}
 				class="text-tertiary hover:text-secondary flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-[10px] font-bold transition-colors hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
-				title="{gettingStarted_title()}: {gettingStarted_complete({
-					completed: completedCount,
-					total: CHECKLIST_STEPS.length
-				})}"
+				aria-label="{gettingStarted_title()}: {progressText}"
+				use:tooltip={{
+					content: { title: gettingStarted_title(), sections: [{ text: progressText }] }
+				}}
 			>
 				{completedCount}/{CHECKLIST_STEPS.length}
 			</button>

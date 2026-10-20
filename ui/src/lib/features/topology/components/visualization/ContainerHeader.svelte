@@ -21,9 +21,10 @@
 		topology_ungroupedCount,
 		topology_searchContainerMatches
 	} from '$lib/paraglide/messages';
+	import type { TooltipContent } from '$lib/shared/actions/tooltip';
 
 	/** A group container's pill: a category or tag the group collects, with its tooltip. */
-	export type GroupPill = { label: string; color: Color; title?: string };
+	export type GroupPill = { label: string; color: Color; title?: string | TooltipContent };
 
 	export type SubgroupRow = {
 		/** Service definition whose logo marks the subgroup, drawn round as software. */

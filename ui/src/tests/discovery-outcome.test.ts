@@ -15,8 +15,10 @@ describe('runOutcomeTag', () => {
 	it('carries the reason and what to check as the hover', () => {
 		const tag = runOutcomeTag({ phase: 'Failed', reason: 'StalledNoUpdates' });
 
-		expect(tag?.title).toContain(discoveryTerminalReasons.getName('StalledNoUpdates'));
-		expect(tag?.title).toContain(discoveryTerminalReasons.getDescription('StalledNoUpdates'));
+		expect(tag?.title?.title).toBe(discoveryTerminalReasons.getName('StalledNoUpdates'));
+		expect(tag?.title?.sections[0].text).toBe(
+			discoveryTerminalReasons.getDescription('StalledNoUpdates')
+		);
 	});
 
 	it('leaves a run recorded before reasons existed with its status alone', () => {

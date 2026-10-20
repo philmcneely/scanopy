@@ -6,8 +6,10 @@ import {
 	common_application,
 	common_status,
 	common_visibility,
+	tags_tagGroup,
 	tags_tagGroupTooltip
 } from '$lib/paraglide/messages';
+import type { TooltipContent, TooltipSection } from '$lib/shared/actions/tooltip';
 import type { Tag, TagGroup, TagGroupType } from './types/base';
 
 export type { TagGroup };
@@ -149,18 +151,34 @@ export function tagsInGroup(tags: Tag[], groupId: string): Tag[] {
 }
 
 /**
- * A tag chip's hover text: its tag group, then its description, one per line. Empty when the tag
+ * A tag chip's tooltip: its tag group as a labelled row, then its description. Null when the tag
  * has neither, so the chip shows no tooltip.
  */
 export function tagTooltip(
+	tag: Pick<Tag, 'tag_group_id' | 'description'> | null | undefined,
+	groups: TagGroup[]
+): TooltipContent | null {
+	const group = tagGroupLabel(groupOf(tag, groups));
+	const description = tag?.description?.trim();
+	const sections: TooltipSection[] = [];
+	if (group) sections.push({ rows: [{ label: tags_tagGroup(), value: group }] });
+	if (description) sections.push({ text: description });
+	return sections.length > 0 ? { sections } : null;
+}
+
+/**
+ * A tag's tag group and description as one line of text, for a select option's description.
+ * Empty when the tag has neither.
+ */
+export function tagDescription(
 	tag: Pick<Tag, 'tag_group_id' | 'description'> | null | undefined,
 	groups: TagGroup[]
 ): string {
 	const group = tagGroupLabel(groupOf(tag, groups));
 	const description = tag?.description?.trim();
 	return [group ? tags_tagGroupTooltip({ group }) : null, description || null]
-		.filter((line): line is string => line !== null)
-		.join('\n');
+		.filter((part): part is string => part !== null)
+		.join(' · ');
 }
 
 /**

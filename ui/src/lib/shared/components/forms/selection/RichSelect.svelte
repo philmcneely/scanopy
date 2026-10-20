@@ -1,7 +1,7 @@
 <script lang="ts" generics="V, OC">
 	import { ChevronDown } from 'lucide-svelte';
 	import ListSelectItem from './ListSelectItem.svelte';
-	import { tooltip } from '$lib/shared/actions/tooltip';
+	import { tooltip, tooltipLabel } from '$lib/shared/actions/tooltip';
 	import type { EntityDisplayComponent } from './types';
 	import { tick, onMount } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -189,7 +189,9 @@
 			const tags = displayComponent.getTags?.(option, context) ?? [];
 			// Fall back to the tooltip for a tag drawn as an icon alone: it has no visible text, but
 			// its name is still what someone types to find it.
-			const tagLabels = tags.map((tag) => (tag.label ?? tag.title ?? '').toLowerCase()).join(' ');
+			const tagLabels = tags
+				.map((tag) => (tag.label ?? tooltipLabel(tag.title)).toLowerCase())
+				.join(' ');
 
 			return (
 				label.includes(searchTerm) ||

@@ -1,12 +1,14 @@
 import { discoveryPhases, discoveryTerminalReasons } from '$lib/shared/stores/metadata';
 import { toColor, type Color } from '$lib/shared/utils/styling';
 import type { DiscoveryUpdatePayload } from '../types/api';
+import type { TooltipContent } from '$lib/shared/actions/tooltip';
 
 export interface OutcomeTag {
 	label: string;
 	color: Color;
-	/** The reason, as a hover. Absent for a row recorded before reasons existed. */
-	title?: string;
+	/** The reason, as a hover: its name, then what it means. Absent for a row recorded before
+	 *  reasons existed. */
+	title?: TooltipContent;
 }
 
 /** The reason a run ended, for the surfaces that explain rather than label. */
@@ -46,7 +48,9 @@ export function runOutcomeTag(
 	return {
 		label: discoveryPhases.getName(phase),
 		color: discoveryPhases.getColorString(phase),
-		title: reason ? `${reason.name}: ${reason.description}` : undefined
+		title: reason
+			? { title: reason.name, sections: reason.description ? [{ text: reason.description }] : [] }
+			: undefined
 	};
 }
 

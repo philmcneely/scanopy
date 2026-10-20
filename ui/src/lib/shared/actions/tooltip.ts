@@ -30,6 +30,11 @@ export interface TooltipContent {
 	sections: TooltipSection[];
 }
 
+/** A tooltip's text as one name: plain text as it is, structured content by its title. */
+export function tooltipLabel(content: string | TooltipContent | null | undefined): string {
+	return typeof content === 'string' ? content : (content?.title ?? '');
+}
+
 export interface TooltipOptions {
 	content?: TooltipContent | null;
 	anchorClosest?: string;

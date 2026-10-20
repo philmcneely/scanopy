@@ -1,7 +1,7 @@
 <script lang="ts" module>
 	import { entities } from '$lib/shared/stores/metadata';
 	import { createColorHelper } from '$lib/shared/utils/styling';
-	import { applicationGroupId, tagIcon, tagTooltip } from '$lib/features/tags/groups';
+	import { applicationGroupId, tagDescription, tagIcon } from '$lib/features/tags/groups';
 	import { queryClient, queryKeys } from '$lib/api/query-client';
 	import type { TagGroup } from '$lib/features/tags/types/base';
 
@@ -13,7 +13,7 @@
 	export const TagDisplay: EntityDisplayComponent<Tag, object> = {
 		getId: (tag) => tag.id,
 		getLabel: (tag) => tag.name,
-		getDescription: (tag) => tagTooltip(tag, cachedTagGroups()).replaceAll('\n', ' · '),
+		getDescription: (tag) => tagDescription(tag, cachedTagGroups()),
 		getIcon: (tag) =>
 			tagIcon(tag, applicationGroupId(cachedTagGroups())) ?? entities.getIconComponent('Tag'),
 		getIconColor: (tag) => createColorHelper(tag.color).icon,

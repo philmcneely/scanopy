@@ -14,7 +14,8 @@ import {
 } from '$lib/shared/utils/attribute-source';
 import { createIconComponent, createLogoIconComponent } from '$lib/shared/utils/styling';
 import type { IconComponent } from '$lib/shared/utils/types';
-import { hosts_os_codename, hosts_os_edition, hosts_os_kernel } from '$lib/paraglide/messages';
+import type { TooltipContent, TooltipSection } from '$lib/shared/actions/tooltip';
+import { common_codename, common_edition, common_kernel } from '$lib/paraglide/messages';
 
 export type HostOs = components['schemas']['HostOs'];
 export type HostOsFamily = components['schemas']['HostOsFamily'];
@@ -59,16 +60,20 @@ export function hostOsIcon(family: HostOsFamily): IconComponent {
  * The tooltip for an OS tag: the OS as its source named it, each detail the source read, then how
  * the value reached Scanopy, which for an inferred source says it was assumed.
  */
-export function hostOsTooltip(os: HostOs, source: AttributeSource | null | undefined): string {
-	return [
-		hostOsLabel(os),
-		os.edition ? hosts_os_edition({ value: os.edition }) : null,
-		os.codename ? hosts_os_codename({ value: os.codename }) : null,
-		os.kernel_version ? hosts_os_kernel({ value: os.kernel_version }) : null,
-		source ? attributeSourceExplanation(source) : null
-	]
-		.filter((line): line is string => !!line)
-		.join('\n');
+export function hostOsTooltip(
+	os: HostOs,
+	source: AttributeSource | null | undefined
+): TooltipContent {
+	const details: [string, string | null | undefined][] = [
+		[common_edition(), os.edition],
+		[common_codename(), os.codename],
+		[common_kernel(), os.kernel_version]
+	];
+	const rows = details.flatMap(([label, value]) => (value ? [{ label, value }] : []));
+	const sections: TooltipSection[] = [];
+	if (rows.length > 0) sections.push({ rows });
+	if (source) sections.push({ text: attributeSourceExplanation(source) });
+	return { title: hostOsLabel(os), sections };
 }
 
 /**
