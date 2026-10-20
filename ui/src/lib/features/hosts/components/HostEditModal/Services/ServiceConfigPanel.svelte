@@ -20,7 +20,7 @@
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
 	import type { HostFormData } from '$lib/features/hosts/types/base';
-	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
+	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import { usePortsQuery } from '$lib/features/ports/queries';
 	import { useSubnetsQuery, isContainerSubnet } from '$lib/features/subnets/queries';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
@@ -29,6 +29,7 @@
 	import CopyableValue from '$lib/shared/components/data/CopyableValue.svelte';
 	import GuestStateTag from '$lib/shared/components/virtualization/GuestStateTag.svelte';
 	import {
+		common_tags,
 		common_bindings,
 		common_status,
 		hosts_deviceFacts_composeProject,
@@ -402,9 +403,9 @@
 				{/snippet}
 			</form.Field>
 
-			<!-- service prop comes via slot, so use callback pattern instead of bind: -->
-			<TagPicker
+			<TagPickerInline
 				entityType="Service"
+				label={common_tags()}
 				selectedTagIds={service.tags}
 				onChange={(tags) => onChange({ ...service, tags })}
 			/>

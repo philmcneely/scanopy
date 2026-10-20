@@ -8,11 +8,12 @@
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import SelectSite from '$lib/features/sites/components/SelectSite.svelte';
-	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
+	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import { entities } from '$lib/shared/stores/metadata';
 	import type { Vlan } from '../types/base';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
+		common_tags,
 		common_cancel,
 		common_description,
 		common_editName,
@@ -139,8 +140,9 @@
 
 				<form.Field name="tags">
 					{#snippet children(field)}
-						<TagPicker
+						<TagPickerInline
 							entityType="Vlan"
+							label={common_tags()}
 							selectedTagIds={field.state.value || []}
 							onChange={(tags) => field.handleChange(tags)}
 						/>

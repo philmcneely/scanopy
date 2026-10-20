@@ -13,7 +13,7 @@
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import DurationInput from '$lib/shared/components/forms/input/DurationInput.svelte';
-	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
+	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
 	import type { Credential } from '$lib/features/credentials/types/base';
 	import { getCredentialTypeId } from '$lib/features/credentials/types/base';
@@ -23,6 +23,7 @@
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
+		common_tags,
 		common_cancel,
 		common_couldNotLoadUser,
 		common_create,
@@ -277,8 +278,9 @@
 
 					<form.Field name="tags">
 						{#snippet children(field)}
-							<TagPicker
+							<TagPickerInline
 								entityType="Site"
+								label={common_tags()}
 								selectedTagIds={field.state.value || []}
 								onChange={(tags) => field.handleChange(tags)}
 							/>
