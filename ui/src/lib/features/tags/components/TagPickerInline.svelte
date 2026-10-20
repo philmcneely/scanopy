@@ -51,8 +51,7 @@
 	 * 2. **Callback mode**: Provide `onAdd`/`onRemove` callbacks - for bulk operations or custom handling
 	 * 3. **Form mode**: Provide `onChange` - gets the whole new list, for a form that saves it later
 	 *
-	 * With `label`, it renders as a form field: the label above, and the tags and search input in
-	 * a full-width box, as in modals.
+	 * With `label`, the label sits above the picker, as above a modal's other fields.
 	 */
 	let {
 		selectedTagIds = [],
@@ -65,7 +64,7 @@
 		onRemove,
 		// Form mode prop - receives the full tag list after each change
 		onChange,
-		// Renders as a labelled form field
+		// Heading above the picker, for a form row
 		label,
 		// Optional pre-resolved tags (e.g. from topology snapshot on share pages)
 		availableTags: availableTagsProp,
@@ -102,13 +101,10 @@
 	let isEntityMode = $derived(entityId !== undefined && entityType !== undefined);
 	// Whether any mode can change the tags at all
 	let canEdit = $derived(!disabled && (isEntityMode || !!onAdd || !!onChange));
-	let isField = $derived(label !== undefined);
 
 	let inputValue = $state('');
 	let inputElement: HTMLInputElement | undefined = $state();
 	let triggerElement: HTMLDivElement | undefined = $state();
-	/** The box around tags and input when rendered as a field; the dropdown hangs off it. */
-	let fieldElement: HTMLDivElement | undefined = $state();
 	let dropdownElement: HTMLDivElement | undefined = $state();
 	const dropdownId = $props.id();
 	/**
@@ -120,8 +116,7 @@
 		bottom: number | null;
 		left: number;
 		maxHeight: number;
-		minWidth: number | null;
-	}>({ top: 0, bottom: null, left: 0, maxHeight: 192, minWidth: null });
+	}>({ top: 0, bottom: null, left: 0, maxHeight: 192 });
 
 	/** Same gap the column config panel keeps from the bottom of the screen. */
 	const EDGE_GAP_PX = 16;
@@ -157,11 +152,8 @@
 	}
 
 	function calculatePosition() {
-		const anchor = fieldElement ?? triggerElement;
-		if (!anchor) return;
-		const rect = anchor.getBoundingClientRect();
-		// A field's dropdown spans the field, as a select's does.
-		const minWidth = fieldElement ? rect.width : null;
+		if (!triggerElement) return;
+		const rect = triggerElement.getBoundingClientRect();
 		const viewportHeight = window.innerHeight;
 		const viewportWidth = window.innerWidth;
 
@@ -174,16 +166,15 @@
 
 		// Horizontal: clamp to viewport edges
 		let left = rect.left;
-		left = Math.max(8, Math.min(left, viewportWidth - (minWidth ?? 160) - 8)); // min-w-40 = 160px
+		left = Math.max(8, Math.min(left, viewportWidth - 160 - 8)); // min-w-40 = 160px
 
 		dropdownPosition = below
-			? { top: rect.bottom + TRIGGER_GAP_PX, bottom: null, left, maxHeight: spaceBelow, minWidth }
+			? { top: rect.bottom + TRIGGER_GAP_PX, bottom: null, left, maxHeight: spaceBelow }
 			: {
 					top: null,
 					bottom: viewportHeight - rect.top + TRIGGER_GAP_PX,
 					left,
-					maxHeight: spaceAbove,
-					minWidth
+					maxHeight: spaceAbove
 				};
 	}
 
@@ -509,11 +500,7 @@
 </script>
 
 {#snippet picker()}
-	<div
-		bind:this={rootElement}
-		class="flex min-w-0 flex-wrap items-center gap-1"
-		class:flex-1={isField}
-	>
+	<div bind:this={rootElement} class="flex min-w-0 flex-wrap items-center gap-1">
 		<!-- Selected tags -->
 		{#each shownTagIds.filter((id) => getTag(id)) as tagId (tagId)}
 			{@const tag = getTag(tagId)}
@@ -530,42 +517,35 @@
 		{/each}
 
 		<!-- Add button / dropdown (hide when no tags to add and creation disabled).
-		     `hideAddButton` hides only the "+" affordance — the input still renders while `open`.
-		     As a field, the input always shows, as a text field's would. -->
+		     `hideAddButton` hides only the "+" affordance — the input still renders while `open`. -->
 		{#if canEdit && (canCreateTags || tags.some((t) => !shownTagIds.includes(t.id)))}
-			<div
-				bind:this={triggerElement}
-				class="relative flex min-h-5 items-center"
-				class:flex-1={isField}
-			>
-				{#if open || isField}
+			<div bind:this={triggerElement} class="relative flex min-h-5 items-center">
+				{#if open}
 					<!-- Input for searching/creating tags. It widens while it shows a completion, so the
 					     ghosted tag fits inside it after the typed text, as in global search. -->
-					<div class="relative" class:w-full={isField}>
+					<div class="relative">
 						<input
 							bind:this={inputElement}
 							bind:value={inputValue}
 							type="text"
 							placeholder={ghostTag ? '' : tags_addTag()}
-							aria-label={label ?? tags_addTag()}
+							aria-label={tags_addTag()}
 							role="combobox"
 							aria-expanded={showDropdown}
 							aria-controls={dropdownId}
 							aria-autocomplete="list"
-							class={isField
-								? 'w-full min-w-24 bg-transparent px-1 text-sm focus:outline-none'
-								: `h-6 rounded-full px-2 text-xs transition-[width] focus:outline-none focus:ring-1 focus:ring-blue-500 ${ghostTag ? 'w-56' : 'w-24'}`}
-							style={isField
-								? 'color: var(--color-text-primary)'
-								: 'border: 1px solid var(--color-border-input); background: var(--color-bg-input); color: var(--color-text-primary)'}
+							class="h-6 rounded-full px-2 text-xs transition-[width] focus:outline-none focus:ring-1 focus:ring-blue-500 {ghostTag
+								? 'w-56'
+								: 'w-24'}"
+							style="border: 1px solid var(--color-border-input); background: var(--color-bg-input); color: var(--color-text-primary)"
 							onfocus={() => (open = true)}
 							onblur={handleBlur}
 							onkeydown={handleKeydown}
 						/>
 						{#if ghostTag}
 							{@const tag = ghostTag}
-							<!-- px-[9px]: the input's px-2 plus its 1px border; px-1 as a field, which has none. -->
-							<InputGhost value={inputValue} class={isField ? 'px-1 text-sm' : 'px-[9px] text-xs'}>
+							<!-- px-[9px]: the input's px-2 plus its 1px border. -->
+							<InputGhost value={inputValue} class="px-[9px] text-xs">
 								<TagCompletionGhost
 									{tag}
 									{applicationGroup}
@@ -589,27 +569,10 @@
 	</div>
 {/snippet}
 
-{#if isField}
+{#if label}
 	<div class="space-y-2">
 		<div class="text-secondary block text-sm font-medium">{label}</div>
-		<!-- A click on the box's empty space goes to the input, as it would in a text field; the
-		     input itself takes the keys. -->
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			bind:this={fieldElement}
-			class="input-field flex min-h-[42px] cursor-text items-center !py-1.5"
-			class:opacity-50={disabled}
-			class:cursor-not-allowed={disabled}
-			class:border-blue-500={open}
-			class:ring-2={open}
-			class:ring-blue-500={open}
-			onclick={(e) => {
-				if (!(e.target as Element).closest('button, input')) inputElement?.focus();
-			}}
-		>
-			{@render picker()}
-		</div>
+		{@render picker()}
 	</div>
 {:else}
 	{@render picker()}
@@ -626,9 +589,6 @@
 		style:bottom={dropdownPosition.bottom === null ? undefined : `${dropdownPosition.bottom}px`}
 		style:left="{dropdownPosition.left}px"
 		style:max-height="{dropdownPosition.maxHeight}px"
-		style:min-width={dropdownPosition.minWidth === null
-			? undefined
-			: `${dropdownPosition.minWidth}px`}
 	>
 		{#if unavailableNote}
 			<p class="text-tertiary border-b px-3 py-2 text-xs" style="border-color: var(--color-border)">
