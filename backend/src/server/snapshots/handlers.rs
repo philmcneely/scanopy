@@ -151,7 +151,7 @@ async fn create_snapshot(
             if let Err(cleanup) = state
                 .services
                 .snapshot_service
-                .delete(&created.id, auth.entity.clone(), DeletionReason::Requested)
+                .delete(&created.id, auth.entity.clone(), DeletionReason::EntityRequested)
                 .await
             {
                 tracing::error!(

@@ -36,13 +36,6 @@ impl EventBusService<UserApiKey> for UserApiKeyService {
     fn get_organization_id(&self, entity: &UserApiKey) -> Option<Uuid> {
         Some(entity.base.organization_id)
     }
-
-    fn suppress_logs(&self, current: Option<&UserApiKey>, updated: Option<&UserApiKey>) -> bool {
-        match (current, updated) {
-            (Some(current), Some(updated)) => updated.suppress_logs(current),
-            _ => false,
-        }
-    }
 }
 
 #[async_trait]

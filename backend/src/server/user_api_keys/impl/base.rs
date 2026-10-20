@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::server::shared::api_key_common::{ApiKeyCommon, ApiKeyType};
 use crate::server::shared::entities::ChangeTriggersTopologyStaleness;
+use crate::server::shared::events::log::EntityLog;
 use crate::server::shared::types::api::serialize_sensitive_info;
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
 use chrono::{DateTime, Utc};
@@ -67,17 +68,9 @@ pub struct UserApiKey {
     pub base: UserApiKeyBase,
 }
 
-impl UserApiKey {
-    /// Check if the key changes should suppress logging
-    /// (only logs significant changes, not just last_used updates)
-    pub fn suppress_logs(&self, other: &Self) -> bool {
-        self.base.key == other.base.key
-            && self.base.name == other.base.name
-            && self.base.expires_at == other.base.expires_at
-            && self.base.is_enabled == other.base.is_enabled
-            && self.base.permissions == other.base.permissions
-            && self.base.site_ids == other.base.site_ids
-    }
+/// Every authenticated request moves `last_used`, so that alone logs nothing.
+impl EntityLog for UserApiKey {
+    const LOG_IGNORED_PATHS: &'static [&'static str] = &["last_used"];
 }
 
 impl Display for UserApiKey {

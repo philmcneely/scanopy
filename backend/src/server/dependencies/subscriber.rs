@@ -33,13 +33,13 @@ use crate::server::{
 /// deletion says nothing about where the port went.
 fn port_change(reason: &DeletionReason) -> Option<DependencyMemberChange> {
     match reason {
-        DeletionReason::PortsHandedOver { to_service_id, .. }
-        | DeletionReason::OpenPortsReclaimed { to_service_id, .. } => {
+        DeletionReason::ServicePortsHandedOver { to_service_id, .. }
+        | DeletionReason::ServiceOpenPortsReclaimed { to_service_id, .. } => {
             Some(DependencyMemberChange::MemberMoved {
                 to_service_id: *to_service_id,
             })
         }
-        DeletionReason::PortsReleased => Some(DependencyMemberChange::MemberReleased),
+        DeletionReason::ServicePortsReleased => Some(DependencyMemberChange::MemberReleased),
         _ => None,
     }
 }
@@ -100,11 +100,11 @@ impl Subscriber<EntityOperation> for DependencyService {
                 Entity::Service(service) => {
                     // Absorption repoints the placeholder's members to the identified service
                     // before deleting it, so none are left to hear.
-                    if matches!(reason, DeletionReason::IdentifiedAs { .. }) {
+                    if matches!(reason, DeletionReason::ServiceIdentifiedAs { .. }) {
                         continue;
                     }
                     let change = match reason {
-                        DeletionReason::PortsHandedOver { to_service_id, .. } => {
+                        DeletionReason::ServicePortsHandedOver { to_service_id, .. } => {
                             DependencyMemberChange::MemberMoved {
                                 to_service_id: *to_service_id,
                             }

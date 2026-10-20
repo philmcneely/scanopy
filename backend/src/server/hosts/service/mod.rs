@@ -39,7 +39,7 @@ use crate::server::{
         entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants},
         events::{
             bus::EventBus,
-            types::{DeletionReason, EntityOperation},
+            types::{DeletionReason, EntityOperation, UpdateReason},
         },
         position::resolve_and_validate_input_positions,
         services::traits::{ChildCrudService, CrudService, EventBusService},
@@ -191,6 +191,7 @@ impl CrudService<Host> for HostService {
         &self,
         updates: &mut Host,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<Host, Error> {
         let lock_guard = self
             .storage()
@@ -203,25 +204,8 @@ impl CrudService<Host> for HostService {
             .ok_or_else(|| anyhow!("Host '{}' not found", updates.id))?;
 
         let updated = self.storage().update(updates).await?;
-        let trigger_stale = updated.triggers_staleness(Some(current_host));
-
-        if let Some(scope) = EntityScope::from_ids(
-            updated.id(),
-            updated.clone().into(),
-            self.get_site_id(&updated),
-            self.get_organization_id(&updated),
-        ) {
-            self.event_bus()
-                .publish(
-                    Event::new(scope, EntityOperation::Updated, authentication).with_flags(
-                        EntityEventFlags {
-                            trigger_stale,
-                            ..Default::default()
-                        },
-                    ),
-                )
-                .await?;
-        }
+        self.publish_updated(&current_host, &updated, authentication, reason)
+            .await?;
 
         lock_guard.release().await?;
         Ok(updated)

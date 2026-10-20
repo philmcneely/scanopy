@@ -17,7 +17,7 @@ impl ServiceService {
     ) -> Result<()> {
         let site_id = service.base.site_id;
         let parent = [service.id];
-        let reason = DeletionReason::VirtualizerDeleted {
+        let reason = DeletionReason::EntityVirtualizerDeleted {
             virtualizer_service_id: service.id,
         };
 

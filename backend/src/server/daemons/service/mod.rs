@@ -5,7 +5,7 @@
 //! - Processing logic for daemon data (formerly in processor.rs)
 //! - Polling loop for ServerPoll mode (formerly in poller.rs)
 //! - HTTP client for daemon communication
-use crate::server::shared::events::types::DeletionReason;
+use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -148,13 +148,6 @@ impl EventBusService<Daemon> for DaemonService {
     fn get_organization_id(&self, _entity: &Daemon) -> Option<Uuid> {
         None
     }
-
-    fn suppress_logs(&self, current: Option<&Daemon>, updated: Option<&Daemon>) -> bool {
-        match (current, updated) {
-            (Some(current), Some(updated)) => updated.suppress_logs(current),
-            _ => false,
-        }
-    }
 }
 
 #[async_trait]
@@ -186,7 +179,6 @@ impl CrudService<Daemon> for DaemonService {
         self.storage().delete(id).await?;
 
         let trigger_stale = entity.triggers_staleness(None);
-        let suppress_logs = self.suppress_logs(Some(&entity), None);
 
         if let Some(entity_tag_service) = self.entity_tag_service() {
             entity_tag_service
@@ -205,7 +197,6 @@ impl CrudService<Daemon> for DaemonService {
                     Event::new(scope, EntityOperation::Deleted { reason }, authentication)
                         .with_flags(EntityEventFlags {
                             trigger_stale,
-                            suppress_logs,
                             ..Default::default()
                         }),
                 )

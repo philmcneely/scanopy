@@ -1,4 +1,4 @@
-use crate::server::shared::events::types::{DeletionReason, EntityOperation};
+use crate::server::shared::events::types::{DeletionReason, EntityOperation, UpdateReason};
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use std::collections::BTreeMap;
@@ -81,6 +81,7 @@ impl CrudService<TagGroup> for TagGroupService {
         &self,
         entity: &mut TagGroup,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<TagGroup> {
         let current = self
             .get_by_id(&entity.id)
@@ -115,7 +116,7 @@ impl CrudService<TagGroup> for TagGroupService {
         if updated.base.ordered != current.base.ordered {
             self.renumber_tags(&updated).await?;
         }
-        self.publish_change(&updated, authentication, EntityOperation::Updated)
+        self.publish_updated(&current, &updated, authentication, reason)
             .await?;
         Ok(updated)
     }

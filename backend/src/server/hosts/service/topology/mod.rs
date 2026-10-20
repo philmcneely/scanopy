@@ -1053,7 +1053,14 @@ impl HostService {
             if !Attributed::apply(&mut host.base.os, offered) {
                 continue;
             }
-            if let Err(e) = self.update(&mut host, AuthenticatedEntity::System).await {
+            if let Err(e) = self
+                .update(
+                    &mut host,
+                    AuthenticatedEntity::System,
+                    UpdateReason::HostOsAdvertisedOverLldp,
+                )
+                .await
+            {
                 tracing::warn!(host_id = %host_id, error = %e, "Could not record the OS a far end advertised over LLDP");
             }
         }

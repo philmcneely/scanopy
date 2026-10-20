@@ -136,7 +136,7 @@ impl HostService {
         }
 
         let updated = self
-            .update(&mut updated_host, authentication.clone())
+            .update(&mut updated_host, authentication.clone(), UpdateReason::EntityRequested)
             .await?;
 
         // Sync ip_addresses only if provided (None means preserve existing)
@@ -206,7 +206,7 @@ impl HostService {
                 .delete_many(
                     &to_delete,
                     authentication.clone(),
-                    DeletionReason::Requested,
+                    DeletionReason::EntityRequested,
                 )
                 .await?;
         }
@@ -223,7 +223,7 @@ impl HostService {
                 }
 
                 self.ip_address_service
-                    .update(&mut ip_address, authentication.clone())
+                    .update(&mut ip_address, authentication.clone(), UpdateReason::EntityRequested)
                     .await?;
             } else {
                 // Create new interface with client-provided ID
@@ -261,7 +261,7 @@ impl HostService {
                 .delete_many(
                     &to_delete,
                     authentication.clone(),
-                    DeletionReason::Requested,
+                    DeletionReason::EntityRequested,
                 )
                 .await?;
         }
@@ -278,7 +278,7 @@ impl HostService {
                 }
 
                 self.port_service
-                    .update(&mut port, authentication.clone())
+                    .update(&mut port, authentication.clone(), UpdateReason::EntityRequested)
                     .await?;
             } else {
                 // Create new port with client-provided ID
@@ -316,7 +316,7 @@ impl HostService {
                 .delete_many(
                     &to_delete,
                     authentication.clone(),
-                    DeletionReason::Requested,
+                    DeletionReason::EntityRequested,
                 )
                 .await?;
         }
@@ -333,7 +333,7 @@ impl HostService {
                 }
 
                 self.interface_service
-                    .update(&mut interface, authentication.clone())
+                    .update(&mut interface, authentication.clone(), UpdateReason::EntityRequested)
                     .await?;
             } else {
                 // Create new interface with client-provided ID
@@ -376,7 +376,7 @@ impl HostService {
                 .delete_many(
                     &to_delete,
                     authentication.clone(),
-                    DeletionReason::Requested,
+                    DeletionReason::EntityRequested,
                 )
                 .await?;
         }
@@ -455,7 +455,7 @@ impl HostService {
                 }
 
                 self.service_service
-                    .update(&mut service, authentication.clone())
+                    .update(&mut service, authentication.clone(), UpdateReason::EntityRequested)
                     .await?;
             } else {
                 // Create new service with client-provided ID

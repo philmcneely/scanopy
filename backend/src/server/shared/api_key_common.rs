@@ -19,7 +19,7 @@ use crate::server::{
         events::{
             bus::EventBus,
             traits::{AuthScope, Event},
-            types::AuthOperation,
+            types::{AuthOperation, UpdateReason},
         },
         services::traits::{CrudService, EventBusService},
         storage::{
@@ -248,7 +248,8 @@ pub trait ApiKeyService: CrudService<Self::Key> + EventBusService<Self::Key> {
             .await?;
 
         // Update the key in storage
-        self.update(&mut api_key, entity).await?;
+        self.update(&mut api_key, entity, UpdateReason::EntityKeyRotated)
+            .await?;
 
         lock_guard.release().await?;
         Ok(plaintext)

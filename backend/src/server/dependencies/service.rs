@@ -14,7 +14,10 @@ use crate::server::{
     },
     shared::{
         entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants},
-        events::{bus::EventBus, types::EntityOperation},
+        events::{
+            bus::EventBus,
+            types::{EntityOperation, UpdateReason},
+        },
         services::traits::{CrudService, EventBusService},
         storage::{
             filter::StorableFilter,
@@ -211,6 +214,7 @@ impl CrudService<Dependency> for DependencyService {
         &self,
         dependency: &mut Dependency,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<Dependency, anyhow::Error> {
         let current = self
             .get_by_id(&dependency.id)
@@ -238,29 +242,13 @@ impl CrudService<Dependency> for DependencyService {
                 .await?;
         }
 
-        let trigger_stale = updated.triggers_staleness(Some(current));
-
-        if let Some(scope) = EntityScope::from_ids(
-            updated.id,
-            updated.clone().into(),
-            self.get_site_id(&updated),
-            self.get_organization_id(&updated),
-        ) {
-            self.event_bus()
-                .publish(
-                    Event::new(scope, EntityOperation::Updated, authentication).with_flags(
-                        EntityEventFlags {
-                            trigger_stale,
-                            ..Default::default()
-                        },
-                    ),
-                )
-                .await?;
-        }
-
         // Return with members populated
         let mut result = updated;
         result.base.members = dependency.base.members.clone();
+
+        self.publish_updated(&current, &result, authentication, reason)
+            .await?;
+
         Ok(result)
     }
 }

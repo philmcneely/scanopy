@@ -215,7 +215,12 @@ impl ServiceService {
             .await?;
         for mut container in containers {
             container.base.virtualization_service_id = Some(new.id);
-            self.update(&mut container, authentication.clone()).await?;
+            self.update(
+                &mut container,
+                authentication.clone(),
+                UpdateReason::EntityVirtualizerRepointed,
+            )
+            .await?;
         }
 
         // Same lock `update_dependency_members` takes, held across the read-modify-write.
@@ -258,7 +263,11 @@ impl ServiceService {
             };
             if changed {
                 self.dependency_service
-                    .update(&mut dependency, authentication.clone())
+                    .update(
+                        &mut dependency,
+                        authentication.clone(),
+                        UpdateReason::DependencyMembersChanged,
+                    )
                     .await?;
             }
         }

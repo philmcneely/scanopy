@@ -908,7 +908,7 @@ async fn a_manual_merge_keeps_interfaces_adjacencies_and_tags() {
             a_host,
             b_host,
             AuthenticatedEntity::System,
-            crate::server::shared::events::types::DeletionReason::Requested,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
         )
         .await
         .unwrap();
@@ -989,7 +989,7 @@ async fn a_network_identity_references_its_presenting_interface() {
         .delete(
             &presenting,
             AuthenticatedEntity::System,
-            crate::server::shared::events::types::DeletionReason::Requested,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
         )
         .await
         .unwrap();

@@ -11,6 +11,10 @@ use validator::Validate;
 
 use crate::server::credentials::r#impl::types::OsFamily;
 use crate::server::shared::entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants};
+use crate::server::shared::events::{
+    log::{EntityLog, EventLog, changes_log},
+    types::{EventLogLevel, UpdateReason},
+};
 use crate::server::shared::types::{
     Color, Icon,
     metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
@@ -263,43 +267,30 @@ pub struct Daemon {
     pub base: DaemonBase,
 }
 
-impl Daemon {
-    /// Whether an update changed nothing worth a log line. Every heartbeat moves `last_seen`, so
-    /// that alone is suppressed; any other change (standby, reachability, OS, version, key) is
-    /// logged. `tags` live in their own junction and aren't compared. Destructured so a new field
-    /// has to be placed on one side or the other.
-    pub fn suppress_logs(&self, other: &Self) -> bool {
-        let DaemonBase {
-            host_id,
-            site_id,
-            url,
-            last_seen: _,
-            mode,
-            name,
-            tags: _,
-            version,
-            user_id,
-            api_key_id,
-            is_unreachable,
-            standby,
-            standby_cleared_at,
-            os,
-        } = &self.base;
-        let o = &other.base;
-        *host_id == o.host_id
-            && *site_id == o.site_id
-            && *url == o.url
-            && *mode == o.mode
-            && *name == o.name
-            && *version == o.version
-            && *user_id == o.user_id
-            && *api_key_id == o.api_key_id
-            && *is_unreachable == o.is_unreachable
-            && *standby == o.standby
-            && *standby_cleared_at == o.standby_cleared_at
-            && *os == o.os
-    }
+/// Every heartbeat moves `last_seen`, so that alone logs nothing; `tags` live in their own
+/// junction. Going unreachable gets a WARN line of its own, saying why, so it isn't lost among
+/// the changes.
+impl EntityLog for Daemon {
+    const LOG_IGNORED_PATHS: &'static [&'static str] = &["last_seen", "tags"];
 
+    fn update_log(&self, before: &Self, id: Uuid, reason: &UpdateReason) -> EventLog {
+        let log = changes_log(before, self, id, reason, Self::LOG_IGNORED_PATHS);
+        if self.base.is_unreachable && !before.base.is_unreachable {
+            log.with_line(
+                EventLogLevel::Warn,
+                format!(
+                    "Daemon {} unreachable: {}",
+                    self.base.name,
+                    reason.describe()
+                ),
+            )
+        } else {
+            log
+        }
+    }
+}
+
+impl Daemon {
     /// Check if daemon supports full ServerPoll mode (v0.14.0+).
     ///
     /// Legacy daemons (< v0.14.0) only support `/api/discovery/initiate` and
@@ -384,22 +375,40 @@ mod tests {
         }
     }
 
-    /// A heartbeat moves only `last_seen` and stays out of the log; a change of state does not.
+    /// A heartbeat moves only `last_seen` and logs nothing; a change of state logs its changes;
+    /// going unreachable adds a WARN line carrying why.
     #[test]
-    fn only_a_heartbeat_is_kept_out_of_the_log() {
-        let before = crate::server::shared::types::examples::daemon();
+    fn a_heartbeat_logs_nothing_and_going_unreachable_says_why() {
+        let mut before = crate::server::shared::types::examples::daemon();
+        before.base.is_unreachable = false;
+        let id = before.id;
 
         let mut heartbeat = before.clone();
         heartbeat.base.last_seen = Some(Utc::now());
-        assert!(heartbeat.suppress_logs(&before));
+        assert!(
+            heartbeat
+                .update_log(&before, id, &UpdateReason::DaemonHeartbeat)
+                .is_silent()
+        );
 
         let mut standby = before.clone();
         standby.base.standby = !before.base.standby;
-        assert!(!standby.suppress_logs(&before));
+        let log = standby.update_log(&before, id, &UpdateReason::DaemonStandbyChanged);
+        assert!(!log.is_silent());
+        assert!(log.line.is_none());
 
         let mut unreachable = before.clone();
-        unreachable.base.is_unreachable = !before.base.is_unreachable;
-        assert!(!unreachable.suppress_logs(&before));
+        unreachable.base.is_unreachable = true;
+        let reason = UpdateReason::DaemonPollFailed {
+            error: "connection refused".to_string(),
+            rejected_by_daemon: false,
+        };
+        let line = unreachable
+            .update_log(&before, id, &reason)
+            .line
+            .expect("an unreachable daemon gets a line");
+        assert!(matches!(line.level, EventLogLevel::Warn));
+        assert!(line.text.contains("connection refused"), "{}", line.text);
     }
 
     const REPORTING: &str = "0.17.20";

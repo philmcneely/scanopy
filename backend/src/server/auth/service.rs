@@ -23,7 +23,7 @@ use crate::server::{
         events::{
             bus::EventBus,
             traits::{AuthScope, Event, OrgScope},
-            types::{AuthMethod, AuthOperation},
+            types::{AuthMethod, AuthOperation, UpdateReason},
         },
         services::traits::CrudService,
         storage::{filter::StorableFilter, traits::Storable},
@@ -598,7 +598,9 @@ impl AuthService {
             ))
             .await?;
 
-        self.user_service.update(&mut user, authentication).await
+        self.user_service
+            .update(&mut user, authentication, UpdateReason::UserPasswordChanged)
+            .await
     }
 
     /// Initiate password reset process - generates a token stored in database
@@ -628,7 +630,7 @@ impl AuthService {
         user.base.password_reset_token = Some(token.clone());
         user.base.password_reset_expires = Some(expires);
         self.user_service
-            .update(&mut user, AuthenticatedEntity::System)
+            .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserPasswordResetRequested)
             .await?;
 
         self.event_bus
@@ -675,7 +677,7 @@ impl AuthService {
                 user.base.password_reset_token = None;
                 user.base.password_reset_expires = None;
                 self.user_service
-                    .update(&mut user, AuthenticatedEntity::System)
+                    .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserPasswordResetExpired)
                     .await?;
                 return Err(anyhow!("Password reset token has expired"));
             }
@@ -716,7 +718,7 @@ impl AuthService {
         // session with the new epoch.
         user.base.session_epoch += 1;
         self.user_service
-            .update(&mut user, AuthenticatedEntity::System)
+            .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserPasswordReset)
             .await?;
 
         Ok(user.clone())
@@ -760,7 +762,7 @@ impl AuthService {
         user.base.email_verification_token = Some(token.clone());
         user.base.email_verification_expires = Some(expiry);
         self.user_service
-            .update(user, AuthenticatedEntity::System)
+            .update(user, AuthenticatedEntity::System, UpdateReason::UserVerificationRequested)
             .await?;
 
         Ok(EmailAndToken {
@@ -909,7 +911,7 @@ impl AuthService {
             user.base.email_verification_expires = None;
 
             self.user_service
-                .update(&mut user, AuthenticatedEntity::System)
+                .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserEmailChanged)
                 .await?;
 
             let new_email = user.base.email.clone();
@@ -936,7 +938,7 @@ impl AuthService {
             user.base.email_verification_expires = None;
 
             self.user_service
-                .update(&mut user, AuthenticatedEntity::System)
+                .update(&mut user, AuthenticatedEntity::System, UpdateReason::UserEmailVerified)
                 .await?;
 
             self.event_bus

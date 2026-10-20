@@ -49,7 +49,13 @@ impl ServiceService {
             .collect();
 
         self.binding_service
-            .save_for_parent(service_id, &remaining_bindings, authentication, reason)
+            .save_for_parent(
+                service_id,
+                &remaining_bindings,
+                authentication,
+                reason,
+                UpdateReason::EntityMaintained,
+            )
             .await
     }
 
@@ -63,7 +69,13 @@ impl ServiceService {
         reason: DeletionReason,
     ) -> Result<()> {
         self.binding_service
-            .save_for_parent(service_id, &[], authentication, reason)
+            .save_for_parent(
+                service_id,
+                &[],
+                authentication,
+                reason,
+                UpdateReason::EntityMaintained,
+            )
             .await?;
         Ok(())
     }

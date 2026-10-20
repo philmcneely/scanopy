@@ -7,6 +7,7 @@
 //! | service deleted | `MemberDeleted` per binding it still held | `MemberDeleted` |
 //! | placeholder absorbed into its identification | repointed, no event | repointed, no event |
 
+use crate::server::shared::events::types::UpdateReason;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -292,7 +293,7 @@ async fn a_deleted_service_is_heard_by_both_member_types_and_its_members_stay() 
         .delete(
             &traefik.id,
             AuthenticatedEntity::System,
-            crate::server::shared::events::types::DeletionReason::Requested,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
         )
         .await
         .unwrap();
@@ -347,7 +348,7 @@ async fn a_dependency_with_a_missing_member_can_be_saved() {
         .delete(
             &traefik.id,
             AuthenticatedEntity::System,
-            crate::server::shared::events::types::DeletionReason::Requested,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
         )
         .await
         .unwrap();
@@ -361,7 +362,7 @@ async fn a_dependency_with_a_missing_member_can_be_saved() {
     chain.base.name = "Renamed".to_string();
     services
         .dependency_service
-        .update(&mut chain, AuthenticatedEntity::System)
+        .update(&mut chain, AuthenticatedEntity::System, UpdateReason::EntityRequested)
         .await
         .expect("a missing member does not block a save");
 

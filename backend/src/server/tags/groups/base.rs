@@ -280,6 +280,8 @@ impl TagGroup {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for TagGroup {}
+
 impl ChangeTriggersTopologyStaleness<TagGroup> for TagGroup {
     fn triggers_staleness(&self, _other: Option<TagGroup>) -> bool {
         false

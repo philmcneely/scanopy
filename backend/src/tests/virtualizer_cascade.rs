@@ -51,7 +51,7 @@ async fn deleting_a_runtime_deletes_its_containers_and_bridge_subnets() {
         .delete(
             &runtime_id,
             AuthenticatedEntity::System,
-            crate::server::shared::events::types::DeletionReason::Requested,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
         )
         .await
         .unwrap();
@@ -99,7 +99,7 @@ async fn deleting_a_node_host_deletes_its_guests() {
         .delete_host(
             &lab.host_id,
             AuthenticatedEntity::System,
-            crate::server::shared::events::types::DeletionReason::Requested,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
         )
         .await
         .unwrap();
@@ -247,7 +247,7 @@ async fn bulk_deleting_a_runtime_deletes_its_containers() {
         .delete_many(
             &[runtime_id],
             AuthenticatedEntity::System,
-            crate::server::shared::events::types::DeletionReason::Requested,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
         )
         .await
         .unwrap();
@@ -276,7 +276,7 @@ async fn deleting_a_node_host_through_the_api_deletes_its_guests() {
         &*services.host_service,
         &lab.host_id,
         AuthenticatedEntity::System,
-        crate::server::shared::events::types::DeletionReason::Requested,
+        crate::server::shared::events::types::DeletionReason::EntityRequested,
     )
     .await
     .unwrap();
@@ -306,7 +306,7 @@ async fn bulk_deleting_a_node_with_its_guest_deletes_both() {
         &*services.host_service,
         &[lab.host_id, guest],
         AuthenticatedEntity::System,
-        crate::server::shared::events::types::DeletionReason::Requested,
+        crate::server::shared::events::types::DeletionReason::EntityRequested,
     )
     .await
     .expect("both go without an error");

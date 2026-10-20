@@ -95,7 +95,7 @@ impl InviteService {
                     Event::new(
                         scope,
                         EntityOperation::Deleted {
-                            reason: DeletionReason::Consumed,
+                            reason: DeletionReason::InviteConsumed,
                         },
                         AuthenticatedEntity::System,
                     )

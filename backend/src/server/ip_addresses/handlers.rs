@@ -217,7 +217,7 @@ pub async fn delete_ip_address(
 
     // Delete the IP address
     service
-        .delete(&id, entity_auth.clone(), DeletionReason::Requested)
+        .delete(&id, entity_auth.clone(), DeletionReason::EntityRequested)
         .await
         .map_err(ApiError::from)?;
 
@@ -275,7 +275,7 @@ async fn bulk_delete_ip_addresses(
     // Only delete entities that actually exist and user has access to
     let valid_ids: Vec<Uuid> = entities.iter().map(|e| e.id).collect();
     let deleted_count = service
-        .delete_many(&valid_ids, entity_auth.clone(), DeletionReason::Requested)
+        .delete_many(&valid_ids, entity_auth.clone(), DeletionReason::EntityRequested)
         .await
         .map_err(ApiError::from)?;
 

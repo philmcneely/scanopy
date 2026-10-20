@@ -63,7 +63,7 @@ impl HostService {
                 .delete(
                     &service.id,
                     authentication.clone(),
-                    DeletionReason::HostDeleted { host_id: *id },
+                    DeletionReason::ServiceHostDeleted { host_id: *id },
                 )
                 .await?;
         }

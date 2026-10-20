@@ -4,7 +4,8 @@
 use super::{organization, test_services};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
-    organizations::r#impl::base::LimitNotificationLevel, shared::services::traits::CrudService,
+    organizations::r#impl::base::LimitNotificationLevel,
+    shared::{events::types::UpdateReason, services::traits::CrudService},
 };
 
 #[tokio::test]
@@ -29,7 +30,11 @@ async fn overlapping_writers_of_different_columns_both_persist() {
         let organization_service = organization_service.clone();
         async move {
             organization_service
-                .modify(org.id, AuthenticatedEntity::System, |org| {
+                .modify(
+                    org.id,
+                    AuthenticatedEntity::System,
+                    UpdateReason::OrganizationNotificationRecorded,
+                    |org| {
                     org.base.notifications.hosts = LimitNotificationLevel::Reached;
                 })
                 .await
@@ -39,7 +44,10 @@ async fn overlapping_writers_of_different_columns_both_persist() {
     tokio::task::yield_now().await;
 
     renaming.org.base.name = "Renamed".to_string();
-    renaming.save(AuthenticatedEntity::System).await.unwrap();
+    renaming
+        .save(AuthenticatedEntity::System, UpdateReason::EntityRequested)
+        .await
+        .unwrap();
     ratchet.await.unwrap().expect("org exists");
 
     let stored = organization_service

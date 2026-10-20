@@ -1,6 +1,6 @@
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::shared::events::types::DeletionReason;
+use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     credentials::r#impl::{
@@ -224,6 +224,7 @@ impl CrudService<Credential> for CredentialService {
         &self,
         entity: &mut Credential,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<Credential, Error> {
         let current = self
             .get_by_id(&entity.id)
@@ -238,7 +239,7 @@ impl CrudService<Credential> for CredentialService {
         entity.refresh_is_default();
         defaults::refuse_default_settings_change(&current, entity)?;
         self.refuse_second_default(entity).await?;
-        self.update_base(entity, authentication).await
+        self.update_base(entity, authentication, reason).await
     }
 
     /// A default can't be deleted. Unassigning it from sites and hosts is the way to stop using it.

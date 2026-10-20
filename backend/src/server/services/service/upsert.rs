@@ -189,7 +189,8 @@ impl ServiceService {
                 authentication.clone(),
                 // The only bindings an upsert removes are specific ones an all-addresses binding
                 // now covers.
-                DeletionReason::NoLongerReported,
+                DeletionReason::EntityNoLongerReported,
+                UpdateReason::EntityRediscovered,
             )
             .await?;
 
@@ -206,25 +207,13 @@ impl ServiceService {
         }
 
         if !data.is_empty() {
-            let trigger_stale = existing_service.triggers_staleness(Some(service_before_updates));
-
-            if let Some(scope) = EntityScope::from_ids(
-                existing_service.id,
-                existing_service.clone().into(),
-                self.get_site_id(&existing_service),
-                self.get_organization_id(&existing_service),
-            ) {
-                self.event_bus()
-                    .publish(
-                        Event::new(scope, EntityOperation::Updated, authentication).with_flags(
-                            EntityEventFlags {
-                                trigger_stale,
-                                ..Default::default()
-                            },
-                        ),
-                    )
-                    .await?;
-            }
+            self.publish_updated(
+                &service_before_updates,
+                &existing_service,
+                authentication,
+                UpdateReason::EntityRediscovered,
+            )
+            .await?;
         } else {
             tracing::debug!(
                 service_id = %existing_service.id,

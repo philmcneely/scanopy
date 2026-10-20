@@ -441,6 +441,8 @@ impl Display for Organization {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Organization {}
+
 impl ChangeTriggersTopologyStaleness<Organization> for Organization {
     fn triggers_staleness(&self, _other: Option<Organization>) -> bool {
         false

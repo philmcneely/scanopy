@@ -438,6 +438,8 @@ impl Display for Subnet {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Subnet {}
+
 impl ChangeTriggersTopologyStaleness<Subnet> for Subnet {
     fn triggers_staleness(&self, _other: Option<Subnet>) -> bool {
         false

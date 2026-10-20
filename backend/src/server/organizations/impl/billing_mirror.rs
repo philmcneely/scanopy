@@ -28,7 +28,7 @@ use crate::server::{
     shared::{
         events::{
             traits::Event,
-            types::{BillingOperation, OnboardingOperation},
+            types::{BillingOperation, OnboardingOperation, UpdateReason},
         },
         services::traits::EventBusService,
     },
@@ -63,7 +63,12 @@ impl OrganizationService {
             changed |= event.operation.apply(&mut locked.org, event.timestamp);
         }
         if changed {
-            locked.save(AuthenticatedEntity::System).await?;
+            locked
+                .save(
+                    AuthenticatedEntity::System,
+                    UpdateReason::OrganizationBillingSynced,
+                )
+                .await?;
         } else {
             locked.release().await?;
         }
