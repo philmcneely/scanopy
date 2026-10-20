@@ -32,7 +32,7 @@ import { elementEntity, resolveElementNode } from './resolvers';
 import { elementMarks, type ElementMarks } from './element-marks';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 import { getTopologyIndex } from './entity-index';
-import { entities, serviceDefinitions, views } from '$lib/shared/stores/metadata';
+import { deviceRoles, entities, serviceDefinitions, views } from '$lib/shared/stores/metadata';
 import { getFreshnessTag } from '$lib/shared/utils/freshness';
 import { formatInterfaceSpeed } from '$lib/shared/utils/formatting';
 import type { Site } from '$lib/features/sites/types';
@@ -69,7 +69,30 @@ export interface ElementRenderResult {
 	staleTag: ReturnType<typeof getFreshnessTag>;
 	/** The colours the view paints on this card, each decoded by one of its filter values. */
 	marks: ElementMarks;
+	/**
+	 * The icon-first card, when the `icon_nodes` option is on and the element has one. Replaces
+	 * every row of `data` on the card, so it decides the card's height in that mode.
+	 */
+	iconCard: ElementIconCard | null;
 }
+
+/**
+ * An icon-first card: one large glyph, a short label, and the rest of the card's text on hover.
+ */
+export interface ElementIconCard {
+	/**
+	 * The host's device role, for an element standing for a host. A service element shows its own
+	 * definition's logo instead: there the product is the identity, and the host's role is not.
+	 */
+	glyph: { type: 'role'; role: DeviceRole } | { type: 'service'; definition: string };
+	/** Definition whose logo badges a role glyph: the service that decided the role. */
+	badgeDefinition: string | null;
+	label: string;
+	/** Hover text: the label, then each line the card no longer shows. */
+	title: string;
+}
+
+type DeviceRole = components['schemas']['DeviceRole'];
 
 export interface ElementRenderInputs {
 	nodeId: string;
@@ -155,16 +178,58 @@ function resolveStaleTag(
 
 export function buildElementRender(inputs: ElementRenderInputs): ElementRenderResult {
 	const resolved = resolveElementNode(inputs.nodeId, inputs.node, inputs.topology);
+	const content = buildElementContent(inputs, resolved);
 	return {
-		...buildElementContent(inputs, resolved),
-		marks: elementMarks(inputs.activeView, inputs.node, inputs.sites, inputs.topology)
+		...content,
+		marks: elementMarks(inputs.activeView, inputs.node, inputs.sites, inputs.topology),
+		iconCard: inputs.options.local.icon_nodes ? buildIconCard(resolved, content.data) : null
+	};
+}
+
+/**
+ * The icon-first card for an element, or null for one that keeps the detailed card: an
+ * interface, which stands for a port rather than a device, or an element with nothing resolved.
+ */
+function buildIconCard(
+	resolved: ReturnType<typeof resolveElementNode>,
+	data: ElementRenderData | null
+): ElementIconCard | null {
+	if (!data || data.elementType === 'Interface') return null;
+	const host = resolved.host;
+
+	if (data.elementType === 'Service') {
+		const service = resolved.services[0];
+		if (!service) return null;
+		return {
+			glyph: { type: 'service', definition: service.service_definition },
+			badgeDefinition: null,
+			label: service.name,
+			title: [service.name, host ? hostDisplayName(host) : null].filter(Boolean).join('\n')
+		};
+	}
+
+	if (!host) return null;
+	const role: DeviceRole = host.device_role ?? 'Unidentified';
+	const badge = (resolved.services ?? []).find((s) => {
+		const meta = serviceDefinitions.getMetadata(s.service_definition) as {
+			device_role?: DeviceRole | null;
+			has_logo?: boolean;
+		} | null;
+		return meta?.has_logo && meta.device_role === role;
+	});
+	const label = data.headerText ?? hostDisplayName(host);
+	return {
+		glyph: { type: 'role', role },
+		badgeDefinition: badge?.service_definition ?? null,
+		label,
+		title: [label, data.subtitleText, deviceRoles.getName(role)].filter(Boolean).join('\n')
 	};
 }
 
 function buildElementContent(
 	inputs: ElementRenderInputs,
 	resolved: ReturnType<typeof resolveElementNode>
-): Omit<ElementRenderResult, 'marks'> {
+): Omit<ElementRenderResult, 'marks' | 'iconCard'> {
 	const { nodeId, node, topology, activeView, options, hiddenEntityIds } = inputs;
 
 	const flags = elementInlineFlags(inputs, resolved.elementType);
@@ -463,6 +528,18 @@ export function inspectorServiceSections(
 export function elementShapeKey(result: ElementRenderResult): string {
 	const d = result.data;
 	if (!d) return 'null';
+
+	// An icon card renders only the glyph, an optional stale pill and a label clamped to two
+	// lines of ~14 characters, whatever the detailed rows would have been.
+	const icon = result.iconCard;
+	if (icon) {
+		return [
+			'icon',
+			d.elementType,
+			Math.min(2, Math.ceil(icon.label.length / 14)),
+			result.staleTag ? 1 : 0
+		].join('|');
+	}
 
 	// ~28 characters fit on a line at the fixed card width; bucket by line count
 	// rather than raw length so near-identical labels share a key.

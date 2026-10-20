@@ -60,6 +60,7 @@
 		shares_urlAvailableAfterSaveTitle,
 		shares_urlAvailableAfterSaveBody,
 		topology_showMinimap,
+		topology_iconNodes,
 		common_details,
 		shares_enableShare
 	} from '$lib/paraglide/messages';
@@ -94,6 +95,7 @@
 	let showInspectPanelFieldName = $derived(`shares[${index}].show_inspect_panel`);
 	let showExportButtonFieldName = $derived(`shares[${index}].show_export_button`);
 	let showMinimapFieldName = $derived(`shares[${index}].show_minimap`);
+	let iconNodesFieldName = $derived(`shares[${index}].icon_nodes`);
 	let embedWidthFieldName = $derived(`shares[${index}].embed_width`);
 	let embedHeightFieldName = $derived(`shares[${index}].embed_height`);
 
@@ -317,6 +319,11 @@
 				<form.Field name={showMinimapFieldName}>
 					{#snippet children(field: AnyFieldApi)}
 						<Checkbox label={topology_showMinimap()} id="show-minimap-{index}" {field} />
+					{/snippet}
+				</form.Field>
+				<form.Field name={iconNodesFieldName}>
+					{#snippet children(field: AnyFieldApi)}
+						<Checkbox label={topology_iconNodes()} id="icon-nodes-{index}" {field} />
 					{/snippet}
 				</form.Field>
 			</div>

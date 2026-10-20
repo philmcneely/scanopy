@@ -36,6 +36,7 @@
 	export let isEmbed: boolean = false;
 	export let shareName: string = '';
 	export let showMinimap: boolean = false;
+	export let iconNodes: boolean = false;
 	export let exportFeatures: ExportFeatures | undefined = undefined;
 	export let enabledViews: string[] = [];
 	export let currentView: string = 'L3Logical';
@@ -65,7 +66,7 @@
 	// it and refetches per view) — the view is no longer persisted on the row.
 	// Set it before hydrating so local options are keyed to the right view.
 	activeView.set(currentView as TopologyView);
-	hydrateStoresFromTopology(topology, true, true);
+	hydrateStoresFromTopology(topology, true, true, { icon_nodes: iconNodes });
 
 	// Shares/embeds are view-only — drive the single read-only signal so the
 	// shared inspectors (descriptions/tags) and multi-select are gated the same
@@ -92,7 +93,7 @@
 	$: {
 		activeView.set(currentView as TopologyView);
 		topologyContext.set(topology);
-		hydrateStoresFromTopology(topology, true, true);
+		hydrateStoresFromTopology(topology, true, true, { icon_nodes: iconNodes });
 	}
 
 	// Keyboard shortcuts — same shared handler, no edit-only callbacks

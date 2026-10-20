@@ -312,7 +312,7 @@ function getStructureKey(topo: RenderableTopology, view: string): string {
 		elementSort === 'Automatic'
 			? nodeKeys.sort().join(',')
 			: `${elementSort}:${nodeKeys.join(',')}`;
-	const inlineKey = getInlineContentKey(topo, view);
+	const inlineKey = `${getInlineContentKey(topo, view)}${get(topologyOptions).local.icon_nodes ? '~icon' : ''}`;
 	const hide = getHideStateKey(view);
 	// Segments: nodes | inline | resizing-hide | structural-hide. `prepare` compares the middle two
 	// to decide whether measured sizes survive — see the cache handling in `prepareTopologyData`.

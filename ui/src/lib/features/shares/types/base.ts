@@ -22,7 +22,8 @@ export const defaultShareOptions: ShareOptions = {
 	show_inspect_panel: true,
 	show_zoom_controls: true,
 	show_export_button: true,
-	show_minimap: true
+	show_minimap: true,
+	icon_nodes: false
 };
 
 export function createEmptyShare(topology_id: string, site_id: string): Share {

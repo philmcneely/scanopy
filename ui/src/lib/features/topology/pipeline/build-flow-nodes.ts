@@ -27,6 +27,8 @@ export interface BuildFlowNodesParams {
 	 * declares all eight as before.
 	 */
 	usedHandles?: Map<string, Set<string>> | null;
+	/** The `icon_nodes` option: element cards other than interfaces render icon-first, narrower. */
+	iconNodes?: boolean;
 }
 
 /**
@@ -46,6 +48,19 @@ const EMPTY_HANDLE_SET: ReadonlySet<string> = new Set<string>();
 
 /** Literal width every element card is built at, and the fallback for handle geometry. */
 export const ELEMENT_WIDTH_PX = 250;
+
+/** Width of an icon-first element card (the `icon_nodes` option). */
+export const ICON_ELEMENT_WIDTH_PX = 120;
+
+/**
+ * The width an element card is built at. Interface cards keep the detailed card in icon mode, as
+ * `buildIconCard` does: a port is not a device and has no role to draw.
+ */
+export function elementWidthPx(node: TopologyNode, iconNodes: boolean): number {
+	return iconNodes && node.node_type === 'Element' && node.element_type !== 'Interface'
+		? ICON_ELEMENT_WIDTH_PX
+		: ELEMENT_WIDTH_PX;
+}
 
 /** Horizontal padding on an element card's text, mirroring `px-2` in `ElementNode.svelte`. */
 const ELEMENT_CARD_PADDING_X_PX = 8;
@@ -180,7 +195,8 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 		infraRuleId,
 		editMode,
 		sizeHints,
-		usedHandles
+		usedHandles,
+		iconNodes = false
 	} = params;
 
 	const currentPositions = new Map(liveNodes.map((n) => [n.id, n.position]));
@@ -211,6 +227,7 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 		let measurementPlacement = false;
 
 		const isElement = node.node_type === 'Element';
+		const elementWidth = elementWidthPx(node, iconNodes);
 
 		// Container size from layout graph (collapsed = metadata size, expanded = ELK size)
 		const containerSize =
@@ -222,7 +239,7 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 			width = isNodeCollapsed
 				? (containerSize?.width ?? undefined)
 				: isElement
-					? ELEMENT_WIDTH_PX
+					? elementWidth
 					: (containerSize?.width ?? undefined);
 			height = isNodeCollapsed
 				? (containerSize?.height ?? undefined)
@@ -243,13 +260,13 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 			// rendered as its borders with its contents outside. The graph knew the size the whole
 			// time: the capture that found this shows `containersZeroSizedAfter: 0` on the very run
 			// that produced fourteen zero-sized containers in the DOM.
-			width = isElement ? ELEMENT_WIDTH_PX : (containerSize?.width ?? curSize?.width ?? undefined);
+			width = isElement ? elementWidth : (containerSize?.width ?? curSize?.width ?? undefined);
 			height = isElement ? undefined : (containerSize?.height ?? curSize?.height ?? undefined);
 		} else {
 			// Measurement pass: place at origin, let content determine size
 			measurementPlacement = true;
 			position = { x: 0, y: 0 };
-			width = isElement ? ELEMENT_WIDTH_PX : undefined;
+			width = isElement ? elementWidth : undefined;
 			height = undefined;
 		}
 

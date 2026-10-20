@@ -33,6 +33,7 @@ function savedOptions(): TopologyOptions {
 		local: {
 			show_minimap: false,
 			bundle_edges: false,
+			icon_nodes: false,
 			no_fade_edges: true,
 			tag_filter: { L3Logical: { hidden_tag_ids: { Host: [TAG_ID] } } },
 			hide_edge_types: {

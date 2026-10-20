@@ -19,6 +19,7 @@ use crate::server::discovery::r#impl::collection::all_collected_data;
 use crate::server::discovery::r#impl::scan_settings::ScanSettings;
 use crate::server::discovery::r#impl::types::DiscoveryType;
 use crate::server::email::messages::EmailCategory;
+use crate::server::hosts::r#impl::device_role::DeviceRole;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::r#impl::categories::ServiceCategory;
@@ -378,6 +379,9 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
 
     let element_sorts: Vec<TypeMetadata> = ElementSort::iter().map(|s| s.to_metadata()).collect();
     write_fixture(&element_sorts, output_dir, "element-sorts.json");
+
+    let device_roles: Vec<TypeMetadata> = DeviceRole::iter().map(|r| r.to_metadata()).collect();
+    write_fixture(&device_roles, output_dir, "device-roles.json");
 
     let container_types: Vec<TypeMetadata> =
         ContainerType::iter().map(|r| r.to_metadata()).collect();

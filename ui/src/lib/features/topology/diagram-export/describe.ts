@@ -94,13 +94,15 @@ function elementDescription(
 	node: TopologyNode,
 	topology: RenderableTopology
 ): { title: string; lines: string[] } {
-	const { data } = buildElementRender({
+	const { data, iconCard } = buildElementRender({
 		nodeId: id,
 		node,
 		topology,
 		...currentElementRenderContext()
 	});
 	if (!data) return { title: node.header ?? '', lines: [] };
+	// An icon card shows only its label, so its shape does too; the rest stays in Shape Data.
+	if (iconCard) return { title: iconCard.label, lines: [] };
 	const title = data.headerText ?? data.subtitleText ?? '';
 	const lines: string[] = [];
 	if (data.headerText && data.subtitleText) lines.push(data.subtitleText);
