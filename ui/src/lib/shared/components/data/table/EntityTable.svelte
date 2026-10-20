@@ -340,6 +340,21 @@
 		return { class: 'relative', style: '' };
 	}
 
+	/**
+	 * Whether a column's right edge is a pinned column's divider: the pinned name's own edge, or
+	 * the edge beside the pinned tags. The divider line already shows there, so the resize grip
+	 * hides at rest and appears only on hover, focus or drag.
+	 */
+	function edgeIsDivider(columnId: string): boolean {
+		const at = view.headers.findIndex((h) => h.column.id === columnId);
+		const here = byId.get(columnId);
+		const next = byId.get(view.headers[at + 1]?.column.id ?? '');
+		return (
+			(here !== undefined && pinOf(here) === 'left') ||
+			(next !== undefined && pinOf(next) === 'right')
+		);
+	}
+
 	// The name pins beside the checkbox and tags beside the actions, so each needs its neighbour's
 	// width as its offset.
 	let selectHeader: HTMLTableCellElement | undefined = $state();
@@ -832,7 +847,7 @@
 			class="w-0.5 self-center rounded-full transition-all {columnSizingInfo.isResizingColumn ===
 			column.id
 				? 'h-full bg-blue-500'
-				: 'h-1/2 bg-black/20 group-hover:h-full group-hover:bg-blue-500/60 group-focus-visible:h-full group-focus-visible:bg-blue-500 dark:bg-white/25'}"
+				: `h-1/2 group-hover:h-full group-hover:bg-blue-500/60 group-focus-visible:h-full group-focus-visible:bg-blue-500 ${edgeIsDivider(column.id) ? 'bg-transparent' : 'bg-black/20 dark:bg-white/25'}`}"
 		></span>
 	</div>
 {/snippet}
