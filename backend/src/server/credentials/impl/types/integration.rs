@@ -299,6 +299,23 @@ impl CredentialIntegration {
     /// integration submits is checked against this (`undeclared_collection`), which fails tests
     /// and debug builds when the two disagree. The security page lists what each integration
     /// collects from it, through the `collected-data` and `integrations` fixtures.
+    /// Whether this integration runs the credential-free application probes against what it
+    /// reaches, as the container scan does against each container's ports. Such an integration
+    /// may submit whatever those probes collect, without listing each probe in [`Self::collection`].
+    /// Exhaustive, for the reason `collection` is.
+    pub fn runs_app_probes(&self) -> bool {
+        match self {
+            Self::Docker | Self::Podman => true,
+            Self::Snmp
+            | Self::Gnmi
+            | Self::UnifiController
+            | Self::InstantOn
+            | Self::Ssh
+            | Self::WakeOnLan
+            | Self::Proxmox => false,
+        }
+    }
+
     pub fn collection(&self) -> &'static [(AttributeSource, &'static [CollectedData])] {
         use AttributeSource as S;
         use ClientProbe as P;

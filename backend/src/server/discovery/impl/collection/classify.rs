@@ -182,7 +182,14 @@ impl Producer {
             SourceCollection::NotCollected => false,
             SourceCollection::CredentialFree(categories) => match self {
                 Self::CredentialFree => categories.contains(&category),
-                Self::Integration(integration) => integration.declares(category, source),
+                // A container scan runs the same app probes as the network scan, so it may submit
+                // what they collect.
+                Self::Integration(integration) => {
+                    integration.declares(category, source)
+                        || (integration.runs_app_probes()
+                            && matches!(source, AttributeSource::Probe(_))
+                            && categories.contains(&category))
+                }
             },
             SourceCollection::Credentialed => match self {
                 // The network scan runs each integration's probe with its credential, and a probe
@@ -239,6 +246,33 @@ pub(super) fn collecting_integrations(category: CollectedData) -> Vec<Credential
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A container scan runs every credential-free app probe against a container's ports, so the
+    /// container integrations accept what each probe collects, and no other integration does.
+    /// Before this, a PostgreSQL container panicked a debug daemon on the collection check.
+    #[test]
+    fn container_scans_may_submit_what_any_app_probe_collects() {
+        for probe in ClientProbe::iter() {
+            let SourceCollection::CredentialFree(categories) = probe.collection() else {
+                continue;
+            };
+            let source = AttributeSource::Probe(probe);
+            for &category in categories {
+                for integration in CredentialIntegration::iter() {
+                    let declared = Producer::Integration(integration).declares(category, source);
+                    if integration.runs_app_probes() {
+                        assert!(declared, "{integration:?} runs {probe:?} but rejects it");
+                    } else {
+                        assert_eq!(
+                            declared,
+                            integration.declares(category, source),
+                            "{integration:?} runs no app probes but accepts {probe:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     /// A category with neither a method nor an integration would be listed on the security page
     /// with nothing behind it.
