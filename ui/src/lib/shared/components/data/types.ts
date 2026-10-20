@@ -179,9 +179,14 @@ export interface DisplayConfig<T> {
 	/**
 	 * The heading the column is listed under in the column menu. Registry columns take their
 	 * field's group; a tab sets it on its own columns. A column moves only among columns of its
-	 * own group.
+	 * own group, and a group moves as a block.
 	 */
 	group?: FieldGroup;
+	/**
+	 * The heading for a column that is no entity field, such as a tag group's: listed after every
+	 * field group by default. Ignored when `group` is set.
+	 */
+	section?: string;
 	/**
 	 * Rich chips: `EntityTag` when an item carries an `entityRef`, `Tag`
 	 * otherwise. Prefer this over `cell`: it is data rather than markup, so

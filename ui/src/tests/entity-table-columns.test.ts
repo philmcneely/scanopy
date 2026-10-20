@@ -9,6 +9,9 @@ import {
 	moveColumnTo,
 	movableIds,
 	columnSections,
+	moveSection,
+	moveSectionTo,
+	movableSectionKeys,
 	buildTagColumn,
 	columnWidth,
 	MAX_COLUMN_WIDTH,
@@ -16,6 +19,7 @@ import {
 	TAG_COLUMN_ID,
 	type ColumnState
 } from '$lib/shared/components/data/table/columns';
+import { fieldGroups } from '$lib/shared/stores/metadata';
 import { defineFields, getFieldKey, type FieldConfig } from '$lib/shared/components/data/types';
 import {
 	parseStoredState,
@@ -357,39 +361,97 @@ describe('column widths', () => {
 	});
 });
 
-describe('columnSections', () => {
+describe('column headings', () => {
+	// `relationships` comes before `status` in field-groups.json; `name` is primary, so pinned.
 	const grouped = (): FieldConfig<Row>[] => [
-		{ key: 'name', label: 'Name', type: 'string', display: { primary: true } },
+		{ key: 'name', label: 'Name', type: 'string', display: { primary: true, group: 'identity' } },
 		{ key: 'status', label: 'Status', type: 'string', display: { group: 'status' } },
 		{ key: 'port', label: 'Port', type: 'string' },
 		{ key: 'site_id', label: 'Site', type: 'string', display: { group: 'relationships' } },
-		{ key: 'env', label: 'Environment', type: 'string', display: { group: 'status' } }
+		{ key: 'hostname', label: 'Hostname', type: 'string', display: { group: 'identity' } },
+		{ key: 'env', label: 'Environment', type: 'string', display: { group: 'status' } },
+		{ key: 'rack', label: 'Rack', type: 'string', display: { section: 'Tag Groups' } }
 	];
+	const columns = fieldsToColumns(grouped());
+	const TAG_GROUPS = 'section:Tag Groups';
 
-	it('lists ungrouped columns first, then groups in field-group order, keeping table order', () => {
-		const sections = columnSections(fieldsToColumns(grouped()));
-		// `relationships` comes before `status` in field-groups.json, though a status column
-		// comes first in the table.
-		expect(sections.map((s) => [s.group, s.columns.map((c) => c.id)])).toEqual([
-			[null, ['name', 'port']],
-			['relationships', ['site_id']],
-			['status', ['status', 'env']]
+	it('orders by default with unheaded columns first, field groups in order, sections last', () => {
+		const { order } = reconcileColumnState(columns, undefined);
+
+		expect(order).toEqual(['name', 'port', 'hostname', 'site_id', 'status', 'env', 'rack']);
+		const byId = new Map(columns.map((c) => [c.id, c]));
+		const sections = columnSections(order.map((id) => byId.get(id)!));
+		expect(sections.map((s) => [s.key, s.heading])).toEqual([
+			[null, null],
+			['identity', fieldGroups.getName('identity')],
+			['relationships', fieldGroups.getName('relationships')],
+			['status', fieldGroups.getName('status')],
+			[TAG_GROUPS, 'Tag Groups']
 		]);
 	});
 
-	it('moves a column only among the columns of its group', () => {
-		const columns = fieldsToColumns(grouped());
-		const order = columns.map((c) => c.id);
-		const status = columnSections(columns).find((s) => s.group === 'status')!.columns;
-		// `status` moving down within its group passes `port` and `site_id` and lands after `env`.
+	it("brings a stored order's headings together where each first appears", () => {
+		// An order saved before headings existed interleaves them.
+		const stored = ['name', 'status', 'port', 'rack', 'site_id', 'env', 'hostname'];
+
+		expect(reconcileColumnState(columns, { order: stored }).order).toEqual([
+			'name',
+			'status',
+			'env',
+			'port',
+			'rack',
+			'site_id',
+			'hostname'
+		]);
+	});
+
+	it('moves a column only among the columns of its heading', () => {
+		const { order } = reconcileColumnState(columns, undefined);
+		const status = columnSections(columns).find((s) => s.key === 'status')!.columns;
+
 		expect(moveColumn(order, status, 'status', 1)).toEqual([
 			'name',
 			'port',
+			'hostname',
 			'site_id',
 			'env',
-			'status'
+			'status',
+			'rack'
 		]);
-		// The first column of a group can't move up out of it.
 		expect(moveColumn(order, status, 'status', -1)).toBe(order);
+	});
+
+	it('moves a heading as a block, and the move survives a reload', () => {
+		const { order } = reconcileColumnState(columns, undefined);
+
+		const up = moveSection(order, columns, 'status', -1);
+		expect(up).toEqual(['name', 'port', 'hostname', 'status', 'env', 'site_id', 'rack']);
+		expect(reconcileColumnState(columns, { order: up }).order).toEqual(up);
+
+		const dragged = moveSectionTo(order, columns, TAG_GROUPS, 'identity', 'before');
+		expect(dragged).toEqual(['name', 'port', 'rack', 'hostname', 'site_id', 'status', 'env']);
+		expect(reconcileColumnState(columns, { order: dragged }).order).toEqual(dragged);
+	});
+
+	it("keeps the primary column first when its heading moves, and the rest of that heading's columns move", () => {
+		const { order } = reconcileColumnState(columns, undefined);
+
+		const down = moveSection(order, columns, 'identity', 1);
+		expect(down).toEqual(['name', 'port', 'site_id', 'hostname', 'status', 'env', 'rack']);
+		expect(reconcileColumnState(columns, { order: down }).order).toEqual(down);
+	});
+
+	it('leaves the order alone past either end or for the unheaded columns', () => {
+		const { order } = reconcileColumnState(columns, undefined);
+
+		expect(movableSectionKeys(order, columns)).toEqual([
+			'identity',
+			'relationships',
+			'status',
+			TAG_GROUPS
+		]);
+		expect(moveSection(order, columns, 'identity', -1)).toBe(order);
+		expect(moveSection(order, columns, TAG_GROUPS, 1)).toBe(order);
+		expect(moveSectionTo(order, columns, 'status', 'status', 'after')).toBe(order);
 	});
 });
