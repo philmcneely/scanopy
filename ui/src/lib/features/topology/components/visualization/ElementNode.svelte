@@ -18,7 +18,12 @@
 	const sitesQuery = useSitesQuery();
 	import type { TopologyNode, ElementRenderData, RenderableTopology } from '../../types/base';
 	import { cardEntityForFilter, resolveTagTarget } from '../../resolvers';
-	import { buildElementRender, ICON_GROUP_COLUMNS } from '../../element-render-data';
+	import {
+		buildElementRender,
+		hostTooltip,
+		ICON_GROUP_COLUMNS,
+		serviceTooltip
+	} from '../../element-render-data';
 	import { getTopologyIndex } from '../../entity-index';
 	import type { Writable } from 'svelte/store';
 	import { formatPort } from '$lib/shared/utils/formatting';
@@ -34,6 +39,7 @@
 	import { createColorHelper } from '$lib/shared/utils/styling';
 	import { getContext } from 'svelte';
 	import type { Port } from '$lib/features/hosts/types/base';
+	import type { Service } from '$lib/features/services/types/base';
 	import type { Node, Edge } from '@xyflow/svelte';
 	import {
 		common_collapse,
@@ -53,7 +59,7 @@
 	// The large device tile. The top service badge is centred on its bottom-right corner.
 	const TILE_PX = 48;
 	const CARD_INNER_PX = ICON_ELEMENT_WIDTH_PX - 16;
-	import { stateFill as markedStateFill, statusDot } from '../../element-marks';
+	import { entityMark, stateFill as markedStateFill, statusDot } from '../../element-marks';
 
 	let { id, data, width }: NodeProps = $props();
 
@@ -120,6 +126,9 @@
 	let sitesData = $derived(sitesQuery.data ?? []);
 	const siteFor = (entity: { site_id?: string } | undefined | null) =>
 		sitesData.find((n) => n.id === entity?.site_id);
+	// A service row's run state, from the view's Status mark, for the dot in its tooltip.
+	const serviceStatus = (service: Service) =>
+		entityMark($activeView, 'Status', 'Service', service, sitesData);
 
 	let effectiveWidth = $derived(width ? width : 0);
 
@@ -404,8 +413,7 @@
 				     it never covers the status indicator. -->
 				<div
 					class="flex w-full flex-col items-center gap-1.5"
-					use:tooltip={{ anchorClosest: '.svelte-flow__node' }}
-					data-tooltip={iconCard.title}
+					use:tooltip={{ anchorClosest: '.svelte-flow__node', content: iconCard.tooltip }}
 				>
 					<!-- my-1: the service badges (bottom-right) and the status dot (top-left) are
 					     centred on the tile's corners and overhang it by half their size, more than the card's
@@ -502,7 +510,7 @@
 							style="grid-template-columns: repeat({ICON_GROUP_COLUMNS}, minmax(0, 1fr));"
 						>
 							{#each group.members as member (member.id)}
-								<span class="relative flex" use:tooltip data-tooltip={member.title}>
+								<span class="relative flex" use:tooltip={{ content: member.tooltip }}>
 									{#if member.glyph.type === 'device'}
 										<DeviceGlyph deviceType={member.glyph.deviceType} />
 									{:else}
@@ -612,7 +620,9 @@
 								<div
 									class="flex items-center justify-center gap-1"
 									style="line-height: 1.3; width: 100%; min-width: 0; max-width: 100%;"
-									title={service.name}
+									use:tooltip={{
+										content: serviceTooltip(service, { status: serviceStatus(service) })
+									}}
 								>
 									<SoftwareGlyph definition={service.service_definition} />
 									<span
@@ -717,7 +727,20 @@
 												<div
 													class="flex w-full items-center justify-center gap-1 pt-1"
 													style="min-width: 0;"
-													title={hostDisplayName(member.host)}
+													use:tooltip={{
+														content: hostTooltip(member.host, {
+															deviceType:
+																memberGlyph?.type === 'device' ? memberGlyph.deviceType : null,
+															services: member.services,
+															status: entityMark(
+																$activeView,
+																'Status',
+																'Host',
+																member.host,
+																sitesData
+															)
+														})
+													}}
 												>
 													{#if memberGlyph?.type === 'device'}
 														<DeviceGlyph deviceType={memberGlyph.deviceType} />
@@ -751,7 +774,9 @@
 											<div
 												class="flex items-center justify-center gap-1"
 												style="line-height: 1.3; width: 100%; min-width: 0; max-width: 100%;"
-												title={service.name}
+												use:tooltip={{
+													content: serviceTooltip(service, { status: serviceStatus(service) })
+												}}
 											>
 												<SoftwareGlyph definition={service.service_definition} />
 												<span
