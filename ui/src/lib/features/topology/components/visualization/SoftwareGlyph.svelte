@@ -29,5 +29,7 @@
 		: 'h-5 w-5'}"
 	style="background: var(--color-bg-surface);"
 >
-	<Logo size={logoPx} class={colors.icon} />
+	<!-- A logo draws in its own colours; a definition with no logo falls back to a glyph, drawn in the
+	     text colour like a device's so the two read alike. -->
+	<Logo size={logoPx} class="text-primary" />
 </span>
