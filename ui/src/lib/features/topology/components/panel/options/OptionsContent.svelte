@@ -41,7 +41,6 @@
 	import FilterGroup from './FilterGroup.svelte';
 	import GroupingRuleEditor from './GroupingRuleEditor.svelte';
 	import ElementSortSelect from './ElementSortSelect.svelte';
-	import ViewModeSelect from './ViewModeSelect.svelte';
 	import EntityFilterHeader from './EntityFilterHeader.svelte';
 	import { useTagGroupsQuery, useTagsQuery } from '$lib/features/tags/queries';
 	import { compareTagsByGroup } from '$lib/features/tags/groups';
@@ -763,7 +762,6 @@
 	<!-- Sort and group -->
 	<div class="space-y-3">
 		<p class="text-tertiary text-xs">{topology_layoutHelp()}</p>
-		<ViewModeSelect />
 		<ElementSortSelect
 			disabled={!editState.isEditable}
 			disabledReason={editState.isEditable ? '' : getOptionDisabledTooltip()}

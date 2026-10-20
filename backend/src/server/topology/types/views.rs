@@ -149,8 +149,6 @@ pub struct ViewElementConfig {
 /// Where on an element card a mark paints.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema, EnumIter)]
 pub enum MarkChannel {
-    /// The card's header text.
-    Title,
     /// The dot beside a port's speed.
     StatusDot,
     /// The whole card, when it draws as a bare box below the detail threshold.
@@ -158,9 +156,9 @@ pub enum MarkChannel {
     /// A marker on an icon card's device tile, top-left corner, drawing the value's icon in its
     /// colour. Workloads uses it for how a host is virtualized.
     Corner,
-    /// A dot on the `Corner` marker's edge, in the value's colour; the marker expands to name the
-    /// value on hover. Workloads uses it for a guest's run state.
-    CornerDot,
+    /// The `Corner` marker's outline, in the value's colour; the marker expands to name the value on
+    /// hover. Workloads uses it for a guest's run state.
+    CornerRing,
 }
 
 /// A colour a view paints on its element cards, named by the filter value that decodes it.
@@ -341,7 +339,7 @@ pub enum MetadataFilterType {
     /// and zoomed-out fill show.
     OperStatus,
     /// Whether a guest (a Proxmox guest or a container host) was running at the last scan.
-    /// Declared on Host in Workloads, where it is the dot on an icon card's virtualization marker.
+    /// Declared on Host in Workloads, where it outlines an icon card's virtualization marker.
     GuestState,
 }
 
@@ -851,18 +849,13 @@ impl TopologyView {
                 status(StatusDot, IfOperStatus::LowerLayerDown),
             ])
             .collect(),
-            // How a host is virtualized: its title colour on a detailed card, and the corner marker on
-            // an icon card, whose dot is the guest's run state. Bare metal is unmarked.
+            // How a host is virtualized: the corner marker on its icon card, outlined in the guest's run
+            // state. Bare metal is unmarked.
             Self::Workloads => HostVirtualizationState::iter()
                 .filter(|s| *s != HostVirtualizationState::BareMetal)
-                .flat_map(|s| {
-                    [
-                        ElementMark::new(Title, Host, Virtualization, &s),
-                        ElementMark::new(Corner, Host, Virtualization, &s),
-                    ]
-                })
+                .map(|s| ElementMark::new(Corner, Host, Virtualization, &s))
                 .chain(
-                    GuestState::iter().map(|g| ElementMark::new(CornerDot, Host, GuestStateFilter, &g)),
+                    GuestState::iter().map(|g| ElementMark::new(CornerRing, Host, GuestStateFilter, &g)),
                 )
                 .chain(stale_fill)
                 .collect(),

@@ -12184,7 +12184,7 @@ export interface components {
          * @description Where on an element card a mark paints.
          * @enum {string}
          */
-        MarkChannel: "Title" | "StatusDot" | "StateFill" | "Corner" | "CornerDot";
+        MarkChannel: "StatusDot" | "StateFill" | "Corner" | "CornerRing";
         /** @enum {string} */
         MatchConfidence: "NotApplicable" | "Low" | "Medium" | "High" | "Certain";
         MatchDetails: {
@@ -14626,8 +14626,6 @@ export interface components {
             show_minimap: boolean;
             /** @description Viewer sees the zoom controls. */
             show_zoom_controls: boolean;
-            /** @description How the viewer's element cards draw. */
-            view_mode: components["schemas"]["ViewMode"];
         };
         ShareTopologyRequest: {
             /** @description Server-issued access token obtained from `/verify`. Required when the share has a password. */
@@ -15480,8 +15478,6 @@ export interface components {
             tag_filter: {
                 [key: string]: components["schemas"]["TopologyTagFilter"];
             };
-            /** @default Icons */
-            view_mode: components["schemas"]["ViewMode"];
         };
         TopologyOptions: {
             /** @description Settings applied in the viewer, which do not change what the server returns. */
@@ -16195,11 +16191,6 @@ export interface components {
             root_edges: boolean;
             root_order: components["schemas"]["ViewRootOrder"];
         };
-        /**
-         * @description How element cards draw: every row of detail, or the host's device-role icon and a short label.
-         * @enum {string}
-         */
-        ViewMode: "Detailed" | "Icons";
         /**
          * @description How root containers are ordered before layout.
          * @enum {string}

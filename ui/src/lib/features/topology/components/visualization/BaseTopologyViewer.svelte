@@ -116,7 +116,6 @@
 	import { executeLayout, handlePortExpansion } from '../../pipeline/execute-layout';
 	import { preloadElk } from '../../layout/elk-layout';
 	import { buildFlowNodes, sortFlowNodes, stripSizeSeed } from '../../pipeline/build-flow-nodes';
-	import { effectiveViewMode } from '../../view-mode';
 	import { buildFlowEdges } from '../../pipeline/build-flow-edges';
 	import { cacheCollapsedSizes, reconcileMeasuredSizes } from '../../pipeline/post-render';
 	import throttle from 'just-throttle';
@@ -593,8 +592,6 @@
 
 	// Trigger loadTopologyData on topology or store changes
 	const bundleEdgesStore = derived(topologyOptions, (o) => o.local.bundle_edges ?? false);
-	// The stored choice, not the effective mode: a view switch runs the pipeline on its own.
-	const viewModeStore = derived(topologyOptions, (o) => o.local.view_mode);
 	const hideEdgeTypesStore = derived(hiddenEdgeTypes, (hidden) => hidden.join(','));
 	// Metadata-value filters (e.g. hiding the OpenPorts service category) are read at render
 	// time straight from the options, so no hidden-id store ever fires for them. Without this
@@ -649,7 +646,6 @@
 			expandedPorts: get(expandedPortNodeIds),
 			expandedInlineGroups: get(expandedInlineGroups),
 			bundleEdges: get(topologyOptions).local.bundle_edges ?? false,
-			viewMode: effectiveViewMode(get(topologyOptions).local, get(activeView)),
 			hiddenEdgeTypes: get(hiddenEdgeTypes).join(','),
 			tagHidden: get(tagHiddenNodeIds),
 			hiddenEntities: get(hiddenEntityIds),
@@ -790,9 +786,6 @@
 	bundleEdgesStore.subscribe(() => {
 		if (storesInitialized) triggerLoad('bundle-option');
 	});
-	viewModeStore.subscribe(() => {
-		if (storesInitialized) triggerLoad('view-mode-option');
-	});
 	hideEdgeTypesStore.subscribe(() => {
 		if (storesInitialized) triggerLoad('hidden-edge-types');
 	});
@@ -928,8 +921,7 @@
 					infraRuleId: getInfrastructureRuleId(),
 					editMode: editMode ?? false,
 					sizeHints: runSizes ?? layoutState.viewSizeCache.get(viewCacheKey) ?? null,
-					usedHandles: forMeasurement ? NO_HANDLES : runUsedHandles,
-					viewMode: effectiveViewMode(get(topologyOptions).local, get(activeView))
+					usedHandles: forMeasurement ? NO_HANDLES : runUsedHandles
 				})
 			);
 

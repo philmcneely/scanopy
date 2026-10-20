@@ -111,7 +111,7 @@ function buildTopology(): RenderableTopology {
 	return {
 		id: 'topo',
 		site_id: SITE.id,
-		options: { request: { element_rules: [] }, local: { view_mode: 'Detailed' } },
+		options: { request: { element_rules: [] } },
 		hosts,
 		subnets: [],
 		ip_addresses: ipAddresses,
@@ -237,7 +237,7 @@ describe('topology card colours are decodable in their view', () => {
 		});
 	}
 
-	it('L3 does not colour a virtualized host title', () => {
+	it('L3 does not mark a virtualized host', () => {
 		const vm = topology.hosts.find((h) => h.virtualization_metadata != null);
 		const node = cardNodes(topology, 'IPAddress').find(
 			(n) => (n as { host_id?: string }).host_id === vm?.id
@@ -252,6 +252,6 @@ describe('topology card colours are decodable in their view', () => {
 			expandedInlineGroups: new Set(),
 			sites: [SITE]
 		});
-		expect(result.marks.Title).toBeUndefined();
+		expect(result.marks.Corner).toBeUndefined();
 	});
 });

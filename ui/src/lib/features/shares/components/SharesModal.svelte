@@ -116,7 +116,6 @@
 			show_inspect_panel: s.options?.show_inspect_panel ?? defaultShareOptions.show_inspect_panel,
 			show_export_button: s.options?.show_export_button ?? defaultShareOptions.show_export_button,
 			show_minimap: s.options?.show_minimap ?? defaultShareOptions.show_minimap,
-			view_mode: s.options?.view_mode ?? defaultShareOptions.view_mode,
 			embed_width: '800',
 			embed_height: '600'
 		};
@@ -210,8 +209,7 @@
 				show_zoom_controls: v.show_zoom_controls,
 				show_inspect_panel: v.show_inspect_panel,
 				show_export_button: v.show_export_button,
-				show_minimap: v.show_minimap,
-				view_mode: v.view_mode
+				show_minimap: v.show_minimap
 			},
 			enabled_views: share.enabled_views
 		} as Share;

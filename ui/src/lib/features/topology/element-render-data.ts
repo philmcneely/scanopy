@@ -39,7 +39,6 @@ import { formatInterfaceSpeed } from '$lib/shared/utils/formatting';
 import type { Site } from '$lib/features/sites/types';
 import { get } from 'svelte/store';
 import { activeView, topologyOptions } from './queries';
-import { effectiveViewMode } from './view-mode';
 import { hiddenEntityIds } from './interactions';
 import { expandedInlineGroups, inlineGroupKey } from './collapse';
 import { queryClient, queryKeys } from '$lib/api/query-client';
@@ -200,7 +199,7 @@ export function buildElementRender(inputs: ElementRenderInputs): ElementRenderRe
 		marks: elementMarks(inputs.activeView, inputs.node, inputs.sites, inputs.topology),
 		glyph,
 		iconCard:
-			glyph && effectiveViewMode(inputs.options.local, inputs.activeView) === 'Icons'
+			glyph
 				? buildIconCard(resolved, content.data, glyph)
 				: null
 	};

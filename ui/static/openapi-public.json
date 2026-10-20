@@ -37092,11 +37092,10 @@
         "type": "string",
         "description": "Where on an element card a mark paints.",
         "enum": [
-          "Title",
           "StatusDot",
           "StateFill",
           "Corner",
-          "CornerDot"
+          "CornerRing"
         ]
       },
       "MatchConfidence": {
@@ -42373,8 +42372,7 @@
           "show_inspect_panel",
           "show_zoom_controls",
           "show_export_button",
-          "show_minimap",
-          "view_mode"
+          "show_minimap"
         ],
         "properties": {
           "show_export_button": {
@@ -42392,10 +42390,6 @@
           "show_zoom_controls": {
             "type": "boolean",
             "description": "Viewer sees the zoom controls."
-          },
-          "view_mode": {
-            "$ref": "#/components/schemas/ViewMode",
-            "description": "How the viewer's element cards draw."
           }
         }
       },
@@ -44088,15 +44082,6 @@
                 "Application"
               ]
             }
-          },
-          "view_mode": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ViewMode",
-                "description": "How element cards draw. Views where the mode does not apply draw `Detailed`."
-              }
-            ],
-            "default": "Icons"
           }
         }
       },
@@ -45474,14 +45459,6 @@
             "$ref": "#/components/schemas/ViewRootOrder"
           }
         }
-      },
-      "ViewMode": {
-        "type": "string",
-        "description": "How element cards draw: every row of detail, or the host's device-role icon and a short label.",
-        "enum": [
-          "Detailed",
-          "Icons"
-        ]
       },
       "ViewRootOrder": {
         "type": "string",

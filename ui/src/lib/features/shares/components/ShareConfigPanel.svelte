@@ -8,8 +8,6 @@
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import Checkbox from '$lib/shared/components/forms/input/Checkbox.svelte';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
-	import viewModesJson from '$lib/data/view-modes.json';
-	import { metaName, metaDescription } from '$lib/i18n/metadata';
 	import DateInput from '$lib/shared/components/forms/input/DateInput.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
@@ -63,7 +61,6 @@
 		shares_urlAvailableAfterSaveTitle,
 		shares_urlAvailableAfterSaveBody,
 		topology_showMinimap,
-		topology_viewMode,
 		common_details,
 		shares_enableShare
 	} from '$lib/paraglide/messages';
@@ -98,14 +95,6 @@
 	let showInspectPanelFieldName = $derived(`shares[${index}].show_inspect_panel`);
 	let showExportButtonFieldName = $derived(`shares[${index}].show_export_button`);
 	let showMinimapFieldName = $derived(`shares[${index}].show_minimap`);
-	let viewModeFieldName = $derived(`shares[${index}].view_mode`);
-	// Every mode, not one view's: a share opens on any of its views, and each falls back to
-	// `Detailed` where the chosen mode does not apply (`effectiveViewMode`).
-	const viewModeOptions: SimpleOption[] = viewModesJson.map((mode) => ({
-		value: mode.id,
-		label: metaName('view_modes', mode.id, mode.name),
-		description: metaDescription('view_modes', mode.id, mode.description)
-	}));
 	let embedWidthFieldName = $derived(`shares[${index}].embed_width`);
 	let embedHeightFieldName = $derived(`shares[${index}].embed_height`);
 
@@ -329,17 +318,6 @@
 				<form.Field name={showMinimapFieldName}>
 					{#snippet children(field: AnyFieldApi)}
 						<Checkbox label={topology_showMinimap()} id="show-minimap-{index}" {field} />
-					{/snippet}
-				</form.Field>
-				<form.Field name={viewModeFieldName}>
-					{#snippet children(field: AnyFieldApi)}
-						<RichSelect
-							label={topology_viewMode()}
-							selectedValue={field.state.value}
-							options={viewModeOptions}
-							displayComponent={SimpleOptionDisplay}
-							onSelect={(value) => field.handleChange(value)}
-						/>
 					{/snippet}
 				</form.Field>
 			</div>

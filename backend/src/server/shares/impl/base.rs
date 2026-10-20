@@ -6,7 +6,6 @@ use crate::server::shared::{
     entity_metadata::EntityCategory,
     storage::traits::{Entity, SqlValue, Storable},
 };
-use crate::server::topology::types::grouping::ViewMode;
 use crate::server::topology::types::views::TopologyView;
 use chrono::{DateTime, Utc};
 use secrecy::SecretString;
@@ -45,10 +44,6 @@ pub struct ShareOptions {
     #[serde(default)]
     #[schema(required)]
     pub show_minimap: bool,
-    /// How the viewer's element cards draw.
-    #[serde(default)]
-    #[schema(required)]
-    pub view_mode: ViewMode,
 }
 
 impl Default for ShareOptions {
@@ -58,7 +53,6 @@ impl Default for ShareOptions {
             show_zoom_controls: true,
             show_export_button: true,
             show_minimap: false,
-            view_mode: ViewMode::default(),
         }
     }
 }

@@ -24,7 +24,6 @@ import { buildTopologyParentIndex } from '../topology-parent-index';
 import { ENTITY_COLLECTIONS } from '../resolvers';
 import { noteRunDetail } from '../diagnostics';
 import { effectiveElementSort } from '../element-sort';
-import { effectiveViewMode } from '../view-mode';
 
 /**
  * Build a stable signature of everything the active view inlines on its
@@ -313,7 +312,7 @@ function getStructureKey(topo: RenderableTopology, view: string): string {
 		elementSort === 'Automatic'
 			? nodeKeys.sort().join(',')
 			: `${elementSort}:${nodeKeys.join(',')}`;
-	const inlineKey = `${getInlineContentKey(topo, view)}~${effectiveViewMode(get(topologyOptions).local, view)}`;
+	const inlineKey = getInlineContentKey(topo, view);
 	const hide = getHideStateKey(view);
 	// Segments: nodes | inline | resizing-hide | structural-hide. `prepare` compares the middle two
 	// to decide whether measured sizes survive — see the cache handling in `prepareTopologyData`.

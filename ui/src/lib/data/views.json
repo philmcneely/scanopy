@@ -801,19 +801,13 @@
         ],
         "element_marks": [
           {
-            "channel": "Title",
-            "entity": "Host",
-            "filter_type": "Virtualization",
-            "value": "Virtualized"
-          },
-          {
             "channel": "Corner",
             "entity": "Host",
             "filter_type": "Virtualization",
             "value": "Virtualized"
           },
           {
-            "channel": "Title",
+            "channel": "Corner",
             "entity": "Host",
             "filter_type": "Virtualization",
             "value": "Containerized"
@@ -822,40 +816,28 @@
             "channel": "Corner",
             "entity": "Host",
             "filter_type": "Virtualization",
-            "value": "Containerized"
-          },
-          {
-            "channel": "Title",
-            "entity": "Host",
-            "filter_type": "Virtualization",
             "value": "NetworkIdentity"
           },
           {
-            "channel": "Corner",
-            "entity": "Host",
-            "filter_type": "Virtualization",
-            "value": "NetworkIdentity"
-          },
-          {
-            "channel": "CornerDot",
+            "channel": "CornerRing",
             "entity": "Host",
             "filter_type": "GuestState",
             "value": "Running"
           },
           {
-            "channel": "CornerDot",
+            "channel": "CornerRing",
             "entity": "Host",
             "filter_type": "GuestState",
             "value": "Paused"
           },
           {
-            "channel": "CornerDot",
+            "channel": "CornerRing",
             "entity": "Host",
             "filter_type": "GuestState",
             "value": "Restarting"
           },
           {
-            "channel": "CornerDot",
+            "channel": "CornerRing",
             "entity": "Host",
             "filter_type": "GuestState",
             "value": "Stopped"

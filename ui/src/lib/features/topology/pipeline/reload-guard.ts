@@ -28,8 +28,6 @@ export interface ReloadInputs {
 	/** Manager boxes on host cards that are open (`inlineGroupKey`). Changes card height. */
 	expandedInlineGroups: Set<string>;
 	bundleEdges: boolean;
-	/** The view mode the run drew in (`effectiveViewMode`). Changes every card's width and height. */
-	viewMode: string;
 	hiddenEdgeTypes: string;
 	tagHidden: Set<string>;
 	/**
@@ -91,7 +89,6 @@ export function reloadInputsEqual(previous: ReloadInputs, next: ReloadInputs): b
 export function reloadInputsDiff(previous: ReloadInputs, next: ReloadInputs): string[] {
 	const changed: string[] = [];
 	if (previous.bundleEdges !== next.bundleEdges) changed.push('bundleEdges');
-	if (previous.viewMode !== next.viewMode) changed.push('viewMode');
 	if (previous.hiddenEdgeTypes !== next.hiddenEdgeTypes) changed.push('hiddenEdgeTypes');
 	if (!sameGroup(previous.collapsed, next.collapsed)) changed.push('collapsed');
 	if (!sameGroup(previous.expandedBundles, next.expandedBundles)) changed.push('expandedBundles');
@@ -113,7 +110,6 @@ export function snapshotReloadInputs(inputs: ReloadInputs): ReloadInputs {
 		expandedPorts: new Set(inputs.expandedPorts),
 		expandedInlineGroups: new Set(inputs.expandedInlineGroups),
 		bundleEdges: inputs.bundleEdges,
-		viewMode: inputs.viewMode,
 		hiddenEdgeTypes: inputs.hiddenEdgeTypes,
 		tagHidden: new Set(inputs.tagHidden),
 		hiddenEntities: new Set(inputs.hiddenEntities),

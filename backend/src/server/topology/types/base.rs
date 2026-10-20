@@ -3,7 +3,7 @@ use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::shared::entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants};
 use crate::server::topology::types::edges::{EdgeHandle, EdgeTypeDiscriminants};
 use crate::server::topology::types::grouping::{
-    ContainerRule, ElementRule, ElementSort, GraphRule, IdentifiedRule, ViewMode,
+    ContainerRule, ElementRule, ElementSort, GraphRule, IdentifiedRule,
 };
 use crate::server::topology::types::layout::{Ixy, Uxy};
 use crate::server::topology::types::views::{
@@ -192,8 +192,6 @@ pub struct TopologyLocalOptions {
     /// Collapse parallel edges between the same pair of nodes into one.
     #[serde(default = "default_true")]
     pub bundle_edges: bool,
-    /// How element cards draw. Views where the mode does not apply draw `Detailed`.
-    pub view_mode: ViewMode,
 }
 
 fn default_true() -> bool {
@@ -323,7 +321,6 @@ impl Default for TopologyLocalOptions {
             tag_filter: HashMap::new(),
             show_minimap: true,
             bundle_edges: true,
-            view_mode: ViewMode::default(),
         }
     }
 }

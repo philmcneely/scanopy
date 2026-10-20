@@ -3,7 +3,7 @@ import type { LayoutGraph } from '../layout/layout-graph';
 import type { RenderableTopology, TopologyNode } from '../types/base';
 import type { XY } from './types';
 import { getTopologyIndex } from '../entity-index';
-import type { ViewMode } from '../view-mode';
+import { entities } from '$lib/shared/stores/metadata';
 
 export interface BuildFlowNodesParams {
 	visibleNodes: TopologyNode[];
@@ -28,8 +28,6 @@ export interface BuildFlowNodesParams {
 	 * declares all eight as before.
 	 */
 	usedHandles?: Map<string, Set<string>> | null;
-	/** The view mode this view draws in (`effectiveViewMode`). `Icons` builds narrower element cards. */
-	viewMode?: ViewMode;
 }
 
 /**
@@ -47,15 +45,23 @@ export const ELEMENT_HANDLE_SIZE_PX = 8;
 /** Shared empty set for nodes no edge names, so each such node does not allocate its own. */
 const EMPTY_HANDLE_SET: ReadonlySet<string> = new Set<string>();
 
-/** Literal width every element card is built at, and the fallback for handle geometry. */
+/** Width of a detailed element card (a port), and the fallback for handle geometry. */
 export const ELEMENT_WIDTH_PX = 250;
 
-/** Width of an element card in the `Icons` view mode. */
+/** Width of an icon card. */
 export const ICON_ELEMENT_WIDTH_PX = 120;
 
-/** The width an element card is built at in a view mode. */
-export function elementWidthPx(viewMode: ViewMode): number {
-	return viewMode === 'Icons' ? ICON_ELEMENT_WIDTH_PX : ELEMENT_WIDTH_PX;
+/**
+ * The width an element card is built at. An element whose entity type draws a glyph (a device or
+ * software, by the `glyph` metadata) is an icon card; one that doesn't (a port) keeps the
+ * detailed card, as `buildElementRender` does.
+ */
+export function elementWidthPx(node: TopologyNode): number {
+	const glyph =
+		node.node_type === 'Element'
+			? (entities.getMetadata(node.element_type) as { glyph?: string } | null)?.glyph
+			: null;
+	return glyph ? ICON_ELEMENT_WIDTH_PX : ELEMENT_WIDTH_PX;
 }
 
 /** Horizontal padding on an element card's text, mirroring `px-2` in `ElementNode.svelte`. */
@@ -191,8 +197,7 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 		infraRuleId,
 		editMode,
 		sizeHints,
-		usedHandles,
-		viewMode = 'Detailed'
+		usedHandles
 	} = params;
 
 	const currentPositions = new Map(liveNodes.map((n) => [n.id, n.position]));
@@ -223,7 +228,7 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 		let measurementPlacement = false;
 
 		const isElement = node.node_type === 'Element';
-		const elementWidth = elementWidthPx(viewMode);
+		const elementWidth = elementWidthPx(node);
 
 		// Container size from layout graph (collapsed = metadata size, expanded = ELK size)
 		const containerSize =
