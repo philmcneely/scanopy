@@ -39,7 +39,6 @@
 		common_collapse,
 		common_containers,
 		common_expand,
-		common_plusCount,
 		topology_hideOpenPorts,
 		topology_openPortsSummary
 	} from '$lib/paraglide/messages';
@@ -396,7 +395,7 @@
 			<!-- Icon card. The glyph comes first in DOM order: the diagram exports take each
 			     node's first icon as its shape icon. -->
 			<div
-				class="flex flex-col items-center gap-1.5 px-2 py-2"
+				class="group/icon-card flex flex-col items-center gap-1.5 px-2 py-2"
 				use:tooltip
 				data-tooltip={iconCard.title}
 			>
@@ -406,19 +405,19 @@
 					{:else}
 						<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
 					{/if}
-					{#if iconCard.badgeDefinition}
-						<!-- Round like every software glyph: this device, running this. -->
-						<span class="absolute -bottom-1 -right-1">
-							<SoftwareGlyph definition={iconCard.badgeDefinition} />
+					{#if iconCard.badgeDefinitions.length > 0}
+						<!-- Round like every software glyph: this device, running these. Stacked at the
+						     tile's corner, first on top; hovering the card fans them out. -->
+						<span class="absolute -bottom-1 left-[calc(100%-16px)] h-5">
+							{#each iconCard.badgeDefinitions as definition, i (definition)}
+								<span
+									class="absolute top-0 left-[calc(var(--i)*6px)] transition-[left] duration-150 group-hover/icon-card:left-[calc(var(--i)*22px)]"
+									style="--i: {i}; z-index: {iconCard.badgeDefinitions.length - i};"
+								>
+									<SoftwareGlyph {definition} />
+								</span>
+							{/each}
 						</span>
-						{#if iconCard.badgeMore > 0}
-							<!-- More services run here than the badge shows; the tooltip lists them. -->
-							<span
-								class="text-secondary absolute -bottom-1 left-full ml-1 whitespace-nowrap text-[10px] font-medium leading-5"
-							>
-								{common_plusCount({ count: String(iconCard.badgeMore) })}
-							</span>
-						{/if}
 					{/if}
 				</div>
 				{#if staleTag}

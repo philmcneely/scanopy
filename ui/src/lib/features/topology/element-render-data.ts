@@ -98,12 +98,11 @@ export interface ElementRenderResult {
 export interface ElementIconCard {
 	glyph: EntityGlyph;
 	/**
-	 * Definition whose logo badges a device glyph: a service running on what the card stands for,
-	 * the one that decided the device type when it is among them.
+	 * The services running on what the card stands for, as definitions for a stack of round badges
+	 * on a device glyph: one per definition, the one that decided the device type first, then those
+	 * with a logo. At most `BADGE_STACK_MAX`; the tooltip lists every service.
 	 */
-	badgeDefinition: string | null;
-	/** How many more services run there beyond the badge's, drawn as "+N". */
-	badgeMore: number;
+	badgeDefinitions: string[];
 	label: string;
 	/** Hover text: labelled rows for what the card no longer shows, then its services. */
 	title: string;
@@ -207,6 +206,9 @@ export function buildElementRender(inputs: ElementRenderInputs): ElementRenderRe
 	};
 }
 
+/** The most service badges a device glyph stacks; more would fan wider than the card. */
+const BADGE_STACK_MAX = 6;
+
 /**
  * An icon card's hover text: one labelled row per value present ("IP Address: 10.0.1.1"), then a
  * headed list. Plain text with line breaks, which the shared tooltip action keeps.
@@ -242,8 +244,7 @@ function buildIconCard(
 		if (!service) return null;
 		return {
 			glyph,
-			badgeDefinition: null,
-			badgeMore: 0,
+			badgeDefinitions: [],
 			label: service.name,
 			title: tooltipText([
 				[common_service(), service.name],
@@ -254,23 +255,27 @@ function buildIconCard(
 
 	if (!host) return null;
 	const deviceType = glyph.deviceType;
-	// The badge is what runs on the thing the card stands for: the services bound to an address,
+	// The badges are what runs on the thing the card stands for: the services bound to an address,
 	// or a host's own services, the same list the detailed card draws. The service that decided
-	// the device type leads when it is among them, so the badge agrees with the glyph.
+	// the device type leads, so the top badge agrees with the glyph; logos come before glyphs.
 	const meta = (s: Service) =>
 		serviceDefinitions.getMetadata(s.service_definition) as {
 			device_type?: string | null;
 			has_logo?: boolean;
 		} | null;
-	const withLogo = data.services.filter((s) => meta(s)?.has_logo);
-	const badge = withLogo.find((s) => meta(s)?.device_type === deviceType) ?? withLogo[0];
+	const rank = (s: Service) =>
+		meta(s)?.device_type === deviceType ? 0 : meta(s)?.has_logo ? 1 : 2;
+	const badgeDefinitions = [
+		...new Set(
+			[...data.services].sort((a, b) => rank(a) - rank(b)).map((s) => s.service_definition)
+		)
+	].slice(0, BADGE_STACK_MAX);
 	const hostName = data.headerText ?? hostDisplayName(host);
 	// The container subnet's placeholder address names nothing, so that card keeps the host name.
 	const address = data.subtitleText ? resolved.ipAddress?.ip_address : null;
 	return {
 		glyph,
-		badgeDefinition: badge?.service_definition ?? null,
-		badgeMore: badge ? data.services.length - 1 : 0,
+		badgeDefinitions,
 		label: address ?? hostName,
 		title: tooltipText(
 			[

@@ -399,7 +399,6 @@
 	"common_moreActions": "More Actions",
 	"common_moreItems": "+{count} more",
 	"common_moreTags": "+{count} tags",
-	"common_plusCount": "+{count}",
 	"common_moveColumnDown": "Move {column} down",
 	"common_moveColumnUp": "Move {column} up",
 	"common_msi": "MSI",
