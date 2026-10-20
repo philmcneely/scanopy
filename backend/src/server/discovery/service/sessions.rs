@@ -71,11 +71,6 @@ impl DiscoveryService {
                 session_last_updated.remove(session_id);
                 discovery_sessions.retain(|_, sid| sid != session_id);
             }
-            tracing::debug!(
-                daemon_id = %daemon_id,
-                session_count = session_ids.len(),
-                "Cleared all sessions for daemon"
-            );
         }
 
         daemon_pull_cancellations.remove(daemon_id);

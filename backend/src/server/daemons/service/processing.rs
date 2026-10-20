@@ -93,17 +93,13 @@ impl DaemonService {
         reported: Option<DaemonOs>,
     ) -> Result<(), ApiError> {
         match daemon.base.accept_reported_os(reported) {
-            // The caller's update logs the recorded OS.
-            Ok(ReportedOsOutcome::Unchanged | ReportedOsOutcome::Recorded) => Ok(()),
-            Ok(ReportedOsOutcome::Adopted { picked }) => {
-                tracing::info!(
-                    daemon_id = %daemon.id,
-                    picked = ?picked,
-                    reported = ?daemon.base.os,
-                    "Daemon reported its OS for the first time and it differs from the one picked at creation; recording the reported OS"
-                );
-                Ok(())
-            }
+            // The caller's update logs the recorded OS, and the OS it adopts in place of the one picked at creation,
+            // as a change from one to the other.
+            Ok(
+                ReportedOsOutcome::Unchanged
+                | ReportedOsOutcome::Recorded
+                | ReportedOsOutcome::Adopted { .. },
+            ) => Ok(()),
             Err(mismatch) => {
                 tracing::warn!(
                     daemon_id = %daemon.id,
@@ -202,8 +198,6 @@ impl DaemonService {
 
         self.update(&mut daemon, auth, UpdateReason::DaemonStarted)
             .await?;
-
-        tracing::info!(daemon_id = %daemon_id, version = %version, "Daemon startup");
 
         // Migrate legacy discoveries if daemon just upgraded to unified-capable version
         if was_pre_unified
@@ -305,8 +299,6 @@ impl DaemonService {
             return Err(ApiError::demo_mode_blocked());
         }
 
-        tracing::info!("{:?}", request);
-
         // For a 1:1 provisioned key the auth layer resolved the daemon from the key,
         // so that is the authoritative id — the client-sent request.daemon_id is
         // untrusted and, for a freshly provisioned daemon, not yet known. For a legacy
@@ -344,12 +336,6 @@ impl DaemonService {
 
         // Check if daemon already exists (re-registration scenario)
         if let Some(mut existing_daemon) = self.get_by_id(&effective_daemon_id).await? {
-            tracing::info!(
-                daemon_id = %effective_daemon_id,
-                host_id = %existing_daemon.base.host_id,
-                "Daemon already registered, updating registration"
-            );
-
             // Update daemon with current info
             // NOTE: We do NOT update URL from registration request.
             // URL is only set via admin provisioning for ServerPoll daemons.
@@ -836,13 +822,7 @@ impl DaemonService {
                 let neighbours = host_service
                     .neighbour_bearing_interface_count(update.site_id)
                     .await;
-                tracing::warn!(
-                    session_id = %update.session_id,
-                    site_id = %update.site_id,
-                    budget_seconds = RESOLUTION_BUDGET.as_secs(),
-                    neighbours,
-                    "Neighbour resolution exceeded its budget; finalizing the session without it"
-                );
+                // The warning is published with the session, and logged at WARN from there.
                 update
                     .warnings
                     .push(DiscoveryWarning::NeighbourResolutionIncomplete {
@@ -883,13 +863,6 @@ impl DaemonService {
                 let interfaces = host_service
                     .unresolved_fdb_interface_count(update.site_id)
                     .await;
-                tracing::warn!(
-                    session_id = %update.session_id,
-                    site_id = %update.site_id,
-                    budget_seconds = RESOLUTION_BUDGET.as_secs(),
-                    interfaces,
-                    "FDB link resolution exceeded its budget; finalizing the session without it"
-                );
                 update
                     .warnings
                     .push(DiscoveryWarning::FdbResolutionIncomplete {
@@ -1379,8 +1352,7 @@ impl DaemonService {
             )
             .await?;
 
-        // Delete old discoveries
-        let count = discoveries.len();
+        // Delete old discoveries; each delete's event names it superseded.
         for old in &discoveries {
             if let Err(e) = self
                 .discovery_service
@@ -1398,14 +1370,6 @@ impl DaemonService {
                 );
             }
         }
-
-        tracing::info!(
-            daemon_id = %daemon_id,
-            count = count,
-            "Migrated {} legacy discoveries to unified for daemon {}",
-            count,
-            daemon_id
-        );
 
         Ok(())
     }

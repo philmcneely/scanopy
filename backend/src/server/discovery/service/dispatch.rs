@@ -371,8 +371,6 @@ impl DiscoveryService {
             update.discovery_id = self.lookup_discovery_id(&update.session_id).await;
         }
 
-        tracing::debug!("Updated session {:?}", update);
-
         self.record_update(update, state::apply_update).await;
     }
 

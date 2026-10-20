@@ -1063,12 +1063,6 @@ async fn receive_work_request(
     }
 
     // Use processor for shared heartbeat logic
-    tracing::debug!(
-        daemon_id = %daemon_id,
-        ready_for_work = status.ready_for_work,
-        interfaced_subnet_ids = ?status.capabilities.interfaced_subnet_ids,
-        "DaemonPoll work request received"
-    );
     state
         .services
         .daemon_service

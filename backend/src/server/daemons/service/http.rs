@@ -86,7 +86,6 @@ impl DaemonService {
         path: &str,
     ) -> Result<T> {
         let url = format!("{}{}", daemon.base.url, path);
-        let daemon_id = daemon.id;
 
         // SSRF guard: in cloud mode, refuse to call a daemon URL that resolves
         // to an internal address (no-op for self-hosted LAN deployments).
@@ -125,15 +124,6 @@ impl DaemonService {
         })
         .retry(RetryPolicy::Standard.backoff())
         .when(should_retry_daemon_http_error)
-        .notify(|e, dur| {
-            tracing::warn!(
-                daemon_id = %daemon_id,
-                path = %path,
-                "Request failed, retrying in {:?}: {}",
-                dur,
-                e
-            );
-        })
         .await
     }
 
@@ -152,7 +142,6 @@ impl DaemonService {
         policy: RetryPolicy,
     ) -> Result<Option<T>> {
         let url = format!("{}{}", daemon.base.url, path);
-        let daemon_id = daemon.id;
         let mut body_json = serde_json::to_value(body)?;
         let version = daemon.base.version.as_ref().map(|v| v.to_string());
         if crate::server::daemons::r#impl::version::speaks_network_wire(version.as_deref()) {
@@ -204,15 +193,6 @@ impl DaemonService {
         })
         .retry(policy.backoff())
         .when(should_retry_daemon_http_error)
-        .notify(|e, dur| {
-            tracing::warn!(
-                daemon_id = %daemon_id,
-                path = %path,
-                "Request failed, retrying in {:?}: {}",
-                dur,
-                e
-            );
-        })
         .await
     }
 
@@ -273,13 +253,6 @@ impl DaemonService {
                 .await?;
         }
 
-        tracing::debug!(
-            daemon_id = %daemon.id,
-            hosts_count = created_entities.hosts.len(),
-            subnets_count = created_entities.subnets.len(),
-            "Sent created entities to ServerPoll daemon"
-        );
-
         Ok(())
     }
 
@@ -294,12 +267,6 @@ impl DaemonService {
         request: DaemonDiscoveryRequest,
     ) -> Result<(), Error> {
         Self::warn_if_insecure_daemon_url(&daemon.base.url);
-
-        tracing::info!(
-            daemon_id = %daemon.id,
-            session_id = %request.session_id,
-            "Sending discovery request to daemon"
-        );
 
         // Unified: serialize with credential_mappings via with_exposed_credentials().
         // Legacy: serialize with SNMP inline via with_exposed_snmp().
@@ -349,12 +316,6 @@ impl DaemonService {
                 RetryPolicy::Brief,
             )
             .await?;
-
-        tracing::info!(
-            daemon_id = %daemon.id,
-            session_id = %session_id,
-            "Discovery cancellation sent successfully"
-        );
 
         Ok(())
     }
