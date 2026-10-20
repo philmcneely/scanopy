@@ -14,9 +14,12 @@
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import IconPicker from '$lib/shared/components/forms/IconPicker.svelte';
-	import TagGroupSelect from './TagGroupSelect.svelte';
-	import { useCreateTagGroupMutation, useTagGroupsQuery } from '../queries';
-	import { createDefaultTagGroup } from '../types/base';
+	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
+	import {
+		NO_TAG_GROUP,
+		TagGroupOptionDisplay
+	} from '$lib/shared/components/forms/selection/display/TagGroupDisplay.svelte';
+	import { useTagGroupsQuery } from '../queries';
 	import tagIconsFixture from '$lib/data/tag-icons.json';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
@@ -65,7 +68,6 @@
 
 	const tagGroupsQuery = useTagGroupsQuery();
 	let tagGroups = $derived(tagGroupsQuery.data ?? []);
-	const createTagGroupMutation = useCreateTagGroupMutation();
 	const tagIconNames: string[] = tagIconsFixture;
 
 	let loading = $state(false);
@@ -125,14 +127,8 @@
 			handleIconChange(null);
 	}
 
-	// A group typed into the picker is created, then chosen.
-	async function handleGroupCreate(name: string) {
-		if (!organization) return;
-		const group = createDefaultTagGroup(organization.id);
-		group.name = name;
-		const created = await createTagGroupMutation.mutateAsync(group);
-		handleGroupChange(created.id);
-	}
+	// The None row, which clears the group, is offered only while there is a group to clear.
+	let groupOptions = $derived(selectedGroupId ? [null, ...tagGroups] : tagGroups);
 
 	function handleIconChange(icon: string | null) {
 		selectedIcon = icon;
@@ -256,22 +252,16 @@
 					<!-- Tag group. Held in $state: choosing Application clears the icon, a
 					     programmatic write TanStack Form would not re-render. -->
 					<form.Field name="tag_group_id">
-						<div class="space-y-2">
-							<label for="tag_group" class="text-secondary block text-sm font-medium">
-								{tags_tagGroup()}
-							</label>
-							<TagGroupSelect
-								id="tag_group"
-								value={selectedGroupId}
-								groups={tagGroups}
-								placeholder={tags_tagGroupPlaceholder()}
-								onChange={handleGroupChange}
-								onCreate={handleGroupCreate}
-							/>
-							<p class="text-tertiary text-xs">
-								{selectedGroup?.description || tags_tagGroupHelp()}
-							</p>
-						</div>
+						<RichSelect
+							label={tags_tagGroup()}
+							selectedValue={selectedGroupId}
+							options={groupOptions}
+							displayComponent={TagGroupOptionDisplay}
+							placeholder={tags_tagGroupPlaceholder()}
+							helpText={selectedGroup?.description || tags_tagGroupHelp()}
+							showSearch
+							onSelect={(id) => handleGroupChange(id === NO_TAG_GROUP ? null : id)}
+						/>
 					</form.Field>
 
 					<!-- Icon and colour side by side: the icon grid is tall, and stacked it pushed the
