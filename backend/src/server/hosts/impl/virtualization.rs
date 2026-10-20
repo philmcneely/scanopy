@@ -104,6 +104,17 @@ impl ContainerNetworkType {
 }
 
 impl HostVirtualization {
+    /// Whether the guest was running at the last scan, for the guests whose manager reports it:
+    /// Proxmox guests and container hosts. `None` for vCenter and ESXi guests, whose integrations
+    /// record no run state, and for network identities, which are not guests.
+    pub fn guest_state(&self) -> Option<GuestState> {
+        match self {
+            Self::Proxmox(proxmox) => Some(proxmox.state),
+            Self::Docker(container) | Self::Podman(container) => Some(container.state),
+            Self::VCenter(_) | Self::ESXi(_) | Self::NetworkIdentity(_) => None,
+        }
+    }
+
     /// Whether this host is a container under a runtime, rather than a machine.
     pub fn is_container(&self) -> bool {
         match self {
@@ -434,6 +445,14 @@ impl HasFilterValues for Host {
             self.base.virtualization_metadata.as_ref(),
         );
         values.insert(MetadataFilterType::Virtualization, state.id().to_string());
+        if let Some(guest_state) = self
+            .base
+            .virtualization_metadata
+            .as_ref()
+            .and_then(HostVirtualization::guest_state)
+        {
+            values.insert(MetadataFilterType::GuestState, guest_state.id().to_string());
+        }
         values
     }
 }

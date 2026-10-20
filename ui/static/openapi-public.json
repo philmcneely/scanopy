@@ -24455,7 +24455,8 @@
                       "Virtualization",
                       "LinkState",
                       "Staleness",
-                      "OperStatus"
+                      "OperStatus",
+                      "GuestState"
                     ]
                   }
                 },
@@ -37093,7 +37094,9 @@
         "enum": [
           "Title",
           "StatusDot",
-          "StateFill"
+          "StateFill",
+          "Corner",
+          "CornerDot"
         ]
       },
       "MatchConfidence": {
@@ -37339,7 +37342,8 @@
           "Virtualization",
           "LinkState",
           "Staleness",
-          "OperStatus"
+          "OperStatus",
+          "GuestState"
         ]
       },
       "MetadataFixture": {
@@ -43813,7 +43817,8 @@
                   "Virtualization",
                   "LinkState",
                   "Staleness",
-                  "OperStatus"
+                  "OperStatus",
+                  "GuestState"
                 ]
               }
             },
@@ -43966,7 +43971,8 @@
                     "Virtualization",
                     "LinkState",
                     "Staleness",
-                    "OperStatus"
+                    "OperStatus",
+                    "GuestState"
                   ]
                 }
               }
@@ -43998,7 +44004,8 @@
                     "Virtualization",
                     "LinkState",
                     "Staleness",
-                    "OperStatus"
+                    "OperStatus",
+                    "GuestState"
                   ]
                 }
               }
@@ -44325,7 +44332,8 @@
                     "Virtualization",
                     "LinkState",
                     "Staleness",
-                    "OperStatus"
+                    "OperStatus",
+                    "GuestState"
                   ]
                 }
               },
@@ -44394,7 +44402,8 @@
                     "Virtualization",
                     "LinkState",
                     "Staleness",
-                    "OperStatus"
+                    "OperStatus",
+                    "GuestState"
                   ]
                 }
               }
@@ -45273,7 +45282,8 @@
                   "Virtualization",
                   "LinkState",
                   "Staleness",
-                  "OperStatus"
+                  "OperStatus",
+                  "GuestState"
                 ]
               }
             },

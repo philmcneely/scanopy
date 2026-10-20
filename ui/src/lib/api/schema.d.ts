@@ -12184,7 +12184,7 @@ export interface components {
          * @description Where on an element card a mark paints.
          * @enum {string}
          */
-        MarkChannel: "Title" | "StatusDot" | "StateFill";
+        MarkChannel: "Title" | "StatusDot" | "StateFill" | "Corner" | "CornerDot";
         /** @enum {string} */
         MatchConfidence: "NotApplicable" | "Low" | "Medium" | "High" | "Certain";
         MatchDetails: {
@@ -12288,7 +12288,7 @@ export interface components {
          *     here + a `HasFilterValues` impl on the relevant entity.
          * @enum {string}
          */
-        MetadataFilterType: "Category" | "Virtualization" | "LinkState" | "Staleness" | "OperStatus";
+        MetadataFilterType: "Category" | "Virtualization" | "LinkState" | "Staleness" | "OperStatus" | "GuestState";
         /**
          * @description A metadata fixture whose entries name an enum-valued field, so the UI shows the fixture's
          *     name for the raw value. Serializes to the fixture key.

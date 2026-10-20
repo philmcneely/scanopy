@@ -31,7 +31,7 @@
 	} from '../../interactions';
 	import { toggleInlineGroup } from '../../collapse';
 	import * as sharedStores from '../../reactive-stores.svelte';
-	import { createColorHelper } from '$lib/shared/utils/styling';
+	import { createColorHelper, createIconComponent } from '$lib/shared/utils/styling';
 	import { getContext } from 'svelte';
 	import type { Port } from '$lib/features/hosts/types/base';
 	import type { Node, Edge } from '@xyflow/svelte';
@@ -169,7 +169,7 @@
 	let marks = $derived(elementRender?.marks ?? {});
 	let stateFill = $derived(markedStateFill(marks));
 	let titleColorClass = $derived(
-		marks.Title ? createColorHelper(marks.Title).text : 'text-tertiary'
+		marks.Title ? createColorHelper(marks.Title.color).text : 'text-tertiary'
 	);
 
 	// Called once per service binding while rendering, so this must not scan
@@ -406,13 +406,52 @@
 				use:tooltip
 				data-tooltip={iconCard.title}
 			>
-				<!-- mb-1: the badge centred on the tile's corner overhangs it by half a badge, more than
-				     the card's gap, so it would touch the label. On every icon card, so heights match. -->
-				<div class="relative mb-1">
+				<!-- my-1: the service badges (bottom-right) and the virtualization marker (top-left) are
+				     centred on the tile's corners and overhang it by half their size, more than the card's
+				     gap and padding. On every icon card, so heights match. -->
+				<div class="relative my-1">
 					{#if iconCard.glyph.type === 'device'}
 						<DeviceGlyph deviceType={iconCard.glyph.deviceType} size="lg" />
 					{:else}
 						<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
+					{/if}
+					{#if marks.Corner}
+						<!-- How the host is virtualized, from the view's Corner mark: the value's icon in
+						     its colour, centred on the tile's top-left corner. The dot on its edge is the
+						     guest's run state (CornerDot). Hovering the card expands the marker rightwards
+						     to name the run state, or the virtualization when there is none; its width is
+						     capped to stay inside the card. Both values are the filter chips' own. -->
+						{@const marker = marks.Corner}
+						{@const runState = marks.CornerDot}
+						{@const MarkerIcon = createIconComponent(marker.icon ?? null)}
+						{@const RunStateIcon = runState ? createIconComponent(runState.icon ?? null) : null}
+						<span
+							class="absolute -left-2.5 -top-2.5 z-10 flex h-5 items-center rounded-full border border-gray-300 dark:border-gray-600"
+							style="background: var(--color-topology-node-bg);"
+						>
+							<span class="relative flex h-5 w-5 flex-shrink-0 items-center justify-center">
+								<MarkerIcon class="h-3.5 w-3.5 {createColorHelper(marker.color).icon}" />
+								{#if runState}
+									<span
+										class="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full"
+										style="background: {createColorHelper(runState.color)
+											.rgb}; box-shadow: 0 0 0 1px var(--color-topology-node-bg);"
+									></span>
+								{/if}
+							</span>
+							<span
+								class="text-primary flex max-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[64px] group-hover/icon-card:pr-2"
+							>
+								{#if runState && RunStateIcon}
+									<RunStateIcon
+										class="h-3 w-3 flex-shrink-0 {createColorHelper(runState.color).icon}"
+									/>
+									{runState.label}
+								{:else}
+									{marker.label}
+								{/if}
+							</span>
+						</span>
 					{/if}
 					{#if iconCard.badgeDefinitions.length > 0}
 						<!-- Round like every software glyph: this device, running these. The top badge is
@@ -449,9 +488,7 @@
 				{/if}
 				<div
 					data-entity-header
-					class="line-clamp-2 w-full break-words text-center text-xs font-medium leading-tight {marks.Title
-						? titleColorClass
-						: 'text-primary'}"
+					class="text-primary line-clamp-2 w-full break-words text-center text-xs font-medium leading-tight"
 				>
 					{iconCard.label}
 				</div>

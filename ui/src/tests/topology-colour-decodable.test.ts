@@ -6,7 +6,7 @@ import type { components } from '$lib/api/schema';
 import type { Site } from '$lib/features/sites/types';
 import type { RenderableTopology, TopologyNode } from '$lib/features/topology/types/base';
 import { buildElementRender } from '$lib/features/topology/element-render-data';
-import { type MarkChannel } from '$lib/features/topology/element-marks';
+import { type MarkChannel, type MarkValue } from '$lib/features/topology/element-marks';
 import { viewElementConfig } from '$lib/features/topology/view-filters';
 import { cardEntityForFilter } from '$lib/features/topology/resolvers';
 import { matchesHoveredMetadata } from '$lib/features/topology/interactions';
@@ -216,7 +216,8 @@ describe('topology card colours are decodable in their view', () => {
 						expandedInlineGroups: new Set(),
 						sites: [SITE]
 					});
-					for (const [channel, color] of Object.entries(result.marks) as [MarkChannel, Color][]) {
+					for (const [channel, value] of Object.entries(result.marks) as [MarkChannel, MarkValue][]) {
+						const color = value.color as Color;
 						painted.add(channel);
 						expect(
 							decodingChips(config, node, topology, color),
