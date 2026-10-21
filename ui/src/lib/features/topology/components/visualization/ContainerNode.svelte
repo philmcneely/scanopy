@@ -24,6 +24,8 @@
 	import type { RenderableTopology, TopologyNode } from '../../types/base';
 	import { containerEntity, resolveContainerNode } from '../../resolvers';
 	import { entityGlyph } from '../../entity-glyph';
+	import { entityTooltip } from '../../element-render-data';
+	import type { TooltipContent } from '$lib/shared/actions/tooltip';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { getFreshnessTag } from '$lib/shared/utils/freshness';
 	import { entities } from '$lib/shared/stores/metadata';
@@ -181,6 +183,21 @@
 
 	// Title text: from node header (set by backend graph builder)
 	let headerText = $derived((data as TopologyNode).header ?? '');
+
+	// Hover text for the header: the entity the container stands for, through the same tooltip
+	// its card would show; a grouping container with no entity names itself and what it holds.
+	let headerTooltip: TooltipContent | null = $derived.by(() => {
+		if (topology && containerSubject) {
+			return entityTooltip(containerSubject.entityType, containerSubject.entity, {
+				topology,
+				view: $activeView,
+				sites: sitesQuery.data ?? [],
+				name: headerText || undefined
+			});
+		}
+		if (!headerText) return null;
+		return { title: headerText, sections: childSummary ? [{ text: childSummary }] : [] };
+	});
 
 	/**
 	 * What this container draws — see `nodeDetail`.
@@ -466,6 +483,7 @@
 			{groupLabels}
 			{childCount}
 			{childSummary}
+			tooltip={headerTooltip}
 			{staleTag}
 			onToggleCollapse={handleChevronClick}
 		/>
@@ -486,6 +504,7 @@
 			{groupLabels}
 			{childCount}
 			{childSummary}
+			tooltip={headerTooltip}
 			{staleTag}
 			onToggleCollapse={handleChevronClick}
 		/>
@@ -525,6 +544,7 @@
 				{groupLabels}
 				{childCount}
 				{childSummary}
+				tooltip={headerTooltip}
 				countOnly={isInfraRule}
 				onToggleCollapse={handleChevronClick}
 				{searchMatchCount}
@@ -544,6 +564,7 @@
 				{groupLabels}
 				{childCount}
 				{childSummary}
+				tooltip={headerTooltip}
 				{ungroupedSummary}
 				onToggleCollapse={handleChevronClick}
 				subgroupSummaries={resolvedSubgroups}

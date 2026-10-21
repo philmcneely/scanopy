@@ -5,6 +5,7 @@ import type { RenderableTopology, TopologyNode } from '$lib/features/topology/ty
 import type { TooltipContent } from '$lib/shared/actions/tooltip';
 import {
 	buildElementRender,
+	entityTooltip,
 	hostTooltip,
 	type ElementRenderInputs
 } from '$lib/features/topology/element-render-data';
@@ -16,7 +17,7 @@ import {
 	ICON_ELEMENT_WIDTH_PX
 } from '$lib/features/topology/pipeline/build-flow-nodes';
 import { formatBitsPerSecond, formatPort } from '$lib/shared/utils/formatting';
-import { hostVirtualizations } from '$lib/shared/stores/metadata';
+import { deviceTypes, hostVirtualizations } from '$lib/shared/stores/metadata';
 
 /**
  * What an icon card carries now that it is the only card: a port draws as one row with its oper
@@ -193,11 +194,12 @@ describe('facts the detailed card printed reach the tooltip', () => {
 		expect(rowValues(result.iconCard!.tooltip)).toContain('mgmt');
 	});
 
-	it('lists each service with the ports it listens on at this address only', () => {
+	it('lists each service with the ports it listens on at this address only, set apart', () => {
 		const items = listItems(render(addressNode, 'L3Logical').iconCard!.tooltip);
-		const web = items.find((i) => i.startsWith('web'));
-		expect(web).toContain(formatPort({ number: 80, protocol: 'Tcp' } as never));
-		expect(web).not.toContain(formatPort({ number: 8080, protocol: 'Tcp' } as never));
+		const web = items.find((i) => typeof i !== 'string' && i.text === 'web');
+		const detail = typeof web === 'string' ? undefined : web?.detail;
+		expect(detail).toContain(formatPort({ number: 80, protocol: 'Tcp' } as never));
+		expect(detail).not.toContain(formatPort({ number: 8080, protocol: 'Tcp' } as never));
 	});
 
 	it("gives a network identity's virtualization a row", () => {
@@ -210,6 +212,24 @@ describe('facts the detailed card printed reach the tooltip', () => {
 		expect(rowValues(hostTooltip(identity, { services: [] }))).toContain(
 			hostVirtualizations.getName('NetworkIdentity')
 		);
+	});
+});
+
+describe('a container tooltip comes from the entity it stands for', () => {
+	const ctx = (view: string) => ({ topology: buildTopology(), view, sites: [SITE] });
+
+	it("shows a subnet's summary fields", () => {
+		const subnet = buildTopology().subnets[0];
+		expect(rowValues(entityTooltip('Subnet', subnet, ctx('L3Logical')))).toContain('10.0.0.0/24');
+	});
+
+	it('shows a host the way its card does, in any view', () => {
+		const host = buildTopology().hosts.find((h) => h.id === 'switch')!;
+		for (const view of ['L2Physical', 'Workloads']) {
+			expect(rowValues(entityTooltip('Host', host, ctx(view)))).toContain(
+				deviceTypes.getName('Unidentified')
+			);
+		}
 	});
 });
 

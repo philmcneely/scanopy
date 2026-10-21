@@ -17,7 +17,7 @@
 		topology_levelContainersExpanded,
 		topology_levelSubcontainersExpanded,
 		topology_levelFullyExpanded,
-		topology_levelContainersFullyExpanded,
+		topology_levelGroupsExpanded,
 		topology_parseFailed,
 		topology_detailSimplified,
 		topology_updatedDuringScan,
@@ -1466,7 +1466,7 @@
 			case 3:
 				return topology_levelSubcontainersExpanded();
 			case 4:
-				return topology_levelContainersFullyExpanded();
+				return topology_levelGroupsExpanded();
 			case 5:
 				return topology_levelFullyExpanded();
 		}

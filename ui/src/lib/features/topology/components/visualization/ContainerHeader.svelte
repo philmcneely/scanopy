@@ -21,7 +21,7 @@
 		topology_ungroupedCount,
 		topology_searchContainerMatches
 	} from '$lib/paraglide/messages';
-	import type { TooltipContent } from '$lib/shared/actions/tooltip';
+	import { tooltip as tooltipAction, type TooltipContent } from '$lib/shared/actions/tooltip';
 
 	/** A group container's pill: a category or tag the group collects, with its tooltip. */
 	export type GroupPill = { label: string; color: Color; title?: string | TooltipContent };
@@ -59,7 +59,8 @@
 		countOnly = false,
 		searchMatchCount = 0,
 		searchHighlightRingStyle = '',
-		staleTag = null
+		staleTag = null,
+		tooltip = null
 	}: {
 		isCollapsed: boolean;
 		isCollapsible: boolean;
@@ -87,6 +88,8 @@
 		searchHighlightRingStyle?: string;
 		/** Staleness pill for the entity this container stands for, from `getFreshnessTag`. */
 		staleTag?: TagProps | null;
+		/** Hover text for the container's name: the entity it stands for, or what the group holds. */
+		tooltip?: TooltipContent | null;
 	} = $props();
 
 	let subgroupTotal = $derived(subgroupSummaries.reduce((sum, s) => sum + s.childCount, 0));
@@ -211,7 +214,11 @@
 		{/if}
 
 		{#if headerText}
-			<span data-entity-header class="text-s text-secondary whitespace-nowrap font-medium">
+			<span
+				data-entity-header
+				class="text-s text-secondary whitespace-nowrap font-medium"
+				use:tooltipAction={{ content: tooltip }}
+			>
 				{headerText}
 			</span>
 		{/if}
@@ -237,6 +244,7 @@
 				data-fixed
 				data-entity-header
 				class="text-tertiary flex-shrink-0 whitespace-nowrap text-xs font-medium"
+				use:tooltipAction={{ content: tooltip }}
 			>
 				{headerText}{groupLabels.length > 0 ? ':' : ''}
 			</span>
@@ -288,6 +296,7 @@
 				data-fixed
 				data-entity-header
 				class="text-tertiary whitespace-nowrap text-xs font-medium"
+				use:tooltipAction={{ content: tooltip }}
 			>
 				{headerText}{groupLabels.length > 0 ? ':' : ''}
 			</span>
@@ -332,7 +341,10 @@
 		<div class="flex min-w-fit flex-col items-center gap-2 whitespace-nowrap px-6 py-4">
 			<!-- The container's name is not repeated here: a collapsed root container is named by
 			     its external title pill, which stays visible above the box in both states. -->
-			<span class="text-secondary text-base font-medium underline">
+			<span
+				class="text-secondary text-base font-medium underline"
+				use:tooltipAction={{ content: tooltip }}
+			>
 				{topology_elementCount({ summary: childSummary })}
 			</span>
 			{#if searchMatchCount > 0}

@@ -18,13 +18,19 @@ export interface TooltipRow {
 	dot?: string;
 }
 
+/** A list entry with a muted detail set apart on its right: a service and its ports. */
+export interface TooltipItem {
+	text: string;
+	detail?: string;
+}
+
 /** A block of a structured tooltip, set off from the one above it by a rule. */
 export interface TooltipSection {
 	heading?: string;
 	/** A muted sentence or two: a description, or why something is the way it is. */
 	text?: string;
 	rows?: TooltipRow[];
-	items?: string[];
+	items?: (string | TooltipItem)[];
 }
 
 /** A tooltip with structure: an optional title, then its sections in order. */
@@ -146,7 +152,37 @@ export function renderTooltip(doc: TooltipDocument, content: string | TooltipCon
 				listStyleType: 'disc',
 				color: 'var(--color-text-primary)'
 			});
-			for (const item of section.items) list.appendChild(el(doc, 'li', {}, item));
+			for (const item of section.items) {
+				if (typeof item === 'string' || !item.detail) {
+					list.appendChild(el(doc, 'li', {}, typeof item === 'string' ? item : item.text));
+					continue;
+				}
+				// The detail sits right-aligned and muted, so it never reads as part of the name.
+				const li = el(doc, 'li', {});
+				const line = el(doc, 'div', {
+					display: 'flex',
+					justifyContent: 'space-between',
+					alignItems: 'baseline',
+					gap: '12px'
+				});
+				line.appendChild(el(doc, 'span', { minWidth: '0' }, item.text));
+				line.appendChild(
+					el(
+						doc,
+						'span',
+						{
+							color: 'var(--color-text-tertiary)',
+							fontSize: '11px',
+							fontVariantNumeric: 'tabular-nums',
+							textAlign: 'right',
+							flexShrink: '0'
+						},
+						item.detail
+					)
+				);
+				li.appendChild(line);
+				list.appendChild(li);
+			}
 			block.appendChild(list);
 		}
 		root.appendChild(block);
