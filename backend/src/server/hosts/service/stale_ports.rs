@@ -158,14 +158,18 @@ fn container_id_of(service: &Service) -> Option<String> {
         .and_then(|v| v.container_id().map(str::to_owned))
 }
 
-/// The stored service a generic container report is, found by container id. A stopped container
-/// can only be reported as generic, since nothing can be probed, and the runtime's container id
-/// says it is the stored one, whatever that was identified as.
+/// The stored service a container placeholder report is, found by container id. A stopped
+/// container can only be reported as a placeholder, since nothing can be probed, and the runtime's
+/// container id says it is the stored one, whatever that was identified as.
+///
+/// Only a placeholder report: a generic protocol such as SSH identified at the container is an
+/// identification in its own right, and replaces a stored placeholder rather than being folded into
+/// it (`Service::is_placeholder_for`).
 pub(crate) fn stored_container<'a>(
     stored: &'a [Service],
     incoming: &Service,
 ) -> Option<&'a Service> {
-    if !ServiceDefinitionExt::is_generic(&incoming.base.service_definition) {
+    if !incoming.is_container_placeholder() {
         return None;
     }
     let container_id = container_id_of(incoming)?;
@@ -412,5 +416,46 @@ impl HostService {
             .await?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::server::services::definitions::{
+        docker_container::DockerContainer, gitea::Gitea, ssh::Ssh,
+    };
+    use crate::server::services::r#impl::definitions::ServiceDefinition;
+    use crate::server::services::r#impl::virtualization::{
+        DockerVirtualization, ServiceVirtualization,
+    };
+
+    fn in_container(definition: Box<dyn ServiceDefinition>) -> Service {
+        let mut service = Service {
+            id: Uuid::new_v4(),
+            ..Default::default()
+        };
+        service.base.service_definition = definition;
+        service.base.virtualization_metadata =
+            Some(ServiceVirtualization::Docker(DockerVirtualization {
+                container_name: None,
+                container_id: Some("c1".to_string()),
+                compose_project: None,
+                state: Default::default(),
+            }));
+        service
+    }
+
+    /// A placeholder report (a stopped container, say) is the stored container, whatever that was
+    /// identified as. A generic protocol identified at the container is not a placeholder report:
+    /// it must stay its own service so it can replace a stored placeholder.
+    #[test]
+    fn only_a_placeholder_report_is_folded_into_the_stored_container() {
+        let stored = vec![in_container(Box::new(Gitea))];
+        assert_eq!(
+            stored_container(&stored, &in_container(Box::new(DockerContainer))).map(|s| s.id),
+            Some(stored[0].id)
+        );
+        assert!(stored_container(&stored, &in_container(Box::new(Ssh))).is_none());
     }
 }
