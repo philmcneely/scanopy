@@ -484,8 +484,8 @@ export interface ViewerSample {
 	 * `collapsedContainers` is computed over the raw payload and includes containers nested inside
 	 * other collapsed containers, while `store.nodes` is what survived collapse pruning and
 	 * filtering — so 2,693 collapsed containers beside a 760-node store is the expected shape at a
-	 * low level, not a counter overflowing its population. Level 1 is fully collapsed and level 4
-	 * fully expanded, so zero here at level 4 is the definition, not an absence.
+	 * low level, not a counter overflowing its population. Level 1 is fully collapsed and level 5
+	 * fully expanded, so zero here at level 5 is the definition, not an absence.
 	 */
 	collapse: { level: number | null; collapsedContainers: number };
 	/**

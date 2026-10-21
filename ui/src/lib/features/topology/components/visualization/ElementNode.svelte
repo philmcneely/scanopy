@@ -394,25 +394,15 @@
 						{/if}
 						{#if marks.Status}
 							<!-- A guest's run state, from the view's Status mark: a dot in the state's colour,
-							     centred on the tile's top-left corner, with nothing inside it. Hovering the card
-							     expands it rightwards to name the state; the width is capped to
-							     stay inside the card. The value is the filter chip's own. -->
-							{@const runState = marks.Status}
+							     centred on the tile's top-left corner. The tooltip's Status row names it. -->
 							<span
-								class="absolute -left-2 -top-2 z-10 flex h-4 items-center rounded-full border border-gray-300 dark:border-gray-600"
+								class="absolute -left-2 -top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
 								style="background: var(--color-topology-node-bg);"
 							>
-								<span class="flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center">
-									<span
-										class="h-2.5 w-2.5 rounded-full"
-										style="background: {createColorHelper(runState.color).rgb};"
-									></span>
-								</span>
 								<span
-									class="text-primary flex max-w-0 items-center justify-end gap-1 overflow-hidden whitespace-nowrap text-right text-[10px] font-medium leading-none transition-[max-width,padding] duration-150 group-hover/icon-card:max-w-[72px] group-hover/icon-card:pr-1"
-								>
-									{runState.label}
-								</span>
+									class="h-2.5 w-2.5 rounded-full"
+									style="background: {createColorHelper(marks.Status.color).rgb};"
+								></span>
 							</span>
 						{/if}
 						{#if iconCard.badgeDefinitions.length > 0}

@@ -8,8 +8,8 @@
  *   1 = Fully collapsed
  *   2 = Containers expanded, subcontainers collapsed
  *   3 = Subcontainers expanded (except collapsed-by-default and infrastructure)
- *   4 = Every container expanded; manager boxes on host cards collapsed
- *   5 = Fully expanded, manager boxes included
+ *   4 = As 3, with the manager boxes on host cards opened
+ *   5 = Fully expanded: collapsed-by-default and infrastructure containers too, always last
  */
 
 import { get, writable } from 'svelte/store';
@@ -43,7 +43,7 @@ interface ContainerTypesAccessor {
 
 /**
  * Manager boxes on host cards the viewer opened, keyed by `inlineGroupKey`. A box is collapsed
- * unless its key is here, so boxes start collapsed; collapse level 5 opens every box. Persisted,
+ * unless its key is here, so boxes start collapsed; collapse level 4 opens every box. Persisted,
  * so a box the viewer opened stays open across reloads.
  */
 export const expandedInlineGroups = persistedSet('scanopy_topology_expanded_inline_groups');
@@ -148,7 +148,7 @@ const initialStoredLevel = loadLevelFromStorage();
 // Module-load snapshot: was a level persisted in localStorage when the tab opened?
 // The pipeline uses this to distinguish a truly fresh session from one where the
 // user previously chose a level. Without this signal, an empty collapsed set on
-// first render gets inferred as level 4 and overrides the default.
+// first render gets inferred as level 5 and overrides the default.
 export const hadStoredLevelOnLoad = initialStoredLevel !== null;
 
 export const collapseLevel = writable<CollapseLevel>(initialStoredLevel ?? 3);
@@ -257,7 +257,7 @@ export function computeCollapsedForLevel(
 		case 2: {
 			// Root containers expanded except auto-collapse ones (collapsed_by_default
 			// / infrastructure); all subcontainers collapsed. Auto-collapse containers
-			// stay collapsed at every level except 4 (fully expanded).
+			// stay collapsed at every level except 5 (fully expanded).
 			const collapsed = new Set<string>();
 			for (const node of containers) {
 				const data = node as Record<string, unknown>;
@@ -269,8 +269,11 @@ export function computeCollapsedForLevel(
 			}
 			return collapsed;
 		}
-		case 3: {
-			// Subcontainers expanded except collapsed-by-default and infrastructure
+		case 3:
+		case 4: {
+			// Subcontainers expanded except collapsed-by-default and infrastructure. Level 4
+			// differs only in the manager boxes on host cards, which are not containers (see
+			// `collapsedBoxKeys`).
 			const collapsed = new Set<string>();
 			for (const node of containers) {
 				if (isAutoCollapseContainer(node, containerTypesStore, infraRuleId)) {
@@ -279,18 +282,18 @@ export function computeCollapsedForLevel(
 			}
 			return collapsed;
 		}
-		case 4:
 		case 5: {
-			// Every container expanded. Level 5 differs only in the manager boxes on host cards,
-			// which are not containers (see `collapsedBoxKeys`).
+			// Every container expanded, the auto-collapse ones last of all.
 			return new Set();
 		}
 	}
 }
 
 /**
- * Infer the closest collapse level from the current collapsed set, and from the manager boxes:
- * every container open reads as level 5 when every box is open too, and as level 4 otherwise.
+ * Infer the closest collapse level from the current collapsed set, and from the manager boxes.
+ * Containers matching level 3 read as level 4 when every box is open. Every container open reads
+ * as level 5 unless boxes are closed: then, with no auto-collapse container to tell 5 from 3, it
+ * reads as 3, so expanding still has the boxes to open.
  */
 export function inferCurrentLevel(
 	collapsed: Set<string>,
@@ -298,31 +301,33 @@ export function inferCurrentLevel(
 	containerTypesStore: ContainerTypesAccessor,
 	infraRuleId: string | null
 ): CollapseLevel {
+	const boxesOpen = collapsedBoxKeys(allNodes).size === 0;
+	const hasBoxes = allInlineGroupKeys(allNodes).length > 0;
 	const level = inferContainerLevel(collapsed, allNodes, containerTypesStore, infraRuleId);
-	if (
-		level === 4 &&
-		allInlineGroupKeys(allNodes).length > 0 &&
-		collapsedBoxKeys(allNodes).size === 0
-	)
-		return 5;
+	const matchesThree = setsEqual(
+		collapsed,
+		computeCollapsedForLevel(3, allNodes, containerTypesStore, infraRuleId)
+	);
+	if (level === 5 && (boxesOpen || !matchesThree)) return 5;
+	if (matchesThree) return hasBoxes && boxesOpen ? 4 : 3;
 	return level;
 }
 
-/** The collapse level the containers alone match (1-4). */
+/** The collapse level the containers alone match (1, 2, 3 or 5). */
 function inferContainerLevel(
 	collapsed: Set<string>,
 	allNodes: TopologyNode[],
 	containerTypesStore: ContainerTypesAccessor,
 	infraRuleId: string | null
 ): CollapseLevel {
-	// Check from most expanded to most collapsed
-	for (const level of [4, 3, 2, 1] as CollapseLevel[]) {
+	// Check from most expanded to most collapsed. Level 4 has level 3's containers.
+	for (const level of [5, 3, 2, 1] as CollapseLevel[]) {
 		const expected = computeCollapsedForLevel(level, allNodes, containerTypesStore, infraRuleId);
 		if (setsEqual(collapsed, expected)) return level;
 	}
 	// No exact match — determine closest by checking which level would expand more
-	// If nothing is collapsed, that's level 4
-	if (collapsed.size === 0) return 4;
+	// If nothing is collapsed, that's level 5
+	if (collapsed.size === 0) return 5;
 	// If all containers are collapsed, that's level 1
 	const allContainers = allNodes.filter((n) => n.node_type === 'Container');
 	if (allContainers.every((n) => collapsed.has(n.id))) return 1;
@@ -341,7 +346,7 @@ function setsEqual(a: Set<string>, b: Set<string>): boolean {
 }
 
 /**
- * Get the IDs of auto-collapse containers (for marking as seen when at level 4).
+ * Get the IDs of auto-collapse containers (for marking as seen when at level 5).
  */
 export function getAutoCollapseIds(
 	allNodes: TopologyNode[],
@@ -391,7 +396,7 @@ export function toggleCollapse(containerId: string, allNodes?: TopologyNode[]): 
 
 /**
  * Step expand level up by one. Returns the new level and the set of
- * auto-collapse IDs that should be marked as "seen" (relevant at level 4).
+ * auto-collapse IDs that should be marked as "seen" (relevant at level 5).
  */
 /**
  * The next level in `direction` that would actually change the diagram, or `null` if none would.
@@ -400,7 +405,7 @@ export function toggleCollapse(containerId: string, allNodes?: TopologyNode[]): 
  * presses that appear to do nothing. It happens whenever a *root* is collapsed: every deeper
  * level only adds containers already hidden inside it. The Application view shows this at its
  * worst — with no application tags every service lands in one `ApplicationUngrouped` root, which
- * is `collapsed_by_default`, so levels 3, 2 and 1 all render identically and only level 4 differs.
+ * is `collapsed_by_default`, so levels 4 down to 1 all render identically and only level 5 differs.
  *
  * Skipping is preferred to redefining the levels: how many distinct states a view *has* depends
  * on its container depth, so no fixed four-rung ladder can always fill them, and changing what a
@@ -425,16 +430,15 @@ export function nextEffectiveLevel(
 	const renderedBoxes = collapsedBoxKeys(allNodes);
 	const rendered = new Set([...renderedContainers, ...renderedBoxes]);
 
-	for (let level = from + step; level >= 1 && level <= 5; level += step) {
-		const candidate = new Set([
-			...computeCollapsedForLevel(
-				level as CollapseLevel,
-				allNodes,
-				containerTypesStore,
-				infraRuleId
-			),
-			...boxesForLevel(level as CollapseLevel, direction, allNodes, renderedBoxes)
+	const hasBoxes = allInlineGroupKeys(allNodes).length > 0;
+	const candidateFor = (level: CollapseLevel) =>
+		new Set([
+			...computeCollapsedForLevel(level, allNodes, containerTypesStore, infraRuleId),
+			...boxesForLevel(level, direction, allNodes, renderedBoxes)
 		]);
+
+	for (let level = from + step; level >= 1 && level <= 5; level += step) {
+		const candidate = candidateFor(level as CollapseLevel);
 		// Collapse must only ever collapse and expand must only ever expand, whatever the
 		// numbering implies. Requiring a strict superset (or subset) of what is drawn makes the
 		// button's direction the guarantee, rather than something the level ordering happens to
@@ -443,14 +447,28 @@ export function nextEffectiveLevel(
 			direction === 'collapse'
 				? isStrictSuperset(candidate, rendered)
 				: isStrictSuperset(rendered, candidate);
-		if (moves) return level as CollapseLevel;
+		if (!moves) continue;
+		// Level 4 differs from 3 only in manager boxes, so a view without them has no level 4 of
+		// its own: a collapse lands on 3, and an expand runs on to the furthest level drawing the
+		// same diagram (5, when the view has no auto-collapse containers either). Either way the
+		// level is the one `inferCurrentLevel` reads back.
+		if (direction === 'collapse') {
+			if (level === 4 && !hasBoxes) continue;
+			return level as CollapseLevel;
+		}
+		let landed = level;
+		for (let next = level + 1; next <= 5; next++) {
+			if (!setsEqual(candidateFor(next as CollapseLevel), candidate)) break;
+			landed = next;
+		}
+		return landed as CollapseLevel;
 	}
 	return null;
 }
 
 /**
- * The manager boxes a step to `level` leaves collapsed. Level 5 opens every box. A collapse to
- * 1-4 closes every box. An expand to 1-4 leaves them as drawn, so it never closes a box the
+ * The manager boxes a step to `level` leaves collapsed. Levels 4 and 5 open every box. A collapse
+ * to 1-3 closes every box. An expand to 1-3 leaves them as drawn, so it never closes a box the
  * viewer opened by hand.
  */
 function boxesForLevel(
@@ -459,7 +477,7 @@ function boxesForLevel(
 	allNodes: TopologyNode[],
 	renderedBoxes: Set<string>
 ): Set<string> {
-	if (level === 5) return new Set();
+	if (level >= 4) return new Set();
 	return direction === 'collapse' ? new Set(allInlineGroupKeys(allNodes)) : renderedBoxes;
 }
 
@@ -469,13 +487,13 @@ function applyBoxesForLevel(
 	direction: 'collapse' | 'expand',
 	allNodes: TopologyNode[]
 ): void {
-	if (level !== 5 && direction === 'expand') return;
+	if (level < 4 && direction === 'expand') return;
 	// Only this view's boxes: the set also holds boxes the viewer opened in other views.
 	const keys = allInlineGroupKeys(allNodes);
 	expandedInlineGroups.update((set) => {
 		const next = new Set(set);
 		for (const key of keys) {
-			if (level === 5) next.add(key);
+			if (level >= 4) next.add(key);
 			else next.delete(key);
 		}
 		return next;

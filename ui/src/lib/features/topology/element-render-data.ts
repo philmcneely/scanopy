@@ -48,13 +48,20 @@ import {
 } from '$lib/shared/stores/metadata';
 import { getFreshnessTag } from '$lib/shared/utils/freshness';
 import { createColorHelper } from '$lib/shared/utils/styling';
-import type { TooltipContent, TooltipRow, TooltipSection } from '$lib/shared/actions/tooltip';
+import type {
+	TooltipContent,
+	TooltipItem,
+	TooltipRow,
+	TooltipSection
+} from '$lib/shared/actions/tooltip';
 import { formatPort } from '$lib/shared/utils/formatting';
 import {
 	collectionLookup,
+	entityDisplayText,
 	entityFieldLabel,
 	entityFields,
-	fieldText
+	fieldText,
+	type EntityType
 } from '$lib/shared/entity-fields';
 import type { Site } from '$lib/features/sites/types';
 import { get } from 'svelte/store';
@@ -334,7 +341,11 @@ function serviceGuestRows(
 }
 
 /** A titled tooltip: one row per value present, then the services under their own heading. */
-function titledTooltip(title: string, rows: MaybeRow[], services: string[] = []): TooltipContent {
+function titledTooltip(
+	title: string,
+	rows: MaybeRow[],
+	services: (string | TooltipItem)[] = []
+): TooltipContent {
 	const present: TooltipRow[] = rows.flatMap(({ label, value, dot }) =>
 		value ? [{ label, value, dot }] : []
 	);
@@ -362,7 +373,7 @@ export function serviceTooltip(
 /**
  * A host's hover text: its name as the title, then its address and the address's name, device type
  * and how it runs as a guest, then its services. `status` is the view's Status mark on the host;
- * `serviceLabel` names each service in the list (its name, by default).
+ * `serviceItem` lists each service (by its name, by default).
  */
 export function hostTooltip(
 	host: Host,
@@ -373,7 +384,7 @@ export function hostTooltip(
 		deviceType,
 		services,
 		status,
-		serviceLabel = (s) => s.name
+		serviceItem = (s) => s.name
 	}: {
 		name?: string;
 		address?: string | null;
@@ -381,7 +392,7 @@ export function hostTooltip(
 		deviceType?: string | null;
 		services: Service[];
 		status?: MarkValue;
-		serviceLabel?: (service: Service) => string;
+		serviceItem?: (service: Service) => string | TooltipItem;
 	}
 ): TooltipContent {
 	return titledTooltip(
@@ -392,7 +403,7 @@ export function hostTooltip(
 			{ label: hosts_deviceType(), value: deviceType ? deviceTypes.getName(deviceType) : null },
 			...hostGuestRows(host.virtualization_metadata, status)
 		],
-		services.map(serviceLabel)
+		services.map(serviceItem)
 	);
 }
 
@@ -433,12 +444,12 @@ export function interfaceTooltip(
 	);
 }
 
-/** A service named with the ports it listens on at one address: "nginx (80/tcp, 443/tcp)". */
+/** A service with the ports it listens on at one address, set apart as the item's detail. */
 function serviceWithPorts(
 	service: Service,
 	ipAddressId: string,
 	topology: RenderableTopology
-): string {
+): TooltipItem {
 	const portsById = getTopologyIndex(topology).portsById;
 	const ports = service.bindings.flatMap((b) => {
 		if (b.type !== 'Port' || !b.port_id) return [];
@@ -446,7 +457,60 @@ function serviceWithPorts(
 		const port = portsById.get(b.port_id);
 		return port ? [formatPort(port)] : [];
 	});
-	return ports.length > 0 ? `${service.name} (${ports.join(', ')})` : service.name;
+	return { text: service.name, detail: ports.length > 0 ? ports.join(', ') : undefined };
+}
+
+/**
+ * Any entity's hover text, by its type: a host, service or port the way its card shows it, and
+ * any other entity (a subnet, a VLAN) as its summary fields, the ones the inspector shows by
+ * default. `name` replaces the entity's own display text as the title. `status` is the view's
+ * Status mark on the entity, read here so every caller colours run state the same way.
+ */
+export function entityTooltip(
+	entityType: string,
+	entity: object,
+	{
+		topology,
+		view,
+		sites,
+		name
+	}: { topology: RenderableTopology; view: string; sites: Site[]; name?: string }
+): TooltipContent {
+	const status = entityMark(view, 'Status', entityType, entity, sites);
+	const index = getTopologyIndex(topology);
+	switch (entityType) {
+		case 'Host': {
+			const host = entity as Host;
+			const glyph = entityGlyph('Host', host, topology);
+			return hostTooltip(host, {
+				name,
+				deviceType: glyph?.type === 'device' ? glyph.deviceType : null,
+				services: (index.servicesByHostId.get(host.id) ?? []) as Service[],
+				status
+			});
+		}
+		case 'Service': {
+			const service = entity as Service;
+			return serviceTooltip(service, {
+				host: index.hostsById.get(service.host_id) as Host | undefined,
+				status
+			});
+		}
+		case 'Interface':
+			return interfaceTooltip(entity, name ?? entityDisplayText('Interface', entity), status);
+		default: {
+			const type = entityType as EntityType;
+			const title = name ?? entityDisplayText(type, entity);
+			const lookup = collectionLookup({});
+			// The entity's own summary fields; a field reached through a relation needs collections
+			// a tooltip does not load.
+			const rows = entityFields(type)
+				.filter((f) => f.summary && f.path.length === 0)
+				.map((f) => ({ label: entityFieldLabel(type, f), value: fieldText(f, entity, lookup) }))
+				.filter((row) => row.value !== title);
+			return titledTooltip(title, rows);
+		}
+	}
 }
 
 /**
@@ -523,9 +587,7 @@ function buildIconCard(
 			services: data.services,
 			status: marks.Status,
 			// On an address card, each service with the ports it listens on there.
-			serviceLabel: ipAddress
-				? (s) => serviceWithPorts(s, ipAddress.id, inputs.topology)
-				: undefined
+			serviceItem: ipAddress ? (s) => serviceWithPorts(s, ipAddress.id, inputs.topology) : undefined
 		}),
 		groups: data.inlineGroups.map((g) => iconCardGroup(inputs, g))
 	};
