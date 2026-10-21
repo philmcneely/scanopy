@@ -78,7 +78,7 @@ impl NetworkScan {
         // Filter out loopback subnets — they are not scannable
         let subnets: Vec<Subnet> = subnets
             .into_iter()
-            .filter(|s| !s.base.subnet_type.is_loopback())
+            .filter(|s| !s.base.subnet_type().is_loopback())
             .collect();
 
         // A targeted rescan narrows enumeration to specific addresses within the
@@ -2307,6 +2307,7 @@ mod tests {
     use crate::server::shared::storage::traits::Storable;
     use crate::server::subnets::r#impl::base::SubnetBase;
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::subnets::r#impl::types::SubnetType;
     use std::str::FromStr;
 
@@ -2318,9 +2319,9 @@ mod tests {
                 AttributeSource::DaemonSelfReport,
             ),
             site_id: uuid::Uuid::new_v4(),
-            name: cidr.to_string(),
+            name: SubnetName::unattributed(cidr.to_string()),
             description: None,
-            subnet_type: SubnetType::Lan,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
             virtualization_service_id: None,
             source: crate::server::shared::types::entities::EntitySource::System,
             tags: Vec::new(),

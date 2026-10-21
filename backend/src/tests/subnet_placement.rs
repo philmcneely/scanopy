@@ -28,6 +28,7 @@ use crate::server::{
 };
 
 use super::{organization, site, test_services};
+use crate::server::subnets::r#impl::base::SubnetName;
 
 /// Seed a site with the two organizational catch-alls a real one is created with, plus whatever
 /// else the test wants it to hold.
@@ -57,7 +58,7 @@ async fn site_holding(
             SubnetCidrValue(cidr.parse().expect("valid test CIDR")),
             AttributeSource::DaemonSelfReport,
         );
-        subnet.base.name = (*cidr).to_string();
+        subnet.base.name = SubnetName::unattributed((*cidr).to_string());
         services
             .subnet_service
             .create(subnet, AuthenticatedEntity::System)
@@ -77,7 +78,7 @@ async fn observe(services: &ServiceFactory, site_id: Uuid, cidr: &str) {
         // What `Subnet::from_discovery` stamps: a daemon reading its own interface.
         AttributeSource::DaemonSelfReport,
     );
-    subnet.base.name = cidr.to_string();
+    subnet.base.name = SubnetName::unattributed(cidr.to_string());
     subnet.base.source = EntitySource::Discovery;
     services
         .subnet_service

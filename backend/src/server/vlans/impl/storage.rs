@@ -5,9 +5,9 @@ use uuid::Uuid;
 
 use crate::server::{
     shared::{
+        attribution::AttributeSource,
         entities::EntityDiscriminants,
         entity_metadata::EntityCategory,
-        attribution::AttributeSource,
         storage::{
             attributed,
             snapshot::{DiscoveryTracked, Snapshotable},
@@ -317,7 +317,9 @@ mod tests {
                 vlan_number: 20,
                 name: VlanName::new(
                     VlanNameValue("Servers".to_string()),
-                    AttributeSource::Authored(crate::server::services::r#impl::patterns::ClientProbe::Snmp),
+                    AttributeSource::Authored(
+                        crate::server::services::r#impl::patterns::ClientProbe::Snmp,
+                    ),
                 ),
                 site_id: Uuid::new_v4(),
                 organization_id: Uuid::new_v4(),
@@ -357,9 +359,8 @@ mod tests {
     /// discovered name into the person's own, or the switch could never rename it again.
     #[test]
     fn saving_without_renaming_keeps_the_discovered_source() {
-        let discovered = AttributeSource::Authored(
-            crate::server::services::r#impl::patterns::ClientProbe::Snmp,
-        );
+        let discovered =
+            AttributeSource::Authored(crate::server::services::r#impl::patterns::ClientProbe::Snmp);
         let existing = Vlan {
             base: VlanBase {
                 name: VlanName::new(VlanNameValue("Servers".to_string()), discovered),
@@ -370,8 +371,10 @@ mod tests {
         };
 
         let mut request = existing.clone();
-        request.base.name =
-            VlanName::new(VlanNameValue("Servers".to_string()), AttributeSource::Manual);
+        request.base.name = VlanName::new(
+            VlanNameValue("Servers".to_string()),
+            AttributeSource::Manual,
+        );
         request.base.description = Some("Rack A".to_string());
 
         request.preserve_immutable_fields(&existing);

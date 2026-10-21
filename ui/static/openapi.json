@@ -27209,16 +27209,19 @@
               "last_seen_at": "2026-01-15T10:30:00Z",
               "lineage_id": null,
               "name": "LAN",
+              "name_source": "Unspecified",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
               },
               "subnet_type": "Lan",
+              "subnet_type_source": "Unspecified",
               "tags": [],
               "updated_at": "2026-01-15T10:30:00Z",
               "valid_from": "2026-01-15T10:30:00Z",
               "valid_to": null,
-              "virtualization_service_id": null
+              "virtualization_service_id": null,
+              "vlan_ids": []
             }
           },
           "error": {
@@ -29281,6 +29284,13 @@
             "description": "An operating system matched in the `model` an mDNS `_airplay._tcp` record carries, such as a\nMac's `model=Mac17,2`. Macs that share nothing still advertise AirPlay.",
             "enum": [
               "DnsSdAirPlayMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A subnet type guessed from the name of the interface that holds the range: `wg0` for a VPN\ntunnel, `br-guest` for a guest network. The name is the operating system's; the type is our\nreading of it.",
+            "enum": [
+              "InterfaceNameMatch"
             ]
           },
           {
@@ -46357,16 +46367,19 @@
           "last_seen_at": "2026-01-15T10:30:00Z",
           "lineage_id": null,
           "name": "LAN",
+          "name_source": "Unspecified",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
           },
           "subnet_type": "Lan",
+          "subnet_type_source": "Unspecified",
           "tags": [],
           "updated_at": "2026-01-15T10:30:00Z",
           "valid_from": "2026-01-15T10:30:00Z",
           "valid_to": null,
-          "virtualization_service_id": null
+          "virtualization_service_id": null,
+          "vlan_ids": []
         }
       },
       "SubnetBase": {
@@ -46376,11 +46389,17 @@
             "description": "The subnet's range and how far it can be trusted.\n\nOne field rather than two, which is what keeps the pair from drifting: a range and the\nconfidence in it are one fact, and assigning `cidr` alone is how a guess ends up\nindistinguishable from a reading. It shipped as two, and three separate places had already\ngrown their own rules for writing the source half behind the applier's back.\n\nSerialises as the two flat keys `cidr` and `cidr_source`, so the wire shape is unchanged."
           },
           {
+            "$ref": "#/components/schemas/SubnetName",
+            "description": "Human-facing name for this subnet, with the source that named it.\n\nTwo flat wire keys, `name` and `name_source`, so a client that sends only `name` still\ndeserialises, at `Unspecified`."
+          },
+          {
+            "$ref": "#/components/schemas/SubnetTypeAttributed",
+            "description": "What type of subnet this is — physical, virtual, container bridge, and so on — with the\nsource that typed it. Two flat wire keys, `subnet_type` and `subnet_type_source`."
+          },
+          {
             "type": "object",
             "required": [
               "site_id",
-              "name",
-              "subnet_type",
               "virtualization_service_id",
               "source",
               "tags"
@@ -46393,10 +46412,6 @@
                 ],
                 "description": "Free-text notes about the subnet."
               },
-              "name": {
-                "type": "string",
-                "description": "Human-facing name for this subnet."
-              },
               "site_id": {
                 "type": "string",
                 "format": "uuid",
@@ -46405,10 +46420,6 @@
               "source": {
                 "$ref": "#/components/schemas/EntitySource",
                 "description": "Will be automatically set to Manual for creation through API"
-              },
-              "subnet_type": {
-                "$ref": "#/components/schemas/SubnetType",
-                "description": "What type of subnet this is — physical, virtual, container bridge, and so on."
               },
               "tags": {
                 "type": "array",
@@ -46425,6 +46436,15 @@
                 ],
                 "format": "uuid",
                 "description": "The container runtime service that owns this bridge network.\n\nLoad-bearing for dedup: the same CIDR on two different Docker daemons is two distinct\nsubnets, so bridge rows only merge when this matches as well as the CIDR and site.\nA foreign key rather than a field inside a JSONB blob because a stale value here is\nprecisely what made a scan add a duplicate bridge row every time (GH #650) — now it\ncannot be written at all."
+              },
+              "vlan_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "readOnly": true
+                },
+                "description": "VLANs associated with this subnet, through the `subnet_vlans` junction (the reverse of\n`Vlan::subnet_ids`). Hydrated by `SubnetService` on read; it is not a column on `subnets`,\nso anything sent here on create/update is ignored by `to_params`."
               }
             }
           }
@@ -46445,6 +46465,21 @@
             "pattern": "^[0-9A-Fa-f.:]+/\\d{1,3}$"
           },
           "cidr_source": {
+            "$ref": "#/components/schemas/AttributeSource"
+          }
+        }
+      },
+      "SubnetName": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-facing name for this subnet."
+          },
+          "name_source": {
             "$ref": "#/components/schemas/AttributeSource"
           }
         }
@@ -46556,6 +46591,20 @@
           "Loopback",
           "Unknown"
         ]
+      },
+      "SubnetTypeAttributed": {
+        "type": "object",
+        "required": [
+          "subnet_type"
+        ],
+        "properties": {
+          "subnet_type": {
+            "$ref": "#/components/schemas/SubnetType"
+          },
+          "subnet_type_source": {
+            "$ref": "#/components/schemas/AttributeSource"
+          }
+        }
       },
       "TableColumn": {
         "type": "object",
@@ -48806,73 +48855,76 @@
         ]
       },
       "VlanBase": {
-        "type": "object",
-        "required": [
-          "vlan_number",
-          "name",
-          "site_id",
-          "organization_id",
-          "tags"
-        ],
-        "properties": {
-          "description": {
-            "type": [
-              "string",
-              "null"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/VlanName",
+            "description": "Human-facing name for this VLAN, with the source that named it.\n\nSerialises as the two flat keys `name` and `name_source`, so a client that sends only\n`name` still deserialises, at `Unspecified`."
+          },
+          {
+            "type": "object",
+            "required": [
+              "vlan_number",
+              "site_id",
+              "organization_id",
+              "tags"
             ],
-            "description": "Free-text notes about the VLAN."
-          },
-          "interface_ids": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid",
-              "readOnly": true
-            },
-            "description": "Interfaces that serve this VLAN, as their native VLAN or one of their\nmember VLANs (`Interface::native_vlan_id` / `Interface::vlan_ids`).\nHydrated by `VlanService` on read; not a column on `vlans`."
-          },
-          "name": {
-            "type": "string",
-            "description": "Human-facing name for this VLAN."
-          },
-          "organization_id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The organization that owns this record."
-          },
-          "site_id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The site this entity belongs to."
-          },
-          "source": {
-            "$ref": "#/components/schemas/EntitySource",
-            "description": "How this VLAN came to be known — discovered, imported, or created by hand."
-          },
-          "subnet_ids": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid",
-              "readOnly": true
-            },
-            "description": "Subnets associated with this VLAN, derived from discovered interface\nnative-VLAN data via the `subnet_vlans` junction. Hydrated by\n`VlanService` on read; it is not a column on `vlans`, so anything sent\nhere on create/update is ignored by `to_params`."
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Tags assigned to this entity."
-          },
-          "vlan_number": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The 802.1Q VLAN number (1-4094)",
-            "minimum": 0
+            "properties": {
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Free-text notes about the VLAN."
+              },
+              "interface_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "readOnly": true
+                },
+                "description": "Interfaces that serve this VLAN, as their native VLAN or one of their\nmember VLANs (`Interface::native_vlan_id` / `Interface::vlan_ids`).\nHydrated by `VlanService` on read; not a column on `vlans`."
+              },
+              "organization_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The organization that owns this record."
+              },
+              "site_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The site this entity belongs to."
+              },
+              "source": {
+                "$ref": "#/components/schemas/EntitySource",
+                "description": "How this VLAN came to be known — discovered, imported, or created by hand."
+              },
+              "subnet_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "readOnly": true
+                },
+                "description": "Subnets associated with this VLAN, derived from discovered interface\nnative-VLAN data via the `subnet_vlans` junction. Hydrated by\n`VlanService` on read; it is not a column on `vlans`, so anything sent\nhere on create/update is ignored by `to_params`."
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Tags assigned to this entity."
+              },
+              "vlan_number": {
+                "type": "integer",
+                "format": "int32",
+                "description": "The 802.1Q VLAN number (1-4094)",
+                "minimum": 0
+              }
+            }
           }
-        }
+        ]
       },
       "VlanDiscoveryItem": {
         "type": "object",
@@ -48884,6 +48936,10 @@
           "name": {
             "type": "string",
             "description": "VLAN name as configured on the device."
+          },
+          "name_source": {
+            "$ref": "#/components/schemas/AttributeSource",
+            "description": "Where the daemon read the name. Defaults to an SNMP read: daemons that predate this field\nsent VLANs from SNMP alone."
           },
           "vlan_number": {
             "type": "integer",
@@ -48948,6 +49004,21 @@
             "format": "int32",
             "description": "802.1Q VLAN ID.",
             "minimum": 0
+          }
+        }
+      },
+      "VlanName": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-facing name for this VLAN."
+          },
+          "name_source": {
+            "$ref": "#/components/schemas/AttributeSource"
           }
         }
       },

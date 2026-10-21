@@ -7,7 +7,9 @@ use scanopy::server::hosts::r#impl::base::Host;
 use scanopy::server::shared::attribution::AttributeSource;
 use scanopy::server::shared::storage::traits::Storable;
 use scanopy::server::shared::types::entities::EntitySource;
-use scanopy::server::subnets::r#impl::base::{Subnet, SubnetBase};
+use scanopy::server::subnets::r#impl::base::{
+    Subnet, SubnetBase, SubnetName, SubnetTypeAttributed,
+};
 use scanopy::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
 use scanopy::server::subnets::r#impl::types::SubnetType;
 use scanopy::server::tags::r#impl::base::Tag;
@@ -61,7 +63,7 @@ async fn test_billing_past_due_blocks_requests(ctx: &TestContext) -> Result<(), 
 
     let subnet = Subnet::new(SubnetBase {
         vlan_ids: Vec::new(),
-        name: "Blocked Subnet".to_string(),
+        name: SubnetName::unattributed("Blocked Subnet".to_string()),
         description: None,
         site_id: ctx.site_id,
         cidr: SubnetCidr::new(
@@ -70,7 +72,7 @@ async fn test_billing_past_due_blocks_requests(ctx: &TestContext) -> Result<(), 
             )),
             AttributeSource::DaemonSelfReport,
         ),
-        subnet_type: SubnetType::Lan,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
         source: EntitySource::System,
         tags: Vec::new(),
         virtualization_service_id: None,
@@ -111,7 +113,7 @@ async fn test_billing_canceled_blocks_requests(ctx: &TestContext) -> Result<(), 
 
     let subnet = Subnet::new(SubnetBase {
         vlan_ids: Vec::new(),
-        name: "Lapsed Subnet".to_string(),
+        name: SubnetName::unattributed("Lapsed Subnet".to_string()),
         description: None,
         site_id: ctx.site_id,
         cidr: SubnetCidr::new(
@@ -120,7 +122,7 @@ async fn test_billing_canceled_blocks_requests(ctx: &TestContext) -> Result<(), 
             )),
             AttributeSource::DaemonSelfReport,
         ),
-        subnet_type: SubnetType::Lan,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
         source: EntitySource::System,
         tags: Vec::new(),
         virtualization_service_id: None,

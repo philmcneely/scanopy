@@ -63,11 +63,11 @@ impl SubnetGraphBuilder {
             let Some(subnet) = ctx.get_subnet_by_id(ip_address.base.subnet_id) else {
                 continue;
             };
-            if subnet.base.subnet_type.is_container_bridge() {
+            if subnet.base.subnet_type().is_container_bridge() {
                 mapping
                     .entry((
                         ip_address.base.host_id,
-                        subnet.base.subnet_type.discriminant(),
+                        subnet.base.subnet_type().discriminant(),
                     ))
                     .or_insert(subnet.id);
             }
@@ -131,7 +131,7 @@ impl SubnetGraphBuilder {
                     .iter()
                     .find(|i| {
                         ctx.get_subnet_from_ip_address_id(i.id)
-                            .map(|s| !s.base.subnet_type.is_container_bridge())
+                            .map(|s| !s.base.subnet_type().is_container_bridge())
                             .unwrap_or(false)
                     })
                     .map(|i| format!("{runtime} @ {}", i.base.ip_address))
@@ -196,12 +196,12 @@ impl SubnetGraphBuilder {
             };
             let subnet = ctx.get_subnet_by_id(ip_address.base.subnet_id);
             if subnet
-                .map(|s| s.base.subnet_type.exclude_from_topology())
+                .map(|s| s.base.subnet_type().exclude_from_topology())
                 .unwrap_or(false)
             {
                 continue;
             }
-            let subnet_type = subnet.map(|s| s.base.subnet_type).unwrap_or_default();
+            let subnet_type = subnet.map(|s| s.base.subnet_type()).unwrap_or_default();
 
             // Update source/target handles for edges
             ChildAnchorPlanner::plan_anchors(ip_address.id, all_edges, ctx);
@@ -325,7 +325,7 @@ impl SubnetGraphBuilder {
                     .subnets
                     .iter()
                     .find(|s| s.id == _subnet_id)
-                    .map(|s| s.base.subnet_type.is_container_network())
+                    .map(|s| s.base.subnet_type().is_container_network())
                     .unwrap_or(false);
                 let deployment_group = if !is_container_subnet {
                     None
@@ -409,7 +409,7 @@ impl SubnetGraphBuilder {
                             .subnets
                             .iter()
                             .find(|s| cids.contains(&s.id))
-                            .and_then(|s| s.base.subnet_type.container_runtime_label())
+                            .and_then(|s| s.base.subnet_type().container_runtime_label())
                             .unwrap_or("Container");
                         Some(format!(
                             "{runtime} Bridge: ({})",
@@ -421,11 +421,11 @@ impl SubnetGraphBuilder {
                         ))
                     } else if let Some(subnet) = ctx.subnets.iter().find(|s| s.id == *subnet_id) {
                         use crate::server::shared::types::metadata::TypeMetadataProvider;
-                        let type_name = subnet.base.subnet_type.name();
+                        let type_name = subnet.base.subnet_type().name();
                         let cidr = subnet.base.cidr.to_string();
-                        let show_label = subnet.base.subnet_type.show_label();
-                        let name_or_type = if subnet.base.name != cidr {
-                            subnet.base.name.clone()
+                        let show_label = subnet.base.subnet_type().show_label();
+                        let name_or_type = if subnet.base.name() != cidr {
+                            subnet.base.name().to_string()
                         } else if show_label {
                             type_name.to_string()
                         } else {
@@ -449,7 +449,7 @@ impl SubnetGraphBuilder {
                     .contains_key(subnet_id)
                     || ctx
                         .get_subnet_by_id(*subnet_id)
-                        .is_some_and(|s| s.base.subnet_type.is_container_bridge());
+                        .is_some_and(|s| s.base.subnet_type().is_container_bridge());
                 Node {
                     id: *subnet_id,
                     node_type: NodeType::Container {

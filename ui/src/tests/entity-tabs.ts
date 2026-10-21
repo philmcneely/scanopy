@@ -129,6 +129,9 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				tags: 'tags',
 				updated_at: 'updated_at',
 				vlan_number: 'vlan_number',
+				name_source: excluded(
+					'Which source named the VLAN; it decides whether a scan may rename it, not what the list shows'
+				),
 				...FOUND_BY,
 				id: ID,
 				organization_id: ORGANIZATION,
@@ -419,6 +422,12 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				vlan_ids: 'vlan_ids',
 				// CIDR renders an assumed range as the "Range assumed" chip.
 				cidr_source: 'cidr',
+				name_source: excluded(
+					'Which source named the subnet; it decides whether a scan may rename it, not what the list shows'
+				),
+				subnet_type_source: excluded(
+					'Which source typed the subnet; it decides whether a scan may retype it, not what the list shows'
+				),
 				...FOUND_BY,
 				id: ID,
 				...HISTORY

@@ -74,9 +74,9 @@ use crate::server::sites::r#impl::Site;
 use crate::server::sites::service::SiteService;
 use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::subnets::service::SubnetService;
-use crate::server::vlans::service::VlanService;
 use crate::server::tags::entity_tags::EntityTagService;
 use crate::server::users::service::UserService;
+use crate::server::vlans::service::VlanService;
 
 /// Weekly Sunday midnight cron schedule for default discovery jobs
 const WEEKLY_SUNDAY_MIDNIGHT_CRON: &str = "0 0 0 * * 0";

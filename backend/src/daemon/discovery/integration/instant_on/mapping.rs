@@ -457,6 +457,7 @@ mod tests {
     use crate::server::shared::types::entities::EntitySource;
     use crate::server::subnets::r#impl::base::SubnetBase;
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::subnets::r#impl::types::SubnetType;
 
     // ------------------------------------------------------------------------------------
@@ -488,13 +489,13 @@ mod tests {
     fn test_subnets(site_id: Uuid) -> Vec<Subnet> {
         let subnet = |name: &str, cidr: &str, subnet_type| Subnet {
             base: SubnetBase {
-                name: name.to_string(),
+                name: SubnetName::unattributed(name.to_string()),
                 site_id,
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(cidr.parse().expect("valid CIDR")),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type,
+                subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
                 source: EntitySource::Discovery,
                 ..Default::default()
             },

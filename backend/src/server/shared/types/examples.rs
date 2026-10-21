@@ -14,7 +14,9 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::AttributeSource;
-use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+use crate::server::subnets::r#impl::base::{
+    SubnetCidr, SubnetCidrValue, SubnetName, SubnetTypeAttributed,
+};
 use crate::server::{
     bindings::r#impl::base::Binding,
     credentials::r#impl::mapping::SnmpCredentialMapping,
@@ -178,7 +180,7 @@ pub fn subnet() -> Subnet {
         first_discovery_id: None,
         base: SubnetBase {
             vlan_ids: Vec::new(),
-            name: "LAN".to_string(),
+            name: SubnetName::unattributed("LAN".to_string()),
             description: Some("Local area network".to_string()),
             site_id: ids::SITE,
             cidr: SubnetCidr::new(
@@ -187,7 +189,7 @@ pub fn subnet() -> Subnet {
                 )),
                 AttributeSource::DaemonSelfReport,
             ),
-            subnet_type: SubnetType::Lan,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
             virtualization_service_id: None,
             source: EntitySource::Manual,
             tags: vec![],

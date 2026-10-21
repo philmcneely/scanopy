@@ -59,7 +59,7 @@ pub fn network_identities(
 ) -> Vec<NetworkIdentity> {
     let on_lan = |ip: IpAddr| {
         placeable_subnet(subnets, ip)
-            .is_some_and(|s| !s.is_container_bridge_subnet() && !s.base.subnet_type.is_loopback())
+            .is_some_and(|s| !s.is_container_bridge_subnet() && !s.base.subnet_type().is_loopback())
     };
     let is_nic = |mac: &str| nics.iter().any(|n| n.mac.as_deref() == Some(mac));
     let is_unset = |mac: &str| {
@@ -213,6 +213,7 @@ mod tests {
     use crate::server::services::r#impl::definitions::{ServiceDefinitionExt, VirtualizationRole};
     use crate::server::shared::attribution::AttributeSource;
     use crate::server::shared::types::guest_state::GuestState;
+    use crate::server::subnets::r#impl::base::SubnetTypeAttributed;
     use crate::server::subnets::r#impl::base::{SubnetBase, SubnetCidr, SubnetCidrValue};
     use crate::server::subnets::r#impl::types::SubnetType;
 
@@ -234,7 +235,7 @@ mod tests {
                 SubnetCidrValue(cidr.parse().unwrap()),
                 AttributeSource::Manual,
             ),
-            subnet_type,
+            subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
             ..Default::default()
         })
     }

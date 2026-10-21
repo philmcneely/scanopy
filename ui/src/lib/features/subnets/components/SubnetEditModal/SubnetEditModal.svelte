@@ -72,18 +72,47 @@
 	);
 	let saveLabel = $derived(isEditing ? common_update() : common_create());
 
-	function getDefaultValues(): Subnet {
-		return subnet ? { ...subnet } : createEmptySubnetFormData(defaultSiteId);
+	// The fields the form edits, merged onto the subnet on submit. Not the whole `Subnet`: the
+	// generated type is an intersection of the range, name and type carriers, and TanStack's
+	// field-path types exceed TypeScript's instantiation depth walking it. The form edits values,
+	// never their sources; the server stamps one a person changed `Manual`.
+	interface SubnetFormValues {
+		name: string;
+		cidr: string;
+		description: string;
+		site_id: string;
+		subnet_type: Subnet['subnet_type'];
+		tags: string[];
+	}
+
+	function editing(): Subnet {
+		return subnet ?? createEmptySubnetFormData(defaultSiteId);
+	}
+
+	function formValues(source: Subnet): SubnetFormValues {
+		return {
+			name: source.name,
+			cidr: source.cidr,
+			description: source.description ?? '',
+			site_id: source.site_id,
+			subnet_type: source.subnet_type,
+			tags: source.tags
+		};
+	}
+
+	function getDefaultValues(): SubnetFormValues {
+		return formValues(editing());
 	}
 
 	// Create form with initial empty values - we'll reset it when the modal opens
 	const form = createForm(() => ({
-		defaultValues: createEmptySubnetFormData(''),
+		defaultValues: formValues(createEmptySubnetFormData('')),
 		onSubmit: async ({ value }) => {
 			const subnetData: Subnet = {
+				...editing(),
 				...value,
 				name: value.name.trim(),
-				description: value.description?.trim() || '',
+				description: value.description.trim(),
 				cidr: value.cidr.trim()
 			};
 
@@ -108,7 +137,7 @@
 
 	// CIDR disabled state - use a function to avoid reactive dependency on form.state
 	function getIsCidrDisabled(): boolean {
-		return isContainerSubnet(form.state.values) || isEditing;
+		return isContainerSubnet(editing()) || isEditing;
 	}
 
 	async function handleSubmit() {

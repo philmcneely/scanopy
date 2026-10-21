@@ -479,7 +479,7 @@ pub async fn create_discovery(
             if let Some(subnet) = state.services.subnet_service.get_by_id(subnet_id).await?
                 && subnet.base.site_id != discovery.base.site_id
             {
-                return Err(ApiError::discovery_subnet_site_mismatch(&subnet.base.name));
+                return Err(ApiError::discovery_subnet_site_mismatch(subnet.base.name()));
             }
         }
     }

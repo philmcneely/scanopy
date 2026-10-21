@@ -34,7 +34,10 @@ use crate::server::services::r#impl::virtualization::{
 use crate::server::shared::storage::traits::Storable;
 use crate::server::shared::types::entities::EntitySource;
 use crate::server::shared::types::guest_state::GuestState;
-use crate::server::subnets::r#impl::base::{Subnet, SubnetBase, SubnetCidr, SubnetCidrValue};
+use crate::server::subnets::r#impl::base::{
+    Subnet, SubnetBase, SubnetCidr, SubnetCidrValue, SubnetName, SubnetNameValue,
+    SubnetTypeAttributed, SubnetTypeValue,
+};
 use crate::server::subnets::r#impl::types::SubnetType;
 
 use super::{
@@ -171,8 +174,15 @@ impl ContainerRuntime {
             description: None,
             tags: Vec::new(),
             site_id,
-            name,
-            subnet_type,
+            // The runtime named the network and its driver decided the type.
+            name: SubnetName::new(
+                SubnetNameValue(name),
+                AttributeSource::Probe(self.client_probe()),
+            ),
+            subnet_type: SubnetTypeAttributed::new(
+                SubnetTypeValue(subnet_type),
+                AttributeSource::Probe(self.client_probe()),
+            ),
             virtualization_service_id,
             source: EntitySource::Discovery,
         }))
@@ -748,15 +758,15 @@ mod tests {
         };
 
         let docker = build(ContainerRuntime::Docker, "bridge").expect("bridge is a network");
-        assert_eq!(docker.base.subnet_type, SubnetType::DockerBridge);
+        assert_eq!(docker.base.subnet_type(), SubnetType::DockerBridge);
         assert_eq!(docker.base.virtualization_service_id, Some(id));
 
         let podman = build(ContainerRuntime::Podman, "overlay").expect("overlay is a network");
-        assert_eq!(podman.base.subnet_type, SubnetType::PodmanBridge);
+        assert_eq!(podman.base.subnet_type(), SubnetType::PodmanBridge);
         assert_eq!(podman.base.virtualization_service_id, Some(id));
 
         let macvlan = build(ContainerRuntime::Docker, "macvlan").expect("macvlan is a network");
-        assert_eq!(macvlan.base.subnet_type, SubnetType::MacVlan);
+        assert_eq!(macvlan.base.subnet_type(), SubnetType::MacVlan);
         assert!(macvlan.base.virtualization_service_id.is_none());
 
         // Drivers with no routable L3 network of their own.

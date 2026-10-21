@@ -616,16 +616,17 @@ mod tests {
     use crate::server::shared::storage::traits::Storable;
     use crate::server::shared::types::entities::EntitySource;
     use crate::server::subnets::r#impl::base::{SubnetBase, SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::subnets::r#impl::types::SubnetType;
 
     fn subnet(cidr: &str, subnet_type: SubnetType) -> Subnet {
         Subnet::new(SubnetBase {
-            name: cidr.to_string(),
+            name: SubnetName::unattributed(cidr.to_string()),
             cidr: SubnetCidr::new(
                 SubnetCidrValue(cidr.parse().unwrap()),
                 AttributeSource::DaemonSelfReport,
             ),
-            subnet_type,
+            subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
             source: EntitySource::Discovery,
             ..Default::default()
         })

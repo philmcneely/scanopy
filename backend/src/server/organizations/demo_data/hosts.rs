@@ -20,7 +20,12 @@ pub(super) fn generate_recent_hosts(
     now: DateTime<Utc>,
 ) -> Vec<HostWithServices> {
     let find_site = |name: &str| sites.iter().find(|n| n.base.name.contains(name)).unwrap();
-    let find_subnet = |name: &str| subnets.iter().find(|s| s.base.name.contains(name)).unwrap();
+    let find_subnet = |name: &str| {
+        subnets
+            .iter()
+            .find(|s| s.base.name().contains(name))
+            .unwrap()
+    };
 
     let hq = find_site("Headquarters");
     let dc = find_site("Data Center");
@@ -117,7 +122,12 @@ pub(super) fn generate_hosts_and_services(
 
     // Helper to find entities
     let find_site = |name: &str| sites.iter().find(|n| n.base.name.contains(name)).unwrap();
-    let find_subnet = |name: &str| subnets.iter().find(|s| s.base.name.contains(name)).unwrap();
+    let find_subnet = |name: &str| {
+        subnets
+            .iter()
+            .find(|s| s.base.name().contains(name))
+            .unwrap()
+    };
     let find_tag = |name: &str| tags.iter().find(|t| t.base.name == name).map(|t| t.id);
 
     let network_devices_cred = credentials

@@ -1,8 +1,10 @@
 use std::fmt::Display;
 use std::net::Ipv4Addr;
 
+use crate::attributed_value;
 use crate::server::shared::attribution::{
     self as attribution, AttributeMethod, AttributeSource, AttributeValue, Attributed,
+    string_schema,
 };
 use crate::server::shared::entities::ChangeTriggersTopologyStaleness;
 use crate::server::shared::storage::traits::Storable;
@@ -100,6 +102,88 @@ impl std::ops::Deref for SubnetCidr {
     }
 }
 
+attributed_value! {
+    /// A subnet's human-facing name.
+    ///
+    /// A range discovery builds from an address and its netmask is named after its own CIDR at
+    /// `Unspecified`: a placeholder, which any reading replaces. A name from a controller or a
+    /// container runtime is a reading; a name typed into Scanopy is never displaced.
+    pub struct SubnetNameValue(String) as SubnetName {
+        key: "name",
+        source_key: "name_source",
+        schema_name: "SubnetName",
+        refreshable: true,
+        required: true,
+        blank: |value: &str| value.trim().is_empty(),
+        schema: string_schema("Human-facing name for this subnet."),
+    }
+}
+
+/// The 100-character cap the API has always enforced on a subnet name. A custom validator because
+/// the derive cannot see a length through the carrier.
+fn validate_subnet_name(name: &SubnetName) -> Result<(), validator::ValidationError> {
+    if name.value().0.chars().count() > 100 {
+        return Err(validator::ValidationError::new("length"));
+    }
+    Ok(())
+}
+
+/// What kind of segment a subnet is, as a provenanced value.
+///
+/// Hand-written rather than declared through `attributed_value!`, as `SubnetCidrValue` is: the
+/// macro renders the value through `Display`, which `SubnetType` does not implement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SubnetTypeValue(pub SubnetType);
+
+impl utoipa::PartialSchema for SubnetTypeValue {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::Schema> {
+        utoipa::openapi::Ref::from_schema_name(<SubnetType as ToSchema>::name()).into()
+    }
+}
+
+impl AttributeValue for SubnetTypeValue {
+    const VALUE_KEY: &'static str = "subnet_type";
+    const SOURCE_KEY: &'static str = "subnet_type_source";
+    const SCHEMA_NAME: &'static str = "SubnetTypeAttributed";
+    /// Every subnet has a type, if only `Unknown`.
+    const VALUE_REQUIRED: bool = true;
+    /// A controller's network can change purpose, and the same source re-reading it should follow.
+    const REFRESHABLE: bool = true;
+
+    /// `Unknown` says nothing about the segment, so it never displaces a type something read, and
+    /// any reading replaces it.
+    fn is_blank(&self) -> bool {
+        self.0 == SubnetType::Unknown
+    }
+
+    /// The `$ref` above points at the enum's own component, which the field used to register by
+    /// being typed `SubnetType`.
+    fn value_schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::Schema>)>) {
+        schemas.push((
+            <SubnetType as ToSchema>::name().into_owned(),
+            <SubnetType as utoipa::PartialSchema>::schema(),
+        ));
+    }
+}
+
+/// A subnet's type together with what produced it.
+pub type SubnetTypeAttributed = Attributed<SubnetTypeValue>;
+
+impl SubnetName {
+    /// A name nothing attributes: rows seeded or built by hand in code, and pre-provenance rows.
+    pub fn unattributed(name: impl Into<String>) -> Self {
+        Self::new(SubnetNameValue(name.into()), AttributeSource::Unspecified)
+    }
+}
+
+impl SubnetTypeAttributed {
+    /// A type nothing attributes, for the same callers as [`SubnetName::unattributed`].
+    pub fn unattributed(subnet_type: SubnetType) -> Self {
+        Self::new(SubnetTypeValue(subnet_type), AttributeSource::Unspecified)
+    }
+}
+
 #[derive(Debug, Clone, Validate, Serialize, Deserialize, Eq, PartialEq, Hash, ToSchema)]
 pub struct SubnetBase {
     /// The subnet's range and how far it can be trusted.
@@ -115,15 +199,23 @@ pub struct SubnetBase {
     pub cidr: SubnetCidr,
     /// The site this entity belongs to.
     pub site_id: Uuid,
-    /// Human-facing name for this subnet.
-    #[validate(length(min = 0, max = 100))]
-    pub name: String,
+    /// Human-facing name for this subnet, with the source that named it.
+    ///
+    /// Two flat wire keys, `name` and `name_source`, so a client that sends only `name` still
+    /// deserialises, at `Unspecified`.
+    #[serde(flatten, deserialize_with = "attribution::required")]
+    #[schema(value_type = SubnetName)]
+    #[validate(custom(function = "validate_subnet_name"))]
+    pub name: SubnetName,
     /// Free-text notes about the subnet.
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     #[validate(length(min = 0, max = 500))]
     pub description: Option<String>,
-    /// What type of subnet this is — physical, virtual, container bridge, and so on.
-    pub subnet_type: SubnetType,
+    /// What type of subnet this is — physical, virtual, container bridge, and so on — with the
+    /// source that typed it. Two flat wire keys, `subnet_type` and `subnet_type_source`.
+    #[serde(flatten, deserialize_with = "attribution::required")]
+    #[schema(value_type = SubnetTypeAttributed)]
+    pub subnet_type: SubnetTypeAttributed,
     /// The container runtime service that owns this bridge network.
     ///
     /// Load-bearing for dedup: the same CIDR on two different Docker daemons is two distinct
@@ -159,15 +251,33 @@ impl Default for SubnetBase {
                 )),
                 AttributeSource::Unspecified,
             ),
-            name: "New Subnet".to_string(),
+            name: SubnetName::new(
+                SubnetNameValue("New Subnet".to_string()),
+                AttributeSource::Unspecified,
+            ),
             site_id: Uuid::new_v4(),
             description: None,
-            subnet_type: SubnetType::Unknown,
+            subnet_type: SubnetTypeAttributed::new(
+                SubnetTypeValue(SubnetType::Unknown),
+                AttributeSource::Unspecified,
+            ),
             virtualization_service_id: None,
             source: EntitySource::Manual,
             vlan_ids: Vec::new(),
             tags: Vec::new(),
         }
+    }
+}
+
+impl SubnetBase {
+    /// The type alone, for the readers that branch on it rather than merge it.
+    pub fn subnet_type(&self) -> SubnetType {
+        self.subnet_type.value().0
+    }
+
+    /// The name alone, for display.
+    pub fn name(&self) -> &str {
+        &self.name.value().0
     }
 }
 
@@ -218,33 +328,11 @@ pub struct Subnet {
 impl Subnet {
     /// Whether this subnet is a container-runtime bridge network (Docker or Podman).
     pub fn is_container_bridge_subnet(&self) -> bool {
-        self.base.subnet_type.is_container_bridge()
+        self.base.subnet_type().is_container_bridge()
     }
 
     pub fn is_vpn_subnet(&self) -> bool {
-        self.base.subnet_type == SubnetType::VpnTunnel
-    }
-
-    /// Whether this fresh observation should correct `existing`'s container-bridge
-    /// classification.
-    ///
-    /// Bridge types are produced only by `ContainerRuntime::subnet_from_network`,
-    /// which always stamps `virtualization` to scope the bridge to its owning
-    /// runtime service. A bridge row without one therefore predates that rule and
-    /// can only have come from the interface-name heuristic that used to type an
-    /// access point's `br-`-prefixed guest bridge as Docker (#663) — so a current
-    /// non-bridge observation of the same CIDR supersedes it.
-    ///
-    /// Both rows must be `Discovery`. A `Manual` subnet type is a user's explicit
-    /// assertion, not a guess to be repaired, and discovery must never silently
-    /// overwrite it — the CIDR dedup happily matches a Manual row against an
-    /// incoming discovered one, so this is the only thing keeping them apart.
-    pub fn corrects_container_bridge_guess(&self, existing: &Subnet) -> bool {
-        existing.base.source == EntitySource::Discovery
-            && self.base.source == EntitySource::Discovery
-            && existing.base.subnet_type.is_container_bridge()
-            && existing.base.virtualization_service_id.is_none()
-            && !self.base.subnet_type.is_container_bridge()
+        self.base.subnet_type() == SubnetType::VpnTunnel
     }
 
     /// The runtime owner this fresh bridge observation gives `existing`, when it has none.
@@ -255,9 +343,9 @@ impl Subnet {
     /// migration's unresolvable ids) stayed ownerless through every later scan that named it.
     /// An owner already stored is kept: a different one never matches the dedup.
     pub fn owner_for_ownerless_bridge(&self, existing: &Subnet) -> Option<Uuid> {
-        let adopts = existing.base.subnet_type.is_container_bridge()
+        let adopts = existing.base.subnet_type().is_container_bridge()
             && existing.base.virtualization_service_id.is_none()
-            && self.base.subnet_type.is_container_bridge();
+            && self.base.subnet_type().is_container_bridge();
         adopts
             .then_some(self.base.virtualization_service_id)
             .flatten()
@@ -308,8 +396,15 @@ impl Subnet {
                     site_id,
                     description: None,
                     tags: Vec::new(),
-                    name: cidr.to_string(),
-                    subnet_type,
+                    // A placeholder rather than a reading: any name something reports replaces it.
+                    name: SubnetName::new(
+                        SubnetNameValue(cidr.to_string()),
+                        AttributeSource::Unspecified,
+                    ),
+                    subnet_type: SubnetTypeAttributed::new(
+                        SubnetTypeValue(subnet_type),
+                        AttributeSource::InterfaceNameMatch,
+                    ),
                     virtualization_service_id: None,
                     source: EntitySource::Discovery,
                 }))
@@ -406,7 +501,7 @@ impl Subnet {
     }
 
     pub fn is_user_managed(&self) -> bool {
-        self.base.source == EntitySource::Manual || !self.base.subnet_type.is_synthetic_category()
+        self.base.source == EntitySource::Manual || !self.base.subnet_type().is_synthetic_category()
     }
 }
 
@@ -442,7 +537,7 @@ impl Hash for Subnet {
 
 impl Display for Subnet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Subnet {}: {}", self.base.name, self.id)
+        write!(f, "Subnet {}: {}", self.base.name(), self.id)
     }
 }
 
@@ -508,13 +603,31 @@ mod tests {
                 AttributeSource::DaemonSelfReport,
             ),
             site_id: Uuid::nil(),
-            name: "172.30.10.0/24".into(),
+            name: SubnetName::new(
+                SubnetNameValue("172.30.10.0/24".into()),
+                AttributeSource::Unspecified,
+            ),
             description: None,
-            subnet_type,
+            subnet_type: SubnetTypeAttributed::new(
+                SubnetTypeValue(subnet_type),
+                AttributeSource::Unspecified,
+            ),
             virtualization_service_id,
             source,
             tags: Vec::new(),
         })
+    }
+
+    fn typed(subnet_type: SubnetType, source: AttributeSource) -> SubnetTypeAttributed {
+        SubnetTypeAttributed::new(SubnetTypeValue(subnet_type), source)
+    }
+
+    /// What a stored type becomes when a scan reports another for the same range, by the rule
+    /// `SubnetService::create` applies on a CIDR match.
+    fn merged(stored: SubnetTypeAttributed, reported: SubnetTypeAttributed) -> SubnetType {
+        let mut slot = stored;
+        slot.apply_in_place(reported);
+        slot.value().0
     }
 
     /// #663: the reporter's access-point guest subnet was already stored as
@@ -544,39 +657,78 @@ mod tests {
         assert_eq!(scanned.owner_for_ownerless_bridge(&stored), None);
     }
 
+    /// #663: an access point's guest subnet was stored as `DockerBridge` by the interface-name
+    /// heuristic, and rediscovery dedups into that row. The migration leaves such an ownerless
+    /// bridge at `Unspecified`, so the next reading of the range corrects it.
     #[test]
-    fn stale_bridge_guess_is_corrected_by_a_fresh_observation() {
-        let guess = subnet(SubnetType::DockerBridge, None);
-        assert!(subnet(SubnetType::Guest, None).corrects_container_bridge_guess(&guess));
+    fn a_stale_bridge_guess_is_corrected_by_a_reading() {
+        let guess = typed(SubnetType::DockerBridge, AttributeSource::Unspecified);
+        let reading = typed(SubnetType::Guest, AttributeSource::InterfaceNameMatch);
+        assert_eq!(merged(guess, reading), SubnetType::Guest);
     }
 
-    /// A bridge carrying virtualization came from the runtime API, so nothing
-    /// derived from an interface name may downgrade it.
+    /// A bridge the runtime typed is not downgraded by a guess from an interface name.
     #[test]
-    fn authoritative_bridge_is_never_downgraded() {
-        let authoritative = subnet(SubnetType::DockerBridge, Some(Uuid::new_v4()));
-        assert!(!subnet(SubnetType::Guest, None).corrects_container_bridge_guess(&authoritative));
-        // Nor may one bridge observation replace another.
-        assert!(
-            !subnet(SubnetType::DockerBridge, None)
-                .corrects_container_bridge_guess(&subnet(SubnetType::DockerBridge, None))
+    fn a_runtime_typed_bridge_outranks_an_interface_name_guess() {
+        let runtime = typed(
+            SubnetType::DockerBridge,
+            AttributeSource::Probe(ClientProbe::Docker),
         );
+        let guess = typed(SubnetType::Guest, AttributeSource::InterfaceNameMatch);
+        assert_eq!(merged(runtime, guess), SubnetType::DockerBridge);
     }
 
-    /// A manually-set subnet type is a user's assertion, not a guess to repair.
-    /// The CIDR dedup matches a Manual row against an incoming discovered one,
-    /// so without the source check discovery would silently overwrite it.
+    /// The controller's own setting for a network replaces a type guessed from an interface name,
+    /// which is what the `subnet_type` source exists for.
     #[test]
-    fn manual_subnet_type_is_never_overwritten_by_discovery() {
-        let manual = sourced_subnet(SubnetType::DockerBridge, None, EntitySource::Manual);
-        assert!(!subnet(SubnetType::Guest, None).corrects_container_bridge_guess(&manual));
-
-        // ...and a manual observation may not rewrite a discovered row either.
-        let discovered = subnet(SubnetType::DockerBridge, None);
-        assert!(
-            !sourced_subnet(SubnetType::Guest, None, EntitySource::Manual)
-                .corrects_container_bridge_guess(&discovered)
+    fn a_controllers_purpose_replaces_an_interface_name_guess() {
+        let guess = typed(SubnetType::Lan, AttributeSource::InterfaceNameMatch);
+        let purpose = typed(
+            SubnetType::Guest,
+            AttributeSource::Authored(ClientProbe::UnifiController),
         );
+        assert_eq!(merged(guess, purpose), SubnetType::Guest);
+    }
+
+    /// A type a person set is an assertion, not a guess to repair: nothing a scan reads replaces it.
+    #[test]
+    fn a_manual_type_is_never_overwritten_by_discovery() {
+        let manual = typed(SubnetType::DockerBridge, AttributeSource::Manual);
+        let controller = typed(
+            SubnetType::Guest,
+            AttributeSource::Authored(ClientProbe::UnifiController),
+        );
+        assert_eq!(merged(manual, controller), SubnetType::DockerBridge);
+    }
+
+    /// `Unknown` says nothing about the segment, so a reading of it changes nothing.
+    #[test]
+    fn an_unknown_reading_keeps_the_stored_type() {
+        let guess = typed(SubnetType::Lan, AttributeSource::InterfaceNameMatch);
+        let unknown = typed(
+            SubnetType::Unknown,
+            AttributeSource::Authored(ClientProbe::UnifiController),
+        );
+        assert_eq!(merged(guess, unknown), SubnetType::Lan);
+    }
+
+    /// A subnet named after its own CIDR takes the name a controller gives the network; one a
+    /// person named keeps it.
+    #[test]
+    fn a_controller_name_replaces_a_placeholder_but_not_a_persons_name() {
+        let named = |name: &str, source| SubnetName::new(SubnetNameValue(name.into()), source);
+        let controller = named(
+            "Servers",
+            AttributeSource::Authored(ClientProbe::UnifiController),
+        );
+
+        let mut placeholder = named("10.20.0.0/24", AttributeSource::Unspecified);
+        placeholder.apply_in_place(controller.clone());
+        assert_eq!(placeholder.value().0, "Servers");
+
+        let mut chosen = named("Rack A", AttributeSource::Manual);
+        chosen.apply_in_place(controller);
+        assert_eq!(chosen.value().0, "Rack A");
     }
 
     /// GH #677: assigning `Remote` to a subnet they had created made it vanish from
@@ -649,7 +801,7 @@ mod tests {
         .expect("loopback /8 should produce a subnet");
         assert_eq!(subnet.base.cidr.to_string(), "127.0.0.0/8");
         assert_eq!(subnet.base.source, EntitySource::Discovery);
-        assert!(subnet.base.subnet_type.is_loopback());
+        assert!(subnet.base.subnet_type().is_loopback());
         assert!(!subnet.is_container_bridge_subnet());
     }
 
@@ -798,7 +950,7 @@ mod tests {
 
         let mut catch_all = ranged("0.0.0.0/0", READING);
         catch_all.base.source = EntitySource::System;
-        catch_all.base.subnet_type = SubnetType::Internet;
+        catch_all.base.subnet_type = typed(SubnetType::Internet, AttributeSource::Unspecified);
 
         assert!(!catch_all.corrects_inferred_range(&inferred));
     }

@@ -672,11 +672,12 @@ mod reported_range {
     use super::super::{ReportedRange, place_reported_range};
     use crate::server::shared::attribution::AttributeSource;
     use crate::server::shared::storage::traits::Storable;
+    use crate::server::subnets::r#impl::base::SubnetName;
     use crate::server::subnets::r#impl::base::{Subnet, SubnetBase, SubnetCidr, SubnetCidrValue};
 
     fn held(cidr: &str) -> Subnet {
         Subnet::new(SubnetBase {
-            name: cidr.to_string(),
+            name: SubnetName::unattributed(cidr.to_string()),
             cidr: SubnetCidr::new(
                 SubnetCidrValue(cidr.parse().expect("valid CIDR")),
                 AttributeSource::DaemonSelfReport,

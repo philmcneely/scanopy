@@ -658,6 +658,7 @@ mod partial_result_tests {
     use super::*;
     use crate::server::hosts::r#impl::base::{Host, HostBase};
     use crate::server::shared::storage::traits::Storable;
+    use crate::server::subnets::r#impl::base::SubnetTypeAttributed;
     use crate::server::subnets::r#impl::base::{Subnet, SubnetBase};
     use crate::server::subnets::r#impl::types::SubnetType;
 
@@ -674,7 +675,7 @@ mod partial_result_tests {
 
     fn bridge_subnet() -> Subnet {
         Subnet::new(SubnetBase {
-            subnet_type: SubnetType::DockerBridge,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::DockerBridge),
             ..Default::default()
         })
     }
@@ -711,7 +712,7 @@ mod partial_result_tests {
         // The scratch went further than the checkpoint before it hung.
         let mut scratch = committed.clone();
         scratch.add_subnet(Subnet::new(SubnetBase {
-            subnet_type: SubnetType::PodmanBridge,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::PodmanBridge),
             ..Default::default()
         }));
 

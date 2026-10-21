@@ -12,16 +12,17 @@ use crate::server::search::{
     service::global_search,
     types::{GlobalSearchResponse, SearchHit},
 };
+use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::entities::{Entity, EntityDiscriminants};
 use crate::server::shared::storage::traits::{Storable, Storage};
 use crate::server::tags::entity_tags::{EntityTag, EntityTagBase};
 use crate::server::tags::r#impl::base::{Tag, TagBase};
 use crate::server::user_api_keys::r#impl::base::{UserApiKey, UserApiKeyBase};
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
-use crate::server::shared::attribution::AttributeSource;
 use crate::server::vlans::r#impl::base::{Vlan, VlanBase, VlanName, VlanNameValue};
 
 use super::{host, organization, service, site, subnet, test_services, user};
+use crate::server::subnets::r#impl::base::SubnetName;
 
 fn scope(
     org_id: Uuid,
@@ -93,7 +94,7 @@ async fn returns_matches_of_several_types_within_the_callers_sites_and_org() {
         h.base.name = HostName::manual("lisbon-core".to_string());
         storage.hosts.create(&h).await.unwrap();
         let mut sn = subnet(&site_id);
-        sn.base.name = "Lisbon LAN".to_string();
+        sn.base.name = SubnetName::unattributed("Lisbon LAN".to_string());
         storage.subnets.create(&sn).await.unwrap();
         let vlan = Vlan::new(VlanBase {
             name: VlanName::new(
@@ -333,7 +334,7 @@ async fn a_type_pages_past_its_first_page_without_overlap() {
     let mut created = HashSet::new();
     for n in 0..7 {
         let mut sn = subnet(&net.id);
-        sn.base.name = format!("Lisbon floor {n}");
+        sn.base.name = SubnetName::unattributed(format!("Lisbon floor {n}"));
         storage.subnets.create(&sn).await.unwrap();
         created.insert(sn.id);
     }

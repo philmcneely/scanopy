@@ -1157,7 +1157,7 @@ impl Pattern<'_> {
             }
 
             Pattern::SubnetIsType(subnet_type) => {
-                if &subnet.base.subnet_type == subnet_type {
+                if &subnet.base.subnet_type() == subnet_type {
                     Ok(MatchResult {
                         ports: vec![],
                         endpoint: None,

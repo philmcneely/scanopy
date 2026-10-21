@@ -6402,16 +6402,19 @@ export interface components {
              *       "last_seen_at": "2026-01-15T10:30:00Z",
              *       "lineage_id": null,
              *       "name": "LAN",
+             *       "name_source": "Unspecified",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
              *       },
              *       "subnet_type": "Lan",
+             *       "subnet_type_source": "Unspecified",
              *       "tags": [],
              *       "updated_at": "2026-01-15T10:30:00Z",
              *       "valid_from": "2026-01-15T10:30:00Z",
              *       "valid_to": null,
-             *       "virtualization_service_id": null
+             *       "virtualization_service_id": null,
+             *       "vlan_ids": []
              *     }
              */
             data?: components["schemas"]["SubnetBase"] & {
@@ -7443,7 +7446,7 @@ export interface components {
          *     that do carry a [`ClientProbe`] keep it under their own name, `{"Probe":"Snmp"}`, which tells them
          *     apart from each other and from every bare name.
          */
-        AttributeSource: "Unspecified" | "OwnAddress" | "ServiceMatch" | "LldpNeighbourAddress" | "CipVendorId" | "SysDescrMatch" | "SysObjectIdMatch" | "LldpSysDescMatch" | "SshBannerMatch" | "HttpServerMatch" | "DnsSdDeviceInfoMatch" | "DnsSdAirPlayMatch" | "DnsSdInstanceName" | "DnsSdHostname" | "LldpChassisId" | "Lldpd" | "ReverseDns" | "ForwardingTable" | "ArpReply" | "IcmpEcho" | "PortScan" | "DaemonSelfReport" | "ProfinetDcp" | "ContainerRuntimeInfo" | "HypervisorConfig" | "GuestAgent" | "SshScript" | {
+        AttributeSource: "Unspecified" | "OwnAddress" | "ServiceMatch" | "LldpNeighbourAddress" | "CipVendorId" | "SysDescrMatch" | "SysObjectIdMatch" | "LldpSysDescMatch" | "SshBannerMatch" | "HttpServerMatch" | "DnsSdDeviceInfoMatch" | "DnsSdAirPlayMatch" | "InterfaceNameMatch" | "DnsSdInstanceName" | "DnsSdHostname" | "LldpChassisId" | "Lldpd" | "ReverseDns" | "ForwardingTable" | "ArpReply" | "IcmpEcho" | "PortScan" | "DaemonSelfReport" | "ProfinetDcp" | "ContainerRuntimeInfo" | "HypervisorConfig" | "GuestAgent" | "SshScript" | {
             /** @description A value the thing emitted about itself, over whatever transport [`ClientProbe`] names. */
             Probe: components["schemas"]["ClientProbe"];
         } | {
@@ -14931,16 +14934,19 @@ export interface components {
          *       "last_seen_at": "2026-01-15T10:30:00Z",
          *       "lineage_id": null,
          *       "name": "LAN",
+         *       "name_source": "Unspecified",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
          *       },
          *       "subnet_type": "Lan",
+         *       "subnet_type_source": "Unspecified",
          *       "tags": [],
          *       "updated_at": "2026-01-15T10:30:00Z",
          *       "valid_from": "2026-01-15T10:30:00Z",
          *       "valid_to": null,
-         *       "virtualization_service_id": null
+         *       "virtualization_service_id": null,
+         *       "vlan_ids": []
          *     }
          */
         Subnet: components["schemas"]["SubnetBase"] & {
@@ -14990,11 +14996,9 @@ export interface components {
              */
             readonly valid_to?: string | null;
         };
-        SubnetBase: components["schemas"]["SubnetCidr"] & {
+        SubnetBase: components["schemas"]["SubnetCidr"] & components["schemas"]["SubnetName"] & components["schemas"]["SubnetTypeAttributed"] & {
             /** @description Free-text notes about the subnet. */
             description?: string | null;
-            /** @description Human-facing name for this subnet. */
-            name: string;
             /**
              * Format: uuid
              * @description The site this entity belongs to.
@@ -15002,8 +15006,6 @@ export interface components {
             site_id: string;
             /** @description Will be automatically set to Manual for creation through API */
             source: components["schemas"]["EntitySource"];
-            /** @description What type of subnet this is — physical, virtual, container bridge, and so on. */
-            subnet_type: components["schemas"]["SubnetType"];
             /** @description Tags assigned to this entity. */
             tags: string[];
             /**
@@ -15017,6 +15019,12 @@ export interface components {
              *     cannot be written at all.
              */
             virtualization_service_id: string | null;
+            /**
+             * @description VLANs associated with this subnet, through the `subnet_vlans` junction (the reverse of
+             *     `Vlan::subnet_ids`). Hydrated by `SubnetService` on read; it is not a column on `subnets`,
+             *     so anything sent here on create/update is ignored by `to_params`.
+             */
+            vlan_ids?: string[];
         };
         SubnetCidr: {
             /**
@@ -15025,6 +15033,11 @@ export interface components {
              */
             cidr: string;
             cidr_source?: components["schemas"]["AttributeSource"];
+        };
+        SubnetName: {
+            /** @description Human-facing name for this subnet. */
+            name: string;
+            name_source?: components["schemas"]["AttributeSource"];
         };
         /**
          * @description Fields that subnets can be ordered/grouped by.
@@ -15064,6 +15077,10 @@ export interface components {
         };
         /** @enum {string} */
         SubnetType: "Internet" | "Remote" | "Gateway" | "VpnTunnel" | "Dmz" | "Lan" | "WiFi" | "IoT" | "Guest" | "DockerBridge" | "PodmanBridge" | "MacVlan" | "IpVlan" | "Management" | "Storage" | "Loopback" | "Unknown";
+        SubnetTypeAttributed: {
+            subnet_type: components["schemas"]["SubnetType"];
+            subnet_type_source?: components["schemas"]["AttributeSource"];
+        };
         /**
          * @description A list-table column that is not a registry field: a value the table computes, reads from
          *     another endpoint, or keeps out of CSV export (`created_at`, `last_seen_at`). Declared here so
@@ -16243,7 +16260,7 @@ export interface components {
              */
             readonly valid_to?: string | null;
         };
-        VlanBase: {
+        VlanBase: components["schemas"]["VlanName"] & {
             /** @description Free-text notes about the VLAN. */
             description?: string | null;
             /**
@@ -16252,8 +16269,6 @@ export interface components {
              *     Hydrated by `VlanService` on read; not a column on `vlans`.
              */
             interface_ids?: string[];
-            /** @description Human-facing name for this VLAN. */
-            name: string;
             /**
              * Format: uuid
              * @description The organization that owns this record.
@@ -16284,6 +16299,11 @@ export interface components {
         VlanDiscoveryItem: {
             /** @description VLAN name as configured on the device. */
             name: string;
+            /**
+             * @description Where the daemon read the name. Defaults to an SNMP read: daemons that predate this field
+             *     sent VLANs from SNMP alone.
+             */
+            name_source?: components["schemas"]["AttributeSource"];
             /**
              * Format: int32
              * @description 802.1Q VLAN ID.
@@ -16316,6 +16336,11 @@ export interface components {
              * @description 802.1Q VLAN ID.
              */
             vlan_number: number;
+        };
+        VlanName: {
+            /** @description Human-facing name for this VLAN. */
+            name: string;
+            name_source?: components["schemas"]["AttributeSource"];
         };
         /** @enum {string} */
         VlanOrderField: "created_at" | "name" | "vlan_number" | "updated_at" | "site_id" | "source" | "last_seen_at";

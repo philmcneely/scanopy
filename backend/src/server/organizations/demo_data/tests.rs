@@ -42,7 +42,7 @@ fn a_subnet_is_linked_to_a_vlan_through_the_macs_its_access_ports_learned() {
     let storage = demo
         .subnets
         .iter()
-        .find(|s| s.base.name == "DC Storage")
+        .find(|s| s.base.name() == "DC Storage")
         .expect("the DC Storage subnet");
     let servers: HashSet<Uuid> = demo
         .vlans
@@ -373,7 +373,7 @@ fn daemons_report_the_subnets_their_host_has_addresses_on() {
         assert!(
             subnet_ids
                 .iter()
-                .any(|id| subnets_by_id[id].base.subnet_type.is_container_bridge()),
+                .any(|id| subnets_by_id[id].base.subnet_type().is_container_bridge()),
             "{} reports no container bridge subnet",
             daemon.base.name
         );
