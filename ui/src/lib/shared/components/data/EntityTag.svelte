@@ -45,6 +45,9 @@
 
 	let config = $derived(entityUIConfig[entityRef.entityType]);
 	let displayComponent = $derived(config?.displayComponent ?? null);
+	// The entity's own chip icon unless the caller passes one, so every chip for a host draws its
+	// device type the same way.
+	let chipIcon = $derived(icon ?? displayComponent?.getChipIcon?.(entityRef.data) ?? null);
 
 	function handleMouseEnter() {
 		if (!displayComponent || disablePopover) return;
@@ -86,7 +89,7 @@
 	<span
 		class="inline-flex max-w-full flex-shrink-0 items-center gap-1 whitespace-nowrap rounded-full"
 	>
-		<Tag {icon} {color} {disabled} {label} {badge} pill={true} />
+		<Tag icon={chipIcon} {color} {disabled} {label} {badge} pill={true} />
 	</span>
 {:else if disableNavigate}
 	<!-- Non-interactive (no click-to-navigate, no hover-brightness) but still tracks
@@ -99,7 +102,7 @@
 		onmouseenter={handleMouseEnter}
 		onmouseleave={handleMouseLeave}
 	>
-		<Tag {icon} {color} {disabled} {label} {badge} pill={true} />
+		<Tag icon={chipIcon} {color} {disabled} {label} {badge} pill={true} />
 	</div>
 {:else}
 	<div
@@ -114,7 +117,7 @@
 		role="button"
 		tabindex="0"
 	>
-		<Tag {icon} {color} {disabled} {label} {badge} pill={true} />
+		<Tag icon={chipIcon} {color} {disabled} {label} {badge} pill={true} />
 	</div>
 {/if}
 

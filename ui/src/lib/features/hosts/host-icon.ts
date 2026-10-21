@@ -7,8 +7,8 @@ import DeviceGlyph from '$lib/features/hosts/components/DeviceGlyph.svelte';
  * The icon for a specific host: its device type's glyph, in the Host colour every device type shares.
  *
  * Every surface that draws one host (a card, a chip, a hover card, a modal header) reads this, so
- * a host is the same picture in the list, the map and the editor. A host nothing identifies is
- * `Unidentified`, whose glyph is the generic Host icon, so a host known only by id looks the same.
+ * a host is the same picture in the list, the map and the editor. A host nothing identifies, or one
+ * known only by id, is `Unidentified`.
  */
 export function hostIcon(host: Pick<Host, 'device_type'> | null | undefined): IconComponent {
 	return deviceTypes.getIconComponent(host?.device_type ?? 'Unidentified');
@@ -17,7 +17,7 @@ export function hostIcon(host: Pick<Host, 'device_type'> | null | undefined): Ic
 /**
  * The same icon as a tile: the device type's glyph on its neutral square, for a host's card (the hover
  * card, a picker row, the inspector), where the icon sits in its own slot. Chips and inline
- * mentions use `hostIcon`, bare.
+ * mentions use `hostIcon`, bare: `HostDisplay.getChipIcon` gives it to every host `EntityTag`.
  */
 export function hostTile(host: Pick<Host, 'device_type'> | null | undefined): IconComponent {
 	const deviceType = host?.device_type ?? 'Unidentified';

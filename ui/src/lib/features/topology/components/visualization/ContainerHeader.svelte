@@ -67,7 +67,10 @@
 		iconComponent: IconComponent | null;
 		/** Service definition whose logo marks the container, drawn round as software. */
 		logoDefinition: string | null;
-		/** The device type a container standing for a device draws, as a square tile, in place of its icon. */
+		/**
+		 * The device type a container standing for a device draws, as the same square tile as its icon card,
+		 * in place of its icon. Expanded or collapsed, the tile holds the header's identity slot.
+		 */
 		deviceType?: components['schemas']['DeviceType'] | null;
 		fillIcon: boolean;
 		colorHelper: ColorStyle;
@@ -204,7 +207,7 @@
 		{/if}
 
 		{#if deviceType}
-			<DeviceGlyph {deviceType} framed={false} />
+			<DeviceGlyph {deviceType} />
 		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<IconComp class={`h-5 w-5 ${colorHelper.icon}`} fill={fillIcon ? 'currentColor' : 'none'} />
@@ -228,6 +231,9 @@
 	>
 		{#if isCollapsible}
 			<span data-fixed class="flex items-center"><span class="caret text-secondary"></span></span>
+		{/if}
+		{#if deviceType}
+			<span data-fixed><DeviceGlyph {deviceType} /></span>
 		{/if}
 		{#if logoDefinition}
 			<span data-fixed><SoftwareGlyph definition={logoDefinition} framed={false} /></span>
@@ -270,7 +276,7 @@
 			>
 		{/if}
 		{#if deviceType}
-			<span data-fixed><DeviceGlyph {deviceType} framed={false} /></span>
+			<span data-fixed><DeviceGlyph {deviceType} /></span>
 		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<span data-fixed

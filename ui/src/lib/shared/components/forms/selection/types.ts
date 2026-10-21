@@ -23,6 +23,8 @@ export interface EntityDisplayComponent<T, C> {
 	getDescription?(item: T, context: C): string;
 	getIcon?(item: T, context: C): IconComponent | null;
 	getIconColor?(item: T, context: C): string | null;
+	/** The icon an `EntityTag` chip for this item draws when its caller passes none: bare, inline. */
+	getChipIcon?(item: T): IconComponent | null;
 	getTags?(item: T, context: C): TagProps[];
 	/** Tag roles a `compact` context drops. Read through `displayTags`, never directly. */
 	compactHides?: readonly string[];
