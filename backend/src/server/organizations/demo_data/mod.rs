@@ -547,7 +547,17 @@ fn scan_match(service_definition_id: &str) -> Option<MatchDetails> {
         (all_of(vec![port_open(port), probe(client_probe)]), Certain)
     };
     let (reason, confidence) = match service_definition_id {
-        "SSH" => probed(PortType::Ssh, ClientProbe::Ssh),
+        // `AnyOf`: the banner probe on 22 satisfies both branches, so both are recorded.
+        "SSH" => (
+            MatchReason::Container(
+                "Any of".to_string(),
+                vec![
+                    probe(ClientProbe::Ssh),
+                    all_of(vec![port_open(PortType::Ssh), probe(ClientProbe::Ssh)]),
+                ],
+            ),
+            Certain,
+        ),
         "OpenVPN" => probed(PortType::OpenVPN, ClientProbe::OpenVpn),
         "Modbus TCP" => probed(PortType::ModbusTcp, ClientProbe::ModbusTcp),
         "Workstation" => (
