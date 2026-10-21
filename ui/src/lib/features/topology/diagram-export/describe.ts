@@ -103,16 +103,7 @@ function elementDescription(
 	if (!data) return { title: node.header ?? '', lines: [] };
 	// An icon card shows only its label, so its shape does too; the rest stays in Shape Data.
 	if (iconCard) return { title: iconCard.label, lines: [] };
-	const title = data.headerText ?? data.subtitleText ?? '';
-	const lines: string[] = [];
-	if (data.headerText && data.subtitleText) lines.push(data.subtitleText);
-	if (data.showServices) for (const service of data.services) lines.push(service.name);
-	for (const group of data.inlineGroups) {
-		for (const service of group.services) lines.push(service.name);
-	}
-	if (data.bodyText) lines.push(data.bodyText);
-	if (data.footerText) lines.push(data.footerText);
-	return { title, lines };
+	return { title: data.headerText ?? '', lines: data.bodyText ? [data.bodyText] : [] };
 }
 
 /**

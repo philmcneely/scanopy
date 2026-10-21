@@ -364,15 +364,16 @@ impl EntityDiscriminants {
     }
 
     /// What the topology draws as this entity's glyph, and so its shape: a device is a square tile
-    /// in its host's device-role colour, software a round frame around its logo. `None` keeps the
-    /// entity's plain icon. One rule for every view and both view modes.
+    /// in its host's device-role colour, software a round frame around its logo, a port a one-line
+    /// row. `None` keeps the entity's plain icon. One rule for every view.
     pub fn glyph(&self) -> Option<EntityGlyph> {
         match self {
             // An address stands for a place on its host's machine, so it wears that machine's role.
             EntityDiscriminants::Host | EntityDiscriminants::IPAddress => Some(EntityGlyph::Device),
             EntityDiscriminants::Service => Some(EntityGlyph::Software),
-            EntityDiscriminants::Interface
-            | EntityDiscriminants::Port
+            // A switch port is one of many on its device, so it draws as a row in the device's box.
+            EntityDiscriminants::Interface => Some(EntityGlyph::Port),
+            EntityDiscriminants::Port
             | EntityDiscriminants::Binding
             | EntityDiscriminants::Organization
             | EntityDiscriminants::Site
@@ -402,6 +403,8 @@ pub enum EntityGlyph {
     Device,
     /// Software: its service definition's logo.
     Software,
+    /// A network port: a one-line row of its icon, name and status.
+    Port,
 }
 
 impl EntityMetadataProvider for EntityDiscriminants {

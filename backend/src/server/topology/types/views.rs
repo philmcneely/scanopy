@@ -2,9 +2,9 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::server::{
     hosts::r#impl::virtualization::HostVirtualizationState,
-    shared::types::guest_state::GuestState,
     interfaces::r#impl::base::{IfOperStatus, InterfaceLinkState},
     services::r#impl::categories::ServiceCategory,
+    shared::types::guest_state::GuestState,
     shared::{
         concepts::Concept,
         entities::EntityDiscriminants,
@@ -149,12 +149,11 @@ pub struct ViewElementConfig {
 /// Where on an element card a mark paints.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema, EnumIter)]
 pub enum MarkChannel {
-    /// The dot beside a port's speed.
-    StatusDot,
     /// The whole card, when it draws as a bare box below the detail threshold.
     StateFill,
-    /// A dot on an icon card's device tile, top-left corner, in the value's colour; it expands to
-    /// name the value on hover. Workloads uses it for a guest's run state.
+    /// A dot on an icon card's tile, top-left corner, or in a row card's trailing slot, in the
+    /// value's colour; it expands to name the value on hover. Workloads uses it for a guest's run
+    /// state, L2 for a port's oper status.
     Status,
 }
 
@@ -813,10 +812,10 @@ impl TopologyView {
     /// The colours this view paints on element cards, in priority order per channel.
     ///
     /// Every view fills a zoomed-out card amber when its element is stale. L2 adds port status
-    /// (down above stale, up below it, so a dead link is never hidden behind a quiet one) and
-    /// colours each port's dot. Workloads and Application put a status dot on a guest's or
-    /// container's icon card in its run-state colour. L3 marks no run state: it declares no guest
-    /// state filter to explain one.
+    /// (down above stale, up below it, so a dead link is never hidden behind a quiet one) and puts
+    /// a status dot on each port's row in its oper-status colour. Workloads and Application put a
+    /// status dot on a guest's or container's icon card in its run-state colour. L3 marks no run
+    /// state: it declares no guest state filter to explain one.
     fn element_marks(&self, config: &ViewElementConfig) -> Vec<ElementMark> {
         use EntityDiscriminants::{Host, Interface, Service};
         use MarkChannel::*;
@@ -839,12 +838,8 @@ impl TopologyView {
             ]
             .into_iter()
             .chain(stale_fill)
-            .chain([
-                status(StateFill, IfOperStatus::Up),
-                status(StatusDot, IfOperStatus::Up),
-                status(StatusDot, IfOperStatus::Down),
-                status(StatusDot, IfOperStatus::LowerLayerDown),
-            ])
+            .chain([status(StateFill, IfOperStatus::Up)])
+            .chain(IfOperStatus::iter().map(|s| status(Status, s)))
             .collect(),
             // A guest's run state, as a status dot on its icon card: a container's own (a bridge
             // container is a Service card), then a guest host's. Service first, so a container card
@@ -853,7 +848,8 @@ impl TopologyView {
             Self::Workloads => [Service, Host]
                 .into_iter()
                 .flat_map(|entity| {
-                    GuestState::iter().map(move |g| ElementMark::new(Status, entity, GuestStateFilter, &g))
+                    GuestState::iter()
+                        .map(move |g| ElementMark::new(Status, entity, GuestStateFilter, &g))
                 })
                 .chain(stale_fill)
                 .collect(),
@@ -910,11 +906,9 @@ impl TopologyView {
                 container_entity: Some(EntityDiscriminants::Subnet),
                 element_entities: vec![ViewElementEntityConfig {
                     entity_type: EntityDiscriminants::IPAddress,
-                    // Port first so it surfaces above Service in the filter
-                    // panel (Service's category chips push it below the fold
-                    // otherwise). Card rendering reads this list as a set,
-                    // so order is irrelevant there.
-                    inline_entities: vec![EntityDiscriminants::Port, EntityDiscriminants::Service],
+                    // An address's icon card draws its services as badges. Its ports have no
+                    // place on the card, and only show in the inspector.
+                    inline_entities: vec![EntityDiscriminants::Service],
                 }],
                 metadata_filters: vec![MetadataFilter {
                     filter_type: MetadataFilterType::Category,

@@ -49,10 +49,16 @@ import {
 import { getFreshnessTag } from '$lib/shared/utils/freshness';
 import { createColorHelper } from '$lib/shared/utils/styling';
 import type { TooltipContent, TooltipRow, TooltipSection } from '$lib/shared/actions/tooltip';
-import { formatInterfaceSpeed } from '$lib/shared/utils/formatting';
+import { formatPort } from '$lib/shared/utils/formatting';
+import {
+	collectionLookup,
+	entityFieldLabel,
+	entityFields,
+	fieldText
+} from '$lib/shared/entity-fields';
 import type { Site } from '$lib/features/sites/types';
 import { get } from 'svelte/store';
-import { activeView, topologyOptions } from './queries';
+import { activeView, hiddenEntityTypesIn, topologyOptions } from './queries';
 import { hiddenEntityIds } from './interactions';
 import { expandedInlineGroups, inlineGroupKey } from './collapse';
 import { queryClient, queryKeys } from '$lib/api/query-client';
@@ -61,8 +67,10 @@ import {
 	common_host,
 	common_ipAddress,
 	common_manager,
+	common_name,
 	common_services,
 	common_status,
+	common_virtualization,
 	hosts_deviceFacts_composeProject,
 	hosts_deviceFacts_guestType,
 	hosts_deviceFacts_networkType,
@@ -72,17 +80,15 @@ import {
 type InlineGroup = components['schemas']['InlineGroup'];
 
 /**
- * Whether the active view inlines services / ports on this element, and whether
- * the user has hidden either. These gate whole blocks of card content, so they
- * belong with the render data rather than being recomputed by the template.
+ * Whether the active view inlines services on this element, and whether the user has hidden them.
+ * These decide whether the card carries services at all, so they belong with the render data rather
+ * than being recomputed by the template.
  */
 export interface ElementInlineFlags {
-	/** Entity types the active view inlines on this element (e.g. Service, Port). */
+	/** Entity types the active view inlines on this element (e.g. Service). */
 	inlineEntities: string[];
 	inlinesService: boolean;
-	inlinesPort: boolean;
 	serviceInlineHidden: boolean;
-	portInlineHidden: boolean;
 }
 
 export interface ElementRenderResult {
@@ -97,20 +103,21 @@ export interface ElementRenderResult {
 	/** The colours the view paints on this card, each decoded by one of its filter values. */
 	marks: ElementMarks;
 	/**
-	 * What the element is, drawn in both view modes: a device's device-type tile or software's logo, by
-	 * its entity type's `glyph` metadata. Null for an element type that has none (a port).
+	 * What the element is: a device's device-type tile, software's logo or a port's icon, by its
+	 * entity type's `glyph` metadata. Null for an element type that has none.
 	 */
 	glyph: EntityGlyph | null;
 	/**
-	 * The icon card, when the view draws in the `Icons` view mode and the element has a glyph.
-	 * Replaces every row of `data` on the card, so it decides the card's height in that mode.
+	 * The icon card, when the element has a glyph and resolves. It decides the card's height; null
+	 * leaves a text fallback naming what failed to resolve.
 	 */
 	iconCard: ElementIconCard | null;
 }
 
 /**
- * An icon card: the element's glyph, large, with a short label and the rest of the card's text on
- * hover.
+ * An icon card: the element's glyph with a short label and the rest of the card's text on hover. A
+ * device or software draws its glyph large above the label; a port draws as one row of glyph, label
+ * and status dot, the same row a group member is.
  */
 export interface ElementIconCard {
 	glyph: EntityGlyph;
@@ -136,6 +143,8 @@ export interface IconCardGroup {
 	/** The manager service's definition, drawn beside the heading; null when it is not on this card. */
 	headerDefinition: string | null;
 	headerName: string;
+	/** The viewer collapsed the box: only its heading, with the member count, renders. */
+	collapsed: boolean;
 	members: IconCardMember[];
 }
 
@@ -197,16 +206,12 @@ export function elementInlineFlags(
 	// Entity types the user has hidden in this view via the filter panel's eye
 	// toggle. (Element/container-level hiding is applied upstream via
 	// tagHiddenNodeIds.)
-	const hiddenEntities =
-		((inputs.options.request.hide_entities ?? {}) as Record<string, string[]>)[inputs.activeView] ??
-		[];
+	const hiddenEntities = hiddenEntityTypesIn(inputs.options, inputs.activeView);
 
 	return {
 		inlineEntities,
 		inlinesService: inlineEntities.includes('Service'),
-		inlinesPort: inlineEntities.includes('Port'),
-		serviceInlineHidden: hiddenEntities.includes('Service'),
-		portInlineHidden: hiddenEntities.includes('Port')
+		serviceInlineHidden: hiddenEntities.includes('Service')
 	};
 }
 
@@ -303,8 +308,14 @@ function hostGuestRows(
 				statusRow(state, status)
 			];
 		}
+		// An identity on its guest's network, not a guest of its own: no manager and no run state.
 		case 'NetworkIdentity':
-			return [];
+			return [
+				{
+					label: common_virtualization(),
+					value: hostVirtualizations.getName(virtualization.type)
+				}
+			];
 	}
 }
 
@@ -349,40 +360,100 @@ export function serviceTooltip(
 }
 
 /**
- * A host's hover text: its name as the title, then its address, device type and how it runs as a
- * guest, then its services. `status` is the view's Status mark on the host.
+ * A host's hover text: its name as the title, then its address and the address's name, device type
+ * and how it runs as a guest, then its services. `status` is the view's Status mark on the host;
+ * `serviceLabel` names each service in the list (its name, by default).
  */
 export function hostTooltip(
 	host: Host,
 	{
 		name,
 		address,
+		addressName,
 		deviceType,
 		services,
-		status
+		status,
+		serviceLabel = (s) => s.name
 	}: {
 		name?: string;
 		address?: string | null;
+		addressName?: string | null;
 		deviceType?: string | null;
 		services: Service[];
 		status?: MarkValue;
+		serviceLabel?: (service: Service) => string;
 	}
 ): TooltipContent {
 	return titledTooltip(
 		name ?? hostDisplayName(host),
 		[
 			{ label: common_ipAddress(), value: address },
+			{ label: common_name(), value: addressName },
 			{ label: hosts_deviceType(), value: deviceType ? deviceTypes.getName(deviceType) : null },
 			...hostGuestRows(host.virtualization_metadata, status)
 		],
-		services.map((s) => s.name)
+		services.map(serviceLabel)
 	);
+}
+
+/** The interface fields a port row's tooltip lists, in order: what the one-line row has no room for. */
+const PORT_TOOLTIP_FIELDS = [
+	'oper_status',
+	'speed_bps',
+	'mac_address',
+	'native_vlan_id',
+	'vlan_ids'
+];
+
+/**
+ * A port's hover text: its name as the title, then its status, with a dot in the colour the view's
+ * Status mark paints it, and its speed, MAC and VLANs. Labels and formatting are the backend field
+ * registry's, as the inspector shows them.
+ */
+export function interfaceTooltip(
+	iface: object,
+	name: string,
+	status: MarkValue | undefined
+): TooltipContent {
+	const fields = entityFields('Interface');
+	const lookup = collectionLookup({});
+	return titledTooltip(
+		name,
+		PORT_TOOLTIP_FIELDS.flatMap((id) => {
+			const field = fields.find((f) => f.id === id);
+			if (!field) return [];
+			return [
+				{
+					label: entityFieldLabel('Interface', field),
+					value: fieldText(field, iface, lookup),
+					dot: id === 'oper_status' && status ? createColorHelper(status.color).rgb : undefined
+				}
+			];
+		})
+	);
+}
+
+/** A service named with the ports it listens on at one address: "nginx (80/tcp, 443/tcp)". */
+function serviceWithPorts(
+	service: Service,
+	ipAddressId: string,
+	topology: RenderableTopology
+): string {
+	const portsById = getTopologyIndex(topology).portsById;
+	const ports = service.bindings.flatMap((b) => {
+		if (b.type !== 'Port' || !b.port_id) return [];
+		if (b.ip_address_id != null && b.ip_address_id !== ipAddressId) return [];
+		const port = portsById.get(b.port_id);
+		return port ? [formatPort(port)] : [];
+	});
+	return ports.length > 0 ? `${service.name} (${ports.join(', ')})` : service.name;
 }
 
 /**
  * The icon card for an element with a glyph, or null for one with nothing resolved, which keeps
- * the detailed card. Software is labelled with its name; a device with its address on an address
- * card, so two addresses on one host stay apart, and with its host's name otherwise.
+ * the text fallback. Software is labelled with its name, a port with its own; a device with its
+ * address on an address card, so two addresses on one host stay apart, and with its host's name
+ * otherwise.
  */
 function buildIconCard(
 	inputs: ElementRenderInputs,
@@ -393,6 +464,19 @@ function buildIconCard(
 ): ElementIconCard | null {
 	if (!data) return null;
 	const host = resolved.host;
+
+	if (glyph.type === 'port') {
+		const iface = resolved.snmpInterface;
+		if (!iface) return null;
+		const label = data.headerText ?? iface.display_name ?? entities.getName('Interface');
+		return {
+			glyph,
+			badgeDefinitions: [],
+			label,
+			tooltip: interfaceTooltip(iface, label, marks.Status),
+			groups: []
+		};
+	}
 
 	if (glyph.type === 'software') {
 		const service = resolved.services[0];
@@ -409,7 +493,7 @@ function buildIconCard(
 	if (!host) return null;
 	const deviceType = glyph.deviceType;
 	// The badges are what runs on the thing the card stands for: the services bound to an address,
-	// or a host's own services, the same list the detailed card draws. The service that decided
+	// or a host's own services, the same list the inspector shows. The service that decided
 	// the device type leads, so the top badge agrees with the glyph; logos come before glyphs.
 	const meta = (s: Service) =>
 		serviceDefinitions.getMetadata(s.service_definition) as {
@@ -425,7 +509,8 @@ function buildIconCard(
 	].slice(0, BADGE_STACK_MAX);
 	const hostName = data.headerText ?? hostDisplayName(host);
 	// The container subnet's placeholder address names nothing, so that card keeps the host name.
-	const address = data.subtitleText ? resolved.ipAddress?.ip_address : null;
+	const ipAddress = data.namesAddress ? resolved.ipAddress : undefined;
+	const address = ipAddress?.ip_address ?? null;
 	return {
 		glyph,
 		badgeDefinitions,
@@ -433,17 +518,22 @@ function buildIconCard(
 		tooltip: hostTooltip(host, {
 			name: hostName,
 			address,
+			addressName: ipAddress?.name,
 			deviceType,
 			services: data.services,
-			status: marks.Status
+			status: marks.Status,
+			// On an address card, each service with the ports it listens on there.
+			serviceLabel: ipAddress
+				? (s) => serviceWithPorts(s, ipAddress.id, inputs.topology)
+				: undefined
 		}),
 		groups: data.inlineGroups.map((g) => iconCardGroup(inputs, g))
 	};
 }
 
 /**
- * One inlined manager group as an icon card draws it: every member as a one-line row, whatever the
- * detailed card's collapse state, since a row of glyph and name is already the collapsed form.
+ * One inlined manager group as an icon card draws it: a heading that opens and closes the box, and
+ * every member as a one-line row while it is open.
  */
 function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): IconCardGroup {
 	const { activeView, sites, topology } = inputs;
@@ -483,6 +573,7 @@ function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): 
 		headerName: group.header
 			? serviceDefinitions.getName(group.header.service_definition)
 			: common_containers(),
+		collapsed: group.collapsed,
 		members: [...services, ...hosts]
 	};
 }
@@ -514,13 +605,10 @@ function buildElementContent(
 			staleTag,
 			data: {
 				elementType,
-				footerText: null,
 				services: service ? [service] : [],
-				hiddenOpenPorts: [],
 				headerText: showHostname && host ? hostDisplayName(host) : null,
 				bodyText: service ? null : 'Unknown Service',
 				showServices: !!service,
-				isCategoryHidden: false,
 				ip_address_id: nodeId,
 				inlineGroups: []
 			} as ElementRenderData
@@ -534,8 +622,7 @@ function buildElementContent(
 		const hiddenCategories = hiddenServiceCategories(options, activeView);
 
 		// Services visible in card. Filter = structural remove: hidden services
-		// are dropped from the list entirely, not faded. The OpenPorts-category
-		// subset is routed to the collapsed "+N open ports" indicator below.
+		// are dropped from the list entirely, not faded.
 		const isShown = (s: Service) => {
 			if (hiddenEntityIds.has(s.id)) return false;
 			const category = serviceDefinitions.getCategory(s.service_definition);
@@ -557,34 +644,19 @@ function buildElementContent(
 			(s) => isShown(s) && !groupedServiceIds.has(s.id)
 		);
 
-		// OpenPorts hidden by category → collapsed indicator.
-		// (Tag-hidden services of any category are already removed above.)
-		const hiddenOpenPorts = servicesForHost.filter((s) => {
-			if (hiddenEntityIds.has(s.id)) return false;
-			const category = serviceDefinitions.getCategory(s.service_definition);
-			return category === 'OpenPorts' && hiddenCategories.includes(category);
-		});
-
-		// Service names and port lines hide independently. Render the services
-		// block if the view declares EITHER inlined and the user hasn't hidden
-		// it — so toggling Services off still leaves port lines visible.
 		const showServices =
-			((flags.inlinesService && !flags.serviceInlineHidden) ||
-				(flags.inlinesPort && !flags.portInlineHidden)) &&
-			(servicesOnHost.length !== 0 || hiddenOpenPorts.length !== 0 || inlineGroups.length !== 0);
-
-		const hostLabel = node.header ?? hostDisplayName(host);
+			flags.inlinesService &&
+			!flags.serviceInlineHidden &&
+			(servicesOnHost.length !== 0 || inlineGroups.length !== 0);
 
 		return {
 			flags,
 			staleTag,
 			data: {
 				elementType,
-				footerText: null,
 				services: servicesOnHost,
-				hiddenOpenPorts,
-				headerText: hostLabel,
-				bodyText: showServices ? null : hostLabel,
+				headerText: node.header ?? hostDisplayName(host),
+				bodyText: null,
 				showServices,
 				ip_address_id: nodeId,
 				inlineGroups
@@ -592,32 +664,20 @@ function buildElementContent(
 		};
 	}
 
-	// Port elements: show port name + status/MAC info
+	// Port elements: the port's name; its status and the rest come from the interface itself.
 	if (elementType === 'Interface') {
-		const iface = resolved.snmpInterface;
-		const speed = iface?.speed_bps ? formatInterfaceSpeed(iface.speed_bps) : null;
-
 		return {
 			flags,
 			staleTag,
 			data: {
 				elementType,
 				headerText: node.header ?? null,
-				footerText: null,
 				bodyText: null,
 				showServices: false,
 				services: [],
-				hiddenOpenPorts: [],
 				// The card's selection key, as on Host and Service cards; '' left L2 ports unringable.
 				ip_address_id: nodeId,
-				inlineGroups: [],
-				portStatus: iface
-					? {
-							operStatus: iface.oper_status,
-							speed,
-							macAddress: iface.mac_address ?? null
-						}
-					: undefined
+				inlineGroups: []
 			} as ElementRenderData
 		};
 	}
@@ -646,35 +706,18 @@ function buildElementContent(
 		return true;
 	});
 
-	const hiddenOpenPorts = allServicesOnIPAddress.filter((s) => {
-		if (hiddenEntityIds.has(s.id)) return false;
-		const category = serviceDefinitions.getCategory(s.service_definition);
-		return category === 'OpenPorts' && hiddenCategories.includes(category);
-	});
-
-	const headerText: string | null = node.header ?? null;
-	// Service names and port lines hide independently — see the Host branch.
 	const showServices =
-		((flags.inlinesService && !flags.serviceInlineHidden) ||
-			(flags.inlinesPort && !flags.portInlineHidden)) &&
-		(servicesOnIPAddress.length != 0 || hiddenOpenPorts.length != 0);
-
-	const subtitleText =
-		ipAddress && !isContainerSubnet
-			? (ipAddress.name ? ipAddress.name + ': ' : '') + ipAddress.ip_address
-			: null;
+		flags.inlinesService && !flags.serviceInlineHidden && servicesOnIPAddress.length !== 0;
 
 	return {
 		flags,
 		staleTag,
 		data: {
 			elementType,
-			footerText: null,
-			subtitleText,
+			namesAddress: Boolean(ipAddress) && !isContainerSubnet,
 			services: servicesOnIPAddress,
-			hiddenOpenPorts,
-			headerText,
-			bodyText: showServices ? null : hostDisplayName(host),
+			headerText: node.header ?? null,
+			bodyText: null,
 			showServices,
 			ip_address_id: resolved.ipAddressId ?? null,
 			inlineGroups: []
@@ -790,71 +833,33 @@ export function elementShapeKey(result: ElementRenderResult): string {
 	const d = result.data;
 	if (!d) return 'null';
 
-	// An icon card renders only the glyph, an optional stale pill and a label clamped to two
-	// lines of ~14 characters, whatever the detailed rows would have been.
 	const icon = result.iconCard;
+	// A port is one truncated row, with the stale pill above it when it is stale.
+	if (icon?.glyph.type === 'port') {
+		return ['row', d.elementType, result.staleTag ? 1 : 0].join('|');
+	}
+	// An icon card renders only the glyph, an optional stale pill and a label clamped to two
+	// lines of ~14 characters.
 	if (icon) {
 		return [
 			'icon',
 			d.elementType,
 			Math.min(2, Math.ceil(icon.label.length / 14)),
 			result.staleTag ? 1 : 0,
-			// Each group box adds a heading and one single-line row per member.
-			icon.groups.map((g) => g.members.length).join(',')
+			// Each group box adds a heading, and one single-line row per member while it is open.
+			icon.groups.map((g) => (g.collapsed ? 'c' : g.members.length)).join(',')
 		].join('|');
 	}
 
-	// ~28 characters fit on a line at the fixed card width; bucket by line count
-	// rather than raw length so near-identical labels share a key.
-	const lines = (text: string | null | undefined): number =>
-		text ? Math.ceil(text.length / 28) : 0;
-	const serviceShape = (s: Service): string =>
-		`${lines(s.name)}:${s.bindings.filter((b) => b.type === 'Port').length}:${s.service_definition ?? ''}`;
-
-	const parts: (string | number)[] = [
+	// The text fallback for an element that did not resolve: a header line and a body line, each
+	// truncated to one line.
+	return [
+		'text',
 		d.elementType,
-		// The glyph sits in the header row beside the header text.
-		result.glyph?.type ?? '-',
-		lines(d.headerText),
-		lines(d.subtitleText),
-		lines(d.bodyText),
-		lines(d.footerText),
-		d.showServices ? 1 : 0,
-		d.hiddenOpenPorts.length,
-		result.staleTag ? 1 : 0,
-		// Not just presence: the block renders status, speed and MAC on separate
-		// lines, so two interface cards can both "have a port status" and still
-		// differ in height. Verification caught exactly this — 1600 synthetic
-		// interfaces without MACs measured 54px against 56 demo interfaces with
-		// them at 70px, under one key.
-		d.portStatus
-			? `p${d.portStatus.operStatus ? 1 : 0}${d.portStatus.speed ? 1 : 0}${d.portStatus.macAddress ? 1 : 0}`
-			: 'p-',
-		// Each service renders its own row, and a row's height depends on its
-		// name length and how many port lines it carries.
-		result.flags.inlinesService && !result.flags.serviceInlineHidden ? 1 : 0,
-		result.flags.inlinesPort && !result.flags.portInlineHidden ? 1 : 0,
-		d.services.length,
-		// `service_definition` decides whether the row renders a definition icon,
-		// and an icon row is not the same height as a bare text row. Keying on the
-		// id rather than on "has an icon" over-discriminates a little — two
-		// different definitions that both render an icon get separate keys — which
-		// is the safe direction: an extra key costs one more measured node, a
-		// missed distinction lays cards out at the wrong height.
-		...d.services.map(serviceShape),
-		// Each group is a dashed box with a header row, its service rows, and per member host a
-		// name row followed by that host's service rows.
-		d.inlineGroups.length,
-		// A collapsed box renders only its header row, so its members don't affect height.
-		...d.inlineGroups.map((g) =>
-			g.collapsed
-				? `gc${g.header ? lines(g.header.name) : 0}`
-				: `g${g.header ? lines(g.header.name) : 0}[${g.services.map(serviceShape).join(',')}]` +
-					`[${g.hosts.map((h) => `${lines(hostDisplayName(h.host))}(${h.services.map(serviceShape).join(',')})`).join(',')}]`
-		)
-	];
-
-	return parts.join('|');
+		d.headerText ? 1 : 0,
+		d.bodyText ? 1 : 0,
+		result.staleTag ? 1 : 0
+	].join('|');
 }
 
 /**

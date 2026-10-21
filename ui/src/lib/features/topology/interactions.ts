@@ -214,9 +214,6 @@ export function collectEdgeHandles(
 // Edge bundle expand/collapse state (transient, not persisted)
 export const expandedBundles = writable<Set<string>>(new Set());
 
-// Open ports expand/collapse state per leaf node (transient, not persisted)
-export const expandedPortNodeIds = writable<Set<string>>(new Set());
-
 export function toggleBundleExpanded(bundleId: string): void {
 	expandedBundles.update((set) => {
 		const next = new Set(set);
@@ -224,18 +221,6 @@ export function toggleBundleExpanded(bundleId: string): void {
 			next.delete(bundleId);
 		} else {
 			next.add(bundleId);
-		}
-		return next;
-	});
-}
-
-export function toggleExpandedPorts(nodeId: string): void {
-	expandedPortNodeIds.update((set) => {
-		const next = new Set(set);
-		if (next.has(nodeId)) {
-			next.delete(nodeId);
-		} else {
-			next.add(nodeId);
 		}
 		return next;
 	});

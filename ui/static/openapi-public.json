@@ -37092,7 +37092,6 @@
         "type": "string",
         "description": "Where on an element card a mark paints.",
         "enum": [
-          "StatusDot",
           "StateFill",
           "Status"
         ]

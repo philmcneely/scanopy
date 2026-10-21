@@ -100,19 +100,43 @@
             "value": "Up"
           },
           {
-            "channel": "StatusDot",
+            "channel": "Status",
             "entity": "Interface",
             "filter_type": "OperStatus",
             "value": "Up"
           },
           {
-            "channel": "StatusDot",
+            "channel": "Status",
             "entity": "Interface",
             "filter_type": "OperStatus",
             "value": "Down"
           },
           {
-            "channel": "StatusDot",
+            "channel": "Status",
+            "entity": "Interface",
+            "filter_type": "OperStatus",
+            "value": "Testing"
+          },
+          {
+            "channel": "Status",
+            "entity": "Interface",
+            "filter_type": "OperStatus",
+            "value": "Unknown"
+          },
+          {
+            "channel": "Status",
+            "entity": "Interface",
+            "filter_type": "OperStatus",
+            "value": "Dormant"
+          },
+          {
+            "channel": "Status",
+            "entity": "Interface",
+            "filter_type": "OperStatus",
+            "value": "NotPresent"
+          },
+          {
+            "channel": "Status",
             "entity": "Interface",
             "filter_type": "OperStatus",
             "value": "LowerLayerDown"
@@ -356,7 +380,6 @@
           {
             "entity_type": "IPAddress",
             "inline_entities": [
-              "Port",
               "Service"
             ]
           }

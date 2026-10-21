@@ -9,7 +9,6 @@ function inputs(overrides: Partial<ReloadInputs> = {}): ReloadInputs {
 	return {
 		collapsed: new Set(),
 		expandedBundles: new Set(),
-		expandedPorts: new Set(),
 		expandedInlineGroups: new Set(),
 		bundleEdges: false,
 		hiddenEdgeTypes: '',
