@@ -38,6 +38,8 @@ use std::time::Duration;
 
 use anyhow::{Error, Result};
 use async_trait::async_trait;
+use futures::future::join_all;
+use futures::stream::{self, StreamExt};
 
 use crate::server::credentials::r#impl::mapping::{
     CredentialQueryPayload, CredentialQueryPayloadDiscriminants,
@@ -190,27 +192,32 @@ impl DiscoveryIntegration for UnifiIntegration {
         // a device we already named from the inventory.
         let device_ips: Vec<std::net::IpAddr> = mapped.iter().map(|d| d.ip).collect();
 
-        let mut created = 0usize;
+        // A UDM / Cloud Key is itself a UniFi device, so when the controller we scanned appears in
+        // its own inventory it enriches the scanned host rather than becoming a second one.
+        let mut remote = Vec::with_capacity(mapped.len());
         for device in mapped {
-            if ctx.cancel.is_cancelled() {
-                return Err(IntegrationFailure::cancelled());
-            }
-
-            // A UDM / Cloud Key is itself a UniFi device, so when the controller we scanned
-            // appears in its own inventory it enriches the scanned host rather than becoming
-            // a second one.
             if device.ip == ctx.ip {
                 enrich_scanned_host(host_data, ctx.interface_source, &device);
-                continue;
-            }
-
-            match create_device_host(ctx, &subnets, device).await {
-                Ok(()) => created += 1,
-                Err(e) => {
-                    tracing::debug!(error = %e, "Failed to create UniFi-discovered host");
-                }
+            } else {
+                remote.push(device);
             }
         }
+        if ctx.cancel.is_cancelled() {
+            return Err(IntegrationFailure::cancelled());
+        }
+
+        // Concurrently, for the reason `controller::CONCURRENT_HOST_SUBMISSIONS` gives.
+        let created = stream::iter(remote)
+            .map(|device| create_device_host(ctx, &subnets, device))
+            .buffer_unordered(controller::CONCURRENT_HOST_SUBMISSIONS)
+            .filter(|result| {
+                if let Err(e) = result {
+                    tracing::debug!(error = %e, "Failed to create UniFi-discovered host");
+                }
+                std::future::ready(result.is_ok())
+            })
+            .count()
+            .await;
 
         tracing::info!(created, "UniFi device sync complete");
         ctx.ops.report_progress(70).await.ok();
@@ -365,37 +372,32 @@ async fn record_networks(
         }
     };
 
+    // Decide every network's subnet first, in order, so each is checked against the ranges planned
+    // before it; then submit the creates together. Under ServerPoll each submission waits for the
+    // server's next poll, and awaiting them one at a time cost a poll round per network, which ran
+    // the integration out of time before it reached the devices.
     let mut held = held_subnets(ctx.known_subnets, ctx.scanning_subnet);
-    let mut recorded = Vec::with_capacity(site_networks.len());
-    for network in site_networks {
-        let subnet = match &network.range {
-            None => None,
-            Some(range) => match place_reported_range(&range.cidr, range.gateway, &held) {
+    let plans: Vec<SubnetPlan> = site_networks
+        .iter()
+        .map(|network| {
+            let Some(range) = &network.range else {
+                return SubnetPlan::Skip;
+            };
+            match place_reported_range(&range.cidr, range.gateway, &held) {
                 // The site holds this exact range. Submit the network anyway: the server matches it
                 // by CIDR and merges the controller's name and type into the held row by source,
                 // which is how a subnet the daemon named after its CIDR takes the network's name.
                 ReportedRange::Held(subnet) if *subnet.base.cidr == range.cidr => {
-                    let fallback = subnet.clone();
                     match network.to_subnet(site_id) {
-                        Some(reported) => ctx
-                            .ops
-                            .create_subnet(&reported, ctx.cancel)
-                            .await
-                            .unwrap_or_else(|e| {
-                                tracing::warn!(
-                                    network = %network.name,
-                                    cidr = %range.cidr,
-                                    error = %e,
-                                    "Failed to submit UniFi network for a held subnet"
-                                );
-                                fallback
-                            })
-                            .into(),
-                        None => Some(fallback),
+                        Some(reported) => SubnetPlan::Submit {
+                            reported,
+                            fallback: Some(subnet.clone()),
+                        },
+                        None => SubnetPlan::Reuse(subnet.clone()),
                     }
                 }
                 // A wider held subnet contains the network: place on it, submit nothing.
-                ReportedRange::Held(subnet) => Some(subnet.clone()),
+                ReportedRange::Held(subnet) => SubnetPlan::Reuse(subnet.clone()),
                 ReportedRange::Unplaced => {
                     tracing::debug!(
                         network = %network.name,
@@ -403,40 +405,79 @@ async fn record_networks(
                         "UniFi network overlaps a held subnet that does not contain its gateway; \
                          recording no subnet for it"
                     );
-                    None
+                    SubnetPlan::Skip
                 }
                 ReportedRange::New => match network.to_subnet(site_id) {
-                    Some(subnet) => match ctx.ops.create_subnet(&subnet, ctx.cancel).await {
-                        Ok(created) => {
-                            tracing::info!(
-                                network = %network.name,
-                                cidr = %range.cidr,
-                                "Recorded UniFi network as a subnet"
-                            );
-                            held.push(created.clone());
-                            Some(created)
+                    Some(reported) => {
+                        // Held from here on, so a later network overlapping it is not created too.
+                        held.push(reported.clone());
+                        SubnetPlan::Submit {
+                            reported,
+                            fallback: None,
                         }
-                        Err(e) => {
-                            tracing::warn!(
-                                network = %network.name,
-                                cidr = %range.cidr,
-                                error = %e,
-                                "Failed to create subnet for UniFi network"
-                            );
-                            None
-                        }
-                    },
-                    None => None,
+                    }
+                    None => SubnetPlan::Skip,
                 },
-            },
-        };
-        recorded.push(RecordedNetwork {
+            }
+        })
+        .collect();
+
+    let subnets = join_all(
+        site_networks
+            .iter()
+            .zip(plans)
+            .map(|(network, plan)| async move {
+                match plan {
+                    SubnetPlan::Skip => None,
+                    SubnetPlan::Reuse(subnet) => Some(subnet),
+                    SubnetPlan::Submit { reported, fallback } => {
+                        match ctx.ops.create_subnet(&reported, ctx.cancel).await {
+                            Ok(created) => {
+                                tracing::info!(
+                                    network = %network.name,
+                                    cidr = %reported.base.cidr,
+                                    "Recorded UniFi network as a subnet"
+                                );
+                                Some(created)
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    network = %network.name,
+                                    cidr = %reported.base.cidr,
+                                    error = %e,
+                                    "Failed to submit subnet for UniFi network"
+                                );
+                                fallback
+                            }
+                        }
+                    }
+                }
+            }),
+    )
+    .await;
+
+    site_networks
+        .into_iter()
+        .zip(subnets)
+        .map(|(network, subnet)| RecordedNetwork {
             vlan_id: vlan_ids.get(&network.vlan_number).copied(),
             subnet,
             network,
-        });
-    }
-    recorded
+        })
+        .collect()
+}
+
+/// What `record_networks` does with one network's range.
+enum SubnetPlan {
+    /// No subnet: the network is not routed, or its range collides with one the site holds.
+    Skip,
+    /// Place on a subnet the site already holds.
+    Reuse(Subnet),
+    /// Submit the controller's subnet. `fallback` is the held row to use if the submission fails.
+    Submit {
+        reported: Subnet,
+        fallback: Option<Subnet>,
+    },
 }
 
 /// Fill in what the controller's configuration adds to the mapped devices: each switch's port
