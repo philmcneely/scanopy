@@ -37,7 +37,6 @@ export interface LayoutState {
 	collapseLevelReconciled: boolean;
 	lastSeenTopologyId: string;
 	fitViewPending: boolean;
-	prevExpandedPortIds: Set<string>;
 	/** Open manager boxes the last layout was run with; a change re-runs ELK. */
 	prevExpandedInlineGroups: Set<string>;
 	lastRenderedTopoKey: string;
@@ -88,7 +87,6 @@ export function createInitialState(): LayoutState {
 		collapseLevelReconciled: false,
 		lastSeenTopologyId: '',
 		fitViewPending: false,
-		prevExpandedPortIds: new Set(),
 		prevExpandedInlineGroups: new Set(),
 		lastRenderedTopoKey: '',
 		lastRenderedView: '',

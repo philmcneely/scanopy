@@ -44,6 +44,7 @@
 		pushTopologyParams,
 		showViewSwitcherHint,
 		showDependencyTutorial,
+		hiddenEntityTypesIn,
 		type TopologyView
 	} from '../queries';
 	import {
@@ -290,7 +291,7 @@
 							Record<string, Record<string, string[]>>
 						>
 					)[$activeView],
-					(($topologyOptions.request.hide_entities ?? {}) as Record<string, string[]>)[$activeView],
+					hiddenEntityTypesIn($topologyOptions, $activeView),
 					$activeTagFilter,
 					sitesData.find((n) => n.id === currentTopology?.site_id)
 				)
@@ -328,13 +329,12 @@
 			string,
 			Record<string, Record<string, string[]>>
 		>;
-		const hideEntities = ($topologyOptions.request.hide_entities ?? {}) as Record<string, string[]>;
 		updateTagFilter(
 			currentTopology ?? undefined,
 			$activeTagFilter,
 			$activeView,
 			hideMetadata[$activeView],
-			hideEntities[$activeView] ?? [],
+			hiddenEntityTypesIn($topologyOptions, $activeView),
 			sitesData.find((n) => n.id === currentTopology?.site_id)
 		);
 	});

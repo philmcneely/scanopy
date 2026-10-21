@@ -24,7 +24,6 @@
 export interface ReloadInputs {
 	collapsed: Set<string>;
 	expandedBundles: Set<string>;
-	expandedPorts: Set<string>;
 	/** Manager boxes on host cards that are open (`inlineGroupKey`). Changes card height. */
 	expandedInlineGroups: Set<string>;
 	bundleEdges: boolean;
@@ -92,7 +91,6 @@ export function reloadInputsDiff(previous: ReloadInputs, next: ReloadInputs): st
 	if (previous.hiddenEdgeTypes !== next.hiddenEdgeTypes) changed.push('hiddenEdgeTypes');
 	if (!sameGroup(previous.collapsed, next.collapsed)) changed.push('collapsed');
 	if (!sameGroup(previous.expandedBundles, next.expandedBundles)) changed.push('expandedBundles');
-	if (!sameGroup(previous.expandedPorts, next.expandedPorts)) changed.push('expandedPorts');
 	if (!sameGroup(previous.expandedInlineGroups, next.expandedInlineGroups))
 		changed.push('expandedInlineGroups');
 	if (!sameGroup(previous.tagHidden, next.tagHidden)) changed.push('tagHidden');
@@ -107,7 +105,6 @@ export function snapshotReloadInputs(inputs: ReloadInputs): ReloadInputs {
 	return {
 		collapsed: new Set(inputs.collapsed),
 		expandedBundles: new Set(inputs.expandedBundles),
-		expandedPorts: new Set(inputs.expandedPorts),
 		expandedInlineGroups: new Set(inputs.expandedInlineGroups),
 		bundleEdges: inputs.bundleEdges,
 		hiddenEdgeTypes: inputs.hiddenEdgeTypes,

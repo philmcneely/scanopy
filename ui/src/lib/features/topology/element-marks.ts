@@ -35,8 +35,6 @@ export type ElementMarks = Partial<Record<MarkChannel, MarkValue>>;
 
 /** A reduced card with no mark: neutral texture, tuned per theme in `app.css`. */
 export const NEUTRAL_FILL = 'var(--color-topology-lod-unknown)';
-/** A status dot with no mark. */
-export const NEUTRAL_DOT = 'rgb(156, 163, 175)';
 
 /** The chip value `mark` names, or undefined if the view does not offer it. */
 export function markValue(config: ViewElementConfig, mark: ElementMark): MarkValue | undefined {
@@ -103,9 +101,4 @@ function paintedValue(
 /** CSS colour for a reduced card's fill. */
 export function stateFill(marks: ElementMarks): string {
 	return marks.StateFill ? createColorHelper(marks.StateFill.color).rgb : NEUTRAL_FILL;
-}
-
-/** CSS colour for a port card's status dot. */
-export function statusDot(marks: ElementMarks): string {
-	return marks.StatusDot ? createColorHelper(marks.StatusDot.color).rgb : NEUTRAL_DOT;
 }

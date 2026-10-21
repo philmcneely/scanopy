@@ -45,22 +45,22 @@ export const ELEMENT_HANDLE_SIZE_PX = 8;
 /** Shared empty set for nodes no edge names, so each such node does not allocate its own. */
 const EMPTY_HANDLE_SET: ReadonlySet<string> = new Set<string>();
 
-/** Width of a detailed element card (a port), and the fallback for handle geometry. */
+/** Width of an element with no glyph, and the fallback for handle geometry. */
 export const ELEMENT_WIDTH_PX = 250;
 
 /** Width of an icon card. */
 export const ICON_ELEMENT_WIDTH_PX = 120;
 
 /**
- * Width of an icon card that lists a guest's containers: each row holds a glyph, a name and a
- * status dot, and at 120px a name kept six characters before truncating.
+ * Width of a card made of rows: an icon card that lists a guest's containers, or a port's row. Each
+ * row holds a glyph, a name and a status dot, and at 120px a name kept six characters before
+ * truncating.
  */
 export const ICON_GROUP_ELEMENT_WIDTH_PX = 168;
 
 /**
- * The width an element card is built at. An element whose entity type draws a glyph (a device or
- * software, by the `glyph` metadata) is an icon card, wider when it carries inline groups; one that
- * doesn't (a port) keeps the detailed card, as `buildElementRender` does.
+ * The width an element card is built at, by its entity type's `glyph` metadata: a port is a row, a
+ * device or software an icon card, wider when it carries inline groups.
  */
 export function elementWidthPx(node: TopologyNode): number {
 	const glyph =
@@ -68,6 +68,7 @@ export function elementWidthPx(node: TopologyNode): number {
 			? (entities.getMetadata(node.element_type) as { glyph?: string } | null)?.glyph
 			: null;
 	if (!glyph) return ELEMENT_WIDTH_PX;
+	if (glyph === 'Port') return ICON_GROUP_ELEMENT_WIDTH_PX;
 	const groups = (node as { inline_groups?: unknown[] }).inline_groups ?? [];
 	return groups.length > 0 ? ICON_GROUP_ELEMENT_WIDTH_PX : ICON_ELEMENT_WIDTH_PX;
 }
