@@ -7586,21 +7586,6 @@
             }
           },
           {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
-              }
-            }
-          },
-          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -8178,21 +8163,6 @@
             }
           },
           {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
-              }
-            }
-          },
-          {
             "name": "credential_ids",
             "in": "query",
             "description": "Filter to hosts assigned one of these credentials. Repeat for several.",
@@ -8585,21 +8555,6 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
-              }
-            }
-          },
-          {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -9005,21 +8960,6 @@
               ],
               "items": {
                 "$ref": "#/components/schemas/HostOsFamily"
-              }
-            }
-          },
-          {
-            "name": "guest_states",
-            "in": "query",
-            "description": "Filter by the run state of the VM or container a host is, at the last scan. Repeat for\nseveral.",
-            "required": false,
-            "schema": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/components/schemas/GuestState"
               }
             }
           },
@@ -20126,19 +20066,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-19T19:43:10.392234Z",
+              "created_at": "2026-10-21T14:32:45.611627Z",
               "first_discovery_id": null,
-              "id": "83a575c9-8d83-40f0-8ea5-64cddaf2195c",
+              "id": "c8b1b1f2-2498-4b60-82bb-f02e9e296a85",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-19T19:43:10.392234Z",
+              "last_seen_at": "2026-10-21T14:32:45.611627Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-19T19:43:10.392234Z",
-              "valid_from": "2026-10-19T19:43:10.392234Z",
+              "updated_at": "2026-10-21T14:32:45.611627Z",
+              "valid_from": "2026-10-21T14:32:45.611627Z",
               "valid_to": null
             }
           },
@@ -21891,19 +21831,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-19T19:43:10.365320Z",
+                      "created_at": "2026-10-21T14:32:45.585081Z",
                       "first_discovery_id": null,
-                      "id": "50ed4df2-52d4-4c72-a0c4-9765c9624f8f",
+                      "id": "a4362c43-fbfa-4ee9-bb67-46c36b2fc993",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-19T19:43:10.365320Z",
+                      "last_seen_at": "2026-10-21T14:32:45.585081Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-19T19:43:10.365320Z",
-                      "valid_from": "2026-10-19T19:43:10.365320Z",
+                      "updated_at": "2026-10-21T14:32:45.585081Z",
+                      "valid_from": "2026-10-21T14:32:45.585081Z",
                       "valid_to": null
                     }
                   ],
@@ -21916,7 +21856,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Radarr",
+                  "service_definition": "ArgoCD",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -23394,19 +23334,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-19T19:43:10.387226Z",
+                  "created_at": "2026-10-21T14:32:45.606849Z",
                   "first_discovery_id": null,
-                  "id": "5c7caff3-e8f4-4178-8c16-7287d484f1ef",
+                  "id": "8152a81b-3eac-4bdb-b7e8-88f4ba87fdfb",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-19T19:43:10.387226Z",
+                  "last_seen_at": "2026-10-21T14:32:45.606849Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-19T19:43:10.387226Z",
-                  "valid_from": "2026-10-19T19:43:10.387226Z",
+                  "updated_at": "2026-10-21T14:32:45.606849Z",
+                  "valid_from": "2026-10-21T14:32:45.606849Z",
                   "valid_to": null
                 }
               ],
@@ -23419,7 +23359,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Radarr",
+              "service_definition": "ArgoCD",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -23963,7 +23903,8 @@
               "updated_at": "2026-01-15T10:30:00Z",
               "valid_from": "2026-01-15T10:30:00Z",
               "valid_to": null,
-              "virtualization_service_id": null
+              "virtualization_service_id": null,
+              "vlan_ids": []
             }
           },
           "error": {
@@ -26527,19 +26468,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-19T19:43:10.365832Z",
+          "created_at": "2026-10-21T14:32:45.585583Z",
           "first_discovery_id": null,
-          "id": "4f3e92c0-3489-442a-987d-25539378e283",
+          "id": "c839929e-b909-4bb2-a292-58069f14040e",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-19T19:43:10.365832Z",
+          "last_seen_at": "2026-10-21T14:32:45.585583Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-19T19:43:10.365832Z",
-          "valid_from": "2026-10-19T19:43:10.365832Z",
+          "updated_at": "2026-10-21T14:32:45.585583Z",
+          "valid_from": "2026-10-21T14:32:45.585583Z",
           "valid_to": null
         }
       },
@@ -27356,7 +27297,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Radarr",
+              "service_definition": "ArgoCD",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -33212,7 +33153,7 @@
       },
       "FieldGroup": {
         "type": "string",
-        "description": "The heading a field is listed under wherever fields are picked, such as a table's column\nmenu. One vocabulary for every entity: a MAC address is `Network` on hosts and interfaces\nalike. Variant order is display order.",
+        "description": "The heading a field is listed under wherever fields are picked, such as a table's column\nmenu. One vocabulary for every entity: a MAC address is `Network` on hosts and interfaces\nalike. Variant order is display order.\n\nA field that points at other entities takes the first of these that fits:\n`Virtualization` when it says what virtualizes, contains or manages the entity; `Network`\nwhen the entities it reaches are addressing or connectivity (interfaces, IP addresses, ports,\nbindings, subnets, VLANs); `Relationships` otherwise. A host's services are\n`Relationships`: a service is what runs on the host, not how it is reached, and its ports\nalready show as the host's `Network` ports.",
         "enum": [
           "identity",
           "network",
@@ -34640,19 +34581,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-19T19:43:10.364684Z",
+                  "created_at": "2026-10-21T14:32:45.584464Z",
                   "first_discovery_id": null,
-                  "id": "a709f268-dd7e-497a-b777-425b6fea45f5",
+                  "id": "eff55020-4956-4464-b6bb-248f8971fc88",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-19T19:43:10.364684Z",
+                  "last_seen_at": "2026-10-21T14:32:45.584464Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-19T19:43:10.364684Z",
-                  "valid_from": "2026-10-19T19:43:10.364684Z",
+                  "updated_at": "2026-10-21T14:32:45.584464Z",
+                  "valid_from": "2026-10-21T14:32:45.584464Z",
                   "valid_to": null
                 }
               ],
@@ -34665,7 +34606,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Radarr",
+              "service_definition": "ArgoCD",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -37265,8 +37206,7 @@
           "invited_by",
           "expires_at",
           "email_verified",
-          "oidc_linked_at",
-          "terms_accepted_at"
+          "oidc_linked_at"
         ]
       },
       "MemberStatus": {
@@ -38887,19 +38827,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-19T19:43:10.355433Z",
+                        "created_at": "2026-10-21T14:32:45.575713Z",
                         "first_discovery_id": null,
-                        "id": "53de93ff-6716-4035-9955-72fb13e099c7",
+                        "id": "e22133fc-1d1a-4167-a4e8-8e87403f6133",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-19T19:43:10.355433Z",
+                        "last_seen_at": "2026-10-21T14:32:45.575713Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-19T19:43:10.355433Z",
-                        "valid_from": "2026-10-19T19:43:10.355433Z",
+                        "updated_at": "2026-10-21T14:32:45.575713Z",
+                        "valid_from": "2026-10-21T14:32:45.575713Z",
                         "valid_to": null
                       }
                     ],
@@ -38912,7 +38852,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Radarr",
+                    "service_definition": "ArgoCD",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -39159,19 +39099,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-19T19:43:10.386482Z",
+                    "created_at": "2026-10-21T14:32:45.606127Z",
                     "first_discovery_id": null,
-                    "id": "5222e6ee-b36d-4520-ace0-93db7306d4a9",
+                    "id": "b4263878-f143-47ca-bd68-23ebb24f61a8",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-19T19:43:10.386482Z",
+                    "last_seen_at": "2026-10-21T14:32:45.606127Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-19T19:43:10.386482Z",
-                    "valid_from": "2026-10-19T19:43:10.386482Z",
+                    "updated_at": "2026-10-21T14:32:45.606127Z",
+                    "valid_from": "2026-10-21T14:32:45.606127Z",
                     "valid_to": null
                   }
                 ],
@@ -39184,7 +39124,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Radarr",
+                "service_definition": "ArgoCD",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -41865,19 +41805,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-19T19:43:10.365661Z",
+              "created_at": "2026-10-21T14:32:45.585417Z",
               "first_discovery_id": null,
-              "id": "3554c543-e960-4f91-9b9f-83fc9663a2a1",
+              "id": "95dc04c1-2407-42be-8308-9e684868447f",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-19T19:43:10.365661Z",
+              "last_seen_at": "2026-10-21T14:32:45.585417Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-19T19:43:10.365661Z",
-              "valid_from": "2026-10-19T19:43:10.365661Z",
+              "updated_at": "2026-10-21T14:32:45.585417Z",
+              "valid_from": "2026-10-21T14:32:45.585417Z",
               "valid_to": null
             }
           ],
@@ -41890,7 +41830,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Radarr",
+          "service_definition": "ArgoCD",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -43110,7 +43050,8 @@
           "updated_at": "2026-01-15T10:30:00Z",
           "valid_from": "2026-01-15T10:30:00Z",
           "valid_to": null,
-          "virtualization_service_id": null
+          "virtualization_service_id": null,
+          "vlan_ids": []
         }
       },
       "SubnetBase": {
@@ -43169,6 +43110,15 @@
                 ],
                 "format": "uuid",
                 "description": "The container runtime service that owns this bridge network.\n\nLoad-bearing for dedup: the same CIDR on two different Docker daemons is two distinct\nsubnets, so bridge rows only merge when this matches as well as the CIDR and site.\nA foreign key rather than a field inside a JSONB blob because a stale value here is\nprecisely what made a scan add a duplicate bridge row every time (GH #650) — now it\ncannot be written at all."
+              },
+              "vlan_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "readOnly": true
+                },
+                "description": "VLANs associated with this subnet, through the `subnet_vlans` junction (the reverse of\n`Vlan::subnet_ids`). Hydrated by `SubnetService` on read; it is not a column on `subnets`,\nso anything sent here on create/update is ignored by `to_params`."
               }
             }
           }
@@ -44109,7 +44059,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "cd07a740-7a33-46a3-aa23-1adfb42af491",
+                  "id": "c52dba9d-2569-4fdb-a11d-0341076c9f6a",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -44119,23 +44069,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "1c06d484-fd66-4692-9d39-844d7df8909b",
+                  "id": "99526814-93b1-4e1a-a00d-a4e19d0f04e6",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "c67912bd-ade8-413f-a67a-4634ebabe8b9",
+                  "id": "326d7250-5764-4f05-ab56-550c51c874ab",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "fec079e1-eda5-4015-97fb-f05de145307a",
+                  "id": "9892bc88-4ac8-4c1b-9de8-20140279dd7f",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "1c06d484-fd66-4692-9d39-844d7df8909b",
+                  "id": "99526814-93b1-4e1a-a00d-a4e19d0f04e6",
                   "rule": "ByHost"
                 }
               ]
@@ -44165,19 +44115,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "0040b37d-babe-472c-9030-3e400d145735",
+                "id": "561bd973-8b8c-4a75-84f9-0b670b0a3b70",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "12d8e70c-ee4f-4993-b781-2f3a8fdafcc7",
+                "id": "406a96e9-23c4-40c8-a3b1-91eaafb24cf3",
                 "rule": "ByVLAN"
               },
               {
-                "id": "9abae525-b9c6-484a-ad2e-eb8645937f8b",
+                "id": "3ea07b44-26cc-44ba-8330-d8b559075f0a",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "019422d7-4d83-47bb-b3e9-e6f6753b9237",
+                "id": "de8b368c-6b84-4c66-837e-2690ebd84ef9",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -44198,7 +44148,7 @@
                 }
               },
               {
-                "id": "b528fb93-9bab-4d53-aba5-6b61a406b87b",
+                "id": "d12c35d3-4cfb-464e-8b82-ed0ff20a3268",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -44207,15 +44157,15 @@
                 }
               },
               {
-                "id": "ad23b0f7-6fc8-4abf-9721-a918959e9de6",
+                "id": "ad9bc6cf-adb3-4416-9c46-3ca4ffb35669",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "14730c3a-82d8-4968-9b5d-b9e4e3506b1d",
+                "id": "bb3b0e8d-6965-4b82-9ced-aa6055855fca",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "f76e0dbd-643e-436f-87ff-de4314eb2434",
+                "id": "ee22ba39-a8da-43bc-b5de-e80971c5aa9c",
                 "rule": "ByStack"
               }
             ]
@@ -45108,15 +45058,6 @@
           "terms_acceptance_required": {
             "type": "boolean",
             "description": "Whether the user must accept the current terms before the API serves\ntheir session. Computed, never stored: set only on the signed-in user's\nown record (`/api/auth/me`, login, accept), false everywhere else.",
-            "readOnly": true
-          },
-          "terms_accepted_at": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time",
-            "description": "When the user accepted the terms of service.",
             "readOnly": true
           }
         }
