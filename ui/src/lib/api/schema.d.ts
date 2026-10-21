@@ -2225,14 +2225,17 @@ export interface paths {
          *     "is this host still there, and is its data current?" without sweeping the
          *     whole subnet.
          *
-         *     The scan runs on the daemon that last discovered this host — evidence it can
-         *     reach the address — and only if that daemon still has an interface on a
-         *     subnet containing one of the host's scannable IPs. Where that interface has a
-         *     MAC the daemon ARPs the target, which sees a live host even when every port
-         *     is firewalled; on a MAC-less interface (a point-to-point tunnel) it falls
-         *     back to a TCP probe. When no interface covers any of the host's addresses the
-         *     request is refused with the specific reason. A loopback address is not a
-         *     scannable IP — it is reached locally and is excluded from the target set.
+         *     The scan runs on the daemon that last discovered this host, which is evidence
+         *     it can reach the address. Where the daemon has an interface with a MAC on the
+         *     address's subnet it ARPs the target, which sees a live host even when every
+         *     port is firewalled. Every other address, on a MAC-less interface (a
+         *     point-to-point tunnel) or on a subnet the daemon reaches through a router, is
+         *     probed by TCP. An address that doesn't answer comes back as not found. A
+         *     loopback address is reached locally and is excluded from the target set.
+         *
+         *     Daemons at or below `last_without_routed_rescan` only rescan addresses on
+         *     subnets they have an interface on, and the request is refused when the host
+         *     has none.
          *
          *     Returns the session, which streams progress over `/api/v1/discovery/stream`
          *     like any other scan. A `Queued` phase means the daemon is busy; it will start
@@ -4137,19 +4140,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-21T19:08:55.007742Z",
+             *       "created_at": "2026-10-21T19:59:43.097793Z",
              *       "first_discovery_id": null,
-             *       "id": "d68fccec-3480-4bbb-9198-6f74b09ac91c",
+             *       "id": "b50590e2-2d7f-44fb-8973-b33e605c26ae",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-21T19:08:55.007742Z",
+             *       "last_seen_at": "2026-10-21T19:59:43.097793Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-21T19:08:55.007742Z",
-             *       "valid_from": "2026-10-21T19:08:55.007742Z",
+             *       "updated_at": "2026-10-21T19:59:43.097793Z",
+             *       "valid_from": "2026-10-21T19:59:43.097793Z",
              *       "valid_to": null
              *     }
              */
@@ -5025,19 +5028,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-21T19:08:54.968810Z",
+             *               "created_at": "2026-10-21T19:59:43.067050Z",
              *               "first_discovery_id": null,
-             *               "id": "6e5266b6-4278-44ea-b088-9000be137e58",
+             *               "id": "e0c4145a-a00c-438d-962f-5f93da398a34",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-21T19:08:54.968810Z",
+             *               "last_seen_at": "2026-10-21T19:59:43.067050Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-21T19:08:54.968810Z",
-             *               "valid_from": "2026-10-21T19:08:54.968810Z",
+             *               "updated_at": "2026-10-21T19:59:43.067050Z",
+             *               "valid_from": "2026-10-21T19:59:43.067050Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5050,7 +5053,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "StrongSwan",
+             *           "service_definition": "Mattermost",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -6049,19 +6052,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-21T19:08:55.000776Z",
+             *           "created_at": "2026-10-21T19:59:43.092483Z",
              *           "first_discovery_id": null,
-             *           "id": "92565410-8af6-4709-856b-ba2587dbf3c9",
+             *           "id": "50bedfd5-ac6f-4506-8995-b401217137ef",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-21T19:08:55.000776Z",
+             *           "last_seen_at": "2026-10-21T19:59:43.092483Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-21T19:08:55.000776Z",
-             *           "valid_from": "2026-10-21T19:08:55.000776Z",
+             *           "updated_at": "2026-10-21T19:59:43.092483Z",
+             *           "valid_from": "2026-10-21T19:59:43.092483Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6074,7 +6077,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "StrongSwan",
+             *       "service_definition": "Mattermost",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7513,19 +7516,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-21T19:08:54.969399Z",
+         *       "created_at": "2026-10-21T19:59:43.067576Z",
          *       "first_discovery_id": null,
-         *       "id": "171f8533-12c5-49ed-9b9a-c5a192c48bed",
+         *       "id": "60d1c0b7-cbe9-485b-aefd-1405792cfafa",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-21T19:08:54.969399Z",
+         *       "last_seen_at": "2026-10-21T19:59:43.067576Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-21T19:08:54.969399Z",
-         *       "valid_from": "2026-10-21T19:08:54.969399Z",
+         *       "updated_at": "2026-10-21T19:59:43.067576Z",
+         *       "valid_from": "2026-10-21T19:59:43.067576Z",
          *       "valid_to": null
          *     }
          */
@@ -7914,7 +7917,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "StrongSwan",
+         *           "service_definition": "Mattermost",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -9529,25 +9532,6 @@ export interface components {
             integration: components["schemas"]["CredentialQueryPayloadDiscriminants"];
         } | {
             /** @enum {string} */
-            code: "CredentialDaemonTooOld";
-            /**
-             * Format: uuid
-             * @description The stored credential. See [`CredentialAttempt::credential_id`].
-             */
-            credential_id: string | null;
-            /**
-             * @description The version of the daemon that ran the scan. `None` for a daemon that never reported one.
-             * @example 0.18.0
-             */
-            daemon_version?: string | null;
-            integration: components["schemas"]["CredentialQueryPayloadDiscriminants"];
-            /**
-             * @description The oldest daemon version that can receive this credential type.
-             * @example 0.18.1
-             */
-            minimum_daemon_version: string;
-        } | {
-            /** @enum {string} */
             code: "CredentialNeedsNewerDaemon";
             /**
              * Format: uuid
@@ -10831,19 +10815,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-21T19:08:54.968086Z",
+         *               "created_at": "2026-10-21T19:59:43.066431Z",
          *               "first_discovery_id": null,
-         *               "id": "0cf1417c-e386-4aa4-ba2a-dca64bc5bc52",
+         *               "id": "e7b802c8-3f2c-479f-8dea-412e16515f4f",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-21T19:08:54.968086Z",
+         *               "last_seen_at": "2026-10-21T19:59:43.066431Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-21T19:08:54.968086Z",
-         *               "valid_from": "2026-10-21T19:08:54.968086Z",
+         *               "updated_at": "2026-10-21T19:59:43.066431Z",
+         *               "valid_from": "2026-10-21T19:59:43.066431Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10856,7 +10840,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "StrongSwan",
+         *           "service_definition": "Mattermost",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -14406,19 +14390,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-21T19:08:54.969202Z",
+         *           "created_at": "2026-10-21T19:59:43.067405Z",
          *           "first_discovery_id": null,
-         *           "id": "867805e5-1e23-4c99-a151-42c215ad2743",
+         *           "id": "b102b41d-c449-4c90-8c6c-3a6296ba52ab",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-21T19:08:54.969202Z",
+         *           "last_seen_at": "2026-10-21T19:59:43.067405Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-21T19:08:54.969202Z",
-         *           "valid_from": "2026-10-21T19:08:54.969202Z",
+         *           "updated_at": "2026-10-21T19:59:43.067405Z",
+         *           "valid_from": "2026-10-21T19:59:43.067405Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14431,7 +14415,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "StrongSwan",
+         *       "service_definition": "Mattermost",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15584,7 +15568,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "3a0509de-e17b-464f-8e1c-1d184d0e6031",
+             *           "id": "0a8fec38-99cc-43ec-9032-f06b204bc71e",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15594,23 +15578,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "dd15b4f2-e80e-4f27-8f9f-cd358f7ec4a1",
+             *           "id": "63d97df3-9115-4c67-a3f0-981a0099573e",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "943fe5c4-5a6e-4382-9ca7-f8542d117128",
+             *           "id": "ed5c82c9-8c4d-4291-9b99-b30c712a2dea",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "b446bb6a-7036-4fd8-abd8-ad0cc50df155",
+             *           "id": "1143ed6b-cb5d-4c2b-bc21-b02ab9fb2ceb",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "dd15b4f2-e80e-4f27-8f9f-cd358f7ec4a1",
+             *           "id": "63d97df3-9115-4c67-a3f0-981a0099573e",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15624,19 +15608,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "c2f558ee-4c54-4dc7-8e4f-8b1240e6f1f1",
+             *         "id": "e5b22492-e9cc-420f-83df-6089ffcf71b1",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "870864d8-9ac5-43ea-a357-0012c288caa1",
+             *         "id": "02bad8eb-9e46-45cc-a510-f07f9cc97495",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "e7cefdf1-f4d8-4651-b908-332f92d5d5c0",
+             *         "id": "934f123c-9f50-471c-90c4-e7e65d990b71",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "040a0eba-b848-404f-b8f2-4623bc1b4e27",
+             *         "id": "75030363-f928-4d67-998a-04a9c78338ac",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15657,7 +15641,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "6f28ffe2-0ab6-4465-b3af-8cd276a98c37",
+             *         "id": "a3dea26e-c075-43e1-a3a2-f2168aeaa57f",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15666,15 +15650,15 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "de32bc8e-1f1e-4c06-b432-e9fac33747c6",
+             *         "id": "d70e7e6c-6cd0-4929-9532-e12c48cfdea4",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "0eb97f20-ebe5-4451-accd-d849847b41ea",
+             *         "id": "f097201e-dc05-49c6-a56c-b3d122d066c4",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "16ff3bc4-ee40-430d-a59b-75507c5f1916",
+             *         "id": "5b3aa88b-53d6-4ee0-88f4-6f91a2eb9bb2",
              *         "rule": "ByStack"
              *       }
              *     ]

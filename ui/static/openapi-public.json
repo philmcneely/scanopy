@@ -9455,7 +9455,7 @@
           "Hosts"
         ],
         "summary": "Rescan a host",
-        "description": "Starts a one-shot scan of this host's addresses and nothing else, answering\n\"is this host still there, and is its data current?\" without sweeping the\nwhole subnet.\n\nThe scan runs on the daemon that last discovered this host — evidence it can\nreach the address — and only if that daemon still has an interface on a\nsubnet containing one of the host's scannable IPs. Where that interface has a\nMAC the daemon ARPs the target, which sees a live host even when every port\nis firewalled; on a MAC-less interface (a point-to-point tunnel) it falls\nback to a TCP probe. When no interface covers any of the host's addresses the\nrequest is refused with the specific reason. A loopback address is not a\nscannable IP — it is reached locally and is excluded from the target set.\n\nReturns the session, which streams progress over `/api/v1/discovery/stream`\nlike any other scan. A `Queued` phase means the daemon is busy; it will start\nwhen the running scan finishes.",
+        "description": "Starts a one-shot scan of this host's addresses and nothing else, answering\n\"is this host still there, and is its data current?\" without sweeping the\nwhole subnet.\n\nThe scan runs on the daemon that last discovered this host, which is evidence\nit can reach the address. Where the daemon has an interface with a MAC on the\naddress's subnet it ARPs the target, which sees a live host even when every\nport is firewalled. Every other address, on a MAC-less interface (a\npoint-to-point tunnel) or on a subnet the daemon reaches through a router, is\nprobed by TCP. An address that doesn't answer comes back as not found. A\nloopback address is reached locally and is excluded from the target set.\n\nDaemons at or below `last_without_routed_rescan` only rescan addresses on\nsubnets they have an interface on, and the request is refused when the host\nhas none.\n\nReturns the session, which streams progress over `/api/v1/discovery/stream`\nlike any other scan. A `Queued` phase means the daemon is busy; it will start\nwhen the running scan finishes.",
         "operationId": "rescan_host",
         "parameters": [
           {
@@ -20066,19 +20066,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-21T19:08:55.100525Z",
+              "created_at": "2026-10-21T19:59:43.177866Z",
               "first_discovery_id": null,
-              "id": "95b5f5b2-d2de-48e2-8f9e-f1a3f8a4adcf",
+              "id": "a77b21e9-14f1-4318-94e2-82eec92b2bc4",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-21T19:08:55.100525Z",
+              "last_seen_at": "2026-10-21T19:59:43.177866Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-21T19:08:55.100525Z",
-              "valid_from": "2026-10-21T19:08:55.100525Z",
+              "updated_at": "2026-10-21T19:59:43.177866Z",
+              "valid_from": "2026-10-21T19:59:43.177866Z",
               "valid_to": null
             }
           },
@@ -21831,19 +21831,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-21T19:08:55.068757Z",
+                      "created_at": "2026-10-21T19:59:43.150771Z",
                       "first_discovery_id": null,
-                      "id": "8f12f602-ffc0-47a5-8d82-417483e6f1a4",
+                      "id": "3b33294e-e77b-40eb-a394-130bddbd644e",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-21T19:08:55.068757Z",
+                      "last_seen_at": "2026-10-21T19:59:43.150771Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-21T19:08:55.068757Z",
-                      "valid_from": "2026-10-21T19:08:55.068757Z",
+                      "updated_at": "2026-10-21T19:59:43.150771Z",
+                      "valid_from": "2026-10-21T19:59:43.150771Z",
                       "valid_to": null
                     }
                   ],
@@ -21856,7 +21856,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "StrongSwan",
+                  "service_definition": "Mattermost",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -23343,19 +23343,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-21T19:08:55.095239Z",
+                  "created_at": "2026-10-21T19:59:43.173063Z",
                   "first_discovery_id": null,
-                  "id": "56444977-673a-4cb1-90ef-c0e30b481e29",
+                  "id": "2b2524d0-62a5-42b5-8df7-0573bb951a6f",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-21T19:08:55.095239Z",
+                  "last_seen_at": "2026-10-21T19:59:43.173063Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-21T19:08:55.095239Z",
-                  "valid_from": "2026-10-21T19:08:55.095239Z",
+                  "updated_at": "2026-10-21T19:59:43.173063Z",
+                  "valid_from": "2026-10-21T19:59:43.173063Z",
                   "valid_to": null
                 }
               ],
@@ -23368,7 +23368,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "StrongSwan",
+              "service_definition": "Mattermost",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -26486,19 +26486,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-21T19:08:55.069726Z",
+          "created_at": "2026-10-21T19:59:43.151284Z",
           "first_discovery_id": null,
-          "id": "31f78478-f82a-40e2-824f-fd76fdf5f9db",
+          "id": "53503299-f1b9-47d1-bdc6-528f401b4e1b",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-21T19:08:55.069726Z",
+          "last_seen_at": "2026-10-21T19:59:43.151284Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-21T19:08:55.069726Z",
-          "valid_from": "2026-10-21T19:08:55.069726Z",
+          "updated_at": "2026-10-21T19:59:43.151284Z",
+          "valid_from": "2026-10-21T19:59:43.151284Z",
           "valid_to": null
         }
       },
@@ -27393,7 +27393,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "StrongSwan",
+              "service_definition": "Mattermost",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -31064,51 +31064,6 @@
           },
           {
             "type": "object",
-            "title": "CredentialDaemonTooOld",
-            "description": "Deprecated: no longer raised. Superseded by `CredentialNeedsNewerDaemon` with a\n`ParsesCredentialType` gap; kept so warnings stored by earlier scans still read and render.\n\nThe daemon is older than the credential type needs, so the server did not send it the\ncredential at all.",
-            "required": [
-              "integration",
-              "credential_id",
-              "minimum_daemon_version",
-              "code"
-            ],
-            "properties": {
-              "code": {
-                "type": "string",
-                "enum": [
-                  "CredentialDaemonTooOld"
-                ]
-              },
-              "credential_id": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "format": "uuid",
-                "description": "The stored credential. See [`CredentialAttempt::credential_id`]."
-              },
-              "daemon_version": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "The version of the daemon that ran the scan. `None` for a daemon that never reported one.",
-                "example": "0.18.0",
-                "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
-              },
-              "integration": {
-                "$ref": "#/components/schemas/CredentialQueryPayloadDiscriminants"
-              },
-              "minimum_daemon_version": {
-                "type": "string",
-                "description": "The oldest daemon version that can receive this credential type.",
-                "example": "0.18.1",
-                "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
-              }
-            }
-          },
-          {
-            "type": "object",
             "title": "CredentialNeedsNewerDaemon",
             "description": "The daemon is too old for part of how this credential is configured, so the server withheld\nthat part (or, for a type the daemon cannot parse, all of it). `gap` names what. Raised by\nthe server, never a daemon: the daemon that would report it is the one that lacks it.",
             "required": [
@@ -34727,19 +34682,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-21T19:08:55.067144Z",
+                  "created_at": "2026-10-21T19:59:43.150165Z",
                   "first_discovery_id": null,
-                  "id": "e4fdbde6-32f0-4b4e-9133-5fee989a6b09",
+                  "id": "ac221321-9335-498d-9d6c-1e5fa9b537d5",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-21T19:08:55.067144Z",
+                  "last_seen_at": "2026-10-21T19:59:43.150165Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-21T19:08:55.067144Z",
-                  "valid_from": "2026-10-21T19:08:55.067144Z",
+                  "updated_at": "2026-10-21T19:59:43.150165Z",
+                  "valid_from": "2026-10-21T19:59:43.150165Z",
                   "valid_to": null
                 }
               ],
@@ -34752,7 +34707,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "StrongSwan",
+              "service_definition": "Mattermost",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -38973,19 +38928,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-21T19:08:55.056324Z",
+                        "created_at": "2026-10-21T19:59:43.141382Z",
                         "first_discovery_id": null,
-                        "id": "9a4f1161-72c5-43f6-8392-309e2df21de5",
+                        "id": "19ad051e-7624-450e-adea-b84bb8b916a2",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-21T19:08:55.056324Z",
+                        "last_seen_at": "2026-10-21T19:59:43.141382Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-21T19:08:55.056324Z",
-                        "valid_from": "2026-10-21T19:08:55.056324Z",
+                        "updated_at": "2026-10-21T19:59:43.141382Z",
+                        "valid_from": "2026-10-21T19:59:43.141382Z",
                         "valid_to": null
                       }
                     ],
@@ -38998,7 +38953,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "StrongSwan",
+                    "service_definition": "Mattermost",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -39245,19 +39200,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-21T19:08:55.094494Z",
+                    "created_at": "2026-10-21T19:59:43.172348Z",
                     "first_discovery_id": null,
-                    "id": "149a3991-0f13-4453-9069-55e296ccb329",
+                    "id": "0a6069f6-5f05-41a6-9803-1c104e9feb49",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-21T19:08:55.094494Z",
+                    "last_seen_at": "2026-10-21T19:59:43.172348Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-21T19:08:55.094494Z",
-                    "valid_from": "2026-10-21T19:08:55.094494Z",
+                    "updated_at": "2026-10-21T19:59:43.172348Z",
+                    "valid_from": "2026-10-21T19:59:43.172348Z",
                     "valid_to": null
                   }
                 ],
@@ -39270,7 +39225,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "StrongSwan",
+                "service_definition": "Mattermost",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -41960,19 +41915,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-21T19:08:55.069222Z",
+              "created_at": "2026-10-21T19:59:43.151113Z",
               "first_discovery_id": null,
-              "id": "ee64064c-dd2d-4620-8497-5e3a68ba70d4",
+              "id": "9b8216d6-58a1-4ac4-b877-7ec633aab431",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-21T19:08:55.069222Z",
+              "last_seen_at": "2026-10-21T19:59:43.151113Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-21T19:08:55.069222Z",
-              "valid_from": "2026-10-21T19:08:55.069222Z",
+              "updated_at": "2026-10-21T19:59:43.151113Z",
+              "valid_from": "2026-10-21T19:59:43.151113Z",
               "valid_to": null
             }
           ],
@@ -41985,7 +41940,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "StrongSwan",
+          "service_definition": "Mattermost",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -44267,7 +44222,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "d2bf6d1b-e0f6-44ee-8a0c-6d88cb9472d9",
+                  "id": "4828c883-f9b5-4912-a3f6-1490212ba248",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -44277,23 +44232,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "1b4217a8-bd39-425e-a032-56dfa26afbca",
+                  "id": "240e8e3f-10bb-4610-8694-b06c4a945080",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "801aa8b6-a814-4494-ad15-3deb3f3d990c",
+                  "id": "191bdb58-a13f-4f4b-99cb-b49674a3e21d",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "9811aafd-a96b-41dc-adfc-6d85820a3e0f",
+                  "id": "bb06fa58-31c5-4d0f-98fa-3c59012ad238",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "1b4217a8-bd39-425e-a032-56dfa26afbca",
+                  "id": "240e8e3f-10bb-4610-8694-b06c4a945080",
                   "rule": "ByHost"
                 }
               ]
@@ -44323,19 +44278,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "fc091c80-3b1b-4d8c-8378-1527373c1fb7",
+                "id": "4e87a38c-18e2-469a-be41-f9fd5b6f66fc",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "0d338a6a-afd5-4dec-b8a9-6623c0a38773",
+                "id": "9718885b-366d-49ff-b3fc-9cc7628c0b1b",
                 "rule": "ByVLAN"
               },
               {
-                "id": "febbd51c-acb6-4de0-84ae-dc8ce6c36da4",
+                "id": "8aa66bb9-e289-4e0a-9581-9e86336a2710",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "d45406b0-2eaf-4b3f-bb84-ef4e1924de20",
+                "id": "5daaf2ce-ad14-4d0f-9ab0-b544669704d0",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -44356,7 +44311,7 @@
                 }
               },
               {
-                "id": "4ceb596b-4ab3-4f42-8b45-88c3b6ee9dd8",
+                "id": "98b64e1c-611e-48ac-a055-58f08b668af9",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -44365,15 +44320,15 @@
                 }
               },
               {
-                "id": "fe0f83e6-235d-4c80-84fb-ceaf6a22a7c8",
+                "id": "f19ea4d9-f47d-4e9f-8367-bbbf8d454758",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "b6e90221-5ef6-4231-ac49-5bf4669a4055",
+                "id": "f4186347-680b-4c84-b5e5-012376d93ef2",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "5c254d9c-e3e4-4767-8906-4cdbb0571fef",
+                "id": "716a34ed-f46b-4e21-8ae3-e7a73bbba577",
                 "rule": "ByStack"
               }
             ]
