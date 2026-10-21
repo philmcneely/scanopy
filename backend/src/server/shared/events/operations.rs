@@ -252,6 +252,7 @@ pub(crate) mod tests {
         let daemon_id = Uuid::new_v4();
         let system = || AuthenticatedEntity::System;
         let warning = DiscoveryWarning::InterfaceSetCutShort {
+            credential_id: None,
             address: "192.0.2.1".parse().expect("address"),
             collected: 3,
         };

@@ -20,7 +20,7 @@ use serde_json::json;
 use strum::{EnumIter, IntoStaticStr, VariantNames};
 use utoipa::ToSchema;
 
-use super::DiscoveryWarningCode;
+use super::{DiscoveryWarningCode, SnmpCheck, SnmpWalkGroup};
 use crate::server::shared::types::{
     Color, Icon,
     metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
@@ -692,7 +692,12 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
     }
 
     fn metadata(&self) -> serde_json::Value {
-        json!({ "slots": self.slots(), "concerns_credential": self.concerns_credential() })
+        json!({
+            "slots": self.slots(),
+            "concerns_credential": self.concerns_credential(),
+            "snmp_check": self.snmp_check(),
+            "snmp_check_group": self.snmp_check_group(),
+        })
     }
 }
 
@@ -763,6 +768,92 @@ impl DiscoveryWarningCode {
             | Self::Unknown
             | Self::VlanRecordingFailed
             | Self::WarningsTruncated => false,
+        }
+    }
+
+    /// The net-snmp check that tests this code against the device, for every code about what a
+    /// device returned to a read. `None` for the rest: matching against the inventory, saving,
+    /// credentials and the scan as a whole come from no single read a command could repeat.
+    ///
+    /// Exhaustive, so a new code has to say whether an operator can check it.
+    pub fn snmp_check(&self) -> Option<SnmpCheck> {
+        match self {
+            Self::SnmpWalkFailed
+            | Self::SnmpWalkBridgeMibAbsent
+            | Self::SnmpWalkNoAnswer
+            | Self::SnmpCollectedNothing => Some(SnmpCheck::Repeat),
+
+            Self::SnmpWalkPartialRecorded
+            | Self::SnmpWalkPartialDiscarded
+            | Self::SnmpWalkEntryCap
+            | Self::SnmpWalkUnsupported
+            | Self::InterfaceSetCutShort
+            | Self::InterfaceDetailsCutShort
+            | Self::LldpLocalPortDropped
+            | Self::LldpLocalPortDroppedReadCutShort => Some(SnmpCheck::Recount),
+
+            Self::ClaimedCountReadCutShort
+            | Self::ClaimedCountUnderRead
+            | Self::ClaimedCapabilityReadCutShort
+            | Self::ClaimedCapabilityEmpty => Some(SnmpCheck::Claim),
+
+            Self::SnmpWalkDesynchronised => Some(SnmpCheck::Unordered),
+
+            Self::MalformedNeighboursWalkCutShort
+            | Self::MalformedNeighboursGhostRows
+            | Self::MalformedNeighboursIncompleteRecords
+            | Self::MalformedNeighboursUnexpectedType
+            | Self::MalformedNeighboursUnreadableIndex
+            | Self::LldpLocalPortMisplaced => Some(SnmpCheck::Table),
+
+            Self::CredentialTargetNotScanned
+            | Self::CredentialTargetNotResponding
+            | Self::CredentialGateClosed
+            | Self::CredentialDaemonOsMismatch
+            | Self::CredentialDaemonTooOld
+            | Self::CredentialRejected
+            | Self::CredentialMalformed
+            | Self::CredentialTlsFailed
+            | Self::CredentialNotThisService
+            | Self::CredentialCollectionFailed
+            | Self::CredentialCollectionTimedOut
+            | Self::CredentialUnreachable
+            | Self::CredentialTimedOut
+            | Self::ConnectionsWithoutProtocolResponse
+            | Self::DcpSweepTimedOut
+            | Self::EqualReachIntegrationsMerged
+            | Self::FdbResolutionIncomplete
+            | Self::IcmpSweepTimedOut
+            | Self::IntegrationWithoutCredential
+            | Self::LldpNeighbourAmbiguous
+            | Self::LldpNeighbourNotFound
+            | Self::LldpPortAmbiguous
+            | Self::LldpPortNoStrategy
+            | Self::LldpPortNotFound
+            | Self::NeighbourResolutionIncomplete
+            | Self::OutdatedDaemonFormat
+            | Self::ProvisionalSubnetInferred
+            | Self::ReverseDnsTimedOut
+            | Self::ScanTimeLimit
+            | Self::ScanTimeLimitWithEstimate
+            | Self::Unknown
+            | Self::VlanRecordingFailed
+            | Self::WarningsTruncated => None,
+        }
+    }
+
+    /// The group a checkable code is about when its warning carries none: the interface walk for
+    /// the interface codes, LLDP local port numbering for the local-port codes. Every other
+    /// checkable code names its group on the wire.
+    pub fn snmp_check_group(&self) -> Option<SnmpWalkGroup> {
+        match self {
+            Self::InterfaceSetCutShort | Self::InterfaceDetailsCutShort => {
+                Some(SnmpWalkGroup::Interfaces)
+            }
+            Self::LldpLocalPortDropped
+            | Self::LldpLocalPortDroppedReadCutShort
+            | Self::LldpLocalPortMisplaced => Some(SnmpWalkGroup::LldpLocalPorts),
+            _ => None,
         }
     }
 }

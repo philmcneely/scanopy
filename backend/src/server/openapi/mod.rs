@@ -13,6 +13,7 @@ use utoipa::openapi::schema::Schema;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::openapi::{Components, OpenApi, PathItem};
 
+use crate::daemon::discovery::types::warnings::SnmpCheck;
 use crate::server::bindings::r#impl::base::Binding;
 use crate::server::credentials::handlers::CredentialOrderField;
 use crate::server::credentials::r#impl::base::Credential;
@@ -168,6 +169,10 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         // Which credential fields depend on which declared OS. Travels inside `TypeMetadata.metadata`
         // like `CredentialIntegration`; the form types its picker placement from here.
         CredentialOsFields,
+        // How an operator checks a scan warning against the device. Travels inside the warning
+        // codes fixture's untyped `TypeMetadata.metadata`; the warning report types its command
+        // builder from here.
+        SnmpCheck,
         // Referenced by the install-command query parameter, so it needs a registered schema.
         InstallCommandType,
         // The subnet list and get-by-id body. Inlined into the generic envelopes, so registered by

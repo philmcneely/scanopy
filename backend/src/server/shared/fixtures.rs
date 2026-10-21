@@ -12,7 +12,7 @@ use crate::server::billing::types::features::Feature;
 use crate::server::credentials::r#impl::integrations::all_integrations;
 use crate::server::credentials::r#impl::mapping::CredentialQueryPayloadDiscriminants;
 use crate::server::credentials::r#impl::types::{
-    CredentialIntegration, CredentialTypeDiscriminants,
+    CredentialIntegration, CredentialTypeDiscriminants, SnmpV3AuthProtocol, SnmpV3PrivProtocol,
 };
 use crate::server::dependencies::r#impl::types::DependencyType;
 use crate::server::discovery::r#impl::collection::all_collected_data;
@@ -174,6 +174,18 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
 
     let claim_sources: Vec<TypeMetadata> = ClaimSource::iter().map(|c| c.to_metadata()).collect();
     write_fixture(&claim_sources, output_dir, "claim-sources.json");
+
+    // The SNMPv3 protocols, with the names net-snmp takes for them, so a scan warning can hand an
+    // operator the command that checks it with the stored credential's options.
+    let snmp_auth_protocols: Vec<TypeMetadata> = SnmpV3AuthProtocol::iter()
+        .map(|p| p.to_metadata())
+        .collect();
+    write_fixture(&snmp_auth_protocols, output_dir, "snmp-auth-protocols.json");
+
+    let snmp_priv_protocols: Vec<TypeMetadata> = SnmpV3PrivProtocol::iter()
+        .map(|p| p.to_metadata())
+        .collect();
+    write_fixture(&snmp_priv_protocols, output_dir, "snmp-priv-protocols.json");
 
     // Install OS → credential OS family, for the create-daemon modal and the daemon OS gate.
     let daemon_os: Vec<TypeMetadata> = crate::server::daemons::r#impl::base::DaemonOs::iter()

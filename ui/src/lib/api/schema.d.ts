@@ -9222,6 +9222,11 @@ export interface components {
              * @description Interfaces read before the walk stopped.
              */
             collected: number;
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
         } | {
             /** @description The device whose walk fell short. */
             address: string;
@@ -9232,11 +9237,21 @@ export interface components {
              * @description Interfaces whose attribute columns were read in full.
              */
             collected: number;
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkEntryCap";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
             /**
              * Format: int32
@@ -9248,24 +9263,44 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "SnmpWalkUnsupported";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkDesynchronised";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkPartialDiscarded";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkPartialRecorded";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
@@ -9278,13 +9313,16 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
-            /** @description See [`DiscoveryWarning::SnmpWalkFailed`]. */
-            net_snmp_options: string | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkNoAnswer";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
@@ -9298,16 +9336,16 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
-            /**
-             * @description The net-snmp options that authenticate as that credential, every secret a
-             *     `<placeholder>`, for the `snmpwalk` the UI offers to repeat the read with.
-             */
-            net_snmp_options: string | null;
         } | {
             /** @description The device that published the count. */
             address: string;
             /** @enum {string} */
             code: "ClaimedCountReadCutShort";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             /**
              * Format: int32
              * @description Rows the device said it had.
@@ -9326,6 +9364,11 @@ export interface components {
             /** @enum {string} */
             code: "ClaimedCountUnderRead";
             /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
              * Format: int32
              * @description Rows the device said it had.
              */
@@ -9342,6 +9385,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "ClaimedCapabilityReadCutShort";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
             source: components["schemas"]["ClaimSource"];
         } | {
@@ -9349,6 +9397,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "ClaimedCapabilityEmpty";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
             source: components["schemas"]["ClaimSource"];
         } | {
@@ -9356,6 +9409,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "LldpLocalPortDropped";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             /**
              * Format: int32
              * @description Neighbours discarded for want of a matching interface.
@@ -9372,6 +9430,11 @@ export interface components {
             /** @enum {string} */
             code: "LldpLocalPortDroppedReadCutShort";
             /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
              * Format: int32
              * @description Neighbours discarded for want of a matching interface.
              */
@@ -9386,6 +9449,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "LldpLocalPortMisplaced";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             /**
              * Format: int32
              * @description Neighbours drawn against a port that may be the wrong one.
@@ -9422,8 +9490,6 @@ export interface components {
              *     which recorded only that nothing came back.
              */
             failures: components["schemas"]["SnmpWalkFailure"][] | null;
-            /** @description See [`DiscoveryWarning::SnmpWalkFailed`]. */
-            net_snmp_options: string | null;
         } | {
             /** @description The device whose VLANs could not be recorded. */
             address: string;
@@ -12134,6 +12200,11 @@ export interface components {
             address: string;
             consequence: components["schemas"]["MalformedNeighbourConsequence"];
             /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
              * Format: int32
              * @description Records thrown away for want of a usable identifier.
              */
@@ -14738,6 +14809,15 @@ export interface components {
              */
             taken_at: string;
         };
+        /**
+         * @description The net-snmp commands that check a warning against the device, from the daemon's host.
+         *
+         *     Published on each warning code's metadata as `snmp_check`, so the UI builds the commands from
+         *     what the code declares instead of keeping its own list of codes. Each value is the comparison
+         *     that tells an operator whether the device returns what the warning says it returned.
+         * @enum {string}
+         */
+        SnmpCheck: "Repeat" | "Recount" | "Claim" | "Unordered" | "Table";
         /**
          * @description SNMPv3 USM authentication protocol. MD5 is offered for devices that support nothing else;
          *     SHA-2 variants beyond SHA-256 are not. Serialized form (e.g. "Sha256") is the wire value

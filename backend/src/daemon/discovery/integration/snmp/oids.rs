@@ -429,6 +429,9 @@ pub mod bridge {
     /// dot1qTpFdbTable - VLAN-aware forwarding database (Q-BRIDGE-MIB)
     pub const DOT1Q_TP_FDB_TABLE: &str = "1.3.6.1.2.1.17.7.1.2.2";
 
+    /// dot1dBasePortTable - one row per bridge port
+    pub const DOT1D_BASE_PORT_TABLE: &str = "1.3.6.1.2.1.17.1.4";
+
     /// dot1dBasePortIfIndex - bridge port to ifIndex mapping
     pub const DOT1D_BASE_PORT_IF_INDEX: &str = "1.3.6.1.2.1.17.1.4.1.2";
 
@@ -469,8 +472,14 @@ pub mod bridge {
 pub mod vlan {
     /// Q-BRIDGE-MIB (RFC 4363) - IEEE 802.1Q VLAN management
     pub mod q_bridge {
+        /// dot1qVlanStaticTable - one row per configured VLAN
+        pub const DOT1Q_VLAN_STATIC_TABLE: &str = "1.3.6.1.2.1.17.7.1.4.3";
+
         /// dot1qVlanStaticName - VLAN name (indexed by VLAN ID)
         pub const DOT1Q_VLAN_STATIC_NAME: &str = "1.3.6.1.2.1.17.7.1.4.3.1.1";
+
+        /// dot1qPortVlanTable - per-port VLAN settings, `dot1qPvid` among them
+        pub const DOT1Q_PORT_VLAN_TABLE: &str = "1.3.6.1.2.1.17.7.1.4.5";
 
         /// dot1qPvid - native/untagged VLAN per bridge port
         pub const DOT1Q_PVID: &str = "1.3.6.1.2.1.17.7.1.4.5.1.1";

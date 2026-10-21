@@ -441,11 +441,13 @@ pub fn lab_env(devices: &[SimDevice]) -> String {
     // directions — silence required here, an own address required everywhere else.
     out.push_str(&format!(
         "SUPPRESSES_IPADDR=({})\n",
-        field(&|d| if d.suppresses_ip_addr_table() || d.hides_ip_addr_table() {
-            "1".to_string()
-        } else {
-            "0".to_string()
-        })
+        field(
+            &|d| if d.suppresses_ip_addr_table() || d.hides_ip_addr_table() {
+                "1".to_string()
+            } else {
+                "0".to_string()
+            }
+        )
     ));
     out
 }

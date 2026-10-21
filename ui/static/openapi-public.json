@@ -30128,6 +30128,7 @@
             "required": [
               "address",
               "collected",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30146,6 +30147,14 @@
                 "format": "int32",
                 "description": "Interfaces read before the walk stopped.",
                 "minimum": 0
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               }
             }
           },
@@ -30156,6 +30165,7 @@
             "required": [
               "address",
               "collected",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30174,6 +30184,14 @@
                 "format": "int32",
                 "description": "Interfaces whose attribute columns were read in full.",
                 "minimum": 0
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               }
             }
           },
@@ -30185,6 +30203,7 @@
               "address",
               "group",
               "limit",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30197,6 +30216,14 @@
                 "enum": [
                   "SnmpWalkEntryCap"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
@@ -30216,6 +30243,7 @@
             "required": [
               "address",
               "group",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30229,6 +30257,14 @@
                   "SnmpWalkUnsupported"
                 ]
               },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
+              },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
               }
@@ -30241,6 +30277,7 @@
             "required": [
               "address",
               "group",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30254,6 +30291,14 @@
                   "SnmpWalkDesynchronised"
                 ]
               },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
+              },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
               }
@@ -30266,6 +30311,7 @@
             "required": [
               "address",
               "group",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30279,6 +30325,14 @@
                   "SnmpWalkPartialDiscarded"
                 ]
               },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
+              },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
               }
@@ -30291,6 +30345,7 @@
             "required": [
               "address",
               "group",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30303,6 +30358,14 @@
                 "enum": [
                   "SnmpWalkPartialRecorded"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
@@ -30317,7 +30380,6 @@
               "address",
               "group",
               "credential_id",
-              "net_snmp_options",
               "code"
             ],
             "properties": {
@@ -30341,13 +30403,6 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
-              },
-              "net_snmp_options": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "See [`DiscoveryWarning::SnmpWalkFailed`]."
               }
             }
           },
@@ -30358,6 +30413,7 @@
             "required": [
               "address",
               "group",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30370,6 +30426,14 @@
                 "enum": [
                   "SnmpWalkNoAnswer"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
@@ -30385,7 +30449,6 @@
               "group",
               "cause",
               "credential_id",
-              "net_snmp_options",
               "code"
             ],
             "properties": {
@@ -30412,13 +30475,6 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
-              },
-              "net_snmp_options": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "The net-snmp options that authenticate as that credential, every secret a\n`<placeholder>`, for the `snmpwalk` the UI offers to repeat the read with."
               }
             }
           },
@@ -30432,6 +30488,7 @@
               "source",
               "expected",
               "observed",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30444,6 +30501,14 @@
                 "enum": [
                   "ClaimedCountReadCutShort"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "expected": {
                 "type": "integer",
@@ -30475,6 +30540,7 @@
               "source",
               "expected",
               "observed",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30487,6 +30553,14 @@
                 "enum": [
                   "ClaimedCountUnderRead"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "expected": {
                 "type": "integer",
@@ -30516,6 +30590,7 @@
               "address",
               "group",
               "source",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30528,6 +30603,14 @@
                 "enum": [
                   "ClaimedCapabilityReadCutShort"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
@@ -30545,6 +30628,7 @@
               "address",
               "group",
               "source",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30557,6 +30641,14 @@
                 "enum": [
                   "ClaimedCapabilityEmpty"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
@@ -30574,6 +30666,7 @@
               "address",
               "dropped",
               "total",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30586,6 +30679,14 @@
                 "enum": [
                   "LldpLocalPortDropped"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "dropped": {
                 "type": "integer",
@@ -30609,6 +30710,7 @@
               "address",
               "dropped",
               "total",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30621,6 +30723,14 @@
                 "enum": [
                   "LldpLocalPortDroppedReadCutShort"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "dropped": {
                 "type": "integer",
@@ -30643,6 +30753,7 @@
             "required": [
               "address",
               "misplaced",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30655,6 +30766,14 @@
                 "enum": [
                   "LldpLocalPortMisplaced"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "misplaced": {
                 "type": "integer",
@@ -30786,7 +30905,6 @@
             "required": [
               "address",
               "credential_id",
-              "net_snmp_options",
               "failures",
               "code"
             ],
@@ -30818,13 +30936,6 @@
                   "$ref": "#/components/schemas/SnmpWalkFailure"
                 },
                 "description": "Each table whose read failed, and how. These are not reported again on their own.\nEmpty when every read ended normally; `None` from a daemon that predates the field,\nwhich recorded only that nothing came back."
-              },
-              "net_snmp_options": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "See [`DiscoveryWarning::SnmpWalkFailed`]."
               }
             }
           },
@@ -37009,7 +37120,8 @@
           "group",
           "discarded",
           "kept",
-          "consequence"
+          "consequence",
+          "credential_id"
         ],
         "properties": {
           "address": {
@@ -37018,6 +37130,14 @@
           },
           "consequence": {
             "$ref": "#/components/schemas/MalformedNeighbourConsequence"
+          },
+          "credential_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The stored credential the device was read with. `None` from a daemon that predates it."
           },
           "discarded": {
             "type": "integer",
@@ -42588,6 +42708,17 @@
             "description": "The point in time this snapshot captures."
           }
         }
+      },
+      "SnmpCheck": {
+        "type": "string",
+        "description": "The net-snmp commands that check a warning against the device, from the daemon's host.\n\nPublished on each warning code's metadata as `snmp_check`, so the UI builds the commands from\nwhat the code declares instead of keeping its own list of codes. Each value is the comparison\nthat tells an operator whether the device returns what the warning says it returned.",
+        "enum": [
+          "Repeat",
+          "Recount",
+          "Claim",
+          "Unordered",
+          "Table"
+        ]
       },
       "SnmpV3AuthProtocol": {
         "type": "string",

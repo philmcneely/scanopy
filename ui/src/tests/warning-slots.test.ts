@@ -2,12 +2,17 @@ import { describe, it, expect } from 'vitest';
 import warningCodes from '$lib/data/warning-codes.json';
 import warningRemedies from '$lib/data/warning-remedies.json';
 import discoveryIntegrations from '$lib/data/discovery-integrations.json';
+import claimSources from '$lib/data/claim-sources.json';
+import type { components } from '$lib/api/schema';
+import { snmpCheckOf, type CredentialLookup } from '$lib/features/discovery/utils/snmpCheck';
 import {
 	buildWarningReport,
 	credentialIdsOf,
 	type DiscoveryWarning,
 	type EntityNameLookup
 } from '$lib/features/discovery/utils/warnings';
+
+type Credential = components['schemas']['Credential'];
 
 /**
  * The frontend half of the slot contract.
@@ -62,8 +67,7 @@ describe('discovery warning rendering', () => {
 			actual: 'Unix',
 			elided: 7,
 			cause: 'TimedOut',
-			failures: [{ group: 'Interfaces', cause: 'TimedOut' }],
-			net_snmp_options: '-v2c -c <community>'
+			failures: [{ group: 'Interfaces', cause: 'TimedOut' }]
 		}) as unknown as DiscoveryWarning;
 
 	/**
@@ -483,5 +487,116 @@ describe('discovery warning rendering', () => {
 		).flatMap((section) => section.entries);
 
 		expect(row.subjects.map((s) => s.label)).toEqual(['Docker', 'Docker']);
+	});
+});
+
+/**
+ * The commands a row offers for checking a warning against its device.
+ *
+ * Each device gets its own, built from its own address and the stored credential its warning
+ * names; a device with none says why. Asserted on what the commands do (which device, which
+ * request, which credential), not on their exact text.
+ */
+describe('SNMP check commands', () => {
+	const credentialId = '00000000-0000-0000-0000-0000000000c1';
+	const v3Credential = {
+		id: credentialId,
+		credential_type: {
+			type: 'SnmpV3',
+			security_name: 'netops',
+			security_level: 'AuthPriv',
+			auth_protocol: 'Sha256',
+			auth_password: { mode: 'Inline', value: 'auth-secret' },
+			priv_protocol: 'Aes256',
+			priv_password: { mode: 'Inline', value: 'priv-secret' },
+			context_name: 'vlan-20'
+		}
+	} as unknown as Credential;
+	const credentials: CredentialLookup = (id) => (id === credentialId ? v3Credential : undefined);
+
+	const nothing = (address: string, failures: unknown) =>
+		({
+			code: 'SnmpCollectedNothing',
+			address,
+			failures,
+			credential_id: credentialId
+		}) as unknown as DiscoveryWarning;
+
+	const outcomesOf = (warnings: DiscoveryWarning[]) =>
+		buildWarningReport(warnings)
+			.flatMap((section) => section.entries)
+			.flatMap((entry) => entry.details)
+			.map((statement) => statement.warnings.map((w) => snmpCheckOf(w, credentials)));
+
+	it('gives each device its own commands, and a device with none the reason why', () => {
+		const statements = outcomesOf([
+			nothing('192.168.7.229', [{ group: 'Interfaces', cause: 'TimedOut' }]),
+			nothing('192.168.7.230', [{ group: 'Interfaces', cause: 'GenErr' }]),
+			nothing('192.168.7.212', [])
+		]);
+
+		expect(statements).toHaveLength(3);
+		const [silent, generr, empty] = statements.map(([outcome]) => outcome);
+		for (const [outcome, address] of [
+			[silent, '192.168.7.229'],
+			[generr, '192.168.7.230']
+		] as const) {
+			expect(outcome && 'commands' in outcome).toBe(true);
+			const commands = (outcome as { commands: string[] }).commands;
+			expect(commands.every((c) => c.includes(address))).toBe(true);
+		}
+		expect(empty && 'reason' in empty).toBe(true);
+	});
+
+	it('authenticates with the stored credential, and never prints its secrets', () => {
+		const [[outcome]] = outcomesOf([nothing('10.0.0.1', [{ group: 'Lldp', cause: 'TimedOut' }])]);
+		const commands = (outcome as { commands: string[] }).commands.join('\n');
+
+		expect(commands).toContain('-u netops');
+		expect(commands).toContain('-n vlan-20');
+		expect(commands).not.toContain('secret');
+	});
+
+	it('turns off the increasing-OID check for an agent that answered out of order', () => {
+		const [[outcome]] = outcomesOf([
+			{
+				code: 'SnmpWalkDesynchronised',
+				address: '10.0.0.1',
+				group: 'ArpTable',
+				credential_id: credentialId
+			} as unknown as DiscoveryWarning
+		]);
+
+		expect((outcome as { commands: string[] }).commands.every((c) => c.includes('-Cc'))).toBe(true);
+	});
+
+	it("reads a device's own claim before recounting what it served", () => {
+		const [[outcome]] = outcomesOf([
+			{
+				code: 'ClaimedCountUnderRead',
+				address: '10.0.0.1',
+				group: 'Interfaces',
+				source: 'IfNumber',
+				expected: 23,
+				observed: 1,
+				credential_id: credentialId
+			} as unknown as DiscoveryWarning
+		]);
+		const claimed = claimSources.find((c) => c.id === 'IfNumber')?.metadata as { oid: string };
+
+		const [first] = (outcome as { commands: string[] }).commands;
+		expect(first.startsWith('snmpget')).toBe(true);
+		expect(first).toContain(claimed.oid);
+	});
+
+	it('offers nothing for a code no device read can repeat', () => {
+		const [[outcome]] = outcomesOf([
+			{
+				code: 'VlanRecordingFailed',
+				address: '10.0.0.1'
+			} as unknown as DiscoveryWarning
+		]);
+
+		expect(outcome).toBeNull();
 	});
 });
