@@ -332,9 +332,10 @@ async fn fetch_network_config(
 /// for each routed one.
 ///
 /// A range is matched to a subnet the site already holds by the rule SNMP uses for a router's
-/// interfaces ([`place_reported_range`]): the same CIDR is reused, a range overlapping nothing is
-/// created, and one overlapping a held subnet is not created. The server matches a created range
-/// by CIDR too, and keeps the name of a row it already has.
+/// interfaces ([`place_reported_range`]): a range overlapping nothing is created, and one overlapping
+/// a held subnet without equalling it is not. A range the site already holds exactly is still
+/// submitted, so the server's CIDR match can merge the controller's name and type into the held row
+/// by source; a name a person typed keeps its rank and stays.
 async fn record_networks(
     ctx: &IntegrationContext<'_>,
     site_id: uuid::Uuid,
@@ -370,6 +371,30 @@ async fn record_networks(
         let subnet = match &network.range {
             None => None,
             Some(range) => match place_reported_range(&range.cidr, range.gateway, &held) {
+                // The site holds this exact range. Submit the network anyway: the server matches it
+                // by CIDR and merges the controller's name and type into the held row by source,
+                // which is how a subnet the daemon named after its CIDR takes the network's name.
+                ReportedRange::Held(subnet) if *subnet.base.cidr == range.cidr => {
+                    let fallback = subnet.clone();
+                    match network.to_subnet(site_id) {
+                        Some(reported) => ctx
+                            .ops
+                            .create_subnet(&reported, ctx.cancel)
+                            .await
+                            .unwrap_or_else(|e| {
+                                tracing::warn!(
+                                    network = %network.name,
+                                    cidr = %range.cidr,
+                                    error = %e,
+                                    "Failed to submit UniFi network for a held subnet"
+                                );
+                                fallback
+                            })
+                            .into(),
+                        None => Some(fallback),
+                    }
+                }
+                // A wider held subnet contains the network: place on it, submit nothing.
                 ReportedRange::Held(subnet) => Some(subnet.clone()),
                 ReportedRange::Unplaced => {
                     tracing::debug!(
