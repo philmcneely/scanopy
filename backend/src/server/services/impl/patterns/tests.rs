@@ -712,6 +712,31 @@ fn test_client_response_with_port() {
     assert_eq!(result.details.confidence, super::MatchConfidence::Certain);
 }
 
+/// An SSH credential configured for a port other than 22 identifies the SSH service on the port
+/// it authenticated on. The service used to require 22 open as well, so a credential on 2222
+/// authenticated and then collected nothing, because nothing on the host was SSH.
+#[test]
+fn ssh_matches_on_the_port_its_credential_authenticated_on() {
+    use crate::server::services::definitions::ssh::Ssh;
+    use crate::server::services::r#impl::definitions::ServiceDefinition;
+
+    let mut ctx = TestContext::new();
+    let credential_port = PortType::new_tcp(2222);
+    ctx.client_responses
+        .insert(super::ClientProbe::Ssh, vec![credential_port]);
+
+    let ports = vec![credential_port];
+    let baseline = ctx.create_baseline_params(&ports);
+    let params = ctx.create_params_with_ports(&baseline, &ports);
+    let result = Ssh
+        .discovery_pattern()
+        .matches(&params)
+        .expect("SSH matches on the credential's port");
+
+    assert_eq!(result.ports, vec![credential_port]);
+    assert_eq!(result.details.confidence, super::MatchConfidence::Certain);
+}
+
 #[test]
 fn test_client_response_without_port() {
     let mut ctx = TestContext::new();

@@ -15,7 +15,9 @@ use super::base::DiscoveryRunner;
 use super::ops::{DiscoveryOps, HostData};
 use crate::daemon::discovery::integration::dispatch;
 use crate::server::bindings::r#impl::base::BindingType;
-use crate::server::credentials::r#impl::mapping::{CredentialMapping, CredentialQueryPayload};
+use crate::server::credentials::r#impl::mapping::{
+    CredentialMapping, CredentialQueryPayload, IpOverride,
+};
 use crate::server::ip_addresses::r#impl::base::IPAddress;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::r#impl::base::ServiceMatchBaselineParams;
@@ -49,6 +51,15 @@ pub(crate) struct BridgeSelection {
     pub handled: HashSet<IpAddr>,
 }
 
+/// Whether an override is this daemon's to try at a bridge address: it names this daemon's host,
+/// where bridge addresses are recorded, or no host at all (a discovery `integration_targets`
+/// address typed for this daemon). One naming another host is that host's credential, even when
+/// its address also falls in a bridge range here: the server keys a site's subnets by CIDR, so
+/// the same range can be another daemon's LAN, or a LAN elsewhere in the site.
+fn names_this_host(o: &IpOverride<CredentialQueryPayload>, host_id: Uuid) -> bool {
+    o.host_id.is_none_or(|h| h == host_id)
+}
+
 /// Pick the bridge addresses to try credentials at, from what the container scan put in
 /// `host_data`.
 pub(crate) fn select_bridge_targets(
@@ -64,7 +75,9 @@ pub(crate) fn select_bridge_targets(
 
     let override_ips: HashSet<IpAddr> = mappings
         .iter()
-        .flat_map(|m| m.ip_overrides.iter().map(|o| o.ip))
+        .flat_map(|m| m.ip_overrides.iter())
+        .filter(|o| names_this_host(o, host_data.host.id))
+        .map(|o| o.ip)
         .filter(|ip| bridge_of(ip).is_some())
         .collect();
     if override_ips.is_empty() {
@@ -134,20 +147,17 @@ pub(crate) fn select_bridge_targets(
 pub(crate) fn mappings_at(
     mappings: &[CredentialMapping<CredentialQueryPayload>],
     ip: IpAddr,
+    host_id: Uuid,
 ) -> Vec<CredentialMapping<CredentialQueryPayload>> {
+    let here = |o: &IpOverride<CredentialQueryPayload>| o.ip == ip && names_this_host(o, host_id);
     mappings
         .iter()
-        .filter(|m| m.ip_overrides.iter().any(|o| o.ip == ip))
+        .filter(|m| m.ip_overrides.iter().any(here))
         .map(|m| CredentialMapping {
             default_credential: None,
             default_credential_id: None,
             daemon_os: m.daemon_os,
-            ip_overrides: m
-                .ip_overrides
-                .iter()
-                .filter(|o| o.ip == ip)
-                .cloned()
-                .collect(),
+            ip_overrides: m.ip_overrides.iter().filter(|o| here(o)).cloned().collect(),
         })
         .collect()
 }
@@ -267,7 +277,7 @@ impl DiscoveryRunner {
         cancel: &CancellationToken,
     ) -> Result<Option<HostData>, Error> {
         let ip = target.ip_address.base.ip_address;
-        let mappings = mappings_at(&self.credential_mappings, ip);
+        let mappings = mappings_at(&self.credential_mappings, ip, self.host_id);
         let trusted_ca = ops.config_store.get_trusted_ca().await;
 
         // The container scan saw only the ports the container declares, so the probe gate would
@@ -506,6 +516,39 @@ mod tests {
         assert!(selection.handled.is_empty());
     }
 
+    /// Another host's credential at an address that is also a running container's here is left
+    /// alone: the site's subnets are keyed by CIDR, so that range can be another daemon's LAN, and
+    /// the container holding the same address on this bridge is a different device. One naming
+    /// this host, or no host (an address typed for this daemon), is still tried.
+    #[test]
+    fn only_overrides_naming_this_host_or_none_are_tried() {
+        let mut s = scene(GuestState::Paused);
+        let runtime_host_id = Uuid::new_v4();
+        s.host_data.host.id = runtime_host_id;
+        let named = |host_id: Option<Uuid>| {
+            let mut mapping = ssh_override("172.17.0.3");
+            mapping.ip_overrides[0].host_id = host_id;
+            mapping
+        };
+
+        let other = select_bridge_targets(&s.host_data, &[named(Some(Uuid::new_v4()))]);
+        assert!(other.targets.is_empty());
+        assert!(other.handled.is_empty());
+        assert!(
+            mappings_at(
+                &[named(Some(Uuid::new_v4()))],
+                "172.17.0.3".parse().unwrap(),
+                runtime_host_id
+            )
+            .is_empty()
+        );
+
+        for host_id in [Some(runtime_host_id), None] {
+            let selection = select_bridge_targets(&s.host_data, &[named(host_id)]);
+            assert_eq!(target_ips(&selection), vec![s.running_ip.base.ip_address]);
+        }
+    }
+
     #[test]
     fn mappings_at_keeps_only_that_addresss_overrides_and_no_default() {
         let mut mapping = ssh_override("172.17.0.3");
@@ -516,6 +559,7 @@ mod tests {
         let at = mappings_at(
             &[mapping, ssh_override("10.0.20.30")],
             "172.17.0.3".parse().unwrap(),
+            Uuid::new_v4(),
         );
         assert_eq!(at.len(), 1);
         assert!(at[0].default_credential.is_none());

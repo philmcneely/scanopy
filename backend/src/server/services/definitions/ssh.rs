@@ -3,7 +3,7 @@ use crate::daemon::utils::app_probe::ssh::SshProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern, probe_pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Ssh;
@@ -18,10 +18,14 @@ impl ServiceDefinition for Ssh {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::RemoteAccess
     }
-    /// Derived from the probe, so a listener on this port that does not speak the protocol is
-    /// not claimed as this service.
+    /// Either an SSH credential authenticated, on whatever port it is configured for, or the
+    /// banner probe answered on 22. Both require the protocol to answer, so a listener that does
+    /// not speak SSH is not claimed as this service.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        probe_pattern(&SshProbe)
+        Pattern::AnyOf(vec![
+            Pattern::ClientResponse(ClientProbe::Ssh),
+            probe_pattern(&SshProbe),
+        ])
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(SshProbe)]
