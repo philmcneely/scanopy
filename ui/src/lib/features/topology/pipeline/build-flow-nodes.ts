@@ -52,16 +52,24 @@ export const ELEMENT_WIDTH_PX = 250;
 export const ICON_ELEMENT_WIDTH_PX = 120;
 
 /**
+ * Width of an icon card that lists a guest's containers: each row holds a glyph, a name and a
+ * status dot, and at 120px a name kept six characters before truncating.
+ */
+export const ICON_GROUP_ELEMENT_WIDTH_PX = 168;
+
+/**
  * The width an element card is built at. An element whose entity type draws a glyph (a device or
- * software, by the `glyph` metadata) is an icon card; one that doesn't (a port) keeps the
- * detailed card, as `buildElementRender` does.
+ * software, by the `glyph` metadata) is an icon card, wider when it carries inline groups; one that
+ * doesn't (a port) keeps the detailed card, as `buildElementRender` does.
  */
 export function elementWidthPx(node: TopologyNode): number {
 	const glyph =
 		node.node_type === 'Element'
 			? (entities.getMetadata(node.element_type) as { glyph?: string } | null)?.glyph
 			: null;
-	return glyph ? ICON_ELEMENT_WIDTH_PX : ELEMENT_WIDTH_PX;
+	if (!glyph) return ELEMENT_WIDTH_PX;
+	const groups = (node as { inline_groups?: unknown[] }).inline_groups ?? [];
+	return groups.length > 0 ? ICON_GROUP_ELEMENT_WIDTH_PX : ICON_ELEMENT_WIDTH_PX;
 }
 
 /** Horizontal padding on an element card's text, mirroring `px-2` in `ElementNode.svelte`. */

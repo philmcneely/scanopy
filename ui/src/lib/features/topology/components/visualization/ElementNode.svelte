@@ -486,50 +486,52 @@
 						{iconCard.label}
 					</div>
 				</div>
-				<!-- Manager groups inlined on a guest, in the dashed box the detailed card used: a
-				     runtime's heading, then a row per member: its glyph and name, with its own tooltip and,
-				     when the view paints run state, a dot in the state's colour on the glyph's top-left
-				     corner, as on a card. -->
+				<!-- Manager groups inlined on a guest, in the dashed box the detailed card used. The
+				     heading and every member row share three columns: a 20px glyph, the name, and a
+				     trailing slot that holds the heading's member count and each row's run-state dot (in
+				     the state's colour, when the view paints run state), so glyphs, names and dots line
+				     up. Each row carries its own tooltip. -->
 				{#each iconCard.groups as group (group.groupId)}
 					<div
-						class="w-full rounded-md border border-dashed border-gray-300 px-1 pb-1.5 pt-1 dark:border-gray-600"
+						class="grid w-full grid-cols-[1.25rem_minmax(0,1fr)_0.75rem] items-center gap-x-1.5 gap-y-1.5 rounded-md border border-dashed border-gray-300 p-1.5 dark:border-gray-600"
 					>
-						<div class="flex items-center gap-1 pb-1.5">
+						<span class="flex justify-center">
 							{#if group.headerDefinition}
 								<SoftwareGlyph definition={group.headerDefinition} framed={false} />
 							{/if}
-							<span class="text-secondary truncate text-[10px] font-medium">
-								{group.headerName}
-							</span>
-							<span class="text-tertiary ml-auto flex-shrink-0 text-[10px] tabular-nums">
-								{group.members.length}
-							</span>
-						</div>
-						<div class="flex flex-col gap-1.5">
-							{#each group.members as member (member.id)}
-								<div
-									class="flex min-w-0 items-center gap-1.5"
-									use:tooltip={{ content: member.tooltip }}
-								>
-									<span class="relative flex flex-shrink-0">
-										{#if member.glyph.type === 'device'}
-											<DeviceGlyph deviceType={member.glyph.deviceType} />
-										{:else}
-											<SoftwareGlyph definition={member.glyph.definition} />
-										{/if}
-										{#if member.status}
-											<span
-												class="absolute -left-1 -top-1 h-2 w-2 rounded-full border border-gray-300 dark:border-gray-600"
-												style="background: {createColorHelper(member.status.color).rgb};"
-											></span>
-										{/if}
-									</span>
-									<span class="text-secondary truncate text-[11px] font-medium leading-tight">
-										{member.label}
-									</span>
-								</div>
-							{/each}
-						</div>
+						</span>
+						<span class="text-tertiary truncate text-[11px] font-medium leading-tight">
+							{group.headerName}
+						</span>
+						<span class="text-tertiary text-center text-[10px] tabular-nums leading-none">
+							{group.members.length}
+						</span>
+						{#each group.members as member (member.id)}
+							<!-- A subgrid row, not `contents`: the tooltip places itself from the row's box. -->
+							<div
+								class="col-span-3 grid grid-cols-subgrid items-center"
+								use:tooltip={{ content: member.tooltip }}
+							>
+								<span class="flex">
+									{#if member.glyph.type === 'device'}
+										<DeviceGlyph deviceType={member.glyph.deviceType} />
+									{:else}
+										<SoftwareGlyph definition={member.glyph.definition} />
+									{/if}
+								</span>
+								<span class="text-secondary truncate text-[11px] font-medium leading-tight">
+									{member.label}
+								</span>
+								<span class="flex justify-center">
+									{#if member.status}
+										<span
+											class="h-2 w-2 rounded-full"
+											style="background: {createColorHelper(member.status.color).rgb};"
+										></span>
+									{/if}
+								</span>
+							</div>
+						{/each}
 					</div>
 				{/each}
 			</div>
