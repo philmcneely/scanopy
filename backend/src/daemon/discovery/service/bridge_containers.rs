@@ -18,6 +18,7 @@ use crate::server::bindings::r#impl::base::BindingType;
 use crate::server::credentials::r#impl::mapping::{
     CredentialMapping, CredentialQueryPayload, IpOverride,
 };
+use crate::server::credentials::r#impl::types::CredentialAssignment;
 use crate::server::ip_addresses::r#impl::base::IPAddress;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::r#impl::base::ServiceMatchBaselineParams;
@@ -228,10 +229,20 @@ impl HostData {
             self.services.push(service);
         }
 
-        self.host
-            .base
-            .credential_assignments
-            .extend(found.host.base.credential_assignments);
+        // An integration may report its credential for the whole host (SNMP does), but what it
+        // reached was one container, not the runtime host. Recorded as host-wide, the assignment
+        // would send the credential to every address the runtime host has.
+        self.host.base.credential_assignments.extend(
+            found
+                .host
+                .base
+                .credential_assignments
+                .into_iter()
+                .map(|assignment| CredentialAssignment {
+                    ip_address_ids: Some(vec![target_id]),
+                    ..assignment
+                }),
+        );
     }
 }
 
@@ -369,9 +380,7 @@ mod tests {
     use super::*;
     use crate::server::bindings::r#impl::base::Binding;
     use crate::server::credentials::r#impl::mapping::IpOverride;
-    use crate::server::credentials::r#impl::types::{
-        CredentialAssignment, CredentialTypeDiscriminants,
-    };
+    use crate::server::credentials::r#impl::types::CredentialTypeDiscriminants;
     use crate::server::hosts::r#impl::base::Host;
     use crate::server::ip_addresses::r#impl::base::IPAddressBase;
     use crate::server::ports::r#impl::base::{Port, PortBase};
@@ -606,7 +615,7 @@ mod tests {
         let mut found_host = Host::default();
         found_host.base.credential_assignments = vec![CredentialAssignment {
             credential_id,
-            ip_address_ids: Some(vec![s.running_ip.id]),
+            ip_address_ids: None,
         }];
         let mut found = HostData::new(
             found_host,
@@ -638,9 +647,13 @@ mod tests {
                 .iter()
                 .any(|p| p.base.port_type == PortType::new_tcp(22))
         );
+        // Reported for the whole host, as SNMP reports it, and kept to the container's address.
         assert_eq!(
-            s.host_data.host.base.credential_assignments[0].credential_id,
-            credential_id
+            s.host_data.host.base.credential_assignments,
+            vec![CredentialAssignment {
+                credential_id,
+                ip_address_ids: Some(vec![target.ip_address.id]),
+            }]
         );
         assert_eq!(s.host_data.ip_addresses.len(), ips_before);
         assert_eq!(s.host_data.host.base.hostname, hostname_before);
