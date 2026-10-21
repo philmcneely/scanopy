@@ -1398,7 +1398,8 @@ async fn test_reachability(
         }
     }
 
-    // TCP connection test with 5s timeout
+    // TCP connection test with 5s timeout. The server testing a daemon URL, not a probe.
+    #[allow(clippy::disallowed_methods)]
     let tcp_result = tokio::time::timeout(
         std::time::Duration::from_secs(5),
         tokio::net::TcpStream::connect(addrs.as_slice()),

@@ -350,6 +350,8 @@ enum TcpProbe {
 ///
 /// When FD exhaustion is detected, the controller automatically reduces batch size
 /// and logs a warning. The scan continues with reduced concurrency rather than failing.
+// A connect scan of an address the daemon routes to, not an application probe.
+#[allow(clippy::disallowed_methods)]
 pub async fn scan_tcp_ports(
     ip: IpAddr,
     cancel: CancellationToken,
