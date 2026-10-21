@@ -427,7 +427,9 @@
 							{#each iconCard.badgeDefinitions as definition, i (definition)}
 								<span
 									class="absolute left-[var(--stack-x)] top-0 flex leading-none transition-[left] duration-150 group-hover/icon-card:left-[var(--fan-x)]"
-									style="--stack-x: {TILE_PX / 2 + 4 - BADGE_PX - i * 6}px; --fan-x: {(i - (count - 1) / 2) * fanStep -
+									style="--stack-x: {TILE_PX / 2 + 4 - BADGE_PX - i * 6}px; --fan-x: {(i -
+										(count - 1) / 2) *
+										fanStep -
 										BADGE_PX / 2}px; z-index: {count - i};"
 								>
 									<SoftwareGlyph {definition} />
