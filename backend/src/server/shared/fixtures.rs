@@ -74,6 +74,12 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
     let feature_metadata: Vec<TypeMetadata> = Feature::iter().map(|f| f.to_metadata()).collect();
     write_fixture(&feature_metadata, output_dir, "features.json");
 
+    write_fixture(
+        &crate::server::daemons::r#impl::version::UiVersionGates::current(),
+        output_dir,
+        "daemon-version-gates.json",
+    );
+
     // The registry yields definitions in link order, which shifts between builds. Sorting keeps
     // the two service fixtures identical until a definition actually changes.
     let mut all_services = ServiceDefinitionRegistry::all_service_definitions();

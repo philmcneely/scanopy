@@ -165,12 +165,12 @@ impl DaemonService {
         reported_os: Option<DaemonOs>,
         auth: AuthenticatedEntity,
     ) -> Result<ServerCapabilities, ApiError> {
-        // Reject daemons below the minimum supported version
+        // Reject daemons at or below the last unsupported version
         let policy = DaemonVersionPolicy::default();
-        if version < policy.minimum_supported {
+        if policy.rejects(&version) {
             return Err(ApiError::daemon_version_too_old(
                 &version.to_string(),
-                &policy.minimum_supported.to_string(),
+                &policy.last_unsupported.to_string(),
             ));
         }
 
@@ -248,11 +248,7 @@ impl DaemonService {
 
         let status = policy.evaluate(Some(&version));
 
-        Ok(ServerCapabilities {
-            server_version: policy.latest.clone(),
-            minimum_daemon_version: policy.minimum_supported.clone(),
-            deprecation_warnings: status.warnings,
-        })
+        Ok(ServerCapabilities::from_policy(&policy, status.warnings))
     }
 
     /// Process a daemon registration request
@@ -312,27 +308,19 @@ impl DaemonService {
             .as_ref()
             .and_then(|v| semver::Version::parse(v).ok());
 
-        // Reject daemons below the minimum supported version
+        // Reject daemons at or below the last unsupported version
         let policy = DaemonVersionPolicy::default();
-        if daemon_version
-            .as_ref()
-            .is_some_and(|v| v < &policy.minimum_supported)
-        {
+        if let Some(v) = daemon_version.as_ref().filter(|v| policy.rejects(v)) {
             return Err(ApiError::daemon_version_too_old(
-                &daemon_version.unwrap().to_string(),
-                &policy.minimum_supported.to_string(),
+                &v.to_string(),
+                &policy.last_unsupported.to_string(),
             ));
         }
 
         // Compute server_capabilities if version was provided
-        let server_capabilities = daemon_version.as_ref().map(|v| {
-            let status = policy.evaluate(Some(v));
-            ServerCapabilities {
-                server_version: policy.latest.clone(),
-                minimum_daemon_version: policy.minimum_supported.clone(),
-                deprecation_warnings: status.warnings,
-            }
-        });
+        let server_capabilities = daemon_version
+            .as_ref()
+            .map(|v| ServerCapabilities::from_policy(&policy, policy.evaluate(Some(v)).warnings));
 
         // Check if daemon already exists (re-registration scenario)
         if let Some(mut existing_daemon) = self.get_by_id(&effective_daemon_id).await? {

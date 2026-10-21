@@ -186,11 +186,9 @@ async fn handle_first_contact(
         "  Server version:  {}",
         request.server_capabilities.server_version
     );
-    tracing::info!(
-        target: LOG_TARGET,
-        "  Min daemon ver:  {}",
-        request.server_capabilities.minimum_daemon_version
-    );
+    if let Some(v) = &request.server_capabilities.last_unsupported_daemon_version {
+        tracing::info!(target: LOG_TARGET, "  Rejects daemons up to: {}", v);
+    }
 
     // Log deprecation warnings
     request.server_capabilities.log_warnings();

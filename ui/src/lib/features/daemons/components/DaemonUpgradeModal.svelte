@@ -1,4 +1,5 @@
 <script lang="ts">
+	import daemonVersionGates from '$lib/data/daemon-version-gates.json';
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import CodeContainer from '$lib/shared/components/data/CodeContainer.svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
@@ -140,7 +141,9 @@
 				{#if isPreUnifiedDaemon(daemon)}
 					<InlineWarning
 						title=""
-						body={discovery_upgradeConsolidationWarning()}
+						body={discovery_upgradeConsolidationWarning({
+							version: daemonVersionGates.last_without_unified_discovery
+						})}
 						dismissableKey="unified-discovery-migration"
 					/>
 				{/if}
@@ -223,7 +226,12 @@
 							{/each}
 
 							{#if artifacts.legacy_service_name}
-								<InlineInfo title="" body={daemons_upgradeLegacyServiceName()} />
+								<InlineInfo
+									title=""
+									body={daemons_upgradeLegacyServiceName({
+										version: daemonVersionGates.last_without_install_engine
+									})}
+								/>
 							{/if}
 
 							{#if selectedOS !== 'linux'}

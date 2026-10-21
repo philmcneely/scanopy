@@ -181,7 +181,7 @@ pub enum IntegrationTarget {
         credential_id: Uuid,
     },
     /// All hosts on the site, as a broadcast default credential. Daemons at or below
-    /// `last_network_wire` call this scope `"Network"`; the wire rewrite in
+    /// `last_without_site_wire` call this scope `"Network"`; the wire rewrite in
     /// `server/shared/legacy.rs` translates it both ways.
     #[schema(title = "Site")]
     Site {

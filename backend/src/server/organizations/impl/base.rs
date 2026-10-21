@@ -73,15 +73,19 @@ pub struct OrgNotifications {
     pub hosts: LimitNotificationLevel,
     pub sites: LimitNotificationLevel,
     pub seats: LimitNotificationLevel,
-    /// The **highest** announced daemon-sunset floor this org has already been
-    /// emailed about (e.g. "0.17.5"); every cutover at or below it counts as
-    /// communicated. Because floors are totally ordered, a higher floor always
-    /// supersedes a lower one, so this single value ratchets monotonically even
-    /// when several announced cutovers affect one org at once — the boot-time
-    /// sweep emails each org at most once per floor and never oscillates.
-    /// `None` until the first sunset email is sent.
-    #[serde(default)]
-    pub sunset_notified_floor: Option<Version>,
+    /// The **highest** announced daemon-sunset ceiling (last unsupported version) this org has
+    /// already been emailed about (e.g. "0.17.4"); every cutover at or below it counts as
+    /// communicated. Because ceilings are totally ordered, a higher one always supersedes a lower
+    /// one, so this single value ratchets monotonically even when several announced cutovers
+    /// affect one org at once — the boot-time sweep emails each org at most once per ceiling and
+    /// never oscillates. `None` until the first sunset email is sent.
+    ///
+    /// Rows written before the ceiling convention hold a floor under `sunset_notified_floor`, read
+    /// here as a ceiling. A floor is one release above the ceiling it replaced, so such a row can
+    /// at most treat a cutover one release above the one it was emailed about as already
+    /// communicated.
+    #[serde(default, alias = "sunset_notified_floor")]
+    pub sunset_notified_last_unsupported: Option<Version>,
     /// The `license_paid_through` an air-gapped organization has already been
     /// warned about. The warning goes out once per licence period; a renewal
     /// moves the date, so the next period's warning sends. `None` until the
@@ -459,6 +463,23 @@ mod tests {
         org.base.license_key_type = key_type;
         org.base.license_paid_through = paid_through;
         org
+    }
+
+    /// A `notifications` row written before sunsets were stated as ceilings keeps its ratchet, so
+    /// an org already emailed about a cutover is not emailed about it again.
+    #[test]
+    fn a_ratchet_stored_under_the_floor_key_still_loads() {
+        let stored = serde_json::json!({
+            "hosts": "None",
+            "seats": "None",
+            "sites": "None",
+            "sunset_notified_floor": "0.17.5",
+        });
+        let notifications: OrgNotifications = serde_json::from_value(stored).unwrap();
+        assert_eq!(
+            notifications.sunset_notified_last_unsupported,
+            Some(Version::new(0, 17, 5))
+        );
     }
 
     /// The middleware, the discovery scheduler and daemon work handout all

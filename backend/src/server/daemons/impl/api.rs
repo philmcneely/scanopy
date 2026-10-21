@@ -465,15 +465,35 @@ pub struct ServerCapabilities {
     /// Server software version
     #[schema(value_type = String)]
     pub server_version: Version,
-    /// Minimum daemon version supported by this server
-    #[schema(value_type = String)]
-    pub minimum_daemon_version: Version,
+    /// Deprecated: always 0.12.0. Daemons up to 0.18.2 require this field and only log it. Read
+    /// `last_unsupported_daemon_version` instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
+    pub minimum_daemon_version: Option<Version>,
+    /// Daemons at or below this version are rejected by this server. `None` from a server too old
+    /// to send it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
+    pub last_unsupported_daemon_version: Option<Version>,
     /// Deprecation warnings for the daemon
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub deprecation_warnings: Vec<DeprecationWarning>,
 }
 
 impl ServerCapabilities {
+    /// What this server tells a daemon about itself, with the warnings for that daemon's version.
+    pub fn from_policy(
+        policy: &super::version::DaemonVersionPolicy,
+        deprecation_warnings: Vec<DeprecationWarning>,
+    ) -> Self {
+        Self {
+            server_version: policy.latest.clone(),
+            minimum_daemon_version: Some(super::version::legacy_minimum_daemon_version_field()),
+            last_unsupported_daemon_version: Some(policy.last_unsupported.clone()),
+            deprecation_warnings,
+        }
+    }
+
     /// Log deprecation warnings from the server.
     /// Logs each warning at the appropriate severity level.
     pub fn log_warnings(&self) {
