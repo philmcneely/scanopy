@@ -20066,19 +20066,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-21T14:32:45.611627Z",
+              "created_at": "2026-10-21T14:56:56.003244Z",
               "first_discovery_id": null,
-              "id": "c8b1b1f2-2498-4b60-82bb-f02e9e296a85",
+              "id": "21d510b5-3366-4c67-96f8-f63fccc91202",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-21T14:32:45.611627Z",
+              "last_seen_at": "2026-10-21T14:56:56.003244Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-21T14:32:45.611627Z",
-              "valid_from": "2026-10-21T14:32:45.611627Z",
+              "updated_at": "2026-10-21T14:56:56.003244Z",
+              "valid_from": "2026-10-21T14:56:56.003244Z",
               "valid_to": null
             }
           },
@@ -21831,19 +21831,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-21T14:32:45.585081Z",
+                      "created_at": "2026-10-21T14:56:55.976850Z",
                       "first_discovery_id": null,
-                      "id": "a4362c43-fbfa-4ee9-bb67-46c36b2fc993",
+                      "id": "34b4ec4b-5305-4195-bdf7-6c806f642491",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-21T14:32:45.585081Z",
+                      "last_seen_at": "2026-10-21T14:56:55.976850Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-21T14:32:45.585081Z",
-                      "valid_from": "2026-10-21T14:32:45.585081Z",
+                      "updated_at": "2026-10-21T14:56:55.976850Z",
+                      "valid_from": "2026-10-21T14:56:55.976850Z",
                       "valid_to": null
                     }
                   ],
@@ -21856,7 +21856,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "ArgoCD",
+                  "service_definition": "PowerDNS",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -23334,19 +23334,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-21T14:32:45.606849Z",
+                  "created_at": "2026-10-21T14:56:55.998447Z",
                   "first_discovery_id": null,
-                  "id": "8152a81b-3eac-4bdb-b7e8-88f4ba87fdfb",
+                  "id": "e34af164-efb0-42eb-b62e-e4de0685eab8",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-21T14:32:45.606849Z",
+                  "last_seen_at": "2026-10-21T14:56:55.998447Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-21T14:32:45.606849Z",
-                  "valid_from": "2026-10-21T14:32:45.606849Z",
+                  "updated_at": "2026-10-21T14:56:55.998447Z",
+                  "valid_from": "2026-10-21T14:56:55.998447Z",
                   "valid_to": null
                 }
               ],
@@ -23359,7 +23359,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "ArgoCD",
+              "service_definition": "PowerDNS",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -26468,19 +26468,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-21T14:32:45.585583Z",
+          "created_at": "2026-10-21T14:56:55.977352Z",
           "first_discovery_id": null,
-          "id": "c839929e-b909-4bb2-a292-58069f14040e",
+          "id": "478364d7-2bca-40a5-a857-dc7b5b0bef71",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-21T14:32:45.585583Z",
+          "last_seen_at": "2026-10-21T14:56:55.977352Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-21T14:32:45.585583Z",
-          "valid_from": "2026-10-21T14:32:45.585583Z",
+          "updated_at": "2026-10-21T14:56:55.977352Z",
+          "valid_from": "2026-10-21T14:56:55.977352Z",
           "valid_to": null
         }
       },
@@ -27297,7 +27297,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "ArgoCD",
+              "service_definition": "PowerDNS",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -34581,19 +34581,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-21T14:32:45.584464Z",
+                  "created_at": "2026-10-21T14:56:55.976251Z",
                   "first_discovery_id": null,
-                  "id": "eff55020-4956-4464-b6bb-248f8971fc88",
+                  "id": "532a8fe3-9674-47b6-9302-d089422608f4",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-21T14:32:45.584464Z",
+                  "last_seen_at": "2026-10-21T14:56:55.976251Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-21T14:32:45.584464Z",
-                  "valid_from": "2026-10-21T14:32:45.584464Z",
+                  "updated_at": "2026-10-21T14:56:55.976251Z",
+                  "valid_from": "2026-10-21T14:56:55.976251Z",
                   "valid_to": null
                 }
               ],
@@ -34606,7 +34606,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "ArgoCD",
+              "service_definition": "PowerDNS",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -38827,19 +38827,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-21T14:32:45.575713Z",
+                        "created_at": "2026-10-21T14:56:55.967588Z",
                         "first_discovery_id": null,
-                        "id": "e22133fc-1d1a-4167-a4e8-8e87403f6133",
+                        "id": "2a65549a-085f-4484-96e1-9512b975f543",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-21T14:32:45.575713Z",
+                        "last_seen_at": "2026-10-21T14:56:55.967588Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-21T14:32:45.575713Z",
-                        "valid_from": "2026-10-21T14:32:45.575713Z",
+                        "updated_at": "2026-10-21T14:56:55.967588Z",
+                        "valid_from": "2026-10-21T14:56:55.967588Z",
                         "valid_to": null
                       }
                     ],
@@ -38852,7 +38852,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "ArgoCD",
+                    "service_definition": "PowerDNS",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -39099,19 +39099,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-21T14:32:45.606127Z",
+                    "created_at": "2026-10-21T14:56:55.997735Z",
                     "first_discovery_id": null,
-                    "id": "b4263878-f143-47ca-bd68-23ebb24f61a8",
+                    "id": "116cbf06-e3b5-4672-b973-6f05faf2706b",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-21T14:32:45.606127Z",
+                    "last_seen_at": "2026-10-21T14:56:55.997735Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-21T14:32:45.606127Z",
-                    "valid_from": "2026-10-21T14:32:45.606127Z",
+                    "updated_at": "2026-10-21T14:56:55.997735Z",
+                    "valid_from": "2026-10-21T14:56:55.997735Z",
                     "valid_to": null
                   }
                 ],
@@ -39124,7 +39124,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "ArgoCD",
+                "service_definition": "PowerDNS",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -41805,19 +41805,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-21T14:32:45.585417Z",
+              "created_at": "2026-10-21T14:56:55.977184Z",
               "first_discovery_id": null,
-              "id": "95dc04c1-2407-42be-8308-9e684868447f",
+              "id": "f4514d22-406c-46b7-b00e-23b4fa3cbaee",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-21T14:32:45.585417Z",
+              "last_seen_at": "2026-10-21T14:56:55.977184Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-21T14:32:45.585417Z",
-              "valid_from": "2026-10-21T14:32:45.585417Z",
+              "updated_at": "2026-10-21T14:56:55.977184Z",
+              "valid_from": "2026-10-21T14:56:55.977184Z",
               "valid_to": null
             }
           ],
@@ -41830,7 +41830,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "ArgoCD",
+          "service_definition": "PowerDNS",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -44059,7 +44059,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "c52dba9d-2569-4fdb-a11d-0341076c9f6a",
+                  "id": "f166c5c8-6162-4212-9b76-baf8769581df",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -44069,23 +44069,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "99526814-93b1-4e1a-a00d-a4e19d0f04e6",
+                  "id": "cddd3a33-661f-4e4d-ab17-177ae6134d20",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "326d7250-5764-4f05-ab56-550c51c874ab",
+                  "id": "9bcc6fbf-cbc4-4147-996c-a27a6053d3c6",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "9892bc88-4ac8-4c1b-9de8-20140279dd7f",
+                  "id": "75de6fdb-6045-48c9-b1f3-ffd77e96a806",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "99526814-93b1-4e1a-a00d-a4e19d0f04e6",
+                  "id": "cddd3a33-661f-4e4d-ab17-177ae6134d20",
                   "rule": "ByHost"
                 }
               ]
@@ -44115,19 +44115,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "561bd973-8b8c-4a75-84f9-0b670b0a3b70",
+                "id": "c58f91ec-528a-44df-b7a9-15908e0e5cc5",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "406a96e9-23c4-40c8-a3b1-91eaafb24cf3",
+                "id": "f40868fe-8ca7-46b2-8caf-161b1586c17b",
                 "rule": "ByVLAN"
               },
               {
-                "id": "3ea07b44-26cc-44ba-8330-d8b559075f0a",
+                "id": "e9854f07-4bd6-4d32-bb24-59b8455fc838",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "de8b368c-6b84-4c66-837e-2690ebd84ef9",
+                "id": "bcef0405-a2ea-4b35-b255-3493bbd4c827",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -44148,7 +44148,7 @@
                 }
               },
               {
-                "id": "d12c35d3-4cfb-464e-8b82-ed0ff20a3268",
+                "id": "853a1a35-fe99-4e1f-aa8d-821b2383c037",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -44157,15 +44157,15 @@
                 }
               },
               {
-                "id": "ad9bc6cf-adb3-4416-9c46-3ca4ffb35669",
+                "id": "5ff51ace-053b-4bff-9c78-3ac46540c82c",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "bb3b0e8d-6965-4b82-9ced-aa6055855fca",
+                "id": "587d6951-a2e2-4143-8788-c504389733e2",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "ee22ba39-a8da-43bc-b5de-e80971c5aa9c",
+                "id": "ec03ac4f-e293-49ce-b3a3-8d041ab0d642",
                 "rule": "ByStack"
               }
             ]
@@ -45491,73 +45491,76 @@
         ]
       },
       "VlanBase": {
-        "type": "object",
-        "required": [
-          "vlan_number",
-          "name",
-          "site_id",
-          "organization_id",
-          "tags"
-        ],
-        "properties": {
-          "description": {
-            "type": [
-              "string",
-              "null"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/VlanName",
+            "description": "Human-facing name for this VLAN, with the source that named it.\n\nSerialises as the two flat keys `name` and `name_source`, so a client that sends only\n`name` still deserialises, at `Unspecified`."
+          },
+          {
+            "type": "object",
+            "required": [
+              "vlan_number",
+              "site_id",
+              "organization_id",
+              "tags"
             ],
-            "description": "Free-text notes about the VLAN."
-          },
-          "interface_ids": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid",
-              "readOnly": true
-            },
-            "description": "Interfaces that serve this VLAN, as their native VLAN or one of their\nmember VLANs (`Interface::native_vlan_id` / `Interface::vlan_ids`).\nHydrated by `VlanService` on read; not a column on `vlans`."
-          },
-          "name": {
-            "type": "string",
-            "description": "Human-facing name for this VLAN."
-          },
-          "organization_id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The organization that owns this record."
-          },
-          "site_id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The site this entity belongs to."
-          },
-          "source": {
-            "$ref": "#/components/schemas/EntitySource",
-            "description": "How this VLAN came to be known — discovered, imported, or created by hand."
-          },
-          "subnet_ids": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid",
-              "readOnly": true
-            },
-            "description": "Subnets associated with this VLAN, derived from discovered interface\nnative-VLAN data via the `subnet_vlans` junction. Hydrated by\n`VlanService` on read; it is not a column on `vlans`, so anything sent\nhere on create/update is ignored by `to_params`."
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Tags assigned to this entity."
-          },
-          "vlan_number": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The 802.1Q VLAN number (1-4094)",
-            "minimum": 0
+            "properties": {
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Free-text notes about the VLAN."
+              },
+              "interface_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "readOnly": true
+                },
+                "description": "Interfaces that serve this VLAN, as their native VLAN or one of their\nmember VLANs (`Interface::native_vlan_id` / `Interface::vlan_ids`).\nHydrated by `VlanService` on read; not a column on `vlans`."
+              },
+              "organization_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The organization that owns this record."
+              },
+              "site_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The site this entity belongs to."
+              },
+              "source": {
+                "$ref": "#/components/schemas/EntitySource",
+                "description": "How this VLAN came to be known — discovered, imported, or created by hand."
+              },
+              "subnet_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "readOnly": true
+                },
+                "description": "Subnets associated with this VLAN, derived from discovered interface\nnative-VLAN data via the `subnet_vlans` junction. Hydrated by\n`VlanService` on read; it is not a column on `vlans`, so anything sent\nhere on create/update is ignored by `to_params`."
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Tags assigned to this entity."
+              },
+              "vlan_number": {
+                "type": "integer",
+                "format": "int32",
+                "description": "The 802.1Q VLAN number (1-4094)",
+                "minimum": 0
+              }
+            }
           }
-        }
+        ]
       },
       "VlanDiscoveryItem": {
         "type": "object",
@@ -45569,6 +45572,10 @@
           "name": {
             "type": "string",
             "description": "VLAN name as configured on the device."
+          },
+          "name_source": {
+            "$ref": "#/components/schemas/AttributeSource",
+            "description": "Where the daemon read the name. Defaults to an SNMP read: daemons that predate this field\nsent VLANs from SNMP alone."
           },
           "vlan_number": {
             "type": "integer",
@@ -45633,6 +45640,21 @@
             "format": "int32",
             "description": "802.1Q VLAN ID.",
             "minimum": 0
+          }
+        }
+      },
+      "VlanName": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-facing name for this VLAN."
+          },
+          "name_source": {
+            "$ref": "#/components/schemas/AttributeSource"
           }
         }
       },
