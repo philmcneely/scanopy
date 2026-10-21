@@ -390,7 +390,7 @@ async fn record_networks(
                 ReportedRange::Held(subnet) if *subnet.base.cidr == range.cidr => {
                     match network.to_subnet(site_id) {
                         Some(reported) => SubnetPlan::Submit {
-                            reported,
+                            reported: Box::new(reported),
                             fallback: Some(subnet.clone()),
                         },
                         None => SubnetPlan::Reuse(subnet.clone()),
@@ -412,7 +412,7 @@ async fn record_networks(
                         // Held from here on, so a later network overlapping it is not created too.
                         held.push(reported.clone());
                         SubnetPlan::Submit {
-                            reported,
+                            reported: Box::new(reported),
                             fallback: None,
                         }
                     }
@@ -475,7 +475,7 @@ enum SubnetPlan {
     Reuse(Subnet),
     /// Submit the controller's subnet. `fallback` is the held row to use if the submission fails.
     Submit {
-        reported: Subnet,
+        reported: Box<Subnet>,
         fallback: Option<Subnet>,
     },
 }
