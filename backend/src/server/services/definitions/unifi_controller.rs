@@ -18,8 +18,10 @@ impl ServiceDefinition for UnifiController {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkAccess
     }
+    // The Network application serves other hosts, so its host is a server, not the access point
+    // its category implies.
     fn device_type(&self) -> Option<DeviceType> {
-        None
+        Some(DeviceType::Server)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {

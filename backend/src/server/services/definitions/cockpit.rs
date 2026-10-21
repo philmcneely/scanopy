@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
@@ -16,6 +17,10 @@ impl ServiceDefinition for Cockpit {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::RemoteAccess
+    }
+    // An application serving other hosts, so its host is a server like any application's.
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::Server)
     }
 
     // cockpit-ws clears its session cookie on the login page (`cockpit=deleted`). 9090 is also
