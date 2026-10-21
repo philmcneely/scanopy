@@ -106,8 +106,8 @@ pub struct IntegrationTransport {
     /// `stability`: a transport can be fully validated (`Stable`) and still ride an
     /// endpoint the vendor never documented, which is true of both UniFi transports.
     pub upstream_support: UpstreamSupport,
-    /// Minimum daemon version that can receive this transport.
-    pub minimum_daemon_version: semver::Version,
+    /// The last daemon version that cannot receive this transport; any newer daemon can.
+    pub last_unsupported_daemon_version: semver::Version,
     /// What the operator has to fill in, in the order the form asks for it. The
     /// same definitions the app builds its credential form from, so a documented
     /// field and the app's own label/help text cannot drift apart.
@@ -136,7 +136,7 @@ pub fn all_integrations() -> Vec<Integration> {
             targets: ct.targets(),
             stability: disc.stability(),
             upstream_support: disc.upstream_support(),
-            minimum_daemon_version: disc.minimum_daemon_version(),
+            last_unsupported_daemon_version: disc.last_unsupported_daemon_version(),
             // Form order, not sorted: it is the order the fields are meant to be
             // read in, and it is already deterministic.
             fields: ct.field_definitions(),
@@ -264,11 +264,11 @@ mod tests {
                     integration.id,
                     transport.id
                 );
-                // A 0.0.0 floor means the field was defaulted rather than projected
-                // from `minimum_daemon_version()`.
+                // A 0.0.0 gate means the field was defaulted rather than projected
+                // from `last_unsupported_daemon_version()`.
                 assert!(
-                    transport.minimum_daemon_version > semver::Version::new(0, 0, 0),
-                    "{}/{} has no daemon version floor",
+                    transport.last_unsupported_daemon_version > semver::Version::new(0, 0, 0),
+                    "{}/{} has no daemon version gate",
                     integration.id,
                     transport.id
                 );

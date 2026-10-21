@@ -349,9 +349,11 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         actual_os: Option<crate::server::daemons::r#impl::base::DaemonOs>,
     },
+    /// Deprecated: no longer raised. Superseded by `CredentialNeedsNewerDaemon` with a
+    /// `ParsesCredentialType` gap; kept so warnings stored by earlier scans still read and render.
+    ///
     /// The daemon is older than the credential type needs, so the server did not send it the
-    /// credential at all. Raised by the server, never a daemon: the daemon that would report it is
-    /// the one that cannot parse the credential.
+    /// credential at all.
     #[schema(title = "CredentialDaemonTooOld")]
     CredentialDaemonTooOld {
         integration: CredentialQueryPayloadDiscriminants,
@@ -366,6 +368,34 @@ pub enum DiscoveryWarning {
             example = "0.18.1"
         )]
         minimum_daemon_version: Version,
+        /// The version of the daemon that ran the scan. `None` for a daemon that never reported one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schema(
+            value_type = Option<String>,
+            pattern = r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$",
+            example = "0.18.0"
+        )]
+        daemon_version: Option<Version>,
+    },
+    /// The daemon is too old for part of how this credential is configured, so the server withheld
+    /// that part (or, for a type the daemon cannot parse, all of it). `gap` names what. Raised by
+    /// the server, never a daemon: the daemon that would report it is the one that lacks it.
+    #[schema(title = "CredentialNeedsNewerDaemon")]
+    CredentialNeedsNewerDaemon {
+        integration: CredentialQueryPayloadDiscriminants,
+        /// The stored credential. See [`CredentialAttempt::credential_id`].
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
+        /// What the daemon missed.
+        gap: crate::server::credentials::r#impl::capability::CapabilityGap,
+        /// The last daemon release without what `gap` needs; any newer daemon has it.
+        #[schema(
+            value_type = String,
+            pattern = r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$",
+            example = "0.18.0"
+        )]
+        last_unsupported_daemon_version: Version,
         /// The version of the daemon that ran the scan. `None` for a daemon that never reported one.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schema(
@@ -744,6 +774,7 @@ pub enum DiscoveryWarningCode {
     CredentialTargetNotResponding,
     CredentialDaemonOsMismatch,
     CredentialDaemonTooOld,
+    CredentialNeedsNewerDaemon,
     CredentialGateClosed,
     CredentialRejected,
     CredentialMalformed,
@@ -832,6 +863,9 @@ impl DiscoveryWarning {
                 DiscoveryWarningCode::CredentialDaemonOsMismatch
             }
             Self::CredentialDaemonTooOld { .. } => DiscoveryWarningCode::CredentialDaemonTooOld,
+            Self::CredentialNeedsNewerDaemon { .. } => {
+                DiscoveryWarningCode::CredentialNeedsNewerDaemon
+            }
             Self::CredentialGateClosed { .. } => DiscoveryWarningCode::CredentialGateClosed,
             Self::CredentialRejected(_) => DiscoveryWarningCode::CredentialRejected,
             Self::CredentialMalformed(_) => DiscoveryWarningCode::CredentialMalformed,
@@ -909,7 +943,8 @@ impl DiscoveryWarning {
             | Self::CredentialTargetNotResponding { integration, .. }
             | Self::CredentialGateClosed { integration, .. }
             | Self::CredentialDaemonOsMismatch { integration, .. }
-            | Self::CredentialDaemonTooOld { integration, .. } => Some(*integration),
+            | Self::CredentialDaemonTooOld { integration, .. }
+            | Self::CredentialNeedsNewerDaemon { integration, .. } => Some(*integration),
 
             Self::CredentialRejected(a)
             | Self::CredentialMalformed(a)
@@ -954,6 +989,7 @@ impl DiscoveryWarning {
             | Self::CredentialTargetNotResponding { credential_id, .. }
             | Self::CredentialGateClosed { credential_id, .. }
             | Self::CredentialDaemonOsMismatch { credential_id, .. }
+            | Self::CredentialNeedsNewerDaemon { credential_id, .. }
             | Self::CredentialDaemonTooOld { credential_id, .. } => *credential_id,
 
             Self::CredentialRejected(a)

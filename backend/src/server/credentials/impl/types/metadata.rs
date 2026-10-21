@@ -7,6 +7,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::server::{
+    daemons::r#impl::version::last_without_credential_wire,
     services::r#impl::definitions::{ServiceDefinition, ServiceDefinitionExt},
     shared::types::{
         Color, Icon,
@@ -46,7 +47,7 @@ pub enum CredentialCategory {
 /// Additive and exhaustive: a new credential variant will not compile until it declares its
 /// stability, and every existing type is `Stable` by explicit arm rather than by wildcard, so
 /// promoting an integration is a one-line reviewable change rather than a deletion nobody
-/// notices. This is presentation metadata about the *code*, like `minimum_daemon_version` —
+/// notices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —
 /// it is never stored on a credential row, so it carries no deploy-coexistence obligation.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, IntoStaticStr, ToSchema, PartialEq, Eq)]
 pub enum CredentialStability {
@@ -368,47 +369,45 @@ impl CredentialTypeDiscriminants {
         self.integration().credential_category().into()
     }
 
-    /// Minimum daemon version that can safely receive credential mappings of this
-    /// type over the server→daemon wire. Exhaustive (no wildcard): a new credential
-    /// variant will not compile until it declares its floor. This single declaration
-    /// drives server-side dispatch filtering (never send a mapping an older daemon
-    /// can't deserialize), assignment-time rejection, and the UI compatibility gate.
+    /// The last daemon release that cannot parse credential mappings of this type over the
+    /// server→daemon wire; any newer daemon can. Exhaustive (no wildcard): a new credential
+    /// variant will not compile until it declares its gate. Read by the `ParsesCredentialType`
+    /// capability (`credentials/service/capability`), which withholds the whole credential from a
+    /// daemon at or below it, and by the UI's compatibility hint.
+    ///
+    /// Only for parsing the type at all. Options or targets within a type that need a newer daemon
+    /// are capabilities of their own, which withhold just that part (see `UsesSnmpV3SecurityOptions`).
     ///
     /// Gated on the 7-way `CredentialType` discriminant, NOT the collapsed
-    /// `CredentialQueryPayload` wire tag: SnmpV1/V3 carry a higher floor than SnmpV2c
-    /// despite all three sharing the single `Snmp` wire variant.
-    ///
-    /// Distinct from the global [`DaemonVersionPolicy::minimum_supported`] floor —
-    /// same `semver` comparison, different purpose.
-    pub fn minimum_daemon_version(&self) -> semver::Version {
+    /// `CredentialQueryPayload` wire tag: SnmpV1 carries a different gate than SnmpV2c despite
+    /// both sharing the single `Snmp` wire variant.
+    pub fn last_unsupported_daemon_version(&self) -> semver::Version {
         match self {
-            // Unified credential-wire floor. Older daemons ignore `credential_mappings`
-            // via #[serde(default)], so filtering these out is harmless.
+            // The unified credential wire shipped in 0.16.2. Older daemons ignore
+            // `credential_mappings` via #[serde(default)], so filtering these out is harmless.
             Self::SnmpV2c | Self::DockerProxy | Self::DockerSocket => {
-                semver::Version::new(0, 16, 2)
+                last_without_credential_wire()
             }
-            // SnmpV1 inner `SnmpVersion` value shipped in 0.17.0.
-            Self::SnmpV1 => semver::Version::new(0, 17, 0),
-            // SnmpV3 shipped in 0.17.0 as AuthPriv only. 0.18.1 adds the `security_level` field,
-            // AuthNoPriv, NoAuthNoPriv and MD5, none of which an older daemon can parse. One floor
-            // for the type rather than per level: an older daemon is told to upgrade, not handed
-            // a subset of v3.
-            Self::SnmpV3 => semver::Version::new(0, 18, 1),
+            // The SnmpV1 and SnmpV3 values of the inner `SnmpVersion` shipped in 0.17.0, with v3 as
+            // AuthPriv over SHA and AES. The security levels and MD5 that 0.18.1 added are the
+            // `UsesSnmpV3SecurityOptions` capability, so an AuthPriv credential still reaches the
+            // daemons that can run it.
+            Self::SnmpV1 | Self::SnmpV3 => semver::Version::new(0, 16, 2),
             // Podman variants shipped in 0.17.2.
-            Self::PodmanProxy | Self::PodmanSocket => semver::Version::new(0, 17, 2),
-            // UniFi variants ship in 0.17.7.
-            Self::UnifiApiKey | Self::UnifiLocalAdmin => semver::Version::new(0, 17, 7),
-            // gNMI ships in 0.17.16 (scanopy#690). An older daemon that receives this mapping
+            Self::PodmanProxy | Self::PodmanSocket => semver::Version::new(0, 17, 1),
+            // UniFi variants shipped in 0.17.7.
+            Self::UnifiApiKey | Self::UnifiLocalAdmin => semver::Version::new(0, 17, 6),
+            // gNMI shipped in 0.17.16 (scanopy#690). An older daemon that receives this mapping
             // deserializes the unknown wire tag to `Unknown` and skips it.
-            Self::Gnmi => semver::Version::new(0, 17, 16),
-            // Instant On ships in 0.17.11.
-            Self::InstantOnAccount => semver::Version::new(0, 17, 11),
-            // SSH and Wake-on-LAN ship in 0.17.19. Daemons from 0.17.3 would parse them to
-            // `Unknown` and skip them; the floor keeps them off older daemons entirely.
-            Self::SshPassword | Self::SshKey | Self::WakeOnLan => semver::Version::new(0, 17, 19),
-            // Proxmox ships in 0.17.21. That daemon is also the first whose ServerPoll
+            Self::Gnmi => semver::Version::new(0, 17, 15),
+            // Instant On shipped in 0.17.11.
+            Self::InstantOnAccount => semver::Version::new(0, 17, 10),
+            // SSH and Wake-on-LAN shipped in 0.17.19. Daemons from 0.17.3 would parse them to
+            // `Unknown` and skip them; the gate keeps them off older daemons entirely.
+            Self::SshPassword | Self::SshKey | Self::WakeOnLan => semver::Version::new(0, 17, 18),
+            // Proxmox shipped in 0.17.21. That daemon is also the first whose ServerPoll
             // `create_host` returns the server's child ids, which guest linking depends on.
-            Self::ProxmoxApiToken => semver::Version::new(0, 17, 21),
+            Self::ProxmoxApiToken => semver::Version::new(0, 17, 20),
         }
     }
 
@@ -442,17 +441,6 @@ impl CredentialTypeDiscriminants {
         }
     }
 
-    /// Whether a daemon at `daemon_version` can safely receive credential mappings of
-    /// this type. A missing version is treated conservatively: only types at the
-    /// 0.16.2 unified-wire floor are considered compatible. Shared by server-side
-    /// dispatch filtering and the UI compatibility gate so the two never diverge.
-    pub fn compatible_with_daemon(&self, daemon_version: Option<&semver::Version>) -> bool {
-        match daemon_version {
-            Some(v) => *v >= self.minimum_daemon_version(),
-            None => self.minimum_daemon_version() <= semver::Version::new(0, 16, 2),
-        }
-    }
-
     fn metadata_json(&self) -> serde_json::Value {
         let ct = self.to_credential_type();
         let integration = self.integration();
@@ -465,9 +453,10 @@ impl CredentialTypeDiscriminants {
             "targets": ct.targets(),
             "requires_config": ct.requires_config(),
             "single_endpoint_per_host": ct.single_endpoint_per_host(),
-            // Minimum daemon version that can receive this type (message-only on the
-            // frontend; the actual gate uses the server-computed compat flag).
-            "minimum_daemon_version": self.minimum_daemon_version().to_string(),
+            // The last daemon version that cannot receive this type. The frontend uses it to
+            // disable the type in the discovery credential picker; the server's dispatch filter
+            // is what actually withholds it.
+            "last_unsupported_daemon_version": self.last_unsupported_daemon_version().to_string(),
             // Release maturity. The frontend renders a "Beta" tag; it is not a gate.
             "stability": self.stability(),
             // Whether the vendor publishes this API. Orthogonal to `stability` — an integration

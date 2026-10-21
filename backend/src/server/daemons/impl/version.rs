@@ -331,6 +331,13 @@ pub fn reads_single_target_rescan(version: Option<&str>) -> bool {
         .is_none_or(|v| v <= last_without_multi_target_rescan())
 }
 
+/// The last release without the unified server→daemon credential wire (`credential_mappings`).
+/// Credential types that shipped with it are gated here, and a daemon with no recorded version
+/// counts as at most this release.
+pub fn last_without_credential_wire() -> Version {
+    Version::new(0, 16, 1)
+}
+
 /// The last release whose daemon requires `ServerCapabilities.minimum_daemon_version` and has no
 /// `last_unsupported_daemon_version`. Read by `unsupported_version_field_shim_still_needed`.
 pub fn last_without_unsupported_version_field() -> Version {
@@ -339,18 +346,13 @@ pub fn last_without_unsupported_version_field() -> Version {
 
 /// The last release whose daemon never tries a credential at a container's bridge address. Later
 /// daemons run integration dispatch at each running bridge container on their own host after the
-/// container scan; older ones only report such an override as a target they did not scan.
+/// container scan; older ones only report such an override as a target they did not scan. Read by
+/// the `TargetsContainerBridgeWithCredentials` capability.
 ///
 /// Equal to this build's own version until the release carrying it is tagged, so a build of this
 /// branch is sent no bridge overrides until then.
 pub fn last_without_bridge_credentials() -> Version {
     Version::new(0, 18, 2)
-}
-
-/// Whether a daemon at this version tries credentials at its own bridge containers. A daemon
-/// without a recorded version is assumed not to.
-pub fn tries_bridge_credentials(version: Option<&Version>) -> bool {
-    version.is_some_and(|v| v > &last_without_bridge_credentials())
 }
 
 /// The gates the UI names in its copy ("installed at v0.17.4 or earlier"), written to
@@ -406,6 +408,10 @@ fn capability_gates() -> Vec<(String, Version)> {
         ("last_without_ready_for_work", last_without_ready_for_work()),
         ("last_without_version_header", last_without_version_header()),
         (
+            "last_without_credential_wire",
+            last_without_credential_wire(),
+        ),
+        (
             "last_without_server_provisioned_identity",
             last_without_server_provisioned_identity(),
         ),
@@ -448,7 +454,7 @@ fn capability_gates() -> Vec<(String, Version)> {
     gates.extend(CredentialTypeDiscriminants::iter().map(|disc| {
         (
             format!("{} credential", disc.display_name()),
-            disc.minimum_daemon_version(),
+            disc.last_unsupported_daemon_version(),
         )
     }));
 
@@ -901,7 +907,7 @@ mod tests {
     /// a daemon with no recorded version is treated as lacking the feature.
     #[test]
     fn every_predicate_turns_on_just_above_its_gate() {
-        let cases: [(&str, Version, fn(Option<&Version>) -> bool); 8] = [
+        let cases: [(&str, Version, fn(Option<&Version>) -> bool); 7] = [
             (
                 "unified_discovery",
                 last_without_unified_discovery(),
@@ -936,11 +942,6 @@ mod tests {
                 "os_reporting",
                 last_without_os_reporting(),
                 supports_os_reporting,
-            ),
-            (
-                "bridge_credentials",
-                last_without_bridge_credentials(),
-                tries_bridge_credentials,
             ),
         ];
         for (name, gate, has) in cases {

@@ -1,7 +1,7 @@
 //! Session lookups, daemon-request building, and session start/update/cancel.
 use super::state::{self, PromotedSession, SessionMaps, TerminalEffects, UpdateOutcome};
 use super::*;
-use crate::server::credentials::service::BridgeReach;
+use crate::server::credentials::service::DaemonPlacement;
 
 impl DiscoveryService {
     /// Get the per-daemon integration targets for a session by reverse-looking up the
@@ -81,17 +81,13 @@ impl DiscoveryService {
         subnets: Vec<Subnet>,
     ) -> DaemonDiscoveryRequest {
         let (credential_mappings, withheld) = if session.discovery_type.runs_network_scan() {
-            let bridge_reach = BridgeReach::new(
-                session.discovery_type.daemon_host_id(),
-                &subnets,
-                daemon_version,
-            );
+            let placement = DaemonPlacement::new(session.discovery_type.daemon_host_id(), &subnets);
             self.credential_service
                 .build_all_credential_mappings(
                     site_id,
                     integration_targets,
                     daemon_version,
-                    &bridge_reach,
+                    &placement,
                 )
                 .await
                 .unwrap_or_default()

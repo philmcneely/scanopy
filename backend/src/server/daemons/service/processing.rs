@@ -473,17 +473,12 @@ impl DaemonService {
                 .get_by_id(&target.credential_id())
                 .await?
             {
-                let disc = CredentialTypeDiscriminants::from(&cred.base.credential_type);
-                if !disc.compatible_with_daemon(daemon_version.as_ref()) {
-                    return Err(ApiError::bad_request(&format!(
-                        "Credential type \"{}\" requires daemon version {} or newer, but this daemon is on {}.",
-                        disc.display_name(),
-                        disc.minimum_daemon_version(),
-                        daemon_version
-                            .as_ref()
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(|| "an unknown version".to_string()),
-                    )));
+                if let Some(refusal) = crate::server::credentials::service::refusal_for_daemon(
+                    &cred,
+                    &request.name,
+                    daemon_version.as_ref(),
+                ) {
+                    return Err(ApiError::bad_request(&refusal));
                 }
             }
         }

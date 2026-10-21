@@ -45,12 +45,13 @@ use std::sync::{Arc, OnceLock};
 use strum::IntoDiscriminant;
 use uuid::Uuid;
 
-mod bridge;
+mod capability;
 mod coverage;
 mod defaults;
 mod junctions;
 
-pub use bridge::BridgeReach;
+pub use capability::DaemonPlacement;
+pub(crate) use capability::refusal_for_daemon;
 pub use coverage::{FoundIntegration, IntegrationCoverage, SiteTriedAt, find_uncovered};
 
 /// The set of things a credential targets, normalized across the site and host
@@ -538,7 +539,7 @@ impl CredentialService {
         site_id: Uuid,
         integration_targets: &[IntegrationTarget],
         daemon_version: Option<&semver::Version>,
-        bridge_reach: &BridgeReach,
+        placement: &DaemonPlacement,
     ) -> Result<
         (
             Vec<CredentialMapping<CredentialQueryPayload>>,
@@ -628,14 +629,6 @@ impl CredentialService {
             }
         }
 
-        // A container's bridge address is reachable only from its runtime host, so only that
-        // host's daemon is sent overrides for it.
-        bridge::retain_reachable_bridge_overrides(
-            &mut mappings_by_credential,
-            &ip_addresses,
-            bridge_reach,
-        );
-
         // Per-daemon integration targets from this daemon's Discovery (init-command targeting).
         // The single home for cred↔IP and local-socket targeting — it replaces the old org-wide
         // target_ips bootstrap and the modal's pending_credential_ids. Resolving the credential is
@@ -659,13 +652,29 @@ impl CredentialService {
             }
         }
 
-        // Version gate: never dispatch a credential mapping the target daemon can't
-        // deserialize. Filter on the `CredentialType` discriminant (kept alongside each
-        // mapping, 7-way) BEFORE the lossy collapse to the 5-way `CredentialQueryPayload`
-        // wire tag — SnmpV1/V3 have a higher floor than SnmpV2c. A missing version is
-        // treated conservatively (keep only the 0.16.2 wire floor). This protects the
-        // installed base of already-released daemons that predate `serde(other)`.
-        let withheld = retain_daemon_compatible(&mut mappings_by_credential, daemon_version);
+        // A container's bridge address is reachable only from its runtime host, so no other
+        // daemon is sent overrides for it.
+        let bridge_ctx = capability::ContainerBridgeContext::new(placement, &ip_addresses);
+        capability::retain_reachable_bridge_overrides(&bridge_ctx, &mut mappings_by_credential);
+
+        // Withhold what this daemon is too old to use, and say what. Parsing the type comes first,
+        // so a credential withheld whole is gone before the others look at it. This set carries
+        // site credentials and host assignments, which cannot be validated against one daemon
+        // when they are saved because a site may hold several daemons on different versions, so
+        // reaching here means a mixed-version fleet or a downgrade.
+        let mut withheld = capability::retain_capable::<capability::ParsesCredentialType>(
+            &(),
+            &mut mappings_by_credential,
+            daemon_version,
+        );
+        withheld.extend(capability::retain_capable::<
+            capability::UsesSnmpV3SecurityOptions,
+        >(&(), &mut mappings_by_credential, daemon_version));
+        withheld.extend(capability::retain_capable::<
+            capability::TargetsContainerBridgeWithCredentials,
+        >(
+            &bridge_ctx, &mut mappings_by_credential, daemon_version
+        ));
 
         Ok((
             order_mappings_for_dispatch(mappings_by_credential, &created_at),
@@ -713,44 +722,6 @@ pub(crate) fn mapping_for<'a>(
         .entry(credential_id)
         .or_insert_with(|| TypedCredentialMapping::new(credential_type.discriminant()))
         .mapping
-}
-
-/// Drop any mapping the target daemon is too old to deserialize.
-///
-/// Filters on the 7-way `CredentialTypeDiscriminants` rather than the 5-way wire tag, because
-/// SnmpV1 and SnmpV3 carry a higher daemon floor than SnmpV2c but all three collapse to one `Snmp`
-/// tag on the wire — gating after that collapse could not tell them apart.
-/// Configuring an incompatible credential is already refused at the API with an actionable 400,
-/// but only for a discovery's `integration_targets`. This set also carries site credentials and
-/// host assignments, which are site-scoped and cannot be validated against one daemon version
-/// because a site may hold several daemons on different ones. So reaching here means a
-/// mixed-version fleet or a downgrade, where the credential silently does nothing on this daemon
-/// until it is upgraded — worth saying out loud, since a silent filter is indistinguishable from
-/// a credential that simply never worked.
-///
-/// Returns one `CredentialDaemonTooOld` warning per credential withheld, for the scan's record.
-pub(crate) fn retain_daemon_compatible(
-    mappings: &mut BTreeMap<Uuid, TypedCredentialMapping>,
-    daemon_version: Option<&semver::Version>,
-) -> Vec<DiscoveryWarning> {
-    let mut withheld = Vec::new();
-    mappings.retain(|credential_id, typed| {
-        let compatible = typed.discriminant.compatible_with_daemon(daemon_version);
-        if !compatible {
-            withheld.push(DiscoveryWarning::CredentialDaemonTooOld {
-                integration: typed
-                    .discriminant
-                    .to_credential_type()
-                    .to_query_payload()
-                    .discriminant(),
-                credential_id: Some(*credential_id),
-                minimum_daemon_version: typed.discriminant.minimum_daemon_version(),
-                daemon_version: daemon_version.cloned(),
-            });
-        }
-        compatible
-    });
-    withheld
 }
 
 /// Flatten the per-credential mappings into the order the daemon should probe them.
@@ -1271,31 +1242,6 @@ mod integration_target_tests {
 
         assert_eq!(dispatched.len(), 1);
         assert_eq!(dispatched[0].default_credential_id, None);
-    }
-
-    /// The version gate has to run on the 7-way credential type, not the 5-way wire tag: SnmpV1
-    /// and SnmpV2c both serialize as `Snmp`, but only SnmpV1 requires a 0.17.0 daemon. Gating
-    /// after the collapse could not tell them apart and would either starve old daemons of
-    /// SNMPv2c or hand them a payload they cannot deserialize.
-    #[test]
-    fn version_gate_drops_only_the_type_the_daemon_cannot_read() {
-        let mut map: Mappings = Mappings::new();
-        let v2c_id = Uuid::from_u128(1);
-        let v1_id = Uuid::from_u128(2);
-
-        let v2c = snmp_v2c("public");
-        mapping_for(&mut map, v2c_id, &v2c).default_credential = Some(v2c.to_query_payload());
-        let v1 = CredentialTypeDiscriminants::SnmpV1.to_credential_type();
-        mapping_for(&mut map, v1_id, &v1).default_credential = Some(v1.to_query_payload());
-
-        let withheld = retain_daemon_compatible(&mut map, Some(&semver::Version::new(0, 16, 2)));
-
-        assert_eq!(map.keys().copied().collect::<Vec<_>>(), vec![v2c_id]);
-        // The withheld credential is reported on the scan rather than vanishing.
-        assert!(matches!(
-            withheld.as_slice(),
-            [DiscoveryWarning::CredentialDaemonTooOld { credential_id: Some(id), .. }] if *id == v1_id
-        ));
     }
 
     /// Overrides are emitted last so a host-specific credential still beats a site-wide one.

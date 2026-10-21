@@ -1,4 +1,5 @@
 pub mod base;
+pub mod capability;
 pub mod integrations;
 pub mod junction;
 pub mod mapping;

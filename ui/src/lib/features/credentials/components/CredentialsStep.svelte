@@ -34,7 +34,7 @@
 		/** In `fixed` mode, the auto-local type ids the target daemon actually has. */
 		fixedCapabilityTypeIds?: string[];
 		/** Version of the single daemon this step targets. A credential type option is
-		 *  disabled when this version is older than the type's `minimum_daemon_version`.
+		 *  disabled when this version is at or below the type's `last_unsupported_daemon_version`.
 		 *  Absent/null ⇒ no version gate (e.g. create-daemon flow). */
 		daemonVersion?: string | null;
 		/** Name of that daemon, used in the version-requirement tooltip. */

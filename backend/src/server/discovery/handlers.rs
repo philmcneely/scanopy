@@ -6,7 +6,6 @@ use crate::server::shared::types::metadata::HasId;
 use crate::server::{
     auth::middleware::permissions::{Authorized, IsDaemon, Member, Viewer},
     config::AppState,
-    credentials::r#impl::types::CredentialTypeDiscriminants,
     daemons::r#impl::{api::DiscoveryUpdatePayload, version::supports_unified_discovery},
     discovery::r#impl::{base::Discovery, types::DiscoveryType},
     discovery::service::start_refusal,
@@ -565,19 +564,12 @@ pub async fn update_discovery(
                 {
                     return Err(ApiError::bad_request(&refusal));
                 }
-                let disc = CredentialTypeDiscriminants::from(&cred.base.credential_type);
-                if !disc.compatible_with_daemon(daemon.base.version.as_ref()) {
-                    return Err(ApiError::bad_request(&format!(
-                        "Credential type \"{}\" requires daemon version {} or newer, but this daemon is on {}. Upgrade the daemon or choose a compatible credential type.",
-                        disc.display_name(),
-                        disc.minimum_daemon_version(),
-                        daemon
-                            .base
-                            .version
-                            .as_ref()
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(|| "an unknown version".to_string()),
-                    )));
+                if let Some(refusal) = crate::server::credentials::service::refusal_for_daemon(
+                    &cred,
+                    &daemon.base.name,
+                    daemon.base.version.as_ref(),
+                ) {
+                    return Err(ApiError::bad_request(&refusal));
                 }
             }
         }
