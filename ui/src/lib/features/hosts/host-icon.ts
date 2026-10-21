@@ -24,5 +24,5 @@ export function hostTile(host: Pick<Host, 'device_type'> | null | undefined): Ic
 	// Pre-binds the device type, as `createLogoIconComponent` pre-binds a logo. The slot's own sizing
 	// classes are dropped: the tile has a fixed size and draws its glyph in the text colour.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	return ($$payload: any, _$$props: any) => DeviceGlyph($$payload, { deviceType, size: 'md' });
+	return ($$payload: any) => DeviceGlyph($$payload, { deviceType, size: 'md' });
 }

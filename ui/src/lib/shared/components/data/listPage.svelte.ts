@@ -28,6 +28,7 @@ export function listPageState(isActive: () => boolean, initialPageSize = 20) {
 		},
 		/** The view as last sent, for an export of the same rows. */
 		get listQuery(): URLSearchParams {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- an empty value, never mutated
 			return listQuery ?? new URLSearchParams();
 		},
 		/** Whether the view narrows the rows, so an empty page means "no match", not "none yet". */

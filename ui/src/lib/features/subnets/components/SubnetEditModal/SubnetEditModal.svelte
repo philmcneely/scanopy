@@ -72,15 +72,29 @@
 	);
 	let saveLabel = $derived(isEditing ? common_update() : common_create());
 
-	function getDefaultValues(): Subnet {
+	/** The fields the form edits. The rest of the subnet (its source among them) stays out of the
+	 *  form, whose deep field-path types can't expand the full `Subnet`. */
+	type SubnetFormValues = Pick<
+		Subnet,
+		'name' | 'cidr' | 'site_id' | 'subnet_type' | 'description' | 'tags'
+	>;
+
+	function toFormValues(s: Subnet): SubnetFormValues {
+		const { name, cidr, site_id, subnet_type, description, tags } = s;
+		return { name, cidr, site_id, subnet_type, description, tags };
+	}
+
+	/** The subnet the form's values are laid over on submit. */
+	function getBaseSubnet(): Subnet {
 		return subnet ? { ...subnet } : createEmptySubnetFormData(defaultSiteId);
 	}
 
 	// Create form with initial empty values - we'll reset it when the modal opens
 	const form = createForm(() => ({
-		defaultValues: createEmptySubnetFormData(''),
+		defaultValues: toFormValues(createEmptySubnetFormData('')),
 		onSubmit: async ({ value }) => {
 			const subnetData: Subnet = {
+				...getBaseSubnet(),
 				...value,
 				name: value.name.trim(),
 				description: value.description?.trim() || '',
@@ -102,13 +116,12 @@
 
 	// Reset form when modal opens
 	function handleOpen() {
-		const defaults = getDefaultValues();
-		form.reset(defaults);
+		form.reset(toFormValues(getBaseSubnet()));
 	}
 
 	// CIDR disabled state - use a function to avoid reactive dependency on form.state
 	function getIsCidrDisabled(): boolean {
-		return isContainerSubnet(form.state.values) || isEditing;
+		return isContainerSubnet(getBaseSubnet()) || isEditing;
 	}
 
 	async function handleSubmit() {

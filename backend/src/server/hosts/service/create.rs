@@ -1954,6 +1954,14 @@ pub(crate) fn remap_assignment_ip_ids(
     assignment.ip_address_ids = Some(remapped);
 }
 
+/// Why a holder gives up the ports `claimant` takes.
+fn handed_over_to(claimant: &Service) -> DeletionReason {
+    DeletionReason::ServicePortsHandedOver {
+        to_service_id: claimant.id,
+        to: claimant.base.service_definition.clone(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2184,13 +2192,5 @@ mod tests {
         // An interface that failed to persist means the set we hold is a subset of what the
         // device reported — pruning against it would delete ports that are genuinely still there.
         assert!(!should_prune_interfaces(true, 5, 1));
-    }
-}
-
-/// Why a holder gives up the ports `claimant` takes.
-fn handed_over_to(claimant: &Service) -> DeletionReason {
-    DeletionReason::ServicePortsHandedOver {
-        to_service_id: claimant.id,
-        to: claimant.base.service_definition.clone(),
     }
 }

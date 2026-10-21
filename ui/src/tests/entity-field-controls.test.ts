@@ -60,19 +60,12 @@ const FREE_TEXT = 'Free text; search covers it';
 const SCAN_MODE =
 	"Read from the run's stored scan settings, which the server can't sort or filter on";
 
-/** Sorted, grouped and filtered on the client. */
-const YES: ColumnDecision = { sort: true, group: true, filter: true };
 /** The row's name: sorts, but every row would be its own group. */
 const IDENTITY: ColumnDecision = { sort: true, group: UNIQUE, filter: SEARCH };
 const DATE: ColumnDecision = { sort: true, group: 'Near-unique timestamp', filter: NO_DATE_RANGE };
 const LAST_SEEN: ColumnDecision = {
 	...DATE,
 	filter: 'No date-range control; Stale covers last seen'
-};
-const BOOLEAN: ColumnDecision = {
-	sort: 'Two values; group and filter cover it',
-	group: true,
-	filter: true
 };
 const TEXT: ColumnDecision = { sort: 'Free text', group: 'Free text', filter: FREE_TEXT };
 /** An array whose members are shared across rows, so filtering by one narrows the list. */

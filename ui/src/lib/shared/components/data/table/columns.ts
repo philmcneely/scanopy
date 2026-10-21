@@ -1,4 +1,4 @@
-import { getFieldKey, type DisplayConfig, type FieldConfig, type FieldGroup } from '../types';
+import { getFieldKey, type DisplayConfig, type FieldConfig } from '../types';
 import { fieldGroups } from '$lib/shared/stores/metadata';
 import { isSortableField } from '../controls/sorting';
 

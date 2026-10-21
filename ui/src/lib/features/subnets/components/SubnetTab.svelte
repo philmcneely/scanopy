@@ -346,6 +346,8 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
+		// A one-off copy for the request, never read reactively.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.listQuery);
 		params.set('user_managed', 'true');
 		await downloadCsv('Subnet', params);

@@ -5,7 +5,7 @@ import { formatDuration } from '$lib/shared/utils/formatting';
 import { defineRegistryFields } from '$lib/shared/entity-fields/table';
 import type { EntityLookup } from '$lib/shared/entity-fields';
 import { fieldValueOptions, type FieldValueCount } from '$lib/shared/api/field-values';
-import type { components, operations } from '$lib/api/schema';
+import type { operations } from '$lib/api/schema';
 import { daemonItems } from '$lib/features/daemons/columns';
 import { siteItems } from '$lib/features/sites/columns';
 import { tagItems, tagNames } from '$lib/features/tags/columns';

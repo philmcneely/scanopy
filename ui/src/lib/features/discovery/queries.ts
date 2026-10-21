@@ -4,15 +4,10 @@
 
 import { displaySettings, effectiveTimeZone } from '$lib/shared/stores/display-settings.svelte';
 import { formatTimeOfDay, weekdayOrder } from '$lib/shared/utils/date-format';
-import {
-	createQuery,
-	createMutation,
-	useQueryClient,
-	keepPreviousData
-} from '@tanstack/svelte-query';
+import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
 import { queryClient, queryKeys } from '$lib/api/query-client';
 import { apiClient } from '$lib/api/client';
-import { requireSuccess, unwrapData, unwrapEnvelope } from '$lib/api/query-helpers';
+import { requireSuccess, unwrapData } from '$lib/api/query-helpers';
 import type { Discovery } from './types/base';
 import type { components, operations } from '$lib/api/schema';
 import { useListPageQuery, type ListPageParams } from '$lib/api/list-page';

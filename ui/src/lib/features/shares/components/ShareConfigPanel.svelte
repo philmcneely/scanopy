@@ -7,7 +7,6 @@
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import Checkbox from '$lib/shared/components/forms/input/Checkbox.svelte';
-	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	import DateInput from '$lib/shared/components/forms/input/DateInput.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
