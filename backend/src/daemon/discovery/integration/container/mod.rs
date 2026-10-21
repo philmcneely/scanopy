@@ -10,6 +10,7 @@
 
 pub mod hosts;
 pub mod interfaces;
+pub mod probe_relay;
 pub mod scanner;
 
 use std::net::IpAddr;

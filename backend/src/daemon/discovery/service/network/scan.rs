@@ -1649,6 +1649,7 @@ impl NetworkScan {
             scan_controller: scan_controller.clone(),
             probe_raw_socket_ports,
             port_map: Default::default(),
+            tunnel: None,
         };
         let app_probe_results = scan_app_probes(
             &probe_ctx,

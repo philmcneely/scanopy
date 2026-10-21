@@ -49,7 +49,6 @@ use ezk_sip_types::msg::MessageLine;
 use ezk_sip_types::print::AppendCtx;
 use ezk_sip_types::uri::SipUri;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use crate::daemon::utils::app_probe::{AppProbe, AppProbeOutcome, ProbeContext, presence};
@@ -74,15 +73,8 @@ impl AppProbe for SipProbe {
     }
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let addr = ctx.target(self.port().number());
-
-        let mut stream = match timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
-            Ok(Ok(stream)) => stream,
-            Ok(Err(e)) => {
-                ctx.note_connect_error(&e);
-                return Ok(AppProbeOutcome::NoAnswer);
-            }
-            Err(_) => return Ok(AppProbeOutcome::NoAnswer),
+        let Some(mut stream) = ctx.connect(self.port().number()).await else {
+            return Ok(AppProbeOutcome::NoAnswer);
         };
 
         stream.write_all(options_request(ctx.ip).as_bytes()).await?;

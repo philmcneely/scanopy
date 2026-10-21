@@ -22,11 +22,10 @@
 use anyhow::Error;
 use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use crate::daemon::utils::app_probe::{
-    AppProbe, AppProbeOutcome, DeviceIdentity, ProbeContext, identity_field,
+    AppProbe, AppProbeOutcome, DeviceIdentity, ProbeContext, ProbeStream, identity_field,
 };
 use crate::daemon::utils::scanner::SCAN_TIMEOUT;
 use crate::server::ports::r#impl::base::PortType;
@@ -67,8 +66,6 @@ impl AppProbe for ModbusProbe {
     }
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let addr = ctx.target(self.port().number());
-
         // Both units on one connection where the device allows it, which is the multi-round-trip
         // case the stage exists to support.
         //
@@ -77,7 +74,7 @@ impl AppProbe for ModbusProbe {
         // there would mean unit 0 was never tried, defeating the point of trying both. So a
         // transport failure drops the connection and the next unit gets a fresh one; only a reply
         // that is positively *not* Modbus ends the exchange early.
-        let mut stream: Option<TcpStream> = None;
+        let mut stream: Option<Box<dyn ProbeStream>> = None;
         let mut detected = false;
 
         for (attempt, unit) in UNITS_TO_TRY.iter().enumerate() {
@@ -86,13 +83,9 @@ impl AppProbe for ModbusProbe {
             }
 
             if stream.is_none() {
-                match timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
-                    Ok(Ok(fresh)) => stream = Some(fresh),
-                    Ok(Err(e)) => {
-                        ctx.note_connect_error(&e);
-                        break;
-                    }
-                    Err(_) => break,
+                match ctx.connect(self.port().number()).await {
+                    Some(fresh) => stream = Some(fresh),
+                    None => break,
                 }
             }
             let Some(open) = stream.as_mut() else {
@@ -125,7 +118,7 @@ impl AppProbe for ModbusProbe {
 
 /// One request/response round trip on an open connection.
 async fn exchange(
-    stream: &mut TcpStream,
+    stream: &mut Box<dyn ProbeStream>,
     transaction_id: u16,
     unit: u8,
 ) -> Result<ModbusReply, Error> {
