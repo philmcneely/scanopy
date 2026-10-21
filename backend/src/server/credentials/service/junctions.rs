@@ -172,8 +172,9 @@ impl CredentialService {
     /// replace path (`set_host_credentials`) there would delete user/init-assigned daemon-host
     /// credentials that didn't probe this scan (e.g. a Docker socket on a Podman-only host),
     /// regressing the junction-as-source-of-truth model. Merge keeps existing assignments and
-    /// overlays `incoming` (incoming wins per `credential_id`, refreshing `ip_address_ids`), so
-    /// discovery only adds. Explicit user edits still go through the replace path.
+    /// widens each one by what `incoming` reports for the same credential (see
+    /// [`merge_assignment_scope`]), so discovery only adds. Explicit user edits still go through
+    /// the replace path.
     pub async fn merge_host_credentials(
         &self,
         host_id: &Uuid,
@@ -182,15 +183,17 @@ impl CredentialService {
         let mut by_host = self
             .get_credential_assignments_for_hosts(&[*host_id])
             .await?;
-        let existing = by_host.remove(host_id).unwrap_or_default();
+        let mut merged = by_host.remove(host_id).unwrap_or_default();
 
-        let incoming_ids: std::collections::HashSet<Uuid> =
-            incoming.iter().map(|a| a.credential_id).collect();
-        let mut merged: Vec<CredentialAssignment> = existing
-            .into_iter()
-            .filter(|a| !incoming_ids.contains(&a.credential_id))
-            .collect();
-        merged.extend(incoming.iter().cloned());
+        for assignment in incoming {
+            match merged
+                .iter_mut()
+                .find(|a| a.credential_id == assignment.credential_id)
+            {
+                Some(existing) => merge_assignment_scope(existing, assignment),
+                None => merged.push(assignment.clone()),
+            }
+        }
 
         self.set_host_credentials(host_id, &merged).await
     }
@@ -338,5 +341,66 @@ impl CredentialService {
             )
             .await?;
         Ok(())
+    }
+}
+
+/// Widen `existing` by what discovery reports for the same credential.
+///
+/// A scan submits one host several times (the daemon-host phase, then each address the network
+/// phase reaches), and each submission reports the credential at the one address it worked at.
+/// Replacing the scope with each report kept only the last address, and turned a whole-host
+/// assignment into a single address. Either side covering the whole host keeps the whole host;
+/// two address lists are unioned.
+pub(crate) fn merge_assignment_scope(
+    existing: &mut CredentialAssignment,
+    incoming: &CredentialAssignment,
+) {
+    match (&mut existing.ip_address_ids, &incoming.ip_address_ids) {
+        (None, _) => {}
+        (Some(_), None) => existing.ip_address_ids = None,
+        (Some(ids), Some(more)) => {
+            for id in more {
+                if !ids.contains(id) {
+                    ids.push(*id);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assignment(credential_id: Uuid, ids: Option<Vec<Uuid>>) -> CredentialAssignment {
+        CredentialAssignment {
+            credential_id,
+            ip_address_ids: ids,
+        }
+    }
+
+    #[test]
+    fn a_reported_address_does_not_narrow_a_whole_host_assignment() {
+        let cred = Uuid::new_v4();
+        let mut existing = assignment(cred, None);
+        merge_assignment_scope(&mut existing, &assignment(cred, Some(vec![Uuid::new_v4()])));
+        assert_eq!(existing.ip_address_ids, None);
+    }
+
+    #[test]
+    fn addresses_reported_by_separate_submissions_accumulate() {
+        let cred = Uuid::new_v4();
+        let (lan, bridge) = (Uuid::new_v4(), Uuid::new_v4());
+        let mut existing = assignment(cred, Some(vec![lan]));
+        merge_assignment_scope(&mut existing, &assignment(cred, Some(vec![bridge, lan])));
+        assert_eq!(existing.ip_address_ids, Some(vec![lan, bridge]));
+    }
+
+    #[test]
+    fn a_whole_host_report_widens_a_scoped_assignment() {
+        let cred = Uuid::new_v4();
+        let mut existing = assignment(cred, Some(vec![Uuid::new_v4()]));
+        merge_assignment_scope(&mut existing, &assignment(cred, None));
+        assert_eq!(existing.ip_address_ids, None);
     }
 }

@@ -147,6 +147,17 @@ impl DiscoveryType {
         }
     }
 
+    /// The host the daemon runs on. `None` for the legacy `Network` type, which never carried it.
+    pub fn daemon_host_id(&self) -> Option<Uuid> {
+        match self {
+            DiscoveryType::SelfReport { host_id }
+            | DiscoveryType::Docker { host_id, .. }
+            | DiscoveryType::Rescan { host_id, .. }
+            | DiscoveryType::Unified { host_id, .. } => Some(*host_id),
+            DiscoveryType::Network { .. } => None,
+        }
+    }
+
     /// Whether the daemon runs the full scan pipeline for this type — i.e. it
     /// needs credential mappings and the settings the server computes.
     pub fn runs_network_scan(&self) -> bool {

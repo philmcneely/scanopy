@@ -337,6 +337,23 @@ pub fn reads_single_target_rescan(version: Option<&str>) -> bool {
         .is_none_or(|v| v <= last_single_target_rescan())
 }
 
+/// The last release whose daemon never tries a credential at a container's bridge address. Later
+/// daemons run integration dispatch at each running bridge container on their own host after the
+/// container scan; older ones only report such an override as a target they did not scan.
+///
+/// A ceiling rather than a floor, for the reason [`last_legacy_neighbor_wire`] gives. A build of
+/// this branch still calls itself this version until the bump, so its daemons are sent no bridge
+/// overrides until then.
+pub fn last_bridge_credential_blind() -> Version {
+    Version::new(0, 18, 2)
+}
+
+/// Whether a daemon at this version tries credentials at its own bridge containers. A daemon
+/// without a recorded version is assumed not to.
+pub fn tries_bridge_credentials(version: Option<&Version>) -> bool {
+    version.is_some_and(|v| v > &last_bridge_credential_blind())
+}
+
 /// Every capability floor this build enforces, labelled so a failure names the
 /// offender. The rot-guard test asserts each is ≤ the current server version, so
 /// a floor can never quietly reference a version this build doesn't know about.

@@ -11,6 +11,7 @@ use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::subnets::r#impl::inference::placeable_subnet;
 use anyhow::{Error, Result};
 use futures::future::join_all;
+use std::collections::HashSet;
 use std::net::{IpAddr, Ipv4Addr};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -250,12 +251,16 @@ impl DiscoveryRunner {
         }
 
         // Run localhost integrations (generic — any integration with localhost credential)
-        if let Err(e) = self
+        let bridge_override_ips = match self
             .run_localhost_integrations(ops, created_subnets, cancel)
             .await
         {
-            tracing::error!(error = %e, "Localhost integration phase failed, continuing");
-        }
+            Ok(ips) => ips,
+            Err(e) => {
+                tracing::error!(error = %e, "Localhost integration phase failed, continuing");
+                HashSet::new()
+            }
+        };
 
         // Wake hosts that sleep between scans, so the sweep below can find them. After the
         // daemon-host phase because the subnets it creates are where a target's directed
@@ -283,7 +288,7 @@ impl DiscoveryRunner {
         // Phase 2: Network Scan (5-100%)
         session.set_progress_range(5, 100);
 
-        let network_hosts = self.run_network_phase(cancel).await?;
+        let network_hosts = self.run_network_phase(&bridge_override_ips, cancel).await?;
 
         // Completion banner
         self.log_completion_banner(&network_hosts, start.elapsed());
@@ -294,12 +299,15 @@ impl DiscoveryRunner {
     /// Run integrations for localhost credentials (e.g., Docker on daemon host).
     /// Uses the same dispatch as network scanning — localhost credentials aren't special,
     /// they just target a known host_id instead of ARP-discovered hosts.
+    ///
+    /// Returns the override addresses on this host's container bridges, which the bridge step
+    /// after the container scan owns (see `bridge_containers`).
     async fn run_localhost_integrations(
         &self,
         ops: &DiscoveryOps,
         created_subnets: &[Subnet],
         cancel: &CancellationToken,
-    ) -> Result<(), Error> {
+    ) -> Result<HashSet<IpAddr>, Error> {
         use crate::daemon::discovery::integration::dispatch;
 
         // Build localhost-only credential mappings
@@ -314,7 +322,7 @@ impl DiscoveryRunner {
             tracing::debug!(
                 "No localhost credential mappings found, skipping localhost integrations"
             );
-            return Ok(());
+            return Ok(HashSet::new());
         }
 
         tracing::info!(
@@ -347,7 +355,7 @@ impl DiscoveryRunner {
 
         if probe_results.client_responses.is_empty() {
             tracing::debug!("No localhost integration probes succeeded");
-            return Ok(());
+            return Ok(HashSet::new());
         }
 
         tracing::info!(
@@ -369,7 +377,7 @@ impl DiscoveryRunner {
 
         let Some(subnet) = subnet else {
             tracing::warn!("No subnet found for localhost integrations, skipping");
-            return Ok(());
+            return Ok(HashSet::new());
         };
 
         let ip_address = IPAddress::new(crate::server::ip_addresses::r#impl::base::IPAddressBase {
@@ -413,7 +421,7 @@ impl DiscoveryRunner {
             Some(hd) => hd,
             None => {
                 tracing::warn!("Localhost service matching returned no host");
-                return Ok(());
+                return Ok(HashSet::new());
             }
         };
 
@@ -463,6 +471,12 @@ impl DiscoveryRunner {
         ops.record_equal_reach_integrations(localhost_ip, &host_data)
             .await;
 
+        // The container scan above is the only record of which containers are running and where
+        // on the bridges they sit, so credentials at them are tried here, before the host is sent.
+        let bridge_override_ips = self
+            .run_bridge_container_integrations(ops, &mut host_data, created_subnets, cancel)
+            .await;
+
         // Persist results
         tracing::info!(
             services = host_data.services.len(),
@@ -484,20 +498,31 @@ impl DiscoveryRunner {
         )
         .await?;
 
-        Ok(())
+        Ok(bridge_override_ips)
     }
 
-    /// Network phase: run ARP + deep scan to discover hosts and services
+    /// Network phase: run ARP + deep scan to discover hosts and services.
+    ///
+    /// `bridge_override_ips` were handled by the bridge step, so their overrides are not handed to
+    /// the scan, which would report each one as a target it did not scan.
     async fn run_network_phase(
         &self,
+        bridge_override_ips: &HashSet<IpAddr>,
         cancel: &CancellationToken,
     ) -> Result<Vec<(IpAddr, Host, super::network::DiscoveredHostData)>, Error> {
+        let mut credential_mappings = self.credential_mappings.clone();
+        for mapping in &mut credential_mappings {
+            mapping
+                .ip_overrides
+                .retain(|o| !bridge_override_ips.contains(&o.ip));
+        }
+
         // Network discovery owns subnet resolution — unified just coordinates
         let network_discovery = super::network::NetworkScan::new(
             self.subnet_ids.clone(),
             self.host_naming_fallback,
             self.scan_settings.clone(),
-            self.credential_mappings.clone(),
+            credential_mappings,
             self.target_ips.clone(),
             self.extra_ports.clone(),
             self.known_subnets.clone(),

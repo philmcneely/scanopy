@@ -1,4 +1,5 @@
 pub mod base;
+mod bridge_containers;
 #[cfg(unix)]
 mod lldpd;
 pub mod network;
