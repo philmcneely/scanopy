@@ -812,7 +812,7 @@ impl DiscoveryWarningCode {
             | Self::CredentialTargetNotResponding
             | Self::CredentialGateClosed
             | Self::CredentialDaemonOsMismatch
-            | Self::CredentialDaemonTooOld
+            | Self::CredentialNeedsNewerDaemon
             | Self::CredentialRejected
             | Self::CredentialMalformed
             | Self::CredentialTlsFailed
