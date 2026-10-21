@@ -12,7 +12,7 @@ impl ServiceDefinition for UnifiGateway {
         "UniFi Gateway"
     }
     fn description(&self) -> &'static str {
-        "Ubiquiti UniFi security gateway or Dream Machine"
+        "Ubiquiti UniFi security gateway, Next-Gen Gateway or Dream Machine"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkCore
@@ -21,14 +21,15 @@ impl ServiceDefinition for UnifiGateway {
         Some(DeviceType::Router)
     }
 
-    /// Covers both the standalone security gateway (`ugw`) and the Dream Machine family
-    /// (`udm`), which is a gateway that also hosts the controller. A UDM therefore matches
-    /// this *and* `UnifiController`, which is correct — it is both things.
+    /// Covers the standalone security gateway (`ugw`), the Next-Gen Gateway line (`uxg`), and
+    /// the Dream Machine family (`udm`), which is a gateway that also hosts the controller. A UDM
+    /// therefore matches this *and* `UnifiController`, which is correct — it is both things.
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::UBIQUITI),
             Pattern::AnyOf(vec![
                 Pattern::ManagedDeviceType(UnifiDeviceType::GATEWAY),
+                Pattern::ManagedDeviceType(UnifiDeviceType::NEXT_GEN_GATEWAY),
                 Pattern::ManagedDeviceType(UnifiDeviceType::DREAM_MACHINE),
             ]),
         ])

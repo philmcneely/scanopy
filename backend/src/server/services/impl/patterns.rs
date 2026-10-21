@@ -389,6 +389,8 @@ impl UnifiDeviceType {
     pub const SWITCH: &'static str = "usw";
     pub const GATEWAY: &'static str = "ugw";
     pub const DREAM_MACHINE: &'static str = "udm";
+    /// The Next-Gen Gateway line (UXG-Lite, UXG-Pro, UXG-Max). unpoller: `UXG.Type`.
+    pub const NEXT_GEN_GATEWAY: &'static str = "uxg";
 }
 
 /// Instant On's inventory `deviceType` values — the four members of the portal's own

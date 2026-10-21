@@ -21,7 +21,7 @@ use uuid::Uuid;
 
 use crate::server::interfaces::r#impl::base::{Interface, InterfaceBase, if_type};
 use crate::server::ip_addresses::r#impl::base::{IPAddress, IPAddressBase};
-use crate::server::services::r#impl::patterns::ClientProbe;
+use crate::server::services::r#impl::patterns::{ClientProbe, UnifiDeviceType};
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::storage::traits::Storable;
 use crate::server::shared::types::entities::EntitySource;
@@ -223,10 +223,17 @@ pub fn gateway_interfaces(
     (addresses, interfaces)
 }
 
-/// Whether the controller's device class is a gateway: the USG (`ugw`), a Dream Machine or Cloud
-/// Gateway (`udm`), or a Next-Gen Gateway (`uxg`). unpoller: `USG.Type`, `UDM.Type`, `UXG.Type`.
+/// Whether the controller's device class is a gateway: the USG, a Next-Gen Gateway, or a Dream
+/// Machine or Cloud Gateway. The same classes the UniFi Gateway service definition matches.
 pub fn is_gateway(device_type: Option<&str>) -> bool {
-    matches!(device_type, Some("ugw" | "udm" | "uxg"))
+    device_type.is_some_and(|t| {
+        [
+            UnifiDeviceType::GATEWAY,
+            UnifiDeviceType::NEXT_GEN_GATEWAY,
+            UnifiDeviceType::DREAM_MACHINE,
+        ]
+        .contains(&t)
+    })
 }
 
 #[cfg(test)]
