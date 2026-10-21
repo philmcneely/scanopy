@@ -36,6 +36,12 @@ import {
 	discovery_warningNoFurtherDetail,
 	discovery_warningUnknownDaemon,
 	discovery_warningAtAddress,
+	discovery_warningGapContainerBridge,
+	discovery_warningGapCredentialType,
+	discovery_warningGapSnmpV3Options,
+	discovery_warningSnmpV3OptionAuthNoPriv,
+	discovery_warningSnmpV3OptionMd5Auth,
+	discovery_warningSnmpV3OptionNoAuthNoPriv,
 	discovery_warningInferredFrom,
 	discovery_warningSeenBy,
 	discovery_warningNoPortId,
@@ -239,6 +245,37 @@ const addressesOf = (group_: { address: string }[]) =>
 		'conjunction'
 	);
 
+type CapabilityGap = components['schemas']['CapabilityGap'];
+type SnmpV3SecurityOption = components['schemas']['SnmpV3SecurityOption'];
+
+const SNMP_V3_OPTION_LABELS: Record<SnmpV3SecurityOption, () => string> = {
+	NoAuthNoPriv: () => discovery_warningSnmpV3OptionNoAuthNoPriv(),
+	AuthNoPriv: () => discovery_warningSnmpV3OptionAuthNoPriv(),
+	Md5Auth: () => discovery_warningSnmpV3OptionMd5Auth()
+};
+
+/**
+ * What a daemon missed of one credential, as the clause after "The {credential} credential".
+ * Exhaustive over the generated union, so a gap the backend adds does not compile until it reads.
+ */
+function capabilityGap(gap: CapabilityGap): string {
+	switch (gap.type) {
+		case 'ParsesCredentialType':
+			return discovery_warningGapCredentialType();
+		case 'UsesSnmpV3SecurityOptions':
+			return discovery_warningGapSnmpV3Options({
+				options: joinList(
+					gap.details.options.map((o) => SNMP_V3_OPTION_LABELS[o]()),
+					'conjunction'
+				)
+			});
+		case 'TargetsContainerBridgeWithCredentials':
+			return discovery_warningGapContainerBridge({
+				addresses: joinList(gap.details.addresses, 'conjunction')
+			});
+	}
+}
+
 const groupsOf = (group_: { group: string }[]) =>
 	joinList(
 		group_.map((w) => group(w.group)),
@@ -359,6 +396,15 @@ const WARNING_PARAMS = {
 	CredentialDaemonTooOld: (w, { daemonName }) => ({
 		credential: integration(w[0].integration),
 		required: w[0].minimum_daemon_version,
+		daemon: daemonName,
+		version: w[0].daemon_version ?? common_unknown()
+	}),
+	// The gap identifies the statement: a credential withheld whole and one that lost only its
+	// bridge addresses are different sentences.
+	CredentialNeedsNewerDaemon: (w, { daemonName }) => ({
+		credential: integration(w[0].integration),
+		gap: capabilityGap(w[0].gap),
+		required: w[0].last_unsupported_daemon_version,
 		daemon: daemonName,
 		version: w[0].daemon_version ?? common_unknown()
 	}),

@@ -63,6 +63,11 @@ describe('discovery warning rendering', () => {
 			elided: 7,
 			cause: 'TimedOut',
 			failures: [{ group: 'Interfaces', cause: 'TimedOut' }],
+			gap: {
+				type: 'TargetsContainerBridgeWithCredentials',
+				details: { addresses: ['172.17.0.3'] }
+			},
+			last_unsupported_daemon_version: '0.18.2',
 			net_snmp_options: '-v2c -c <community>'
 		}) as unknown as DiscoveryWarning;
 
@@ -84,6 +89,29 @@ describe('discovery warning rendering', () => {
 			.flatMap((section) => section.entries)
 			.flatMap((entry) => entry.details)
 			.flatMap((statement) => statement.examples);
+
+	/**
+	 * A credential withheld whole and one that lost only its bridge addresses are different
+	 * statements, so each gap renders as its own sentence, and none leaves a slot unfilled.
+	 */
+	it('renders each capability gap as its own sentence', () => {
+		const gaps = [
+			{ type: 'ParsesCredentialType' },
+			{
+				type: 'UsesSnmpV3SecurityOptions',
+				details: { options: ['NoAuthNoPriv', 'AuthNoPriv', 'Md5Auth'] }
+			},
+			{ type: 'TargetsContainerBridgeWithCredentials', details: { addresses: ['172.17.0.3'] } }
+		];
+		const rendered = sentences(
+			gaps.map(
+				(gap) => ({ ...sample('CredentialNeedsNewerDaemon'), gap }) as unknown as DiscoveryWarning
+			)
+		);
+
+		expect(rendered).toHaveLength(gaps.length);
+		for (const sentence of rendered) expect(sentence).not.toMatch(/\{\w+\}/);
+	});
 
 	it('renders every code the backend can send, with no slot left unfilled', () => {
 		const unfilled: string[] = [];

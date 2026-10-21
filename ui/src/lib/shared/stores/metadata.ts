@@ -89,10 +89,10 @@ export interface CredentialTypeMetadata {
 	/** Which fields depend on the daemon's and the scanned host's OS, computed by the backend; the
 	 *  form places each OS picker from it. */
 	os_fields?: components['schemas']['CredentialOsFields'];
-	/** Minimum daemon version (semver) that can receive this credential type. The
+	/** The last daemon version (semver) that cannot receive this credential type. The
 	 *  discovery credential picker compares the selected daemon's `version` against
 	 *  this to disable too-new types (and to build the requirement tooltip). */
-	minimum_daemon_version?: string;
+	last_unsupported_daemon_version?: string;
 	/** Release maturity of this type's integration. Beta types render a "Beta" tag in the
 	 *  picker but stay selectable. Union derived from the backend enum, never hand-written. */
 	stability?: components['schemas']['CredentialStability'];
