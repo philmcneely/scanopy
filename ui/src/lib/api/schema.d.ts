@@ -2225,14 +2225,17 @@ export interface paths {
          *     "is this host still there, and is its data current?" without sweeping the
          *     whole subnet.
          *
-         *     The scan runs on the daemon that last discovered this host — evidence it can
-         *     reach the address — and only if that daemon still has an interface on a
-         *     subnet containing one of the host's scannable IPs. Where that interface has a
-         *     MAC the daemon ARPs the target, which sees a live host even when every port
-         *     is firewalled; on a MAC-less interface (a point-to-point tunnel) it falls
-         *     back to a TCP probe. When no interface covers any of the host's addresses the
-         *     request is refused with the specific reason. A loopback address is not a
-         *     scannable IP — it is reached locally and is excluded from the target set.
+         *     The scan runs on the daemon that last discovered this host, which is evidence
+         *     it can reach the address. Where the daemon has an interface with a MAC on the
+         *     address's subnet it ARPs the target, which sees a live host even when every
+         *     port is firewalled. Every other address, on a MAC-less interface (a
+         *     point-to-point tunnel) or on a subnet the daemon reaches through a router, is
+         *     probed by TCP. An address that doesn't answer comes back as not found. A
+         *     loopback address is reached locally and is excluded from the target set.
+         *
+         *     Daemons at or below `last_without_routed_rescan` only rescan addresses on
+         *     subnets they have an interface on, and the request is refused when the host
+         *     has none.
          *
          *     Returns the session, which streams progress over `/api/v1/discovery/stream`
          *     like any other scan. A `Queued` phase means the daemon is busy; it will start

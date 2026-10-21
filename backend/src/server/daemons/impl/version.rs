@@ -355,6 +355,19 @@ pub fn last_without_bridge_credentials() -> Version {
     Version::new(0, 18, 2)
 }
 
+/// The last release whose daemon rescans only addresses on a subnet it has an interface on. It
+/// skips any other target, and fails the rescan when none is left, so the server sends it only
+/// those addresses. Later daemons scan the rest by TCP through the site subnet that holds them.
+pub fn last_without_routed_rescan() -> Version {
+    Version::new(0, 18, 2)
+}
+
+/// Whether a daemon at this version rescans addresses it has no interface on. A daemon without a
+/// recorded version is assumed not to.
+pub fn resolves_routed_rescan(version: Option<&Version>) -> bool {
+    version.is_some_and(|v| v > &last_without_routed_rescan())
+}
+
 /// The gates the UI names in its copy ("installed at v0.17.4 or earlier"), written to
 /// `daemon-version-gates.json` by `generate_ui_data_fixtures` so no version is typed into a
 /// message.
@@ -446,6 +459,7 @@ fn capability_gates() -> Vec<(String, Version)> {
             "last_without_bridge_credentials",
             last_without_bridge_credentials(),
         ),
+        ("last_without_routed_rescan", last_without_routed_rescan()),
     ]
     .into_iter()
     .map(|(name, v)| (name.to_string(), v))
@@ -910,7 +924,7 @@ mod tests {
     /// a daemon with no recorded version is treated as lacking the feature.
     #[test]
     fn every_predicate_turns_on_just_above_its_gate() {
-        let cases: [GateCase; 7] = [
+        let cases: [GateCase; 8] = [
             (
                 "unified_discovery",
                 last_without_unified_discovery(),
@@ -945,6 +959,11 @@ mod tests {
                 "os_reporting",
                 last_without_os_reporting(),
                 supports_os_reporting,
+            ),
+            (
+                "routed_rescan",
+                last_without_routed_rescan(),
+                resolves_routed_rescan,
             ),
         ];
         for (name, gate, has) in cases {

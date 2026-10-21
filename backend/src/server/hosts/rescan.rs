@@ -15,12 +15,14 @@ use crate::server::config::AppState;
 use crate::server::daemons::r#impl::api::DiscoveryUpdatePayload;
 use crate::server::daemons::r#impl::base::Daemon;
 use crate::server::daemons::r#impl::version::{
-    last_without_targeted_rescan, supports_targeted_rescan,
+    last_without_routed_rescan, last_without_targeted_rescan, resolves_routed_rescan,
+    supports_targeted_rescan,
 };
 use crate::server::discovery::r#impl::base::{Discovery, DiscoveryBase};
 use crate::server::discovery::r#impl::scan_settings::{RescanSettings, ScanSettings};
 use crate::server::discovery::r#impl::types::{DiscoveryType, RunType};
 use crate::server::hosts::r#impl::base::Host;
+use crate::server::ip_addresses::r#impl::base::IPAddress;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::storage::filter::StorableFilter;
@@ -42,14 +44,17 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 /// "is this host still there, and is its data current?" without sweeping the
 /// whole subnet.
 ///
-/// The scan runs on the daemon that last discovered this host — evidence it can
-/// reach the address — and only if that daemon still has an interface on a
-/// subnet containing one of the host's scannable IPs. Where that interface has a
-/// MAC the daemon ARPs the target, which sees a live host even when every port
-/// is firewalled; on a MAC-less interface (a point-to-point tunnel) it falls
-/// back to a TCP probe. When no interface covers any of the host's addresses the
-/// request is refused with the specific reason. A loopback address is not a
-/// scannable IP — it is reached locally and is excluded from the target set.
+/// The scan runs on the daemon that last discovered this host, which is evidence
+/// it can reach the address. Where the daemon has an interface with a MAC on the
+/// address's subnet it ARPs the target, which sees a live host even when every
+/// port is firewalled. Every other address, on a MAC-less interface (a
+/// point-to-point tunnel) or on a subnet the daemon reaches through a router, is
+/// probed by TCP. An address that doesn't answer comes back as not found. A
+/// loopback address is reached locally and is excluded from the target set.
+///
+/// Daemons at or below `last_without_routed_rescan` only rescan addresses on
+/// subnets they have an interface on, and the request is refused when the host
+/// has none.
 ///
 /// Returns the session, which streams progress over `/api/v1/discovery/stream`
 /// like any other scan. A `Queued` phase means the daemon is busy; it will start
@@ -321,38 +326,51 @@ async fn rescan_target(
         Err(reason) => return Ok((name, Err(reason))),
     };
 
-    // Only the addresses this daemon has a route to. The daemon ARPs the ones
-    // on an interface with a MAC and falls back to a TCP probe on the ones
-    // without (a point-to-point tunnel has no MAC but is perfectly routable) —
-    // refusing the latter outright made rescan impossible on VPN-only daemons
-    // rather than merely lower fidelity.
-    //
-    // A loopback address passes the junction check — the daemon reports its own
-    // 127.0.0.0/8 as an interfaced subnet — but is not scannable by either path:
-    // loopback subnets are dropped from every scan. Excluding it here keeps this
-    // endpoint and the daemon's own target resolution agreeing, and keeps
-    // 127.0.0.1 out of the frozen rescan name.
-    let interfaced = state
-        .services
-        .daemon_service
-        .get_interfaced_subnet_ids(&daemon.id)
-        .await;
-    let reachable: Vec<IpAddr> = ip_addresses
-        .iter()
-        .filter(|ip| interfaced.contains(&ip.base.subnet_id) && !ip.base.ip_address.is_loopback())
-        .map(|ip| ip.base.ip_address)
-        .collect();
+    // A daemon that only rescans its interfaced subnets fails the whole rescan when no target
+    // is on one, so it is sent just those.
+    let routes = resolves_routed_rescan(daemon.base.version.as_ref());
+    let interfaced = if routes {
+        None
+    } else {
+        Some(
+            state
+                .services
+                .daemon_service
+                .get_interfaced_subnet_ids(&daemon.id)
+                .await,
+        )
+    };
+    let targets = scannable_addresses(&ip_addresses, interfaced.as_deref());
 
-    if reachable.is_empty() {
-        let reason = format!(
-            "Daemon \"{}\" last scanned this host but has no interface on a subnet holding any \
-             of its scannable addresses, so it can't scan them directly.",
-            daemon.base.name
-        );
+    if targets.is_empty() {
+        let reason = if routes {
+            "This host has only loopback addresses, which aren't scanned.".to_string()
+        } else {
+            format!(
+                "Daemon \"{}\" has no interface on a subnet holding any of this host's \
+                 addresses. Upgrade it to a version newer than {} to rescan addresses it \
+                 reaches through a router.",
+                daemon.base.name,
+                last_without_routed_rescan()
+            )
+        };
         return Ok((name, Err(reason)));
     }
 
-    Ok((name, Ok((daemon, reachable))))
+    Ok((name, Ok((daemon, targets))))
+}
+
+/// The addresses a rescan targets: every one but loopback, which is reached locally and dropped
+/// from every scan. Keeping it out also keeps 127.0.0.1 out of the frozen rescan name.
+/// `interfaced`, for a daemon that can't scan through a router, narrows them to the addresses
+/// on those subnets.
+fn scannable_addresses(ip_addresses: &[IPAddress], interfaced: Option<&[Uuid]>) -> Vec<IpAddr> {
+    ip_addresses
+        .iter()
+        .filter(|ip| !ip.base.ip_address.is_loopback())
+        .filter(|ip| interfaced.is_none_or(|subnets| subnets.contains(&ip.base.subnet_id)))
+        .map(|ip| ip.base.ip_address)
+        .collect()
 }
 
 /// The scan settings on this daemon's own discovery configuration, if it has one.
@@ -442,4 +460,58 @@ async fn resolve_rescan_daemon(
     }
 
     Ok(Ok(daemon))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::server::ip_addresses::r#impl::base::IPAddressBase;
+
+    fn address(ip: &str, subnet_id: Uuid) -> IPAddress {
+        IPAddress::new(IPAddressBase {
+            subnet_id,
+            ip_address: ip.parse().unwrap(),
+            ..Default::default()
+        })
+    }
+
+    /// A host on a VLAN the daemon reaches through a router: none of its subnets is interfaced,
+    /// and every address is still a target.
+    #[test]
+    fn a_host_with_only_routed_addresses_is_rescanned() {
+        let vlan = Uuid::new_v4();
+        let ips = [address("10.20.0.5", vlan), address("10.20.0.6", vlan)];
+
+        assert_eq!(
+            scannable_addresses(&ips, None),
+            vec![ips[0].base.ip_address, ips[1].base.ip_address]
+        );
+    }
+
+    /// A daemon that can't scan through a router is sent only the addresses on its interfaced
+    /// subnets, so a routed-only host leaves it nothing and the request is refused.
+    #[test]
+    fn an_old_daemon_keeps_only_interfaced_addresses() {
+        let lan = Uuid::new_v4();
+        let vlan = Uuid::new_v4();
+        let ips = [address("192.168.1.5", lan), address("10.20.0.5", vlan)];
+
+        assert_eq!(
+            scannable_addresses(&ips, Some(&[lan])),
+            vec![ips[0].base.ip_address]
+        );
+        assert!(scannable_addresses(&ips[1..], Some(&[lan])).is_empty());
+    }
+
+    #[test]
+    fn loopback_is_never_a_target() {
+        let subnet = Uuid::new_v4();
+        let ips = [address("127.0.0.1", subnet), address("10.20.0.5", subnet)];
+
+        assert_eq!(
+            scannable_addresses(&ips, None),
+            vec![ips[1].base.ip_address]
+        );
+        assert!(scannable_addresses(&ips[..1], Some(&[subnet])).is_empty());
+    }
 }
