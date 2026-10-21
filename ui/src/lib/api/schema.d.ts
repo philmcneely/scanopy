@@ -4137,19 +4137,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-21T18:39:26.379126Z",
+             *       "created_at": "2026-10-21T19:08:55.007742Z",
              *       "first_discovery_id": null,
-             *       "id": "f1711703-c8b8-436a-a7db-523c4544a2a7",
+             *       "id": "d68fccec-3480-4bbb-9198-6f74b09ac91c",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-21T18:39:26.379126Z",
+             *       "last_seen_at": "2026-10-21T19:08:55.007742Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-21T18:39:26.379126Z",
-             *       "valid_from": "2026-10-21T18:39:26.379126Z",
+             *       "updated_at": "2026-10-21T19:08:55.007742Z",
+             *       "valid_from": "2026-10-21T19:08:55.007742Z",
              *       "valid_to": null
              *     }
              */
@@ -5025,19 +5025,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-21T18:39:26.345601Z",
+             *               "created_at": "2026-10-21T19:08:54.968810Z",
              *               "first_discovery_id": null,
-             *               "id": "89b945f2-492c-4d73-b0b5-95e3204c0c0a",
+             *               "id": "6e5266b6-4278-44ea-b088-9000be137e58",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-21T18:39:26.345601Z",
+             *               "last_seen_at": "2026-10-21T19:08:54.968810Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-21T18:39:26.345601Z",
-             *               "valid_from": "2026-10-21T18:39:26.345601Z",
+             *               "updated_at": "2026-10-21T19:08:54.968810Z",
+             *               "valid_from": "2026-10-21T19:08:54.968810Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5050,7 +5050,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Nvidia GPU Exporter",
+             *           "service_definition": "StrongSwan",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -6049,19 +6049,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-21T18:39:26.373565Z",
+             *           "created_at": "2026-10-21T19:08:55.000776Z",
              *           "first_discovery_id": null,
-             *           "id": "74feb05d-bc92-49ab-b9dd-dcb13553e782",
+             *           "id": "92565410-8af6-4709-856b-ba2587dbf3c9",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-21T18:39:26.373565Z",
+             *           "last_seen_at": "2026-10-21T19:08:55.000776Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-21T18:39:26.373565Z",
-             *           "valid_from": "2026-10-21T18:39:26.373565Z",
+             *           "updated_at": "2026-10-21T19:08:55.000776Z",
+             *           "valid_from": "2026-10-21T19:08:55.000776Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6074,7 +6074,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Nvidia GPU Exporter",
+             *       "service_definition": "StrongSwan",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7513,19 +7513,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-21T18:39:26.346231Z",
+         *       "created_at": "2026-10-21T19:08:54.969399Z",
          *       "first_discovery_id": null,
-         *       "id": "3f618237-8dea-4c21-9b77-5b80cea131f3",
+         *       "id": "171f8533-12c5-49ed-9b9a-c5a192c48bed",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-21T18:39:26.346231Z",
+         *       "last_seen_at": "2026-10-21T19:08:54.969399Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-21T18:39:26.346231Z",
-         *       "valid_from": "2026-10-21T18:39:26.346231Z",
+         *       "updated_at": "2026-10-21T19:08:54.969399Z",
+         *       "valid_from": "2026-10-21T19:08:54.969399Z",
          *       "valid_to": null
          *     }
          */
@@ -7714,6 +7714,25 @@ export interface components {
              */
             period_end: string;
         };
+        /** @description What a daemon missed of one credential because it is too old for part of it. */
+        CapabilityGap: {
+            /** @enum {string} */
+            type: "ParsesCredentialType";
+        } | {
+            /** @description The credential uses SNMPv3 options the daemon cannot parse, so none of it was sent. */
+            details: components["schemas"]["SnmpV3SecurityOptionsGap"];
+            /** @enum {string} */
+            type: "UsesSnmpV3SecurityOptions";
+        } | {
+            /**
+             * @description The credential targets containers on Docker or Podman bridge networks of the daemon's own
+             *     host, which the daemon does not try credentials at. Those addresses were not sent; the
+             *     rest of the credential was.
+             */
+            details: components["schemas"]["ContainerBridgeGap"];
+            /** @enum {string} */
+            type: "TargetsContainerBridgeWithCredentials";
+        };
         ChangePlanPreview: {
             /**
              * Format: int64
@@ -7782,6 +7801,10 @@ export interface components {
         ClockFormat: "browser_default" | "twelve_hour" | "twenty_four_hour";
         /** @enum {string} */
         Color: "Pink" | "Rose" | "Red" | "Amber" | "Orange" | "Green" | "Emerald" | "Teal" | "Cyan" | "Blue" | "Indigo" | "Purple" | "Fuchsia" | "Violet" | "Sky" | "Gray" | "Lime" | "Yellow";
+        /** @description A credential's addresses on bridge networks of the daemon's own host. */
+        ContainerBridgeGap: {
+            addresses: string[];
+        };
         /**
          * @description A container with its own identity on the LAN: a macvlan or ipvlan endpoint gives it a MAC and
          *     an IP of its own, so it is a host under its runtime rather than a service on the runtime's
@@ -7891,7 +7914,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Nvidia GPU Exporter",
+         *           "service_definition": "StrongSwan",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -8184,7 +8207,7 @@ export interface components {
          *     Additive and exhaustive: a new credential variant will not compile until it declares its
          *     stability, and every existing type is `Stable` by explicit arm rather than by wildcard, so
          *     promoting an integration is a one-line reviewable change rather than a deletion nobody
-         *     notices. This is presentation metadata about the *code*, like `minimum_daemon_version` —
+         *     notices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —
          *     it is never stored on a credential row, so it carries no deploy-coexistence obligation.
          * @enum {string}
          */
@@ -9524,6 +9547,27 @@ export interface components {
              */
             minimum_daemon_version: string;
         } | {
+            /** @enum {string} */
+            code: "CredentialNeedsNewerDaemon";
+            /**
+             * Format: uuid
+             * @description The stored credential. See [`CredentialAttempt::credential_id`].
+             */
+            credential_id: string | null;
+            /**
+             * @description The version of the daemon that ran the scan. `None` for a daemon that never reported one.
+             * @example 0.18.0
+             */
+            daemon_version?: string | null;
+            /** @description What the daemon missed. */
+            gap: components["schemas"]["CapabilityGap"];
+            integration: components["schemas"]["CredentialQueryPayloadDiscriminants"];
+            /**
+             * @description The last daemon release without what `gap` needs; any newer daemon has it.
+             * @example 0.18.0
+             */
+            last_unsupported_daemon_version: string;
+        } | {
             /** @description The address the credential is bound to. */
             address: string;
             /** @enum {string} */
@@ -10787,19 +10831,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-21T18:39:26.344918Z",
+         *               "created_at": "2026-10-21T19:08:54.968086Z",
          *               "first_discovery_id": null,
-         *               "id": "9354c20e-305e-4098-8330-475db8fa596e",
+         *               "id": "0cf1417c-e386-4aa4-ba2a-dca64bc5bc52",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-21T18:39:26.344918Z",
+         *               "last_seen_at": "2026-10-21T19:08:54.968086Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-21T18:39:26.344918Z",
-         *               "valid_from": "2026-10-21T18:39:26.344918Z",
+         *               "updated_at": "2026-10-21T19:08:54.968086Z",
+         *               "valid_from": "2026-10-21T19:08:54.968086Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10812,7 +10856,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Nvidia GPU Exporter",
+         *           "service_definition": "StrongSwan",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -14362,19 +14406,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-21T18:39:26.346020Z",
+         *           "created_at": "2026-10-21T19:08:54.969202Z",
          *           "first_discovery_id": null,
-         *           "id": "2c05ddc9-6205-43e5-b3e6-5d7ca2393e35",
+         *           "id": "867805e5-1e23-4c99-a151-42c215ad2743",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-21T18:39:26.346020Z",
+         *           "last_seen_at": "2026-10-21T19:08:54.969202Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-21T18:39:26.346020Z",
-         *           "valid_from": "2026-10-21T18:39:26.346020Z",
+         *           "updated_at": "2026-10-21T19:08:54.969202Z",
+         *           "valid_from": "2026-10-21T19:08:54.969202Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14387,7 +14431,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Nvidia GPU Exporter",
+         *       "service_definition": "StrongSwan",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -14831,6 +14875,15 @@ export interface components {
          * @enum {string}
          */
         SnmpV3PrivProtocol: "Aes128" | "Aes256";
+        /**
+         * @description One SNMPv3 option added after v3 first shipped (AuthPriv with SHA and AES only).
+         * @enum {string}
+         */
+        SnmpV3SecurityOption: "NoAuthNoPriv" | "AuthNoPriv" | "Md5Auth";
+        /** @description The SNMPv3 options a credential uses that daemons before 0.18.1 cannot parse. */
+        SnmpV3SecurityOptionsGap: {
+            options: components["schemas"]["SnmpV3SecurityOption"][];
+        };
         /**
          * @description The security material of an SNMPv3 credential, by security level. A level carries exactly
          *     the fields it uses, so a credential cannot hold a privacy password it never sends.
@@ -15531,7 +15584,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "7fcb99eb-67b7-4632-b0fd-34c823f08f19",
+             *           "id": "3a0509de-e17b-464f-8e1c-1d184d0e6031",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15541,23 +15594,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "3cb7a389-5879-42cd-81a9-e694bbfb0fc8",
+             *           "id": "dd15b4f2-e80e-4f27-8f9f-cd358f7ec4a1",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "127defef-9815-4044-942e-34f7a8053a00",
+             *           "id": "943fe5c4-5a6e-4382-9ca7-f8542d117128",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "25816c3d-3a79-482b-b6f1-46fff7dc6092",
+             *           "id": "b446bb6a-7036-4fd8-abd8-ad0cc50df155",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "3cb7a389-5879-42cd-81a9-e694bbfb0fc8",
+             *           "id": "dd15b4f2-e80e-4f27-8f9f-cd358f7ec4a1",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15571,19 +15624,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "3fa8d005-adb0-47aa-99be-a1875a8a4425",
+             *         "id": "c2f558ee-4c54-4dc7-8e4f-8b1240e6f1f1",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "966f73c0-69c6-40a8-a911-ab5d1230633b",
+             *         "id": "870864d8-9ac5-43ea-a357-0012c288caa1",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "8eb14651-c59a-45a3-af2e-99445f482187",
+             *         "id": "e7cefdf1-f4d8-4651-b908-332f92d5d5c0",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "93e65430-012a-4921-9098-55d0913aff34",
+             *         "id": "040a0eba-b848-404f-b8f2-4623bc1b4e27",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15604,7 +15657,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "0c267e33-446f-4b61-a688-8b75fa134019",
+             *         "id": "6f28ffe2-0ab6-4465-b3af-8cd276a98c37",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15613,15 +15666,15 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "3dbe1ae8-9d31-4593-8276-056a05196714",
+             *         "id": "de32bc8e-1f1e-4c06-b432-e9fac33747c6",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "22888437-f200-4c0d-99f2-811bd611b716",
+             *         "id": "0eb97f20-ebe5-4451-accd-d849847b41ea",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "d032e05d-2142-4f57-a902-3ace1e297c49",
+             *         "id": "16ff3bc4-ee40-430d-a59b-75507c5f1916",
              *         "rule": "ByStack"
              *       }
              *     ]

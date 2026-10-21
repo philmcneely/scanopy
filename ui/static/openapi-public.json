@@ -20066,19 +20066,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-21T18:39:26.466597Z",
+              "created_at": "2026-10-21T19:08:55.100525Z",
               "first_discovery_id": null,
-              "id": "d2b9ec74-91ec-475a-b48d-834e05db67fb",
+              "id": "95b5f5b2-d2de-48e2-8f9e-f1a3f8a4adcf",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-21T18:39:26.466597Z",
+              "last_seen_at": "2026-10-21T19:08:55.100525Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-21T18:39:26.466597Z",
-              "valid_from": "2026-10-21T18:39:26.466597Z",
+              "updated_at": "2026-10-21T19:08:55.100525Z",
+              "valid_from": "2026-10-21T19:08:55.100525Z",
               "valid_to": null
             }
           },
@@ -21831,19 +21831,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-21T18:39:26.436253Z",
+                      "created_at": "2026-10-21T19:08:55.068757Z",
                       "first_discovery_id": null,
-                      "id": "402f871a-0c10-4789-9afc-00ae041f5064",
+                      "id": "8f12f602-ffc0-47a5-8d82-417483e6f1a4",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-21T18:39:26.436253Z",
+                      "last_seen_at": "2026-10-21T19:08:55.068757Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-21T18:39:26.436253Z",
-                      "valid_from": "2026-10-21T18:39:26.436253Z",
+                      "updated_at": "2026-10-21T19:08:55.068757Z",
+                      "valid_from": "2026-10-21T19:08:55.068757Z",
                       "valid_to": null
                     }
                   ],
@@ -21856,7 +21856,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Nvidia GPU Exporter",
+                  "service_definition": "StrongSwan",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -23343,19 +23343,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-21T18:39:26.461223Z",
+                  "created_at": "2026-10-21T19:08:55.095239Z",
                   "first_discovery_id": null,
-                  "id": "7f4a3aa6-1877-4705-9d6a-adb46ba0c862",
+                  "id": "56444977-673a-4cb1-90ef-c0e30b481e29",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-21T18:39:26.461223Z",
+                  "last_seen_at": "2026-10-21T19:08:55.095239Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-21T18:39:26.461223Z",
-                  "valid_from": "2026-10-21T18:39:26.461223Z",
+                  "updated_at": "2026-10-21T19:08:55.095239Z",
+                  "valid_from": "2026-10-21T19:08:55.095239Z",
                   "valid_to": null
                 }
               ],
@@ -23368,7 +23368,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Nvidia GPU Exporter",
+              "service_definition": "StrongSwan",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -26486,19 +26486,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-21T18:39:26.436810Z",
+          "created_at": "2026-10-21T19:08:55.069726Z",
           "first_discovery_id": null,
-          "id": "b36bc6d8-3b18-4a7d-9f4f-cfa897fdac30",
+          "id": "31f78478-f82a-40e2-824f-fd76fdf5f9db",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-21T18:39:26.436810Z",
+          "last_seen_at": "2026-10-21T19:08:55.069726Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-21T18:39:26.436810Z",
-          "valid_from": "2026-10-21T18:39:26.436810Z",
+          "updated_at": "2026-10-21T19:08:55.069726Z",
+          "valid_from": "2026-10-21T19:08:55.069726Z",
           "valid_to": null
         }
       },
@@ -26803,6 +26803,69 @@
           }
         }
       },
+      "CapabilityGap": {
+        "oneOf": [
+          {
+            "type": "object",
+            "title": "ParsesCredentialType",
+            "description": "The daemon cannot parse this credential type, so none of it was sent.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "ParsesCredentialType"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "UsesSnmpV3SecurityOptions",
+            "description": "The credential uses SNMPv3 options the daemon cannot parse, so none of it was sent.",
+            "required": [
+              "details",
+              "type"
+            ],
+            "properties": {
+              "details": {
+                "$ref": "#/components/schemas/SnmpV3SecurityOptionsGap",
+                "description": "The credential uses SNMPv3 options the daemon cannot parse, so none of it was sent."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "UsesSnmpV3SecurityOptions"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "TargetsContainerBridgeWithCredentials",
+            "description": "The credential targets containers on Docker or Podman bridge networks of the daemon's own\nhost, which the daemon does not try credentials at. Those addresses were not sent; the\nrest of the credential was.",
+            "required": [
+              "details",
+              "type"
+            ],
+            "properties": {
+              "details": {
+                "$ref": "#/components/schemas/ContainerBridgeGap",
+                "description": "The credential targets containers on Docker or Podman bridge networks of the daemon's own\nhost, which the daemon does not try credentials at. Those addresses were not sent; the\nrest of the credential was."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "TargetsContainerBridgeWithCredentials"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What a daemon missed of one credential because it is too old for part of it."
+      },
       "ChangePlanPreview": {
         "type": "object",
         "required": [
@@ -26967,6 +27030,21 @@
           "Lime",
           "Yellow"
         ]
+      },
+      "ContainerBridgeGap": {
+        "type": "object",
+        "description": "A credential's addresses on bridge networks of the daemon's own host.",
+        "required": [
+          "addresses"
+        ],
+        "properties": {
+          "addresses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "ContainerHostVirtualization": {
         "type": "object",
@@ -27315,7 +27393,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Nvidia GPU Exporter",
+              "service_definition": "StrongSwan",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -27841,7 +27919,7 @@
       },
       "CredentialStability": {
         "type": "string",
-        "description": "Release maturity of a credential type's integration.\n\nAdditive and exhaustive: a new credential variant will not compile until it declares its\nstability, and every existing type is `Stable` by explicit arm rather than by wildcard, so\npromoting an integration is a one-line reviewable change rather than a deletion nobody\nnotices. This is presentation metadata about the *code*, like `minimum_daemon_version` —\nit is never stored on a credential row, so it carries no deploy-coexistence obligation.",
+        "description": "Release maturity of a credential type's integration.\n\nAdditive and exhaustive: a new credential variant will not compile until it declares its\nstability, and every existing type is `Stable` by explicit arm rather than by wildcard, so\npromoting an integration is a one-line reviewable change rather than a deletion nobody\nnotices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —\nit is never stored on a credential row, so it carries no deploy-coexistence obligation.",
         "enum": [
           "Stable",
           "Beta"
@@ -30987,7 +31065,7 @@
           {
             "type": "object",
             "title": "CredentialDaemonTooOld",
-            "description": "The daemon is older than the credential type needs, so the server did not send it the\ncredential at all. Raised by the server, never a daemon: the daemon that would report it is\nthe one that cannot parse the credential.",
+            "description": "Deprecated: no longer raised. Superseded by `CredentialNeedsNewerDaemon` with a\n`ParsesCredentialType` gap; kept so warnings stored by earlier scans still read and render.\n\nThe daemon is older than the credential type needs, so the server did not send it the\ncredential at all.",
             "required": [
               "integration",
               "credential_id",
@@ -31025,6 +31103,56 @@
                 "type": "string",
                 "description": "The oldest daemon version that can receive this credential type.",
                 "example": "0.18.1",
+                "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "CredentialNeedsNewerDaemon",
+            "description": "The daemon is too old for part of how this credential is configured, so the server withheld\nthat part (or, for a type the daemon cannot parse, all of it). `gap` names what. Raised by\nthe server, never a daemon: the daemon that would report it is the one that lacks it.",
+            "required": [
+              "integration",
+              "credential_id",
+              "gap",
+              "last_unsupported_daemon_version",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "CredentialNeedsNewerDaemon"
+                ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential. See [`CredentialAttempt::credential_id`]."
+              },
+              "daemon_version": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The version of the daemon that ran the scan. `None` for a daemon that never reported one.",
+                "example": "0.18.0",
+                "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+              },
+              "gap": {
+                "$ref": "#/components/schemas/CapabilityGap",
+                "description": "What the daemon missed."
+              },
+              "integration": {
+                "$ref": "#/components/schemas/CredentialQueryPayloadDiscriminants"
+              },
+              "last_unsupported_daemon_version": {
+                "type": "string",
+                "description": "The last daemon release without what `gap` needs; any newer daemon has it.",
+                "example": "0.18.0",
                 "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
               }
             }
@@ -34599,19 +34727,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-21T18:39:26.435577Z",
+                  "created_at": "2026-10-21T19:08:55.067144Z",
                   "first_discovery_id": null,
-                  "id": "f45f0b3d-7d93-4f0e-b78e-97374e6c243d",
+                  "id": "e4fdbde6-32f0-4b4e-9133-5fee989a6b09",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-21T18:39:26.435577Z",
+                  "last_seen_at": "2026-10-21T19:08:55.067144Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-21T18:39:26.435577Z",
-                  "valid_from": "2026-10-21T18:39:26.435577Z",
+                  "updated_at": "2026-10-21T19:08:55.067144Z",
+                  "valid_from": "2026-10-21T19:08:55.067144Z",
                   "valid_to": null
                 }
               ],
@@ -34624,7 +34752,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Nvidia GPU Exporter",
+              "service_definition": "StrongSwan",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -38845,19 +38973,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-21T18:39:26.425800Z",
+                        "created_at": "2026-10-21T19:08:55.056324Z",
                         "first_discovery_id": null,
-                        "id": "49fd432f-66f1-44df-83fb-82d4443a6560",
+                        "id": "9a4f1161-72c5-43f6-8392-309e2df21de5",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-21T18:39:26.425800Z",
+                        "last_seen_at": "2026-10-21T19:08:55.056324Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-21T18:39:26.425800Z",
-                        "valid_from": "2026-10-21T18:39:26.425800Z",
+                        "updated_at": "2026-10-21T19:08:55.056324Z",
+                        "valid_from": "2026-10-21T19:08:55.056324Z",
                         "valid_to": null
                       }
                     ],
@@ -38870,7 +38998,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Nvidia GPU Exporter",
+                    "service_definition": "StrongSwan",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -39117,19 +39245,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-21T18:39:26.460430Z",
+                    "created_at": "2026-10-21T19:08:55.094494Z",
                     "first_discovery_id": null,
-                    "id": "014e9d4a-51cc-4041-a2fb-fd5fec9f5d56",
+                    "id": "149a3991-0f13-4453-9069-55e296ccb329",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-21T18:39:26.460430Z",
+                    "last_seen_at": "2026-10-21T19:08:55.094494Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-21T18:39:26.460430Z",
-                    "valid_from": "2026-10-21T18:39:26.460430Z",
+                    "updated_at": "2026-10-21T19:08:55.094494Z",
+                    "valid_from": "2026-10-21T19:08:55.094494Z",
                     "valid_to": null
                   }
                 ],
@@ -39142,7 +39270,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Nvidia GPU Exporter",
+                "service_definition": "StrongSwan",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -41832,19 +41960,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-21T18:39:26.436624Z",
+              "created_at": "2026-10-21T19:08:55.069222Z",
               "first_discovery_id": null,
-              "id": "2e74f514-0d10-45a4-96a0-5a8c0191b3d7",
+              "id": "ee64064c-dd2d-4620-8497-5e3a68ba70d4",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-21T18:39:26.436624Z",
+              "last_seen_at": "2026-10-21T19:08:55.069222Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-21T18:39:26.436624Z",
-              "valid_from": "2026-10-21T18:39:26.436624Z",
+              "updated_at": "2026-10-21T19:08:55.069222Z",
+              "valid_from": "2026-10-21T19:08:55.069222Z",
               "valid_to": null
             }
           ],
@@ -41857,7 +41985,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Nvidia GPU Exporter",
+          "service_definition": "StrongSwan",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -42652,6 +42780,30 @@
           "Aes128",
           "Aes256"
         ]
+      },
+      "SnmpV3SecurityOption": {
+        "type": "string",
+        "description": "One SNMPv3 option added after v3 first shipped (AuthPriv with SHA and AES only).",
+        "enum": [
+          "NoAuthNoPriv",
+          "AuthNoPriv",
+          "Md5Auth"
+        ]
+      },
+      "SnmpV3SecurityOptionsGap": {
+        "type": "object",
+        "description": "The SNMPv3 options a credential uses that daemons before 0.18.1 cannot parse.",
+        "required": [
+          "options"
+        ],
+        "properties": {
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SnmpV3SecurityOption"
+            }
+          }
+        }
       },
       "SnmpV3Security_SecretValue": {
         "oneOf": [
@@ -44115,7 +44267,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "9a8f9d25-5e79-41ce-9716-d729a76617fc",
+                  "id": "d2bf6d1b-e0f6-44ee-8a0c-6d88cb9472d9",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -44125,23 +44277,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "3c6a8405-2ca2-4119-99ce-e0de1252d844",
+                  "id": "1b4217a8-bd39-425e-a032-56dfa26afbca",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "4c4fa6e8-440b-4b7c-bb5f-0c2fd370d0b4",
+                  "id": "801aa8b6-a814-4494-ad15-3deb3f3d990c",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "aa94eb5f-9443-48bb-9ed4-0553e495aced",
+                  "id": "9811aafd-a96b-41dc-adfc-6d85820a3e0f",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "3c6a8405-2ca2-4119-99ce-e0de1252d844",
+                  "id": "1b4217a8-bd39-425e-a032-56dfa26afbca",
                   "rule": "ByHost"
                 }
               ]
@@ -44171,19 +44323,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "1e7fddaf-07ee-445b-b89b-94bbabbd7e6d",
+                "id": "fc091c80-3b1b-4d8c-8378-1527373c1fb7",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "21c6c4ea-c703-4aad-b45e-4364d0a8f3be",
+                "id": "0d338a6a-afd5-4dec-b8a9-6623c0a38773",
                 "rule": "ByVLAN"
               },
               {
-                "id": "b0586acf-32ac-4a1e-8709-100bb98b9cf0",
+                "id": "febbd51c-acb6-4de0-84ae-dc8ce6c36da4",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "012ce26a-1296-40ee-a1c5-04ba1e053774",
+                "id": "d45406b0-2eaf-4b3f-bb84-ef4e1924de20",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -44204,7 +44356,7 @@
                 }
               },
               {
-                "id": "104e01de-7a6e-475d-853b-d3a81799ee37",
+                "id": "4ceb596b-4ab3-4f42-8b45-88c3b6ee9dd8",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -44213,15 +44365,15 @@
                 }
               },
               {
-                "id": "b626f852-f725-4306-ab7f-028b2d164cba",
+                "id": "fe0f83e6-235d-4c80-84fb-ceaf6a22a7c8",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "4c04d593-9569-436d-8346-ff8eae57a77b",
+                "id": "b6e90221-5ef6-4231-ac49-5bf4669a4055",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "aaa2ca86-37ff-40b6-8718-750ccf480c18",
+                "id": "5c254d9c-e3e4-4767-8906-4cdbb0571fef",
                 "rule": "ByStack"
               }
             ]
