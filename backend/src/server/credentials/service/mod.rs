@@ -45,10 +45,12 @@ use std::sync::{Arc, OnceLock};
 use strum::IntoDiscriminant;
 use uuid::Uuid;
 
+mod bridge;
 mod coverage;
 mod defaults;
 mod junctions;
 
+pub use bridge::BridgeReach;
 pub use coverage::{FoundIntegration, IntegrationCoverage, SiteTriedAt, find_uncovered};
 
 /// The set of things a credential targets, normalized across the site and host
@@ -536,6 +538,7 @@ impl CredentialService {
         site_id: Uuid,
         integration_targets: &[IntegrationTarget],
         daemon_version: Option<&semver::Version>,
+        bridge_reach: &BridgeReach,
     ) -> Result<
         (
             Vec<CredentialMapping<CredentialQueryPayload>>,
@@ -624,6 +627,14 @@ impl CredentialService {
                 }
             }
         }
+
+        // A container's bridge address is reachable only from its runtime host, so only that
+        // host's daemon is sent overrides for it.
+        bridge::retain_reachable_bridge_overrides(
+            &mut mappings_by_credential,
+            &ip_addresses,
+            bridge_reach,
+        );
 
         // Per-daemon integration targets from this daemon's Discovery (init-command targeting).
         // The single home for cred↔IP and local-socket targeting — it replaces the old org-wide

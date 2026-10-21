@@ -965,6 +965,32 @@ pub(super) fn generate_hosts_and_services(
                 ip_address_source: AttributeSource::ArpReply,
             },
         };
+        // The bastion container's own address on the default bridge. Only this host reaches it,
+        // so the "Linux Inventory" credential is scoped to it and the daemon here runs it.
+        let bastion_bridge = IPAddress {
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: IPAddressBase {
+                site_id: hq.id,
+                host_id,
+                subnet_id: hq_docker.id,
+                ip_address: IpAddr::V4(Ipv4Addr::new(172, 17, 0, 5)),
+                mac_address: Some(MacEvidence::new(
+                    MacEvidenceValue(MacAddress::new([0x02, 0x42, 0xac, 0x11, 0x00, 0x05])),
+                    AttributeSource::Probe(ClientProbe::Docker),
+                )),
+                name: Some("bridge".to_string()),
+                position: 2,
+                ip_address_source: AttributeSource::Probe(ClientProbe::Docker),
+            },
+        };
         let host = Host {
             valid_from: now,
             valid_to: None,
@@ -1010,12 +1036,35 @@ pub(super) fn generate_hosts_and_services(
                         credential_id: id,
                         ip_address_ids: None,
                     })
+                    .chain(linux_inventory_cred.map(|id| CredentialAssignment {
+                        credential_id: id,
+                        ip_address_ids: Some(vec![bastion_bridge.id]),
+                    }))
                     .collect(),
             },
         };
 
         let mut ports = Vec::new();
         let mut services = Vec::new();
+
+        // SSH bastion container, reachable only at its bridge address
+        if let Some((svc, port)) = create_container_service(
+            "SSH",
+            "SSH bastion",
+            &host,
+            &bastion_bridge,
+            Some(PortType::Ssh),
+            "bastion",
+            "b5c6d7e8f9a0",
+            docker_hq_svc_id,
+            Vec::new(),
+            now,
+        ) {
+            if let Some(p) = port {
+                ports.push(p);
+            }
+            services.push(svc);
+        }
 
         // Docker Daemon service with pre-generated ID on eth0
         if let Some((svc, port)) = create_service_with_id(
@@ -1133,7 +1182,7 @@ pub(super) fn generate_hosts_and_services(
 
         result.push(HostWithServices {
             host,
-            ip_addresses: vec![eth0, docker0],
+            ip_addresses: vec![eth0, docker0, bastion_bridge],
             ports,
             services,
         });

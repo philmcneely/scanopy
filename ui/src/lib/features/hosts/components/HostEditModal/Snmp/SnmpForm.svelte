@@ -127,7 +127,7 @@
 	}
 
 	function getInterfaceContext(): IPAddressDisplayContext {
-		return { subnets };
+		return { subnets, services: formData.services ?? [] };
 	}
 
 	function addInterfaceToScope(credentialIndex: number, interfaceId: string) {
