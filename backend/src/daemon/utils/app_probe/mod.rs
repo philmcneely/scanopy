@@ -87,7 +87,7 @@ use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::{AttributeSource, AttributeValue, Attributed};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 /// Everything a probe is allowed to know about its target.
@@ -114,12 +114,57 @@ pub struct ProbeContext {
     /// Where to reach a probe's port when it isn't the port itself: a container's port published
     /// on another host port. Empty for a network scan, which probes each port where it is.
     pub port_map: HashMap<u16, u16>,
+    /// Opens the probe's connections instead of a TCP connect to [`Self::target`]: a relay into a
+    /// container's own network namespace, for a port the daemon has no route to. `None` for a
+    /// network scan.
+    pub tunnel: Option<Arc<dyn ProbeTunnel>>,
+}
+
+/// A connection a TCP probe talks over: a socket, or a relay standing in for one.
+pub trait ProbeStream: AsyncRead + AsyncWrite + Unpin + Send {}
+
+impl<T: AsyncRead + AsyncWrite + Unpin + Send> ProbeStream for T {}
+
+/// Reaches a target's ports some other way than connecting to its address.
+///
+/// A container's unpublished port lives on a bridge the daemon often cannot route to: Docker
+/// Desktop's sits inside its VM, rootless Podman's inside a user namespace. The container itself can
+/// always reach its own ports on loopback, so a relay run inside it carries the probe's bytes there.
+#[async_trait]
+pub trait ProbeTunnel: Send + Sync + std::fmt::Debug {
+    /// A connection to `port` on the far side. Opening one succeeding says nothing about whether
+    /// anything is listening: a relay that cannot connect closes its end, which the probe reads as
+    /// silence, the same as a socket that is accepted and then closed.
+    async fn open(&self, port: u16) -> std::io::Result<Box<dyn ProbeStream>>;
 }
 
 impl ProbeContext {
     /// The address a probe for `port` connects to.
     pub fn target(&self, port: u16) -> SocketAddr {
         SocketAddr::new(self.ip, *self.port_map.get(&port).unwrap_or(&port))
+    }
+
+    /// Open a connection to `port` through the tunnel when there is one, or to [`Self::target`].
+    ///
+    /// `None` covers every way that fails, after reporting a connect error to the scan controller.
+    /// The tunnel bounds its own setup, which takes longer than a TCP connect.
+    pub async fn connect(&self, port: u16) -> Option<Box<dyn ProbeStream>> {
+        let opened = match &self.tunnel {
+            Some(tunnel) => tunnel.open(port).await,
+            None => match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(self.target(port)))
+                .await
+            {
+                Ok(connected) => connected.map(|stream| Box::new(stream) as Box<dyn ProbeStream>),
+                Err(_) => return None,
+            },
+        };
+        match opened {
+            Ok(stream) => Some(stream),
+            Err(e) => {
+                self.note_connect_error(&e);
+                None
+            }
+        }
     }
 
     /// Report a connect failure, so an FD-exhaustion error degrades the whole scan's concurrency
@@ -268,14 +313,8 @@ pub struct AppProbeResult {
 /// A connect error is reported to the scan controller before being swallowed, so FD exhaustion
 /// degrades the scan's concurrency rather than being read as "nothing is listening there".
 pub(crate) async fn read_greeting(ctx: &ProbeContext, port: PortType, buf_len: usize) -> Vec<u8> {
-    let addr = ctx.target(port.number());
-    let mut stream = match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
-        Ok(Ok(stream)) => stream,
-        Ok(Err(e)) => {
-            ctx.note_connect_error(&e);
-            return Vec::new();
-        }
-        Err(_) => return Vec::new(),
+    let Some(mut stream) = ctx.connect(port.number()).await else {
+        return Vec::new();
     };
 
     let mut buf = vec![0u8; buf_len];
@@ -300,14 +339,8 @@ pub(crate) async fn request_response(
     request: &[u8],
     buf_len: usize,
 ) -> Vec<u8> {
-    let addr = ctx.target(port.number());
-    let mut stream = match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
-        Ok(Ok(stream)) => stream,
-        Ok(Err(e)) => {
-            ctx.note_connect_error(&e);
-            return Vec::new();
-        }
-        Err(_) => return Vec::new(),
+    let Some(mut stream) = ctx.connect(port.number()).await else {
+        return Vec::new();
     };
 
     if tokio::time::timeout(SCAN_TIMEOUT, stream.write_all(request))
@@ -343,14 +376,8 @@ pub(crate) async fn request_exact(
     request: &[u8],
     want: usize,
 ) -> Vec<u8> {
-    let addr = ctx.target(port.number());
-    let mut stream = match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
-        Ok(Ok(stream)) => stream,
-        Ok(Err(e)) => {
-            ctx.note_connect_error(&e);
-            return Vec::new();
-        }
-        Err(_) => return Vec::new(),
+    let Some(mut stream) = ctx.connect(port.number()).await else {
+        return Vec::new();
     };
 
     if tokio::time::timeout(SCAN_TIMEOUT, stream.write_all(request))
@@ -532,10 +559,72 @@ mod tests {
             scan_controller: crate::daemon::utils::scanner::ScanConcurrencyController::new(1),
             probe_raw_socket_ports: false,
             port_map: HashMap::from([(5432, 15432)]),
+            tunnel: None,
         };
         assert_eq!(ctx.target(5432).port(), 15432);
         assert_eq!(ctx.target(6379).port(), 6379);
         assert_eq!(ctx.target(5432).ip(), ctx.ip);
+    }
+
+    /// Stands in for a container relay: each connection is an in-memory pipe to a peer that reads
+    /// one request and answers with `reply` prefixed by the port it was opened for.
+    #[derive(Debug)]
+    struct PipeTunnel {
+        reply: Option<&'static [u8]>,
+    }
+
+    #[async_trait]
+    impl ProbeTunnel for PipeTunnel {
+        async fn open(&self, port: u16) -> std::io::Result<Box<dyn ProbeStream>> {
+            let Some(reply) = self.reply else {
+                return Err(std::io::Error::other("exec refused"));
+            };
+            let (ours, mut theirs) = tokio::io::duplex(1024);
+            tokio::spawn(async move {
+                let mut request = [0u8; 64];
+                if theirs.read(&mut request).await.is_ok() {
+                    let _ = theirs.write_all(&port.to_be_bytes()).await;
+                    let _ = theirs.write_all(reply).await;
+                }
+            });
+            Ok(Box::new(ours))
+        }
+    }
+
+    fn tunnelled(reply: Option<&'static [u8]>) -> ProbeContext {
+        ProbeContext {
+            // TEST-NET-1: never routed, so a probe that dialled it instead would read nothing.
+            ip: "192.0.2.1".parse().unwrap(),
+            subnet_cidr: "192.0.2.0/24".parse().unwrap(),
+            is_gateway: false,
+            cancel: CancellationToken::new(),
+            scan_controller: crate::daemon::utils::scanner::ScanConcurrencyController::new(1),
+            probe_raw_socket_ports: false,
+            // Ignored through a tunnel, which reaches the container's own port.
+            port_map: HashMap::from([(27017, 27018)]),
+            tunnel: Some(Arc::new(PipeTunnel { reply })),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_tunnelled_probe_talks_through_the_tunnel_to_the_containers_own_port() {
+        let ctx = tunnelled(Some(b"pong"));
+        let reply = request_response(&ctx, PortType::MongoDB, b"ping", 64).await;
+        assert_eq!(reply, [&27017u16.to_be_bytes()[..], b"pong"].concat());
+
+        let exact = request_exact(&ctx, PortType::MongoDB, b"ping", 6).await;
+        assert_eq!(exact, reply);
+    }
+
+    #[tokio::test]
+    async fn a_tunnel_that_cannot_open_is_no_answer() {
+        let ctx = tunnelled(None);
+        assert!(
+            request_response(&ctx, PortType::MongoDB, b"ping", 64)
+                .await
+                .is_empty()
+        );
+        assert!(ctx.connect(27017).await.is_none());
     }
 
     /// Every probe is reachable only through a service definition, so this also asserts that each
@@ -570,6 +659,7 @@ mod tests {
             scan_controller: ScanConcurrencyController::new(16),
             probe_raw_socket_ports,
             port_map: Default::default(),
+            tunnel: None,
         };
         let open_ports: Vec<PortType> = all_app_probes().iter().map(|p| p.port()).collect();
         select_probes(&ctx, &open_ports, true)

@@ -436,6 +436,18 @@ impl ContainerScanner<'_> {
             .get(&primary.base.ip_address)
             .cloned()
             .unwrap_or_default();
+        // The protocol probes too, or a definition matched only by one (MongoDB, PostgreSQL)
+        // could never match a container host. What the relay can't reach is probed at the
+        // container's own address.
+        let client_responses = self
+            .probe_container_apps(
+                container.name.as_deref().map(|n| n.trim_start_matches('/')),
+                &all_ports,
+                &HashMap::new(),
+                Some((primary.base.ip_address, *match_subnet.base.cidr)),
+                *match_subnet.base.cidr,
+            )
+            .await;
 
         let (mut services, ports) = self.ops.match_services(
             host,
@@ -448,7 +460,7 @@ impl ContainerScanner<'_> {
                 // own, not containers on the runtime's host.
                 virtualization_metadata: &None,
                 virtualization_service_id: None,
-                client_responses: &HashMap::new(),
+                client_responses: &client_responses,
                 managed_device: &None,
                 // The daemon reaches it over the LAN, but no mDNS browse ran for it.
                 dns_sd: &None,

@@ -36,6 +36,7 @@ use crate::server::shared::types::guest_state::GuestState;
 use crate::server::subnets::r#impl::base::Subnet;
 
 use super::ContainerRuntime;
+use super::probe_relay::{ExecRelay, RELAY_SURVEY_SCRIPT, RelaySurvey, listening_sockets};
 
 type IpPortHashMap = HashMap<IpAddr, Vec<PortType>>;
 
@@ -369,10 +370,11 @@ impl<'a> ContainerScanner<'a> {
             .get(container_id)
             .unwrap_or(empty_vec_ref);
 
-        // A host-networked container listens on the host's own address, so its ports are probed
-        // there as they are.
+        // A host-networked container listens on the host's own address, so what the relay can't
+        // reach is probed there as it is.
         let client_responses = self
             .probe_container_apps(
+                container.name.as_deref().map(|n| n.trim_start_matches('/')),
                 &open_ports,
                 &HashMap::new(),
                 Some((host_ip, cidr::IpCidr::new_host(host_ip))),
@@ -505,6 +507,7 @@ impl<'a> ContainerScanner<'a> {
         container_ports.dedup();
         let client_responses = self
             .probe_container_apps(
+                container.name.as_deref().map(|n| n.trim_start_matches('/')),
                 &container_ports,
                 &host_to_container_port_map,
                 container_interfaces_and_subnets
@@ -932,21 +935,58 @@ impl<'a> ContainerScanner<'a> {
     /// Run the TCP application probes (PostgreSQL, MySQL, Redis, …) against a container's ports,
     /// and return what answered keyed by client probe, for service matching.
     ///
-    /// The daemon reaches a published port at `host_ip` on its host port, and an unpublished one at
-    /// the container's own address, which a daemon on the runtime's machine can route to. From
-    /// Docker Desktop's VM it can't, and those probes go unanswered.
-    async fn probe_container_apps(
+    /// Inside the container first, through an [`ExecRelay`] to each port listening on loopback:
+    /// the daemon often has no route to the container's own address (Docker Desktop's bridges are
+    /// inside its VM), and the container always reaches itself. A port answered or silent there is
+    /// settled. The rest (no relay tool in the image, exec refused by a socket proxy, a listener on
+    /// one address only) are probed from outside: published ports at `host_ip` on their host port,
+    /// the others at the container's own address.
+    pub(super) async fn probe_container_apps(
         &self,
+        container_name: Option<&str>,
         container_ports: &[PortType],
         host_to_container_port_map: &HashMap<(IpAddr, u16), u16>,
         container_ip: Option<(IpAddr, cidr::IpCidr)>,
         host_subnet: cidr::IpCidr,
     ) -> HashMap<ClientProbe, Vec<PortType>> {
         let mut responses: HashMap<ClientProbe, Vec<PortType>> = HashMap::new();
+        let mut outside: Vec<PortType> = container_ports.to_vec();
+
+        if let Some(name) = container_name
+            && let Some(survey) = self.survey_relay(name).await
+        {
+            let (relayed, rest): (Vec<PortType>, Vec<PortType>) = outside
+                .into_iter()
+                .partition(|p| p.is_tcp() && survey.loopback_ports.contains(&p.number()));
+            outside = rest;
+
+            let (ip, subnet_cidr) = container_ip.unwrap_or((self.host_ip, host_subnet));
+            let ctx = ProbeContext {
+                ip,
+                subnet_cidr,
+                is_gateway: false,
+                cancel: self.cancel.clone(),
+                scan_controller: ScanConcurrencyController::new(CONTAINER_PROBE_BATCH),
+                // As below: a container's declared port is not a printer.
+                probe_raw_socket_ports: true,
+                port_map: HashMap::new(),
+                tunnel: Some(Arc::new(ExecRelay {
+                    client: self.client.clone(),
+                    container: name.to_string(),
+                    tool: survey.tool,
+                })),
+            };
+            for result in scan_app_probes(&ctx, &relayed, CONTAINER_PROBE_BATCH, 0, false).await {
+                if let Some(client_probe) = result.client_probe {
+                    responses.entry(client_probe).or_default().push(result.port);
+                }
+            }
+        }
+
         for target in container_probe_targets(
             self.host_ip,
             host_to_container_port_map,
-            container_ports,
+            &outside,
             container_ip.map(|(ip, _)| ip),
         ) {
             let subnet_cidr = match container_ip {
@@ -963,6 +1003,7 @@ impl<'a> ContainerScanner<'a> {
                 // node_exporter's default, so the raw-socket gate stays off here (GH #801).
                 probe_raw_socket_ports: true,
                 port_map: target.port_map,
+                tunnel: None,
             };
             for result in
                 scan_app_probes(&ctx, &target.ports, CONTAINER_PROBE_BATCH, 0, false).await
@@ -1006,25 +1047,25 @@ impl<'a> ContainerScanner<'a> {
         Some(ports)
     }
 
+    /// Which relay the container can run and which of its ports it reaches, or `None` when it has
+    /// no relay tool or the exec was refused, leaving every port to the outside probes.
+    async fn survey_relay(&self, container_name: &str) -> Option<RelaySurvey> {
+        let output = self
+            .exec_capture(container_name, RELAY_SURVEY_SCRIPT, self.cancel.clone())
+            .await;
+        let survey = output.as_deref().and_then(RelaySurvey::parse);
+        tracing::debug!(
+            container = container_name,
+            exec_ran = output.is_some(),
+            relay = ?survey.as_ref().map(|s| s.tool),
+            "Surveyed the container for an application-probe relay"
+        );
+        survey
+    }
+
     /// Pull the listening ports out of `/proc/net/tcp`-format text.
     pub(crate) fn parse_listening_ports(procfs: &str) -> HashSet<u16> {
-        const TCP_LISTEN: &str = "0A";
-
-        procfs
-            .lines()
-            .filter_map(|line| {
-                let mut fields = line.split_whitespace();
-                // sl, local_address, rem_address, st
-                let _sl = fields.next()?;
-                let local = fields.next()?;
-                let _rem = fields.next()?;
-                if fields.next()? != TCP_LISTEN {
-                    return None;
-                }
-                let (_addr, port) = local.rsplit_once(':')?;
-                u16::from_str_radix(port, 16).ok()
-            })
-            .collect()
+        listening_sockets(procfs).map(|(_, port)| port).collect()
     }
 
     /// Ask every surviving `(port, path)` in one exec.
