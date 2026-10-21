@@ -27,7 +27,6 @@ impl DiscoveryWarning {
             | Self::CredentialTargetNotResponding { credential_id, .. }
             | Self::CredentialGateClosed { credential_id, .. }
             | Self::CredentialDaemonOsMismatch { credential_id, .. }
-            | Self::CredentialDaemonTooOld { credential_id, .. }
             | Self::CredentialNeedsNewerDaemon { credential_id, .. } => {
                 slots.credential_id = Some(credential_id);
             }
