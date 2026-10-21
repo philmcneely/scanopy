@@ -26803,6 +26803,69 @@
           }
         }
       },
+      "CapabilityGap": {
+        "oneOf": [
+          {
+            "type": "object",
+            "title": "ParsesCredentialType",
+            "description": "The daemon cannot parse this credential type, so none of it was sent.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "ParsesCredentialType"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "UsesSnmpV3SecurityOptions",
+            "description": "The credential uses SNMPv3 options the daemon cannot parse, so none of it was sent.",
+            "required": [
+              "details",
+              "type"
+            ],
+            "properties": {
+              "details": {
+                "$ref": "#/components/schemas/SnmpV3SecurityOptionsGap",
+                "description": "The credential uses SNMPv3 options the daemon cannot parse, so none of it was sent."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "UsesSnmpV3SecurityOptions"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "TargetsContainerBridgeWithCredentials",
+            "description": "The credential targets containers on Docker or Podman bridge networks of the daemon's own\nhost, which the daemon does not try credentials at. Those addresses were not sent; the\nrest of the credential was.",
+            "required": [
+              "details",
+              "type"
+            ],
+            "properties": {
+              "details": {
+                "$ref": "#/components/schemas/ContainerBridgeGap",
+                "description": "The credential targets containers on Docker or Podman bridge networks of the daemon's own\nhost, which the daemon does not try credentials at. Those addresses were not sent; the\nrest of the credential was."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "TargetsContainerBridgeWithCredentials"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What a daemon missed of one credential because it is too old for part of it."
+      },
       "ChangePlanPreview": {
         "type": "object",
         "required": [
@@ -26967,6 +27030,21 @@
           "Lime",
           "Yellow"
         ]
+      },
+      "ContainerBridgeGap": {
+        "type": "object",
+        "description": "A credential's addresses on bridge networks of the daemon's own host.",
+        "required": [
+          "addresses"
+        ],
+        "properties": {
+          "addresses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "ContainerHostVirtualization": {
         "type": "object",
@@ -27841,7 +27919,7 @@
       },
       "CredentialStability": {
         "type": "string",
-        "description": "Release maturity of a credential type's integration.\n\nAdditive and exhaustive: a new credential variant will not compile until it declares its\nstability, and every existing type is `Stable` by explicit arm rather than by wildcard, so\npromoting an integration is a one-line reviewable change rather than a deletion nobody\nnotices. This is presentation metadata about the *code*, like `minimum_daemon_version` —\nit is never stored on a credential row, so it carries no deploy-coexistence obligation.",
+        "description": "Release maturity of a credential type's integration.\n\nAdditive and exhaustive: a new credential variant will not compile until it declares its\nstability, and every existing type is `Stable` by explicit arm rather than by wildcard, so\npromoting an integration is a one-line reviewable change rather than a deletion nobody\nnotices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —\nit is never stored on a credential row, so it carries no deploy-coexistence obligation.",
         "enum": [
           "Stable",
           "Beta"
@@ -30986,19 +31064,20 @@
           },
           {
             "type": "object",
-            "title": "CredentialDaemonTooOld",
-            "description": "The daemon is older than the credential type needs, so the server did not send it the\ncredential at all. Raised by the server, never a daemon: the daemon that would report it is\nthe one that cannot parse the credential.",
+            "title": "CredentialNeedsNewerDaemon",
+            "description": "The daemon is too old for part of how this credential is configured, so the server withheld\nthat part (or, for a type the daemon cannot parse, all of it). `gap` names what. Raised by\nthe server, never a daemon: the daemon that would report it is the one that lacks it.",
             "required": [
               "integration",
               "credential_id",
-              "minimum_daemon_version",
+              "gap",
+              "last_unsupported_daemon_version",
               "code"
             ],
             "properties": {
               "code": {
                 "type": "string",
                 "enum": [
-                  "CredentialDaemonTooOld"
+                  "CredentialNeedsNewerDaemon"
                 ]
               },
               "credential_id": {
@@ -31018,13 +31097,17 @@
                 "example": "0.18.0",
                 "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
               },
+              "gap": {
+                "$ref": "#/components/schemas/CapabilityGap",
+                "description": "What the daemon missed."
+              },
               "integration": {
                 "$ref": "#/components/schemas/CredentialQueryPayloadDiscriminants"
               },
-              "minimum_daemon_version": {
+              "last_unsupported_daemon_version": {
                 "type": "string",
-                "description": "The oldest daemon version that can receive this credential type.",
-                "example": "0.18.1",
+                "description": "The last daemon release without what `gap` needs; any newer daemon has it.",
+                "example": "0.18.0",
                 "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
               }
             }
@@ -42652,6 +42735,30 @@
           "Aes128",
           "Aes256"
         ]
+      },
+      "SnmpV3SecurityOption": {
+        "type": "string",
+        "description": "One SNMPv3 option added after v3 first shipped (AuthPriv with SHA and AES only).",
+        "enum": [
+          "NoAuthNoPriv",
+          "AuthNoPriv",
+          "Md5Auth"
+        ]
+      },
+      "SnmpV3SecurityOptionsGap": {
+        "type": "object",
+        "description": "The SNMPv3 options a credential uses that daemons before 0.18.1 cannot parse.",
+        "required": [
+          "options"
+        ],
+        "properties": {
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SnmpV3SecurityOption"
+            }
+          }
+        }
       },
       "SnmpV3Security_SecretValue": {
         "oneOf": [

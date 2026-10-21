@@ -393,12 +393,6 @@ const WARNING_PARAMS = {
 	}),
 	// Server-raised, for the one daemon that ran the scan, so its name is the session's. A daemon that
 	// never reported a version still has to read as a sentence.
-	CredentialDaemonTooOld: (w, { daemonName }) => ({
-		credential: integration(w[0].integration),
-		required: w[0].minimum_daemon_version,
-		daemon: daemonName,
-		version: w[0].daemon_version ?? common_unknown()
-	}),
 	// The gap identifies the statement: a credential withheld whole and one that lost only its
 	// bridge addresses are different sentences.
 	CredentialNeedsNewerDaemon: (w, { daemonName }) => ({

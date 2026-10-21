@@ -7714,6 +7714,25 @@ export interface components {
              */
             period_end: string;
         };
+        /** @description What a daemon missed of one credential because it is too old for part of it. */
+        CapabilityGap: {
+            /** @enum {string} */
+            type: "ParsesCredentialType";
+        } | {
+            /** @description The credential uses SNMPv3 options the daemon cannot parse, so none of it was sent. */
+            details: components["schemas"]["SnmpV3SecurityOptionsGap"];
+            /** @enum {string} */
+            type: "UsesSnmpV3SecurityOptions";
+        } | {
+            /**
+             * @description The credential targets containers on Docker or Podman bridge networks of the daemon's own
+             *     host, which the daemon does not try credentials at. Those addresses were not sent; the
+             *     rest of the credential was.
+             */
+            details: components["schemas"]["ContainerBridgeGap"];
+            /** @enum {string} */
+            type: "TargetsContainerBridgeWithCredentials";
+        };
         ChangePlanPreview: {
             /**
              * Format: int64
@@ -7782,6 +7801,10 @@ export interface components {
         ClockFormat: "browser_default" | "twelve_hour" | "twenty_four_hour";
         /** @enum {string} */
         Color: "Pink" | "Rose" | "Red" | "Amber" | "Orange" | "Green" | "Emerald" | "Teal" | "Cyan" | "Blue" | "Indigo" | "Purple" | "Fuchsia" | "Violet" | "Sky" | "Gray" | "Lime" | "Yellow";
+        /** @description A credential's addresses on bridge networks of the daemon's own host. */
+        ContainerBridgeGap: {
+            addresses: string[];
+        };
         /**
          * @description A container with its own identity on the LAN: a macvlan or ipvlan endpoint gives it a MAC and
          *     an IP of its own, so it is a host under its runtime rather than a service on the runtime's
@@ -8184,7 +8207,7 @@ export interface components {
          *     Additive and exhaustive: a new credential variant will not compile until it declares its
          *     stability, and every existing type is `Stable` by explicit arm rather than by wildcard, so
          *     promoting an integration is a one-line reviewable change rather than a deletion nobody
-         *     notices. This is presentation metadata about the *code*, like `minimum_daemon_version` —
+         *     notices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —
          *     it is never stored on a credential row, so it carries no deploy-coexistence obligation.
          * @enum {string}
          */
@@ -9506,7 +9529,7 @@ export interface components {
             integration: components["schemas"]["CredentialQueryPayloadDiscriminants"];
         } | {
             /** @enum {string} */
-            code: "CredentialDaemonTooOld";
+            code: "CredentialNeedsNewerDaemon";
             /**
              * Format: uuid
              * @description The stored credential. See [`CredentialAttempt::credential_id`].
@@ -9517,12 +9540,14 @@ export interface components {
              * @example 0.18.0
              */
             daemon_version?: string | null;
+            /** @description What the daemon missed. */
+            gap: components["schemas"]["CapabilityGap"];
             integration: components["schemas"]["CredentialQueryPayloadDiscriminants"];
             /**
-             * @description The oldest daemon version that can receive this credential type.
-             * @example 0.18.1
+             * @description The last daemon release without what `gap` needs; any newer daemon has it.
+             * @example 0.18.0
              */
-            minimum_daemon_version: string;
+            last_unsupported_daemon_version: string;
         } | {
             /** @description The address the credential is bound to. */
             address: string;
@@ -14831,6 +14856,15 @@ export interface components {
          * @enum {string}
          */
         SnmpV3PrivProtocol: "Aes128" | "Aes256";
+        /**
+         * @description One SNMPv3 option added after v3 first shipped (AuthPriv with SHA and AES only).
+         * @enum {string}
+         */
+        SnmpV3SecurityOption: "NoAuthNoPriv" | "AuthNoPriv" | "Md5Auth";
+        /** @description The SNMPv3 options a credential uses that daemons before 0.18.1 cannot parse. */
+        SnmpV3SecurityOptionsGap: {
+            options: components["schemas"]["SnmpV3SecurityOption"][];
+        };
         /**
          * @description The security material of an SNMPv3 credential, by security level. A level carries exactly
          *     the fields it uses, so a credential cannot hold a privacy password it never sends.

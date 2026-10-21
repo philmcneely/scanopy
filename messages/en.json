@@ -2525,8 +2525,6 @@
 	"meta_warning_codes_CredentialCollectionTimedOut_name": "Collection timed out after authenticating",
 	"meta_warning_codes_CredentialDaemonOsMismatch_description": "The {credential} credential reads files on a {declared} daemon, and {daemon} runs {actual}, so it was not used. Set the credential's daemon OS to match, or scan with a {declared} daemon.",
 	"meta_warning_codes_CredentialDaemonOsMismatch_name": "Credential set up for another OS",
-	"meta_warning_codes_CredentialDaemonTooOld_description": "The {credential} credential needs daemon {required} or newer, and {daemon} runs {version}, so it was not sent. Upgrade the daemon to use it.",
-	"meta_warning_codes_CredentialDaemonTooOld_name": "Daemon too old for credential",
 	"meta_warning_codes_CredentialGateClosed_description": "The {credential} credential for {addresses} was not tried, because port {ports} was not open there — check the port configured on the credential.",
 	"meta_warning_codes_CredentialGateClosed_name": "Credential port not open",
 	"meta_warning_codes_CredentialMalformed_description": "The {credential} credential for {addresses} is incomplete and could not be used — re-enter it. ({detail})",
