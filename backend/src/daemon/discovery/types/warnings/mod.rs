@@ -38,7 +38,8 @@ pub use entity_ids::EntityIdSlots;
 pub use metadata::WarningRemedy;
 pub use summary::{RemedyCount, RunWarningSummary};
 pub use values::{
-    ClaimSource, MalformedNeighbourConsequence, SnmpWalkCause, SnmpWalkFailure, SnmpWalkGroup,
+    ClaimSource, MalformedNeighbourConsequence, SnmpCheck, SnmpWalkCause, SnmpWalkFailure,
+    SnmpWalkGroup,
 };
 
 /// A single non-fatal finding from one discovery run, about one device, neighbour, or the scan
@@ -60,6 +61,10 @@ pub enum DiscoveryWarning {
         address: IpAddr,
         /// Interfaces read before the walk stopped.
         collected: u32,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// The set was complete and only the attribute columns fell short, so nothing is missing —
     /// some descriptions or speeds are just blank. Kept apart from the above because reporting
@@ -71,6 +76,10 @@ pub enum DiscoveryWarning {
         address: IpAddr,
         /// Interfaces whose attribute columns were read in full.
         collected: u32,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
 
     // ---- SNMP walk shortfalls --------------------------------------------
@@ -83,6 +92,10 @@ pub enum DiscoveryWarning {
         group: SnmpWalkGroup,
         /// Entries per table that collection stops at.
         limit: u32,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// The device does not implement this MIB. Not a fault, and no later scan will change it.
     #[schema(title = "SnmpWalkUnsupported")]
@@ -91,6 +104,10 @@ pub enum DiscoveryWarning {
         #[schema(value_type = String)]
         address: IpAddr,
         group: SnmpWalkGroup,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// The agent answered out of step with what was asked — stale or non-advancing responses.
     #[schema(title = "SnmpWalkDesynchronised")]
@@ -99,6 +116,10 @@ pub enum DiscoveryWarning {
         #[schema(value_type = String)]
         address: IpAddr,
         group: SnmpWalkGroup,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// A partial read whose rows are thrown away rather than recorded, so the device contributes
     /// nothing for this group however much it answered.
@@ -108,6 +129,10 @@ pub enum DiscoveryWarning {
         #[schema(value_type = String)]
         address: IpAddr,
         group: SnmpWalkGroup,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// A partial read whose rows were recorded as far as they got.
     #[schema(title = "SnmpWalkPartialRecorded")]
@@ -116,6 +141,10 @@ pub enum DiscoveryWarning {
         #[schema(value_type = String)]
         address: IpAddr,
         group: SnmpWalkGroup,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// Every request for the root of the bridge MIB timed out, which is how switches that do not
     /// implement it commonly answer.
@@ -129,10 +158,6 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
-        /// See [`DiscoveryWarning::SnmpWalkFailed`].
-        #[serde(default)]
-        #[schema(required)]
-        net_snmp_options: Option<String>,
     },
     /// The read returned nothing, and its cause was not recorded: a daemon from before causes were
     /// carried, or a read that ended without a failed request.
@@ -142,6 +167,10 @@ pub enum DiscoveryWarning {
         #[schema(value_type = String)]
         address: IpAddr,
         group: SnmpWalkGroup,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// The read returned nothing, and `cause` is how its last request ended.
     #[schema(title = "SnmpWalkFailed")]
@@ -155,11 +184,6 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
-        /// The net-snmp options that authenticate as that credential, every secret a
-        /// `<placeholder>`, for the `snmpwalk` the UI offers to repeat the read with.
-        #[serde(default)]
-        #[schema(required)]
-        net_snmp_options: Option<String>,
     },
 
     // ---- Contradicted claims ---------------------------------------------
@@ -175,6 +199,10 @@ pub enum DiscoveryWarning {
         expected: u32,
         /// Rows the read returned.
         observed: u32,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// The device published a count, the read finished, and it came up short anyway.
     #[schema(title = "ClaimedCountUnderRead")]
@@ -188,6 +216,10 @@ pub enum DiscoveryWarning {
         expected: u32,
         /// Rows the read returned.
         observed: u32,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// The device declared the capability, and the read ended without returning any.
     #[schema(title = "ClaimedCapabilityReadCutShort")]
@@ -197,6 +229,10 @@ pub enum DiscoveryWarning {
         address: IpAddr,
         group: SnmpWalkGroup,
         source: ClaimSource,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// The device declared the capability, the read finished, and it returned none.
     #[schema(title = "ClaimedCapabilityEmpty")]
@@ -206,6 +242,10 @@ pub enum DiscoveryWarning {
         address: IpAddr,
         group: SnmpWalkGroup,
         source: ClaimSource,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
 
     // ---- LLDP local port numbering ---------------------------------------
@@ -219,6 +259,10 @@ pub enum DiscoveryWarning {
         dropped: u32,
         /// Neighbours the device reported in all.
         total: u32,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// The same loss, on a device whose own account of its port numbering was only half read.
     ///
@@ -236,6 +280,10 @@ pub enum DiscoveryWarning {
         dropped: u32,
         /// Neighbours the device reported in all.
         total: u32,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// Neighbours whose local port could not be identified but did match an interface number, so
     /// they are drawn against a port that may be the wrong one.
@@ -246,6 +294,10 @@ pub enum DiscoveryWarning {
         address: IpAddr,
         /// Neighbours drawn against a port that may be the wrong one.
         misplaced: u32,
+        /// The stored credential the device was read with. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
 
     // ---- Malformed neighbour records -------------------------------------
@@ -271,10 +323,6 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
-        /// See [`DiscoveryWarning::SnmpWalkFailed`].
-        #[serde(default)]
-        #[schema(required)]
-        net_snmp_options: Option<String>,
         /// Each table whose read failed, and how. These are not reported again on their own.
         /// Empty when every read ended normally; `None` from a daemon that predates the field,
         /// which recorded only that nothing came back.
@@ -576,6 +624,10 @@ pub struct MalformedNeighbours {
     /// topology or all of it.
     pub kept: u32,
     pub consequence: MalformedNeighbourConsequence,
+    /// The stored credential the device was read with. `None` from a daemon that predates it.
+    #[serde(default)]
+    #[schema(required)]
+    pub credential_id: Option<Uuid>,
 }
 
 /// One credential's attempt against one address, and what the client library said about it.
@@ -971,29 +1023,30 @@ impl DiscoveryWarning {
 
             Self::SnmpWalkBridgeMibAbsent { credential_id, .. }
             | Self::SnmpWalkFailed { credential_id, .. }
-            | Self::SnmpCollectedNothing { credential_id, .. } => *credential_id,
+            | Self::SnmpCollectedNothing { credential_id, .. }
+            | Self::InterfaceSetCutShort { credential_id, .. }
+            | Self::InterfaceDetailsCutShort { credential_id, .. }
+            | Self::SnmpWalkEntryCap { credential_id, .. }
+            | Self::SnmpWalkUnsupported { credential_id, .. }
+            | Self::SnmpWalkDesynchronised { credential_id, .. }
+            | Self::SnmpWalkPartialDiscarded { credential_id, .. }
+            | Self::SnmpWalkPartialRecorded { credential_id, .. }
+            | Self::SnmpWalkNoAnswer { credential_id, .. }
+            | Self::ClaimedCountReadCutShort { credential_id, .. }
+            | Self::ClaimedCountUnderRead { credential_id, .. }
+            | Self::ClaimedCapabilityReadCutShort { credential_id, .. }
+            | Self::ClaimedCapabilityEmpty { credential_id, .. }
+            | Self::LldpLocalPortDropped { credential_id, .. }
+            | Self::LldpLocalPortDroppedReadCutShort { credential_id, .. }
+            | Self::LldpLocalPortMisplaced { credential_id, .. } => *credential_id,
 
-            Self::InterfaceSetCutShort { .. }
-            | Self::InterfaceDetailsCutShort { .. }
-            | Self::SnmpWalkEntryCap { .. }
-            | Self::SnmpWalkUnsupported { .. }
-            | Self::SnmpWalkDesynchronised { .. }
-            | Self::SnmpWalkPartialDiscarded { .. }
-            | Self::SnmpWalkPartialRecorded { .. }
-            | Self::SnmpWalkNoAnswer { .. }
-            | Self::ClaimedCountReadCutShort { .. }
-            | Self::ClaimedCountUnderRead { .. }
-            | Self::ClaimedCapabilityReadCutShort { .. }
-            | Self::ClaimedCapabilityEmpty { .. }
-            | Self::LldpLocalPortDropped { .. }
-            | Self::LldpLocalPortDroppedReadCutShort { .. }
-            | Self::LldpLocalPortMisplaced { .. }
-            | Self::MalformedNeighboursWalkCutShort(_)
-            | Self::MalformedNeighboursGhostRows(_)
-            | Self::MalformedNeighboursIncompleteRecords(_)
-            | Self::MalformedNeighboursUnexpectedType(_)
-            | Self::MalformedNeighboursUnreadableIndex(_)
-            | Self::VlanRecordingFailed { .. }
+            Self::MalformedNeighboursWalkCutShort(m)
+            | Self::MalformedNeighboursGhostRows(m)
+            | Self::MalformedNeighboursIncompleteRecords(m)
+            | Self::MalformedNeighboursUnexpectedType(m)
+            | Self::MalformedNeighboursUnreadableIndex(m) => m.credential_id,
+
+            Self::VlanRecordingFailed { .. }
             | Self::EqualReachIntegrationsMerged { .. }
             | Self::IntegrationWithoutCredential { .. }
             | Self::ConnectionsWithoutProtocolResponse { .. }
@@ -1249,6 +1302,54 @@ mod tests {
             let back: DiscoveryWarningCode =
                 serde_json::from_value(json.clone()).expect("deserializable");
             assert_eq!(back, code, "{json} did not round-trip");
+        }
+    }
+
+    /// A code that declares an `snmp_check` is one the UI builds commands for, from the warning's
+    /// address, its group (named on the wire, in its failures, or implied by the code) and the stored credential it
+    /// names. A checkable code missing any of the three would render a command with a hole in it.
+    #[test]
+    fn every_checkable_code_carries_what_its_commands_are_built_from() {
+        let credential_id = Uuid::from_u128(0xc1);
+        for code in DiscoveryWarningCode::iter().filter(|c| c.snmp_check().is_some()) {
+            let warning = warnings_of(serde_json::json!([{
+                "code": code,
+                "address": "10.0.0.1",
+                "group": "Lldp",
+                "cause": "TimedOut",
+                "failures": [{ "group": "Interfaces", "cause": "TimedOut" }],
+                "limit": 10000,
+                "source": "IfNumber",
+                "expected": 23,
+                "observed": 1,
+                "collected": 3,
+                "dropped": 1,
+                "total": 4,
+                "misplaced": 2,
+                "discarded": 14,
+                "kept": 0,
+                "consequence": "AllLinksLost",
+                "credential_id": credential_id,
+            }]))
+            .remove(0);
+
+            assert_eq!(
+                warning.code(),
+                code,
+                "{code:?} did not deserialize as itself"
+            );
+            assert_eq!(
+                warning.credential_id(),
+                Some(credential_id),
+                "{code:?} drops the credential its commands are authenticated with"
+            );
+            let wire = serde_json::to_value(&warning).expect("serializable");
+            assert!(
+                wire.get("group").is_some()
+                    || wire.get("failures").is_some()
+                    || code.snmp_check_group().is_some(),
+                "{code:?} names no group to check, on the wire or by declaration"
+            );
         }
     }
 

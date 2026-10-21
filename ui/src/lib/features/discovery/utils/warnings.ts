@@ -101,6 +101,8 @@ export interface WarningExample {
 export interface WarningStatement {
 	sentence: string;
 	examples: WarningExample[];
+	/** The occurrences behind the sentence, one per device, for what the row lists under it. */
+	warnings: DiscoveryWarning[];
 }
 
 /** One warning code's worth of a run, as a row in the report. */
@@ -778,7 +780,8 @@ function renderStatements(
 
 	return bucketByStatement(code, group_, context).map((bucket) => ({
 		sentence: metaDescriptionWith('warning_codes', code, build(bucket, context), fallback),
-		examples: examplesOf(bucket, hostName)
+		examples: examplesOf(bucket, hostName),
+		warnings: bucket
 	}));
 }
 

@@ -124,6 +124,48 @@ impl SnmpWalkGroup {
             Self::VlanNames => oids::vlan::q_bridge::DOT1Q_VLAN_STATIC_NAME,
         }
     }
+
+    /// The table this group's columns belong to, for a check that has to show whole rows.
+    pub fn table(self) -> &'static str {
+        use crate::daemon::discovery::integration::snmp::oids;
+        match self {
+            Self::Lldp => oids::lldp::remote::LLDP_REM_TABLE,
+            Self::Cdp => oids::cdp::CDP_CACHE_TABLE,
+            Self::Interfaces => oids::if_mib::IF_TABLE,
+            Self::BridgePortNumbering => oids::bridge::DOT1D_BASE_PORT_TABLE,
+            Self::BridgeForwarding => oids::bridge::DOT1D_TP_FDB_TABLE,
+            Self::VlanMembership => oids::vlan::q_bridge::DOT1Q_PORT_VLAN_TABLE,
+            Self::ArpTable => oids::arp::IP_NET_TO_MEDIA_TABLE,
+            Self::DeviceInventory => oids::entity::ENT_PHYSICAL_TABLE,
+            Self::IpAddresses => oids::ip_mib::IP_ADDR_TABLE,
+            Self::LldpLocalPorts => oids::lldp::local::LLDP_LOC_PORT_TABLE,
+            Self::VlanNames => oids::vlan::q_bridge::DOT1Q_VLAN_STATIC_TABLE,
+        }
+    }
+}
+
+/// The net-snmp commands that check a warning against the device, from the daemon's host.
+///
+/// Published on each warning code's metadata as `snmp_check`, so the UI builds the commands from
+/// what the code declares instead of keeping its own list of codes. Each value is the comparison
+/// that tells an operator whether the device returns what the warning says it returned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub enum SnmpCheck {
+    /// The read returned nothing. The daemon's GETBULK page, a one-row GETBULK and GETNEXT on the
+    /// group's first column: which of them answers separates a device that cannot serve GETBULK
+    /// from one that serves nothing.
+    Repeat,
+    /// The read stopped partway, came up short or met no such object. The daemon's GETBULK page
+    /// and GETNEXT on the first column, to compare where each ends.
+    Recount,
+    /// [`Self::Recount`], after a GET of the value the device published about itself.
+    Claim,
+    /// [`Self::Recount`] with net-snmp's increasing-OID check off (`-Cc`), so it prints the rows
+    /// that came back out of order instead of stopping at the first.
+    Unordered,
+    /// The rows came back malformed or misplaced. The whole table with the daemon's page, so every
+    /// column of those rows shows.
+    Table,
 }
 
 impl HasId for SnmpWalkGroup {
@@ -166,6 +208,7 @@ impl TypeMetadataProvider for SnmpWalkGroup {
         use crate::daemon::discovery::integration::snmp::{queries, session};
         serde_json::json!({
             "first_column": self.first_column(),
+            "table": self.table(),
             "max_repetitions": queries::BULK_MAX_REPETITIONS,
             "timeout_seconds": session::SNMP_TIMEOUT.as_secs(),
             "retries": queries::MAX_TRANSPORT_RETRIES,
@@ -323,6 +366,18 @@ impl TypeMetadataProvider for ClaimSource {
             Self::LldpLocalIdentity => "an LLDP chassis ID of its own",
             Self::Dot1dBaseNumPorts => "its dot1dBaseNumPorts",
         }
+    }
+
+    /// The object the device published, for the `snmpget` that checks it.
+    fn metadata(&self) -> serde_json::Value {
+        use crate::daemon::discovery::integration::snmp::oids;
+        let oid = match self {
+            Self::IfNumber => oids::if_mib::IF_NUMBER,
+            Self::SysServicesBridgeBit => oids::system::SYS_SERVICES,
+            Self::LldpLocalIdentity => oids::lldp::local::LLDP_LOC_CHASSIS_ID,
+            Self::Dot1dBaseNumPorts => oids::bridge::DOT1D_BASE_NUM_PORTS,
+        };
+        serde_json::json!({ "oid": oid })
     }
 }
 

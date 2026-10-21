@@ -58,31 +58,34 @@ impl DiscoveryWarning {
 
             Self::SnmpWalkBridgeMibAbsent { credential_id, .. }
             | Self::SnmpWalkFailed { credential_id, .. }
-            | Self::SnmpCollectedNothing { credential_id, .. } => {
+            | Self::SnmpCollectedNothing { credential_id, .. }
+            | Self::InterfaceSetCutShort { credential_id, .. }
+            | Self::InterfaceDetailsCutShort { credential_id, .. }
+            | Self::SnmpWalkEntryCap { credential_id, .. }
+            | Self::SnmpWalkUnsupported { credential_id, .. }
+            | Self::SnmpWalkDesynchronised { credential_id, .. }
+            | Self::SnmpWalkPartialDiscarded { credential_id, .. }
+            | Self::SnmpWalkPartialRecorded { credential_id, .. }
+            | Self::SnmpWalkNoAnswer { credential_id, .. }
+            | Self::ClaimedCountReadCutShort { credential_id, .. }
+            | Self::ClaimedCountUnderRead { credential_id, .. }
+            | Self::ClaimedCapabilityReadCutShort { credential_id, .. }
+            | Self::ClaimedCapabilityEmpty { credential_id, .. }
+            | Self::LldpLocalPortDropped { credential_id, .. }
+            | Self::LldpLocalPortDroppedReadCutShort { credential_id, .. }
+            | Self::LldpLocalPortMisplaced { credential_id, .. } => {
                 slots.credential_id = Some(credential_id);
             }
 
-            Self::InterfaceSetCutShort { .. }
-            | Self::InterfaceDetailsCutShort { .. }
-            | Self::SnmpWalkEntryCap { .. }
-            | Self::SnmpWalkUnsupported { .. }
-            | Self::SnmpWalkDesynchronised { .. }
-            | Self::SnmpWalkPartialDiscarded { .. }
-            | Self::SnmpWalkPartialRecorded { .. }
-            | Self::SnmpWalkNoAnswer { .. }
-            | Self::ClaimedCountReadCutShort { .. }
-            | Self::ClaimedCountUnderRead { .. }
-            | Self::ClaimedCapabilityReadCutShort { .. }
-            | Self::ClaimedCapabilityEmpty { .. }
-            | Self::LldpLocalPortDropped { .. }
-            | Self::LldpLocalPortDroppedReadCutShort { .. }
-            | Self::LldpLocalPortMisplaced { .. }
-            | Self::MalformedNeighboursWalkCutShort(_)
-            | Self::MalformedNeighboursGhostRows(_)
-            | Self::MalformedNeighboursIncompleteRecords(_)
-            | Self::MalformedNeighboursUnexpectedType(_)
-            | Self::MalformedNeighboursUnreadableIndex(_)
-            | Self::VlanRecordingFailed { .. }
+            Self::MalformedNeighboursWalkCutShort(m)
+            | Self::MalformedNeighboursGhostRows(m)
+            | Self::MalformedNeighboursIncompleteRecords(m)
+            | Self::MalformedNeighboursUnexpectedType(m)
+            | Self::MalformedNeighboursUnreadableIndex(m) => {
+                slots.credential_id = Some(&mut m.credential_id);
+            }
+
+            Self::VlanRecordingFailed { .. }
             | Self::EqualReachIntegrationsMerged { .. }
             | Self::ConnectionsWithoutProtocolResponse { .. }
             | Self::ScanTimeLimitWithEstimate { .. }

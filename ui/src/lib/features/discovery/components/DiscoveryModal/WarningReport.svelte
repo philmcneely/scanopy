@@ -62,7 +62,7 @@
 	import type { EntityDiscriminants } from '$lib/api/entities';
 	import type { DiscoveryUpdatePayload } from '../../types/api';
 	import { runOutcomeReason } from '../../utils/outcome';
-	import { snmpCheckCommands } from '../../utils/snmpCheck';
+	import { snmpCheckOf } from '../../utils/snmpCheck';
 	import {
 		buildWarningReport,
 		credentialIdsOf,
@@ -134,6 +134,8 @@
 	 */
 	const credentialsQuery = useCredentialsQuery();
 	let credentialsData = $derived(credentialsQuery.data ?? []);
+	/** The stored credential a warning names, for the options in its check commands. */
+	let credentialOf = $derived((id: string) => credentialsData.find((c) => c.id === id));
 
 	/**
 	 * Whether an unresolved host id means "gone" rather than "not fetched yet".
@@ -408,9 +410,14 @@
 							</div>
 
 							{#if isOpen}
-								{@const commands = [...new Set(entry.warnings.flatMap(snmpCheckCommands))]}
 								<div class="space-y-2 pb-1 pl-12 pt-1">
 									{#each entry.details as statement, i (i)}
+										{@const checks = statement.warnings.flatMap((warning) => {
+											const outcome = snmpCheckOf(warning, credentialOf);
+											return outcome && 'address' in warning && warning.address
+												? [{ address: warning.address, outcome }]
+												: [];
+										})}
 										<div class="space-y-1">
 											<p class="text-tertiary text-sm">{statement.sentence}</p>
 											{#if statement.examples.length > 0}
@@ -435,6 +442,25 @@
 													{/each}
 												</ul>
 											{/if}
+											<!-- Each device's own commands, under its address. A device with none says
+											     why, when another device in the sentence has some to compare with. -->
+											{#if checks.some((check) => 'commands' in check.outcome)}
+												<p class="text-secondary pt-1 text-xs">{discovery_snmpCheckCommands()}</p>
+												{#each checks as check (check.address)}
+													<div class="space-y-1">
+														{@render entityChip({ label: check.address })}
+														{#if 'commands' in check.outcome}
+															<CodeContainer
+																code={check.outcome.commands.join('\n')}
+																language="bash"
+																expandable={false}
+															/>
+														{:else}
+															<p class="text-tertiary text-xs">{check.outcome.reason}</p>
+														{/if}
+													</div>
+												{/each}
+											{/if}
 										</div>
 									{/each}
 									{#if entry.subjects.length > 0}
@@ -442,18 +468,6 @@
 											{#each entry.subjects as subject (subjectKey(subject))}
 												{@render entityChip(subject)}
 											{/each}
-										</div>
-									{/if}
-									<!-- A failed SNMP read, repeated by hand: the page size the daemon asked for,
-									     one row at a time, and GETNEXT. -->
-									{#if commands.length > 0}
-										<div class="space-y-1">
-											<p class="text-secondary text-xs">{discovery_snmpCheckCommands()}</p>
-											<CodeContainer
-												code={commands.join('\n')}
-												language="bash"
-												expandable={false}
-											/>
 										</div>
 									{/if}
 								</div>

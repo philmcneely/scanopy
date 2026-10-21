@@ -153,6 +153,7 @@ pub struct UnresolvedLldpPorts {
     /// Whether this is the device's numbering or our read of it. Decides which of the two
     /// warnings the operator gets, because the sentence covering both was wrong half the time.
     pub reason: LocalPortPlacementReason,
+    pub credential_id: Option<Uuid>,
 }
 
 /// A device that answered the credential and then produced nothing at all.
@@ -174,17 +175,8 @@ pub struct UnresolvedLldpPorts {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnmpCollectedNothing {
     pub ip: IpAddr,
-    pub credential: ReadCredential,
-    pub failures: Vec<SnmpWalkFailure>,
-}
-
-/// The credential a device was read with, as a warning about that read carries it: the stored
-/// credential, and the net-snmp options that authenticate as it with every secret left out, so
-/// the UI can hand an operator the `snmpwalk` that repeats the read.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ReadCredential {
     pub credential_id: Option<Uuid>,
-    pub net_snmp_options: Option<String>,
+    pub failures: Vec<SnmpWalkFailure>,
 }
 
 /// Neighbour records a device served without the identifier that makes them usable.
@@ -208,6 +200,7 @@ pub struct MalformedNeighbours {
     pub kept: usize,
     /// What accounts for most of the loss on this device.
     pub reason: MalformedNeighbourReason,
+    pub credential_id: Option<Uuid>,
 }
 
 /// Why a device's neighbour records could not be used.
@@ -279,7 +272,7 @@ pub struct IncompleteSnmpWalk {
     pub returned_any: bool,
     /// Why it came up short, when the walk could establish that.
     pub reason: Option<ShortfallReason>,
-    pub credential: ReadCredential,
+    pub credential_id: Option<Uuid>,
 }
 
 /// What one host's SNMP collection managed to read, per group.
@@ -429,7 +422,7 @@ pub fn snmp_walk_shortfalls(ip: IpAddr, outcome: SnmpCollectionOutcome) -> Vec<I
         group,
         returned_any: outcome.returned_any(),
         reason: outcome.reason,
-        credential: ReadCredential::default(),
+        credential_id: None,
     })
     .collect()
 }
@@ -444,12 +437,12 @@ pub fn snmp_walk_shortfalls(ip: IpAddr, outcome: SnmpCollectionOutcome) -> Vec<I
 /// their own codes, which say something the summary line does not.
 pub fn snmp_device_findings(
     ip: IpAddr,
-    credential: ReadCredential,
+    credential_id: Option<Uuid>,
     outcome: SnmpCollectionOutcome,
 ) -> (Vec<IncompleteSnmpWalk>, Option<SnmpCollectedNothing>) {
     let mut shortfalls = snmp_walk_shortfalls(ip, outcome);
     for shortfall in &mut shortfalls {
-        shortfall.credential = credential.clone();
+        shortfall.credential_id = credential_id;
     }
     if !outcome.returned_nothing() {
         return (shortfalls, None);
@@ -468,7 +461,7 @@ pub fn snmp_device_findings(
     });
     let summary = SnmpCollectedNothing {
         ip,
-        credential,
+        credential_id,
         failures,
     };
     (shortfalls, Some(summary))
@@ -499,6 +492,7 @@ pub struct ContradictedClaim {
     /// is not misreporting itself, and saying so beside a line that says it stopped responding
     /// leaves the reader to reconcile two accounts of one device.
     pub reason: Option<ShortfallReason>,
+    pub credential_id: Option<Uuid>,
 }
 
 /// How far below its own claim a device has to land before it is worth a line.
@@ -521,7 +515,11 @@ const CLAIM_SHORTFALL_RATIO: usize = 2;
 /// bridge MIB answers `noSuchObject` while its `sysServices` bridge bit is set currently renders
 /// as the benign "does not implement SNMP bridge-port numbering" rather than as a device
 /// disagreeing with itself.
-pub fn contradicted_claims(ip: IpAddr, outcome: SnmpCollectionOutcome) -> Vec<ContradictedClaim> {
+pub fn contradicted_claims(
+    ip: IpAddr,
+    credential_id: Option<Uuid>,
+    outcome: SnmpCollectionOutcome,
+) -> Vec<ContradictedClaim> {
     [
         (SnmpWalkGroup::Interfaces, outcome.interfaces),
         (SnmpWalkGroup::Lldp, outcome.lldp),
@@ -554,6 +552,7 @@ pub fn contradicted_claims(ip: IpAddr, outcome: SnmpCollectionOutcome) -> Vec<Co
             claim,
             observed: group_outcome.observed,
             reason: group_outcome.reason,
+            credential_id,
         })
     })
     .collect()
@@ -577,6 +576,7 @@ pub struct IncompleteInterfaceWalk {
     pub collected: usize,
     /// `true` when the whole interface set was read and only attribute columns fell short.
     pub set_complete: bool,
+    pub credential_id: Option<Uuid>,
 }
 
 // ============================================================================
@@ -837,8 +837,7 @@ mod tests {
             vlan_names: empty,
         };
 
-        let (shortfalls, summary) =
-            snmp_device_findings(ip("10.91.16.1"), ReadCredential::default(), outcome);
+        let (shortfalls, summary) = snmp_device_findings(ip("10.91.16.1"), None, outcome);
 
         assert!(shortfalls.is_empty(), "{shortfalls:?}");
         assert_eq!(
@@ -875,8 +874,7 @@ mod tests {
             ..SnmpCollectionOutcome::default()
         };
 
-        let (shortfalls, summary) =
-            snmp_device_findings(ip("10.91.16.1"), ReadCredential::default(), outcome);
+        let (shortfalls, summary) = snmp_device_findings(ip("10.91.16.1"), None, outcome);
 
         assert!(
             shortfalls.iter().any(|s| s.group == SnmpWalkGroup::Lldp
@@ -901,8 +899,7 @@ mod tests {
             ..quiet_groups()
         };
 
-        let (shortfalls, summary) =
-            snmp_device_findings(ip("10.91.16.11"), ReadCredential::default(), outcome);
+        let (shortfalls, summary) = snmp_device_findings(ip("10.91.16.11"), None, outcome);
 
         assert!(summary.is_none());
         assert_eq!(shortfalls.len(), 1);
@@ -1139,7 +1136,7 @@ mod tests {
         };
 
         assert!(
-            contradicted_claims(ip("192.168.7.247"), outcome).is_empty(),
+            contradicted_claims(ip("192.168.7.247"), None, outcome).is_empty(),
             "a device one interface short of its own count is not a finding"
         );
     }
@@ -1163,7 +1160,7 @@ mod tests {
         };
 
         assert!(
-            contradicted_claims(ip("192.168.7.240"), outcome).is_empty(),
+            contradicted_claims(ip("192.168.7.240"), None, outcome).is_empty(),
             "hitting our own cap is not the device disagreeing with itself"
         );
     }
@@ -1183,7 +1180,7 @@ mod tests {
             ..quiet_groups()
         };
 
-        assert!(contradicted_claims(ip("192.168.7.231"), outcome).is_empty());
+        assert!(contradicted_claims(ip("192.168.7.231"), None, outcome).is_empty());
     }
 
     /// A contradiction and a shortfall are different statements about one device, and it can
@@ -1205,7 +1202,7 @@ mod tests {
         let addr = ip("192.168.200.151");
 
         assert_eq!(snmp_walk_shortfalls(addr, outcome).len(), 1);
-        assert_eq!(contradicted_claims(addr, outcome).len(), 1);
+        assert_eq!(contradicted_claims(addr, None, outcome).len(), 1);
     }
 
     /// The credential the fixture attempts under, so the tests can tell "carried through"
