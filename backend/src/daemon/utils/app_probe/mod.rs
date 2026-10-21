@@ -148,6 +148,8 @@ impl ProbeContext {
     ///
     /// `None` covers every way that fails, after reporting a connect error to the scan controller.
     /// The tunnel bounds its own setup, which takes longer than a TCP connect.
+    // The one place a probe's socket is opened; everything else comes through here.
+    #[allow(clippy::disallowed_methods)]
     pub async fn connect(&self, port: u16) -> Option<Box<dyn ProbeStream>> {
         let opened = match &self.tunnel {
             Some(tunnel) => tunnel.open(port).await,
