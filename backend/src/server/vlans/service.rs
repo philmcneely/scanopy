@@ -4,7 +4,7 @@ use crate::server::{
     shared::{
         entities::EntityDiscriminants,
         events::bus::EventBus,
-        services::traits::{CrudService, EventBusService},
+        services::traits::{CrudService, EventBusService, ObservationRefresher},
         storage::{
             child::{GenericChildStorage, ParentRef},
             filter::StorableFilter,
@@ -243,6 +243,18 @@ impl VlanService {
                 id: vlan.id,
             });
         }
+
+        // A VLAN reported again unchanged is not written above, so its Last seen would stay at
+        // the scan that created it and the digest would call it stale while every scan still
+        // reports it. ServerPoll processing has no `ScanContext`; the time of processing stands in.
+        let scan_time = scan_ctx.map_or_else(chrono::Utc::now, |ctx| ctx.scan_time);
+        let ids: Vec<Uuid> = vlans.iter().map(|v| v.id).collect();
+        self.refresh_observed(
+            StorableFilter::<Vlan>::new_from_uuids_column("id", &ids),
+            scan_time,
+        )
+        .await?;
+
         Ok(VlanDiscoveryResponse { vlans })
     }
 

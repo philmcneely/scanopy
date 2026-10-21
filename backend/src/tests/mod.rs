@@ -85,6 +85,7 @@ pub mod terms_gate;
 pub mod terms_notices;
 pub mod virtualization_tree;
 pub mod virtualizer_cascade;
+pub mod vlan_last_seen;
 
 pub const DAEMON_CONFIG_FIXTURE: &str = "src/tests/daemon_config.json";
 pub const SERVER_DB_FIXTURE: &str = "src/tests/scanopy.sql";
