@@ -1,5 +1,6 @@
 use crate::server::{
     interfaces::service::InterfaceService,
+    shared::services::scan_context::ScanContext,
     shared::{
         entities::EntityDiscriminants,
         events::bus::EventBus,
@@ -13,7 +14,6 @@ use crate::server::{
         types::entities::EntitySource,
     },
     tags::entity_tags::EntityTagService,
-    shared::services::scan_context::ScanContext,
     vlans::{
         handlers::{VlanDiscoveryItem, VlanDiscoveryResponse, VlanDiscoveryResponseItem},
         r#impl::{

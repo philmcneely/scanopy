@@ -101,9 +101,7 @@ impl<'a> VlanConfig<'a> {
                     {
                         PortSetting::from_override(o)
                     }
-                    Some(o) if o.portconf_id.is_some() => {
-                        self.profile(o.portconf_id.as_deref())?
-                    }
+                    Some(o) if o.portconf_id.is_some() => self.profile(o.portconf_id.as_deref())?,
                     _ => match port.portconf_id.as_deref() {
                         Some(id) => self.profile(Some(id))?,
                         None => PortSetting::default(),
@@ -201,8 +199,14 @@ impl<'a> PortSetting<'a> {
         Self {
             native: profile.native_networkconf_id.as_deref(),
             tagged_vlan_mgmt: profile.tagged_vlan_mgmt.as_deref(),
-            excluded: profile.excluded_networkconf_ids.as_deref().unwrap_or_default(),
-            tagged: profile.tagged_networkconf_ids.as_deref().unwrap_or_default(),
+            excluded: profile
+                .excluded_networkconf_ids
+                .as_deref()
+                .unwrap_or_default(),
+            tagged: profile
+                .tagged_networkconf_ids
+                .as_deref()
+                .unwrap_or_default(),
             forward: profile.forward.as_deref(),
         }
     }

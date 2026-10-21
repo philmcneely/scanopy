@@ -23,11 +23,11 @@ use crate::server::ip_addresses::r#impl::base::{
 use crate::server::ports::r#impl::coverage::PortCoverage;
 use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::AttributeSource;
-use crate::server::vlans::r#impl::base::{VlanName, VlanNameValue};
 use crate::server::shared::services::factory::ServiceFactory;
 use crate::server::shared::storage::factory::StorageFactory;
 use crate::server::shared::storage::traits::Storage;
 use crate::server::shared::types::entities::EntitySource;
+use crate::server::vlans::r#impl::base::{VlanName, VlanNameValue};
 
 use super::{organization, site, subnet, test_services};
 

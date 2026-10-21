@@ -1238,7 +1238,6 @@ impl DiscoveryIntegration for SnmpIntegration {
     }
 }
 
-
 /// Perform a complete SNMP poll of a device.
 /// Returns system info, interface table, and neighbor information.
 #[allow(dead_code)]

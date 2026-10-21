@@ -87,7 +87,10 @@ impl Default for VlanBase {
     fn default() -> Self {
         Self {
             vlan_number: 1,
-            name: VlanName::new(VlanNameValue("Default".to_string()), AttributeSource::Manual),
+            name: VlanName::new(
+                VlanNameValue("Default".to_string()),
+                AttributeSource::Manual,
+            ),
             description: None,
             site_id: Uuid::nil(),
             organization_id: Uuid::nil(),

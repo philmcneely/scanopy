@@ -712,9 +712,9 @@ mod tests {
 #[cfg(test)]
 mod lab_tests {
     use super::*;
-    use uuid::Uuid;
     use crate::server::credentials::r#impl::mapping::ResolvableSecret;
     use crate::server::credentials::r#impl::types::{UnifiAuth, UnifiQueryCredential};
+    use uuid::Uuid;
 
     /// Reads a live controller's networks and port profiles through the client `execute` uses, and
     /// resolves every profile against the networks. Uses the variables `tools/unifi/unifi-test-env.sh`

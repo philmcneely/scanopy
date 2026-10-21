@@ -122,6 +122,7 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				description: 'description',
 				last_seen_at: 'last_seen_at',
 				name: 'name',
+				name_source: 'name',
 				site_id: 'site_id',
 				source: 'source',
 				subnet_ids: 'subnet_ids',
