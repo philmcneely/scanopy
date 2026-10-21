@@ -4137,19 +4137,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-21T16:43:08.262784Z",
+             *       "created_at": "2026-10-21T18:39:26.379126Z",
              *       "first_discovery_id": null,
-             *       "id": "43921751-36cc-448e-b242-e33252aaff77",
+             *       "id": "f1711703-c8b8-436a-a7db-523c4544a2a7",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-21T16:43:08.262784Z",
+             *       "last_seen_at": "2026-10-21T18:39:26.379126Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-21T16:43:08.262784Z",
-             *       "valid_from": "2026-10-21T16:43:08.262784Z",
+             *       "updated_at": "2026-10-21T18:39:26.379126Z",
+             *       "valid_from": "2026-10-21T18:39:26.379126Z",
              *       "valid_to": null
              *     }
              */
@@ -5025,19 +5025,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-21T16:43:08.226981Z",
+             *               "created_at": "2026-10-21T18:39:26.345601Z",
              *               "first_discovery_id": null,
-             *               "id": "1c17bfaf-2b10-4a63-bdb4-143eba8b0e6d",
+             *               "id": "89b945f2-492c-4d73-b0b5-95e3204c0c0a",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-21T16:43:08.226981Z",
+             *               "last_seen_at": "2026-10-21T18:39:26.345601Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-21T16:43:08.226981Z",
-             *               "valid_from": "2026-10-21T16:43:08.226981Z",
+             *               "updated_at": "2026-10-21T18:39:26.345601Z",
+             *               "valid_from": "2026-10-21T18:39:26.345601Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5050,7 +5050,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Proxmox Datacenter Manager",
+             *           "service_definition": "Nvidia GPU Exporter",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -6016,8 +6016,16 @@ export interface components {
             data?: {
                 /** @description Deprecation warnings for the daemon */
                 deprecation_warnings?: components["schemas"]["DeprecationWarning"][];
-                /** @description Minimum daemon version supported by this server */
-                minimum_daemon_version: string;
+                /**
+                 * @description Daemons at or below this version are rejected by this server. `None` from a server too old
+                 *     to send it.
+                 */
+                last_unsupported_daemon_version?: string | null;
+                /**
+                 * @description Deprecated: always 0.12.0. Daemons up to 0.18.2 require this field and only log it. Read
+                 *     `last_unsupported_daemon_version` instead.
+                 */
+                minimum_daemon_version?: string | null;
                 /** @description Server software version */
                 server_version: string;
             };
@@ -6041,19 +6049,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-21T16:43:08.256886Z",
+             *           "created_at": "2026-10-21T18:39:26.373565Z",
              *           "first_discovery_id": null,
-             *           "id": "4cc86ff2-be5e-41d3-bab1-700c23d59c89",
+             *           "id": "74feb05d-bc92-49ab-b9dd-dcb13553e782",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-21T16:43:08.256886Z",
+             *           "last_seen_at": "2026-10-21T18:39:26.373565Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-21T16:43:08.256886Z",
-             *           "valid_from": "2026-10-21T16:43:08.256886Z",
+             *           "updated_at": "2026-10-21T18:39:26.373565Z",
+             *           "valid_from": "2026-10-21T18:39:26.373565Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6066,7 +6074,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Proxmox Datacenter Manager",
+             *       "service_definition": "Nvidia GPU Exporter",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7505,19 +7513,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-21T16:43:08.227574Z",
+         *       "created_at": "2026-10-21T18:39:26.346231Z",
          *       "first_discovery_id": null,
-         *       "id": "e8265b6b-c733-4865-85ef-9018809631e5",
+         *       "id": "3f618237-8dea-4c21-9b77-5b80cea131f3",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-21T16:43:08.227574Z",
+         *       "last_seen_at": "2026-10-21T18:39:26.346231Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-21T16:43:08.227574Z",
-         *       "valid_from": "2026-10-21T16:43:08.227574Z",
+         *       "updated_at": "2026-10-21T18:39:26.346231Z",
+         *       "valid_from": "2026-10-21T18:39:26.346231Z",
          *       "valid_to": null
          *     }
          */
@@ -7883,7 +7891,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Proxmox Datacenter Manager",
+         *           "service_definition": "Nvidia GPU Exporter",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -8729,7 +8737,7 @@ export interface components {
             supports_os_reporting?: boolean;
             /**
              * @description Whether this daemon can run a single-host rescan. Server-computed so the
-             *     frontend never has to hardcode a version floor.
+             *     frontend never has to hardcode a version gate.
              */
             supports_targeted_rescan?: boolean;
             /** @description Whether the daemon can run a combined discovery pass. */
@@ -10779,19 +10787,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-21T16:43:08.226279Z",
+         *               "created_at": "2026-10-21T18:39:26.344918Z",
          *               "first_discovery_id": null,
-         *               "id": "8cdc7eef-096f-4381-bcb8-dc2ce716ee1a",
+         *               "id": "9354c20e-305e-4098-8330-475db8fa596e",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-21T16:43:08.226279Z",
+         *               "last_seen_at": "2026-10-21T18:39:26.344918Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-21T16:43:08.226279Z",
-         *               "valid_from": "2026-10-21T16:43:08.226279Z",
+         *               "updated_at": "2026-10-21T18:39:26.344918Z",
+         *               "valid_from": "2026-10-21T18:39:26.344918Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10804,7 +10812,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Proxmox Datacenter Manager",
+         *           "service_definition": "Nvidia GPU Exporter",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -14337,8 +14345,16 @@ export interface components {
         ServerCapabilities: {
             /** @description Deprecation warnings for the daemon */
             deprecation_warnings?: components["schemas"]["DeprecationWarning"][];
-            /** @description Minimum daemon version supported by this server */
-            minimum_daemon_version: string;
+            /**
+             * @description Daemons at or below this version are rejected by this server. `None` from a server too old
+             *     to send it.
+             */
+            last_unsupported_daemon_version?: string | null;
+            /**
+             * @description Deprecated: always 0.12.0. Daemons up to 0.18.2 require this field and only log it. Read
+             *     `last_unsupported_daemon_version` instead.
+             */
+            minimum_daemon_version?: string | null;
             /** @description Server software version */
             server_version: string;
         };
@@ -14346,19 +14362,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-21T16:43:08.227378Z",
+         *           "created_at": "2026-10-21T18:39:26.346020Z",
          *           "first_discovery_id": null,
-         *           "id": "ad0e635c-2d89-4df0-b43d-d09187f40817",
+         *           "id": "2c05ddc9-6205-43e5-b3e6-5d7ca2393e35",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-21T16:43:08.227378Z",
+         *           "last_seen_at": "2026-10-21T18:39:26.346020Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-21T16:43:08.227378Z",
-         *           "valid_from": "2026-10-21T16:43:08.227378Z",
+         *           "updated_at": "2026-10-21T18:39:26.346020Z",
+         *           "valid_from": "2026-10-21T18:39:26.346020Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14371,7 +14387,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Proxmox Datacenter Manager",
+         *       "service_definition": "Nvidia GPU Exporter",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15515,7 +15531,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "c9ac37d5-f272-47d7-b816-5ca5e42655f9",
+             *           "id": "7fcb99eb-67b7-4632-b0fd-34c823f08f19",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15525,23 +15541,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "a41b3ad3-d4b1-4f0a-bd56-19d7db58b243",
+             *           "id": "3cb7a389-5879-42cd-81a9-e694bbfb0fc8",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "4b911e8b-5601-418c-99b5-444f64ecef71",
+             *           "id": "127defef-9815-4044-942e-34f7a8053a00",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "0e3904dd-7842-4ac5-b40c-b8186dff1f70",
+             *           "id": "25816c3d-3a79-482b-b6f1-46fff7dc6092",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "a41b3ad3-d4b1-4f0a-bd56-19d7db58b243",
+             *           "id": "3cb7a389-5879-42cd-81a9-e694bbfb0fc8",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15555,19 +15571,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "eba89bf6-18a0-478b-856e-14a67f0e8d4b",
+             *         "id": "3fa8d005-adb0-47aa-99be-a1875a8a4425",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "504e9157-ca2d-48b7-b289-b961e7c08c89",
+             *         "id": "966f73c0-69c6-40a8-a911-ab5d1230633b",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "b62e8a42-e564-462f-b27c-09f0382c0e63",
+             *         "id": "8eb14651-c59a-45a3-af2e-99445f482187",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "9664408a-37dc-4bf9-968e-25138f694369",
+             *         "id": "93e65430-012a-4921-9098-55d0913aff34",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15588,7 +15604,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "dff45a11-3406-482d-bccc-36107de10c9b",
+             *         "id": "0c267e33-446f-4b61-a688-8b75fa134019",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15597,15 +15613,15 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "211bf77d-7ec8-4418-8c88-ef5615567aa8",
+             *         "id": "3dbe1ae8-9d31-4593-8276-056a05196714",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "ae82c0eb-16cd-4fc7-9e48-c67f4ea2b1db",
+             *         "id": "22888437-f200-4c0d-99f2-811bd611b716",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "dff70189-d003-4423-bc7b-b48e767fb2b9",
+             *         "id": "d032e05d-2142-4f57-a902-3ace1e297c49",
              *         "rule": "ByStack"
              *       }
              *     ]
