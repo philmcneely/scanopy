@@ -897,11 +897,14 @@ mod tests {
 
     // --- Gate boundaries ----------------------------------------------------------
 
+    /// A gate case: its name, the last version without the feature, and the predicate.
+    type GateCase = (&'static str, Version, fn(Option<&Version>) -> bool);
+
     /// Each `Option<&Version>` predicate is false at its gate and true one release above it, and
     /// a daemon with no recorded version is treated as lacking the feature.
     #[test]
     fn every_predicate_turns_on_just_above_its_gate() {
-        let cases: [(&str, Version, fn(Option<&Version>) -> bool); 8] = [
+        let cases: [GateCase; 8] = [
             (
                 "unified_discovery",
                 last_without_unified_discovery(),
@@ -951,11 +954,14 @@ mod tests {
         }
     }
 
+    /// A legacy shim case: its name, its gate version, and the string-version shim.
+    type ShimCase = (&'static str, Version, fn(Option<&str>) -> bool);
+
     /// The string-version shims are the inverse: on up to and including their gate, and for a
     /// daemon with no parseable version.
     #[test]
     fn every_legacy_shim_turns_off_just_above_its_gate() {
-        let cases: [(&str, Version, fn(Option<&str>) -> bool); 3] = [
+        let cases: [ShimCase; 3] = [
             (
                 "ip_address_bindings",
                 last_without_ip_address_bindings(),
