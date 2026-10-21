@@ -81,10 +81,6 @@ impl NetworkScan {
             .filter(|s| !s.base.subnet_type().is_loopback())
             .collect();
 
-        // A targeted rescan narrows enumeration to specific addresses within the
-        // subnets above. `None` means sweep them entirely.
-        let is_targeted = |ip: &IpAddr| target_ips.as_ref().is_none_or(|t| t.contains(ip));
-
         // Credentials resolve per-IP during the scan of that IP, and the enumeration above is
         // the only source of addresses — `target_ips` narrows it and never adds to it. So a
         // credential assigned to a host outside these subnets is skipped in complete silence,
@@ -288,10 +284,7 @@ impl NetworkScan {
             // the streaming enumeration below is careful not to.
             let mut targets: Vec<std::net::Ipv4Addr> = Vec::new();
             for subnet in &scanned_subnets {
-                for addr in subnet.base.cidr.iter().map(|a| a.address()) {
-                    if !is_targeted(&addr) {
-                        continue;
-                    }
+                for addr in scan_addresses(&subnet.base.cidr, target_ips.as_ref()) {
                     // The network and broadcast addresses are skipped here and nowhere else: ARP
                     // enumerates them harmlessly because nothing owns them and nothing replies,
                     // while an echo request to the same address is answered by every responder on
@@ -343,10 +336,7 @@ impl NetworkScan {
                 let entry = subnet_to_ips
                     .entry(*subnet.base.cidr)
                     .or_insert_with(|| (subnet.clone(), Vec::new()));
-                for addr in subnet.base.cidr.iter().map(|a| a.address()) {
-                    if !is_targeted(&addr) {
-                        continue;
-                    }
+                for addr in scan_addresses(&subnet.base.cidr, target_ips.as_ref()) {
                     if let IpAddr::V4(ipv4) = addr {
                         entry.1.push(ipv4);
                         if entry.1.len() >= max_arp_targets {
@@ -624,10 +614,7 @@ impl NetworkScan {
                 // streams, so a bogus CIDR cannot exhaust memory here.
                 let responders = icmp.responders().await;
                 for subnet in non_interfaced_subnets {
-                    for addr in subnet.base.cidr.iter().map(|a| a.address()) {
-                        if stream_targets.as_ref().is_some_and(|t| !t.contains(&addr)) {
-                            continue;
-                        }
+                    for addr in scan_addresses(&subnet.base.cidr, stream_targets.as_ref()) {
                         // Both non-ARP signals are consulted here, not just the ping sweep. When
                         // ARP is unavailable outright every subnet takes this path, the daemon's
                         // own segment included — and that is exactly where a browse has something
@@ -2005,6 +1992,27 @@ impl NetworkScan {
         }
 
         Ok(None)
+    }
+}
+
+/// The addresses a scan enumerates in `cidr`: all of them, or for a rescan (`target_ips`) only
+/// the targets inside it, in order. A rescan of one address on a routed /16 would otherwise walk
+/// 65,536 addresses to find it.
+pub(crate) fn scan_addresses<'a>(
+    cidr: &'a IpCidr,
+    target_ips: Option<&HashSet<IpAddr>>,
+) -> Box<dyn Iterator<Item = IpAddr> + Send + 'a> {
+    match target_ips {
+        Some(targets) => {
+            let mut inside: Vec<IpAddr> = targets
+                .iter()
+                .copied()
+                .filter(|ip| cidr.contains(ip))
+                .collect();
+            inside.sort();
+            Box::new(inside.into_iter())
+        }
+        None => Box::new(cidr.iter().map(|a| a.address())),
     }
 }
 
