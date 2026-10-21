@@ -3,7 +3,9 @@ use crate::server::shared::events::log::{EntityLog, changes};
 use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event};
 use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 use crate::server::shared::handlers::tree::TreePosition;
-use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+use crate::server::subnets::r#impl::base::{
+    SubnetCidr, SubnetCidrValue, SubnetName, SubnetNameValue, SubnetTypeAttributed, SubnetTypeValue,
+};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     discovery_warnings::service::DiscoveryWarningService,
@@ -393,8 +395,8 @@ pub(crate) fn matches_existing_subnet(incoming: &Subnet, existing: &Subnet) -> b
             // runtime service matches. Distinct runtimes carry
             // distinct service ids, so a Docker and a Podman bridge
             // with the same CIDR never collide.
-            if incoming.base.subnet_type.is_container_bridge()
-                && existing.base.subnet_type.is_container_bridge()
+            if incoming.base.subnet_type().is_container_bridge()
+                && existing.base.subnet_type().is_container_bridge()
             {
                 match (
                     incoming.base.virtualization_service_id,
@@ -568,11 +570,16 @@ impl CrudService<Subnet> for SubnetService {
                 let mut refreshed = existing_subnet.clone();
                 refreshed.last_seen_at = subnet.last_seen_at;
 
-                // Repair rows left behind by the interface-name heuristic that
-                // used to be able to type a subnet as a container bridge (#663).
-                if subnet.corrects_container_bridge_guess(existing_subnet) {
-                    refreshed.base.subnet_type = subnet.base.subnet_type;
-                }
+                // The name and type by the same ladder as the range. A placeholder name (the
+                // CIDR, `Unspecified`) takes the name a controller gives the network, and a type
+                // guessed from an interface name takes the controller's own; a value a person set
+                // is never displaced. This also repairs the rows the interface-name heuristic once
+                // typed as container bridges (#663): those are stored `Unspecified`.
+                refreshed.base.name.apply_in_place(subnet.base.name.clone());
+                refreshed
+                    .base
+                    .subnet_type
+                    .apply_in_place(subnet.base.subnet_type.clone());
 
                 if let Some(owner) = subnet.owner_for_ownerless_bridge(existing_subnet) {
                     refreshed.base.virtualization_service_id = Some(owner);
@@ -704,12 +711,19 @@ impl SubnetService {
             // A range nothing read, only inferred — the whole reason this rung exists.
             cidr: SubnetCidr::new(SubnetCidrValue(cidr), AttributeSource::LldpNeighbourAddress),
             site_id,
-            name: cidr.to_string(),
+            // A placeholder: any name something reports replaces it.
+            name: SubnetName::new(
+                SubnetNameValue(cidr.to_string()),
+                AttributeSource::Unspecified,
+            ),
             description: None,
             // Not `Management` even where a management address produced it: on a flat network that
             // address is just the device's LAN address, and typing the subnet would be a second
             // guess stacked on the first.
-            subnet_type: SubnetType::Unknown,
+            subnet_type: SubnetTypeAttributed::new(
+                SubnetTypeValue(SubnetType::Unknown),
+                AttributeSource::Unspecified,
+            ),
             virtualization_service_id: None,
             source: EntitySource::Discovery,
             tags: Vec::new(),
@@ -756,6 +770,7 @@ impl SubnetService {
 mod tests {
     use super::*;
     use crate::server::subnets::r#impl::base::SubnetBase;
+    use crate::server::subnets::r#impl::base::SubnetTypeAttributed;
 
     fn subnet(cidr: &str, source: EntitySource, cidr_source: AttributeSource) -> Subnet {
         Subnet::new(SubnetBase {
@@ -787,7 +802,7 @@ mod tests {
 
     fn bridge(cidr: &str, owner: Option<Uuid>) -> Subnet {
         let mut s = discovered(cidr);
-        s.base.subnet_type = SubnetType::DockerBridge;
+        s.base.subnet_type = SubnetTypeAttributed::unattributed(SubnetType::DockerBridge);
         s.base.virtualization_service_id = owner;
         s
     }

@@ -229,15 +229,12 @@ impl VlanService {
     ) -> Result<VlanDiscoveryResponse> {
         let mut vlans = Vec::with_capacity(items.len());
         for item in items {
-            let mut name_source = item.name_source;
-            // Only the server can record that a person entered something.
-            name_source.reject_manual_claim();
             let vlan = self
                 .upsert_from_discovery(
                     site_id,
                     organization_id,
                     item.vlan_number,
-                    VlanName::new(VlanNameValue(item.name), name_source),
+                    VlanName::new(VlanNameValue(item.name), item.name_source),
                     scan_ctx,
                 )
                 .await?;

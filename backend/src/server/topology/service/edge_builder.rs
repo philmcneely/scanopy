@@ -110,7 +110,7 @@ impl EdgeBuilder {
                         let subnet = ctx.get_subnet_by_id(i.base.subnet_id)?;
                         subnet
                             .base
-                            .subnet_type
+                            .subnet_type()
                             .is_container_bridge()
                             .then_some((i.id, (subnet.id, i.base.ip_address)))
                     })
@@ -276,7 +276,7 @@ impl EdgeBuilder {
                         let subnet = ctx.get_subnet_by_id(ip_address.base.subnet_id)?;
                         subnet
                             .base
-                            .subnet_type
+                            .subnet_type()
                             .is_container_bridge()
                             .then_some((ip_address.base.ip_address, ip_address_id))
                     })
@@ -494,13 +494,13 @@ impl EdgeBuilder {
                             let target_subnet = ctx.get_subnet_by_id(ip_address.base.subnet_id);
 
                             if let Some(source_subnet) = source_subnet
-                                && source_subnet.base.subnet_type.is_container_bridge()
+                                && source_subnet.base.subnet_type().is_container_bridge()
                             {
                                 return None;
                             }
 
                             if let Some(target_subnet) = target_subnet
-                                && target_subnet.base.subnet_type.is_container_bridge()
+                                && target_subnet.base.subnet_type().is_container_bridge()
                             {
                                 return None;
                             }
@@ -831,6 +831,7 @@ mod tests {
     use crate::server::shared::attribution::AttributeSource;
     use crate::server::subnets::r#impl::base::{Subnet, SubnetBase};
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::subnets::r#impl::types::SubnetType;
     use crate::server::topology::service::context::TopologyContext;
     use crate::server::topology::types::base::TopologyOptions;
@@ -908,8 +909,8 @@ mod tests {
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id,
-                name: name.to_string(),
-                subnet_type,
+                name: SubnetName::unattributed(name.to_string()),
+                subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
                 ..Default::default()
             },
             ..Default::default()

@@ -72,32 +72,47 @@
 	);
 	let saveLabel = $derived(isEditing ? common_update() : common_create());
 
-	/** The fields the form edits. The rest of the subnet (its source among them) stays out of the
-	 *  form, whose deep field-path types can't expand the full `Subnet`. */
-	type SubnetFormValues = Pick<
-		Subnet,
-		'name' | 'cidr' | 'site_id' | 'subnet_type' | 'description' | 'tags'
-	>;
-
-	function toFormValues(s: Subnet): SubnetFormValues {
-		const { name, cidr, site_id, subnet_type, description, tags } = s;
-		return { name, cidr, site_id, subnet_type, description, tags };
+	// The fields the form edits, merged onto the subnet on submit. Not the whole `Subnet`: the
+	// generated type is an intersection of the range, name and type carriers, and TanStack's
+	// field-path types exceed TypeScript's instantiation depth walking it. The form edits values,
+	// never their sources; the server stamps one a person changed `Manual`.
+	interface SubnetFormValues {
+		name: string;
+		cidr: string;
+		description: string;
+		site_id: string;
+		subnet_type: Subnet['subnet_type'];
+		tags: string[];
 	}
 
-	/** The subnet the form's values are laid over on submit. */
-	function getBaseSubnet(): Subnet {
-		return subnet ? { ...subnet } : createEmptySubnetFormData(defaultSiteId);
+	function editing(): Subnet {
+		return subnet ?? createEmptySubnetFormData(defaultSiteId);
+	}
+
+	function formValues(source: Subnet): SubnetFormValues {
+		return {
+			name: source.name,
+			cidr: source.cidr,
+			description: source.description ?? '',
+			site_id: source.site_id,
+			subnet_type: source.subnet_type,
+			tags: source.tags
+		};
+	}
+
+	function getDefaultValues(): SubnetFormValues {
+		return formValues(editing());
 	}
 
 	// Create form with initial empty values - we'll reset it when the modal opens
 	const form = createForm(() => ({
-		defaultValues: toFormValues(createEmptySubnetFormData('')),
+		defaultValues: formValues(createEmptySubnetFormData('')),
 		onSubmit: async ({ value }) => {
 			const subnetData: Subnet = {
-				...getBaseSubnet(),
+				...editing(),
 				...value,
 				name: value.name.trim(),
-				description: value.description?.trim() || '',
+				description: value.description.trim(),
 				cidr: value.cidr.trim()
 			};
 
@@ -116,12 +131,13 @@
 
 	// Reset form when modal opens
 	function handleOpen() {
-		form.reset(toFormValues(getBaseSubnet()));
+		const defaults = getDefaultValues();
+		form.reset(defaults);
 	}
 
 	// CIDR disabled state - use a function to avoid reactive dependency on form.state
 	function getIsCidrDisabled(): boolean {
-		return isContainerSubnet(getBaseSubnet()) || isEditing;
+		return isContainerSubnet(editing()) || isEditing;
 	}
 
 	async function handleSubmit() {

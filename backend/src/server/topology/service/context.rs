@@ -169,8 +169,8 @@ impl<'a> TopologyContext<'a> {
                 return false;
             }
             if let Some(subnet) = self.get_subnet_by_id(ip_address.base.subnet_id) {
-                return !subnet.base.subnet_type.is_container_bridge()
-                    && !subnet.base.subnet_type.is_loopback();
+                return !subnet.base.subnet_type().is_container_bridge()
+                    && !subnet.base.subnet_type().is_loopback();
             }
             false
         })
@@ -358,9 +358,9 @@ impl<'a> TopologyContext<'a> {
             self.get_subnet_from_ip_address_id(*source_ip_address_id),
             self.get_subnet_from_ip_address_id(*target_ip_address_id),
         ) {
-            let vertical_order_difference = source_subnet.base.subnet_type.vertical_order()
+            let vertical_order_difference = source_subnet.base.subnet_type().vertical_order()
                 as isize
-                - target_subnet.base.subnet_type.vertical_order() as isize;
+                - target_subnet.base.subnet_type().vertical_order() as isize;
 
             return vertical_order_difference.abs() > 1;
         }

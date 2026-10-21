@@ -41,6 +41,7 @@ impl AttributeSource {
             Self::OwnAddress
             | Self::ServiceMatch
             | Self::LldpNeighbourAddress
+            | Self::InterfaceNameMatch
             | Self::CipVendorId
             | Self::SysDescrMatch
             | Self::SysObjectIdMatch

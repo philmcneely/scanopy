@@ -18,6 +18,7 @@ use crate::server::subnets::r#impl::{
 };
 
 use super::*;
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 
 impl HostService {
     /// Create a subnet for every range these far ends imply, and report each one.
@@ -62,12 +63,12 @@ impl HostService {
                     AttributeSource::LldpNeighbourAddress,
                 ),
                 site_id,
-                name: range.cidr.to_string(),
+                name: SubnetName::unattributed(range.cidr.to_string()),
                 description: None,
                 // Not `Management` even though a management address is what usually produces this:
                 // on a flat network that address is simply the device's LAN address, and typing the
                 // subnet would be a second guess stacked on the first.
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Discovery,
                 tags: Vec::new(),

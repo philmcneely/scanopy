@@ -2517,6 +2517,7 @@ mod tests {
     fn the_same_bridge_network_is_only_offered_once() {
         use crate::server::hosts::r#impl::base::{Host, HostBase};
         use crate::server::shared::storage::traits::Storable;
+        use crate::server::subnets::r#impl::base::SubnetTypeAttributed;
         use crate::server::subnets::r#impl::base::{Subnet, SubnetBase};
         use crate::server::subnets::r#impl::types::SubnetType;
 
@@ -2530,7 +2531,7 @@ mod tests {
         );
 
         let base = SubnetBase {
-            subnet_type: SubnetType::DockerBridge,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::DockerBridge),
             ..Default::default()
         };
         // Distinct rows, same CIDR and site — exactly what a second execute() produces, since

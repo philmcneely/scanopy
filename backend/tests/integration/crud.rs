@@ -14,7 +14,9 @@ use scanopy::server::shared::attribution::AttributeSource;
 use scanopy::server::shared::storage::traits::Storable;
 use scanopy::server::shared::types::Color;
 use scanopy::server::shared::types::entities::EntitySource;
-use scanopy::server::subnets::r#impl::base::{Subnet, SubnetBase};
+use scanopy::server::subnets::r#impl::base::{
+    Subnet, SubnetBase, SubnetName, SubnetTypeAttributed,
+};
 use scanopy::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
 use scanopy::server::subnets::r#impl::types::SubnetType;
 use scanopy::server::tags::r#impl::base::{Tag, TagBase};
@@ -53,7 +55,7 @@ async fn test_subnet_crud(ctx: &TestContext) -> Result<(), String> {
 
     let subnet = Subnet::new(SubnetBase {
         vlan_ids: Vec::new(),
-        name: "Test Subnet".to_string(),
+        name: SubnetName::unattributed("Test Subnet".to_string()),
         description: Some("Test description".to_string()),
         site_id: ctx.site_id,
         cidr: SubnetCidr::new(
@@ -62,7 +64,7 @@ async fn test_subnet_crud(ctx: &TestContext) -> Result<(), String> {
             )),
             AttributeSource::DaemonSelfReport,
         ),
-        subnet_type: SubnetType::Lan,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
         source: EntitySource::System,
         tags: Vec::new(),
         virtualization_service_id: None,
@@ -70,7 +72,7 @@ async fn test_subnet_crud(ctx: &TestContext) -> Result<(), String> {
 
     let created: Subnet = ctx.client.post("/api/v1/subnets", &subnet).await?;
     assert!(!created.id.is_nil(), "Created subnet should have an ID");
-    assert_eq!(created.base.name, "Test Subnet");
+    assert_eq!(created.base.name(), "Test Subnet");
     println!("  ✓ Create subnet");
 
     let fetched: Subnet = ctx
@@ -81,12 +83,12 @@ async fn test_subnet_crud(ctx: &TestContext) -> Result<(), String> {
     println!("  ✓ Read subnet");
 
     let mut updated = fetched.clone();
-    updated.base.name = "Updated Subnet".to_string();
+    updated.base.name = SubnetName::unattributed("Updated Subnet".to_string());
     let updated: Subnet = ctx
         .client
         .put(&format!("/api/v1/subnets/{}", updated.id), &updated)
         .await?;
-    assert_eq!(updated.base.name, "Updated Subnet");
+    assert_eq!(updated.base.name(), "Updated Subnet");
     println!("  ✓ Update subnet");
 
     let subnets: Vec<Subnet> = ctx.client.get("/api/v1/subnets").await?;
@@ -597,7 +599,7 @@ async fn test_user_api_key_authentication(ctx: &TestContext) -> Result<(), Strin
     // Test: Access POST /api/v1/subnets with Bearer token (should fail - requires Member)
     let test_subnet = Subnet::new(SubnetBase {
         vlan_ids: Vec::new(),
-        name: "API Key Test Subnet".to_string(),
+        name: SubnetName::unattributed("API Key Test Subnet".to_string()),
         description: None,
         site_id: ctx.site_id,
         cidr: SubnetCidr::new(
@@ -606,7 +608,7 @@ async fn test_user_api_key_authentication(ctx: &TestContext) -> Result<(), Strin
             )),
             AttributeSource::DaemonSelfReport,
         ),
-        subnet_type: SubnetType::Lan,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
         source: EntitySource::Manual,
         tags: Vec::new(),
         virtualization_service_id: None,
@@ -909,7 +911,7 @@ async fn test_user_api_key_site_access(ctx: &TestContext) -> Result<(), String> 
     // Create a subnet on the other site to query
     let other_subnet = Subnet::new(SubnetBase {
         vlan_ids: Vec::new(),
-        name: "Other Site Subnet".to_string(),
+        name: SubnetName::unattributed("Other Site Subnet".to_string()),
         description: None,
         site_id: other_site.id,
         cidr: SubnetCidr::new(
@@ -918,7 +920,7 @@ async fn test_user_api_key_site_access(ctx: &TestContext) -> Result<(), String> 
             )),
             AttributeSource::DaemonSelfReport,
         ),
-        subnet_type: SubnetType::Lan,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
         source: EntitySource::System,
         tags: Vec::new(),
         virtualization_service_id: None,

@@ -514,6 +514,7 @@ async fn every_documented_discovery_filter_narrows_the_rows() {
 async fn sites_list_only_the_callers_and_search_reaches_their_subnets() {
     use crate::server::sites::handlers::SiteListQuery;
     use crate::server::sites::r#impl::Site;
+    use crate::server::subnets::r#impl::base::SubnetName;
 
     let (storage, state, _container) = test_state().await;
     let org = organization();
@@ -522,7 +523,7 @@ async fn sites_list_only_the_callers_and_search_reaches_their_subnets() {
     storage.sites.create(&mine).await.unwrap();
     storage.sites.create(&hidden).await.unwrap();
     let mut lab = subnet(&mine.id);
-    lab.base.name = "porto-lab".to_string();
+    lab.base.name = SubnetName::unattributed("porto-lab".to_string());
     storage.subnets.create(&lab).await.unwrap();
 
     let scope = list_scope(&[mine.id], org.id);
@@ -859,7 +860,7 @@ async fn members_list_users_and_invites_the_caller_may_see() {
 #[tokio::test]
 async fn subnets_group_as_a_nesting_tree_across_pages() {
     use crate::server::subnets::handlers::{SubnetFilterQuery, SubnetOrderField};
-    use crate::server::subnets::r#impl::base::{Subnet, SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{Subnet, SubnetCidr, SubnetCidrValue, SubnetName};
 
     let (storage, state, _container) = test_state().await;
     let org = organization();
@@ -869,7 +870,7 @@ async fn subnets_group_as_a_nesting_tree_across_pages() {
 
     let range = |cidr: &str| {
         let mut s = subnet(&net.id);
-        s.base.name = cidr.to_string();
+        s.base.name = SubnetName::unattributed(cidr.to_string());
         s.base.cidr = SubnetCidr::new(
             SubnetCidrValue(cidr.parse().unwrap()),
             AttributeSource::Manual,
@@ -901,7 +902,7 @@ async fn subnets_group_as_a_nesting_tree_across_pages() {
         .data
         .iter()
         .chain(&second.data)
-        .map(|s| (s.subnet.base.name.clone(), s.nesting_depth))
+        .map(|s| (s.subnet.base.name().to_string(), s.nesting_depth))
         .collect();
     assert_eq!(
         rows,
@@ -934,7 +935,7 @@ async fn subnets_stay_grouped_as_trees_under_a_computed_sort() {
     use crate::server::shared::attribution::AttributeSource;
     use crate::server::shared::handlers::query::OrderDirection;
     use crate::server::subnets::handlers::{SubnetFilterQuery, SubnetOrderField};
-    use crate::server::subnets::r#impl::base::{Subnet, SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{Subnet, SubnetCidr, SubnetCidrValue, SubnetName};
 
     let (storage, state, _container) = test_state().await;
     let org = organization();
@@ -947,7 +948,7 @@ async fn subnets_stay_grouped_as_trees_under_a_computed_sort() {
         if let Some(id) = id {
             s.id = id;
         }
-        s.base.name = cidr.to_string();
+        s.base.name = SubnetName::unattributed(cidr.to_string());
         s.base.cidr = SubnetCidr::new(
             SubnetCidrValue(cidr.parse().unwrap()),
             AttributeSource::Manual,
@@ -998,7 +999,7 @@ async fn subnets_stay_grouped_as_trees_under_a_computed_sort() {
         rows.extend(
             page.data
                 .into_iter()
-                .map(|s| (s.subnet.base.name.clone(), s.nesting_root_id)),
+                .map(|s| (s.subnet.base.name().to_string(), s.nesting_root_id)),
         );
     }
     assert_eq!(

@@ -825,7 +825,7 @@ fn interface_summary(i: &Interface, status: EntityFreshness, is_fresh: bool) -> 
 fn subnet_summary(s: &Subnet) -> SubnetSummary {
     SubnetSummary {
         id: s.id,
-        label: s.base.name.clone(),
+        label: s.base.name().to_string(),
     }
 }
 

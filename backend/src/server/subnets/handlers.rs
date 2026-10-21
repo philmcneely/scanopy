@@ -21,7 +21,7 @@ use crate::server::shared::validation::validate_read_access;
 use crate::server::sites::r#impl::Site;
 use crate::server::{
     config::AppState,
-    subnets::r#impl::base::{Subnet, SubnetCidr},
+    subnets::r#impl::base::{Subnet, SubnetCidr, SubnetName, SubnetTypeAttributed},
     subnets::r#impl::nesting::SubnetResponse,
 };
 use axum::extract::{Path, State};
@@ -426,6 +426,17 @@ async fn update_subnet(
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?
         .ok_or_else(|| ApiError::entity_not_found::<Subnet>(id))?;
+
+    // A name or type a person changed is theirs, for the reason the range below is. One sent back
+    // unchanged keeps the stored source: saving a description is not renaming the subnet.
+    if current.base.name.value() != subnet.base.name.value() {
+        subnet.base.name =
+            SubnetName::new(subnet.base.name.value().clone(), AttributeSource::Manual);
+    }
+    if current.base.subnet_type.value() != subnet.base.subnet_type.value() {
+        subnet.base.subnet_type =
+            SubnetTypeAttributed::new(*subnet.base.subnet_type.value(), AttributeSource::Manual);
+    }
 
     if current.base.cidr != subnet.base.cidr {
         // Moving the range through this endpoint is a person's assertion, so it settles the

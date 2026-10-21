@@ -25,7 +25,10 @@ use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::storage::traits::Storable;
 use crate::server::shared::types::entities::EntitySource;
-use crate::server::subnets::r#impl::base::{Subnet, SubnetBase, SubnetCidr, SubnetCidrValue};
+use crate::server::subnets::r#impl::base::{
+    Subnet, SubnetBase, SubnetCidr, SubnetCidrValue, SubnetName, SubnetNameValue,
+    SubnetTypeAttributed, SubnetTypeValue,
+};
 use crate::server::subnets::r#impl::types::SubnetType;
 
 use super::types::UnifiNetwork;
@@ -60,12 +63,14 @@ impl SiteNetwork {
     /// site already holds at the same range.
     pub fn to_subnet(&self, site_id: Uuid) -> Option<Subnet> {
         let range = self.range.as_ref()?;
+        // An administrator named the network and chose its purpose in the controller.
+        let authored = AttributeSource::Authored(ClientProbe::UnifiController);
         Some(Subnet::new(SubnetBase {
             cidr: SubnetCidr::new(SubnetCidrValue(range.cidr), UNIFI),
             site_id,
-            name: self.name.clone(),
+            name: SubnetName::new(SubnetNameValue(self.name.clone()), authored),
             description: None,
-            subnet_type: self.subnet_type,
+            subnet_type: SubnetTypeAttributed::new(SubnetTypeValue(self.subnet_type), authored),
             virtualization_service_id: None,
             source: EntitySource::Discovery,
             vlan_ids: Vec::new(),
@@ -285,8 +290,8 @@ mod tests {
         let subnet = find(&networks, "Guest WiFi")
             .to_subnet(Uuid::nil())
             .expect("routed");
-        assert_eq!(subnet.base.subnet_type, SubnetType::Guest);
-        assert_eq!(subnet.base.name, "Guest WiFi");
+        assert_eq!(subnet.base.subnet_type(), SubnetType::Guest);
+        assert_eq!(subnet.base.name(), "Guest WiFi");
     }
 
     fn recorded(name: &str, cidr: &str, gateway: &str) -> RecordedNetwork {

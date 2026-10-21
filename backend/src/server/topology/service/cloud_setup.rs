@@ -192,7 +192,7 @@ impl TopologyService {
             .get_all(StorableFilter::<Subnet>::new_from_site_ids(&[site_id]))
             .await?
             .into_iter()
-            .map(|s| s.base.subnet_type)
+            .map(|s| s.base.subnet_type())
             .collect();
 
         let gaps = SiteSetupGaps::find(has_topology, &subnet_types);

@@ -85,7 +85,7 @@ async fn validate_ip_address_consistency(
         if !subnet.base.cidr.contains(&ip_address.base.ip_address) {
             return Err(ApiError::ip_address_out_of_range(
                 &ip_address.base.ip_address.to_string(),
-                &subnet.base.name,
+                subnet.base.name(),
             ));
         }
     }

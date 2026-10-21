@@ -1,6 +1,7 @@
 use crate::server::hosts::r#impl::name::{HostName, HostNameSources};
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 use crate::server::{
     config::{AppState, ServerConfig},
     daemons::r#impl::base::{Daemon, DaemonBase, DaemonMode},
@@ -196,7 +197,7 @@ pub fn port(site_id: &Uuid, host_id: &Uuid) -> Port {
 pub fn subnet(site_id: &Uuid) -> Subnet {
     Subnet::new(SubnetBase {
         vlan_ids: Vec::new(),
-        name: "Test Subnet".to_string(),
+        name: SubnetName::unattributed("Test Subnet".to_string()),
         description: None,
         site_id: *site_id,
         cidr: SubnetCidr::new(
@@ -205,7 +206,7 @@ pub fn subnet(site_id: &Uuid) -> Subnet {
             )),
             AttributeSource::DaemonSelfReport,
         ),
-        subnet_type: SubnetType::Lan,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
         virtualization_service_id: None,
         source: EntitySource::System,
         tags: Vec::new(),

@@ -51,7 +51,7 @@ async fn org_setup(services: &ServiceFactory, organization_id: Uuid) -> OrgSetup
         .await
         .unwrap()
         .into_iter()
-        .map(|s| (s.base.site_id, s.base.subnet_type))
+        .map(|s| (s.base.site_id, s.base.subnet_type()))
         .collect();
     let topologies = services
         .topology_service

@@ -210,6 +210,7 @@ pub fn is_identifier_copy(source: AttributeSource) -> bool {
         | S::HttpServerMatch
         | S::DnsSdDeviceInfoMatch
         | S::DnsSdAirPlayMatch
+        | S::InterfaceNameMatch
         | S::LldpChassisId
         | S::Lldpd
         | S::ForwardingTable

@@ -493,7 +493,9 @@ impl Default for EntityBuffer {
 mod tests {
     use super::*;
     use crate::server::shared::attribution::AttributeSource;
-    use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{
+        SubnetCidr, SubnetCidrValue, SubnetName, SubnetTypeAttributed,
+    };
     use crate::server::{
         hosts::r#impl::{
             base::{Host, HostBase},
@@ -642,7 +644,7 @@ mod tests {
             first_discovery_id: None,
             base: SubnetBase {
                 vlan_ids: Vec::new(),
-                name: "test-subnet".to_string(),
+                name: SubnetName::unattributed("test-subnet".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 0), 24).unwrap(),
@@ -651,7 +653,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -700,7 +702,7 @@ mod tests {
             first_discovery_id: None,
             base: SubnetBase {
                 vlan_ids: Vec::new(),
-                name: "subnet-1".to_string(),
+                name: SubnetName::unattributed("subnet-1".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 0), 24).unwrap(),
@@ -709,7 +711,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -727,7 +729,7 @@ mod tests {
             first_discovery_id: None,
             base: SubnetBase {
                 vlan_ids: Vec::new(),
-                name: "subnet-2".to_string(),
+                name: SubnetName::unattributed("subnet-2".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 2, 0), 24).unwrap(),
@@ -736,7 +738,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -785,7 +787,7 @@ mod tests {
             first_discovery_id: None,
             base: SubnetBase {
                 vlan_ids: Vec::new(),
-                name: "subnet-1".to_string(),
+                name: SubnetName::unattributed("subnet-1".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 0), 24).unwrap(),
@@ -794,7 +796,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -812,7 +814,7 @@ mod tests {
             first_discovery_id: None,
             base: SubnetBase {
                 vlan_ids: Vec::new(),
-                name: "subnet-2".to_string(),
+                name: SubnetName::unattributed("subnet-2".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 2, 0), 24).unwrap(),
@@ -821,7 +823,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -883,7 +885,7 @@ mod tests {
             first_discovery_id: None,
             base: SubnetBase {
                 vlan_ids: Vec::new(),
-                name: "discovered-subnet".to_string(),
+                name: SubnetName::unattributed("discovered-subnet".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 0), 24).unwrap(),
@@ -892,7 +894,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -1210,7 +1212,7 @@ mod tests {
             first_discovery_id: None,
             base: SubnetBase {
                 vlan_ids: Vec::new(),
-                name: "pending".to_string(),
+                name: SubnetName::unattributed("pending".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 1, 0), 24).unwrap(),
@@ -1219,7 +1221,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -1239,7 +1241,7 @@ mod tests {
             first_discovery_id: None,
             base: SubnetBase {
                 vlan_ids: Vec::new(),
-                name: "created".to_string(),
+                name: SubnetName::unattributed("created".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 2, 0), 24).unwrap(),
@@ -1248,7 +1250,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],

@@ -6,8 +6,7 @@ use crate::server::ip_addresses::r#impl::base::{
     IPAddress, IPAddressBase, MacEvidence, MacEvidenceValue, is_unset_mac, mac_of,
 };
 use crate::server::shared::attribution::AttributeSource;
-use crate::server::subnets::r#impl::base::Subnet;
-use crate::server::subnets::r#impl::types::SubnetType;
+use crate::server::subnets::r#impl::base::{Subnet, SubnetTypeAttributed};
 use anyhow::Error;
 use anyhow::anyhow;
 use async_trait::async_trait;
@@ -670,7 +669,7 @@ pub fn merge_host_and_docker_subnets(
 ) -> Vec<Subnet> {
     let host_cidrs: HashSet<IpCidr> = host_subnets.iter().map(|s| *s.base.cidr).collect();
 
-    let mut authoritative: HashMap<IpCidr, (SubnetType, Option<Uuid>)> = HashMap::new();
+    let mut authoritative: HashMap<IpCidr, (SubnetTypeAttributed, Option<Uuid>)> = HashMap::new();
 
     let filtered_docker: Vec<Subnet> = docker_subnets
         .into_iter()
@@ -682,10 +681,10 @@ pub fn merge_host_and_docker_subnets(
                     subnet_type = ?s.base.subnet_type,
                     "Filtering out Docker subnet (host takes precedence)"
                 );
-                if s.base.subnet_type.is_container_bridge() {
+                if s.base.subnet_type().is_container_bridge() {
                     authoritative.insert(
                         *s.base.cidr,
-                        (s.base.subnet_type, s.base.virtualization_service_id),
+                        (s.base.subnet_type.clone(), s.base.virtualization_service_id),
                     );
                 }
             }
@@ -699,6 +698,7 @@ pub fn merge_host_and_docker_subnets(
             if let Some((subnet_type, virtualization_service_id)) =
                 authoritative.remove(&s.base.cidr)
             {
+                // The runtime's type, with the runtime as its source.
                 s.base.subnet_type = subnet_type;
                 s.base.virtualization_service_id = virtualization_service_id;
             }
@@ -741,6 +741,8 @@ mod tests {
     use crate::server::shared::types::entities::EntitySource;
     use crate::server::subnets::r#impl::base::SubnetBase;
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
+    use crate::server::subnets::r#impl::types::SubnetType;
     use pnet::datalink::NetworkInterface;
     use std::str::FromStr;
 
@@ -752,9 +754,9 @@ mod tests {
                 AttributeSource::DaemonSelfReport,
             ),
             site_id: Uuid::nil(),
-            name: String::new(),
+            name: SubnetName::unattributed(String::new()),
             description: None,
-            subnet_type,
+            subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
             virtualization_service_id: None,
             source: EntitySource::Manual,
             tags: Vec::new(),
@@ -768,7 +770,7 @@ mod tests {
 
         let result = merge_host_and_docker_subnets(host, docker);
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].base.subnet_type, SubnetType::Lan);
+        assert_eq!(result[0].base.subnet_type(), SubnetType::Lan);
     }
 
     #[test]
@@ -778,7 +780,7 @@ mod tests {
 
         let result = merge_host_and_docker_subnets(host, docker);
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].base.subnet_type, SubnetType::DockerBridge);
+        assert_eq!(result[0].base.subnet_type(), SubnetType::DockerBridge);
     }
 
     /// A bridge the host is attached to appears twice: once from the host's own
@@ -796,7 +798,7 @@ mod tests {
         let result = merge_host_and_docker_subnets(host, vec![bridge]);
 
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].base.subnet_type, SubnetType::DockerBridge);
+        assert_eq!(result[0].base.subnet_type(), SubnetType::DockerBridge);
         assert_eq!(result[0].base.virtualization_service_id, Some(service_id));
     }
 
@@ -910,9 +912,9 @@ mod tests {
         let result = merge_host_and_docker_subnets(host, docker);
         // MacVlan dropped (overlaps host), Bridge + IpVlan kept (no overlap)
         assert_eq!(result.len(), 3);
-        assert_eq!(result[0].base.subnet_type, SubnetType::Lan);
-        assert_eq!(result[1].base.subnet_type, SubnetType::DockerBridge);
-        assert_eq!(result[2].base.subnet_type, SubnetType::IpVlan);
+        assert_eq!(result[0].base.subnet_type(), SubnetType::Lan);
+        assert_eq!(result[1].base.subnet_type(), SubnetType::DockerBridge);
+        assert_eq!(result[2].base.subnet_type(), SubnetType::IpVlan);
     }
 
     #[test]

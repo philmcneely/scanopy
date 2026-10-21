@@ -609,19 +609,20 @@ mod tests {
     use crate::server::shared::types::entities::EntitySource;
     use crate::server::subnets::r#impl::base::{Subnet, SubnetBase};
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::subnets::r#impl::types::SubnetType;
     use uuid::Uuid;
 
     fn subnet(cidr: &str) -> Subnet {
         Subnet {
             base: SubnetBase {
-                name: cidr.to_string(),
+                name: SubnetName::unattributed(cidr.to_string()),
                 site_id: Uuid::nil(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(cidr.parse().expect("valid CIDR")),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type: SubnetType::Lan,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
                 source: EntitySource::System,
                 ..Default::default()
             },

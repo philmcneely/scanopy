@@ -54,8 +54,7 @@ pub(super) fn generate_vlans(
                 first_discovery_id: None,
                 base: VlanBase {
                     vlan_number,
-                    // As the migration backfills a discovered VLAN: a name set on the switch,
-                    // read back over SNMP.
+                    // As an SNMP scan records it: a name set on the switch, read back over SNMP.
                     name: VlanName::new(
                         VlanNameValue(name.to_string()),
                         AttributeSource::Authored(ClientProbe::Snmp),

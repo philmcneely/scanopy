@@ -415,6 +415,7 @@ mod tests {
     use crate::server::shared::types::entities::EntitySource;
     use crate::server::subnets::r#impl::base::SubnetBase;
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::subnets::r#impl::types::SubnetType;
 
     // ------------------------------------------------------------------------------------
@@ -447,13 +448,13 @@ mod tests {
     fn test_subnets(site_id: Uuid) -> Vec<Subnet> {
         vec![Subnet {
             base: SubnetBase {
-                name: "Test".to_string(),
+                name: SubnetName::unattributed("Test".to_string()),
                 site_id,
                 cidr: SubnetCidr::new(
                     SubnetCidrValue("192.168.20.0/24".parse().expect("valid CIDR")),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type: SubnetType::Lan,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
                 source: EntitySource::System,
                 ..Default::default()
             },
@@ -470,13 +471,13 @@ mod tests {
     fn subnets_with_catch_alls(site_id: Uuid) -> Vec<Subnet> {
         let catch_all = |name: &str| Subnet {
             base: SubnetBase {
-                name: name.to_string(),
+                name: SubnetName::unattributed(name.to_string()),
                 site_id,
                 cidr: SubnetCidr::new(
                     SubnetCidrValue("0.0.0.0/0".parse().expect("valid CIDR")),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type: SubnetType::Internet,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Internet),
                 source: EntitySource::System,
                 ..Default::default()
             },

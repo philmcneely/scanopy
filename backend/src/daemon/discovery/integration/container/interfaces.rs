@@ -61,8 +61,8 @@ pub fn container_lan_network_type(
         .find_map(|(network_name, _)| {
             lan_subnets
                 .iter()
-                .find(|s| s.base.name == *network_name)
-                .and_then(|s| lan_network_type(s.base.subnet_type))
+                .find(|s| s.base.name() == network_name.as_str())
+                .and_then(|s| lan_network_type(s.base.subnet_type()))
         })
 }
 
@@ -85,7 +85,7 @@ pub fn subnet_for_container_network<'s>(
 ) -> Option<&'s Subnet> {
     let candidates: Vec<&Subnet> = bridge_subnets
         .iter()
-        .filter(|s| s.base.name == network_name)
+        .filter(|s| s.base.name() == network_name)
         .collect();
     candidates
         .iter()
@@ -284,8 +284,8 @@ pub fn container_host_addresses(
     for (network_name, endpoint) in endpoints {
         let lan_type = lan_subnets
             .iter()
-            .find(|s| s.base.name == *network_name)
-            .and_then(|s| lan_network_type(s.base.subnet_type));
+            .find(|s| s.base.name() == network_name.as_str())
+            .and_then(|s| lan_network_type(s.base.subnet_type()));
 
         let Some(lan_type) = lan_type else {
             if let Some((address, subnet)) =
@@ -335,18 +335,19 @@ pub fn container_host_addresses(
 pub(crate) mod tests {
     use super::*;
     use crate::server::subnets::r#impl::base::{SubnetBase, SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use bollard::models::{HostConfig, NetworkSettings};
 
     pub fn subnet(name: &str, cidr: &str, subnet_type: SubnetType) -> Subnet {
         Subnet {
             id: Uuid::new_v4(),
             base: SubnetBase {
-                name: name.to_string(),
+                name: SubnetName::unattributed(name.to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(cidr.parse().expect("valid test CIDR")),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type,
+                subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
                 ..Default::default()
             },
             ..Default::default()

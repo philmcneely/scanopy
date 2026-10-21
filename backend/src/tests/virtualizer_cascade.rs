@@ -15,6 +15,7 @@ use crate::server::subnets::r#impl::types::SubnetType;
 use super::discovery_stale_port_guards::{LAN_IP, Lab};
 use super::discovery_stale_port_holders::covering;
 use super::test_services;
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 
 /// Deleting the Docker service deletes its containers and the bridge subnet it owns.
 #[tokio::test]
@@ -30,13 +31,13 @@ async fn deleting_a_runtime_deletes_its_containers_and_bridge_subnets() {
         .subnet_service
         .create(
             Subnet::new(SubnetBase {
-                name: "docker-compose_default".to_string(),
+                name: SubnetName::unattributed("docker-compose_default".to_string()),
                 site_id: lab.site_id,
                 cidr: SubnetCidr::new(
                     SubnetCidrValue("172.18.0.0/16".parse().unwrap()),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type: SubnetType::DockerBridge,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::DockerBridge),
                 source: EntitySource::Discovery,
                 virtualization_service_id: Some(runtime_id),
                 ..Default::default()

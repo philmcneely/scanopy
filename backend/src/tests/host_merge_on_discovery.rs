@@ -41,6 +41,7 @@ use crate::server::subnets::r#impl::types::SubnetType;
 use crate::server::tags::r#impl::base::{Tag, TagBase};
 
 use super::{daemon, dependency, organization, test_services, user};
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 
 /// VM 103's two NICs.
 fn ens18() -> MacAddress {
@@ -99,13 +100,13 @@ async fn create_subnet(
         .subnet_service
         .create(
             Subnet::new(SubnetBase {
-                name: cidr.to_string(),
+                name: SubnetName::unattributed(cidr.to_string()),
                 site_id,
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(cidr.parse().unwrap()),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type,
+                subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
                 source: EntitySource::Discovery,
                 ..Default::default()
             }),
