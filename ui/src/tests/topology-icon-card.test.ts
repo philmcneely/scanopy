@@ -71,7 +71,10 @@ function buildTopology(): RenderableTopology {
 			{ ...base, id: 'guest', name: 'guest', display_name: 'guest' },
 			{ ...base, id: 'switch', name: 'switch', display_name: 'switch' }
 		],
-		subnets: [{ ...base, id: 'lan', cidr: '10.0.0.0/24' }],
+		subnets: [
+			{ ...base, id: 'lan', cidr: '10.0.0.0/24', vlan_ids: ['vlan-10'] },
+			{ ...base, id: 'dmz', cidr: '10.0.1.0/24', vlan_ids: [] }
+		],
 		ip_addresses: [
 			{
 				...base,
@@ -129,7 +132,7 @@ function buildTopology(): RenderableTopology {
 			}
 		],
 		dependencies: [],
-		vlans: [],
+		vlans: [{ ...base, id: 'vlan-10', vlan_number: 10, subnet_ids: ['lan'] }],
 		entity_tags: [],
 		neighbours: [],
 		nodes: [guestNode, addressNode, portNode],
@@ -221,6 +224,17 @@ describe('a container tooltip comes from the entity it stands for', () => {
 	it("shows a subnet's summary fields", () => {
 		const subnet = buildTopology().subnets[0];
 		expect(rowValues(entityTooltip('Subnet', subnet, ctx('L3Logical')))).toContain('10.0.0.0/24');
+	});
+
+	it("names a subnet's VLANs, and adds no VLAN row to a subnet without any", () => {
+		const [lan, dmz] = buildTopology().subnets;
+		expect(rowValues(entityTooltip('Subnet', lan, ctx('L3Logical')))).toContain('10');
+		const vlanLabel = (s: object) =>
+			entityTooltip('Subnet', s, ctx('L3Logical')).sections.flatMap((sec) =>
+				'rows' in sec && sec.rows ? sec.rows.map((r) => r.label) : []
+			);
+		const vlanRow = vlanLabel(lan).find((l) => !vlanLabel(dmz).includes(l));
+		expect(vlanRow).toBeDefined();
 	});
 
 	it('shows a host the way its card does, in any view', () => {

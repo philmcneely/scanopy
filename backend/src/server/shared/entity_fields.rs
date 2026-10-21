@@ -223,7 +223,8 @@ const SUBNET: &[F] = &[
     DESCRIPTION,
     F::new("vlan_ids", "VLANs", G::Network)
         .entity(&[Hop::parent(E::Vlan, "vlan_ids")])
-        .many(),
+        .many()
+        .summary(),
     F::new("managed_by", "Managed By", G::Virtualization)
         .entity(&[Hop::parent(E::Service, "virtualization_service_id")]),
     SOURCE,

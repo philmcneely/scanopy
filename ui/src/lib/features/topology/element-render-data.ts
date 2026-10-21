@@ -28,7 +28,13 @@ import type {
 	TopologyNode,
 	TopologyOptions
 } from './types/base';
-import { elementEntity, nodeEntity, resolveElementNode } from './resolvers';
+import {
+	ENTITY_COLLECTIONS,
+	elementEntity,
+	nodeEntity,
+	resolveElementNode,
+	topologyLookup
+} from './resolvers';
 import { entityGlyph, type EntityGlyph } from './entity-glyph';
 import { elementMarks, entityMark, type ElementMarks, type MarkValue } from './element-marks';
 import type { Host, HostVirtualization } from '$lib/features/hosts/types/base';
@@ -501,11 +507,17 @@ export function entityTooltip(
 		default: {
 			const type = entityType as EntityType;
 			const title = name ?? entityDisplayText(type, entity);
-			const lookup = collectionLookup({});
-			// The entity's own summary fields; a field reached through a relation needs collections
-			// a tooltip does not load.
-			const rows = entityFields(type)
-				.filter((f) => f.summary && f.path.length === 0)
+			const lookup = topologyLookup(topology);
+			// The entity's own summary fields, then the related entities the topology carries (a
+			// subnet's VLANs, the service managing it). A relation into a collection the topology
+			// does not load would read as empty, so it is left out.
+			const fields = entityFields(type);
+			const reachable = (f: (typeof fields)[number]) =>
+				f.path.every((hop) => hop.type === 'Embedded' || hop.entity in ENTITY_COLLECTIONS);
+			const rows = fields
+				.filter(
+					(f) => (f.summary && f.path.length === 0) || (f.format.type === 'Entity' && reachable(f))
+				)
 				.map((f) => ({ label: entityFieldLabel(type, f), value: fieldText(f, entity, lookup) }))
 				.filter((row) => row.value !== title);
 			return titledTooltip(title, rows);
