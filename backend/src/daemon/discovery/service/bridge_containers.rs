@@ -391,8 +391,10 @@ mod tests {
     }
 
     fn container(name: &str, state: GuestState, ip: &IPAddress, port: &Port) -> Service {
-        let mut service = Service::default();
-        service.id = Uuid::new_v4();
+        let mut service = Service {
+            id: Uuid::new_v4(),
+            ..Default::default()
+        };
         service.base.virtualization_metadata =
             Some(ServiceVirtualization::Docker(DockerVirtualization {
                 container_name: Some(name.to_string()),
@@ -535,8 +537,10 @@ mod tests {
         // What an SSH run at the container returns: an SSH service on a new port 22, the
         // container's own hostname and an extra address, and the assignment it earned.
         let ssh_port = Port::new(PortBase::new_hostless(PortType::new_tcp(22)));
-        let mut ssh = Service::default();
-        ssh.id = Uuid::new_v4();
+        let mut ssh = Service {
+            id: Uuid::new_v4(),
+            ..Default::default()
+        };
         ssh.base.service_definition = Box::new(Ssh);
         ssh.base.bindings = vec![Binding::new_serviceless(BindingType::Port {
             port_id: ssh_port.id,
@@ -594,8 +598,10 @@ mod tests {
             .remove(0);
         let existing_port_id = s.host_data.ports[0].id;
         let duplicate = Port::new(PortBase::new_hostless(PortType::new_tcp(8080)));
-        let mut service = Service::default();
-        service.id = Uuid::new_v4();
+        let mut service = Service {
+            id: Uuid::new_v4(),
+            ..Default::default()
+        };
         service.base.service_definition = Box::new(Ssh);
         service.base.bindings = vec![Binding::new_serviceless(BindingType::Port {
             port_id: duplicate.id,
