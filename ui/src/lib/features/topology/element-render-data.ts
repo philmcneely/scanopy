@@ -125,7 +125,7 @@ export interface ElementIconCard {
 	tooltip: TooltipContent;
 	/**
 	 * The manager groups inlined on a guest's card (a Docker engine on a VM with its containers),
-	 * each drawn under the label in a dashed box as small glyphs, one per member.
+	 * each drawn under the label in a dashed box with a row per member.
 	 */
 	groups: IconCardGroup[];
 }
@@ -139,10 +139,12 @@ export interface IconCardGroup {
 	members: IconCardMember[];
 }
 
-/** A container (or other managed member) drawn as a small glyph inside an icon card's group. */
+/** A container (or other managed member) drawn as a row inside an icon card's group. */
 export interface IconCardMember {
 	id: string;
 	glyph: EntityGlyph;
+	/** Its name, on the member's row beside the glyph. */
+	label: string;
 	/** Its run state, from the view's Status mark; absent when the view paints none on it. */
 	status: MarkValue | undefined;
 	/** Hover content, as the card's own. */
@@ -247,10 +249,6 @@ export function buildElementRender(inputs: ElementRenderInputs): ElementRenderRe
 
 /** The most service badges a device glyph stacks: five fan across the card without overlapping. */
 const BADGE_STACK_MAX = 5;
-
-/** Member glyphs per row in an icon card's group box: four small glyphs fit its width. */
-export const ICON_GROUP_COLUMNS = 4;
-
 /** A tooltip row before empty values are dropped. */
 type MaybeRow = { label: string; value: string | null | undefined; dot?: string };
 
@@ -444,8 +442,8 @@ function buildIconCard(
 }
 
 /**
- * One inlined manager group as an icon card draws it: every member as a small glyph, whatever the
- * detailed card's collapse state, since a row of glyphs is already the collapsed form.
+ * One inlined manager group as an icon card draws it: every member as a one-line row, whatever the
+ * detailed card's collapse state, since a row of glyph and name is already the collapsed form.
  */
 function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): IconCardGroup {
 	const { activeView, sites, topology } = inputs;
@@ -454,6 +452,7 @@ function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): 
 		return {
 			id: service.id,
 			glyph: { type: 'software', definition: service.service_definition },
+			label: service.name,
 			status,
 			tooltip: serviceTooltip(service, { status })
 		};
@@ -467,6 +466,7 @@ function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): 
 		return {
 			id: host.id,
 			glyph,
+			label: hostDisplayName(host),
 			status,
 			tooltip: hostTooltip(host, {
 				deviceType: glyph.type === 'device' ? glyph.deviceType : null,
@@ -799,8 +799,8 @@ export function elementShapeKey(result: ElementRenderResult): string {
 			d.elementType,
 			Math.min(2, Math.ceil(icon.label.length / 14)),
 			result.staleTag ? 1 : 0,
-			// Each group box adds a heading and one row per ICON_GROUP_COLUMNS members.
-			icon.groups.map((g) => Math.ceil(g.members.length / ICON_GROUP_COLUMNS)).join(',')
+			// Each group box adds a heading and one single-line row per member.
+			icon.groups.map((g) => g.members.length).join(',')
 		].join('|');
 	}
 

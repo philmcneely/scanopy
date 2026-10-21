@@ -21,7 +21,6 @@
 	import {
 		buildElementRender,
 		hostTooltip,
-		ICON_GROUP_COLUMNS,
 		serviceTooltip
 	} from '../../element-render-data';
 	import { getTopologyIndex } from '../../entity-index';
@@ -488,8 +487,9 @@
 					</div>
 				</div>
 				<!-- Manager groups inlined on a guest, in the dashed box the detailed card used: a
-				     runtime's heading, then each member as a small glyph with its own tooltip and, when the
-				     view paints run state, a dot in the state's colour on its top-left corner, as on a card. -->
+				     runtime's heading, then a row per member: its glyph and name, with its own tooltip and,
+				     when the view paints run state, a dot in the state's colour on the glyph's top-left
+				     corner, as on a card. -->
 				{#each iconCard.groups as group (group.groupId)}
 					<div
 						class="w-full rounded-md border border-dashed border-gray-300 px-1 pb-1.5 pt-1 dark:border-gray-600"
@@ -505,24 +505,29 @@
 								{group.members.length}
 							</span>
 						</div>
-						<div
-							class="grid justify-items-center gap-y-1.5"
-							style="grid-template-columns: repeat({ICON_GROUP_COLUMNS}, minmax(0, 1fr));"
-						>
+						<div class="flex flex-col gap-1.5">
 							{#each group.members as member (member.id)}
-								<span class="relative flex" use:tooltip={{ content: member.tooltip }}>
-									{#if member.glyph.type === 'device'}
-										<DeviceGlyph deviceType={member.glyph.deviceType} />
-									{:else}
-										<SoftwareGlyph definition={member.glyph.definition} />
-									{/if}
-									{#if member.status}
-										<span
-											class="absolute -left-1 -top-1 h-2 w-2 rounded-full border border-gray-300 dark:border-gray-600"
-											style="background: {createColorHelper(member.status.color).rgb};"
-										></span>
-									{/if}
-								</span>
+								<div
+									class="flex min-w-0 items-center gap-1.5"
+									use:tooltip={{ content: member.tooltip }}
+								>
+									<span class="relative flex flex-shrink-0">
+										{#if member.glyph.type === 'device'}
+											<DeviceGlyph deviceType={member.glyph.deviceType} />
+										{:else}
+											<SoftwareGlyph definition={member.glyph.definition} />
+										{/if}
+										{#if member.status}
+											<span
+												class="absolute -left-1 -top-1 h-2 w-2 rounded-full border border-gray-300 dark:border-gray-600"
+												style="background: {createColorHelper(member.status.color).rgb};"
+											></span>
+										{/if}
+									</span>
+									<span class="text-secondary truncate text-[11px] font-medium leading-tight">
+										{member.label}
+									</span>
+								</div>
 							{/each}
 						</div>
 					</div>
