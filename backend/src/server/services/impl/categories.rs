@@ -174,7 +174,7 @@ impl EntityMetadataProvider for ServiceCategory {
             ServiceCategory::ReverseProxy => Concept::ReverseProxy.icon(),
 
             // End devices
-            ServiceCategory::Workstation => Icon::Monitor,
+            ServiceCategory::Workstation => Icon::Laptop,
             ServiceCategory::Mobile => Icon::Smartphone,
             ServiceCategory::IoT => Concept::IoT.icon(),
             ServiceCategory::Industrial => Icon::Factory,

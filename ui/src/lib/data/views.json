@@ -482,7 +482,7 @@
               },
               {
                 "color": "Green",
-                "icon": "monitor",
+                "icon": "laptop",
                 "id": "Workstation",
                 "label": "Workstation"
               },
@@ -974,7 +974,7 @@
               },
               {
                 "color": "Green",
-                "icon": "monitor",
+                "icon": "laptop",
                 "id": "Workstation",
                 "label": "Workstation"
               },
@@ -1472,7 +1472,7 @@
               },
               {
                 "color": "Green",
-                "icon": "monitor",
+                "icon": "laptop",
                 "id": "Workstation",
                 "label": "Workstation"
               },

@@ -81,13 +81,14 @@ impl EntityMetadataProvider for DeviceType {
             DeviceType::Printer => Icon::Printer,
             DeviceType::Camera => Icon::Cctv,
             DeviceType::Phone => Icon::Phone,
-            DeviceType::Workstation => Icon::Monitor,
+            DeviceType::Workstation => Icon::Laptop,
             DeviceType::Mobile => Icon::Smartphone,
             DeviceType::Industrial => Icon::Factory,
             DeviceType::IoT => Icon::CircuitBoard,
-            DeviceType::Server => Icon::ServerCog,
-            // A host nothing identifies looks like any host: the generic Host icon.
-            DeviceType::Unidentified => EntityDiscriminants::Host.icon(),
+            DeviceType::Server => Icon::Server,
+            // The glyph every other unknown value draws, so a host nothing identifies never reads as
+            // a device type. The Host icon is `Server`'s.
+            DeviceType::Unidentified => Icon::CircleQuestionMark,
         }
     }
 }
