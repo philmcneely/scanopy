@@ -947,6 +947,44 @@ impl DaemonService {
             .daemon_id()
             .map(crate::server::shared::services::scan_context::ScanContext::new);
 
+        // VLAN batches first: a daemon waiting on one holds its interfaces until it has the ids.
+        // A batch that fails is left unanswered, and the daemon records the VLANs as unrecorded
+        // when its wait times out — the same outcome a failed DaemonPoll upsert has.
+        let mut created_vlans = Vec::new();
+        for batch in entities.vlans {
+            let site_id = batch.request.site_id;
+            let organization_id = match self.site_service.get_by_id(&site_id).await {
+                Ok(Some(site)) => site.base.organization_id,
+                Ok(None) => {
+                    tracing::warn!(site_id = %site_id, "VLAN batch names an unknown site - skipping");
+                    continue;
+                }
+                Err(e) => {
+                    tracing::warn!(site_id = %site_id, error = %e, "Failed to resolve site for VLAN batch - skipping");
+                    continue;
+                }
+            };
+            match self
+                .vlan_service
+                .upsert_discovery_batch(
+                    site_id,
+                    organization_id,
+                    batch.request.vlans,
+                    scan_ctx.as_ref(),
+                )
+                .await
+            {
+                Ok(response) => created_vlans.push((batch.pending_id, response)),
+                Err(e) => {
+                    tracing::warn!(
+                        pending_id = %batch.pending_id,
+                        error = %e,
+                        "Failed to upsert discovered VLANs - skipping (daemon will time out)"
+                    );
+                }
+            }
+        }
+
         // Process each discovered host - continue on failure to avoid blocking entire batch
         for host_request in entities.hosts {
             let pending_id = host_request.host.id;
@@ -1089,6 +1127,7 @@ impl DaemonService {
         Ok(CreatedEntitiesPayload {
             subnets: created_subnets,
             hosts: created_hosts,
+            vlans: created_vlans,
             billing_limit_hit: billing_limit_reached,
             first_host_error,
         })

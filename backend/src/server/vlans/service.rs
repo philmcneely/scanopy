@@ -13,9 +13,13 @@ use crate::server::{
         types::entities::EntitySource,
     },
     tags::entity_tags::EntityTagService,
-    vlans::r#impl::{
-        base::Vlan,
-        subnet_vlans::{SubnetVlanRecord, SubnetVlanRecordBase},
+    shared::services::scan_context::ScanContext,
+    vlans::{
+        handlers::{VlanDiscoveryItem, VlanDiscoveryResponse, VlanDiscoveryResponseItem},
+        r#impl::{
+            base::{Vlan, VlanName, VlanNameValue},
+            subnet_vlans::{SubnetVlanRecord, SubnetVlanRecordBase},
+        },
     },
 };
 use anyhow::Result;
@@ -213,7 +217,41 @@ impl VlanService {
         Ok(())
     }
 
-    /// Upsert a VLAN from discovery. Creates if new, updates name if changed.
+    /// Upsert every VLAN one daemon submission reported, in order. Shared by the DaemonPoll
+    /// endpoint and ServerPoll entity processing; both have already checked the daemon may write
+    /// to `site_id`.
+    pub async fn upsert_discovery_batch(
+        &self,
+        site_id: Uuid,
+        organization_id: Uuid,
+        items: Vec<VlanDiscoveryItem>,
+        scan_ctx: Option<&ScanContext>,
+    ) -> Result<VlanDiscoveryResponse> {
+        let mut vlans = Vec::with_capacity(items.len());
+        for item in items {
+            let mut name_source = item.name_source;
+            // Only the server can record that a person entered something.
+            name_source.reject_manual_claim();
+            let vlan = self
+                .upsert_from_discovery(
+                    site_id,
+                    organization_id,
+                    item.vlan_number,
+                    VlanName::new(VlanNameValue(item.name), name_source),
+                    scan_ctx,
+                )
+                .await?;
+            vlans.push(VlanDiscoveryResponseItem {
+                vlan_number: vlan.base.vlan_number,
+                id: vlan.id,
+            });
+        }
+        Ok(VlanDiscoveryResponse { vlans })
+    }
+
+    /// Upsert a VLAN from discovery. Creates if new; renames an existing one only where the
+    /// reported name outranks the stored one (`Attributed::apply_in_place`), so a name a person
+    /// typed survives every scan.
     /// Returns the VLAN (existing or newly created).
     ///
     /// `scan_ctx` carries the per-submission `scan_time` (see `ScanContext`)
@@ -226,8 +264,8 @@ impl VlanService {
         site_id: Uuid,
         organization_id: Uuid,
         vlan_number: u16,
-        name: String,
-        scan_ctx: Option<&crate::server::shared::services::scan_context::ScanContext>,
+        name: VlanName,
+        scan_ctx: Option<&ScanContext>,
     ) -> Result<Vlan> {
         use crate::server::shared::storage::snapshot::DiscoveryTracked;
 
@@ -237,9 +275,8 @@ impl VlanService {
             .live();
 
         if let Some(existing) = self.storage.get_unique(filter).await?.at_most_one()? {
-            if existing.base.name != name {
-                let mut updated = existing.clone();
-                updated.base.name = name;
+            let mut updated = existing.clone();
+            if updated.base.name.apply_in_place(name) {
                 updated.updated_at = chrono::Utc::now();
                 if let Some(ctx) = scan_ctx {
                     updated.refresh_scan_timestamps(ctx.scan_time);

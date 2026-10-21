@@ -1697,6 +1697,17 @@ impl HostService {
         for mut entry in interfaces {
             entry.base.host_id = created_host.id;
             entry.base.site_id = created_host.base.site_id;
+            // A daemon that knows which of its submitted addresses an interface carries names it by
+            // the id it submitted: a gateway's per-network interfaces share one MAC, so MAC
+            // matching (`link_interfaces_to_ip_addresses`) cannot pair them. Point the link at the
+            // row the address landed on, and drop one that names no address of this host.
+            entry.base.ip_address_id = entry.base.ip_address_id.and_then(|id| {
+                let id = ip_address_id_remap.get(&id).copied().unwrap_or(id);
+                created_ip_addresses
+                    .iter()
+                    .any(|ip| ip.id == id)
+                    .then_some(id)
+            });
             let if_index = entry.base.if_index;
 
             match self

@@ -73,16 +73,16 @@ use crate::{
         lldp::{LldpChassisId, LldpPortId},
         ports::r#impl::base::PortType,
         services::r#impl::patterns::ClientProbe,
-        shared::attribution::{AttributeMethod, AttributeSource},
+        shared::attribution::AttributeSource,
         shared::types::entities::EntitySource,
         subnets::r#impl::base::Subnet,
-        subnets::r#impl::inference::{overlaps, placeable_subnet},
+        vlans::handlers::VlanDiscoveryItem,
     },
 };
 
 use super::{
     Checkpoint, Completeness, DiscoveryIntegration, IntegrationContext, IntegrationFailure,
-    ProbeContext, ProbeFailure, ProbeSuccess,
+    ProbeContext, ProbeFailure, ProbeSuccess, ReportedRange, place_reported_range,
 };
 use crate::daemon::discovery::service::ops::HostData;
 pub use crate::daemon::discovery::service::warnings::LocalPortPlacementReason;
@@ -694,7 +694,15 @@ impl DiscoveryIntegration for SnmpIntegration {
                 vlans = ?vlan_table.iter().map(|v| format!("{}={}", v.vlan_id, v.name)).collect::<Vec<_>>(),
                 "VLAN table entries collected"
             );
-            match ctx.ops.upsert_vlans(&vlan_table, site_id).await {
+            let items = vlan_table
+                .iter()
+                .map(|v| VlanDiscoveryItem {
+                    vlan_number: v.vlan_id,
+                    name: v.name.clone(),
+                    name_source: AttributeSource::Authored(ClientProbe::Snmp),
+                })
+                .collect();
+            match ctx.ops.upsert_vlans(items, site_id, ctx.cancel).await {
                 Ok(mapping) => mapping,
                 Err(e) => {
                     tracing::warn!(ip = %ip, error = %e, "Failed to upsert VLANs, VLAN IDs will not be resolved");
@@ -962,17 +970,7 @@ impl DiscoveryIntegration for SnmpIntegration {
         // entries join it, so two entries on one device follow the same rule. A range Scanopy
         // only inferred stays out: the server corrects it from this reading in
         // `SubnetService::create`, and holding it here would block that.
-        let mut held_subnets: Vec<Subnet> = ctx
-            .known_subnets
-            .iter()
-            .chain(scanning_subnet)
-            .filter(|s| {
-                !s.is_organizational_subnet()
-                    && !s.is_container_bridge_subnet()
-                    && s.base.cidr.source().method() != AttributeMethod::Inferred
-            })
-            .cloned()
-            .collect();
+        let mut held_subnets = super::held_subnets(ctx.known_subnets, scanning_subnet);
 
         for (entry_ip, entry) in &ip_addr_table {
             let mask = match entry.net_mask {
@@ -1240,46 +1238,6 @@ impl DiscoveryIntegration for SnmpIntegration {
     }
 }
 
-/// Where an address a device reports in its ipAddrTable belongs.
-#[derive(Debug)]
-enum ReportedRange<'a> {
-    /// No held subnet overlaps the reported range, so it is a segment this site does not hold
-    /// yet: a router interface on another VLAN.
-    New,
-    /// The address goes on this held subnet. Either the reported range is that subnet, or the
-    /// range overlaps held ones and this is the most specific held subnet containing the address.
-    Held(&'a Subnet),
-    /// The reported range overlaps a held subnet, and no held subnet contains the address.
-    Unplaced,
-}
-
-/// Decide whether a range built from a device's own address and netmask becomes a subnet.
-///
-/// A device's netmask describes how that device is configured, not how the segment is built. A
-/// host on a `/22` with a `/24` mask still answers ARP across the whole `/22`, and creating its
-/// `/24` splits the segment: every address in that `/24` then lands on a subnet nothing else
-/// agrees exists. So a reported range becomes a subnet only when it overlaps nothing the site
-/// already holds. Otherwise the address goes on the held subnet that contains it.
-///
-/// `held` is the site's live subnets minus the organizational `0.0.0.0/0` rows and container
-/// bridges, which overlap real ranges without describing the same segment, and minus inferred
-/// ranges, which a device's reading corrects server-side.
-fn place_reported_range<'a>(
-    reported: &cidr::IpCidr,
-    address: IpAddr,
-    held: &'a [Subnet],
-) -> ReportedRange<'a> {
-    if let Some(same) = held.iter().find(|s| *s.base.cidr == *reported) {
-        return ReportedRange::Held(same);
-    }
-    if !held.iter().any(|s| overlaps(&s.base.cidr, reported)) {
-        return ReportedRange::New;
-    }
-    match placeable_subnet(held, address) {
-        Some(subnet) => ReportedRange::Held(subnet),
-        None => ReportedRange::Unplaced,
-    }
-}
 
 /// Perform a complete SNMP poll of a device.
 /// Returns system info, interface table, and neighbor information.

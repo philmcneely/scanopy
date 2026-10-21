@@ -49,6 +49,12 @@ pub struct MappedDevice {
     /// Management IP, kept separately because the caller matches it against the scanned IP to
     /// decide which device *is* the controller host.
     pub ip: IpAddr,
+    /// A gateway's addresses on the networks it routes, beyond its management address. Filled
+    /// after mapping, from the controller's networks (`networks::gateway_interfaces`).
+    pub gateway_addresses: Vec<IPAddress>,
+    /// Whether every port's VLAN membership was read from the controller's port configuration.
+    /// Set after mapping (`ports::apply`).
+    pub vlan_membership_complete: bool,
 }
 
 /// Translate a `stat/device` payload.
@@ -129,6 +135,8 @@ fn map_device(
         interfaces: map_interfaces(device, site_id, device_mac.as_deref(), by_mac),
         device_type: device.device_type.clone().filter(|t| !t.trim().is_empty()),
         ip,
+        gateway_addresses: Vec::new(),
+        vlan_membership_complete: false,
     })
 }
 

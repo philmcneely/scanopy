@@ -349,21 +349,28 @@ impl CredentialIntegration {
                 S::Probe(P::Gnmi),
                 &[PortsAndServices, Interfaces, Neighbors],
             )],
-            // Managed devices with their identity, ports, FDB, uplinks and the service matched
-            // from their device type; clients as hosts, with UniFi's DHCP hostnames.
-            Self::UnifiController => &[(
-                S::Probe(P::UnifiController),
-                &[
-                    Addresses,
-                    Hostnames,
-                    PortsAndServices,
-                    DeviceDetails,
-                    Interfaces,
-                    Neighbors,
-                    ForwardingTables,
-                    ConnectedClients,
-                ],
-            )],
+            // Managed devices with their identity, ports, FDB, uplinks, per-port VLANs and the
+            // service matched from their device type; clients as hosts, with UniFi's DHCP
+            // hostnames; the controller's networks as subnets and VLANs, named as an administrator
+            // named them.
+            Self::UnifiController => &[
+                (
+                    S::Probe(P::UnifiController),
+                    &[
+                        Addresses,
+                        Hostnames,
+                        PortsAndServices,
+                        DeviceDetails,
+                        Interfaces,
+                        Neighbors,
+                        ForwardingTables,
+                        Vlans,
+                        Subnets,
+                        ConnectedClients,
+                    ],
+                ),
+                (S::Authored(P::UnifiController), &[Vlans]),
+            ],
             // As UniFi, except the portal reports no client hostnames.
             Self::InstantOn => &[(
                 S::Probe(P::InstantOn),

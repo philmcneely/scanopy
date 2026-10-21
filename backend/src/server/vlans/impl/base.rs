@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
+use crate::attributed_value;
 use crate::server::shared::{
+    attribution::{self as attribution, AttributeSource, string_schema},
     entities::ChangeTriggersTopologyStaleness,
     types::{api::deserialize_empty_string_as_none, entities::EntitySource},
 };
@@ -8,19 +10,50 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-use validator::Validate;
+use validator::{Validate, ValidationError};
+
+attributed_value! {
+    /// A VLAN's human-facing name.
+    ///
+    /// Refreshable: a VLAN renamed on the switch or the controller is the same VLAN, and a re-read
+    /// from the same source should follow it. Two different sources at one rung do not take turns,
+    /// and nothing discovery reads displaces a name typed into Scanopy.
+    pub struct VlanNameValue(String) as VlanName {
+        key: "name",
+        source_key: "name_source",
+        schema_name: "VlanName",
+        refreshable: true,
+        // A VLAN without a name is not one the API has ever accepted.
+        required: true,
+        blank: |value: &str| value.trim().is_empty(),
+        schema: string_schema("Human-facing name for this VLAN."),
+    }
+}
+
+/// The 1-100 character bound the API has always enforced. A custom validator because the derive
+/// cannot see a length through the carrier.
+fn validate_vlan_name(name: &VlanName) -> Result<(), ValidationError> {
+    let length = name.value().0.chars().count();
+    if !(1..=100).contains(&length) {
+        let mut error = ValidationError::new("length");
+        error.message = Some("VLAN name must be between 1 and 100 characters".into());
+        return Err(error);
+    }
+    Ok(())
+}
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize, Eq, PartialEq, Hash, ToSchema)]
 pub struct VlanBase {
     /// The 802.1Q VLAN number (1-4094)
     pub vlan_number: u16,
-    /// Human-facing name for this VLAN.
-    #[validate(length(
-        min = 1,
-        max = 100,
-        message = "VLAN name must be between 1 and 100 characters"
-    ))]
-    pub name: String,
+    /// Human-facing name for this VLAN, with the source that named it.
+    ///
+    /// Serialises as the two flat keys `name` and `name_source`, so a client that sends only
+    /// `name` still deserialises, at `Unspecified`.
+    #[serde(flatten, deserialize_with = "attribution::required")]
+    #[schema(value_type = VlanName)]
+    #[validate(custom(function = "validate_vlan_name"))]
+    pub name: VlanName,
     /// Free-text notes about the VLAN.
     #[serde(default, deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
@@ -54,7 +87,7 @@ impl Default for VlanBase {
     fn default() -> Self {
         Self {
             vlan_number: 1,
-            name: "Default".to_string(),
+            name: VlanName::new(VlanNameValue("Default".to_string()), AttributeSource::Manual),
             description: None,
             site_id: Uuid::nil(),
             organization_id: Uuid::nil(),
@@ -116,7 +149,7 @@ impl crate::server::shared::events::log::EntityLog for Vlan {}
 impl ChangeTriggersTopologyStaleness<Vlan> for Vlan {
     fn triggers_staleness(&self, other: Option<Vlan>) -> bool {
         match other {
-            Some(prev) => self.base.name != prev.base.name,
+            Some(prev) => self.base.name.value() != prev.base.name.value(),
             None => true,
         }
     }

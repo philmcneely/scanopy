@@ -123,6 +123,10 @@ impl_string_attribute_column!(
     HostSoftwareRevisionValue,
 );
 
+use crate::server::vlans::r#impl::base::VlanNameValue;
+
+impl_string_attribute_column!(VlanNameValue);
+
 use crate::server::hosts::r#impl::name::HostNameValue;
 
 impl AttributeColumn for HostNameValue {

@@ -1718,51 +1718,61 @@ impl DiscoveryOps {
         }
     }
 
-    /// Upsert VLANs discovered via SNMP. Returns mapping of vlan_number → entity UUID.
-    /// Posts to the server's VLAN discovery endpoint.
+    /// Upsert discovered VLANs. Returns mapping of vlan_number → entity UUID.
+    /// DaemonPoll: POSTs to the server's VLAN discovery endpoint. ServerPoll: buffers the
+    /// submission for the server's next poll and waits for its answer.
     pub async fn upsert_vlans(
         &self,
-        vlans: &[crate::daemon::discovery::integration::snmp::types::VlanInfo],
+        vlans: Vec<crate::server::vlans::handlers::VlanDiscoveryItem>,
         site_id: Uuid,
+        cancel: &CancellationToken,
     ) -> Result<std::collections::HashMap<u16, Uuid>, Error> {
-        use crate::server::vlans::handlers::{
-            VlanDiscoveryItem, VlanDiscoveryRequest, VlanDiscoveryResponse,
-        };
+        use crate::server::vlans::handlers::{VlanDiscoveryRequest, VlanDiscoveryResponse};
 
-        let request = VlanDiscoveryRequest {
-            site_id,
-            vlans: vlans
-                .iter()
-                .map(|v| VlanDiscoveryItem {
-                    vlan_number: v.vlan_id,
-                    name: v.name.clone(),
+        let request = VlanDiscoveryRequest { site_id, vlans };
+
+        let response: VlanDiscoveryResponse = match self.config_store.get_mode().await? {
+            DaemonMode::DaemonPoll => {
+                let api_client = &self.api_client;
+                // `api_client.post` (→ `execute`) already strips the `ApiResponse` envelope and
+                // returns the inner payload, so the type here must be the bare
+                // `VlanDiscoveryResponse`, not `ApiResponse<VlanDiscoveryResponse>`. Wrapping it
+                // made the daemon try to parse a second envelope out of `{"vlans":[...]}`, failing
+                // with `missing field 'success'` and losing all VLAN resolution (GH #649).
+                (|| async {
+                    api_client
+                        .post(
+                            "/api/v1/vlans/discovery",
+                            &request,
+                            "Failed to upsert VLANs",
+                        )
+                        .await
                 })
-                .collect(),
-        };
-
-        let api_client = &self.api_client;
-        // `api_client.post` (→ `execute`) already strips the `ApiResponse` envelope and
-        // returns the inner payload, so the type here must be the bare
-        // `VlanDiscoveryResponse`, not `ApiResponse<VlanDiscoveryResponse>`. Wrapping it
-        // made the daemon try to parse a second envelope out of `{"vlans":[...]}`, failing
-        // with `missing field 'success'` and losing all VLAN resolution (GH #649).
-        let response: VlanDiscoveryResponse = (|| async {
-            api_client
-                .post(
-                    "/api/v1/vlans/discovery",
-                    &request,
-                    "Failed to upsert VLANs",
+                .retry(
+                    ExponentialBuilder::default()
+                        .with_min_delay(Duration::from_millis(500))
+                        .with_max_delay(Duration::from_secs(10))
+                        .with_max_times(3),
                 )
-                .await
-        })
-        .retry(
-            ExponentialBuilder::default()
-                .with_min_delay(Duration::from_millis(500))
-                .with_max_delay(Duration::from_secs(10))
-                .with_max_times(3),
-        )
-        .notify(|e, dur| tracing::warn!("Retrying VLAN upsert after {:?}: {}", dur, e))
-        .await?;
+                .notify(|e, dur| tracing::warn!("Retrying VLAN upsert after {:?}: {}", dur, e))
+                .await?
+            }
+            DaemonMode::ServerPoll => {
+                let pending_id = self.entity_buffer.push_vlan_batch(request).await;
+                self.entity_buffer
+                    .await_vlan_batch(&pending_id, SERVER_POLL_CONFIRMATION_TIMEOUT, cancel)
+                    .await
+                    .ok_or_else(|| {
+                        if cancel.is_cancelled() {
+                            anyhow!("Discovery cancelled while waiting for VLAN upsert")
+                        } else {
+                            // Also what a server predating ServerPoll VLAN recording produces: it
+                            // ignores the batch and never answers.
+                            anyhow!("Timeout waiting for VLAN upsert confirmation from server")
+                        }
+                    })?
+            }
+        };
 
         let mut mapping = std::collections::HashMap::new();
         for item in response.vlans {

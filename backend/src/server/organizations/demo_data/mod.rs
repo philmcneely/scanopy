@@ -79,7 +79,7 @@ use crate::server::{
     },
     user_api_keys::r#impl::base::{UserApiKey, UserApiKeyBase},
     users::r#impl::permissions::UserOrgPermissions,
-    vlans::r#impl::base::{Vlan, VlanBase},
+    vlans::r#impl::base::{Vlan, VlanBase, VlanName, VlanNameValue},
     vlans::r#impl::subnet_vlans::{SubnetVlanRecord, SubnetVlanRecordBase},
 };
 use chrono::{DateTime, Duration, Utc};

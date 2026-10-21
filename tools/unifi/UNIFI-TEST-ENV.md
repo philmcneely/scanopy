@@ -15,10 +15,13 @@ A self-hosted UniFi controller for developing and validating the UniFi integrati
 | `{"meta":…,"data":[…]}` envelope | ✅ | |
 | Site scoping, 401 vs 404 error shapes | ✅ | |
 | Self-signed TLS handling | ✅ | |
+| `rest/networkconf` → VLANs and subnets | ✅ | |
+| `rest/portconf` → port profiles | ✅ | |
 | `port_table` → interfaces | | ✅ |
 | `lldp_table` → LLDP neighbors | | ✅ |
 | `mac_table` → bridge FDB | | ✅ |
 | `uplink` / `downlink_table` → topology edges | | ✅ |
+| `port_overrides` / `port_table[].portconf_id` → port VLAN membership | | ✅ |
 
 The right-hand column is confirmed, but not by this environment — a production deployment against
 a real controller reported devices, ports and LLDP neighbors all resolving correctly. Nothing in
@@ -44,6 +47,43 @@ Facts established against a real controller, not inferred:
   rejected API key.
 - `api/self/sites` works under both transports and returns each site's internal `name`, which
   is what lets the daemon name the valid sites back to the user.
+
+### Measured behaviour (Network Application 10.6.106, container)
+
+- `rest/networkconf` returns every network, WAN and VPN included. The untagged default network
+  has `vlan_enabled: false` and no `vlan` or `enabled` key; `ip_subnet` is the gateway address
+  with its prefix (`192.168.1.1/24`).
+- `rest/portconf` is empty until a profile is created: the built-in "All" and "Disabled"
+  profiles are not listed.
+- Saving a profile with `tagged_vlan_mgmt: "block_all"` rewrites its `forward` to `"native"`.
+- `v2/api/site/<site>/lan/enriched-configuration` wraps the same objects and omits `vlan-only`
+  networks.
+
+## Network Application container (networks and port profiles)
+
+Networks and port profiles are controller configuration, so a container with no adopted
+hardware returns real `rest/networkconf` and `rest/portconf` payloads. This is how
+`backend/src/tests/unifi/networkconf_network_app_10_6.json` and
+`portconf_network_app_10_6.json` were captured. It runs the legacy layout on 8443, so it
+exercises local-admin auth only.
+
+Run `lscr.io/linuxserver/unifi-network-application` with a `mongo` container (the image
+needs `MONGO_USER`, `MONGO_PASS`, `MONGO_HOST`, `MONGO_DBNAME` and `MONGO_AUTHSOURCE`, and a
+Mongo user with `dbOwner` on `unifi`, `unifi_stat`, `unifi_audit` and `unifi_restore`). Once
+`/status` reports `"up":true`, finish first-run setup without the wizard:
+
+```bash
+U=https://127.0.0.1:8443
+curl -sk -X POST $U/api/cmd/sitemgr -H 'Content-Type: application/json' \
+  -d '{"cmd":"add-default-admin","name":"scanopy","email":"scanopy@example.invalid","x_password":"<password>"}'
+curl -sk -X POST $U/api/set/setting/super_identity -H 'Content-Type: application/json' -d '{"name":"scanopy-test"}'
+curl -sk -X POST $U/api/cmd/system -H 'Content-Type: application/json' -d '{"cmd":"set-installed"}'
+```
+
+Then log in at `/api/login` and `POST` networks to `api/s/default/rest/networkconf` and
+profiles to `api/s/default/rest/portconf`, and run `make unifi-capture` with
+`UNIFI_PORT=8443`. `cargo test --lib -- --ignored unifi::lab_tests --nocapture` reads the same
+two endpoints through the daemon's client and resolves every profile against the networks.
 
 ## Which controller to install
 

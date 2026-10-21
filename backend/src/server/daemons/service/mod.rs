@@ -74,6 +74,7 @@ use crate::server::sites::r#impl::Site;
 use crate::server::sites::service::SiteService;
 use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::subnets::service::SubnetService;
+use crate::server::vlans::service::VlanService;
 use crate::server::tags::entity_tags::EntityTagService;
 use crate::server::users::service::UserService;
 
@@ -118,6 +119,7 @@ pub struct DaemonService {
     pub(super) discovery_service: Arc<DiscoveryService>,
     credential_service: Arc<CredentialService>,
     subnet_service: Arc<SubnetService>,
+    vlan_service: Arc<VlanService>,
     site_service: Arc<SiteService>,
     organization_service: Arc<OrganizationService>,
     user_service: Arc<UserService>,

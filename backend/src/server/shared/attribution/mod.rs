@@ -37,6 +37,7 @@ macro_rules! attributed_value {
             source_key: $source_key:literal,
             schema_name: $schema_name:literal,
             refreshable: $refreshable:literal,
+            $(required: $required:literal,)?
             blank: $blank:expr,
             $(refines: $refines:expr,)?
             schema: $schema:expr,
@@ -70,6 +71,7 @@ macro_rules! attributed_value {
             const SOURCE_KEY: &'static str = $source_key;
             const SCHEMA_NAME: &'static str = $schema_name;
             const REFRESHABLE: bool = $refreshable;
+            $(const VALUE_REQUIRED: bool = $required;)?
 
             fn is_blank(&self) -> bool {
                 #[allow(clippy::redundant_closure_call)]

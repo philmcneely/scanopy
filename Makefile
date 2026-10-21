@@ -118,7 +118,7 @@ help:
 	@echo "  make podman-workload-up  - Seed a discoverable Podman pod + containers"
 	@echo "  make podman-workload-down - Remove the Podman test workload"
 	@echo "  make unifi-status    - Check both UniFi auth transports (see tools/unifi/UNIFI-TEST-ENV.md)"
-	@echo "  make unifi-capture   - Capture stat/sysinfo + stat/device from the UniFi controller"
+	@echo "  make unifi-capture   - Capture devices, networks and port profiles from the UniFi controller"
 
 fresh-db:
 	make clean-db

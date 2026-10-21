@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "rc": "ok"
+  },
+  "data": [
+    {
+      "setting_preference": "manual",
+      "voice_networkconf_id": "",
+      "forward": "native",
+      "native_networkconf_id": "6ad8cac9dea9b77c91595a16",
+      "name": "IoT Access",
+      "site_id": "000000000000000000000001",
+      "_id": "6ad8cae0dea9b77c91595a29",
+      "tagged_vlan_mgmt": "block_all"
+    },
+    {
+      "setting_preference": "manual",
+      "excluded_networkconf_ids": [
+        "6ad8cac9dea9b77c91595a1a"
+      ],
+      "forward": "customize",
+      "native_networkconf_id": "6ad8caa2dea9b77c915959fe",
+      "name": "AP Trunk",
+      "site_id": "000000000000000000000001",
+      "_id": "6ad8cae0dea9b77c91595a2c",
+      "tagged_vlan_mgmt": "custom"
+    },
+    {
+      "setting_preference": "manual",
+      "forward": "customize",
+      "native_networkconf_id": "6ad8cac9dea9b77c91595a1d",
+      "name": "Camera Uplink",
+      "site_id": "000000000000000000000001",
+      "_id": "6ad8cae0dea9b77c91595a2f",
+      "tagged_vlan_mgmt": "auto"
+    }
+  ]
+}

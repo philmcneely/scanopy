@@ -8,7 +8,8 @@ use crate::server::shared::handlers::list::list_page;
 use crate::server::shared::storage::traits::Storage;
 use crate::server::shared::types::api::GroupCount;
 use crate::server::vlans::handlers::{VlanFilterQuery, VlanOrderField};
-use crate::server::vlans::r#impl::base::{Vlan, VlanBase};
+use crate::server::shared::attribution::AttributeSource;
+use crate::server::vlans::r#impl::base::{Vlan, VlanBase, VlanName, VlanNameValue};
 
 use super::{list_scope, organization, site, subnet, test_state, user};
 use crate::server::shared::storage::traits::Storable;
@@ -31,7 +32,10 @@ fn vlan(site_id: Uuid, organization_id: Uuid, number: u16) -> Vlan {
         last_seen_at: now,
         base: VlanBase {
             vlan_number: number,
-            name: format!("vlan-{number}"),
+            name: VlanName::new(
+                VlanNameValue(format!("vlan-{number}")),
+                AttributeSource::Manual,
+            ),
             site_id,
             organization_id,
             ..Default::default()
@@ -854,7 +858,6 @@ async fn members_list_users_and_invites_the_caller_may_see() {
 /// and ranges nested in nothing fall in the ungrouped bucket.
 #[tokio::test]
 async fn subnets_group_as_a_nesting_tree_across_pages() {
-    use crate::server::shared::attribution::AttributeSource;
     use crate::server::subnets::handlers::{SubnetFilterQuery, SubnetOrderField};
     use crate::server::subnets::r#impl::base::{Subnet, SubnetCidr, SubnetCidrValue};
 

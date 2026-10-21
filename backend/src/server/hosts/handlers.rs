@@ -825,6 +825,7 @@ async fn create_host_discovery(
     let entities = BufferedEntities {
         hosts: vec![request],
         subnets: vec![],
+        vlans: vec![],
     };
 
     let created = state
