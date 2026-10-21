@@ -1479,6 +1479,8 @@
 	"meta_attribute_sources_HypervisorConfig_name": "Hypervisor or runtime configuration",
 	"meta_attribute_sources_IcmpEcho_description": "The host answered a ping to its address.",
 	"meta_attribute_sources_IcmpEcho_name": "Ping",
+	"meta_attribute_sources_InterfaceNameMatch_description": "Scanopy guessed this from the name of the interface that holds the range. Nothing reported it directly.",
+	"meta_attribute_sources_InterfaceNameMatch_name": "Interface name",
 	"meta_attribute_sources_LldpChassisId_description": "The device advertised this about itself over LLDP.",
 	"meta_attribute_sources_LldpChassisId_name": "LLDP",
 	"meta_attribute_sources_LldpNeighbourAddress_description": "Scanopy assumed this range around an address a neighbour advertised over LLDP.",
