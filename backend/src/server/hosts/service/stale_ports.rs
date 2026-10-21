@@ -283,47 +283,18 @@ impl HostService {
         services: &mut Vec<Service>,
         authentication: AuthenticatedEntity,
     ) -> Result<Vec<Service>> {
-        if ServiceDefinitionExt::is_generic(&claimant.base.service_definition)
-            || claimant.base.virtualization_service_id.is_none()
-        {
-            return Ok(Vec::new());
-        }
-        let Some(container_id) = container_id_of(claimant) else {
-            return Ok(Vec::new());
-        };
         let placeholders: Vec<Service> = services
             .iter()
             .filter(|s| {
-                s.id != claimant.id
-                    && s.base.source.is_from_discovery()
-                    && ServiceDefinitionExt::is_generic(&s.base.service_definition)
-                    && !ServiceDefinitionExt::is_open_ports(&s.base.service_definition)
+                s.base.source.is_from_discovery()
                     && !turnover.present.contains(&s.id)
-                    && s.base.virtualization_service_id == claimant.base.virtualization_service_id
-                    && container_id_of(s).as_deref() == Some(container_id.as_str())
+                    && s.is_placeholder_for(claimant)
             })
             .cloned()
             .collect();
 
         for placeholder in &placeholders {
-            for binding in &placeholder.base.bindings {
-                let binding_type = binding.base.binding_type;
-                // An address binding conflicts with a port binding on the same address.
-                let held = claimant.base.bindings.iter().any(|b| match binding_type {
-                    BindingType::IPAddress { ip_address_id } => {
-                        b.base.binding_type == binding_type
-                            || b.port_id().is_some()
-                                && bindings_overlap(&Some(ip_address_id), &b.ip_address_id())
-                    }
-                    BindingType::Port { .. } => b.base.binding_type == binding_type,
-                });
-                if !held {
-                    claimant
-                        .base
-                        .bindings
-                        .push(Binding::new_serviceless(binding_type));
-                }
-            }
+            claimant.absorb_placeholder_bindings(placeholder);
             // Its bindings go now, so they don't count as conflicts with the claimant's. The row and
             // its dependency memberships stay until the claimant is stored and they can be
             // repointed.

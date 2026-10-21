@@ -213,6 +213,18 @@ impl HostData {
             service.base.host_id = self.host.id;
             service.base.virtualization_metadata = Some(target.virtualization.clone());
             service.base.virtualization_service_id = target.virtualization_service_id;
+            // The container scan stored this container as a generic placeholder bound to the same
+            // ports, and the server drops a service whose port another holds. What the credential
+            // identified is that container, so it takes the placeholder's place and bindings, the
+            // rule the server applies to a placeholder stored by an earlier scan.
+            if let Some(placeholder) = self
+                .services
+                .iter()
+                .position(|s| s.is_placeholder_for(&service))
+            {
+                let placeholder = self.services.remove(placeholder);
+                service.absorb_placeholder_bindings(&placeholder);
+            }
             self.services.push(service);
         }
 
@@ -632,6 +644,81 @@ mod tests {
         );
         assert_eq!(s.host_data.ip_addresses.len(), ips_before);
         assert_eq!(s.host_data.host.base.hostname, hostname_before);
+    }
+
+    /// The container scan stores an unidentified container as a generic service bound to its
+    /// ports. When a credential identifies what answers on one of them, that service is the
+    /// container: it replaces the placeholder and takes its bindings, rather than being added
+    /// beside it on the same port, which the server drops as a conflict.
+    #[test]
+    fn an_identified_service_replaces_its_containers_placeholder() {
+        use crate::server::services::definitions::docker_container::DockerContainer;
+        use crate::server::services::r#impl::definitions::ServiceDefinition;
+
+        let mut s = scene(GuestState::Paused);
+        let runtime_service_id = Uuid::new_v4();
+        let placeholder_id = s.host_data.services[0].id;
+        {
+            let web = &mut s.host_data.services[0];
+            web.base.service_definition = Box::new(DockerContainer);
+            web.base.virtualization_service_id = Some(runtime_service_id);
+            if let Some(ServiceVirtualization::Docker(docker)) =
+                web.base.virtualization_metadata.as_mut()
+            {
+                docker.container_id = Some("c0ffee".to_string());
+            }
+        }
+        let container_port_id = s.host_data.ports[0].id;
+        let target = select_bridge_targets(&s.host_data, &[ssh_override("172.17.0.3")])
+            .targets
+            .remove(0);
+
+        // SSH found on the port the container scan bound to the placeholder.
+        let port = Port::new(PortBase::new_hostless(PortType::new_tcp(8080)));
+        let mut ssh = Service {
+            id: Uuid::new_v4(),
+            ..Default::default()
+        };
+        ssh.base.service_definition = Box::new(Ssh);
+        ssh.base.bindings = vec![Binding::new_serviceless(BindingType::Port {
+            port_id: port.id,
+            ip_address_id: Some(s.running_ip.id),
+        })];
+        let found = HostData::new(
+            Host::default(),
+            vec![ssh],
+            vec![port],
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        s.host_data.merge_bridge_container_results(found, &target);
+
+        assert!(s.host_data.services.iter().all(|s| s.id != placeholder_id));
+        let at_container: Vec<&Service> = s
+            .host_data
+            .services
+            .iter()
+            .filter(|svc| {
+                svc.base
+                    .virtualization_metadata
+                    .as_ref()
+                    .and_then(|v| v.container_id())
+                    == Some("c0ffee")
+            })
+            .collect();
+        assert_eq!(at_container.len(), 1);
+        assert_eq!(at_container[0].base.service_definition.name(), Ssh.name());
+        assert_eq!(
+            at_container[0]
+                .base
+                .bindings
+                .iter()
+                .filter_map(|b| b.port_id())
+                .collect::<Vec<_>>(),
+            vec![container_port_id]
+        );
     }
 
     #[test]

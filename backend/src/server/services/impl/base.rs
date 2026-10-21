@@ -1,4 +1,4 @@
-use crate::server::bindings::r#impl::base::Binding;
+use crate::server::bindings::r#impl::base::{Binding, BindingType};
 use crate::server::discovery::r#impl::types::DiscoveryType;
 use crate::server::ip_addresses::r#impl::base::IPAddress;
 use crate::server::ports::r#impl::base::{Port, PortType};
@@ -366,6 +366,59 @@ impl Display for Service {
 }
 
 impl Service {
+    /// Whether `self` is the placeholder for `claimant`'s container, which `claimant` replaces: a
+    /// "Docker Container" or "Podman Container" stored for a container the daemon could not
+    /// identify, on the same runtime, with the same container id.
+    ///
+    /// Any other service identifies that container better, including a generic protocol such as
+    /// SSH or PostgreSQL, so `claimant` only has to be something other than a placeholder or
+    /// Unclaimed Open Ports.
+    pub fn is_placeholder_for(&self, claimant: &Service) -> bool {
+        use crate::server::services::definitions::{
+            docker_container::DockerContainer, podman_container::PodmanContainer,
+        };
+        let is_placeholder = |s: &Service| {
+            let name = s.base.service_definition.name();
+            name == DockerContainer.name() || name == PodmanContainer.name()
+        };
+        let container_id = |s: &Service| {
+            s.base
+                .virtualization_metadata
+                .as_ref()
+                .and_then(|v| v.container_id().map(str::to_owned))
+        };
+        self.id != claimant.id
+            && is_placeholder(self)
+            && !is_placeholder(claimant)
+            && !ServiceDefinitionExt::is_open_ports(&claimant.base.service_definition)
+            && claimant.base.virtualization_service_id.is_some()
+            && self.base.virtualization_service_id == claimant.base.virtualization_service_id
+            && container_id(claimant).is_some()
+            && container_id(self) == container_id(claimant)
+    }
+
+    /// Take every binding `placeholder` held that `self` does not already hold, so the two are
+    /// one container. An address binding counts as held when `self` binds a port on that address,
+    /// since the two would conflict.
+    pub fn absorb_placeholder_bindings(&mut self, placeholder: &Service) {
+        for binding in &placeholder.base.bindings {
+            let binding_type = binding.base.binding_type;
+            let held = self.base.bindings.iter().any(|b| match binding_type {
+                BindingType::IPAddress { ip_address_id } => {
+                    b.base.binding_type == binding_type
+                        || b.port_id().is_some()
+                            && b.ip_address_id().is_none_or(|id| id == ip_address_id)
+                }
+                BindingType::Port { .. } => b.base.binding_type == binding_type,
+            });
+            if !held {
+                self.base
+                    .bindings
+                    .push(Binding::new_serviceless(binding_type));
+            }
+        }
+    }
+
     pub fn get_binding(&self, id: Uuid) -> Option<&Binding> {
         self.base.bindings.iter().find(|b| b.id() == id)
     }
