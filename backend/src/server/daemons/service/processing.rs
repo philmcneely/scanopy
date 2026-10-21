@@ -472,14 +472,13 @@ impl DaemonService {
                 .credential_service
                 .get_by_id(&target.credential_id())
                 .await?
-            {
-                if let Some(refusal) = crate::server::credentials::service::refusal_for_daemon(
+                && let Some(refusal) = crate::server::credentials::service::refusal_for_daemon(
                     &cred,
                     &request.name,
                     daemon_version.as_ref(),
-                ) {
-                    return Err(ApiError::bad_request(&refusal));
-                }
+                )
+            {
+                return Err(ApiError::bad_request(&refusal));
             }
         }
 
