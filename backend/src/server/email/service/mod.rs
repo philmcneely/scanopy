@@ -1273,11 +1273,11 @@ impl EmailService {
 
     /// Email each organization whose active daemons face an announced sunset
     /// cutover. Each daemon is matched to the cutover it actually faces — the
-    /// soonest one whose floor is above it — and daemons are grouped per (org,
-    /// floor), so one aggregated email per group (naming every affected daemon)
+    /// soonest one whose ceiling covers it — and daemons are grouped per (org,
+    /// ceiling), so one aggregated email per group (naming every affected daemon)
     /// goes to the org owner plus each distinct daemon maintainer. An org-level
-    /// ratchet on the highest floor already announced to that org means each org
-    /// is emailed at most once per floor, so this is safe to run on every server
+    /// ratchet on the highest ceiling already announced to that org means each org
+    /// is emailed at most once per ceiling, so this is safe to run on every server
     /// boot — including after a new cutover is appended to the list.
     ///
     /// No-op while the sunset machinery is dormant (no cutover has a date yet).
@@ -1285,8 +1285,8 @@ impl EmailService {
         use crate::server::daemons::r#impl::version::applicable_sunset;
 
         // Nothing announced at all — skip the sweep entirely rather than query
-        // every daemon to learn that. A version-less daemon counts as below every
-        // floor, so "not even that faces a cutover" means no cutover has a date.
+        // every daemon to learn that. A version-less daemon counts as covered by every
+        // ceiling, so "not even that faces a cutover" means no cutover has a date.
         if applicable_sunset(None).is_none() {
             return Ok(());
         }
@@ -1302,7 +1302,7 @@ impl EmailService {
             .get_all(StorableFilter::<Daemon>::new_for_active_daemons())
             .await?;
 
-        let mut by_org_floor: HashMap<(Uuid, Version), (DateTime<Utc>, Vec<Daemon>)> =
+        let mut by_org_ceiling: HashMap<(Uuid, Version), (DateTime<Utc>, Vec<Daemon>)> =
             HashMap::new();
         for daemon in daemons {
             let version = daemon.base.version.as_ref();
@@ -1311,35 +1311,35 @@ impl EmailService {
             }
             // Dormant cutovers yield None here, which is what makes the whole
             // sweep a no-op before a launch date is baked in.
-            let Some((floor, effective_on)) = applicable_sunset(version) else {
+            let Some((ceiling, effective_on)) = applicable_sunset(version) else {
                 continue;
             };
             let Some(site) = self.site_service.get_by_id(&daemon.base.site_id).await? else {
                 continue;
             };
-            by_org_floor
-                .entry((site.base.organization_id, floor))
+            by_org_ceiling
+                .entry((site.base.organization_id, ceiling))
                 .or_insert_with(|| (effective_on, Vec::new()))
                 .1
                 .push(daemon);
         }
 
-        // Ascending floor order. Once a group fails, that org's higher floors
+        // Ascending ceiling order. Once a group fails, that org's higher ceilings
         // are skipped this sweep: emailing them would raise the ratchet past
-        // the failed floor and it would never be retried. The ratchet stays at
-        // the highest floor every recipient received, and the next boot
+        // the failed ceiling and it would never be retried. The ratchet stays at
+        // the highest ceiling every recipient received, and the next boot
         // retries from there.
-        let mut groups: Vec<_> = by_org_floor.into_iter().collect();
-        groups.sort_by(|((_, a_floor), _), ((_, b_floor), _)| a_floor.cmp(b_floor));
+        let mut groups: Vec<_> = by_org_ceiling.into_iter().collect();
+        groups.sort_by(|((_, a_ceiling), _), ((_, b_ceiling), _)| a_ceiling.cmp(b_ceiling));
 
         let mut failed_orgs: HashSet<Uuid> = HashSet::new();
-        for ((org_id, floor), (effective_on, affected)) in groups {
+        for ((org_id, ceiling), (effective_on, affected)) in groups {
             if failed_orgs.contains(&org_id) {
                 continue;
             }
             let sunset_display = effective_on.format("%B %-d, %Y").to_string();
             if let Err(e) = self
-                .announce_org_sunset(org_id, &affected, &floor, &sunset_display)
+                .announce_org_sunset(org_id, &affected, &ceiling, &sunset_display)
                 .await
             {
                 failed_orgs.insert(org_id);
@@ -1351,12 +1351,12 @@ impl EmailService {
     }
 
     /// Send the aggregated sunset email to one org's owner + maintainers, then
-    /// advance the org's ratchet. Skips orgs already notified for this floor.
+    /// advance the org's ratchet. Skips orgs already notified for this ceiling.
     async fn announce_org_sunset(
         &self,
         org_id: Uuid,
         affected: &[Daemon],
-        floor: &Version,
+        ceiling: &Version,
         sunset_display: &str,
     ) -> Result<()> {
         let org = match self.organization_service.get_by_id(&org_id).await? {
@@ -1370,15 +1370,15 @@ impl EmailService {
         if self.self_hosted_plan_locked(org.base.plan) {
             return Ok(());
         }
-        // Ratchet: the stored value is the highest floor this org has been told
-        // about, and floors are totally ordered, so anything at or below it has
+        // Ratchet: the stored value is the highest ceiling this org has been told
+        // about, and ceilings are totally ordered, so anything at or below it has
         // already been communicated.
         if org
             .base
             .notifications
-            .sunset_notified_floor
+            .sunset_notified_last_unsupported
             .as_ref()
-            .is_some_and(|notified| floor <= notified)
+            .is_some_and(|notified| ceiling <= notified)
         {
             return Ok(());
         }
@@ -1415,17 +1415,17 @@ impl EmailService {
         }
 
         // Any failed recipient leaves the ratchet where it was, so the next
-        // boot sweep retries this floor. Recipients who already received it
+        // boot sweep retries this ceiling. Recipients who already received it
         // get it again then.
         if failed > 0 {
             anyhow::bail!(
-                "{failed} of {} daemon sunset emails failed to send; floor {floor} not recorded",
+                "{failed} of {} daemon sunset emails failed to send; ceiling {ceiling} not recorded",
                 recipients.len()
             );
         }
 
         // Every recipient was emailed: advance the ratchet so subsequent boots
-        // don't re-send for this floor (or any lower one). Monotonic: it only
+        // don't re-send for this ceiling (or any lower one). Monotonic: it only
         // ever moves up.
         self.organization_service
             .modify(
@@ -1435,11 +1435,11 @@ impl EmailService {
                 |org| {
                     let notifications = &mut org.base.notifications;
                     if notifications
-                        .sunset_notified_floor
+                        .sunset_notified_last_unsupported
                         .as_ref()
-                        .is_none_or(|notified| floor > notified)
+                        .is_none_or(|notified| ceiling > notified)
                     {
-                        notifications.sunset_notified_floor = Some(floor.clone());
+                        notifications.sunset_notified_last_unsupported = Some(ceiling.clone());
                     }
                 },
             )

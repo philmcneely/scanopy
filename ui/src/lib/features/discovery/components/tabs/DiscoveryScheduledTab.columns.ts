@@ -1,4 +1,5 @@
 import type { Snippet } from 'svelte';
+import daemonVersionGates from '$lib/data/daemon-version-gates.json';
 import { discoveryTypes } from '$lib/shared/stores/metadata';
 import type { Discovery } from '../../types/base';
 import {
@@ -141,7 +142,9 @@ export function discoveryScheduledColumns(ctx: DiscoveryScheduledColumnsContext)
 									id: 'legacy',
 									label: common_legacy(),
 									color: 'Yellow',
-									title: discovery_legacyTagTitle()
+									title: discovery_legacyTagTitle({
+										version: daemonVersionGates.last_without_unified_discovery
+									})
 								}
 							]
 						: []

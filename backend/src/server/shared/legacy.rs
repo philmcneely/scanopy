@@ -1,8 +1,8 @@
 //! Legacy daemon wire transformations.
 //!
-//! Cleanup: remove [`rewrite_response_for_legacy_daemon`] once minimum_supported >= 0.16.0, and
-//! the network-wire rewrites once the floor passes `last_network_wire()`, and the single-target
-//! rescan rewrites once it passes `last_single_target_rescan()`.
+//! Cleanup: remove [`rewrite_response_for_legacy_daemon`] once the enforced ceiling passes `last_without_ip_address_bindings()`, and
+//! the network-wire rewrites once the enforced ceiling passes `last_without_site_wire()`, and the single-target
+//! rescan rewrites once it passes `last_without_multi_target_rescan()`.
 //!
 //! The network-wire rename is done here, on whole JSON bodies, rather than with
 //! `#[serde(alias = "network_id")]` on each `site_id` field: serde ignores an alias on a field of
@@ -21,8 +21,8 @@ use crate::server::daemons::r#impl::version::{reads_single_target_rescan, speaks
 /// The server side of the network wire. A daemon's request body is read with
 /// [`rewrite_from_network_wire`] whatever its version (one built on site names sends none of the
 /// old ones), and its JSON response is written with [`rewrite_for_network_wire`] when it is at or
-/// below `last_network_wire()`, and with [`rewrite_for_single_target_rescan`] when it is at or
-/// below `last_single_target_rescan()`. A daemon is recognised by its `X-Daemon-ID` header, which every
+/// below `last_without_site_wire()`, and with [`rewrite_for_single_target_rescan`] when it is at or
+/// below `last_without_multi_target_rescan()`. A daemon is recognised by its `X-Daemon-ID` header, which every
 /// supported version sends; one without `X-Daemon-Version` predates 0.14.10 and is old enough.
 pub async fn network_wire_middleware(request: Request, next: Next) -> Response {
     let headers = request.headers();
@@ -111,7 +111,7 @@ async fn rewrite_body(
     Ok(serde_json::to_vec(&json).map_or(Body::from(bytes), Body::from))
 }
 
-/// Rewrite JSON bound for a daemon at or below `last_network_wire()` to the names it was built
+/// Rewrite JSON bound for a daemon at or below `last_without_site_wire()` to the names it was built
 /// with: every `site_id` key becomes `network_id`, and an integration target's `"scope":"Site"`
 /// becomes `"Network"`. Those daemons require `network_id` on every entity they parse, so without
 /// this they fail to read registration, work and discovery responses.
@@ -126,7 +126,7 @@ pub fn rewrite_from_network_wire(value: &mut serde_json::Value) {
     rename_wire_keys(value, ("network_id", "site_id"), ("Network", "Site"));
 }
 
-/// Rewrite JSON bound for a daemon at or below `last_single_target_rescan()`: every rescan
+/// Rewrite JSON bound for a daemon at or below `last_without_multi_target_rescan()`: every rescan
 /// (`"type":"Rescan"`) also gets the single `target_host_id` those daemons require, set to its
 /// first target. They ignore `target_host_ids` and scan only `ips`, which already holds every
 /// target's addresses.
@@ -262,7 +262,7 @@ mod tests {
     use super::*;
     use crate::daemon::runtime::state::DaemonStatus;
     use crate::server::daemons::r#impl::api::{DaemonRegistrationRequest, DiscoveryUpdatePayload};
-    use crate::server::daemons::r#impl::version::last_network_wire;
+    use crate::server::daemons::r#impl::version::last_without_site_wire;
     use crate::server::hosts::r#impl::api::DiscoveryHostRequest;
     use crate::server::shared::types::api::ApiJson;
     use crate::server::subnets::r#impl::base::Subnet;
@@ -415,7 +415,7 @@ mod tests {
 
     #[tokio::test]
     async fn daemons_up_to_the_last_network_release_are_sent_network_names() {
-        let last = last_network_wire().to_string();
+        let last = last_without_site_wire().to_string();
         for version in [Some("0.14.10"), Some(last.as_str()), None] {
             let mut headers = vec![DAEMON_ID];
             if let Some(v) = version {
@@ -434,7 +434,7 @@ mod tests {
     #[tokio::test]
     async fn newer_daemons_and_other_clients_are_sent_site_names() {
         let next = {
-            let mut v = last_network_wire();
+            let mut v = last_without_site_wire();
             v.patch += 1;
             v.to_string()
         };
@@ -450,7 +450,7 @@ mod tests {
     }
 
     /// A daemon built on site names reads what it is sent until its version passes
-    /// `last_network_wire`: the round trip through both rewrites loses nothing.
+    /// `last_without_site_wire`: the round trip through both rewrites loses nothing.
     #[test]
     fn site_types_read_the_network_wire() {
         let subnet = Subnet::default();
@@ -480,7 +480,7 @@ mod single_target_rescan_tests {
         })
     }
 
-    /// The shape daemons at or below `last_single_target_rescan()` were built with.
+    /// The shape daemons at or below `last_without_multi_target_rescan()` were built with.
     #[derive(serde::Deserialize)]
     #[serde(tag = "type")]
     enum OldDiscoveryType {

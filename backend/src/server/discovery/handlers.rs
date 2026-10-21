@@ -453,16 +453,18 @@ pub async fn create_discovery(
             // old". A provisioned daemon carries no version until it first contacts
             // the server (provisioning no longer writes one optimistically), so a
             // never-connected daemon lands here with `None` — telling that operator
-            // to "upgrade to 0.15.0" is misleading; the daemon simply hasn't checked
+            // to "upgrade" is misleading; the daemon simply hasn't checked
             // in yet.
             return Err(match daemon.base.version {
                 None => ApiError::bad_request(
                     "Daemon has not connected to the server yet, so its version is unknown. \
                      Wait for it to contact the server, then trigger discovery again.",
                 ),
-                Some(_) => ApiError::bad_request(
-                    "Daemon does not support unified discovery. Upgrade to version 0.15.0 or later.",
-                ),
+                Some(_) => ApiError::bad_request(&format!(
+                    "Daemon does not support unified discovery. Upgrade to a version newer \
+                     than {}.",
+                    crate::server::daemons::r#impl::version::last_without_unified_discovery()
+                )),
             });
         }
     }

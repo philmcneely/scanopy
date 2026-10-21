@@ -42,7 +42,7 @@
 	"errors_daemon_os_mismatch": "This daemon was created for {expected} but is running on {actual}. Create a new daemon for this OS, or install this one on the OS it was created for.",
 	"errors_daemon_site_mismatch": "Cannot send updates for a different site",
 	"errors_daemon_standby": "The daemon is on standby because it has not completed a discovery in over 30 days. Restart the daemon or start a discovery to resume.",
-	"errors_daemon_version_too_old": "Daemon version {daemon_version} is older than server version {server_version}. Update the daemon to match the server version.",
+	"errors_daemon_version_too_old": "Daemon version {daemon_version} is no longer supported. This server accepts daemons newer than {last_unsupported_version}. Update the daemon.",
 	"errors_database_duplicate_entry": "A record with this {field} already exists",
 	"errors_database_error": "A database error occurred",
 	"errors_discovery_historical_read_only": "Historical discovery cannot be modified via API",

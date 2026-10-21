@@ -561,7 +561,9 @@ impl DaemonRuntimeService {
                 tracing::info!(target: LOG_TARGET, "Registration successful");
                 if let Some(caps) = response.server_capabilities {
                     tracing::info!(target: LOG_TARGET, "  Server version:  {}", caps.server_version);
-                    tracing::info!(target: LOG_TARGET, "  Min daemon ver:  {}", caps.minimum_daemon_version);
+                    if let Some(v) = &caps.last_unsupported_daemon_version {
+                        tracing::info!(target: LOG_TARGET, "  Rejects daemons up to: {}", v);
+                    }
                     // Surface any deprecation/sunset warnings on the register path
                     // too — previously only the startup-announce path logged them,
                     // so a first-time-registering deprecated daemon saw nothing.
@@ -701,7 +703,9 @@ impl DaemonRuntimeService {
         match result {
             Ok(capabilities) => {
                 tracing::info!(target: LOG_TARGET, "  Server version:  {}", capabilities.server_version);
-                tracing::info!(target: LOG_TARGET, "  Min daemon ver:  {}", capabilities.minimum_daemon_version);
+                if let Some(v) = &capabilities.last_unsupported_daemon_version {
+                    tracing::info!(target: LOG_TARGET, "  Rejects daemons up to: {}", v);
+                }
 
                 // Log any deprecation warnings from the server
                 capabilities.log_warnings();

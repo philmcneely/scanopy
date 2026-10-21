@@ -23202,8 +23202,7 @@
             "type": "object",
             "description": "Server capabilities returned on startup/registration",
             "required": [
-              "server_version",
-              "minimum_daemon_version"
+              "server_version"
             ],
             "properties": {
               "deprecation_warnings": {
@@ -23213,9 +23212,19 @@
                 },
                 "description": "Deprecation warnings for the daemon"
               },
+              "last_unsupported_daemon_version": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Daemons at or below this version are rejected by this server. `None` from a server too old\nto send it."
+              },
               "minimum_daemon_version": {
-                "type": "string",
-                "description": "Minimum daemon version supported by this server"
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Deprecated: always 0.12.0. Daemons up to 0.18.2 require this field and only log it. Read\n`last_unsupported_daemon_version` instead."
               },
               "server_version": {
                 "type": "string",
@@ -29096,7 +29105,7 @@
           },
           "supports_targeted_rescan": {
             "type": "boolean",
-            "description": "Whether this daemon can run a single-host rescan. Server-computed so the\nfrontend never has to hardcode a version floor."
+            "description": "Whether this daemon can run a single-host rescan. Server-computed so the\nfrontend never has to hardcode a version gate."
           },
           "supports_unified_discovery": {
             "type": "boolean",
@@ -35544,7 +35553,7 @@
           {
             "type": "object",
             "title": "Site",
-            "description": "All hosts on the site, as a broadcast default credential. Daemons at or below\n`last_network_wire` call this scope `\"Network\"`; the wire rewrite in\n`server/shared/legacy.rs` translates it both ways.",
+            "description": "All hosts on the site, as a broadcast default credential. Daemons at or below\n`last_without_site_wire` call this scope `\"Network\"`; the wire rewrite in\n`server/shared/legacy.rs` translates it both ways.",
             "required": [
               "credential_id",
               "scope"
@@ -41708,8 +41717,7 @@
         "type": "object",
         "description": "Server capabilities returned on startup/registration",
         "required": [
-          "server_version",
-          "minimum_daemon_version"
+          "server_version"
         ],
         "properties": {
           "deprecation_warnings": {
@@ -41719,9 +41727,19 @@
             },
             "description": "Deprecation warnings for the daemon"
           },
+          "last_unsupported_daemon_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Daemons at or below this version are rejected by this server. `None` from a server too old\nto send it."
+          },
           "minimum_daemon_version": {
-            "type": "string",
-            "description": "Minimum daemon version supported by this server"
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Deprecated: always 0.12.0. Daemons up to 0.18.2 require this field and only log it. Read\n`last_unsupported_daemon_version` instead."
           },
           "server_version": {
             "type": "string",

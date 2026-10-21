@@ -1,4 +1,5 @@
 <script lang="ts">
+	import daemonVersionGates from '$lib/data/daemon-version-gates.json';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { isBillingPlanActive, isPlanLapsed } from '$lib/features/organizations/types';
@@ -341,7 +342,9 @@
 				{
 					id: entityUIConfig.DaemonApiKey!.tabId,
 					label: TAB_LABELS[entityUIConfig.DaemonApiKey!.tabId],
-					subtitle: daemons_legacyKeyHelp(),
+					subtitle: daemons_legacyKeyHelp({
+						version: daemonVersionGates.last_without_server_provisioned_identity
+					}),
 					icon: entities.getIconComponent('DaemonApiKey'),
 					component: ApiKeyTab,
 					requiredPermissions: ['Member', 'Admin', 'Owner'] as UserOrgPermissions[]

@@ -735,12 +735,12 @@ impl ApiError {
     }
 
     /// Bad request (400) - daemon version is older than server version
-    pub fn daemon_version_too_old(daemon_version: &str, server_version: &str) -> Self {
+    pub fn daemon_version_too_old(daemon_version: &str, last_unsupported_version: &str) -> Self {
         Self::coded(
             StatusCode::BAD_REQUEST,
             ErrorCode::DaemonVersionTooOld {
                 daemon_version: daemon_version.to_string(),
-                server_version: server_version.to_string(),
+                last_unsupported_version: last_unsupported_version.to_string(),
             },
         )
     }

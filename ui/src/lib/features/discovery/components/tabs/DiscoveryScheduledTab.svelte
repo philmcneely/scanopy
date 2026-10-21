@@ -1,4 +1,5 @@
 <script lang="ts">
+	import daemonVersionGates from '$lib/data/daemon-version-gates.json';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
@@ -426,7 +427,9 @@
 	{#if hasLegacyDaemons}
 		<InlineWarning
 			title=""
-			body={discovery_legacyDaemonsWarning()}
+			body={discovery_legacyDaemonsWarning({
+				version: daemonVersionGates.last_without_unified_discovery
+			})}
 			dismissableKey="unified-discovery-migration"
 		/>
 	{/if}

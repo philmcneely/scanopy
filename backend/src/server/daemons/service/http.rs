@@ -229,7 +229,7 @@ impl DaemonService {
             return Ok(());
         }
 
-        // Legacy cleanup: remove once minimum_supported >= 0.16.0
+        // Legacy cleanup: remove once the enforced ceiling passes `last_without_ip_address_bindings()`
         // Pre-0.16.0 daemons expect old entity/field names in responses
         let version_str = daemon.base.version.as_ref().map(|v| v.to_string());
         if pre_interface_to_ip_address_rename(version_str.as_deref()) {
@@ -335,11 +335,7 @@ impl DaemonService {
         // of sending an empty list — ServerPoll daemons previously never received
         // any sunset warning on first contact.
         let deprecation_warnings = policy.evaluate(daemon.base.version.as_ref()).warnings;
-        let server_capabilities = ServerCapabilities {
-            server_version: policy.latest.clone(),
-            minimum_daemon_version: policy.minimum_supported.clone(),
-            deprecation_warnings,
-        };
+        let server_capabilities = ServerCapabilities::from_policy(&policy, deprecation_warnings);
 
         let request = FirstContactRequest {
             daemon_id: daemon.id,

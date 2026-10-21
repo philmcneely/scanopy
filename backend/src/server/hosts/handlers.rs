@@ -804,7 +804,7 @@ async fn create_host_discovery(
     auth: Authorized<IsDaemon>,
     ApiJson(request): ApiJson<DiscoveryHostRequest>,
 ) -> ApiResult<impl IntoResponse> {
-    // Legacy cleanup: remove once minimum_supported >= 0.16.0
+    // Legacy cleanup: remove once the enforced ceiling passes `last_without_ip_address_bindings()`
     let is_legacy_daemon = pre_interface_to_ip_address_rename(auth.entity.daemon_version());
 
     // Get daemon site_id from entity
@@ -851,7 +851,7 @@ async fn create_host_discovery(
         }
     })?;
 
-    // Legacy cleanup: remove once minimum_supported >= 0.16.0
+    // Legacy cleanup: remove once the enforced ceiling passes `last_without_ip_address_bindings()`
     // Pre-0.16.0 daemons expect "Interface"/"interface_id" in binding responses
     if is_legacy_daemon {
         let mut json = serde_json::to_value(ApiResponse::success(host_response))

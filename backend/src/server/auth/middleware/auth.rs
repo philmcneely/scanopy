@@ -39,7 +39,7 @@ impl IntoResponse for AuthError {
     }
 }
 
-/// Reject a daemon whose version is below the enforced support floor. Applied to
+/// Reject a daemon whose version is at or below the enforced support ceiling. Applied to
 /// every daemon-authenticated request (see the `ApiKeyType::Daemon` arm), so an
 /// unsupported daemon is turned away before it can poll, register, or discover —
 /// not only at the handshake.
@@ -48,27 +48,31 @@ impl IntoResponse for AuthError {
 /// daemon's existing error handling surfaces the prescriptive upgrade message.
 ///
 /// Semantics:
-/// - A parseable version below the floor is rejected.
-/// - An absent/unparseable version is rejected only once the floor has advanced
-///   past the version header's own floor (0.14.10): before that, a missing header
-///   legitimately means "old but still allowed" and must not be blocked. This is
-///   also what makes the check dormant pre-launch (floor 0.12.0 ⇒ absent is fine).
+/// - A parseable version at or below the ceiling is rejected.
+/// - An absent/unparseable version is rejected only once the ceiling covers
+///   [`last_without_version_header`]: every supported daemon then sends the header, so a
+///   missing one means a daemon older than that. Before then, a missing header legitimately
+///   means "old but still allowed" and must not be blocked.
+///
+/// [`last_without_version_header`]: crate::server::daemons::r#impl::version::last_without_version_header
 fn enforce_daemon_version(
     version: Option<&str>,
     now: chrono::DateTime<Utc>,
 ) -> Result<(), AuthError> {
-    use crate::server::daemons::r#impl::version::enforced_floor;
-    let floor = enforced_floor(now);
+    use crate::server::daemons::r#impl::version::{
+        enforced_last_unsupported, last_without_version_header,
+    };
+    let ceiling = enforced_last_unsupported(now);
     let too_old = |reported: &str| {
         AuthError(ApiError::daemon_version_too_old(
             reported,
-            &floor.to_string(),
+            &ceiling.to_string(),
         ))
     };
     match version.and_then(|v| semver::Version::parse(v).ok()) {
-        Some(v) if v < floor => Err(too_old(&v.to_string())),
+        Some(v) if v <= ceiling => Err(too_old(&v.to_string())),
         Some(_) => Ok(()),
-        None if floor > semver::Version::new(0, 14, 10) => Err(too_old("unknown")),
+        None if ceiling >= last_without_version_header() => Err(too_old("unknown")),
         None => Ok(()),
     }
 }
@@ -596,7 +600,7 @@ impl AuthenticatedEntity {
                         .map(|s| s.to_string());
 
                     // Enforce the support floor on EVERY daemon-authenticated request
-                    // (not just the handshake): a daemon below the enforced floor is
+                    // (not just the handshake): a daemon at or below the enforced ceiling is
                     // rejected here, before it can poll, register, or run discovery.
                     // Dormant until the v1.0 launch date is set — the floor is 0.12.0
                     // until then, so this changes nothing for the installed base.

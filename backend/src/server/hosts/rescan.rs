@@ -14,7 +14,9 @@ use crate::server::auth::middleware::permissions::{Authorized, Member};
 use crate::server::config::AppState;
 use crate::server::daemons::r#impl::api::DiscoveryUpdatePayload;
 use crate::server::daemons::r#impl::base::Daemon;
-use crate::server::daemons::r#impl::version::{minimum_targeted_rescan, supports_targeted_rescan};
+use crate::server::daemons::r#impl::version::{
+    last_without_targeted_rescan, supports_targeted_rescan,
+};
 use crate::server::discovery::r#impl::base::{Discovery, DiscoveryBase};
 use crate::server::discovery::r#impl::scan_settings::{RescanSettings, ScanSettings};
 use crate::server::discovery::r#impl::types::{DiscoveryType, RunType};
@@ -431,10 +433,10 @@ async fn resolve_rescan_daemon(
                 daemon.base.name
             ),
             Some(_) => format!(
-                "Daemon \"{}\" does not support rescans. Upgrade it to version \
-                 {} or later.",
+                "Daemon \"{}\" does not support rescans. Upgrade it to a version \
+                 newer than {}.",
                 daemon.base.name,
-                minimum_targeted_rescan()
+                last_without_targeted_rescan()
             ),
         }));
     }

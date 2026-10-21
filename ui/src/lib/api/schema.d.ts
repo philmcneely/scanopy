@@ -6016,8 +6016,16 @@ export interface components {
             data?: {
                 /** @description Deprecation warnings for the daemon */
                 deprecation_warnings?: components["schemas"]["DeprecationWarning"][];
-                /** @description Minimum daemon version supported by this server */
-                minimum_daemon_version: string;
+                /**
+                 * @description Daemons at or below this version are rejected by this server. `None` from a server too old
+                 *     to send it.
+                 */
+                last_unsupported_daemon_version?: string | null;
+                /**
+                 * @description Deprecated: always 0.12.0. Daemons up to 0.18.2 require this field and only log it. Read
+                 *     `last_unsupported_daemon_version` instead.
+                 */
+                minimum_daemon_version?: string | null;
                 /** @description Server software version */
                 server_version: string;
             };
@@ -8729,7 +8737,7 @@ export interface components {
             supports_os_reporting?: boolean;
             /**
              * @description Whether this daemon can run a single-host rescan. Server-computed so the
-             *     frontend never has to hardcode a version floor.
+             *     frontend never has to hardcode a version gate.
              */
             supports_targeted_rescan?: boolean;
             /** @description Whether the daemon can run a combined discovery pass. */
@@ -14337,8 +14345,16 @@ export interface components {
         ServerCapabilities: {
             /** @description Deprecation warnings for the daemon */
             deprecation_warnings?: components["schemas"]["DeprecationWarning"][];
-            /** @description Minimum daemon version supported by this server */
-            minimum_daemon_version: string;
+            /**
+             * @description Daemons at or below this version are rejected by this server. `None` from a server too old
+             *     to send it.
+             */
+            last_unsupported_daemon_version?: string | null;
+            /**
+             * @description Deprecated: always 0.12.0. Daemons up to 0.18.2 require this field and only log it. Read
+             *     `last_unsupported_daemon_version` instead.
+             */
+            minimum_daemon_version?: string | null;
             /** @description Server software version */
             server_version: string;
         };
