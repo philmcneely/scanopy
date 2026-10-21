@@ -23,6 +23,7 @@ use crate::server::ip_addresses::r#impl::base::{
 use crate::server::ports::r#impl::coverage::PortCoverage;
 use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::AttributeSource;
+use crate::server::vlans::r#impl::base::{VlanName, VlanNameValue};
 use crate::server::shared::services::factory::ServiceFactory;
 use crate::server::shared::storage::factory::StorageFactory;
 use crate::server::shared::storage::traits::Storage;
@@ -61,7 +62,16 @@ impl Lab {
         for vlan in harness::scan("switch-core-01").await.vlans {
             let stored = services
                 .vlan_service
-                .upsert_from_discovery(site.id, org.id, vlan.vlan_id, vlan.name, None)
+                .upsert_from_discovery(
+                    site.id,
+                    org.id,
+                    vlan.vlan_id,
+                    VlanName::new(
+                        VlanNameValue(vlan.name),
+                        AttributeSource::Authored(ClientProbe::Snmp),
+                    ),
+                    None,
+                )
                 .await
                 .unwrap();
             vlans.insert(vlan.vlan_id, stored.id);

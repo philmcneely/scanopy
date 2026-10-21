@@ -200,7 +200,7 @@ cmd_capture() {
   esac
   info "capturing via ${transport} (${layout} layout)"
 
-  for endpoint in stat/sysinfo stat/device; do
+  for endpoint in stat/sysinfo stat/device rest/networkconf rest/portconf; do
     local response status body out
     if [[ "$transport" == "api-key" ]]; then
       response="$(api_key_get "$base_path" "$endpoint")"

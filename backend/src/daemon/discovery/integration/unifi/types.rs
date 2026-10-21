@@ -77,6 +77,93 @@ pub struct UnifiDevice {
     pub downlink_table: Vec<UnifiDownlink>,
     /// unpoller: `USW.Uplink Uplink`. How this device reaches its parent.
     pub uplink: Option<UnifiUplink>,
+    /// Per-port configuration that departs from the default profile. go-unifi:
+    /// `Device.PortOverrides []DevicePortOverrides` (`json:"port_overrides"`); aiounifi:
+    /// `TypedDevice.port_overrides`. Absent on devices with no switch ports, and empty on a switch
+    /// whose every port runs the default profile.
+    #[serde(default)]
+    pub port_overrides: Vec<UnifiPortOverride>,
+}
+
+/// One port's configuration on a device. go-unifi: `DevicePortOverrides`; aiounifi:
+/// `TypedDevicePortOverrides`.
+///
+/// Newer controllers set the VLAN fields inline; older ones only point at a port profile through
+/// `portconf_id`. Inline fields win, as they do in the controller's own port editor.
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct UnifiPortOverride {
+    /// go-unifi: `PortIDX` (`json:"port_idx"`). Matches `UnifiPort::port_idx`.
+    pub port_idx: Option<FlexInt>,
+    /// go-unifi: `PortProfileID` (`json:"portconf_id"`) — the `_id` of a `rest/portconf` profile.
+    pub portconf_id: Option<String>,
+    /// go-unifi: `NATiveNetworkID` (`json:"native_networkconf_id"`) — the `_id` of the network
+    /// carried untagged.
+    pub native_networkconf_id: Option<String>,
+    /// go-unifi: `TaggedVLANMgmt` (`json:"tagged_vlan_mgmt"`), one of `auto|block_all|custom`.
+    pub tagged_vlan_mgmt: Option<String>,
+    /// go-unifi: `ExcludedNetworkIDs` (`json:"excluded_networkconf_ids"`).
+    #[serde(default)]
+    pub excluded_networkconf_ids: Option<Vec<String>>,
+    /// go-unifi: `Forward` (`json:"forward"`), one of `all|native|customize|disabled`. The
+    /// pre-`tagged_vlan_mgmt` way of saying the same thing.
+    pub forward: Option<String>,
+}
+
+/// One port profile from `GET /rest/portconf`. go-unifi: `PortProfile`.
+///
+/// Field names confirmed against Network Application 10.6.106 (`portconf_network_app_10_6.json`).
+/// That capture also shows the controller rewriting `forward` to `"native"` when a profile is saved
+/// with `tagged_vlan_mgmt: "block_all"`, so the two fields agree on profiles it has touched.
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct UnifiPortConf {
+    /// go-unifi: `ID` (`json:"_id"`).
+    #[serde(rename = "_id")]
+    pub id: Option<String>,
+    /// go-unifi: `Name`.
+    pub name: Option<String>,
+    /// go-unifi: `NATiveNetworkID` (`json:"native_networkconf_id"`).
+    pub native_networkconf_id: Option<String>,
+    /// go-unifi: `TaggedVLANMgmt` (`json:"tagged_vlan_mgmt"`), `auto|block_all|custom`.
+    pub tagged_vlan_mgmt: Option<String>,
+    /// go-unifi: `ExcludedNetworkIDs` (`json:"excluded_networkconf_ids"`). Under `custom`, every
+    /// VLAN network except these is tagged.
+    #[serde(default)]
+    pub excluded_networkconf_ids: Option<Vec<String>>,
+    /// Pre-`tagged_vlan_mgmt` controllers list the tagged networks instead of the excluded ones
+    /// (`forward: "customize"` with `tagged_networkconf_ids`). Not in go-unifi's current
+    /// definitions, which track the newer field.
+    #[serde(default)]
+    pub tagged_networkconf_ids: Option<Vec<String>>,
+    /// go-unifi: `Forward` (`json:"forward"`), `all|native|customize|disabled`.
+    pub forward: Option<String>,
+}
+
+/// One network from `GET /rest/networkconf`. go-unifi: `Network`.
+///
+/// Field names confirmed against Network Application 10.6.106
+/// (`networkconf_network_app_10_6.json`). The Art-of-WiFi UniFi-API-client reads the same endpoint
+/// as `list_networkconf()`. The v2 `lan/enriched-configuration` endpoint wraps the same
+/// `configuration` object and omits `vlan-only` networks, so this one is read instead.
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct UnifiNetwork {
+    /// go-unifi: `ID` (`json:"_id"`). What port profiles and overrides reference.
+    #[serde(rename = "_id")]
+    pub id: Option<String>,
+    /// go-unifi: `Name`. The name an administrator gave the network.
+    pub name: Option<String>,
+    /// go-unifi: `Purpose`, one of
+    /// `corporate|guest|remote-user-vpn|site-vpn|vlan-only|vpn-client|wan`.
+    pub purpose: Option<String>,
+    /// go-unifi: `VLAN` (`json:"vlan"`), 2-4018 per its validation. Absent on the untagged
+    /// default network, which the captured `Default` network confirms.
+    pub vlan: Option<FlexInt>,
+    /// go-unifi: `VLANEnabled` (`json:"vlan_enabled"`). `false` on the untagged default network.
+    pub vlan_enabled: Option<FlexBool>,
+    /// go-unifi: `IPSubnet` (`json:"ip_subnet"`) — the gateway's address with the prefix
+    /// (`"10.20.0.1/24"`), not the network address.
+    pub ip_subnet: Option<String>,
+    /// go-unifi: `Enabled`. Absent on the captured default network; absent reads as enabled.
+    pub enabled: Option<FlexBool>,
 }
 
 /// One connected client from `GET /stat/sta`.
@@ -118,6 +205,9 @@ pub struct UnifiPort {
     pub mac: Option<String>,
     /// unpoller: `Port.IsUplink`.
     pub is_uplink: Option<FlexBool>,
+    /// aiounifi: `TypedDevicePortTable.portconf_id` — the profile the port is running. Present
+    /// where the device has no `port_overrides` entry for the port.
+    pub portconf_id: Option<String>,
     /// unpoller: `Port.MacTable []MacTable`. Learned MACs on this port (the bridge FDB).
     #[serde(default)]
     pub mac_table: Vec<UnifiMacTableEntry>,

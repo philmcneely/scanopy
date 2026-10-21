@@ -334,8 +334,23 @@ impl DaemonService {
 
         // Poll discovery data
         let poll_ok = match self.poll_discovery(daemon, &api_key).await {
-            Ok(poll_response) => {
+            Ok(mut poll_response) => {
                 let auth = AuthenticatedEntity::System;
+
+                // Processing runs as `System`, so the daemon's site scope is enforced here: the
+                // DaemonPoll endpoint refuses VLANs for a site the daemon is not assigned to, and
+                // the same submission arriving by poll must not get further.
+                poll_response.entities.vlans.retain(|batch| {
+                    let allowed = batch.request.site_id == daemon.base.site_id;
+                    if !allowed {
+                        tracing::warn!(
+                            daemon_id = %daemon.id,
+                            site_id = %batch.request.site_id,
+                            "Dropping VLAN batch for a site the daemon is not assigned to"
+                        );
+                    }
+                    allowed
+                });
 
                 // Entities before progress. A poll response can carry both the
                 // session's terminal update and the last hosts of that session,

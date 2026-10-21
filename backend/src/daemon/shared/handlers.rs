@@ -271,6 +271,11 @@ async fn receive_created_entities(
         buffer.mark_host_created(pending_id, actual_host).await;
     }
 
+    let vlan_batch_count = payload.vlans.len();
+    for (pending_id, response) in payload.vlans {
+        buffer.mark_vlan_batch_created(pending_id, response).await;
+    }
+
     // Note: We intentionally do NOT call clear_created() here.
     // The await_*() methods poll for Created entries, and if we clear immediately,
     // there's a race condition where the entry is removed before the polling loop
@@ -280,6 +285,7 @@ async fn receive_created_entities(
     tracing::info!(
         subnets = subnet_count,
         hosts = host_count,
+        vlan_batches = vlan_batch_count,
         "Received and processed created entities confirmation from server"
     );
 

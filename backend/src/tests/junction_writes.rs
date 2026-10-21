@@ -23,6 +23,7 @@ use crate::server::{
         r#impl::base::{Dependency, DependencyMembers},
     },
     shared::{
+        attribution::AttributeSource,
         entities::EntityDiscriminants,
         events::types::{DeletionReason, UpdateReason},
         services::{factory::ServiceFactory, traits::CrudService},
@@ -41,7 +42,7 @@ use crate::server::{
     user_api_keys::r#impl::base::{UserApiKey, UserApiKeyBase},
     users::r#impl::{base::User, permissions::UserOrgPermissions},
     vlans::r#impl::{
-        base::{Vlan, VlanBase},
+        base::{Vlan, VlanBase, VlanName, VlanNameValue},
         subnet_vlans::SubnetVlanRecord,
     },
 };
@@ -606,7 +607,10 @@ async fn subnet_vlan_links_diff_by_soft_close() {
     for number in [10, 20, 30] {
         let v = Vlan::new(VlanBase {
             vlan_number: number,
-            name: format!("vlan {number}"),
+            name: VlanName::new(
+                VlanNameValue(format!("vlan {number}")),
+                AttributeSource::Manual,
+            ),
             site_id: s[0],
             organization_id: org_id,
             ..Default::default()

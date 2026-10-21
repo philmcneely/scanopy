@@ -10,11 +10,12 @@ use uuid::Uuid;
 
 use crate::server::interfaces::r#impl::base::InterfaceDataComplete;
 use crate::{
-    daemon::runtime::state::BufferedEntities,
+    daemon::runtime::state::{BufferedEntities, PendingVlanBatch},
     server::{
         daemons::r#impl::api::ScannedEntityIds,
         hosts::r#impl::{api::DiscoveryHostRequest, api::HostResponse},
         subnets::r#impl::base::Subnet,
+        vlans::handlers::{VlanDiscoveryRequest, VlanDiscoveryResponse},
     },
 };
 
@@ -59,6 +60,18 @@ pub struct EntityBuffer {
     /// Pending → Created lifecycle — push the IDs directly after the upsert
     /// call returns. Cleared by `clear_all` at session end.
     vlans: Arc<RwLock<HashSet<Uuid>>>,
+    /// ServerPoll VLAN submissions, keyed by the id the waiting `upsert_vlans` call holds. A
+    /// ServerPoll daemon cannot POST to the server, so the batch waits here until the server's
+    /// poll collects it and answers with the ids.
+    vlan_batches: Arc<RwLock<HashMap<Uuid, VlanBatch>>>,
+}
+
+/// A buffered VLAN submission. Not a [`BufferedEntity`]: what comes back (an id per VLAN number)
+/// is a different shape from what went out.
+#[derive(Clone, Debug)]
+enum VlanBatch {
+    Pending(VlanDiscoveryRequest),
+    Created(VlanDiscoveryResponse),
 }
 
 impl EntityBuffer {
@@ -67,6 +80,7 @@ impl EntityBuffer {
             subnets: Arc::new(RwLock::new(HashMap::new())),
             hosts: Arc::new(RwLock::new(HashMap::new())),
             vlans: Arc::new(RwLock::new(HashSet::new())),
+            vlan_batches: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -269,7 +283,25 @@ impl EntityBuffer {
                 .collect()
         };
 
-        BufferedEntities { hosts, subnets }
+        let vlans = {
+            let batches = self.vlan_batches.read().await;
+            batches
+                .iter()
+                .filter_map(|(pending_id, batch)| match batch {
+                    VlanBatch::Pending(request) => Some(PendingVlanBatch {
+                        pending_id: *pending_id,
+                        request: request.clone(),
+                    }),
+                    VlanBatch::Created(_) => None,
+                })
+                .collect()
+        };
+
+        BufferedEntities {
+            hosts,
+            subnets,
+            vlans,
+        }
     }
 
     // ========================================================================
@@ -282,6 +314,49 @@ impl EntityBuffer {
     pub async fn push_scanned_vlans(&self, ids: impl IntoIterator<Item = Uuid>) {
         let mut vlans = self.vlans.write().await;
         vlans.extend(ids);
+    }
+
+    /// Buffer a VLAN submission for a ServerPoll server to collect. Returns the id the answer
+    /// will arrive under.
+    pub async fn push_vlan_batch(&self, request: VlanDiscoveryRequest) -> Uuid {
+        let pending_id = Uuid::new_v4();
+        let mut batches = self.vlan_batches.write().await;
+        batches.insert(pending_id, VlanBatch::Pending(request));
+        pending_id
+    }
+
+    /// Record the server's answer to a buffered VLAN submission.
+    pub async fn mark_vlan_batch_created(&self, pending_id: Uuid, response: VlanDiscoveryResponse) {
+        let mut batches = self.vlan_batches.write().await;
+        if let Some(entry) = batches.get_mut(&pending_id) {
+            *entry = VlanBatch::Created(response);
+        }
+    }
+
+    /// Wait for the server to answer a buffered VLAN submission. `None` on timeout or
+    /// cancellation, which is also what a server that predates ServerPoll VLAN recording produces.
+    pub async fn await_vlan_batch(
+        &self,
+        pending_id: &Uuid,
+        timeout: Duration,
+        cancel: &CancellationToken,
+    ) -> Option<VlanDiscoveryResponse> {
+        let deadline = Instant::now() + timeout;
+        loop {
+            if cancel.is_cancelled() {
+                return None;
+            }
+            {
+                let batches = self.vlan_batches.read().await;
+                if let Some(VlanBatch::Created(response)) = batches.get(pending_id) {
+                    return Some(response.clone());
+                }
+            }
+            if Instant::now() > deadline {
+                return None;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
     }
 
     /// The server's id for a host this session submitted, given the id it was submitted under or
@@ -377,6 +452,10 @@ impl EntityBuffer {
         {
             let mut vlans = self.vlans.write().await;
             vlans.clear();
+        }
+        {
+            let mut batches = self.vlan_batches.write().await;
+            batches.clear();
         }
     }
 

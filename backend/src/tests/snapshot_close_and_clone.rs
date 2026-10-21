@@ -24,6 +24,7 @@ use crate::server::{
     ports::r#impl::base::Port,
     services::r#impl::base::Service,
     shared::{
+        attribution::AttributeSource,
         entities::EntityDiscriminants,
         services::traits::CrudService,
         storage::{
@@ -41,7 +42,7 @@ use crate::server::{
         r#impl::base::{Tag, TagBase},
     },
     vlans::r#impl::{
-        base::{Vlan, VlanBase},
+        base::{Vlan, VlanBase, VlanName, VlanNameValue},
         subnet_vlans::SubnetVlanRecord,
     },
 };
@@ -116,7 +117,7 @@ async fn a_snapshot_closes_every_site_row_onto_closed_parents() {
 
     let vlan = Vlan::new(VlanBase {
         vlan_number: 10,
-        name: "users".to_string(),
+        name: VlanName::new(VlanNameValue("users".to_string()), AttributeSource::Manual),
         site_id: s.id,
         organization_id: org.id,
         ..Default::default()

@@ -18,7 +18,8 @@ use crate::server::tags::entity_tags::{EntityTag, EntityTagBase};
 use crate::server::tags::r#impl::base::{Tag, TagBase};
 use crate::server::user_api_keys::r#impl::base::{UserApiKey, UserApiKeyBase};
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
-use crate::server::vlans::r#impl::base::{Vlan, VlanBase};
+use crate::server::shared::attribution::AttributeSource;
+use crate::server::vlans::r#impl::base::{Vlan, VlanBase, VlanName, VlanNameValue};
 
 use super::{host, organization, service, site, subnet, test_services, user};
 
@@ -95,7 +96,10 @@ async fn returns_matches_of_several_types_within_the_callers_sites_and_org() {
         sn.base.name = "Lisbon LAN".to_string();
         storage.subnets.create(&sn).await.unwrap();
         let vlan = Vlan::new(VlanBase {
-            name: "Lisbon voice".to_string(),
+            name: VlanName::new(
+                VlanNameValue("Lisbon voice".to_string()),
+                AttributeSource::Manual,
+            ),
             site_id,
             organization_id: org_id,
             ..Default::default()

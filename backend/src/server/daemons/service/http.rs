@@ -222,7 +222,10 @@ impl DaemonService {
         created_entities: CreatedEntitiesPayload,
     ) -> Result<()> {
         // Skip if there's nothing to send
-        if created_entities.hosts.is_empty() && created_entities.subnets.is_empty() {
+        if created_entities.hosts.is_empty()
+            && created_entities.subnets.is_empty()
+            && created_entities.vlans.is_empty()
+        {
             return Ok(());
         }
 

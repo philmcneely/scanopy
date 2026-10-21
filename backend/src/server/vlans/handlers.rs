@@ -11,6 +11,8 @@ use crate::server::shared::storage::filter::StorableFilter;
 use crate::server::shared::storage::traits::{Entity, Storable};
 use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::api::{ApiError, ApiErrorResponse, PaginatedApiResponse};
+use crate::server::services::r#impl::patterns::ClientProbe;
+use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::types::entities::EntitySourceDiscriminants;
 use crate::server::vlans::r#impl::base::Vlan;
 use crate::server::{
@@ -226,7 +228,7 @@ pub async fn create_vlan(
 // ============================================================================
 
 /// Request body for daemon VLAN discovery upsert
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VlanDiscoveryRequest {
     /// The site this entity belongs to.
     pub site_id: Uuid,
@@ -250,22 +252,30 @@ impl VlanDiscoveryRequest {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct VlanDiscoveryItem {
     /// 802.1Q VLAN ID.
     pub vlan_number: u16,
     /// VLAN name as configured on the device.
     pub name: String,
+    /// Where the daemon read the name. Defaults to an SNMP read: daemons that predate this field
+    /// sent VLANs from SNMP alone.
+    #[serde(default = "snmp_vlan_name_source")]
+    pub name_source: AttributeSource,
+}
+
+fn snmp_vlan_name_source() -> AttributeSource {
+    AttributeSource::Authored(ClientProbe::Snmp)
 }
 
 /// Response for discovery upsert
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VlanDiscoveryResponse {
     /// Mapping of vlan_number → VLAN entity UUID
     pub vlans: Vec<VlanDiscoveryResponseItem>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VlanDiscoveryResponseItem {
     /// 802.1Q VLAN ID.
     pub vlan_number: u16,
@@ -318,31 +328,19 @@ pub async fn discovery_upsert_vlans(
         crate::server::shared::services::scan_context::ScanContext::new(daemon_id)
     });
 
-    let mut response_items = Vec::new();
+    let response = state
+        .services
+        .vlan_service
+        .upsert_discovery_batch(
+            request.site_id,
+            organization_id,
+            request.vlans,
+            scan_ctx.as_ref(),
+        )
+        .await
+        .map_err(|e| ApiError::internal_error(&format!("Failed to upsert VLAN: {}", e)))?;
 
-    for item in request.vlans {
-        let vlan = state
-            .services
-            .vlan_service
-            .upsert_from_discovery(
-                request.site_id,
-                organization_id,
-                item.vlan_number,
-                item.name,
-                scan_ctx.as_ref(),
-            )
-            .await
-            .map_err(|e| ApiError::internal_error(&format!("Failed to upsert VLAN: {}", e)))?;
-
-        response_items.push(VlanDiscoveryResponseItem {
-            vlan_number: vlan.base.vlan_number,
-            id: vlan.id,
-        });
-    }
-
-    Ok(Json(ApiResponse::success(VlanDiscoveryResponse {
-        vlans: response_items,
-    })))
+    Ok(Json(ApiResponse::success(response)))
 }
 
 #[cfg(test)]
@@ -357,6 +355,7 @@ mod tests {
                 .map(|i| VlanDiscoveryItem {
                     vlan_number: (i % MAX_VLANS_PER_DISCOVERY) as u16 + 1,
                     name: String::new(),
+                    name_source: snmp_vlan_name_source(),
                 })
                 .collect(),
         }
@@ -373,5 +372,17 @@ mod tests {
             .validate()
             .unwrap_err();
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    }
+
+    /// Daemons older than `name_source` POST `{vlan_number, name}`. Their names came from SNMP,
+    /// and must keep the rung that lets the same switch rename them later.
+    #[test]
+    fn a_request_without_a_name_source_reads_as_an_snmp_name() {
+        let item: VlanDiscoveryItem =
+            serde_json::from_str(r#"{"vlan_number": 20, "name": "Servers"}"#).unwrap();
+        assert_eq!(
+            item.name_source,
+            AttributeSource::Authored(ClientProbe::Snmp)
+        );
     }
 }

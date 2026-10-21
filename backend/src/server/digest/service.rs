@@ -833,7 +833,7 @@ fn vlan_summary(v: &Vlan) -> VlanSummary {
     VlanSummary {
         id: v.id,
         vlan_number: v.base.vlan_number,
-        name: v.base.name.clone(),
+        name: v.base.name.to_string(),
     }
 }
 

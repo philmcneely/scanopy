@@ -262,7 +262,7 @@ impl ViewBuilder for L2Builder {
                         deployment_group: None,
                         native_vlan_id,
                         vlan_number: resolved_vlan.map(|v| v.base.vlan_number),
-                        vlan_name: resolved_vlan.map(|v| v.base.name.clone()),
+                        vlan_name: resolved_vlan.map(|v| v.base.name.to_string()),
                         is_trunk_port: interface
                             .and_then(|e| e.base.vlan_ids.as_ref())
                             .is_some_and(|v| !v.is_empty()),

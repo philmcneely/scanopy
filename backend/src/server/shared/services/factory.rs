@@ -406,6 +406,7 @@ impl ServiceFactory {
             discovery_service.clone(),
             credential_service.clone(),
             subnet_service.clone(),
+            vlan_service.clone(),
             site_service.clone(),
             organization_service.clone(),
             user_service.clone(),

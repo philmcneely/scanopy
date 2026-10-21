@@ -7,12 +7,15 @@ use crate::server::{
     shared::{
         entities::EntityDiscriminants,
         entity_metadata::EntityCategory,
+        attribution::AttributeSource,
         storage::{
+            attributed,
             snapshot::{DiscoveryTracked, Snapshotable},
             traits::{Entity, SqlValue, Storable},
         },
+        types::entities::EntitySource,
     },
-    vlans::r#impl::base::{Vlan, VlanBase},
+    vlans::r#impl::base::{Vlan, VlanBase, VlanName, VlanNameValue},
 };
 
 impl Storable for Vlan {
@@ -85,12 +88,14 @@ impl Storable for Vlan {
                     tags: _, // Stored in entity_tags junction table
                 },
         } = self.clone();
+        let [name_value, name_source] = attributed::present_params(&name);
 
         Ok((
             vec![
                 "id",
                 "vlan_number",
                 "name",
+                "name_source",
                 "description",
                 "site_id",
                 "organization_id",
@@ -107,7 +112,8 @@ impl Storable for Vlan {
             vec![
                 SqlValue::Uuid(id),
                 SqlValue::U16(vlan_number),
-                SqlValue::String(name),
+                name_value,
+                name_source,
                 SqlValue::OptionalString(description),
                 SqlValue::Uuid(site_id),
                 SqlValue::Uuid(organization_id),
@@ -138,7 +144,7 @@ impl Storable for Vlan {
             first_discovery_id: row.get("first_discovery_id"),
             base: VlanBase {
                 vlan_number: vlan_number_i16 as u16,
-                name: row.get("name"),
+                name: attributed::read_required::<VlanNameValue>(row)?,
                 description: row.get("description"),
                 site_id: row.get("site_id"),
                 organization_id: row.get("organization_id"),
@@ -271,6 +277,15 @@ impl Entity for Vlan {
         self.base.tags = tags;
     }
 
+    fn set_source(&mut self, source: EntitySource) {
+        // A VLAN a person creates is named by that person, at the rung nothing discovery reads
+        // displaces.
+        if source == EntitySource::Manual {
+            self.base.name = VlanName::new(self.base.name.value().clone(), AttributeSource::Manual);
+        }
+        self.base.source = source;
+    }
+
     fn preserve_immutable_fields(&mut self, existing: &Self) {
         // A VLAN is identified by (site_id, vlan_number). Create enforces that pair is unique
         // per site; an update has no such check, so neither half may move on update.
@@ -278,6 +293,15 @@ impl Entity for Vlan {
         self.base.site_id = existing.base.site_id;
         self.base.organization_id = existing.base.organization_id;
         self.base.source = existing.base.source.clone();
+
+        // Only users reach the update handler, so a changed name is one a person typed. An
+        // unchanged one keeps the stored source: echoing back a discovered name is not renaming
+        // it, and must not lift it above the next reading.
+        self.base.name = if self.base.name.value() == existing.base.name.value() {
+            existing.base.name.clone()
+        } else {
+            VlanName::new(self.base.name.value().clone(), AttributeSource::Manual)
+        };
     }
 }
 
@@ -291,7 +315,10 @@ mod tests {
         let existing = Vlan {
             base: VlanBase {
                 vlan_number: 20,
-                name: "Servers".to_string(),
+                name: VlanName::new(
+                    VlanNameValue("Servers".to_string()),
+                    AttributeSource::Authored(crate::server::services::r#impl::patterns::ClientProbe::Snmp),
+                ),
                 site_id: Uuid::new_v4(),
                 organization_id: Uuid::new_v4(),
                 source: EntitySource::Manual,
@@ -301,7 +328,10 @@ mod tests {
         };
 
         let mut request = existing.clone();
-        request.base.name = "Server farm".to_string();
+        request.base.name = VlanName::new(
+            VlanNameValue("Server farm".to_string()),
+            AttributeSource::Unspecified,
+        );
         request.base.description = Some("Rack A".to_string());
         request.base.tags = vec![Uuid::new_v4()];
         request.base.vlan_number = 30;
@@ -310,11 +340,42 @@ mod tests {
 
         request.preserve_immutable_fields(&existing);
 
-        assert_eq!(request.base.name, "Server farm");
+        assert_eq!(request.base.name.value().0, "Server farm");
+        assert_eq!(
+            request.base.name.source(),
+            AttributeSource::Manual,
+            "a renamed VLAN is named by the person who renamed it"
+        );
         assert_eq!(request.base.description.as_deref(), Some("Rack A"));
         assert_ne!(request.base.tags, existing.base.tags, "tags stay editable");
         assert_eq!(request.base.vlan_number, 20);
         assert_eq!(request.base.site_id, existing.base.site_id);
         assert_eq!(request.base.organization_id, existing.base.organization_id);
+    }
+
+    /// The edit form sends the name back with every save. Saving a description must not turn a
+    /// discovered name into the person's own, or the switch could never rename it again.
+    #[test]
+    fn saving_without_renaming_keeps_the_discovered_source() {
+        let discovered = AttributeSource::Authored(
+            crate::server::services::r#impl::patterns::ClientProbe::Snmp,
+        );
+        let existing = Vlan {
+            base: VlanBase {
+                name: VlanName::new(VlanNameValue("Servers".to_string()), discovered),
+                source: EntitySource::Discovery,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut request = existing.clone();
+        request.base.name =
+            VlanName::new(VlanNameValue("Servers".to_string()), AttributeSource::Manual);
+        request.base.description = Some("Rack A".to_string());
+
+        request.preserve_immutable_fields(&existing);
+
+        assert_eq!(request.base.name.source(), discovered);
     }
 }
