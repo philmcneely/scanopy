@@ -366,6 +366,16 @@ impl Display for Service {
 }
 
 impl Service {
+    /// Whether this is a container the daemon could not identify, stored as "Docker Container" or
+    /// "Podman Container" until something identifies it.
+    pub fn is_container_placeholder(&self) -> bool {
+        use crate::server::services::definitions::{
+            docker_container::DockerContainer, podman_container::PodmanContainer,
+        };
+        let name = self.base.service_definition.name();
+        name == DockerContainer.name() || name == PodmanContainer.name()
+    }
+
     /// Whether `self` is the placeholder for `claimant`'s container, which `claimant` replaces: a
     /// "Docker Container" or "Podman Container" stored for a container the daemon could not
     /// identify, on the same runtime, with the same container id.
@@ -374,13 +384,7 @@ impl Service {
     /// SSH or PostgreSQL, so `claimant` only has to be something other than a placeholder or
     /// Unclaimed Open Ports.
     pub fn is_placeholder_for(&self, claimant: &Service) -> bool {
-        use crate::server::services::definitions::{
-            docker_container::DockerContainer, podman_container::PodmanContainer,
-        };
-        let is_placeholder = |s: &Service| {
-            let name = s.base.service_definition.name();
-            name == DockerContainer.name() || name == PodmanContainer.name()
-        };
+        let is_placeholder = Service::is_container_placeholder;
         let container_id = |s: &Service| {
             s.base
                 .virtualization_metadata
