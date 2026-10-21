@@ -629,6 +629,14 @@ impl CredentialService {
             }
         }
 
+        // A container's bridge address, and a host's loopback, are reachable only from that host,
+        // so no other daemon is sent overrides for them. Before the integration targets: a
+        // daemon-host target is deduped against an existing 127.0.0.1 override for the same
+        // credential, and another host's (the seeded socket credentials are shared) must be gone
+        // by then or this daemon loses its own target.
+        let bridge_ctx = capability::ContainerBridgeContext::new(placement, &ip_addresses);
+        capability::retain_reachable_overrides(&bridge_ctx, &mut mappings_by_credential);
+
         // Per-daemon integration targets from this daemon's Discovery (init-command targeting).
         // The single home for cred↔IP and local-socket targeting — it replaces the old org-wide
         // target_ips bootstrap and the modal's pending_credential_ids. Resolving the credential is
@@ -651,11 +659,6 @@ impl CredentialService {
                 typed.mapping.daemon_os = cred.base.daemon_os;
             }
         }
-
-        // A container's bridge address is reachable only from its runtime host, so no other
-        // daemon is sent overrides for it.
-        let bridge_ctx = capability::ContainerBridgeContext::new(placement, &ip_addresses);
-        capability::retain_reachable_bridge_overrides(&bridge_ctx, &mut mappings_by_credential);
 
         // Withhold what this daemon is too old to use, and say what. Parsing the type comes first,
         // so a credential withheld whole is gone before the others look at it. This set carries

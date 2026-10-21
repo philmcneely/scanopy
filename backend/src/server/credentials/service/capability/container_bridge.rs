@@ -4,8 +4,9 @@
 //! IP row on the runtime host, so a host assignment covering it already becomes an override, but
 //! only a daemon on that host can route to it. Two separate questions follow:
 //!
-//! - **Reachability** ([`retain_reachable_bridge_overrides`]): a daemon on another machine can
-//!   never reach the address, so it is not sent it, silently. No upgrade would change that.
+//! - **Reachability** ([`retain_reachable_overrides`]): a daemon on another machine can
+//!   never reach the address, so it is not sent it, silently. No upgrade would change that. The
+//!   same holds for another host's loopback, which on this daemon would be its own machine.
 //! - **Capability** ([`TargetsContainerBridgeWithCredentials`]): the runtime host's own daemon
 //!   reaches it, but only from the release that tries credentials at its bridge containers. An
 //!   older one is not sent it, and the scan says which addresses an upgrade would add.
@@ -68,21 +69,27 @@ impl ContainerBridgeContext {
     }
 }
 
-/// Drop every host-assignment override at another host's bridge address: this daemon cannot
-/// route to it. Overrides without a host (discovery `integration_targets`) name an address the
-/// user typed and are left alone.
-pub(crate) fn retain_reachable_bridge_overrides(
+/// Drop every host-assignment override at an address only another host can reach: its bridge
+/// address, or its loopback. A daemon reaching `127.0.0.1` reaches its own machine, so another
+/// host's loopback assignment (a Docker or Podman socket, or a proxy on that host) would be tried
+/// against this daemon's own socket. The seeded socket credentials are one per organization and
+/// earn a loopback assignment on every daemon host, so each daemon keeps exactly its own.
+///
+/// Overrides without a host (discovery `integration_targets`, including a daemon-host target)
+/// name an address the user chose for this daemon and are left alone, and so is everything when
+/// the daemon's host is unknown.
+pub(crate) fn retain_reachable_overrides(
     ctx: &ContainerBridgeContext,
     mappings: &mut BTreeMap<Uuid, TypedCredentialMapping>,
 ) {
+    let Some(daemon_host_id) = ctx.daemon_host_id else {
+        return;
+    };
     for typed in mappings.values_mut() {
-        typed
-            .mapping
-            .ip_overrides
-            .retain(|o| match ctx.is_bridge(o.host_id, o.ip) {
-                Some(host_id) => ctx.daemon_host_id == Some(host_id),
-                None => true,
-            });
+        typed.mapping.ip_overrides.retain(|o| {
+            let other_host = o.host_id.is_some_and(|h| h != daemon_host_id);
+            !(other_host && (o.ip.is_loopback() || ctx.is_bridge(o.host_id, o.ip).is_some()))
+        });
     }
 }
 
@@ -217,7 +224,7 @@ mod tests {
             &f.ip_addresses,
         );
         let ctx = ContainerBridgeContext::new(&placement(f, daemon_host_id), &f.ip_addresses);
-        retain_reachable_bridge_overrides(&ctx, &mut map);
+        retain_reachable_overrides(&ctx, &mut map);
         let warnings = retain_capable::<TargetsContainerBridgeWithCredentials>(
             &ctx,
             &mut map,
@@ -320,5 +327,73 @@ mod tests {
         let (ips, warnings) = dispatched(&f, None, Uuid::new_v4(), true);
         assert_eq!(ips, vec![addr(LAN)]);
         assert!(warnings.is_empty());
+    }
+
+    /// The seeded Docker socket credential is one per organization: every daemon that probes it
+    /// successfully earns an assignment on its own host's loopback. Each daemon must be sent only
+    /// its own, plus any daemon-host target its discovery names, or it tries another host's socket
+    /// against its own machine.
+    #[test]
+    fn a_shared_socket_credential_reaches_each_daemon_only_at_its_own_loopback() {
+        use crate::server::credentials::r#impl::mapping::IntegrationTarget;
+        use crate::server::credentials::service::apply_integration_target;
+
+        let socket = Credential {
+            id: Uuid::new_v4(),
+            base: CredentialBase {
+                credential_type: CredentialTypeDiscriminants::DockerSocket.to_credential_type(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let (host_a, host_b) = (Uuid::new_v4(), Uuid::new_v4());
+        let (lo_a, lo_b) = (Uuid::new_v4(), Uuid::new_v4());
+        let ip_addresses = vec![
+            ip(lo_a, host_a, Uuid::new_v4(), "127.0.0.1"),
+            ip(lo_b, host_b, Uuid::new_v4(), "127.0.0.1"),
+        ];
+
+        let sent_to = |daemon_host: Uuid, with_target: bool| {
+            let mut map = BTreeMap::new();
+            for (host, lo) in [(host_a, lo_a), (host_b, lo_b)] {
+                apply_host_assignment(
+                    &mut map,
+                    host,
+                    &CredentialAssignment {
+                        credential_id: socket.id,
+                        ip_address_ids: Some(vec![lo]),
+                    },
+                    &socket,
+                    &ip_addresses,
+                );
+            }
+            // The order `build_all_credential_mappings` runs them in: reachability, then targets.
+            let placement = DaemonPlacement {
+                daemon_host_id: Some(daemon_host),
+                bridge_subnet_ids: HashSet::new(),
+            };
+            retain_reachable_overrides(
+                &ContainerBridgeContext::new(&placement, &ip_addresses),
+                &mut map,
+            );
+            if with_target {
+                apply_integration_target(
+                    &mut map,
+                    &IntegrationTarget::DaemonHost {
+                        credential_id: socket.id,
+                    },
+                    &socket.base.credential_type,
+                );
+            }
+            map.values()
+                .flat_map(|t| t.mapping.ip_overrides.iter().map(|o| o.host_id))
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(sent_to(host_a, false), vec![Some(host_a)]);
+        assert_eq!(sent_to(host_b, false), vec![Some(host_b)]);
+        // A new daemon whose host has no assignment yet still gets its daemon-host target, though
+        // other hosts hold the same credential at the same 127.0.0.1.
+        assert_eq!(sent_to(Uuid::new_v4(), true), vec![None]);
     }
 }
