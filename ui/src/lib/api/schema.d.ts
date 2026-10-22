@@ -4140,19 +4140,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-21T19:59:43.097793Z",
+             *       "created_at": "2026-10-21T23:11:20.328453Z",
              *       "first_discovery_id": null,
-             *       "id": "b50590e2-2d7f-44fb-8973-b33e605c26ae",
+             *       "id": "ebce3b6e-11cd-4def-9562-7c1c5f966771",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-21T19:59:43.097793Z",
+             *       "last_seen_at": "2026-10-21T23:11:20.328453Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-21T19:59:43.097793Z",
-             *       "valid_from": "2026-10-21T19:59:43.097793Z",
+             *       "updated_at": "2026-10-21T23:11:20.328453Z",
+             *       "valid_from": "2026-10-21T23:11:20.328453Z",
              *       "valid_to": null
              *     }
              */
@@ -5028,19 +5028,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-21T19:59:43.067050Z",
+             *               "created_at": "2026-10-21T23:11:20.295732Z",
              *               "first_discovery_id": null,
-             *               "id": "e0c4145a-a00c-438d-962f-5f93da398a34",
+             *               "id": "c965b886-c617-4992-a8fd-8a20e6bf65cf",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-21T19:59:43.067050Z",
+             *               "last_seen_at": "2026-10-21T23:11:20.295732Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-21T19:59:43.067050Z",
-             *               "valid_from": "2026-10-21T19:59:43.067050Z",
+             *               "updated_at": "2026-10-21T23:11:20.295732Z",
+             *               "valid_from": "2026-10-21T23:11:20.295732Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5053,7 +5053,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Mattermost",
+             *           "service_definition": "UptimeKuma",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -6052,19 +6052,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-21T19:59:43.092483Z",
+             *           "created_at": "2026-10-21T23:11:20.322827Z",
              *           "first_discovery_id": null,
-             *           "id": "50bedfd5-ac6f-4506-8995-b401217137ef",
+             *           "id": "ae3d1f14-e29f-4f87-880a-8a88251ab1cb",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-21T19:59:43.092483Z",
+             *           "last_seen_at": "2026-10-21T23:11:20.322827Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-21T19:59:43.092483Z",
-             *           "valid_from": "2026-10-21T19:59:43.092483Z",
+             *           "updated_at": "2026-10-21T23:11:20.322827Z",
+             *           "valid_from": "2026-10-21T23:11:20.322827Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6077,7 +6077,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Mattermost",
+             *       "service_definition": "UptimeKuma",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7516,19 +7516,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-21T19:59:43.067576Z",
+         *       "created_at": "2026-10-21T23:11:20.296282Z",
          *       "first_discovery_id": null,
-         *       "id": "60d1c0b7-cbe9-485b-aefd-1405792cfafa",
+         *       "id": "3ad921d2-5f18-402b-99af-46eff98a0acc",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-21T19:59:43.067576Z",
+         *       "last_seen_at": "2026-10-21T23:11:20.296282Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-21T19:59:43.067576Z",
-         *       "valid_from": "2026-10-21T19:59:43.067576Z",
+         *       "updated_at": "2026-10-21T23:11:20.296282Z",
+         *       "valid_from": "2026-10-21T23:11:20.296282Z",
          *       "valid_to": null
          *     }
          */
@@ -7917,7 +7917,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Mattermost",
+         *           "service_definition": "UptimeKuma",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -9278,6 +9278,11 @@ export interface components {
              * @description Interfaces read before the walk stopped.
              */
             collected: number;
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
         } | {
             /** @description The device whose walk fell short. */
             address: string;
@@ -9288,11 +9293,21 @@ export interface components {
              * @description Interfaces whose attribute columns were read in full.
              */
             collected: number;
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkEntryCap";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
             /**
              * Format: int32
@@ -9304,24 +9319,44 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "SnmpWalkUnsupported";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkDesynchronised";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkPartialDiscarded";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkPartialRecorded";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
@@ -9334,13 +9369,16 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
-            /** @description See [`DiscoveryWarning::SnmpWalkFailed`]. */
-            net_snmp_options: string | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkNoAnswer";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
@@ -9354,16 +9392,16 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
-            /**
-             * @description The net-snmp options that authenticate as that credential, every secret a
-             *     `<placeholder>`, for the `snmpwalk` the UI offers to repeat the read with.
-             */
-            net_snmp_options: string | null;
         } | {
             /** @description The device that published the count. */
             address: string;
             /** @enum {string} */
             code: "ClaimedCountReadCutShort";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             /**
              * Format: int32
              * @description Rows the device said it had.
@@ -9382,6 +9420,11 @@ export interface components {
             /** @enum {string} */
             code: "ClaimedCountUnderRead";
             /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
              * Format: int32
              * @description Rows the device said it had.
              */
@@ -9398,6 +9441,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "ClaimedCapabilityReadCutShort";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
             source: components["schemas"]["ClaimSource"];
         } | {
@@ -9405,6 +9453,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "ClaimedCapabilityEmpty";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
             source: components["schemas"]["ClaimSource"];
         } | {
@@ -9412,6 +9465,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "LldpLocalPortDropped";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             /**
              * Format: int32
              * @description Neighbours discarded for want of a matching interface.
@@ -9428,6 +9486,11 @@ export interface components {
             /** @enum {string} */
             code: "LldpLocalPortDroppedReadCutShort";
             /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
              * Format: int32
              * @description Neighbours discarded for want of a matching interface.
              */
@@ -9442,6 +9505,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "LldpLocalPortMisplaced";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             /**
              * Format: int32
              * @description Neighbours drawn against a port that may be the wrong one.
@@ -9478,8 +9546,6 @@ export interface components {
              *     which recorded only that nothing came back.
              */
             failures: components["schemas"]["SnmpWalkFailure"][] | null;
-            /** @description See [`DiscoveryWarning::SnmpWalkFailed`]. */
-            net_snmp_options: string | null;
         } | {
             /** @description The device whose VLANs could not be recorded. */
             address: string;
@@ -10815,19 +10881,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-21T19:59:43.066431Z",
+         *               "created_at": "2026-10-21T23:11:20.295062Z",
          *               "first_discovery_id": null,
-         *               "id": "e7b802c8-3f2c-479f-8dea-412e16515f4f",
+         *               "id": "fb484bf1-2c00-4e55-91d8-da633e6022fd",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-21T19:59:43.066431Z",
+         *               "last_seen_at": "2026-10-21T23:11:20.295062Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-21T19:59:43.066431Z",
-         *               "valid_from": "2026-10-21T19:59:43.066431Z",
+         *               "updated_at": "2026-10-21T23:11:20.295062Z",
+         *               "valid_from": "2026-10-21T23:11:20.295062Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10840,7 +10906,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Mattermost",
+         *           "service_definition": "UptimeKuma",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -12213,6 +12279,11 @@ export interface components {
             /** @description The device that reported the records. */
             address: string;
             consequence: components["schemas"]["MalformedNeighbourConsequence"];
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             /**
              * Format: int32
              * @description Records thrown away for want of a usable identifier.
@@ -14390,19 +14461,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-21T19:59:43.067405Z",
+         *           "created_at": "2026-10-21T23:11:20.296107Z",
          *           "first_discovery_id": null,
-         *           "id": "b102b41d-c449-4c90-8c6c-3a6296ba52ab",
+         *           "id": "a2a12d3b-2db8-4341-b718-d08a2e228760",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-21T19:59:43.067405Z",
+         *           "last_seen_at": "2026-10-21T23:11:20.296107Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-21T19:59:43.067405Z",
-         *           "valid_from": "2026-10-21T19:59:43.067405Z",
+         *           "updated_at": "2026-10-21T23:11:20.296107Z",
+         *           "valid_from": "2026-10-21T23:11:20.296107Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14415,7 +14486,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Mattermost",
+         *       "service_definition": "UptimeKuma",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -14847,6 +14918,15 @@ export interface components {
              */
             taken_at: string;
         };
+        /**
+         * @description The net-snmp commands that check a warning against the device, from the daemon's host.
+         *
+         *     Published on each warning code's metadata as `snmp_check`, so the UI builds the commands from
+         *     what the code declares instead of keeping its own list of codes. Each value is the comparison
+         *     that tells an operator whether the device returns what the warning says it returned.
+         * @enum {string}
+         */
+        SnmpCheck: "Repeat" | "Recount" | "Claim" | "Unordered" | "Table";
         /**
          * @description SNMPv3 USM authentication protocol. MD5 is offered for devices that support nothing else;
          *     SHA-2 variants beyond SHA-256 are not. Serialized form (e.g. "Sha256") is the wire value
@@ -15568,7 +15648,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "0a8fec38-99cc-43ec-9032-f06b204bc71e",
+             *           "id": "cf7a19bd-bec1-45fe-a4ee-405412ccbafe",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15578,23 +15658,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "63d97df3-9115-4c67-a3f0-981a0099573e",
+             *           "id": "b6877c62-f296-4087-ae61-3385246c677a",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "ed5c82c9-8c4d-4291-9b99-b30c712a2dea",
+             *           "id": "2a94985b-f96e-4bff-9446-b963123a15c5",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "1143ed6b-cb5d-4c2b-bc21-b02ab9fb2ceb",
+             *           "id": "beb9a8aa-cc26-491f-8f2b-82a7d43f0a61",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "63d97df3-9115-4c67-a3f0-981a0099573e",
+             *           "id": "b6877c62-f296-4087-ae61-3385246c677a",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15608,19 +15688,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "e5b22492-e9cc-420f-83df-6089ffcf71b1",
+             *         "id": "3d356d50-1768-483f-b465-9edb33a557f9",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "02bad8eb-9e46-45cc-a510-f07f9cc97495",
+             *         "id": "082a2c3f-a4a3-4b8c-ba77-7aa1520253a5",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "934f123c-9f50-471c-90c4-e7e65d990b71",
+             *         "id": "acd12a7a-0e84-44c8-84d0-af2592efa43f",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "75030363-f928-4d67-998a-04a9c78338ac",
+             *         "id": "1a329408-2a64-45e3-98b5-76e7859c3bf4",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15641,7 +15721,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "a3dea26e-c075-43e1-a3a2-f2168aeaa57f",
+             *         "id": "d590674f-2ffb-4439-b3d1-4de154d1883d",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15650,15 +15730,15 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "d70e7e6c-6cd0-4929-9532-e12c48cfdea4",
+             *         "id": "c6516da8-0b61-4ab5-b81f-076be381f5ba",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "f097201e-dc05-49c6-a56c-b3d122d066c4",
+             *         "id": "b0bd1374-93b3-4a57-abe4-0bce8f4d702e",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "5b3aa88b-53d6-4ee0-88f4-6f91a2eb9bb2",
+             *         "id": "e3f2a698-a292-4caf-97a3-1ead9989bfb2",
              *         "rule": "ByStack"
              *       }
              *     ]

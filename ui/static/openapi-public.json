@@ -20066,19 +20066,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-21T19:59:43.177866Z",
+              "created_at": "2026-10-21T23:11:20.412035Z",
               "first_discovery_id": null,
-              "id": "a77b21e9-14f1-4318-94e2-82eec92b2bc4",
+              "id": "b7d1b491-bf85-4d06-8572-b946dcc108b8",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-21T19:59:43.177866Z",
+              "last_seen_at": "2026-10-21T23:11:20.412035Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-21T19:59:43.177866Z",
-              "valid_from": "2026-10-21T19:59:43.177866Z",
+              "updated_at": "2026-10-21T23:11:20.412035Z",
+              "valid_from": "2026-10-21T23:11:20.412035Z",
               "valid_to": null
             }
           },
@@ -21831,19 +21831,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-21T19:59:43.150771Z",
+                      "created_at": "2026-10-21T23:11:20.383197Z",
                       "first_discovery_id": null,
-                      "id": "3b33294e-e77b-40eb-a394-130bddbd644e",
+                      "id": "6a66fbd6-7cdf-4043-a838-3205c41f1fd4",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-21T19:59:43.150771Z",
+                      "last_seen_at": "2026-10-21T23:11:20.383197Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-21T19:59:43.150771Z",
-                      "valid_from": "2026-10-21T19:59:43.150771Z",
+                      "updated_at": "2026-10-21T23:11:20.383197Z",
+                      "valid_from": "2026-10-21T23:11:20.383197Z",
                       "valid_to": null
                     }
                   ],
@@ -21856,7 +21856,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Mattermost",
+                  "service_definition": "UptimeKuma",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -23343,19 +23343,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-21T19:59:43.173063Z",
+                  "created_at": "2026-10-21T23:11:20.407087Z",
                   "first_discovery_id": null,
-                  "id": "2b2524d0-62a5-42b5-8df7-0573bb951a6f",
+                  "id": "9fd9ab4c-5533-4da8-9b92-a50a27ffc98b",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-21T19:59:43.173063Z",
+                  "last_seen_at": "2026-10-21T23:11:20.407087Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-21T19:59:43.173063Z",
-                  "valid_from": "2026-10-21T19:59:43.173063Z",
+                  "updated_at": "2026-10-21T23:11:20.407087Z",
+                  "valid_from": "2026-10-21T23:11:20.407087Z",
                   "valid_to": null
                 }
               ],
@@ -23368,7 +23368,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Mattermost",
+              "service_definition": "UptimeKuma",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -26486,19 +26486,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-21T19:59:43.151284Z",
+          "created_at": "2026-10-21T23:11:20.383740Z",
           "first_discovery_id": null,
-          "id": "53503299-f1b9-47d1-bdc6-528f401b4e1b",
+          "id": "d44f64cb-04f0-43ab-9f7a-875770b625c7",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-21T19:59:43.151284Z",
+          "last_seen_at": "2026-10-21T23:11:20.383740Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-21T19:59:43.151284Z",
-          "valid_from": "2026-10-21T19:59:43.151284Z",
+          "updated_at": "2026-10-21T23:11:20.383740Z",
+          "valid_from": "2026-10-21T23:11:20.383740Z",
           "valid_to": null
         }
       },
@@ -27393,7 +27393,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Mattermost",
+              "service_definition": "UptimeKuma",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -30192,6 +30192,7 @@
             "required": [
               "address",
               "collected",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30210,6 +30211,14 @@
                 "format": "int32",
                 "description": "Interfaces read before the walk stopped.",
                 "minimum": 0
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               }
             }
           },
@@ -30220,6 +30229,7 @@
             "required": [
               "address",
               "collected",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30238,6 +30248,14 @@
                 "format": "int32",
                 "description": "Interfaces whose attribute columns were read in full.",
                 "minimum": 0
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               }
             }
           },
@@ -30249,6 +30267,7 @@
               "address",
               "group",
               "limit",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30261,6 +30280,14 @@
                 "enum": [
                   "SnmpWalkEntryCap"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
@@ -30280,6 +30307,7 @@
             "required": [
               "address",
               "group",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30293,6 +30321,14 @@
                   "SnmpWalkUnsupported"
                 ]
               },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
+              },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
               }
@@ -30305,6 +30341,7 @@
             "required": [
               "address",
               "group",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30318,6 +30355,14 @@
                   "SnmpWalkDesynchronised"
                 ]
               },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
+              },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
               }
@@ -30330,6 +30375,7 @@
             "required": [
               "address",
               "group",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30343,6 +30389,14 @@
                   "SnmpWalkPartialDiscarded"
                 ]
               },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
+              },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
               }
@@ -30355,6 +30409,7 @@
             "required": [
               "address",
               "group",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30367,6 +30422,14 @@
                 "enum": [
                   "SnmpWalkPartialRecorded"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
@@ -30381,7 +30444,6 @@
               "address",
               "group",
               "credential_id",
-              "net_snmp_options",
               "code"
             ],
             "properties": {
@@ -30405,13 +30467,6 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
-              },
-              "net_snmp_options": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "See [`DiscoveryWarning::SnmpWalkFailed`]."
               }
             }
           },
@@ -30422,6 +30477,7 @@
             "required": [
               "address",
               "group",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30434,6 +30490,14 @@
                 "enum": [
                   "SnmpWalkNoAnswer"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
@@ -30449,7 +30513,6 @@
               "group",
               "cause",
               "credential_id",
-              "net_snmp_options",
               "code"
             ],
             "properties": {
@@ -30476,13 +30539,6 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
-              },
-              "net_snmp_options": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "The net-snmp options that authenticate as that credential, every secret a\n`<placeholder>`, for the `snmpwalk` the UI offers to repeat the read with."
               }
             }
           },
@@ -30496,6 +30552,7 @@
               "source",
               "expected",
               "observed",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30508,6 +30565,14 @@
                 "enum": [
                   "ClaimedCountReadCutShort"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "expected": {
                 "type": "integer",
@@ -30539,6 +30604,7 @@
               "source",
               "expected",
               "observed",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30551,6 +30617,14 @@
                 "enum": [
                   "ClaimedCountUnderRead"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "expected": {
                 "type": "integer",
@@ -30580,6 +30654,7 @@
               "address",
               "group",
               "source",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30592,6 +30667,14 @@
                 "enum": [
                   "ClaimedCapabilityReadCutShort"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
@@ -30609,6 +30692,7 @@
               "address",
               "group",
               "source",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30621,6 +30705,14 @@
                 "enum": [
                   "ClaimedCapabilityEmpty"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
@@ -30638,6 +30730,7 @@
               "address",
               "dropped",
               "total",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30650,6 +30743,14 @@
                 "enum": [
                   "LldpLocalPortDropped"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "dropped": {
                 "type": "integer",
@@ -30673,6 +30774,7 @@
               "address",
               "dropped",
               "total",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30685,6 +30787,14 @@
                 "enum": [
                   "LldpLocalPortDroppedReadCutShort"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "dropped": {
                 "type": "integer",
@@ -30707,6 +30817,7 @@
             "required": [
               "address",
               "misplaced",
+              "credential_id",
               "code"
             ],
             "properties": {
@@ -30719,6 +30830,14 @@
                 "enum": [
                   "LldpLocalPortMisplaced"
                 ]
+              },
+              "credential_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "The stored credential the device was read with. `None` from a daemon that predates it."
               },
               "misplaced": {
                 "type": "integer",
@@ -30850,7 +30969,6 @@
             "required": [
               "address",
               "credential_id",
-              "net_snmp_options",
               "failures",
               "code"
             ],
@@ -30882,13 +31000,6 @@
                   "$ref": "#/components/schemas/SnmpWalkFailure"
                 },
                 "description": "Each table whose read failed, and how. These are not reported again on their own.\nEmpty when every read ended normally; `None` from a daemon that predates the field,\nwhich recorded only that nothing came back."
-              },
-              "net_snmp_options": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "See [`DiscoveryWarning::SnmpWalkFailed`]."
               }
             }
           },
@@ -34682,19 +34793,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-21T19:59:43.150165Z",
+                  "created_at": "2026-10-21T23:11:20.382576Z",
                   "first_discovery_id": null,
-                  "id": "ac221321-9335-498d-9d6c-1e5fa9b537d5",
+                  "id": "5a53b76b-447f-42c7-9753-3630995edb5b",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-21T19:59:43.150165Z",
+                  "last_seen_at": "2026-10-21T23:11:20.382576Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-21T19:59:43.150165Z",
-                  "valid_from": "2026-10-21T19:59:43.150165Z",
+                  "updated_at": "2026-10-21T23:11:20.382576Z",
+                  "valid_from": "2026-10-21T23:11:20.382576Z",
                   "valid_to": null
                 }
               ],
@@ -34707,7 +34818,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Mattermost",
+              "service_definition": "UptimeKuma",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -37103,7 +37214,8 @@
           "group",
           "discarded",
           "kept",
-          "consequence"
+          "consequence",
+          "credential_id"
         ],
         "properties": {
           "address": {
@@ -37112,6 +37224,14 @@
           },
           "consequence": {
             "$ref": "#/components/schemas/MalformedNeighbourConsequence"
+          },
+          "credential_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The stored credential the device was read with. `None` from a daemon that predates it."
           },
           "discarded": {
             "type": "integer",
@@ -38928,19 +39048,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-21T19:59:43.141382Z",
+                        "created_at": "2026-10-21T23:11:20.373392Z",
                         "first_discovery_id": null,
-                        "id": "19ad051e-7624-450e-adea-b84bb8b916a2",
+                        "id": "73e2f883-302e-454c-b837-763ed03b6b95",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-21T19:59:43.141382Z",
+                        "last_seen_at": "2026-10-21T23:11:20.373392Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-21T19:59:43.141382Z",
-                        "valid_from": "2026-10-21T19:59:43.141382Z",
+                        "updated_at": "2026-10-21T23:11:20.373392Z",
+                        "valid_from": "2026-10-21T23:11:20.373392Z",
                         "valid_to": null
                       }
                     ],
@@ -38953,7 +39073,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Mattermost",
+                    "service_definition": "UptimeKuma",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -39200,19 +39320,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-21T19:59:43.172348Z",
+                    "created_at": "2026-10-21T23:11:20.406362Z",
                     "first_discovery_id": null,
-                    "id": "0a6069f6-5f05-41a6-9803-1c104e9feb49",
+                    "id": "db122423-7c38-462c-9b08-8323c9970cd6",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-21T19:59:43.172348Z",
+                    "last_seen_at": "2026-10-21T23:11:20.406362Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-21T19:59:43.172348Z",
-                    "valid_from": "2026-10-21T19:59:43.172348Z",
+                    "updated_at": "2026-10-21T23:11:20.406362Z",
+                    "valid_from": "2026-10-21T23:11:20.406362Z",
                     "valid_to": null
                   }
                 ],
@@ -39225,7 +39345,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Mattermost",
+                "service_definition": "UptimeKuma",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -41915,19 +42035,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-21T19:59:43.151113Z",
+              "created_at": "2026-10-21T23:11:20.383568Z",
               "first_discovery_id": null,
-              "id": "9b8216d6-58a1-4ac4-b877-7ec633aab431",
+              "id": "2a087cd8-1622-4d49-acf3-f95c80083a08",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-21T19:59:43.151113Z",
+              "last_seen_at": "2026-10-21T23:11:20.383568Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-21T19:59:43.151113Z",
-              "valid_from": "2026-10-21T19:59:43.151113Z",
+              "updated_at": "2026-10-21T23:11:20.383568Z",
+              "valid_from": "2026-10-21T23:11:20.383568Z",
               "valid_to": null
             }
           ],
@@ -41940,7 +42060,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Mattermost",
+          "service_definition": "UptimeKuma",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -42718,6 +42838,17 @@
             "description": "The point in time this snapshot captures."
           }
         }
+      },
+      "SnmpCheck": {
+        "type": "string",
+        "description": "The net-snmp commands that check a warning against the device, from the daemon's host.\n\nPublished on each warning code's metadata as `snmp_check`, so the UI builds the commands from\nwhat the code declares instead of keeping its own list of codes. Each value is the comparison\nthat tells an operator whether the device returns what the warning says it returned.",
+        "enum": [
+          "Repeat",
+          "Recount",
+          "Claim",
+          "Unordered",
+          "Table"
+        ]
       },
       "SnmpV3AuthProtocol": {
         "type": "string",
@@ -44222,7 +44353,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "4828c883-f9b5-4912-a3f6-1490212ba248",
+                  "id": "3a899a06-648f-43d1-8408-8376db5c191f",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -44232,23 +44363,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "240e8e3f-10bb-4610-8694-b06c4a945080",
+                  "id": "2282f87d-f7e7-4a7c-a364-78468c2d8ff2",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "191bdb58-a13f-4f4b-99cb-b49674a3e21d",
+                  "id": "db02bad3-084a-40a7-ab69-59597b17b24f",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "bb06fa58-31c5-4d0f-98fa-3c59012ad238",
+                  "id": "9ffa7fa7-2d80-4b78-aafc-d05fc2011432",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "240e8e3f-10bb-4610-8694-b06c4a945080",
+                  "id": "2282f87d-f7e7-4a7c-a364-78468c2d8ff2",
                   "rule": "ByHost"
                 }
               ]
@@ -44278,19 +44409,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "4e87a38c-18e2-469a-be41-f9fd5b6f66fc",
+                "id": "be918625-cd8c-44cb-97e9-12326de9eff6",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "9718885b-366d-49ff-b3fc-9cc7628c0b1b",
+                "id": "a9736787-2d4a-4153-a548-046799546914",
                 "rule": "ByVLAN"
               },
               {
-                "id": "8aa66bb9-e289-4e0a-9581-9e86336a2710",
+                "id": "03351e51-5041-4758-8962-8c52802cfb95",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "5daaf2ce-ad14-4d0f-9ab0-b544669704d0",
+                "id": "7ffa55aa-966e-43ef-839d-77a6638d64b4",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -44311,7 +44442,7 @@
                 }
               },
               {
-                "id": "98b64e1c-611e-48ac-a055-58f08b668af9",
+                "id": "e2109d5e-9225-4701-972b-a6ed08caa0f3",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -44320,15 +44451,15 @@
                 }
               },
               {
-                "id": "f19ea4d9-f47d-4e9f-8367-bbbf8d454758",
+                "id": "721d3ec5-3017-4bd5-979d-2e4d0deb9822",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "f4186347-680b-4c84-b5e5-012376d93ef2",
+                "id": "bd622712-19fd-41d2-a533-5604d0106f18",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "716a34ed-f46b-4e21-8ae3-e7a73bbba577",
+                "id": "66909583-3eaa-4774-aca0-c311516a0992",
                 "rule": "ByStack"
               }
             ]
