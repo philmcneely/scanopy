@@ -5,8 +5,9 @@ name = "Authentik"
 # Unique lowercase slug to use in callback URLs
 slug = "authentik"
 
-# Optional logo to display next to provider
-logo = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/authentik.svg"
+# Optional logo to display next to provider: a path on this server such as
+# /logos/identity-providers/authentik.svg (see the OIDC docs for the bundled ones), or an https URL
+logo = "/logos/identity-providers/authentik.svg"
 
 # OIDC provider's issuer URL (try with and without trailing slash if it doesn't work)
 issuer_url = "YOUR_ISSUER_URL"

@@ -82,7 +82,7 @@ impl OidcService {
             let provider = OidcProvider::new(
                 config.slug.clone(),
                 config.name.clone(),
-                config.logo.clone(),
+                config.servable_logo(),
                 config.issuer_url.clone(),
                 config.client_id.clone(),
                 config.client_secret.clone(),

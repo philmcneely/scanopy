@@ -59,6 +59,7 @@ COPY --from=rust-builder /fixtures/ ./src/lib/data/
 # Copy downloaded service logos from rust-builder
 COPY --from=rust-builder /static/logos/services/ ./static/logos/services/
 COPY --from=rust-builder /static/logos/os-families/ ./static/logos/os-families/
+COPY --from=rust-builder /static/logos/identity-providers/ ./static/logos/identity-providers/
 
 # Accept build-time configuration
 ARG PUBLIC_SERVER_HOSTNAME=default
