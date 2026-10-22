@@ -28,10 +28,12 @@ pub mod mapping;
 pub mod types;
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use anyhow::{Error, Result};
 use async_trait::async_trait;
+use futures::stream::{self, StreamExt};
 use uuid::Uuid;
 
 use crate::server::credentials::r#impl::mapping::{
@@ -198,47 +200,23 @@ impl DiscoveryIntegration for ProxmoxIntegration {
 
         let site_id = ctx.ops.site_id().await?;
         let total = guests.len();
-        let mut created = 0usize;
-        let mut unidentifiable: Vec<String> = vec![];
-        // Nodes with a guest that failed to record: their guests are not listed in full.
-        let mut short_nodes: HashSet<String> = HashSet::new();
-        // Guests whose network identities were all read and recorded.
-        let mut identities_listed: Vec<Uuid> = vec![];
-        for (i, guest) in guests.iter().enumerate() {
-            if ctx.cancel.is_cancelled() {
-                return Err(IntegrationFailure::cancelled());
-            }
-            let reading = read_guest(client, guest).await;
-            let Some(record) = mapping::guest_host(
-                guest,
-                &reading,
-                owners.get(&guest.node).copied(),
-                &subnets,
-                site_id,
-            ) else {
-                unidentifiable.push(guest_label(guest));
-                continue;
-            };
-            let identities =
-                identities::network_identities(&reading.nics, &reading.reported, &subnets);
-            match create_guest_host(ctx, &subnets, guest, record, &identities, site_id).await {
-                Ok((guest_host_id, all_identities_recorded)) => {
-                    created += 1;
-                    if reading.interfaces_read && all_identities_recorded {
-                        identities_listed.push(guest_host_id);
-                    }
-                }
-                Err(e) => {
-                    short_nodes.insert(guest.node.clone());
-                    tracing::warn!(guest = %guest_label(guest), error = %e, "Failed to record Proxmox VE guest")
-                }
-            }
-            if total > 0 {
-                ctx.ops
-                    .report_progress(30 + (60 * (i + 1) / total) as u8)
-                    .await
-                    .ok();
-            }
+        let done = AtomicUsize::new(0);
+        // Built before the first await: a closure over a borrowed guest held across one makes
+        // this future fail the `Send` check `async_trait` puts on it.
+        let syncs: Vec<_> = guests
+            .iter()
+            .map(|guest| {
+                sync_and_report(ctx, client, guest, &owners, &subnets, site_id, &done, total)
+            })
+            .collect();
+        let GuestSync {
+            created,
+            unidentifiable,
+            short_nodes,
+            identities_listed,
+        } = sync_guests(syncs).await;
+        if ctx.cancel.is_cancelled() {
+            return Err(IntegrationFailure::cancelled());
         }
 
         tracing::info!(created, "Proxmox VE guest sync complete");
@@ -286,6 +264,123 @@ impl DiscoveryIntegration for ProxmoxIntegration {
             }));
         }
         Ok(Completeness::Complete)
+    }
+}
+
+/// Guests read and recorded at once. In ServerPoll mode each record waits for the server's next
+/// collection, every 30s, so recorded one at a time a dozen guests outlast the 300s budget and
+/// the whole collection is thrown away.
+const CONCURRENT_GUEST_SYNCS: usize = 8;
+
+/// What became of one guest.
+enum GuestOutcome {
+    /// No address and no NIC, so nothing was recorded.
+    Unidentifiable(String),
+    Recorded {
+        host_id: Uuid,
+        /// Every network identity was read and recorded.
+        identities_listed: bool,
+    },
+    /// Its record failed, or the run was cancelled before it.
+    Failed { node: String },
+}
+
+/// Every guest's outcome, gathered.
+#[derive(Default)]
+struct GuestSync {
+    created: usize,
+    unidentifiable: Vec<String>,
+    /// Nodes with a guest that failed to record: their guests are not listed in full.
+    short_nodes: HashSet<String>,
+    /// Guests whose network identities were all read and recorded.
+    identities_listed: Vec<Uuid>,
+}
+
+/// Run every guest's sync, [`CONCURRENT_GUEST_SYNCS`] at a time, and gather the outcomes.
+async fn sync_guests(syncs: Vec<impl Future<Output = GuestOutcome>>) -> GuestSync {
+    let outcomes: Vec<GuestOutcome> = stream::iter(syncs)
+        .buffer_unordered(CONCURRENT_GUEST_SYNCS)
+        .collect()
+        .await;
+    let mut gathered = GuestSync::default();
+    for outcome in outcomes {
+        match outcome {
+            GuestOutcome::Unidentifiable(label) => gathered.unidentifiable.push(label),
+            GuestOutcome::Recorded {
+                host_id,
+                identities_listed,
+            } => {
+                gathered.created += 1;
+                if identities_listed {
+                    gathered.identities_listed.push(host_id);
+                }
+            }
+            GuestOutcome::Failed { node } => {
+                gathered.short_nodes.insert(node);
+            }
+        }
+    }
+    gathered
+}
+
+/// Sync one guest unless the run was cancelled, then report progress over all `total`.
+#[allow(clippy::too_many_arguments)]
+async fn sync_and_report(
+    ctx: &IntegrationContext<'_>,
+    client: &ProxmoxClient,
+    guest: &GuestSummary,
+    owners: &HashMap<String, Uuid>,
+    subnets: &[Subnet],
+    site_id: Uuid,
+    done: &AtomicUsize,
+    total: usize,
+) -> GuestOutcome {
+    let outcome = if ctx.cancel.is_cancelled() {
+        GuestOutcome::Failed {
+            node: guest.node.clone(),
+        }
+    } else {
+        sync_guest(ctx, client, guest, owners, subnets, site_id).await
+    };
+    let synced = done.fetch_add(1, Ordering::Relaxed) + 1;
+    ctx.ops
+        .report_progress(30 + (60 * synced / total) as u8)
+        .await
+        .ok();
+    outcome
+}
+
+/// Read one guest and record it with its network identities.
+async fn sync_guest(
+    ctx: &IntegrationContext<'_>,
+    client: &ProxmoxClient,
+    guest: &GuestSummary,
+    owners: &HashMap<String, Uuid>,
+    subnets: &[Subnet],
+    site_id: Uuid,
+) -> GuestOutcome {
+    let reading = read_guest(client, guest).await;
+    let Some(record) = mapping::guest_host(
+        guest,
+        &reading,
+        owners.get(&guest.node).copied(),
+        subnets,
+        site_id,
+    ) else {
+        return GuestOutcome::Unidentifiable(guest_label(guest));
+    };
+    let identities = identities::network_identities(&reading.nics, &reading.reported, subnets);
+    match create_guest_host(ctx, subnets, guest, record, &identities, site_id).await {
+        Ok((host_id, all_identities_recorded)) => GuestOutcome::Recorded {
+            host_id,
+            identities_listed: reading.interfaces_read && all_identities_recorded,
+        },
+        Err(e) => {
+            tracing::warn!(guest = %guest_label(guest), error = %e, "Failed to record Proxmox VE guest");
+            GuestOutcome::Failed {
+                node: guest.node.clone(),
+            }
+        }
     }
 }
 
@@ -578,6 +673,60 @@ fn is_proxmox_ve(role: Option<VirtualizationRole>) -> bool {
     role == Some(VirtualizationRole::Hypervisor {
         hosts: HostVirtualizationDiscriminants::Proxmox,
     })
+}
+
+#[cfg(test)]
+mod guest_sync_tests {
+    use super::*;
+
+    /// In ServerPoll mode every record waits for the server's next collection, 30s apart, so
+    /// thirteen guests recorded one at a time take 390s and outlast the 300s collection budget.
+    /// Recorded together they take a couple of collections. `poll` stands in for the 30s.
+    #[tokio::test]
+    async fn guests_waiting_on_the_server_are_recorded_together() {
+        let poll = Duration::from_millis(100);
+        let started = std::time::Instant::now();
+        let syncs = (0..13)
+            .map(|_| async move {
+                tokio::time::sleep(poll).await;
+                GuestOutcome::Recorded {
+                    host_id: Uuid::new_v4(),
+                    identities_listed: true,
+                }
+            })
+            .collect();
+
+        let sync = sync_guests(syncs).await;
+
+        assert_eq!(sync.created, 13);
+        assert!(started.elapsed() < poll * 5, "took {:?}", started.elapsed());
+    }
+
+    /// A guest that failed to record keeps its node from being listed in full, and only its node.
+    #[tokio::test]
+    async fn a_failed_guest_holds_back_only_its_own_node() {
+        let recorded = |identities_listed| async move {
+            GuestOutcome::Recorded {
+                host_id: Uuid::new_v4(),
+                identities_listed,
+            }
+        };
+        let failed = |node: &str| {
+            let node = node.to_string();
+            async move { GuestOutcome::Failed { node } }
+        };
+
+        let sync = sync_guests(vec![
+            futures::future::Either::Left(recorded(true)),
+            futures::future::Either::Left(recorded(false)),
+            futures::future::Either::Right(failed("pve2")),
+        ])
+        .await;
+
+        assert_eq!(sync.created, 2);
+        assert_eq!(sync.short_nodes, HashSet::from(["pve2".to_string()]));
+        assert_eq!(sync.identities_listed.len(), 1);
+    }
 }
 
 #[cfg(test)]
