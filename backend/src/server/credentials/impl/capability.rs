@@ -59,6 +59,7 @@ impl CapabilityGap {
 /// The SNMPv3 options a credential uses that daemons before 0.18.1 cannot parse.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 pub struct SnmpV3SecurityOptionsGap {
+    /// The options the credential uses, each one a reason older daemons reject it.
     pub options: Vec<SnmpV3SecurityOption>,
 }
 
@@ -86,6 +87,7 @@ impl SnmpV3SecurityOption {
 /// A credential's addresses on bridge networks of the daemon's own host.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 pub struct ContainerBridgeGap {
+    /// The credential's target addresses on bridge networks of the daemon's own host.
     #[schema(value_type = Vec<String>)]
     pub addresses: Vec<IpAddr>,
 }

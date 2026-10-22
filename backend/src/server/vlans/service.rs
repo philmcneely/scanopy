@@ -227,7 +227,7 @@ impl VlanService {
         items: Vec<VlanDiscoveryItem>,
         scan_ctx: Option<&ScanContext>,
     ) -> Result<VlanDiscoveryResponse> {
-        let mut vlans = Vec::with_capacity(items.len());
+        let mut vlans = Vec::new();
         for item in items {
             let vlan = self
                 .upsert_from_discovery(

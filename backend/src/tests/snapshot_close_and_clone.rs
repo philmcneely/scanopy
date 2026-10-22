@@ -151,7 +151,8 @@ async fn a_snapshot_closes_every_site_row_onto_closed_parents() {
         .await
         .unwrap();
 
-    let taken_at = Utc::now() + Duration::seconds(1);
+    // Postgres stores microseconds, so a nanosecond `taken_at` would not round-trip.
+    let taken_at = chrono::SubsecRound::trunc_subsecs(Utc::now() + Duration::seconds(1), 6);
     let snapshot = Snapshot::new(s.id, taken_at, None);
     storage.snapshots.create(&snapshot).await.unwrap();
     services
