@@ -26,7 +26,7 @@
 -->
 <script lang="ts">
 	import { ChevronRight } from 'lucide-svelte';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
@@ -36,6 +36,9 @@
 	import CollapsibleCard from '$lib/shared/components/data/CollapsibleCard.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
+	import SegmentedControl from '$lib/shared/components/forms/SegmentedControl.svelte';
+	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
+	import { SimpleOptionDisplay } from '$lib/shared/components/forms/selection/display/SimpleOptionDisplay';
 	import { entityRef } from '$lib/shared/components/data/types';
 	import { useHostsByIds } from '$lib/features/hosts/queries';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
@@ -56,7 +59,10 @@
 		discovery_noWarningsBeforeStop,
 		discovery_noWarningsSubtitle,
 		discovery_scanSettings,
-		discovery_snmpCheckCommands,
+		discovery_snmpCheckFor,
+		discovery_warningAffectsAddresses,
+		discovery_warningAffectsHosts,
+		discovery_warningAffectsSubnets,
 		subnets_resolveRange
 	} from '$lib/paraglide/messages';
 	import type { EntityDiscriminants } from '$lib/api/entities';
@@ -67,7 +73,7 @@
 		buildWarningReport,
 		credentialIdsOf,
 		isCredentialWarning,
-		subjectKey,
+		type WarningAffects,
 		type WarningEntry,
 		type WarningSubject
 	} from '../../utils/warnings';
@@ -173,6 +179,58 @@
 
 	function toggleRow(key: string) {
 		if (!openRows.delete(key)) openRows.add(key);
+	}
+
+	/** A row's header line: the one address, host or subnet it concerns, or how many. */
+	function affectsLabel(affects: WarningAffects): string {
+		if (affects.only) return affects.only;
+		const count = affects.count;
+		switch (affects.type) {
+			case 'address':
+				return discovery_warningAffectsAddresses({ count });
+			case 'host':
+				return discovery_warningAffectsHosts({ count });
+			case 'subnet':
+				return discovery_warningAffectsSubnets({ count });
+		}
+	}
+
+	/** Past this many devices the selector is a dropdown; a segmented control would overflow. */
+	const DEVICE_SEGMENTS = 6;
+
+	/** Which device a row's command box shows, by `WarningEntry.key`. Unset means the default. */
+	const selectedDevices = new SvelteMap<string, string>();
+
+	/**
+	 * The devices a row can check, with what checking each takes. Empty when none of them has
+	 * commands: a row whose every device lacks a credential has nothing to offer, and listing the
+	 * devices only to say so of each would be noise.
+	 */
+	function checksOf(entry: WarningEntry) {
+		const byAddress = new Map<
+			string,
+			{
+				address: string;
+				credentialId: string | null;
+				outcome: NonNullable<ReturnType<typeof snmpCheckOf>>;
+			}
+		>();
+		for (const warning of entry.warnings) {
+			if (!('address' in warning) || !warning.address || byAddress.has(warning.address)) continue;
+			const outcome = snmpCheckOf(warning, credentialOf);
+			if (!outcome) continue;
+			const credentialId = 'credential_id' in warning ? (warning.credential_id ?? null) : null;
+			byAddress.set(warning.address, { address: warning.address, credentialId, outcome });
+		}
+		const checks = [...byAddress.values()];
+		return checks.some((check) => 'commands' in check.outcome) ? checks : [];
+	}
+
+	/** The credential a device was read with, as a chip that opens it. */
+	function credentialChipOf(credentialId: string | null): WarningSubject | null {
+		if (!credentialId) return null;
+		const label = nameOfEntity('Credential', credentialId);
+		return label ? { label, entity: { type: 'Credential', id: credentialId } } : null;
 	}
 
 	/** The codes whose answer is a scan setting rather than a credential. */
@@ -385,13 +443,11 @@
 									<span class="text-primary min-w-0 truncate text-sm">{entry.title}</span>
 								</button>
 
-								<!-- The first few subjects, on the header line; the rest are counted. Hidden
-								     while the row is open, which lists them all. -->
-								<div class="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
-									{#if !isOpen}
-										{#each entry.preview as subject (subjectKey(subject))}
-											{@render entityChip(subject)}
-										{/each}
+								<!-- Who the row concerns, as a count: the open row says the rest. -->
+								<div class="flex min-w-0 flex-1 items-center overflow-hidden">
+									{#if entry.affects}
+										<span class="text-tertiary truncate text-xs">{affectsLabel(entry.affects)}</span
+										>
 									{/if}
 								</div>
 
@@ -410,14 +466,9 @@
 							</div>
 
 							{#if isOpen}
+								{@const checks = checksOf(entry)}
 								<div class="space-y-2 pb-1 pl-12 pt-1">
 									{#each entry.details as statement, i (i)}
-										{@const checks = statement.warnings.flatMap((warning) => {
-											const outcome = snmpCheckOf(warning, credentialOf);
-											return outcome && 'address' in warning && warning.address
-												? [{ address: warning.address, outcome }]
-												: [];
-										})}
 										<div class="space-y-1">
 											<p class="text-tertiary text-sm">{statement.sentence}</p>
 											{#if statement.examples.length > 0}
@@ -442,32 +493,49 @@
 													{/each}
 												</ul>
 											{/if}
-											<!-- Each device's own commands, under its address. A device with none says
-											     why, when another device in the sentence has some to compare with. -->
-											{#if checks.some((check) => 'commands' in check.outcome)}
-												<p class="text-secondary pt-1 text-xs">{discovery_snmpCheckCommands()}</p>
-												{#each checks as check (check.address)}
-													<div class="space-y-1">
-														{@render entityChip({ label: check.address })}
-														{#if 'commands' in check.outcome}
-															<CodeContainer
-																code={check.outcome.commands.join('\n')}
-																language="bash"
-																expandable={false}
-															/>
-														{:else}
-															<p class="text-tertiary text-xs">{check.outcome.reason}</p>
-														{/if}
-													</div>
-												{/each}
-											{/if}
 										</div>
 									{/each}
-									{#if entry.subjects.length > 0}
-										<div class="flex flex-wrap items-center gap-1">
-											{#each entry.subjects as subject (subjectKey(subject))}
-												{@render entityChip(subject)}
-											{/each}
+									<!-- One command box per row: pick a device and the box shows what checking it
+									     takes. A device without commands says why in place of the box. -->
+									{#if checks.length > 0}
+										{@const selected =
+											checks.find((c) => c.address === selectedDevices.get(entry.key)) ??
+											checks.find((c) => 'commands' in c.outcome) ??
+											checks[0]}
+										{@const options = checks.map((c) => ({ value: c.address, label: c.address }))}
+										<div class="space-y-2 pt-1">
+											{#if checks.length > DEVICE_SEGMENTS}
+												<div class="max-w-xs">
+													<RichSelect
+														selectedValue={selected.address}
+														{options}
+														onSelect={(address) => selectedDevices.set(entry.key, address)}
+														displayComponent={SimpleOptionDisplay}
+													/>
+												</div>
+											{:else if checks.length > 1}
+												<SegmentedControl
+													{options}
+													selected={selected.address}
+													onchange={(address) => selectedDevices.set(entry.key, address)}
+												/>
+											{/if}
+											{#if 'commands' in selected.outcome}
+												{@const credential = credentialChipOf(selected.credentialId)}
+												<div class="space-y-1">
+													<p class="text-secondary flex flex-wrap items-center gap-1 text-xs">
+														<span>{discovery_snmpCheckFor({ address: selected.address })}</span>
+														{#if credential}{@render entityChip(credential)}{/if}
+													</p>
+													<CodeContainer
+														code={selected.outcome.commands.join('\n')}
+														language="bash"
+														expandable={false}
+													/>
+												</div>
+											{:else}
+												<p class="text-tertiary text-xs">{selected.outcome.reason}</p>
+											{/if}
 										</div>
 									{/if}
 								</div>

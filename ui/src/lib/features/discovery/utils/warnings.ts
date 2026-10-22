@@ -24,13 +24,13 @@ import snmpWalkGroups from '$lib/data/snmp-walk-groups.json';
 import warningCodes from '$lib/data/warning-codes.json';
 import warningRemedies from '$lib/data/warning-remedies.json';
 import { metaDescription, metaDescriptionWith, metaName, metaNameWith } from '$lib/i18n/metadata';
-import { joinList, MAX_LISTED } from '$lib/i18n/list';
+import { joinList } from '$lib/i18n/list';
+import { isCheckable } from './snmpCheck';
 import { toColor, type Color } from '$lib/shared/utils/styling';
 import { osLabel } from '$lib/features/daemons/utils';
 import { credentialIntegrations } from '$lib/shared/stores/metadata';
 import {
 	common_host,
-	common_moreItems,
 	common_unknown,
 	common_unknownEntity,
 	discovery_warningNoFurtherDetail,
@@ -42,6 +42,7 @@ import {
 	discovery_warningSnmpV3OptionAuthNoPriv,
 	discovery_warningSnmpV3OptionMd5Auth,
 	discovery_warningSnmpV3OptionNoAuthNoPriv,
+	discovery_warningDeviceCount,
 	discovery_warningInferredFrom,
 	discovery_warningSeenBy,
 	discovery_warningNoPortId,
@@ -105,6 +106,14 @@ export interface WarningStatement {
 	warnings: DiscoveryWarning[];
 }
 
+/** How many addresses, hosts or subnets a row concerns, and the one when there is only one. */
+export interface WarningAffects {
+	type: 'address' | 'host' | 'subnet';
+	count: number;
+	/** The single subject's label when `count` is 1 and it resolved. */
+	only: string | null;
+}
+
 /** One warning code's worth of a run, as a row in the report. */
 export interface WarningEntry {
 	/** Unique within a run: the code and the title, since a code whose name is a template has a row
@@ -116,10 +125,8 @@ export interface WarningEntry {
 	/** Severity, as the fixture already publishes it. */
 	color: Color;
 	icon: string;
-	/** The devices, ranges or addresses this row concerns, shown when the row is open. */
-	subjects: WarningSubject[];
-	/** The first few of them and a count of the rest, for the row's one-line header. */
-	preview: WarningSubject[];
+	/** What the row concerns, counted for its one-line header. `null` for a scan-level code. */
+	affects: WarningAffects | null;
 	/** What the row says, shown on disclosure. Usually one statement; more when they differ. */
 	details: WarningStatement[];
 	/** Every occurrence behind the row, so an action can read ids off the payload. */
@@ -778,72 +785,53 @@ function renderStatements(
 	const fallback = warningCodes.find((c) => c.id === code)?.description;
 	if (!fallback) return [];
 
-	return bucketByStatement(code, group_, context).map((bucket) => ({
-		sentence: metaDescriptionWith('warning_codes', code, build(bucket, context), fallback),
-		examples: examplesOf(bucket, hostName),
-		warnings: bucket
-	}));
+	const checkable = isCheckable(code);
+	return bucketByStatement(code, group_, context).map((bucket) => {
+		const params = build(bucket, context);
+		// A row an operator can check lists its devices in the device selector, so a sentence about
+		// several of them counts them rather than naming each a second time.
+		const devices = new Set(
+			bucket.flatMap((w) => ('address' in w && w.address ? [w.address] : []))
+		);
+		if (checkable && devices.size > 1 && 'addresses' in params) {
+			params.addresses = discovery_warningDeviceCount({ count: devices.size });
+		}
+		return {
+			sentence: metaDescriptionWith('warning_codes', code, params, fallback),
+			examples: examplesOf(bucket, hostName),
+			warnings: bucket
+		};
+	});
 }
 
 /**
- * What makes two subjects the same: the entity when there is one, the text otherwise. Not the
- * label alone, which two hosts both named "Docker" share.
- */
-export function subjectKey(subject: WarningSubject): string {
-	return subject.entity ? `${subject.entity.type}:${subject.entity.id}` : subject.label;
-}
-
-/** How many subjects a row's header names before counting the rest, so it stays one line. */
-const PREVIEW_SUBJECTS = 2;
-
-/**
- * What a warning is *about*, as the chips on its row.
- *
- * Read off the wire payload rather than out of the sentence: every variant carries a host id, a
- * range, or an address, and taking the subject out of the prose is what lets a row say who it
- * concerns before the reader has read anything. Scan-level codes carry none and get no chips.
+ * What a row concerns, counted for its header: addresses, hosts or subnets, read off what the
+ * occurrences carry. A list of chips there told a reader nothing they could act on, and repeated
+ * what the open row already says.
  *
  * The host id is preferred where a warning has both. An unmatched neighbour carries the address the
  * *far* end published, and the device an operator would go and look at is the near one that
- * reported it. An id that resolves to nothing is dropped rather than shown raw, the same policy the
- * sentences use — a host deleted since the scan reads as no chip, not as a UUID.
- *
- * A credential warning is the one case that yields *two* chips, and deliberately: the address says
- * which device was being reached and the credential says which record is wrong. Naming only the
- * address is the gap this exists to close — on a network with two SNMP communities it does not
- * identify one — and dropping the address in favour of the credential would lose where it failed.
+ * reported it. Scan-level codes carry none of the three and get no count.
  */
-function subjectsOf(
-	warnings: DiscoveryWarning[],
-	nameOfEntity: EntityNameLookup,
-	limit: number = MAX_LISTED
-): WarningSubject[] {
-	const subjects = warnings.flatMap((w): WarningSubject[] => {
+function affectsOf(warnings: DiscoveryWarning[], hostName: HostNameLookup): WarningAffects | null {
+	let type: WarningAffects['type'] | null = null;
+	const labels = new Map<string, string | null>();
+	for (const [i, w] of warnings.entries()) {
 		if ('host_id' in w) {
-			const subject = hostSubject(w.host_id, (id) => nameOfEntity('Host', id));
-			return subject ? [subject] : [];
+			type = 'host';
+			// A host deleted since the scan lost its id; each still counts as one.
+			labels.set(w.host_id ?? `gone:${i}`, hostSubject(w.host_id, hostName)?.label ?? null);
+		} else if ('cidr' in w) {
+			type = 'subnet';
+			labels.set(w.cidr, w.cidr);
+		} else if ('address' in w && w.address) {
+			type = 'address';
+			labels.set(w.address, w.address);
 		}
-		if ('cidr' in w) return [{ label: w.cidr }];
-
-		const chips: WarningSubject[] = 'address' in w ? [{ label: w.address }] : [];
-		// Historical rows and older daemons carry no id, so this is absent rather than empty —
-		// those rows keep rendering exactly as they did, with the address alone.
-		if ('credential_id' in w && w.credential_id) {
-			const label = nameOfEntity('Credential', w.credential_id);
-			if (label) {
-				chips.push({ label, entity: { type: 'Credential', id: w.credential_id } });
-			}
-		}
-		return chips;
-	});
-
-	const unique = [...new Map(subjects.map((s) => [subjectKey(s), s])).values()];
-	const listed = unique.slice(0, limit);
-	const elided = unique.length - listed.length;
-	// Capped like the sentences are, and for the same reason: a row that wraps to five lines of
-	// chips is a wall of text with rounded corners.
-	if (elided > 0) listed.push({ label: common_moreItems({ count: elided }) });
-	return listed;
+	}
+	if (type === null) return null;
+	const [only] = labels.values();
+	return { type, count: labels.size, only: labels.size === 1 ? only : null };
 }
 
 /** The rung a code sits on, as the backend filed it. */
@@ -984,8 +972,7 @@ export function buildWarningReport(
 				title,
 				color: toColor(meta.color),
 				icon: meta.icon,
-				subjects: subjectsOf(row, nameOfEntity),
-				preview: subjectsOf(row, nameOfEntity, PREVIEW_SUBJECTS),
+				affects: affectsOf(row, hostName),
 				details: renderStatements(code, row, hostName, context),
 				warnings: row
 			});

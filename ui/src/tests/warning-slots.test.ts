@@ -5,6 +5,7 @@ import discoveryIntegrations from '$lib/data/discovery-integrations.json';
 import claimSources from '$lib/data/claim-sources.json';
 import type { components } from '$lib/api/schema';
 import { snmpCheckOf, type CredentialLookup } from '$lib/features/discovery/utils/snmpCheck';
+import { discovery_warningDeviceCount } from '$lib/paraglide/messages';
 import {
 	buildWarningReport,
 	credentialIdsOf,
@@ -141,9 +142,11 @@ describe('discovery warning rendering', () => {
 	});
 
 	it('groups warnings sharing a code into one sentence, naming every address', () => {
-		const warnings = ['192.168.7.235', '192.168.7.242'].map(
-			(address) => sample('InterfaceSetCutShort') && { ...sample('InterfaceSetCutShort'), address }
-		);
+		// A code with no device check, so the sentence is the only place its devices are named.
+		const warnings = ['192.168.7.235', '192.168.7.242'].map((address) => ({
+			...sample('VlanRecordingFailed'),
+			address
+		}));
 
 		const rendered = sentences(warnings as DiscoveryWarning[]);
 
@@ -170,8 +173,7 @@ describe('discovery warning rendering', () => {
 
 		// The customer's two devices failed identically, and read as one line naming both.
 		expect(same).toHaveLength(1);
-		expect(same[0]).toContain('10.91.16.1');
-		expect(same[0]).toContain('10.91.16.11');
+		expect(same[0]).toContain(discovery_warningDeviceCount({ count: 2 }));
 		// A device whose reads ended differently is a different statement.
 		expect(different).toHaveLength(2);
 	});
@@ -311,7 +313,7 @@ describe('discovery warning rendering', () => {
 		}
 	});
 
-	it('collapses one problem on many devices into a single sentence naming each of them', () => {
+	it('collapses one problem on many devices into a single sentence counting them', () => {
 		// The wall of text this replaced: four switches restricting the same SNMP view produced
 		// four near-identical paragraphs differing only in the address. The claim carries no
 		// per-device figure, so there is nothing to keep them apart.
@@ -325,11 +327,12 @@ describe('discovery warning rendering', () => {
 
 		expect(report).toHaveLength(1);
 		expect(report[0].entries).toHaveLength(1);
-		expect(report[0].entries[0].subjects.map((s) => s.label)).toEqual(devices);
+		expect(report[0].entries[0].affects).toEqual({ type: 'address', count: 4, only: null });
 		expect(report[0].entries[0].details).toHaveLength(1);
-		for (const device of devices) {
-			expect(report[0].entries[0].details[0].sentence).toContain(device);
-		}
+		// A row an operator can check lists its devices in the selector, so its sentence counts them.
+		expect(report[0].entries[0].details[0].sentence).toContain(
+			discovery_warningDeviceCount({ count: 4 })
+		);
 	});
 
 	it('keeps a device apart when its statement differs, not just its address', () => {
@@ -348,8 +351,9 @@ describe('discovery warning rendering', () => {
 		// Still one row — it is one code — but two sentences under it.
 		expect(section.entries).toHaveLength(1);
 		expect(section.entries[0].details).toHaveLength(2);
-		expect(section.entries[0].details[0].sentence).toContain('192.168.7.248');
-		expect(section.entries[0].details[0].sentence).toContain('192.168.7.252');
+		expect(section.entries[0].details[0].sentence).toContain(
+			discovery_warningDeviceCount({ count: 2 })
+		);
 		expect(section.entries[0].details[1].sentence).toContain('192.168.7.236');
 		expect(section.entries[0].details[1].sentence).not.toContain('192.168.7.248');
 	});
@@ -390,15 +394,11 @@ describe('discovery warning rendering', () => {
 		const rowFor = (warnings: DiscoveryWarning[]) =>
 			buildWarningReport(warnings, credentialNames).flatMap((s) => s.entries)[0];
 
-		it('chips the credential alongside the address it failed at', () => {
+		it('counts the address a credential failed at, and keeps the credential as the action target', () => {
 			const row = rowFor([credentialWarning('CredentialMalformed')]);
 
-			// Both, not one: the address says which device was being reached, the credential says
-			// which record is wrong. Dropping either leaves the reader a lookup to do.
-			expect(row.subjects.map((s) => s.label)).toEqual(['10.0.0.1', 'Core switches SNMP']);
-			expect(row.subjects[1].entity).toEqual({ type: 'Credential', id: CREDENTIAL });
-			// The address is a label, not a link — there is no entity behind it.
-			expect(row.subjects[0].entity).toBeUndefined();
+			expect(row.affects).toEqual({ type: 'address', count: 1, only: '10.0.0.1' });
+			expect(credentialIdsOf(row)).toEqual([CREDENTIAL]);
 		});
 
 		it('renders a warning recorded before ids existed with the address alone', () => {
@@ -411,22 +411,18 @@ describe('discovery warning rendering', () => {
 			delete withoutId.credential_id;
 			const row = rowFor([withoutId as unknown as DiscoveryWarning]);
 
-			expect(row.subjects.map((s) => s.label)).toEqual(['10.0.0.1']);
+			expect(row.affects?.only).toBe('10.0.0.1');
 			expect(row.details[0].sentence).not.toMatch(/\{\w+\}/);
 			expect(credentialIdsOf(row)).toEqual([]);
 		});
 
-		it('drops a credential chip whose id resolves to nothing', () => {
-			// Deleted since the scan, or a viewer who cannot read credentials. Same policy as an
-			// unresolvable host id: no chip, never a raw UUID on screen.
+		it('keeps a credential whose name did not resolve as the action target', () => {
+			// Deleted since the scan, or a viewer who cannot read credentials.
 			const row = rowFor([
 				credentialWarning('CredentialMalformed', { credential_id: OTHER_CREDENTIAL })
 			]);
 
-			expect(row.subjects.map((s) => s.label)).toEqual(['10.0.0.1']);
-			expect(row.subjects.some((s) => s.entity?.type === 'Credential')).toBe(false);
-			// Still reachable as an action target, though — the id is good even if the name is not
-			// loaded, and the editor resolves it itself.
+			// The id is good even if the name is not loaded, and the editor resolves it itself.
 			expect(credentialIdsOf(row)).toEqual([OTHER_CREDENTIAL]);
 		});
 
@@ -496,8 +492,8 @@ describe('discovery warning rendering', () => {
 		expect(new Set(rows.map((r) => r.key)).size).toBe(2);
 	});
 
-	// Hosts are told apart by id, not name: two hosts both named "Docker" are two chips.
-	it('gives same-named hosts a chip each', () => {
+	// Hosts are told apart by id, not name: two hosts both named "Docker" are two hosts.
+	it('counts same-named hosts separately', () => {
 		const onHost = (host_id: string) =>
 			({
 				code: 'IntegrationWithoutCredential',
@@ -514,7 +510,7 @@ describe('discovery warning rendering', () => {
 			sameName
 		).flatMap((section) => section.entries);
 
-		expect(row.subjects.map((s) => s.label)).toEqual(['Docker', 'Docker']);
+		expect(row.affects).toEqual({ type: 'host', count: 2, only: null });
 	});
 });
 
@@ -617,6 +613,20 @@ describe('SNMP check commands', () => {
 		expect(first).toContain(claimed.oid);
 	});
 
+	it('offers no command for a device read without a known credential', () => {
+		const [[outcome]] = outcomesOf([
+			{
+				code: 'SnmpWalkPartialRecorded',
+				address: '10.0.0.9',
+				group: 'Lldp',
+				credential_id: null
+			} as unknown as DiscoveryWarning
+		]);
+
+		expect(outcome && 'commands' in outcome).toBe(false);
+		expect(outcome && 'reason' in outcome && outcome.reason).toContain('10.0.0.9');
+	});
+
 	it('offers nothing for a code no device read can repeat', () => {
 		const [[outcome]] = outcomesOf([
 			{
@@ -626,5 +636,35 @@ describe('SNMP check commands', () => {
 		]);
 
 		expect(outcome).toBeNull();
+	});
+});
+
+/** What a collapsed row says it concerns, in place of a strip of chips. */
+describe('warning row header counts', () => {
+	const rowOf = (warnings: object[]) =>
+		buildWarningReport(warnings as DiscoveryWarning[]).flatMap((s) => s.entries)[0];
+
+	it('counts the hosts a neighbour row is about, by the device that reported it', () => {
+		const port = (host_id: string) => ({
+			code: 'LldpPortNotFound',
+			host_id,
+			remote_host_id: null,
+			if_descr: 'Gi1/0/1',
+			port_id: 'Port 9',
+			count: 1
+		});
+
+		const row = rowOf([
+			port('00000000-0000-0000-0000-000000000001'),
+			port('00000000-0000-0000-0000-000000000002')
+		]);
+
+		expect(row.affects).toMatchObject({ type: 'host', count: 2 });
+	});
+
+	it('gives a scan-wide row no count', () => {
+		const row = rowOf([{ code: 'ScanTimeLimit', hours: 4, hosts_not_scanned: 12 }]);
+
+		expect(row.affects).toBeNull();
 	});
 });
