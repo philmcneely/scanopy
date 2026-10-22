@@ -27,6 +27,28 @@ release opens it. A file without `modal` opens it. Prepare Release sets both fla
 Edit a file here before the release is tagged. A server shows the copy it was built with, so a
 change after the tag reaches servers only with the next release.
 
+## Images
+
+A note can show a screenshot of a new feature. It appears in the release email, the in-app modal
+and the website changelog.
+
+```markdown
+![The L2 topology view, showing each switch and the ports that link it to its neighbours](https://scanopy.net/changelog/v0.18.0/l2-topology.png)
+```
+
+1. Export the screenshot as PNG (or JPEG for a photo) at 1040px wide, twice the email's 520px
+   content column. Keep it under 500 KB. Outlook can't show WebP.
+2. Commit it to the website repo's `main` at `static/changelog/v0.18.0/l2-topology.png`, before
+   merging the notes PR. Servers load it from scanopy.net as soon as they run the release, so
+   it has to be live before the release is published. Publish Release fails while an image the
+   notes use is missing there; commit it, then re-run Prepare Release.
+3. Write alt text that says what the screenshot shows. Most mail clients block remote images
+   until the reader allows them, and an air-gapped server can't load them at all, so the alt text
+   is often all a reader sees.
+
+CI fails a note whose image isn't under `https://scanopy.net/changelog/v<its version>/`, isn't
+PNG or JPEG, or has no alt text.
+
 ## Terms updates
 
 A change to Scanopy's terms is one `terms/YYYY-MM-DD.md`, named for the day it takes effect. Scanopy

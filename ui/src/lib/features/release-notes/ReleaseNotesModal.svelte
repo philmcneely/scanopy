@@ -22,11 +22,16 @@
 
 	// The server renders the notes without raw HTML; sanitizing here keeps the
 	// modal safe whatever it is handed. Links in release content leave the app.
+	// Images load from scanopy.net, which gets no referrer naming this server.
 	function sanitize(html: string): string {
 		const fragment = DOMPurify.sanitize(html, { RETURN_DOM_FRAGMENT: true });
 		fragment.querySelectorAll('a').forEach((a) => {
 			a.setAttribute('target', '_blank');
 			a.setAttribute('rel', 'noopener noreferrer');
+		});
+		fragment.querySelectorAll('img').forEach((img) => {
+			img.setAttribute('referrerpolicy', 'no-referrer');
+			img.setAttribute('loading', 'lazy');
 		});
 		const container = document.createElement('div');
 		container.appendChild(fragment);
@@ -97,6 +102,13 @@
 	}
 	.release-notes-body :global(a) {
 		text-decoration: underline;
+	}
+	.release-notes-body :global(img) {
+		display: block;
+		max-width: 100%;
+		height: auto;
+		margin: 0.75rem 0;
+		border-radius: 0.375rem;
 	}
 	.release-notes-body :global(code) {
 		font-family: ui-monospace, monospace;
