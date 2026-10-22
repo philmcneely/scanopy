@@ -142,7 +142,11 @@ const ROOT_OPTIONS_BY_ALGORITHM: Record<ViewLayoutConfig['algorithm'], Record<st
 	layered_right: {
 		'elk.algorithm': 'layered',
 		'elk.direction': 'RIGHT',
-		'elk.edgeRouting': 'POLYLINE',
+		// Not POLYLINE. Laid out RIGHT with connected-component compaction, POLYLINE routing makes
+		// ELK return NaN for every root's x as soon as the graph has a cycle (a ring of switches
+		// linked port to port) beside another component, which renders the whole L2 canvas at
+		// x = NaN. Only node positions are read back, so the routing style draws nothing.
+		'elk.edgeRouting': 'ORTHOGONAL',
 		'elk.spacing.nodeNode': '50',
 		'elk.spacing.componentComponent': '75',
 		// Laid out RIGHT, a layer is a *vertical* stack of switches and the spacing between layers
