@@ -100,6 +100,7 @@
 	import type { TabProps } from '$lib/shared/types';
 	import {
 		common_delete,
+		common_firstDiscoveryEmailHint,
 		common_share,
 		common_upgrade,
 		daemons_installPromptTopology,
@@ -752,7 +753,7 @@
 							<div
 								class="flex cursor-default flex-col items-center {discoveryColor.icon}"
 								data-tooltip={!hasCompletedFirstDiscovery && hasEmail
-									? "We'll email you when your scan is complete."
+									? common_firstDiscoveryEmailHint()
 									: ''}
 								use:tooltip
 							>
