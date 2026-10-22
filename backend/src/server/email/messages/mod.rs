@@ -941,7 +941,7 @@ mod tests {
             },
         );
         let note = crate::server::release_notes::catalog::ReleaseNote::parse(
-            "---\nversion: 0.18.0\ndate: 2026-10-11\ntitle: 'Faster discovery'\nemail: true\n---\n\n- Fix a thing\n",
+            "---\nversion: 0.18.0\ndate: 2026-10-11\ntitle: 'Faster discovery'\nemail: true\n---\n\n- Fix a thing\n\n![The discovery view](https://scanopy.net/changelog/v0.18.0/discovery.png)\n",
         )
         .unwrap();
         f(

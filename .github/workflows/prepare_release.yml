@@ -281,6 +281,7 @@ jobs:
           echo "- [ ] Check the \`email\` flag. ${EMAIL_LINE}"
           echo "- [ ] Check the \`modal\` flag. ${MODAL_LINE}"
           echo "- [ ] Check the Deploy-Mode line above (\`backward-compatible\` or \`downtime\`)"
+          echo "- [ ] If the notes use an image, commit it to website \`main\` at \`static/changelog/v${VERSION}/\` before merging (see \`backend/release-notes/README.md\`)"
           for TERMS_FILE in $TERMS_FILES; do
             echo "- [ ] Read the terms update \`${TERMS_FILE}\`. Scanopy Cloud emails it to every user once v${VERSION} deploys."
           done

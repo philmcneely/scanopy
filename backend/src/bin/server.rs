@@ -422,7 +422,7 @@ async fn main() -> anyhow::Result<()> {
         "default-src 'self'; \
         script-src 'self' 'unsafe-inline' https://ph.scanopy.net https://js.stripe.com; \
         style-src 'self' 'unsafe-inline'; \
-        img-src 'self' data: blob: {oidc_logo_sources}; \
+        img-src 'self' data: blob: https://scanopy.net {oidc_logo_sources}; \
         font-src 'self'; \
         connect-src 'self' https://ph.scanopy.net https://api.stripe.com; \
         frame-src 'self' https://demo.scanopy.net https://js.stripe.com https://hooks.stripe.com; \

@@ -54,6 +54,40 @@ pub(crate) fn render_markdown(body: &str) -> String {
     comrak::markdown_to_html(body.trim(), &comrak::Options::default())
 }
 
+/// Where a release's images live: the website's `static/changelog/vX.Y.Z/`.
+/// Self-hosted servers send the email too, so the URL has to be public.
+fn image_base_url(version: &Version) -> String {
+    format!("https://scanopy.net/changelog/v{version}/")
+}
+
+/// Image formats every mail client shows. Outlook desktop doesn't render WebP.
+const IMAGE_EXTENSIONS: [&str; 3] = [".png", ".jpg", ".jpeg"];
+
+/// Reject an image that a mail client or another server couldn't load, or one
+/// without alt text, which is all a reader sees while remote images are blocked.
+fn check_images(body: &str, version: &Version) -> Result<(), String> {
+    let base = image_base_url(version);
+    let arena = comrak::Arena::new();
+    let root = comrak::parse_document(&arena, body, &comrak::Options::default());
+    for node in root.descendants() {
+        let comrak::nodes::NodeValue::Image(ref link) = node.data().value else {
+            continue;
+        };
+        let url = &link.url;
+        if !url.starts_with(&base) {
+            return Err(format!("image `{url}` is not under {base}"));
+        }
+        let path = url.split(['?', '#']).next().unwrap_or(url).to_ascii_lowercase();
+        if !IMAGE_EXTENSIONS.iter().any(|ext| path.ends_with(ext)) {
+            return Err(format!("image `{url}` is not PNG or JPEG"));
+        }
+        if comrak::html::collect_text(node).trim().is_empty() {
+            return Err(format!("image `{url}` has no alt text"));
+        }
+    }
+    Ok(())
+}
+
 /// One release's notes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReleaseNote {
@@ -97,6 +131,7 @@ impl ReleaseNote {
             Some("false") => false,
             Some(other) => return Err(format!("modal `{other}` is not true or false")),
         };
+        check_images(body, &version)?;
 
         Ok(Self {
             version,
@@ -216,6 +251,43 @@ pub(crate) mod tests {
         assert_eq!(modal("email: false"), Ok(true));
         assert_eq!(modal("email: false\nmodal: false"), Ok(false));
         assert!(modal("email: false\nmodal: maybe").is_err());
+    }
+
+    /// A notes file for 0.18.0 whose body is `body`.
+    pub(crate) fn note_with_body(body: &str) -> String {
+        format!("---\nversion: 0.18.0\ndate: 2026-10-11\ntitle: T\nemail: true\n---\n\n{body}\n")
+    }
+
+    #[test]
+    fn an_image_hosted_for_its_release_with_alt_text_parses() {
+        let note = ReleaseNote::parse(&note_with_body(
+            "![The topology view](https://scanopy.net/changelog/v0.18.0/topology.png)",
+        ))
+        .unwrap();
+        assert!(note.html.contains("<img "));
+        assert!(note.html.contains(r#"alt="The topology view""#));
+    }
+
+    #[test]
+    fn an_image_a_reader_could_not_load_is_rejected() {
+        for image in [
+            "![Topology](topology.png)",
+            "![Topology](/changelog/v0.18.0/topology.png)",
+            "![Topology](http://scanopy.net/changelog/v0.18.0/topology.png)",
+            "![Topology](https://example.com/changelog/v0.18.0/topology.png)",
+            "![Topology](https://scanopy.net.example.com/changelog/v0.18.0/topology.png)",
+            "![Topology](https://scanopy.net/changelog/v0.17.0/topology.png)",
+            "![Topology](https://scanopy.net/changelog/v0.18.0/topology.webp)",
+            "![](https://scanopy.net/changelog/v0.18.0/topology.png)",
+            "![ ](https://scanopy.net/changelog/v0.18.0/topology.png)",
+            "[![](https://scanopy.net/changelog/v0.18.0/topology.png)](https://scanopy.net)",
+            "Text\n\n![Topology][ref]\n\n[ref]: topology.png",
+        ] {
+            assert!(
+                ReleaseNote::parse(&note_with_body(image)).is_err(),
+                "accepted {image}"
+            );
+        }
     }
 
     #[test]
