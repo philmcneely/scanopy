@@ -37,7 +37,7 @@ impl Email for ReleaseNotes<'_> {
                 ))
                 .raw(&format!(
                     "<div style=\"margin: 0 0 24px 0; font-size: 16px; line-height: 24px; color: #4a4a4a;\">{}</div>\n",
-                    note.html
+                    email_images(&note.html)
                 ));
         }
         if self.truncated {
@@ -49,5 +49,44 @@ impl Email for ReleaseNotes<'_> {
             .content(content)
             .cta(links::APP_HOME, "Open Scanopy")
             .render()
+    }
+}
+
+/// The width of the email's content column: the 600px card less its 40px padding.
+const CONTENT_WIDTH: u32 = 520;
+
+/// Size each image to the content column. Outlook desktop ignores CSS
+/// `max-width` and honours the `width` attribute; every other client scales
+/// down to a narrow screen with `max-width`. The rendered notes carry no raw
+/// HTML, so every `<img ` is a markdown image.
+fn email_images(html: &str) -> String {
+    html.replace(
+        "<img ",
+        &format!(
+            "<img width=\"{CONTENT_WIDTH}\" style=\"display: block; width: 100%; max-width: {CONTENT_WIDTH}px; height: auto; margin: 16px 0; border: 0; border-radius: 6px;\" "
+        ),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::server::release_notes::catalog::tests::note_with_body;
+
+    #[test]
+    fn an_image_fits_the_content_column() {
+        let note = ReleaseNote::parse(&note_with_body(
+            "![The topology view](https://scanopy.net/changelog/v0.18.0/topology.png)\n\nText with `<img ` in it.",
+        ))
+        .unwrap();
+        let html = ReleaseNotes {
+            notes: &[&note],
+            truncated: false,
+        }
+        .body_html();
+        assert_eq!(
+            html.matches(&format!("width=\"{CONTENT_WIDTH}\"")).count(),
+            1
+        );
     }
 }
