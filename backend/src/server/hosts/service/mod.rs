@@ -213,6 +213,7 @@ impl CrudService<Host> for HostService {
 }
 
 mod consolidate;
+mod container_reports;
 mod create;
 mod delete;
 mod detach;
