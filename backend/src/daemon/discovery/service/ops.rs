@@ -36,10 +36,7 @@ use crate::{
             types::CredentialAssignment,
             types::CredentialIntegration,
         },
-        daemons::r#impl::{
-            api::{DaemonDiscoveryRequest, DiscoveryUpdatePayload},
-            base::DaemonMode,
-        },
+        daemons::r#impl::api::{DaemonDiscoveryRequest, DiscoveryUpdatePayload},
         discovery::r#impl::{
             collection::{
                 CollectedData, Producer, present_in, report_undeclared_collection,
@@ -761,7 +758,8 @@ impl HostData {
 /// without requiring `DiscoveryRunner`.
 pub struct DiscoveryOps {
     pub config_store: Arc<ConfigStore>,
-    pub api_client: Arc<DaemonApiClient>,
+    /// `None` on a ServerPoll daemon, which the server collects from.
+    pub api_client: Option<Arc<DaemonApiClient>>,
     pub entity_buffer: Arc<EntityBuffer>,
     pub discovery_type: DiscoveryType,
     session: Arc<tokio::sync::RwLock<Option<super::base::DiscoverySession>>>,
@@ -1093,14 +1091,18 @@ impl DiscoveryOps {
             payload.estimated_remaining_secs = Some(estimate);
         }
 
+        // A ServerPoll server collects updates by polling: the session atomics while it runs,
+        // then `terminal_payload`.
+        let Some(api_client) = &self.api_client else {
+            return Ok(());
+        };
+
         // The terminal report is the run's outcome: without it the server's stall sweep records
-        // the run as failed, so it is retried. ServerPoll servers also collect it from
-        // `terminal_payload`. Progress updates are best-effort; the next one supersedes a lost one.
-        let retry_terminal = payload.phase.is_terminal()
-            && self.config_store.get_mode().await? == DaemonMode::DaemonPoll;
-        if retry_terminal {
+        // the run as failed, so it is retried. Progress updates are best-effort; the next one
+        // supersedes a lost one.
+        if payload.phase.is_terminal() {
             if let Err(e) = send_terminal_report(
-                || self.post_session_update(&session, &payload),
+                || self.post_session_update(api_client, &session, &payload),
                 TERMINAL_REPORT_BACKOFF,
             )
             .await
@@ -1113,7 +1115,9 @@ impl DiscoveryOps {
                 );
             }
         } else {
-            let _ = self.post_session_update(&session, &payload).await;
+            let _ = self
+                .post_session_update(api_client, &session, &payload)
+                .await;
         }
 
         Ok(())
@@ -1406,9 +1410,8 @@ impl DiscoveryOps {
 
         last_progress.store(percent, Ordering::Relaxed);
 
-        // Mode-aware: only POST in DaemonPoll mode
-        let mode = self.config_store.get_mode().await?;
-        if mode == DaemonMode::DaemonPoll {
+        // A ServerPoll server reads progress from the session atomics when it polls.
+        if let Some(api_client) = &self.api_client {
             let update = DiscoverySessionUpdate::scanning(percent);
             let mut payload = DiscoveryUpdatePayload::from_state_and_update(
                 self.discovery_type.clone(),
@@ -1425,7 +1428,9 @@ impl DiscoveryOps {
                 payload.estimated_remaining_secs = Some(estimate);
             }
 
-            let _ = self.post_session_update(&session, &payload).await;
+            let _ = self
+                .post_session_update(api_client, &session, &payload)
+                .await;
         }
 
         Ok(())
@@ -1435,14 +1440,14 @@ impl DiscoveryOps {
     /// with the server before the server gives up on the session.
     async fn post_session_update(
         &self,
+        api_client: &DaemonApiClient,
         session: &super::base::DiscoverySession,
         payload: &DiscoveryUpdatePayload,
     ) -> Result<(), Error> {
         use std::sync::atomic::Ordering;
 
         let path = format!("/api/v1/discovery/{}/update", session.info.session_id);
-        let result = self
-            .api_client
+        let result = api_client
             .post_no_data(&path, payload, "Failed to report discovery update")
             .await;
         match &result {
@@ -1587,7 +1592,6 @@ impl DiscoveryOps {
         mut port_coverage: PortCoverage,
         cancel: &CancellationToken,
     ) -> Result<HostResponse, Error> {
-        let mode = self.config_store.get_mode().await?;
         let pending_id = host.id;
         let (mut ip_addresses, mut interfaces) = (ip_addresses, interfaces);
         retain_submittable_addresses(&mut ip_addresses, &mut interfaces);
@@ -1609,8 +1613,8 @@ impl DiscoveryOps {
 
         self.entity_buffer.push_host(request.clone()).await;
 
-        match mode {
-            DaemonMode::DaemonPoll => {
+        match &self.api_client {
+            Some(api_client) => {
                 // Stagger request starts so a burst of near-simultaneous deep-scan
                 // completions doesn't hammer the host-create endpoint (where they
                 // serialize on the server's per-site `HostDedup` lock).
@@ -1618,7 +1622,6 @@ impl DiscoveryOps {
                     reserve_submit_slot(&self.host_submit_gate, MIN_HOST_SUBMIT_INTERVAL).await;
                 tokio::time::sleep_until(scheduled).await;
 
-                let api_client = &self.api_client;
                 let response: HostResponse = (|| async {
                     api_client
                         .post("/api/v1/hosts/discovery", &request, "Failed to create host")
@@ -1643,7 +1646,7 @@ impl DiscoveryOps {
 
                 Ok(response)
             }
-            DaemonMode::ServerPoll => {
+            None => {
                 let confirmed = self
                     .entity_buffer
                     .await_host(&pending_id, SERVER_POLL_CONFIRMATION_TIMEOUT, cancel)
@@ -1676,14 +1679,12 @@ impl DiscoveryOps {
         subnet: &Subnet,
         cancel: &CancellationToken,
     ) -> Result<Subnet, Error> {
-        let mode = self.config_store.get_mode().await?;
         let pending_id = subnet.id;
 
         self.entity_buffer.push_subnet(subnet.clone()).await;
 
-        match mode {
-            DaemonMode::DaemonPoll => {
-                let api_client = &self.api_client;
+        match &self.api_client {
+            Some(api_client) => {
                 let actual: Subnet = (|| async {
                     api_client
                         .post("/api/v1/subnets", subnet, "Failed to create subnet")
@@ -1704,7 +1705,7 @@ impl DiscoveryOps {
 
                 Ok(actual)
             }
-            DaemonMode::ServerPoll => self
+            None => self
                 .entity_buffer
                 .await_subnet(&pending_id, SERVER_POLL_CONFIRMATION_TIMEOUT, cancel)
                 .await
@@ -1731,9 +1732,8 @@ impl DiscoveryOps {
 
         let request = VlanDiscoveryRequest { site_id, vlans };
 
-        let response: VlanDiscoveryResponse = match self.config_store.get_mode().await? {
-            DaemonMode::DaemonPoll => {
-                let api_client = &self.api_client;
+        let response: VlanDiscoveryResponse = match &self.api_client {
+            Some(api_client) => {
                 // `api_client.post` (→ `execute`) already strips the `ApiResponse` envelope and
                 // returns the inner payload, so the type here must be the bare
                 // `VlanDiscoveryResponse`, not `ApiResponse<VlanDiscoveryResponse>`. Wrapping it
@@ -1757,7 +1757,7 @@ impl DiscoveryOps {
                 .notify(|e, dur| tracing::warn!("Retrying VLAN upsert after {:?}: {}", dur, e))
                 .await?
             }
-            DaemonMode::ServerPoll => {
+            None => {
                 let pending_id = self.entity_buffer.push_vlan_batch(request).await;
                 self.entity_buffer
                     .await_vlan_batch(&pending_id, SERVER_POLL_CONFIRMATION_TIMEOUT, cancel)

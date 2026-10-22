@@ -1,5 +1,6 @@
 use crate::daemon::shared::config::ConfigStore;
 use crate::daemon::shared::forward_compat::DaemonResponse;
+use crate::server::daemons::r#impl::base::DaemonMode;
 use crate::server::shared::legacy::rewrite_from_server_wire;
 use crate::server::shared::trusted_ca::{TrustedCaBundle, is_untrusted_certificate};
 use crate::server::shared::types::api::{ApiErrorResponse, ApiResponse};
@@ -194,10 +195,21 @@ pub struct DaemonApiClient {
 }
 
 impl DaemonApiClient {
-    pub fn new(config_store: Arc<ConfigStore>) -> Self {
+    fn new(config_store: Arc<ConfigStore>) -> Self {
         Self {
             config_store,
             client: OnceCell::new(),
+        }
+    }
+
+    /// The daemon's client for reaching the server, or `None` for a ServerPoll daemon. That
+    /// daemon has no server URL: the server dials it and collects what it would have sent. A
+    /// call site that reaches the server has to handle the `None` to compile, so no outbound
+    /// call can be added that a ServerPoll daemon would attempt.
+    pub fn for_mode(config_store: Arc<ConfigStore>, mode: DaemonMode) -> Option<Arc<Self>> {
+        match mode {
+            DaemonMode::DaemonPoll => Some(Arc::new(Self::new(config_store))),
+            DaemonMode::ServerPoll => None,
         }
     }
 
@@ -391,11 +403,6 @@ impl DaemonApiClient {
     ) -> Result<T, Error> {
         let request = self.build_request(Method::POST, path).await?.json(body);
         self.execute(request, context).await
-    }
-
-    /// Access config store for cases that need custom handling
-    pub fn config(&self) -> &Arc<ConfigStore> {
-        &self.config_store
     }
 }
 

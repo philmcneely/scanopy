@@ -190,11 +190,17 @@ pub fn container_interfaces(
                             network_name,
                             endpoint,
                         );
-                        if address.is_none() {
+                        // A stopped container's endpoint has no address, so there is nothing
+                        // to place.
+                        let has_address = endpoint
+                            .ip_address
+                            .as_deref()
+                            .is_some_and(|ip| !ip.is_empty());
+                        if address.is_none() && has_address {
                             tracing::warn!(
-                                "No matching subnet found for container {:?} on network '{}'",
-                                container.name,
-                                network_name
+                                container = %container.name.as_deref().unwrap_or_default(),
+                                network = %network_name,
+                                "No matching subnet found for container endpoint"
                             );
                         }
                         address

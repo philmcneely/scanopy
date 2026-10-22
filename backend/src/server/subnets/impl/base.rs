@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 
 use crate::attributed_value;
 use crate::server::shared::attribution::{
@@ -333,6 +333,12 @@ impl Subnet {
 
     pub fn is_vpn_subnet(&self) -> bool {
         self.base.subnet_type() == SubnetType::VpnTunnel
+    }
+
+    /// Whether this is an IPv4 link-local (APIPA, `169.254.0.0/16`) subnet, whose addresses
+    /// hosts assign themselves (RFC 3927).
+    pub fn is_link_local(&self) -> bool {
+        matches!(self.base.cidr.first_address(), IpAddr::V4(addr) if addr.is_link_local())
     }
 
     /// The runtime owner this fresh bridge observation gives `existing`, when it has none.

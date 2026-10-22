@@ -41,10 +41,6 @@ const ROUND_WAIT: Duration = Duration::from_secs(1);
 #[cfg(not(target_family = "windows"))]
 const POST_SCAN_RECEIVE: Duration = Duration::from_secs(2);
 
-/// Hard max lifetime for the receiver thread (defense-in-depth), mirroring the ARP receiver.
-#[cfg(not(target_family = "windows"))]
-const MAX_RECEIVER_LIFETIME: Duration = Duration::from_secs(300);
-
 /// Payload stamped into every echo request and echoed back verbatim by a responder.
 ///
 /// The identifier alone is 16 bits and another tool on the host may well pick the same one; the
@@ -165,6 +161,14 @@ pub fn sweep(
 
     let send_delay = Duration::from_micros(1_000_000 / rate_pps.max(1) as u64);
     let total_rounds = 1 + retries;
+    // Defense-in-depth, mirroring the ARP receiver.
+    let max_receiver_lifetime = super::super::sweep_receiver_lifetime(
+        target_count,
+        total_rounds,
+        send_delay,
+        ROUND_WAIT,
+        POST_SCAN_RECEIVE,
+    );
 
     tracing::debug!(
         targets = target_count,
@@ -209,7 +213,7 @@ pub fn sweep(
             if deadline.is_some_and(|d| Instant::now() >= d) {
                 break;
             }
-            if start.elapsed() >= MAX_RECEIVER_LIFETIME {
+            if start.elapsed() >= max_receiver_lifetime {
                 tracing::warn!(
                     elapsed_secs = start.elapsed().as_secs(),
                     "ICMP receiver hit max lifetime, forcing exit"
@@ -229,10 +233,12 @@ pub fn sweep(
 
     thread::spawn(move || {
         // As in the ARP sender: cancelling stops sending, and the loop still falls through to
-        // `sending_done` and the join that close the result channel.
+        // `sending_done` and the join that close the result channel. It also stops with its
+        // receiver, as there.
+        let stop = || cancel.is_cancelled() || receiver_handle.is_finished();
         for round in 1..=total_rounds {
-            if cancel.is_cancelled() {
-                tracing::debug!(round, "ICMP sweep cancelled; no further echoes sent");
+            if stop() {
+                tracing::debug!(round, "ICMP sweep stopped; no further echoes sent");
                 break;
             }
             let round_targets: Vec<Ipv4Addr> = {
@@ -254,7 +260,7 @@ pub fn sweep(
 
             let mut buf = [0u8; ECHO_PACKET_LEN];
             for (index, target) in round_targets.iter().enumerate() {
-                if cancel.is_cancelled() {
+                if stop() {
                     break;
                 }
                 // Rebuild per target: the sequence number varies, and with it the checksum.
@@ -272,7 +278,7 @@ pub fn sweep(
                 thread::sleep(send_delay);
             }
 
-            if !cancel.is_cancelled() {
+            if !stop() {
                 thread::sleep(ROUND_WAIT);
             }
         }

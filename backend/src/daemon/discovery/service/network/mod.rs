@@ -42,6 +42,30 @@ pub struct DiscoveredHostData {
 /// Grace period to wait for late ARP arrivals after the last deep scan completes
 const LATE_ARRIVAL_GRACE_PERIOD: Duration = Duration::from_secs(30);
 
+/// Slack on top of a sweep's send schedule before its receiver is stopped.
+const SWEEP_RECEIVER_MARGIN: Duration = Duration::from_secs(60);
+
+/// The longest an ARP or ICMP sweep's receiver may run: every round's sends and waits, the
+/// straggler tail, and a margin. The receiver ends on its own once the sender is done; this only
+/// stops one that never hears so. A fixed cap shorter than the schedule (it was 300s) silently
+/// dropped every reply after it on a large subnet.
+pub(crate) fn sweep_receiver_lifetime(
+    targets: usize,
+    rounds: u32,
+    send_delay: Duration,
+    round_wait: Duration,
+    tail: Duration,
+) -> Duration {
+    let sends = u32::try_from(targets)
+        .unwrap_or(u32::MAX)
+        .saturating_mul(rounds);
+    send_delay
+        .saturating_mul(sends)
+        .saturating_add(round_wait.saturating_mul(rounds))
+        .saturating_add(tail)
+        .saturating_add(SWEEP_RECEIVER_MARGIN)
+}
+
 // The hard maximum duration for a single discovery run is now server-configurable
 // via ScanSettings::max_discovery_duration (default 21600s = 6h); see scan.rs.
 
@@ -81,6 +105,9 @@ pub struct NetworkScan {
     /// The site's subnets as the server sent them with this run. See
     /// `DiscoveryRunner::known_subnets`.
     known_subnets: Vec<Subnet>,
+    /// The subnets this session already created, as the server confirmed them. The scan reuses
+    /// these rather than submitting the same CIDRs a second time.
+    created_subnets: Vec<Subnet>,
     /// Precomputed TCP port set: discovery ports, credential-required ports, and
     /// for a rescan the ports already known on the target.
     light_scan_ports: HashSet<u16>,
@@ -117,6 +144,7 @@ impl NetworkScan {
         target_ips: Option<HashSet<std::net::IpAddr>>,
         extra_ports: Vec<u16>,
         known_subnets: Vec<Subnet>,
+        created_subnets: Vec<Subnet>,
     ) -> Self {
         // Build light scan port set: discovery ports + credential-required ports
         let mut light_scan_ports: HashSet<u16> = Service::all_discovery_ports()
@@ -147,6 +175,7 @@ impl NetworkScan {
             credential_mappings,
             target_ips,
             known_subnets,
+            created_subnets,
             light_scan_ports,
             declined: std::sync::Arc::new(std::sync::Mutex::new(HashMap::new())),
             reverse_dns: Arc::new(dns::ReverseDns::default()),

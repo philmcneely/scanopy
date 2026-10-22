@@ -231,7 +231,8 @@ impl DiscoverySession {
 
 pub struct DaemonDiscoveryService {
     pub config_store: Arc<ConfigStore>,
-    pub api_client: Arc<DaemonApiClient>,
+    /// `None` on a ServerPoll daemon, which the server collects from.
+    pub api_client: Option<Arc<DaemonApiClient>>,
     pub utils: PlatformDaemonUtils,
     pub current_session: Arc<RwLock<Option<DiscoverySession>>>,
     pub entity_buffer: Arc<EntityBuffer>,
@@ -249,9 +250,13 @@ pub struct DaemonDiscoveryService {
 }
 
 impl DaemonDiscoveryService {
-    pub fn new(config_store: Arc<ConfigStore>, entity_buffer: Arc<EntityBuffer>) -> Self {
+    pub fn new(
+        config_store: Arc<ConfigStore>,
+        api_client: Option<Arc<DaemonApiClient>>,
+        entity_buffer: Arc<EntityBuffer>,
+    ) -> Self {
         Self {
-            api_client: Arc::new(DaemonApiClient::new(config_store.clone())),
+            api_client,
             config_store,
             utils: create_system_utils(),
             current_session: Arc::new(RwLock::new(None)),

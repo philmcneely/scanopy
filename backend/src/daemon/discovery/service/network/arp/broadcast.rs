@@ -19,8 +19,6 @@ use super::types::ArpScanResult;
 pub const ROUND_WAIT: Duration = Duration::from_secs(3);
 /// Extra receive time after final round
 pub const POST_SCAN_RECEIVE: Duration = Duration::from_secs(5);
-/// Hard max lifetime for the receiver thread (defense-in-depth)
-const MAX_RECEIVER_LIFETIME: Duration = Duration::from_secs(300);
 
 /// Check if broadcast ARP is available (requires raw socket capability)
 pub fn is_available() -> bool {
@@ -188,6 +186,14 @@ fn scan_subnet_background(
 
     let total_rounds = 1 + retries;
     let target_count = targets.len();
+    // Defense-in-depth against a receiver that never sees `sending_done`.
+    let max_receiver_lifetime = super::super::sweep_receiver_lifetime(
+        target_count,
+        total_rounds,
+        send_delay,
+        ROUND_WAIT,
+        POST_SCAN_RECEIVE,
+    );
 
     tracing::debug!(
         interface = %interface.name,
@@ -266,7 +272,7 @@ fn scan_subnet_background(
                     }
 
                     // Defense-in-depth: hard max lifetime prevents infinite hangs
-                    if start.elapsed() >= MAX_RECEIVER_LIFETIME {
+                    if start.elapsed() >= max_receiver_lifetime {
                         tracing::warn!(
                             elapsed_secs = start.elapsed().as_secs(),
                             "ARP receiver hit max lifetime, forcing exit"
@@ -282,7 +288,7 @@ fn scan_subnet_background(
                     }
 
                     // Defense-in-depth: hard max lifetime
-                    if start.elapsed() >= MAX_RECEIVER_LIFETIME {
+                    if start.elapsed() >= max_receiver_lifetime {
                         tracing::warn!(
                             elapsed_secs = start.elapsed().as_secs(),
                             "ARP receiver hit max lifetime during timeout, forcing exit"
@@ -363,9 +369,12 @@ fn scan_subnet_background(
         // still falls through to `sending_done` and the receiver join below, which are what close
         // the result channel. Skipping them would leave the receiver holding it until its
         // lifetime cap, and the pipeline waiting on it.
+        // A request whose reply nobody reads is noise on the segment, so the sender stops with
+        // its receiver.
+        let stop = || cancel.is_cancelled() || receiver_handle.is_finished();
         for round in 1..=total_rounds {
-            if cancel.is_cancelled() {
-                tracing::debug!(round, "ARP scan cancelled; no further requests sent");
+            if stop() {
+                tracing::debug!(round, "ARP scan stopped; no further requests sent");
                 break;
             }
             current_round.store(round, Ordering::Relaxed);
@@ -403,7 +412,7 @@ fn scan_subnet_background(
             let mut sent_err = 0u64;
 
             for target_ip in &round_targets {
-                if cancel.is_cancelled() {
+                if stop() {
                     break;
                 }
                 let packet = build_arp_request(source_mac_pnet, source_ip, *target_ip);
@@ -424,7 +433,7 @@ fn scan_subnet_background(
             }
 
             tracing::debug!(round, sent_ok, sent_err, "ARP round send complete");
-            if cancel.is_cancelled() {
+            if stop() {
                 continue;
             }
 

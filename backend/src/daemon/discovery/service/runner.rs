@@ -288,7 +288,9 @@ impl DiscoveryRunner {
         // Phase 2: Network Scan (5-100%)
         session.set_progress_range(5, 100);
 
-        let network_hosts = self.run_network_phase(&bridge_override_ips, cancel).await?;
+        let network_hosts = self
+            .run_network_phase(&bridge_override_ips, created_subnets, cancel)
+            .await?;
 
         // Completion banner
         self.log_completion_banner(&network_hosts, start.elapsed());
@@ -508,6 +510,7 @@ impl DiscoveryRunner {
     async fn run_network_phase(
         &self,
         bridge_override_ips: &HashSet<IpAddr>,
+        created_subnets: &[Subnet],
         cancel: &CancellationToken,
     ) -> Result<Vec<(IpAddr, Host, super::network::DiscoveredHostData)>, Error> {
         let mut credential_mappings = self.credential_mappings.clone();
@@ -526,6 +529,7 @@ impl DiscoveryRunner {
             self.target_ips.clone(),
             self.extra_ports.clone(),
             self.known_subnets.clone(),
+            created_subnets.to_vec(),
         );
 
         let ops = super::ops::DiscoveryOps::new(&self.service, DiscoveryType::from(self));
