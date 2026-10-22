@@ -52,7 +52,6 @@ impl Email for ReleaseNotes<'_> {
     }
 }
 
-
 /// The width of the email's content column: the 600px card less its 40px padding.
 const CONTENT_WIDTH: u32 = 520;
 
@@ -85,7 +84,9 @@ mod tests {
             truncated: false,
         }
         .body_html();
-        assert_eq!(html.matches(&format!("width=\"{CONTENT_WIDTH}\"")).count(), 1);
+        assert_eq!(
+            html.matches(&format!("width=\"{CONTENT_WIDTH}\"")).count(),
+            1
+        );
     }
 }
-

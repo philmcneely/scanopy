@@ -77,7 +77,11 @@ fn check_images(body: &str, version: &Version) -> Result<(), String> {
         if !url.starts_with(&base) {
             return Err(format!("image `{url}` is not under {base}"));
         }
-        let path = url.split(['?', '#']).next().unwrap_or(url).to_ascii_lowercase();
+        let path = url
+            .split(['?', '#'])
+            .next()
+            .unwrap_or(url)
+            .to_ascii_lowercase();
         if !IMAGE_EXTENSIONS.iter().any(|ext| path.ends_with(ext)) {
             return Err(format!("image `{url}` is not PNG or JPEG"));
         }
