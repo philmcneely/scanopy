@@ -161,9 +161,10 @@
 	// Mirrored from the form store: form.state.values is not tracked by $derived.
 	let colorValue = $state(createDefaultTag('').color);
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			colorValue = form.state.values.color;
 		});
+		return unsubscribe;
 	});
 	let colorHelper = $derived(createColorHelper(colorValue));
 

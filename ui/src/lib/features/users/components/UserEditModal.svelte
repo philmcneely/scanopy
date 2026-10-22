@@ -105,9 +105,10 @@
 	// Mirrored from the form store: form.state.values is not tracked by $derived.
 	let permissionsValue = $state<string>(getDefaultValues().permissions);
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			permissionsValue = form.state.values.permissions;
 		});
+		return unsubscribe;
 	});
 
 	// Reset form when modal opens

@@ -154,12 +154,13 @@
 		// (offersForReason, button gating) react to changes.
 		// `form.state.values` is NOT tracked by $derived — read it from inside
 		// a `form.store.subscribe` callback (CLAUDE.md TanStack reactivity gap).
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			const v = form.state.values.reason_code as CancelReason | '';
 			if (v !== selectedReason) {
 				selectedReason = v;
 			}
 		});
+		return unsubscribe;
 	});
 
 	const reasonOptions = $derived([

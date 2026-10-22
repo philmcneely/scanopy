@@ -65,9 +65,10 @@
 	// The typed text, mirrored from the form: $derived can't track TanStack form state.
 	let typed = $state('');
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			typed = form.state.values.typed;
 		});
+		return unsubscribe;
 	});
 
 	let actions = $derived<ModalAction[]>([

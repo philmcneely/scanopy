@@ -85,9 +85,10 @@
 
 	let selectedSource = $state('');
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			selectedSource = form.state.values.referral_source;
 		});
+		return unsubscribe;
 	});
 
 	function dismiss() {

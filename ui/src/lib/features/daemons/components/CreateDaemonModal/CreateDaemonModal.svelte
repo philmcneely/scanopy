@@ -283,9 +283,10 @@
 	let formValues = $state<Record<string, string | number | boolean>>(buildDefaultValues());
 
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			formValues = { ...form.state.values } as Record<string, string | number | boolean>;
 		});
+		return unsubscribe;
 	});
 
 	// Derived commands.

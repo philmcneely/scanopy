@@ -90,10 +90,11 @@
 	let permissionsValue = $state<UserOrgPermissions>('Viewer');
 	let emailValue = $state('');
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			permissionsValue = form.state.values.permissions;
 			emailValue = form.state.values.email;
 		});
+		return unsubscribe;
 	});
 	let emailValid = $derived(!emailValue || !email(emailValue));
 

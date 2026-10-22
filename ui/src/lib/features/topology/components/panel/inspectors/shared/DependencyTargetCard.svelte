@@ -46,12 +46,13 @@
 		picks: { ...(form.state.values.picks ?? {}) }
 	});
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			formValues = {
 				memberMode: form.state.values.memberMode ?? 'Services',
 				picks: { ...(form.state.values.picks ?? {}) }
 			};
 		});
+		return unsubscribe;
 	});
 
 	let memberMode = $derived(formValues.memberMode);

@@ -74,11 +74,12 @@
 		...((form.state.values[fieldPrefix] ?? {}) as Record<string, string>)
 	});
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			bindingsMap = {
 				...((form.state.values[fieldPrefix] ?? {}) as Record<string, string>)
 			};
 		});
+		return unsubscribe;
 	});
 
 	// The first service in a RequestPath is the caller — it initiates the request.

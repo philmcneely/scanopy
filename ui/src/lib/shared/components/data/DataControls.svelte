@@ -1,4 +1,5 @@
-<script lang="ts" generics="T">
+<script lang="ts" generics="T extends RowData">
+	import type { RowData } from '@tanstack/table-core';
 	import type { Snippet } from 'svelte';
 	import {
 		type FieldConfig,
