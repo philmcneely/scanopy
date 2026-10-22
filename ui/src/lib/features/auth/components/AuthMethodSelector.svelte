@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Loader2 } from 'lucide-svelte';
 	import type { OidcProviderMetadata } from '$lib/shared/stores/config-query';
+	import OidcProviderLogo from './OidcProviderLogo.svelte';
 	import {
 		auth_signInWith,
 		auth_signInWithEmail,
@@ -54,8 +55,8 @@
 				>
 					{#if oidcLoadingSlug === provider.slug}
 						<Loader2 class="h-5 w-5 animate-spin" />
-					{:else if provider.logo}
-						<img src={provider.logo} alt={provider.name} class="h-5 w-5" />
+					{:else}
+						<OidcProviderLogo {provider} />
 					{/if}
 					<span>{getOidcLabel(provider.name)}</span>
 					{#if lastLoginMethod === `oidc:${provider.slug}`}

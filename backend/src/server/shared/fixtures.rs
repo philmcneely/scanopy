@@ -6,6 +6,7 @@ use crate::daemon::discovery::types::warnings::{
     ClaimSource, DiscoveryWarningCode, MalformedNeighbourConsequence, SnmpWalkCause, SnmpWalkGroup,
     WarningRemedy,
 };
+use crate::server::auth::r#impl::oidc::IdentityProviderLogo;
 use crate::server::billing::plans::get_website_fixture_plans;
 use crate::server::billing::types::base::{BillingPlan, CancelReason, PlanStatus, SaveOffer};
 use crate::server::billing::types::features::Feature;
@@ -126,6 +127,33 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
             .map(|f| (<&'static str>::from(f).to_string(), f.logo_url()))
             .collect();
     download_logos(&os_family_logos, &os_family_dir, force_logos);
+
+    // Identity provider logos that oidc.toml can name as /logos/identity-providers/<id>.<ext>.
+    // The website's OIDC guide lists them from identity-provider-logos.json.
+    let identity_provider_dir = output_dir.join("../../../static/logos/identity-providers");
+    let identity_provider_logos: Vec<(String, &str)> = IdentityProviderLogo::iter()
+        .map(|p| (<&'static str>::from(p).to_string(), p.logo_url()))
+        .collect();
+    download_logos(
+        &identity_provider_logos,
+        &identity_provider_dir,
+        force_logos,
+    );
+    let identity_provider_logo_paths: Vec<serde_json::Value> = IdentityProviderLogo::iter()
+        .map(|p| {
+            let id: &'static str = p.into();
+            serde_json::json!({
+                "id": id,
+                "name": p.name(),
+                "path": format!("/logos/identity-providers/{id}.{}", logo_ext(p.logo_url())),
+            })
+        })
+        .collect();
+    write_fixture(
+        &identity_provider_logo_paths,
+        output_dir,
+        "identity-provider-logos.json",
+    );
 
     let subnet_types: Vec<TypeMetadata> = SubnetType::iter().map(|t| t.to_metadata()).collect();
     write_fixture(&subnet_types, output_dir, "subnet-types.json");

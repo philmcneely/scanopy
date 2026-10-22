@@ -17,6 +17,7 @@
 		confirmPasswordMatch
 	} from '$lib/shared/components/forms/validators';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
+	import OidcProviderLogo from '$lib/features/auth/components/OidcProviderLogo.svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import Password from '$lib/shared/components/forms/input/Password.svelte';
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
@@ -281,11 +282,11 @@
 									{@const isDisabled = hasLinkedOidc && !isLinked}
 									<div class="flex items-center justify-between">
 										<div class="mr-2 flex items-center gap-4">
-											{#if provider.logo}
-												<img src={provider.logo} alt={provider.name} class="h-5 w-5" />
-											{:else}
-												<Link class="text-secondary h-5 w-5 flex-shrink-0" />
-											{/if}
+											<OidcProviderLogo {provider}>
+												{#snippet fallback()}
+													<Link class="text-secondary h-5 w-5 flex-shrink-0" />
+												{/snippet}
+											</OidcProviderLogo>
 											<div>
 												<p class="text-primary text-sm font-medium">{provider.name}</p>
 												{#if isLinked}
