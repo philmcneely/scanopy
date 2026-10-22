@@ -68,7 +68,6 @@
 	import type { EntityDiscriminants } from '$lib/api/entities';
 	import type { DiscoveryUpdatePayload } from '../../types/api';
 	import { runOutcomeReason } from '../../utils/outcome';
-	import { snmpCheckOf } from '../../utils/snmpCheck';
 	import {
 		buildWarningReport,
 		credentialIdsOf,
