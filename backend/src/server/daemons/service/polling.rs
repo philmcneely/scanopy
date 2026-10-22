@@ -438,6 +438,7 @@ impl DaemonService {
                     &integration_targets,
                     daemon.base.version.as_ref(),
                     self.site_subnets(work.site_id).await,
+                    self.subnets_scanned_elsewhere(&work).await,
                 )
                 .await;
             let session_id = request.session_id;
@@ -501,6 +502,76 @@ impl DaemonService {
             .map(|s| s.expose_secret().to_string())
             .ok_or_else(|| anyhow::anyhow!("API key {} has no stored plaintext", api_key_id))
     }
+
+    /// The subnets another discovery on `session`'s site scans and `session`'s does not, for
+    /// [`DaemonPlacement::subnets_scanned_elsewhere`]. Empty for a rescan, which keeps every
+    /// assignment it was sent before, and on a read failure, which costs only the warnings this
+    /// set removes.
+    ///
+    /// [`DaemonPlacement::subnets_scanned_elsewhere`]: crate::server::credentials::service::DaemonPlacement::subnets_scanned_elsewhere
+    pub(crate) async fn subnets_scanned_elsewhere(
+        &self,
+        session: &DiscoveryUpdatePayload,
+    ) -> std::collections::HashSet<Uuid> {
+        if !matches!(session.discovery_type, DiscoveryType::Unified { .. }) {
+            return Default::default();
+        }
+        let filter =
+            StorableFilter::<Discovery>::new_from_site_ids(&[session.site_id]).live_configs();
+        let discoveries = match self.discovery_service.get_all(filter).await {
+            Ok(discoveries) => discoveries,
+            Err(e) => {
+                tracing::warn!(
+                    site_id = %session.site_id,
+                    error = ?e,
+                    "Could not read the site's discoveries for a discovery dispatch"
+                );
+                return Default::default();
+            }
+        };
+        let mut daemon_ids: Vec<Uuid> = discoveries.iter().map(|d| d.base.daemon_id).collect();
+        daemon_ids.push(session.daemon_id);
+        let interfaced = self.get_interfaced_subnet_ids_batch(&daemon_ids).await;
+        subnets_scanned_elsewhere(session, &discoveries, &interfaced)
+    }
+}
+
+/// The subnets a credentialed scan sweeps: the ones it names, or its daemon's interfaced subnets
+/// when it names none. `None` for a type that is sent no credentials, or a rescan, which visits
+/// addresses rather than subnets.
+fn unified_scan_subnets(
+    discovery_type: &DiscoveryType,
+    daemon_id: Uuid,
+    interfaced: &std::collections::HashMap<Uuid, Vec<Uuid>>,
+) -> Option<std::collections::HashSet<Uuid>> {
+    let DiscoveryType::Unified { subnet_ids, .. } = discovery_type else {
+        return None;
+    };
+    let ids = subnet_ids
+        .as_ref()
+        .or_else(|| interfaced.get(&daemon_id))
+        .cloned()
+        .unwrap_or_default();
+    Some(ids.into_iter().collect())
+}
+
+/// See [`DaemonService::subnets_scanned_elsewhere`].
+fn subnets_scanned_elsewhere(
+    session: &DiscoveryUpdatePayload,
+    discoveries: &[Discovery],
+    interfaced: &std::collections::HashMap<Uuid, Vec<Uuid>>,
+) -> std::collections::HashSet<Uuid> {
+    let Some(own) = unified_scan_subnets(&session.discovery_type, session.daemon_id, interfaced)
+    else {
+        return Default::default();
+    };
+    discoveries
+        .iter()
+        .filter(|d| Some(d.id) != session.discovery_id)
+        .filter_map(|d| unified_scan_subnets(&d.base.discovery_type, d.base.daemon_id, interfaced))
+        .flatten()
+        .filter(|subnet| !own.contains(subnet))
+        .collect()
 }
 
 /// Sessions a daemon has lost to a restart: the ones it is running as far as the server knows,
@@ -551,6 +622,82 @@ mod tests {
         );
         s.phase = phase;
         s
+    }
+
+    fn unified(subnet_ids: Option<Vec<Uuid>>) -> DiscoveryType {
+        DiscoveryType::Unified {
+            host_id: Uuid::new_v4(),
+            subnet_ids,
+            host_naming_fallback: Default::default(),
+            scan_settings: Default::default(),
+        }
+    }
+
+    fn discovery(daemon_id: Uuid, discovery_type: DiscoveryType) -> Discovery {
+        Discovery {
+            id: Uuid::new_v4(),
+            base: DiscoveryBase {
+                daemon_id,
+                discovery_type,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    /// Two daemons on one site, each sweeping its own interfaced subnets, and sharing one. Only
+    /// the other daemon's subnet is left to it; the shared one, and a subnet a scan names, are
+    /// both this scan's own when it sweeps them.
+    #[test]
+    fn a_subnet_only_another_discovery_scans_is_scanned_elsewhere() {
+        let (here, there) = (Uuid::new_v4(), Uuid::new_v4());
+        let (own_lan, shared, other_lan, named) = (
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        );
+        let interfaced = std::collections::HashMap::from([
+            (here, vec![own_lan, shared]),
+            (there, vec![other_lan, shared]),
+        ]);
+        let own = discovery(here, unified(None));
+        let discoveries = vec![
+            own.clone(),
+            discovery(there, unified(None)),
+            discovery(there, unified(Some(vec![named]))),
+        ];
+        let session = DiscoveryUpdatePayload::new(
+            Uuid::new_v4(),
+            here,
+            Uuid::new_v4(),
+            own.base.discovery_type.clone(),
+            Some(own.id),
+        );
+
+        assert_eq!(
+            subnets_scanned_elsewhere(&session, &discoveries, &interfaced),
+            std::collections::HashSet::from([other_lan, named])
+        );
+
+        // Naming the other daemon's subnet makes it this scan's own too.
+        let mut naming = session.clone();
+        naming.discovery_type = unified(Some(vec![own_lan, other_lan]));
+        assert_eq!(
+            subnets_scanned_elsewhere(&naming, &discoveries, &interfaced),
+            std::collections::HashSet::from([shared, named])
+        );
+
+        // A rescan keeps every assignment.
+        let mut rescan = session.clone();
+        rescan.discovery_type = DiscoveryType::Rescan {
+            host_id: Uuid::new_v4(),
+            target_host_ids: vec![],
+            ips: vec![],
+            ports: vec![],
+            settings: Default::default(),
+        };
+        assert!(subnets_scanned_elsewhere(&rescan, &discoveries, &interfaced).is_empty());
     }
 
     #[test]

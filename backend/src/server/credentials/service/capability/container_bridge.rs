@@ -10,6 +10,9 @@
 //! - **Capability** ([`TargetsContainerBridgeWithCredentials`]): the runtime host's own daemon
 //!   reaches it, but only from the release that tries credentials at its bridge containers. An
 //!   older one is not sent it, and the scan says which addresses an upgrade would add.
+//!
+//! One rule here has nothing to do with bridges: [`retain_overrides_scanned_here`] leaves an
+//! address another discovery on the site scans to that discovery's daemon.
 
 use super::DaemonCapability;
 use crate::server::credentials::r#impl::capability::{CapabilityGap, ContainerBridgeGap};
@@ -22,19 +25,27 @@ use std::collections::{BTreeMap, HashSet};
 use std::net::IpAddr;
 use uuid::Uuid;
 
-/// Where the daemon a dispatch is built for runs, as far as bridge addresses go.
+/// Where the daemon a dispatch is built for runs, and which of the site's subnets other scans
+/// cover.
 #[derive(Debug, Clone, Default)]
 pub struct DaemonPlacement {
     /// The host the daemon runs on.
     pub daemon_host_id: Option<Uuid>,
     /// The site's Docker and Podman bridge subnets.
     pub bridge_subnet_ids: HashSet<Uuid>,
+    /// Subnets another discovery on the site scans and this daemon's does not.
+    pub subnets_scanned_elsewhere: HashSet<Uuid>,
 }
 
 impl DaemonPlacement {
-    pub fn new(daemon_host_id: Option<Uuid>, site_subnets: &[Subnet]) -> Self {
+    pub fn new(
+        daemon_host_id: Option<Uuid>,
+        site_subnets: &[Subnet],
+        subnets_scanned_elsewhere: HashSet<Uuid>,
+    ) -> Self {
         Self {
             daemon_host_id,
+            subnets_scanned_elsewhere,
             bridge_subnet_ids: site_subnets
                 .iter()
                 .filter(|s| s.is_container_bridge_subnet())
@@ -89,6 +100,40 @@ pub(crate) fn retain_reachable_overrides(
         typed.mapping.ip_overrides.retain(|o| {
             let other_host = o.host_id.is_some_and(|h| h != daemon_host_id);
             !(other_host && (o.ip.is_loopback() || ctx.is_bridge(o.host_id, o.ip).is_some()))
+        });
+    }
+}
+
+/// Drop every host-assignment override at an address in a subnet another discovery on the site
+/// scans and this daemon's does not. That discovery's daemon tries the credential there, and this
+/// one would only report the address as outside its scan. An address no discovery scans is kept,
+/// so the daemon still reports it: that warning tells the user the credential sits outside every
+/// scan.
+///
+/// The daemon's own host keeps every address. Subnets are keyed by CIDR, so another daemon's
+/// interfaced range can be this host's container bridge, which only this daemon reaches.
+pub(crate) fn retain_overrides_scanned_here(
+    placement: &DaemonPlacement,
+    ip_addresses: &[IPAddress],
+    mappings: &mut BTreeMap<Uuid, TypedCredentialMapping>,
+) {
+    if placement.subnets_scanned_elsewhere.is_empty() {
+        return;
+    }
+    let scanned_elsewhere: HashSet<(Uuid, IpAddr)> = ip_addresses
+        .iter()
+        .filter(|i| Some(i.base.host_id) != placement.daemon_host_id)
+        .filter(|i| {
+            placement
+                .subnets_scanned_elsewhere
+                .contains(&i.base.subnet_id)
+        })
+        .map(|i| (i.base.host_id, i.base.ip_address))
+        .collect();
+    for typed in mappings.values_mut() {
+        typed.mapping.ip_overrides.retain(|o| {
+            !o.host_id
+                .is_some_and(|h| scanned_elsewhere.contains(&(h, o.ip)))
         });
     }
 }
@@ -192,6 +237,7 @@ mod tests {
         DaemonPlacement {
             daemon_host_id: Some(daemon_host_id),
             bridge_subnet_ids: HashSet::from([f.bridge_subnet]),
+            ..Default::default()
         }
     }
 
@@ -370,7 +416,7 @@ mod tests {
             // The order `build_all_credential_mappings` runs them in: reachability, then targets.
             let placement = DaemonPlacement {
                 daemon_host_id: Some(daemon_host),
-                bridge_subnet_ids: HashSet::new(),
+                ..Default::default()
             };
             retain_reachable_overrides(
                 &ContainerBridgeContext::new(&placement, &ip_addresses),
@@ -395,5 +441,50 @@ mod tests {
         // A new daemon whose host has no assignment yet still gets its daemon-host target, though
         // other hosts hold the same credential at the same 127.0.0.1.
         assert_eq!(sent_to(Uuid::new_v4(), true), vec![None]);
+    }
+
+    /// A host-wide assignment on a host with one address in another daemon's subnet and one in a
+    /// subnet nobody scans: this daemon keeps only the second, which it then reports as outside
+    /// its scan.
+    #[test]
+    fn an_address_another_discovery_scans_is_left_to_it() {
+        let f = fixture();
+        let (theirs, nobodys) = (Uuid::new_v4(), Uuid::new_v4());
+        let ip_addresses = vec![
+            ip(Uuid::new_v4(), f.runtime_host, theirs, "10.0.20.20"),
+            ip(Uuid::new_v4(), f.runtime_host, nobodys, "10.0.30.30"),
+        ];
+        let placement = DaemonPlacement {
+            daemon_host_id: Some(Uuid::new_v4()),
+            subnets_scanned_elsewhere: HashSet::from([theirs]),
+            ..Default::default()
+        };
+
+        let kept = |placement: &DaemonPlacement| {
+            let mut map = BTreeMap::new();
+            apply_host_assignment(
+                &mut map,
+                f.runtime_host,
+                &CredentialAssignment {
+                    credential_id: f.credential.id,
+                    ip_address_ids: None,
+                },
+                &f.credential,
+                &ip_addresses,
+            );
+            retain_overrides_scanned_here(placement, &ip_addresses, &mut map);
+            map.values()
+                .flat_map(|t| t.mapping.ip_overrides.iter().map(|o| o.ip))
+                .collect::<Vec<IpAddr>>()
+        };
+
+        assert_eq!(kept(&placement), vec![addr("10.0.30.30")]);
+        // The host's own daemon keeps both: the range another daemon interfaces may be a bridge
+        // on this host.
+        let own = DaemonPlacement {
+            daemon_host_id: Some(f.runtime_host),
+            ..placement
+        };
+        assert_eq!(kept(&own), vec![addr("10.0.20.20"), addr("10.0.30.30")]);
     }
 }

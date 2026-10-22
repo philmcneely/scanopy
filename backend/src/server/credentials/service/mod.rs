@@ -636,6 +636,11 @@ impl CredentialService {
         // by then or this daemon loses its own target.
         let bridge_ctx = capability::ContainerBridgeContext::new(placement, &ip_addresses);
         capability::retain_reachable_overrides(&bridge_ctx, &mut mappings_by_credential);
+        capability::retain_overrides_scanned_here(
+            placement,
+            &ip_addresses,
+            &mut mappings_by_credential,
+        );
 
         // Per-daemon integration targets from this daemon's Discovery (init-command targeting).
         // The single home for cred↔IP and local-socket targeting — it replaces the old org-wide
