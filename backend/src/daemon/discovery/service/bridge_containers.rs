@@ -14,6 +14,7 @@
 use super::base::DiscoveryRunner;
 use super::ops::{DiscoveryOps, HostData};
 use crate::daemon::discovery::integration::dispatch;
+use crate::daemon::utils::scanner::{ScanConcurrencyController, scan_tcp_ports};
 use crate::server::bindings::r#impl::base::BindingType;
 use crate::server::credentials::r#impl::mapping::{
     CredentialMapping, CredentialQueryPayload, IpOverride,
@@ -31,6 +32,9 @@ use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+
+/// Concurrent connects when scanning a container for the ports its credentials need.
+const BRIDGE_SCAN_BATCH: usize = 16;
 
 /// A running container's bridge address that holds at least one credential override.
 #[derive(Debug, Clone)]
@@ -303,15 +307,32 @@ impl DiscoveryRunner {
         let mappings = mappings_at(&self.credential_mappings, ip, self.host_id);
         let trusted_ca = ops.config_store.get_trusted_ca().await;
 
-        // The container scan saw only the ports the container declares, so the probe gate would
-        // turn away a credential whose port the image never declared. Each integration probes its
-        // own port here, and an address that does not answer is reported as unreachable for this
-        // container.
+        // The container scan saw only the ports the container declares. As the network phase
+        // does, scan the ports these credentials need, so the probe gate tries a credential only
+        // where something listens on its port.
+        let required_ports: Vec<u16> = mappings
+            .iter()
+            .flat_map(|m| &m.ip_overrides)
+            .flat_map(|o| o.credential.required_scan_ports())
+            .collect::<HashSet<u16>>()
+            .into_iter()
+            .collect();
+        let scan = scan_tcp_ports(
+            ip,
+            cancel.clone(),
+            BRIDGE_SCAN_BATCH,
+            0,
+            required_ports,
+            ScanConcurrencyController::new(BRIDGE_SCAN_BATCH),
+        )
+        .await?;
+        let mut open_ports = target.open_ports.clone();
+        open_ports.extend(scan.open.into_iter().map(|(port, _)| port));
         let probe_results = dispatch::probe_integrations(
             ip,
             &mappings,
-            &target.open_ports,
-            true,
+            &open_ports,
+            false,
             cancel,
             &self.service.utils,
             ops.config_store.get_accept_invalid_scan_certs().await?,
@@ -353,7 +374,6 @@ impl DiscoveryRunner {
         };
         found.host.id = self.host_id;
 
-        let mut open_ports = target.open_ports.clone();
         open_ports.extend(probe_results.additional_ports.iter());
         let execute_params = dispatch::ExecuteParams {
             ip,
