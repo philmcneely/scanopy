@@ -26,7 +26,8 @@ mod snmp_v3;
 
 pub use container_bridge::DaemonPlacement;
 pub(crate) use container_bridge::{
-    ContainerBridgeContext, TargetsContainerBridgeWithCredentials, retain_reachable_overrides,
+    ContainerBridgeContext, TargetsContainerBridgeWithCredentials, retain_overrides_scanned_here,
+    retain_reachable_overrides,
 };
 pub(crate) use parses_type::ParsesCredentialType;
 pub(crate) use snmp_v3::UsesSnmpV3SecurityOptions;

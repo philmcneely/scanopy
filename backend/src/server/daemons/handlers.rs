@@ -1119,6 +1119,11 @@ async fn receive_work_request(
                         .daemon_service
                         .site_subnets(daemon_site_id)
                         .await,
+                    state
+                        .services
+                        .daemon_service
+                        .subnets_scanned_elsewhere(&payload)
+                        .await,
                 )
                 .await;
             Some(request.with_exposed_credentials())

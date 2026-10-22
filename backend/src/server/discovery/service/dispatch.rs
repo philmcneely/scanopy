@@ -72,6 +72,7 @@ impl DiscoveryService {
     /// Called by both DaemonPoll and ServerPoll dispatch points.
     /// `subnets` are the site's subnets as the server holds them, which a ServerPoll daemon
     /// cannot fetch for itself. See `DaemonDiscoveryRequest::subnets`.
+    /// `subnets_scanned_elsewhere`: see [`DaemonPlacement::subnets_scanned_elsewhere`].
     pub async fn build_daemon_request(
         &self,
         session: &DiscoveryUpdatePayload,
@@ -79,9 +80,14 @@ impl DiscoveryService {
         integration_targets: &[IntegrationTarget],
         daemon_version: Option<&semver::Version>,
         subnets: Vec<Subnet>,
+        subnets_scanned_elsewhere: HashSet<Uuid>,
     ) -> DaemonDiscoveryRequest {
         let (credential_mappings, withheld) = if session.discovery_type.runs_network_scan() {
-            let placement = DaemonPlacement::new(session.discovery_type.daemon_host_id(), &subnets);
+            let placement = DaemonPlacement::new(
+                session.discovery_type.daemon_host_id(),
+                &subnets,
+                subnets_scanned_elsewhere,
+            );
             self.credential_service
                 .build_all_credential_mappings(
                     site_id,
