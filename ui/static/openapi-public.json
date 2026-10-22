@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Scanopy API",
-    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.18.2\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.18.2\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.18.2)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
+    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.0\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.0\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.19.0)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
     "license": {
       "name": "Dual (AGPL3.0, Commercial License Available)"
     },
@@ -187,10 +187,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -203,10 +203,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -245,10 +245,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -576,10 +576,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -592,10 +592,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -634,10 +634,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -822,10 +822,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -838,10 +838,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -880,10 +880,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -1276,10 +1276,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -1292,10 +1292,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -1334,10 +1334,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -1622,10 +1622,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -1638,10 +1638,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -1680,10 +1680,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -1855,10 +1855,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -1871,10 +1871,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/UserApiKeyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/UserApiKeyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -1913,10 +1913,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -2920,10 +2920,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/CredentialOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/CredentialOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -2936,10 +2936,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/CredentialOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/CredentialOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -2978,10 +2978,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -3359,10 +3359,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/CredentialOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/CredentialOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -3375,10 +3375,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/CredentialOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/CredentialOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -3417,10 +3417,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -3814,10 +3814,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -3830,10 +3830,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -3872,10 +3872,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -4296,10 +4296,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -4312,10 +4312,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -4354,10 +4354,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -4591,10 +4591,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -4607,10 +4607,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DaemonOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DaemonOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -4649,10 +4649,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -5333,10 +5333,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DependencyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DependencyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -5349,10 +5349,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DependencyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DependencyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -5365,10 +5365,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -5559,10 +5559,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DependencyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DependencyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -5575,10 +5575,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DependencyOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DependencyOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -5591,10 +5591,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -6054,10 +6054,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DiscoveryOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DiscoveryOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -6070,10 +6070,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DiscoveryOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DiscoveryOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -6086,10 +6086,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -6717,10 +6717,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DiscoveryOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DiscoveryOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -6733,10 +6733,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DiscoveryOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DiscoveryOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -6749,10 +6749,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -7039,10 +7039,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DiscoveryOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DiscoveryOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -7055,10 +7055,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/DiscoveryOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/DiscoveryOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -7071,10 +7071,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -7652,10 +7652,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/HostOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/HostOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -7668,10 +7668,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/HostOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/HostOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -7710,10 +7710,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -8229,10 +8229,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/HostOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/HostOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -8245,10 +8245,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/HostOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/HostOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -8287,10 +8287,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -8625,10 +8625,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/HostOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/HostOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -8641,10 +8641,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/HostOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/HostOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -8683,10 +8683,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -9030,10 +9030,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/HostOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/HostOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -9046,10 +9046,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/HostOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/HostOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -9088,10 +9088,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -11955,10 +11955,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/ServiceOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/ServiceOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -11971,10 +11971,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/ServiceOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/ServiceOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -12013,10 +12013,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -12433,10 +12433,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/ServiceOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/ServiceOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -12449,10 +12449,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/ServiceOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/ServiceOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -12491,10 +12491,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -12828,10 +12828,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/ServiceOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/ServiceOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -12844,10 +12844,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/ServiceOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/ServiceOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -12886,10 +12886,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -13781,10 +13781,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SiteOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SiteOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -13797,10 +13797,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SiteOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SiteOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -13839,10 +13839,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -14161,10 +14161,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SiteOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SiteOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -14177,10 +14177,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SiteOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SiteOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -14219,10 +14219,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -14380,10 +14380,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SiteOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SiteOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -14396,10 +14396,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SiteOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SiteOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -14438,10 +14438,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -15101,10 +15101,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SubnetOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SubnetOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -15117,10 +15117,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SubnetOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SubnetOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -15159,10 +15159,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -15491,10 +15491,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SubnetOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SubnetOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -15507,10 +15507,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SubnetOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SubnetOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -15549,10 +15549,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -15793,10 +15793,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SubnetOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SubnetOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -15809,10 +15809,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/SubnetOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/SubnetOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -15851,10 +15851,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -16303,10 +16303,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/TagGroupOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/TagGroupOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -16319,10 +16319,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/TagGroupOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/TagGroupOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -16335,10 +16335,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -16868,10 +16868,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/TagOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/TagOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -16884,10 +16884,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/TagOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/TagOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -16900,10 +16900,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -17320,10 +17320,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/TagOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/TagOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -17336,10 +17336,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/TagOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/TagOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -17352,10 +17352,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -17509,10 +17509,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/TagOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/TagOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -17525,10 +17525,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/TagOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/TagOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -17541,10 +17541,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -18540,10 +18540,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/MemberOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/MemberOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -18556,10 +18556,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/MemberOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/MemberOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -18572,10 +18572,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -18842,10 +18842,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/VlanOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/VlanOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -18858,10 +18858,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/VlanOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/VlanOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -18874,10 +18874,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -19229,10 +19229,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/VlanOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/VlanOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -19245,10 +19245,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/VlanOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/VlanOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -19261,10 +19261,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -19476,10 +19476,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/VlanOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/VlanOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -19492,10 +19492,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/VlanOrderField"
                 },
                 {
-                  "$ref": "#/components/schemas/VlanOrderField"
+                  "type": "null"
                 }
               ]
             }
@@ -19508,10 +19508,10 @@
             "schema": {
               "oneOf": [
                 {
-                  "type": "null"
+                  "$ref": "#/components/schemas/OrderDirection"
                 },
                 {
-                  "$ref": "#/components/schemas/OrderDirection"
+                  "type": "null"
                 }
               ]
             }
@@ -19929,12 +19929,12 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.18.2"
+            "example": "0.19.0"
           }
         },
         "example": {
           "api_version": 1,
-          "server_version": "0.18.2"
+          "server_version": "0.19.0"
         }
       },
       "ApiResponse": {
@@ -19948,11 +19948,11 @@
           "data": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/TupleUnit",
                 "description": "The result payload."
+              },
+              {
+                "type": "null"
               }
             ],
             "description": "The result payload. Omitted on failure."
@@ -20066,19 +20066,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-21T23:11:20.412035Z",
+              "created_at": "2026-10-22T23:24:30.910202Z",
               "first_discovery_id": null,
-              "id": "b7d1b491-bf85-4d06-8572-b946dcc108b8",
+              "id": "6c02560d-2003-4f34-9ce2-a0d35aaba1ce",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-21T23:11:20.412035Z",
+              "last_seen_at": "2026-10-22T23:24:30.910202Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-21T23:11:20.412035Z",
-              "valid_from": "2026-10-21T23:11:20.412035Z",
+              "updated_at": "2026-10-22T23:24:30.910202Z",
+              "valid_from": "2026-10-22T23:24:30.910202Z",
               "valid_to": null
             }
           },
@@ -20576,11 +20576,11 @@
               "server_capabilities": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/ServerCapabilities",
                     "description": "Server capabilities (returned if daemon sends version info)"
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               }
@@ -21145,22 +21145,22 @@
               "reason": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/DiscoveryTerminalReason",
                     "description": "Why the run ended. Set on terminal payloads; absent on runs recorded before it existed.\nA daemon may send one of the reasons only it can know; the server assigns every other.\nA reason this server doesn't know reads as `None`, and the server assigns one from the\nphase."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
               "scanned": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/ScannedEntityIds",
                     "description": "Canonical IDs of entities scanned in this session, populated daemon-\nside at terminal. **Transient**: stripped at `SqlValue::RunType` bind\ntime so it doesn't persist into the historical Discovery row's JSONB.\nAvailable in-memory through the `EntityOperation::Created` event\npublished for the historical Discovery row (the event scope carries\n`Entity::Discovery(...)`, the full in-memory struct), where per-entity\nFK-update subscribers consume it.\n\n`Some(...)` when the daemon is sending the terminal payload over the\nwire. `None` when read back from a persisted historical row, or when\nnot yet set."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -21230,11 +21230,11 @@
               "instances": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/InstanceUsage",
                     "description": "How many server instances the key is running on, against how many it\ncovers. Absent from clouds older than instance counting."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               }
@@ -21338,7 +21338,8 @@
               },
               "asset_tag_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced the asset tag. Read-only."
+                "description": "What produced the asset tag. Read-only.",
+                "readOnly": true
               },
               "chassis_id": {
                 "type": [
@@ -21349,7 +21350,8 @@
               },
               "chassis_id_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced the LLDP chassis identifier. Read-only: decided by whichever source read it."
+                "description": "What produced the LLDP chassis identifier. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "created_at": {
                 "type": "string",
@@ -21372,7 +21374,8 @@
               },
               "device_type": {
                 "$ref": "#/components/schemas/DeviceType",
-                "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only."
+                "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only.",
+                "readOnly": true
               },
               "display_name": {
                 "type": [
@@ -21385,13 +21388,14 @@
               "display_name_rung": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/HostNameRung",
                     "description": "Which rung of the ladder produced `display_name`. `None` exactly when `display_name` is.\n\nResolved from the same [`Host::name_ladder`] call as `display_name`, so the UI can say\nwhere a host's title came from without walking the rungs itself."
+                  },
+                  {
+                    "type": "null"
                   }
-                ]
+                ],
+                "readOnly": true
               },
               "firmware_revision": {
                 "type": [
@@ -21403,7 +21407,8 @@
               },
               "firmware_revision_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced the firmware revision. Read-only: decided by whichever source read it."
+                "description": "What produced the firmware revision. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "first_discovery_id": {
                 "type": [
@@ -21428,7 +21433,8 @@
               },
               "hostname_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.\nRead-only: decided by whichever source read it."
+                "description": "What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.\nRead-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "id": {
                 "type": "string",
@@ -21472,7 +21478,8 @@
               },
               "management_url_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced the management URL. Read-only: decided by whichever source read it."
+                "description": "What produced the management URL. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "manufacturer": {
                 "type": [
@@ -21484,7 +21491,8 @@
               },
               "manufacturer_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced the manufacturer. Read-only: decided by whichever source read it."
+                "description": "What produced the manufacturer. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "model": {
                 "type": [
@@ -21496,7 +21504,8 @@
               },
               "model_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced the model. Read-only: decided by whichever source read it."
+                "description": "What produced the model. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "name": {
                 "type": "string",
@@ -21505,28 +21514,32 @@
               "name_ladder": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/HostNameLadderEntry"
+                  "$ref": "#/components/schemas/HostNameLadderEntry",
+                  "readOnly": true
                 },
                 "description": "Every rung of the display-name ladder for this host, highest first, with what each holds."
               },
               "name_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced `name`. Read-only: it is decided by whoever supplied the name, not by the\ncaller."
+                "description": "What produced `name`. Read-only: it is decided by whoever supplied the name, not by the\ncaller.",
+                "readOnly": true
               },
               "os": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/HostOs",
                     "description": "The host's operating system. Read-only: written by whichever source read or matched it.\nLenient, so a daemon tolerates a family added on a newer server."
+                  },
+                  {
+                    "type": "null"
                   }
-                ]
+                ],
+                "readOnly": true
               },
               "os_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS\nin a string the host emitted rather than reading it off the host."
+                "description": "What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS\nin a string the host emitted rather than reading it off the host.",
+                "readOnly": true
               },
               "ports": {
                 "type": "array",
@@ -21545,7 +21558,8 @@
               },
               "serial_number_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced the serial number. Read-only: decided by whichever source read it."
+                "description": "What produced the serial number. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "services": {
                 "type": "array",
@@ -21569,7 +21583,8 @@
               },
               "software_revision_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced the software revision. Read-only: decided by whichever source read it."
+                "description": "What produced the software revision. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "source": {
                 "$ref": "#/components/schemas/EntitySource",
@@ -21584,7 +21599,8 @@
               },
               "sys_contact_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced SNMP sysContact. Read-only: decided by whichever source read it."
+                "description": "What produced SNMP sysContact. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "sys_descr": {
                 "type": [
@@ -21595,7 +21611,8 @@
               },
               "sys_descr_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced SNMP sysDescr. Read-only: decided by whichever source read it."
+                "description": "What produced SNMP sysDescr. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "sys_location": {
                 "type": [
@@ -21606,7 +21623,8 @@
               },
               "sys_location_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced SNMP sysLocation. Read-only: decided by whichever source read it."
+                "description": "What produced SNMP sysLocation. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "sys_name": {
                 "type": [
@@ -21618,7 +21636,8 @@
               },
               "sys_name_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced SNMP sysName. Read-only: decided by whichever source read it."
+                "description": "What produced SNMP sysName. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "sys_object_id": {
                 "type": [
@@ -21629,7 +21648,8 @@
               },
               "sys_object_id_source": {
                 "$ref": "#/components/schemas/AttributeSource",
-                "description": "What produced SNMP sysObjectID. Read-only: decided by whichever source read it."
+                "description": "What produced SNMP sysObjectID. Read-only: decided by whichever source read it.",
+                "readOnly": true
               },
               "tags": {
                 "type": "array",
@@ -21662,11 +21682,11 @@
               "virtualization_metadata": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/HostVirtualization",
                     "description": "How the host is virtualized, when it is a VM or container guest."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -21831,19 +21851,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-21T23:11:20.383197Z",
+                      "created_at": "2026-10-22T23:24:30.883753Z",
                       "first_discovery_id": null,
-                      "id": "6a66fbd6-7cdf-4043-a838-3205c41f1fd4",
+                      "id": "abdaccbe-69b2-41e9-a4bc-486dbc398de8",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-21T23:11:20.383197Z",
+                      "last_seen_at": "2026-10-22T23:24:30.883753Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-21T23:11:20.383197Z",
-                      "valid_from": "2026-10-21T23:11:20.383197Z",
+                      "updated_at": "2026-10-22T23:24:30.883753Z",
+                      "valid_from": "2026-10-22T23:24:30.883753Z",
                       "valid_to": null
                     }
                   ],
@@ -21856,7 +21876,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "UptimeKuma",
+                  "service_definition": "Consul",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -22348,20 +22368,20 @@
               "open_invoice": {
                 "oneOf": [
                   {
-                    "type": "null"
+                    "$ref": "#/components/schemas/InvoiceSummary"
                   },
                   {
-                    "$ref": "#/components/schemas/InvoiceSummary"
+                    "type": "null"
                   }
                 ]
               },
               "pending_quote": {
                 "oneOf": [
                   {
-                    "type": "null"
+                    "$ref": "#/components/schemas/PendingQuote"
                   },
                   {
-                    "$ref": "#/components/schemas/PendingQuote"
+                    "type": "null"
                   }
                 ]
               },
@@ -22375,11 +22395,11 @@
               "written_off_invoice": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/InvoiceSummary",
                     "description": "An invoice this customer defaulted on and we wrote off. While one\nstands, they cannot take payment terms again."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               }
@@ -22513,11 +22533,11 @@
               "site": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/OnboardingSiteState",
                     "description": "Site from pending setup (with name and ID)"
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -22539,11 +22559,11 @@
               "use_case": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/UseCase",
                     "description": "Use case selection (homelab, company, msp)"
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               }
@@ -22934,11 +22954,11 @@
               "available_upgrade": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/AvailableUpgrade",
                     "description": "The newest promoted release, when it is newer than this server. `None`\non cloud, with `SCANOPY_DISABLE_UPDATE_CHECK` set, before the first\ncheck answers, or when this server is current."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -22989,11 +23009,11 @@
               "license_instances": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/InstanceUsage",
                     "description": "How many server instances this instance's online key is running on,\nagainst how many it covers, as Scanopy Cloud reported at the last\ncheck-in. Online keys only."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -23020,11 +23040,11 @@
               "license_key_type": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/LicenseKeyType",
                     "description": "Whether the configured key is an offline key or an online key that\nfetches its entitlement from Scanopy Cloud. `None` when no key applies."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -23035,11 +23055,11 @@
               "license_status": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/LicenseStatusDiscriminants",
                     "description": "Runtime state of the configured license key. `None` on deployments\nthat don't require one (community and cloud)."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -23343,19 +23363,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-21T23:11:20.407087Z",
+                  "created_at": "2026-10-22T23:24:30.905506Z",
                   "first_discovery_id": null,
-                  "id": "9fd9ab4c-5533-4da8-9b92-a50a27ffc98b",
+                  "id": "c7fd1604-3e33-46c7-b4f9-445fefd44c91",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-21T23:11:20.407087Z",
+                  "last_seen_at": "2026-10-22T23:24:30.905506Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-21T23:11:20.407087Z",
-                  "valid_from": "2026-10-21T23:11:20.407087Z",
+                  "updated_at": "2026-10-22T23:24:30.905506Z",
+                  "valid_from": "2026-10-22T23:24:30.905506Z",
                   "valid_to": null
                 }
               ],
@@ -23368,7 +23388,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "UptimeKuma",
+              "service_definition": "Consul",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -23986,13 +24006,14 @@
                   "range_evidence": {
                     "oneOf": [
                       {
-                        "type": "null"
-                      },
-                      {
                         "$ref": "#/components/schemas/RangeEvidence",
                         "description": "For a range Scanopy assumed from what LLDP/CDP neighbours published, the far ends it was\ndrawn around and the devices that saw them. `null` for every other range, and for an\nassumed one no scan created."
+                      },
+                      {
+                        "type": "null"
                       }
-                    ]
+                    ],
+                    "readOnly": true
                   },
                   "usable_addresses": {
                     "type": "integer",
@@ -25377,22 +25398,22 @@
                 "reason": {
                   "oneOf": [
                     {
-                      "type": "null"
-                    },
-                    {
                       "$ref": "#/components/schemas/DiscoveryTerminalReason",
                       "description": "Why the run ended. Set on terminal payloads; absent on runs recorded before it existed.\nA daemon may send one of the reasons only it can know; the server assigns every other.\nA reason this server doesn't know reads as `None`, and the server assigns one from the\nphase."
+                    },
+                    {
+                      "type": "null"
                     }
                   ]
                 },
                 "scanned": {
                   "oneOf": [
                     {
-                      "type": "null"
-                    },
-                    {
                       "$ref": "#/components/schemas/ScannedEntityIds",
                       "description": "Canonical IDs of entities scanned in this session, populated daemon-\nside at terminal. **Transient**: stripped at `SqlValue::RunType` bind\ntime so it doesn't persist into the historical Discovery row's JSONB.\nAvailable in-memory through the `EntityOperation::Created` event\npublished for the historical Discovery row (the event scope carries\n`Entity::Discovery(...)`, the full in-memory struct), where per-entity\nFK-update subscribers consume it.\n\n`Some(...)` when the daemon is sending the terminal payload over the\nwire. `None` when read back from a persisted historical row, or when\nnot yet set."
+                    },
+                    {
+                      "type": "null"
                     }
                   ]
                 },
@@ -26486,19 +26507,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-21T23:11:20.383740Z",
+          "created_at": "2026-10-22T23:24:30.884265Z",
           "first_discovery_id": null,
-          "id": "d44f64cb-04f0-43ab-9f7a-875770b625c7",
+          "id": "d8f1499a-f4ba-4b09-966f-f1dd73d4d5e7",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-21T23:11:20.383740Z",
+          "last_seen_at": "2026-10-22T23:24:30.884265Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-21T23:11:20.383740Z",
-          "valid_from": "2026-10-21T23:11:20.383740Z",
+          "updated_at": "2026-10-22T23:24:30.884265Z",
+          "valid_from": "2026-10-22T23:24:30.884265Z",
           "valid_to": null
         }
       },
@@ -26773,11 +26794,11 @@
           "save_offer_redeemed": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/SaveOffer",
                 "description": "Whether the customer accepted the retention discount instead of cancelling."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -27042,7 +27063,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "The credential's target addresses on bridge networks of the daemon's own host."
           }
         }
       },
@@ -27340,11 +27362,11 @@
           "virtualization_metadata": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/HostVirtualization",
                 "description": "How the host is virtualized, when it is a VM or container guest."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -27393,7 +27415,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "UptimeKuma",
+              "service_definition": "Consul",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -27501,11 +27523,11 @@
           "virtualization_metadata": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/ServiceVirtualization",
                 "description": "Container identity (name, id, compose project), when it is containerized."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -27672,11 +27694,11 @@
           "daemon_os": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/OsFamily",
                 "description": "The OS of the daemons that will read this credential's files and sockets. Paths are\nvalidated for it, and a daemon on another OS cannot use the credential. Set exactly when\nthe credential reads something on the daemon; `None` otherwise."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -28077,33 +28099,33 @@
               "ssl_cert": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/FileOrInline",
                     "description": "PEM-encoded public certificate — inline or file path on daemon host"
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
               "ssl_chain": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/FileOrInline",
                     "description": "PEM-encoded CA chain — inline or file path on daemon host"
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
               "ssl_key": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/SecretValue",
                     "description": "Private key — inline PEM content or file path on daemon host"
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -28126,11 +28148,11 @@
               "socket_path": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/DaemonSocket",
                     "description": "Path to the Docker socket. Blank lets the daemon auto-detect it."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -28166,33 +28188,33 @@
               "ssl_cert": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/FileOrInline",
                     "description": "PEM-encoded public certificate — inline or file path on daemon host"
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
               "ssl_chain": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/FileOrInline",
                     "description": "PEM-encoded CA chain — inline or file path on daemon host"
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
               "ssl_key": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/SecretValue",
                     "description": "Private key — inline PEM content or file path on daemon host"
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -28215,11 +28237,11 @@
               "socket_path": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/DaemonSocket",
                     "description": "Path to the Podman socket. Blank lets the daemon auto-detect it."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -28404,10 +28426,10 @@
               "passphrase": {
                 "oneOf": [
                   {
-                    "type": "null"
+                    "$ref": "#/components/schemas/SecretValue"
                   },
                   {
-                    "$ref": "#/components/schemas/SecretValue"
+                    "type": "null"
                   }
                 ]
               },
@@ -28470,11 +28492,11 @@
               "secure_on_password": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/SecretValue",
                     "description": "SecureOn password, six bytes written as a MAC address. Only for NICs that require one."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -28763,11 +28785,11 @@
           "os": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DaemonOs",
                 "description": "The operating system the daemon runs on. Picked when the daemon is created, then checked\nagainst what the daemon reports on every handshake once it is new enough to report (see\n`version_status.supports_os_reporting`); a daemon on another OS is refused. Credentials\nset up for another OS's file paths cannot be used by it. `None` for a daemon created\nbefore this was recorded that has not yet reported."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -28953,11 +28975,11 @@
           "os": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DaemonOs",
                 "description": "The OS this daemon binary runs on. Absent from daemons up to 0.17.19."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -29007,11 +29029,11 @@
           "server_capabilities": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/ServerCapabilities",
                 "description": "Server capabilities (returned if daemon sends version info)"
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -29087,11 +29109,11 @@
           "os": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DaemonOs",
                 "description": "The OS this daemon binary runs on. Absent from daemons up to 0.17.19."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -29127,11 +29149,11 @@
           "os": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DaemonOs",
                 "description": "The OS this daemon binary runs on. Absent from daemons up to 0.17.19."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -29459,7 +29481,8 @@
           },
           "source": {
             "$ref": "#/components/schemas/EntitySource",
-            "description": "Will be automatically set to Manual for creation through API"
+            "description": "Will be automatically set to Manual for creation through API",
+            "readOnly": true
           },
           "tags": {
             "type": "array",
@@ -30137,22 +30160,22 @@
           "reason": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DiscoveryTerminalReason",
                 "description": "Why the run ended. Set on terminal payloads; absent on runs recorded before it existed.\nA daemon may send one of the reasons only it can know; the server assigns every other.\nA reason this server doesn't know reads as `None`, and the server assigns one from the\nphase."
+              },
+              {
+                "type": "null"
               }
             ]
           },
           "scanned": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/ScannedEntityIds",
                 "description": "Canonical IDs of entities scanned in this session, populated daemon-\nside at terminal. **Transient**: stripped at `SqlValue::RunType` bind\ntime so it doesn't persist into the historical Discovery row's JSONB.\nAvailable in-memory through the `EntityOperation::Created` event\npublished for the historical Discovery row (the event scope carries\n`Entity::Discovery(...)`, the full in-memory struct), where per-entity\nFK-update subscribers consume it.\n\n`Some(...)` when the daemon is sending the terminal payload over the\nwire. `None` when read back from a persisted historical row, or when\nnot yet set."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -31142,11 +31165,11 @@
               "actual_os": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/DaemonOs",
                     "description": "The OS this daemon runs, to name it. Absent on runs recorded before it was sent."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -31930,30 +31953,18 @@
         "description": "Per-user display preferences for dates and times in the UI.\n\nStored as a JSONB blob with `#[serde(default)]` on the struct, so a stored\nobject missing a key (including the `{}` every existing row starts with)\nreads as that field's default. Every default reproduces the UI's\nbehaviour from before the setting existed, except `table_density`, which\ndefaults to the tighter of its two layouts.",
         "properties": {
           "clock": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ClockFormat",
-                "description": "12- or 24-hour clock for displayed times."
-              }
-            ],
+            "$ref": "#/components/schemas/ClockFormat",
+            "description": "12- or 24-hour clock for displayed times.",
             "default": "browser_default"
           },
           "date_order": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/DateOrder",
-                "description": "Order of day, month and year in displayed dates."
-              }
-            ],
+            "$ref": "#/components/schemas/DateOrder",
+            "description": "Order of day, month and year in displayed dates.",
             "default": "browser_default"
           },
           "table_density": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/TableDensity",
-                "description": "Cell padding and row height in entity tables."
-              }
-            ],
+            "$ref": "#/components/schemas/TableDensity",
+            "description": "Cell padding and row height in entity tables.",
             "default": "compact"
           },
           "time_zone": {
@@ -31965,21 +31976,13 @@
             "default": null
           },
           "timestamps": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/TimestampStyle",
-                "description": "Whether recent events show as relative (\"3h ago\") or absolute times."
-              }
-            ],
+            "$ref": "#/components/schemas/TimestampStyle",
+            "description": "Whether recent events show as relative (\"3h ago\") or absolute times.",
             "default": "relative"
           },
           "week_start": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/WeekStart",
-                "description": "First day of the week in day pickers."
-              }
-            ],
+            "$ref": "#/components/schemas/WeekStart",
+            "description": "First day of the week in day pickers.",
             "default": "monday"
           }
         }
@@ -32761,11 +32764,11 @@
           "instances": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/InstanceUsage",
                 "description": "How many server instances the key is running on, against how many it\ncovers. Absent from clouds older than instance counting."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -33085,11 +33088,11 @@
           "field_set": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/FieldSetRole",
                 "description": "This field's part in a [`FieldSet`]: the dropdown that picks the set, or a field shown only\nfor some of its values. `None` for a field that always shows."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -33129,11 +33132,11 @@
           "inline_format": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/InlineFormat",
                 "description": "For `PathOrInline` and `SecretPathOrInline` fields: what format the inline value must be.\nAlso drives server-side validation in `CredentialType::validate`."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -33908,7 +33911,8 @@
               },
               "source": {
                 "$ref": "#/components/schemas/EntitySource",
-                "description": "How this host came to be known — discovered, imported, or created by hand."
+                "description": "How this host came to be known — discovered, imported, or created by hand.",
+                "readOnly": true
               },
               "tags": {
                 "type": "array",
@@ -33929,11 +33933,11 @@
               "virtualization_metadata": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/HostVirtualization",
                     "description": "How the host is virtualized, when it is a VM or container guest. A provider from a newer\ndaemon reads as `None` instead of rejecting the host."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -34052,11 +34056,11 @@
           "source": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/AttributeSource",
                 "description": "Where the value came from. `None` when there is no value, and for `Address`, whose column\ncarries no provenance."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -34300,7 +34304,8 @@
           },
           "asset_tag_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced the asset tag. Read-only."
+            "description": "What produced the asset tag. Read-only.",
+            "readOnly": true
           },
           "chassis_id": {
             "type": [
@@ -34311,7 +34316,8 @@
           },
           "chassis_id_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced the LLDP chassis identifier. Read-only: decided by whichever source read it."
+            "description": "What produced the LLDP chassis identifier. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "created_at": {
             "type": "string",
@@ -34334,7 +34340,8 @@
           },
           "device_type": {
             "$ref": "#/components/schemas/DeviceType",
-            "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only."
+            "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only.",
+            "readOnly": true
           },
           "display_name": {
             "type": [
@@ -34347,13 +34354,14 @@
           "display_name_rung": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/HostNameRung",
                 "description": "Which rung of the ladder produced `display_name`. `None` exactly when `display_name` is.\n\nResolved from the same [`Host::name_ladder`] call as `display_name`, so the UI can say\nwhere a host's title came from without walking the rungs itself."
+              },
+              {
+                "type": "null"
               }
-            ]
+            ],
+            "readOnly": true
           },
           "firmware_revision": {
             "type": [
@@ -34365,7 +34373,8 @@
           },
           "firmware_revision_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced the firmware revision. Read-only: decided by whichever source read it."
+            "description": "What produced the firmware revision. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "first_discovery_id": {
             "type": [
@@ -34390,7 +34399,8 @@
           },
           "hostname_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.\nRead-only: decided by whichever source read it."
+            "description": "What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.\nRead-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "id": {
             "type": "string",
@@ -34434,7 +34444,8 @@
           },
           "management_url_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced the management URL. Read-only: decided by whichever source read it."
+            "description": "What produced the management URL. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "manufacturer": {
             "type": [
@@ -34446,7 +34457,8 @@
           },
           "manufacturer_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced the manufacturer. Read-only: decided by whichever source read it."
+            "description": "What produced the manufacturer. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "model": {
             "type": [
@@ -34458,7 +34470,8 @@
           },
           "model_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced the model. Read-only: decided by whichever source read it."
+            "description": "What produced the model. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "name": {
             "type": "string",
@@ -34467,28 +34480,32 @@
           "name_ladder": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HostNameLadderEntry"
+              "$ref": "#/components/schemas/HostNameLadderEntry",
+              "readOnly": true
             },
             "description": "Every rung of the display-name ladder for this host, highest first, with what each holds."
           },
           "name_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced `name`. Read-only: it is decided by whoever supplied the name, not by the\ncaller."
+            "description": "What produced `name`. Read-only: it is decided by whoever supplied the name, not by the\ncaller.",
+            "readOnly": true
           },
           "os": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/HostOs",
                 "description": "The host's operating system. Read-only: written by whichever source read or matched it.\nLenient, so a daemon tolerates a family added on a newer server."
+              },
+              {
+                "type": "null"
               }
-            ]
+            ],
+            "readOnly": true
           },
           "os_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS\nin a string the host emitted rather than reading it off the host."
+            "description": "What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS\nin a string the host emitted rather than reading it off the host.",
+            "readOnly": true
           },
           "ports": {
             "type": "array",
@@ -34507,7 +34524,8 @@
           },
           "serial_number_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced the serial number. Read-only: decided by whichever source read it."
+            "description": "What produced the serial number. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "services": {
             "type": "array",
@@ -34531,7 +34549,8 @@
           },
           "software_revision_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced the software revision. Read-only: decided by whichever source read it."
+            "description": "What produced the software revision. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "source": {
             "$ref": "#/components/schemas/EntitySource",
@@ -34546,7 +34565,8 @@
           },
           "sys_contact_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced SNMP sysContact. Read-only: decided by whichever source read it."
+            "description": "What produced SNMP sysContact. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "sys_descr": {
             "type": [
@@ -34557,7 +34577,8 @@
           },
           "sys_descr_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced SNMP sysDescr. Read-only: decided by whichever source read it."
+            "description": "What produced SNMP sysDescr. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "sys_location": {
             "type": [
@@ -34568,7 +34589,8 @@
           },
           "sys_location_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced SNMP sysLocation. Read-only: decided by whichever source read it."
+            "description": "What produced SNMP sysLocation. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "sys_name": {
             "type": [
@@ -34580,7 +34602,8 @@
           },
           "sys_name_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced SNMP sysName. Read-only: decided by whichever source read it."
+            "description": "What produced SNMP sysName. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "sys_object_id": {
             "type": [
@@ -34591,7 +34614,8 @@
           },
           "sys_object_id_source": {
             "$ref": "#/components/schemas/AttributeSource",
-            "description": "What produced SNMP sysObjectID. Read-only: decided by whichever source read it."
+            "description": "What produced SNMP sysObjectID. Read-only: decided by whichever source read it.",
+            "readOnly": true
           },
           "tags": {
             "type": "array",
@@ -34624,11 +34648,11 @@
           "virtualization_metadata": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/HostVirtualization",
                 "description": "How the host is virtualized, when it is a VM or container guest."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -34793,19 +34817,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-21T23:11:20.382576Z",
+                  "created_at": "2026-10-22T23:24:30.883133Z",
                   "first_discovery_id": null,
-                  "id": "5a53b76b-447f-42c7-9753-3630995edb5b",
+                  "id": "1c354e44-b9b4-4847-9a62-83806f461808",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-21T23:11:20.382576Z",
+                  "last_seen_at": "2026-10-22T23:24:30.883133Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-21T23:11:20.382576Z",
-                  "valid_from": "2026-10-21T23:11:20.382576Z",
+                  "updated_at": "2026-10-22T23:24:30.883133Z",
+                  "valid_from": "2026-10-22T23:24:30.883133Z",
                   "valid_to": null
                 }
               ],
@@ -34818,7 +34842,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "UptimeKuma",
+              "service_definition": "Consul",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -35910,11 +35934,11 @@
               "admin_status": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/IfAdminStatus",
                     "description": "SNMP ifAdminStatus: 1=up, 2=down, 3=testing, or `None` where nothing read it.\n\nOptional rather than defaulting to `Up`: an advertisement carries no status, and recording\none as up would be a claim nothing made."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -35994,11 +36018,11 @@
               "oper_status": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/IfOperStatus",
                     "description": "SNMP ifOperStatus: 1=up, 2=down, 3=testing, 4=unknown, 5=dormant, 6=notPresent,\n7=lowerLayerDown — or `None` where nothing read it.\n\nDeliberately not `IfOperStatus::Unknown`, which is the MIB's value 4 and means *the device\nsaid it does not know*. \"We never asked\" is a different statement, and folding the two\nwould make an inferred port indistinguishable from one that reported unknown."
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -36068,11 +36092,11 @@
           "admin_status": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/IfAdminStatus",
                 "description": "SNMP ifAdminStatus"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -36125,11 +36149,11 @@
           "oper_status": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/IfOperStatus",
                 "description": "SNMP ifOperStatus"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -36229,11 +36253,11 @@
           "lldp_chassis_id": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/LldpChassisId",
                 "description": "Remote chassis identifier from LLDP neighbor (globally/locally unique)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -36255,11 +36279,11 @@
           "lldp_port_id": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/LldpPortId",
                 "description": "Remote port identifier from LLDP neighbor"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -36495,10 +36519,10 @@
           "tax_id": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/InvoiceBillingTaxId"
               },
               {
-                "$ref": "#/components/schemas/InvoiceBillingTaxId"
+                "type": "null"
               }
             ]
           }
@@ -36529,11 +36553,11 @@
           "plan": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/BillingPlan",
                 "description": "Plan to invoice for. Required only when the organization has no live\nsubscription (a returning customer with no trial left); otherwise the\ncurrent plan is used and this is ignored."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -36553,20 +36577,20 @@
           "open_invoice": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/InvoiceSummary"
               },
               {
-                "$ref": "#/components/schemas/InvoiceSummary"
+                "type": "null"
               }
             ]
           },
           "pending_quote": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/PendingQuote"
               },
               {
-                "$ref": "#/components/schemas/PendingQuote"
+                "type": "null"
               }
             ]
           },
@@ -36580,11 +36604,11 @@
           "written_off_invoice": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/InvoiceSummary",
                 "description": "An invoice this customer defaulted on and we wrote off. While one\nstands, they cannot take payment terms again."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -37651,11 +37675,11 @@
               "color": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/Color",
                     "description": "Display color (set by graph builder from the source entity, e.g. subnet type)"
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               },
@@ -37848,11 +37872,11 @@
           "site": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/OnboardingSiteState",
                 "description": "Site from pending setup (with name and ID)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -37874,11 +37898,11 @@
           "use_case": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/UseCase",
                 "description": "Use case selection (homelab, company, msp)"
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -37898,11 +37922,11 @@
           "use_case": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/UseCase",
                 "description": "Use case selection (homelab, company, msp)"
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -38018,13 +38042,14 @@
           "last_downgrade_from_plan": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/BillingPlan",
                 "description": "Plan downgraded from at `last_downgrade_at`; pairs with the timestamp\nso the banner can render \"you downgraded from Pro\"."
+              },
+              {
+                "type": "null"
               }
-            ]
+            ],
+            "readOnly": true
           },
           "last_paused_at": {
             "type": [
@@ -38069,31 +38094,34 @@
           "onboarding": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/OnboardingOperationDiscriminants"
+              "$ref": "#/components/schemas/OnboardingOperationDiscriminants",
+              "readOnly": true
             },
             "description": "Progress through first-run setup."
           },
           "plan": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/BillingPlan",
                 "description": "The plan this organization is on."
+              },
+              {
+                "type": "null"
               }
-            ]
+            ],
+            "readOnly": true
           },
           "plan_status": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/PlanStatus",
                 "description": "Current billing state of that plan."
+              },
+              {
+                "type": "null"
               }
-            ]
+            ],
+            "readOnly": true
           },
           "trial_end_date": {
             "type": [
@@ -38145,7 +38173,7 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.18.2"
+            "example": "0.19.0"
           }
         },
         "example": {
@@ -38156,7 +38184,7 @@
             "offset": 0,
             "total_count": 142
           },
-          "server_version": "0.18.2"
+          "server_version": "0.19.0"
         }
       },
       "PaginatedApiResponse_Credential": {
@@ -38555,7 +38583,8 @@
                 },
                 "asset_tag_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced the asset tag. Read-only."
+                  "description": "What produced the asset tag. Read-only.",
+                  "readOnly": true
                 },
                 "chassis_id": {
                   "type": [
@@ -38566,7 +38595,8 @@
                 },
                 "chassis_id_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced the LLDP chassis identifier. Read-only: decided by whichever source read it."
+                  "description": "What produced the LLDP chassis identifier. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "created_at": {
                   "type": "string",
@@ -38589,7 +38619,8 @@
                 },
                 "device_type": {
                   "$ref": "#/components/schemas/DeviceType",
-                  "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only."
+                  "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only.",
+                  "readOnly": true
                 },
                 "display_name": {
                   "type": [
@@ -38602,13 +38633,14 @@
                 "display_name_rung": {
                   "oneOf": [
                     {
-                      "type": "null"
-                    },
-                    {
                       "$ref": "#/components/schemas/HostNameRung",
                       "description": "Which rung of the ladder produced `display_name`. `None` exactly when `display_name` is.\n\nResolved from the same [`Host::name_ladder`] call as `display_name`, so the UI can say\nwhere a host's title came from without walking the rungs itself."
+                    },
+                    {
+                      "type": "null"
                     }
-                  ]
+                  ],
+                  "readOnly": true
                 },
                 "firmware_revision": {
                   "type": [
@@ -38620,7 +38652,8 @@
                 },
                 "firmware_revision_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced the firmware revision. Read-only: decided by whichever source read it."
+                  "description": "What produced the firmware revision. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "first_discovery_id": {
                   "type": [
@@ -38645,7 +38678,8 @@
                 },
                 "hostname_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.\nRead-only: decided by whichever source read it."
+                  "description": "What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.\nRead-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "id": {
                   "type": "string",
@@ -38689,7 +38723,8 @@
                 },
                 "management_url_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced the management URL. Read-only: decided by whichever source read it."
+                  "description": "What produced the management URL. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "manufacturer": {
                   "type": [
@@ -38701,7 +38736,8 @@
                 },
                 "manufacturer_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced the manufacturer. Read-only: decided by whichever source read it."
+                  "description": "What produced the manufacturer. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "model": {
                   "type": [
@@ -38713,7 +38749,8 @@
                 },
                 "model_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced the model. Read-only: decided by whichever source read it."
+                  "description": "What produced the model. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "name": {
                   "type": "string",
@@ -38722,28 +38759,32 @@
                 "name_ladder": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/HostNameLadderEntry"
+                    "$ref": "#/components/schemas/HostNameLadderEntry",
+                    "readOnly": true
                   },
                   "description": "Every rung of the display-name ladder for this host, highest first, with what each holds."
                 },
                 "name_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced `name`. Read-only: it is decided by whoever supplied the name, not by the\ncaller."
+                  "description": "What produced `name`. Read-only: it is decided by whoever supplied the name, not by the\ncaller.",
+                  "readOnly": true
                 },
                 "os": {
                   "oneOf": [
                     {
-                      "type": "null"
-                    },
-                    {
                       "$ref": "#/components/schemas/HostOs",
                       "description": "The host's operating system. Read-only: written by whichever source read or matched it.\nLenient, so a daemon tolerates a family added on a newer server."
+                    },
+                    {
+                      "type": "null"
                     }
-                  ]
+                  ],
+                  "readOnly": true
                 },
                 "os_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS\nin a string the host emitted rather than reading it off the host."
+                  "description": "What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS\nin a string the host emitted rather than reading it off the host.",
+                  "readOnly": true
                 },
                 "ports": {
                   "type": "array",
@@ -38762,7 +38803,8 @@
                 },
                 "serial_number_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced the serial number. Read-only: decided by whichever source read it."
+                  "description": "What produced the serial number. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "services": {
                   "type": "array",
@@ -38786,7 +38828,8 @@
                 },
                 "software_revision_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced the software revision. Read-only: decided by whichever source read it."
+                  "description": "What produced the software revision. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "source": {
                   "$ref": "#/components/schemas/EntitySource",
@@ -38801,7 +38844,8 @@
                 },
                 "sys_contact_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced SNMP sysContact. Read-only: decided by whichever source read it."
+                  "description": "What produced SNMP sysContact. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "sys_descr": {
                   "type": [
@@ -38812,7 +38856,8 @@
                 },
                 "sys_descr_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced SNMP sysDescr. Read-only: decided by whichever source read it."
+                  "description": "What produced SNMP sysDescr. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "sys_location": {
                   "type": [
@@ -38823,7 +38868,8 @@
                 },
                 "sys_location_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced SNMP sysLocation. Read-only: decided by whichever source read it."
+                  "description": "What produced SNMP sysLocation. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "sys_name": {
                   "type": [
@@ -38835,7 +38881,8 @@
                 },
                 "sys_name_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced SNMP sysName. Read-only: decided by whichever source read it."
+                  "description": "What produced SNMP sysName. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "sys_object_id": {
                   "type": [
@@ -38846,7 +38893,8 @@
                 },
                 "sys_object_id_source": {
                   "$ref": "#/components/schemas/AttributeSource",
-                  "description": "What produced SNMP sysObjectID. Read-only: decided by whichever source read it."
+                  "description": "What produced SNMP sysObjectID. Read-only: decided by whichever source read it.",
+                  "readOnly": true
                 },
                 "tags": {
                   "type": "array",
@@ -38879,11 +38927,11 @@
                 "virtualization_metadata": {
                   "oneOf": [
                     {
-                      "type": "null"
-                    },
-                    {
                       "$ref": "#/components/schemas/HostVirtualization",
                       "description": "How the host is virtualized, when it is a VM or container guest."
+                    },
+                    {
+                      "type": "null"
                     }
                   ]
                 },
@@ -39048,19 +39096,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-21T23:11:20.373392Z",
+                        "created_at": "2026-10-22T23:24:30.874499Z",
                         "first_discovery_id": null,
-                        "id": "73e2f883-302e-454c-b837-763ed03b6b95",
+                        "id": "3e75c5da-9f99-4059-9115-e683de077600",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-21T23:11:20.373392Z",
+                        "last_seen_at": "2026-10-22T23:24:30.874499Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-21T23:11:20.373392Z",
-                        "valid_from": "2026-10-21T23:11:20.373392Z",
+                        "updated_at": "2026-10-22T23:24:30.874499Z",
+                        "valid_from": "2026-10-22T23:24:30.874499Z",
                         "valid_to": null
                       }
                     ],
@@ -39073,7 +39121,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "UptimeKuma",
+                    "service_definition": "Consul",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -39320,19 +39368,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-21T23:11:20.406362Z",
+                    "created_at": "2026-10-22T23:24:30.904818Z",
                     "first_discovery_id": null,
-                    "id": "db122423-7c38-462c-9b08-8323c9970cd6",
+                    "id": "6df49081-0fd6-4f3d-bf6c-7302379eccb1",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-21T23:11:20.406362Z",
+                    "last_seen_at": "2026-10-22T23:24:30.904818Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-21T23:11:20.406362Z",
-                    "valid_from": "2026-10-21T23:11:20.406362Z",
+                    "updated_at": "2026-10-22T23:24:30.904818Z",
+                    "valid_from": "2026-10-22T23:24:30.904818Z",
                     "valid_to": null
                   }
                 ],
@@ -39345,7 +39393,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "UptimeKuma",
+                "service_definition": "Consul",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -39431,13 +39479,14 @@
                     "range_evidence": {
                       "oneOf": [
                         {
-                          "type": "null"
-                        },
-                        {
                           "$ref": "#/components/schemas/RangeEvidence",
                           "description": "For a range Scanopy assumed from what LLDP/CDP neighbours published, the far ends it was\ndrawn around and the devices that saw them. `null` for every other range, and for an\nassumed one no scan created."
+                        },
+                        {
+                          "type": "null"
                         }
-                      ]
+                      ],
+                      "readOnly": true
                     },
                     "usable_addresses": {
                       "type": "integer",
@@ -40522,11 +40571,11 @@
           "os": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DaemonOs",
                 "description": "The operating system picked in the create-daemon modal. Recorded on the daemon so a\ncredential set up for another OS's file paths can be refused for it. Ignored when\n`daemon_id` is set."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -40653,11 +40702,11 @@
           "guest_type": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/ProxmoxGuestType",
                 "description": "Whether the guest is a QEMU virtual machine or an LXC container. `None` when the guest was\nassigned by hand or recorded before the Proxmox integration reported it."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -40706,11 +40755,11 @@
           "available_upgrade": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/AvailableUpgrade",
                 "description": "The newest promoted release, when it is newer than this server. `None`\non cloud, with `SCANOPY_DISABLE_UPDATE_CHECK` set, before the first\ncheck answers, or when this server is current."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -40761,11 +40810,11 @@
           "license_instances": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/InstanceUsage",
                 "description": "How many server instances this instance's online key is running on,\nagainst how many it covers, as Scanopy Cloud reported at the last\ncheck-in. Online keys only."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -40792,11 +40841,11 @@
           "license_key_type": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/LicenseKeyType",
                 "description": "Whether the configured key is an offline key or an online key that\nfetches its entitlement from Scanopy Cloud. `None` when no key applies."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -40807,11 +40856,11 @@
           "license_status": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/LicenseStatusDiscriminants",
                 "description": "Runtime state of the configured license key. `None` on deployments\nthat don't require one (community and cloud)."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -42035,19 +42084,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-21T23:11:20.383568Z",
+              "created_at": "2026-10-22T23:24:30.884108Z",
               "first_discovery_id": null,
-              "id": "2a087cd8-1622-4d49-acf3-f95c80083a08",
+              "id": "bc2ffab8-2a44-4cbf-974e-7df5ff3d0805",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-21T23:11:20.383568Z",
+              "last_seen_at": "2026-10-22T23:24:30.884108Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-21T23:11:20.383568Z",
-              "valid_from": "2026-10-21T23:11:20.383568Z",
+              "updated_at": "2026-10-22T23:24:30.884108Z",
+              "valid_from": "2026-10-22T23:24:30.884108Z",
               "valid_to": null
             }
           ],
@@ -42060,7 +42109,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "UptimeKuma",
+          "service_definition": "Consul",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -42119,7 +42168,8 @@
           },
           "source": {
             "$ref": "#/components/schemas/EntitySource",
-            "description": "Will be automatically set to Manual for creation through API"
+            "description": "Will be automatically set to Manual for creation through API",
+            "readOnly": true
           },
           "tags": {
             "type": "array",
@@ -42132,11 +42182,11 @@
           "virtualization_metadata": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/ServiceVirtualization",
                 "description": "Container runtime the service runs in, when it is containerized."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -42243,11 +42293,11 @@
           "virtualization_metadata": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/ServiceVirtualization",
                 "description": "Container identity (name, id, compose project) if this service is a container."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -42376,11 +42426,11 @@
           "site": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/SiteSetup",
                 "description": "The first site to create alongside the organization. `None` for a\nself-hosted license buyer, whose cloud org gets its site only if it\nlater moves to a cloud plan."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -42887,7 +42937,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SnmpV3SecurityOption"
-            }
+            },
+            "description": "The options the credential uses, each one a reason older daemons reject it."
           }
         }
       },
@@ -43482,13 +43533,14 @@
               "range_evidence": {
                 "oneOf": [
                   {
-                    "type": "null"
-                  },
-                  {
                     "$ref": "#/components/schemas/RangeEvidence",
                     "description": "For a range Scanopy assumed from what LLDP/CDP neighbours published, the far ends it was\ndrawn around and the devices that saw them. `null` for every other range, and for an\nassumed one no scan created."
+                  },
+                  {
+                    "type": "null"
                   }
-                ]
+                ],
+                "readOnly": true
               },
               "usable_addresses": {
                 "type": "integer",
@@ -43667,11 +43719,11 @@
           "icon": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/TagIcon",
                 "description": "Icon drawn on the tag. Application tags always use the application icon."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -43782,7 +43834,8 @@
           },
           "group_type": {
             "$ref": "#/components/schemas/TagGroupType",
-            "description": "Whether this is a system group or one the organization named. Set by the server: groups\ncreated through the API are always `Custom`."
+            "description": "Whether this is a system group or one the organization named. Set by the server: groups\ncreated through the API are always `Custom`.",
+            "readOnly": true
           },
           "name": {
             "type": "string",
@@ -44182,7 +44235,8 @@
             "properties": {
               "device_type": {
                 "$ref": "#/components/schemas/DeviceType",
-                "description": "What this host is, as a device: the device type its icon shows. See [`Host::device_type`]."
+                "description": "What this host is, as a device: the device type its icon shows. See [`Host::device_type`].",
+                "readOnly": true
               },
               "display_name": {
                 "type": [
@@ -44200,15 +44254,23 @@
                   "readOnly": true
                 },
                 "propertyNames": {
-                  "type": "string",
-                  "description": "The type of metadata filter. One variant per conceptually-distinct filter\nacross the app — Category (on Service), Virtualization (on Host), and so\non. Kept narrow on purpose: adding a new filter means adding a variant\nhere + a `HasFilterValues` impl on the relevant entity.",
-                  "enum": [
-                    "Category",
-                    "Virtualization",
-                    "LinkState",
-                    "Staleness",
-                    "OperStatus",
-                    "GuestState"
+                  "allOf": [
+                    {
+                      "type": "string",
+                      "description": "The type of metadata filter. One variant per conceptually-distinct filter\nacross the app — Category (on Service), Virtualization (on Host), and so\non. Kept narrow on purpose: adding a new filter means adding a variant\nhere + a `HasFilterValues` impl on the relevant entity.",
+                      "enum": [
+                        "Category",
+                        "Virtualization",
+                        "LinkState",
+                        "Staleness",
+                        "OperStatus",
+                        "GuestState"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "readOnly": true
+                    }
                   ]
                 }
               }
@@ -44233,15 +44295,23 @@
                   "readOnly": true
                 },
                 "propertyNames": {
-                  "type": "string",
-                  "description": "The type of metadata filter. One variant per conceptually-distinct filter\nacross the app — Category (on Service), Virtualization (on Host), and so\non. Kept narrow on purpose: adding a new filter means adding a variant\nhere + a `HasFilterValues` impl on the relevant entity.",
-                  "enum": [
-                    "Category",
-                    "Virtualization",
-                    "LinkState",
-                    "Staleness",
-                    "OperStatus",
-                    "GuestState"
+                  "allOf": [
+                    {
+                      "type": "string",
+                      "description": "The type of metadata filter. One variant per conceptually-distinct filter\nacross the app — Category (on Service), Virtualization (on Host), and so\non. Kept narrow on purpose: adding a new filter means adding a variant\nhere + a `HasFilterValues` impl on the relevant entity.",
+                      "enum": [
+                        "Category",
+                        "Virtualization",
+                        "LinkState",
+                        "Staleness",
+                        "OperStatus",
+                        "GuestState"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "readOnly": true
+                    }
                   ]
                 }
               }
@@ -44353,7 +44423,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "3a899a06-648f-43d1-8408-8376db5c191f",
+                  "id": "8712409e-56ca-4d0c-8bfd-b7e56d46304b",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -44363,23 +44433,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "2282f87d-f7e7-4a7c-a364-78468c2d8ff2",
+                  "id": "c40e2571-08a8-4c49-831b-7b3809e65f0b",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "db02bad3-084a-40a7-ab69-59597b17b24f",
+                  "id": "bf33e9ec-03df-4251-b255-06a6928480fc",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "9ffa7fa7-2d80-4b78-aafc-d05fc2011432",
+                  "id": "e02250f0-999c-4363-ae68-fd2ec527df21",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "2282f87d-f7e7-4a7c-a364-78468c2d8ff2",
+                  "id": "c40e2571-08a8-4c49-831b-7b3809e65f0b",
                   "rule": "ByHost"
                 }
               ]
@@ -44409,19 +44479,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "be918625-cd8c-44cb-97e9-12326de9eff6",
+                "id": "b27cc6fe-9c4b-4c09-89be-fb840a6806dc",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "a9736787-2d4a-4153-a548-046799546914",
+                "id": "70cd4663-42a4-45fe-9854-5ccf0a0fc8a2",
                 "rule": "ByVLAN"
               },
               {
-                "id": "03351e51-5041-4758-8962-8c52802cfb95",
+                "id": "399a36b8-3014-4bac-a623-e1002bfea0a8",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "7ffa55aa-966e-43ef-839d-77a6638d64b4",
+                "id": "ceae203e-fee9-455d-b53d-c70be71274ca",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -44442,7 +44512,7 @@
                 }
               },
               {
-                "id": "e2109d5e-9225-4701-972b-a6ed08caa0f3",
+                "id": "00ca0008-842b-47f6-8d1f-4f16a28fea2e",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -44451,15 +44521,15 @@
                 }
               },
               {
-                "id": "721d3ec5-3017-4bd5-979d-2e4d0deb9822",
+                "id": "b834e016-55f4-4d9f-a38e-c2966f9871dd",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "bd622712-19fd-41d2-a533-5604d0106f18",
+                "id": "3465a289-b9ad-4b15-8ada-95c48530420b",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "66909583-3eaa-4774-aca0-c311516a0992",
+                "id": "5656a689-7335-4bbb-a3f5-6bd31d33d38f",
                 "rule": "ByStack"
               }
             ]
@@ -44622,15 +44692,23 @@
                   "readOnly": true
                 },
                 "propertyNames": {
-                  "type": "string",
-                  "description": "The type of metadata filter. One variant per conceptually-distinct filter\nacross the app — Category (on Service), Virtualization (on Host), and so\non. Kept narrow on purpose: adding a new filter means adding a variant\nhere + a `HasFilterValues` impl on the relevant entity.",
-                  "enum": [
-                    "Category",
-                    "Virtualization",
-                    "LinkState",
-                    "Staleness",
-                    "OperStatus",
-                    "GuestState"
+                  "allOf": [
+                    {
+                      "type": "string",
+                      "description": "The type of metadata filter. One variant per conceptually-distinct filter\nacross the app — Category (on Service), Virtualization (on Host), and so\non. Kept narrow on purpose: adding a new filter means adding a variant\nhere + a `HasFilterValues` impl on the relevant entity.",
+                      "enum": [
+                        "Category",
+                        "Virtualization",
+                        "LinkState",
+                        "Staleness",
+                        "OperStatus",
+                        "GuestState"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "readOnly": true
+                    }
                   ]
                 }
               }
@@ -44963,11 +45041,11 @@
           "virtualization_metadata": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/HostVirtualization",
                 "description": "How the host is virtualized, when it is a VM or container guest."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -45473,11 +45551,11 @@
           "container_entity": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/EntityDiscriminants",
                 "description": "Entity rendered as the container/grouping box (e.g. Subnet in L3, Host in L2/Workloads)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -45614,11 +45692,11 @@
           "dependency_creation": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DependencyMemberType",
                 "description": "What type of member a dependency can be drawn between in this view."
+              },
+              {
+                "type": "null"
               }
             ]
           },

@@ -4100,7 +4100,7 @@ export interface components {
          * @description API metadata included in all responses
          * @example {
          *       "api_version": 1,
-         *       "server_version": "0.18.2"
+         *       "server_version": "0.19.0"
          *     }
          */
         ApiMeta: {
@@ -4111,7 +4111,7 @@ export interface components {
             api_version: number;
             /**
              * @description Server version (semver)
-             * @example 0.18.2
+             * @example 0.19.0
              */
             server_version: string;
         };
@@ -4121,7 +4121,7 @@ export interface components {
          */
         ApiResponse: {
             /** @description The result payload. Omitted on failure. */
-            data?: null | components["schemas"]["TupleUnit"];
+            data?: components["schemas"]["TupleUnit"] | null;
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
              *     `ApiErrorResponse`.
@@ -4140,19 +4140,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-21T23:11:20.328453Z",
+             *       "created_at": "2026-10-22T23:24:30.832627Z",
              *       "first_discovery_id": null,
-             *       "id": "ebce3b6e-11cd-4def-9562-7c1c5f966771",
+             *       "id": "fc6c2dca-1633-473a-bfca-7132fb921d9b",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-21T23:11:20.328453Z",
+             *       "last_seen_at": "2026-10-22T23:24:30.832627Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-21T23:11:20.328453Z",
-             *       "valid_from": "2026-10-21T23:11:20.328453Z",
+             *       "updated_at": "2026-10-22T23:24:30.832627Z",
+             *       "valid_from": "2026-10-22T23:24:30.832627Z",
              *       "valid_to": null
              *     }
              */
@@ -4482,7 +4482,7 @@ export interface components {
                  * @description The host this entity belongs to.
                  */
                 host_id: string;
-                server_capabilities?: null | components["schemas"]["ServerCapabilities"];
+                server_capabilities?: components["schemas"]["ServerCapabilities"] | null;
             };
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
@@ -4804,8 +4804,8 @@ export interface components {
                  * @description Completion of the current phase, from 0 to 1.
                  */
                 progress: number;
-                reason?: null | components["schemas"]["DiscoveryTerminalReason"];
-                scanned?: null | components["schemas"]["ScannedEntityIds"];
+                reason?: components["schemas"]["DiscoveryTerminalReason"] | null;
+                scanned?: components["schemas"]["ScannedEntityIds"] | null;
                 /**
                  * Format: uuid
                  * @description The discovery run this update belongs to.
@@ -4854,7 +4854,7 @@ export interface components {
                  *     with `org_id` and `plan` set from the organization's current state.
                  */
                 entitlement: string;
-                instances?: null | components["schemas"]["InstanceUsage"];
+                instances?: components["schemas"]["InstanceUsage"] | null;
             };
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
@@ -5028,19 +5028,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-21T23:11:20.295732Z",
+             *               "created_at": "2026-10-22T23:24:30.797940Z",
              *               "first_discovery_id": null,
-             *               "id": "c965b886-c617-4992-a8fd-8a20e6bf65cf",
+             *               "id": "1eb91317-7aa9-4574-9e4b-588aaf5d3fdf",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-21T23:11:20.295732Z",
+             *               "last_seen_at": "2026-10-22T23:24:30.797940Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-21T23:11:20.295732Z",
-             *               "valid_from": "2026-10-21T23:11:20.295732Z",
+             *               "updated_at": "2026-10-22T23:24:30.797940Z",
+             *               "valid_from": "2026-10-22T23:24:30.797940Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5053,7 +5053,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "UptimeKuma",
+             *           "service_definition": "Consul",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -5094,11 +5094,11 @@ export interface components {
                  */
                 readonly asset_tag?: string | null;
                 /** @description What produced the asset tag. Read-only. */
-                asset_tag_source?: components["schemas"]["AttributeSource"];
+                readonly asset_tag_source?: components["schemas"]["AttributeSource"];
                 /** @description LLDP chassis identifier, used to match the host to its neighbours. */
                 chassis_id?: string | null;
                 /** @description What produced the LLDP chassis identifier. Read-only: decided by whichever source read it. */
-                chassis_id_source?: components["schemas"]["AttributeSource"];
+                readonly chassis_id_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: date-time
                  * @description When this record was first created.
@@ -5113,7 +5113,7 @@ export interface components {
                  *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
                  *     Read-only.
                  */
-                device_type?: components["schemas"]["DeviceType"];
+                readonly device_type?: components["schemas"]["DeviceType"];
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -5125,11 +5125,11 @@ export interface components {
                  *     list and another on the map.
                  */
                 readonly display_name?: string | null;
-                display_name_rung?: null | components["schemas"]["HostNameRung"];
+                readonly display_name_rung?: components["schemas"]["HostNameRung"] | null;
                 /** @description ENTITY-MIB entPhysicalFirmwareRev — firmware revision of the device. Read-only, as above. */
                 readonly firmware_revision: string | null;
                 /** @description What produced the firmware revision. Read-only: decided by whichever source read it. */
-                firmware_revision_source?: components["schemas"]["AttributeSource"];
+                readonly firmware_revision_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: uuid
                  * @description The discovery run that first observed this host. Drives the "First found by" column.
@@ -5146,7 +5146,7 @@ export interface components {
                  * @description What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.
                  *     Read-only: decided by whichever source read it.
                  */
-                hostname_source?: components["schemas"]["AttributeSource"];
+                readonly hostname_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: uuid
                  * @description Server-assigned unique identifier.
@@ -5171,15 +5171,15 @@ export interface components {
                 /** @description Link to the host's own management interface. */
                 management_url?: string | null;
                 /** @description What produced the management URL. Read-only: decided by whichever source read it. */
-                management_url_source?: components["schemas"]["AttributeSource"];
+                readonly management_url_source?: components["schemas"]["AttributeSource"];
                 /** @description ENTITY-MIB entPhysicalMfgName — hardware manufacturer. Read-only, as above. */
                 readonly manufacturer?: string | null;
                 /** @description What produced the manufacturer. Read-only: decided by whichever source read it. */
-                manufacturer_source?: components["schemas"]["AttributeSource"];
+                readonly manufacturer_source?: components["schemas"]["AttributeSource"];
                 /** @description ENTITY-MIB entPhysicalModelName — hardware model. Read-only, as above. */
                 readonly model?: string | null;
                 /** @description What produced the model. Read-only: decided by whichever source read it. */
-                model_source?: components["schemas"]["AttributeSource"];
+                readonly model_source?: components["schemas"]["AttributeSource"];
                 /** @description Human-facing name for the host. */
                 name: string;
                 /** @description Every rung of the display-name ladder for this host, highest first, with what each holds. */
@@ -5188,19 +5188,19 @@ export interface components {
                  * @description What produced `name`. Read-only: it is decided by whoever supplied the name, not by the
                  *     caller.
                  */
-                name_source?: components["schemas"]["AttributeSource"];
-                os: null | components["schemas"]["HostOs"];
+                readonly name_source?: components["schemas"]["AttributeSource"];
+                readonly os: components["schemas"]["HostOs"] | null;
                 /**
                  * @description What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS
                  *     in a string the host emitted rather than reading it off the host.
                  */
-                os_source?: components["schemas"]["AttributeSource"];
+                readonly os_source?: components["schemas"]["AttributeSource"];
                 /** @description Open ports on this host. */
                 ports: components["schemas"]["Port"][];
                 /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
                 readonly serial_number?: string | null;
                 /** @description What produced the serial number. Read-only: decided by whichever source read it. */
-                serial_number_source?: components["schemas"]["AttributeSource"];
+                readonly serial_number_source?: components["schemas"]["AttributeSource"];
                 /** @description Services running on this host. */
                 services: components["schemas"]["Service"][];
                 /**
@@ -5211,32 +5211,32 @@ export interface components {
                 /** @description ENTITY-MIB entPhysicalSoftwareRev — software revision of the device. Read-only, as above. */
                 readonly software_revision: string | null;
                 /** @description What produced the software revision. Read-only: decided by whichever source read it. */
-                software_revision_source?: components["schemas"]["AttributeSource"];
+                readonly software_revision_source?: components["schemas"]["AttributeSource"];
                 /** @description How this host came to be known — discovered, imported, or created by hand. */
                 source: components["schemas"]["EntitySource"];
                 /** @description SNMP sysContact — administrative contact as configured on the device. */
                 sys_contact?: string | null;
                 /** @description What produced SNMP sysContact. Read-only: decided by whichever source read it. */
-                sys_contact_source?: components["schemas"]["AttributeSource"];
+                readonly sys_contact_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysDescr — the device's own description of itself. */
                 sys_descr?: string | null;
                 /** @description What produced SNMP sysDescr. Read-only: decided by whichever source read it. */
-                sys_descr_source?: components["schemas"]["AttributeSource"];
+                readonly sys_descr_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysLocation — physical location as configured on the device. */
                 sys_location?: string | null;
                 /** @description What produced SNMP sysLocation. Read-only: decided by whichever source read it. */
-                sys_location_source?: components["schemas"]["AttributeSource"];
+                readonly sys_location_source?: components["schemas"]["AttributeSource"];
                 /**
                  * @description SNMP sysName.0 — the administratively-assigned hostname. Read-only: discovery collects it
                  *     from the device, so neither create nor update accepts it.
                  */
                 readonly sys_name?: string | null;
                 /** @description What produced SNMP sysName. Read-only: decided by whichever source read it. */
-                sys_name_source?: components["schemas"]["AttributeSource"];
+                readonly sys_name_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysObjectID — the vendor's identifier for the device model. */
                 sys_object_id?: string | null;
                 /** @description What produced SNMP sysObjectID. Read-only: decided by whichever source read it. */
-                sys_object_id_source?: components["schemas"]["AttributeSource"];
+                readonly sys_object_id_source?: components["schemas"]["AttributeSource"];
                 /** @description Tags assigned to this entity. */
                 tags: string[];
                 /**
@@ -5254,7 +5254,7 @@ export interface components {
                  * @description The interface on the virtualizing host that presents this host, for a network identity.
                  */
                 virtualization_interface_id?: string | null;
-                virtualization_metadata?: null | components["schemas"]["HostVirtualization"];
+                virtualization_metadata?: components["schemas"]["HostVirtualization"] | null;
                 /**
                  * Format: uuid
                  * @description The host this one runs under: the host of its virtualizing service.
@@ -5543,11 +5543,11 @@ export interface components {
             data?: {
                 /** @description The subscription is billed by sent invoice. */
                 bills_by_invoice: boolean;
-                open_invoice?: null | components["schemas"]["InvoiceSummary"];
-                pending_quote?: null | components["schemas"]["PendingQuote"];
+                open_invoice?: components["schemas"]["InvoiceSummary"] | null;
+                pending_quote?: components["schemas"]["PendingQuote"] | null;
                 /** @description Purchase order number printed on invoices. */
                 po_number?: string | null;
-                written_off_invoice?: null | components["schemas"]["InvoiceSummary"];
+                written_off_invoice?: components["schemas"]["InvoiceSummary"] | null;
             };
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
@@ -5615,7 +5615,7 @@ export interface components {
             data?: {
                 /** @description Organization name from pending setup */
                 org_name?: string | null;
-                site?: null | components["schemas"]["OnboardingSiteState"];
+                site?: components["schemas"]["OnboardingSiteState"] | null;
                 /**
                  * Format: uuid
                  * @description Site ID from pending setup (if any)
@@ -5623,7 +5623,7 @@ export interface components {
                 site_id?: string | null;
                 /** @description Current onboarding step (if any) */
                 step?: string | null;
-                use_case?: null | components["schemas"]["UseCase"];
+                use_case?: components["schemas"]["UseCase"] | null;
             };
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
@@ -5848,7 +5848,7 @@ export interface components {
         ApiResponse_PublicConfigResponse: {
             /** @description The result payload. Omitted on failure. */
             data?: {
-                available_upgrade?: null | components["schemas"]["AvailableUpgrade"];
+                available_upgrade?: components["schemas"]["AvailableUpgrade"] | null;
                 /** @description How this instance is run: cloud, commercial self-hosted, or community. */
                 deployment_type: components["schemas"]["DeploymentType"];
                 /** @description Whether email/password login is turned off, leaving OIDC as the only method. */
@@ -5882,7 +5882,7 @@ export interface components {
                  *     the hard `exp` — the silent grace window.
                  */
                 license_in_grace_period: boolean;
-                license_instances?: null | components["schemas"]["InstanceUsage"];
+                license_instances?: components["schemas"]["InstanceUsage"] | null;
                 /**
                  * Format: date
                  * @description User-visible expiry — the date displayed to end users under
@@ -5902,7 +5902,7 @@ export interface components {
                  * @description Further days past the user-visible expiry before a key stops working.
                  */
                 license_key_grace_days: number;
-                license_key_type?: null | components["schemas"]["LicenseKeyType"];
+                license_key_type?: components["schemas"]["LicenseKeyType"] | null;
                 /**
                  * @description Whether this deployment can sign license keys. False on any server
                  *     without a signing key, where the Settings License tab and the
@@ -5911,7 +5911,7 @@ export interface components {
                  *     key can be present but unparseable.
                  */
                 license_signing_available: boolean;
-                license_status?: null | components["schemas"]["LicenseStatusDiscriminants"];
+                license_status?: components["schemas"]["LicenseStatusDiscriminants"] | null;
                 /**
                  * Format: date-time
                  * @description End of the paid period, shown as "Valid through" and in the expiry
@@ -6052,19 +6052,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-21T23:11:20.322827Z",
+             *           "created_at": "2026-10-22T23:24:30.827090Z",
              *           "first_discovery_id": null,
-             *           "id": "ae3d1f14-e29f-4f87-880a-8a88251ab1cb",
+             *           "id": "c87c9317-ad74-4576-ba13-b477778df3a4",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-21T23:11:20.322827Z",
+             *           "last_seen_at": "2026-10-22T23:24:30.827090Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-21T23:11:20.322827Z",
-             *           "valid_from": "2026-10-21T23:11:20.322827Z",
+             *           "updated_at": "2026-10-22T23:24:30.827090Z",
+             *           "valid_from": "2026-10-22T23:24:30.827090Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6077,7 +6077,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "UptimeKuma",
+             *       "service_definition": "Consul",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -6509,7 +6509,7 @@ export interface components {
                  *     none does. Children are the subnets whose parent is this one.
                  */
                 readonly parent_subnet_id?: string | null;
-                range_evidence: null | components["schemas"]["RangeEvidence"];
+                readonly range_evidence: components["schemas"]["RangeEvidence"] | null;
                 /**
                  * Format: int64
                  * @description Addresses a host can hold in this range. Saturates for IPv6 ranges wider than a `/64`.
@@ -7161,8 +7161,8 @@ export interface components {
                  * @description Completion of the current phase, from 0 to 1.
                  */
                 progress: number;
-                reason?: null | components["schemas"]["DiscoveryTerminalReason"];
-                scanned?: null | components["schemas"]["ScannedEntityIds"];
+                reason?: components["schemas"]["DiscoveryTerminalReason"] | null;
+                scanned?: components["schemas"]["ScannedEntityIds"] | null;
                 /**
                  * Format: uuid
                  * @description The discovery run this update belongs to.
@@ -7516,19 +7516,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-21T23:11:20.296282Z",
+         *       "created_at": "2026-10-22T23:24:30.798643Z",
          *       "first_discovery_id": null,
-         *       "id": "3ad921d2-5f18-402b-99af-46eff98a0acc",
+         *       "id": "f2f2a59d-eea4-4275-840d-c0c7d18a5bc4",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-21T23:11:20.296282Z",
+         *       "last_seen_at": "2026-10-22T23:24:30.798643Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-21T23:11:20.296282Z",
-         *       "valid_from": "2026-10-21T23:11:20.296282Z",
+         *       "updated_at": "2026-10-22T23:24:30.798643Z",
+         *       "valid_from": "2026-10-22T23:24:30.798643Z",
          *       "valid_to": null
          *     }
          */
@@ -7706,7 +7706,7 @@ export interface components {
             comment?: string | null;
             /** @description Why the customer is cancelling, as picked from the cancel flow. */
             reason_code: components["schemas"]["CancelReason"];
-            save_offer_redeemed?: null | components["schemas"]["SaveOffer"];
+            save_offer_redeemed?: components["schemas"]["SaveOffer"] | null;
             /** @description Whether the retention discount was offered during this flow. */
             save_offer_shown?: components["schemas"]["SaveOffer"][];
         };
@@ -7806,6 +7806,7 @@ export interface components {
         Color: "Pink" | "Rose" | "Red" | "Amber" | "Orange" | "Green" | "Emerald" | "Teal" | "Cyan" | "Blue" | "Indigo" | "Purple" | "Fuchsia" | "Violet" | "Sky" | "Gray" | "Lime" | "Yellow";
         /** @description A credential's addresses on bridge networks of the daemon's own host. */
         ContainerBridgeGap: {
+            /** @description The credential's target addresses on bridge networks of the daemon's own host. */
             addresses: string[];
         };
         /**
@@ -7917,7 +7918,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "UptimeKuma",
+         *           "service_definition": "Consul",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -7971,7 +7972,7 @@ export interface components {
              * @description The interface on the virtualizing host that presents this host, for a network identity.
              */
             virtualization_interface_id?: string | null;
-            virtualization_metadata?: null | components["schemas"]["HostVirtualization"];
+            virtualization_metadata?: components["schemas"]["HostVirtualization"] | null;
             /**
              * Format: uuid
              * @description The hypervisor service this VM runs on.
@@ -8022,7 +8023,7 @@ export interface components {
             site_id: string;
             /** @description Tags assigned to this entity. */
             tags: string[];
-            virtualization_metadata?: null | components["schemas"]["ServiceVirtualization"];
+            virtualization_metadata?: components["schemas"]["ServiceVirtualization"] | null;
             /**
              * Format: uuid
              * @description The container runtime service hosting this container, if any.
@@ -8105,7 +8106,7 @@ export interface components {
             assigned_site_ids: string[];
             /** @description Protocol this credential authenticates with, and its settings. */
             credential_type: components["schemas"]["CredentialType"];
-            daemon_os?: null | components["schemas"]["OsFamily"];
+            daemon_os?: components["schemas"]["OsFamily"] | null;
             /** @description Free-text notes about the credential: what it is for, who owns it. */
             description: string | null;
             /**
@@ -8267,13 +8268,13 @@ export interface components {
              * @description Port for the Docker API proxy (default 2375)
              */
             port?: number;
-            ssl_cert?: null | components["schemas"]["FileOrInline"];
-            ssl_chain?: null | components["schemas"]["FileOrInline"];
-            ssl_key?: null | components["schemas"]["SecretValue"];
+            ssl_cert?: components["schemas"]["FileOrInline"] | null;
+            ssl_chain?: components["schemas"]["FileOrInline"] | null;
+            ssl_key?: components["schemas"]["SecretValue"] | null;
             /** @enum {string} */
             type: "DockerProxy";
         } | {
-            socket_path?: null | components["schemas"]["DaemonSocket"];
+            socket_path?: components["schemas"]["DaemonSocket"] | null;
             /** @enum {string} */
             type: "DockerSocket";
         } | {
@@ -8284,13 +8285,13 @@ export interface components {
              * @description Port for the Podman API proxy (default 2375)
              */
             port?: number;
-            ssl_cert?: null | components["schemas"]["FileOrInline"];
-            ssl_chain?: null | components["schemas"]["FileOrInline"];
-            ssl_key?: null | components["schemas"]["SecretValue"];
+            ssl_cert?: components["schemas"]["FileOrInline"] | null;
+            ssl_chain?: components["schemas"]["FileOrInline"] | null;
+            ssl_key?: components["schemas"]["SecretValue"] | null;
             /** @enum {string} */
             type: "PodmanProxy";
         } | {
-            socket_path?: null | components["schemas"]["DaemonSocket"];
+            socket_path?: components["schemas"]["DaemonSocket"] | null;
             /** @enum {string} */
             type: "PodmanSocket";
         } | {
@@ -8358,7 +8359,7 @@ export interface components {
         } | {
             /** @description Require this host key (OpenSSH `SHA256:…` fingerprint). Blank ⇒ trust on first use. */
             host_key_fingerprint?: string | null;
-            passphrase?: null | components["schemas"]["SecretValue"];
+            passphrase?: components["schemas"]["SecretValue"] | null;
             /**
              * Format: int32
              * @description Port `sshd` listens on (default 22).
@@ -8392,7 +8393,7 @@ export interface components {
              * @description UDP port for the magic packet.
              */
             port?: number;
-            secure_on_password?: null | components["schemas"]["SecretValue"];
+            secure_on_password?: components["schemas"]["SecretValue"] | null;
             /** @enum {string} */
             type: "WakeOnLan";
             /**
@@ -8522,7 +8523,7 @@ export interface components {
             mode: components["schemas"]["DaemonMode"];
             /** @description Human-facing name for this daemon. */
             name: string;
-            os: null | components["schemas"]["DaemonOs"];
+            os: components["schemas"]["DaemonOs"] | null;
             /**
              * Format: uuid
              * @description The site this entity belongs to.
@@ -8641,7 +8642,7 @@ export interface components {
             mode: components["schemas"]["DaemonMode"];
             /** @description Name the daemon reports for itself. */
             name: string;
-            os?: null | components["schemas"]["DaemonOs"];
+            os?: components["schemas"]["DaemonOs"] | null;
             /**
              * Format: uuid
              * @description The site this entity belongs to.
@@ -8670,7 +8671,7 @@ export interface components {
              * @description The host this entity belongs to.
              */
             host_id: string;
-            server_capabilities?: null | components["schemas"]["ServerCapabilities"];
+            server_capabilities?: components["schemas"]["ServerCapabilities"] | null;
         };
         /** @description Daemon response for UI including computed version status */
         DaemonResponse: components["schemas"]["DaemonBase"] & {
@@ -8711,7 +8712,7 @@ export interface components {
         DaemonStartupRequest: {
             /** @description Daemon software version (semver format) */
             daemon_version: string;
-            os?: null | components["schemas"]["DaemonOs"];
+            os?: components["schemas"]["DaemonOs"] | null;
         };
         /** @description Lightweight daemon status for polling responses. */
         DaemonStatus: {
@@ -8727,7 +8728,7 @@ export interface components {
             mode: components["schemas"]["DaemonMode"];
             /** @description Name the daemon reports for itself. */
             name: string;
-            os?: null | components["schemas"]["DaemonOs"];
+            os?: components["schemas"]["DaemonOs"] | null;
             /**
              * @description Whether the daemon can accept a new discovery session.
              *     Both DaemonPoll and ServerPoll use this to avoid dispatching work to a busy daemon.
@@ -8895,7 +8896,7 @@ export interface components {
              */
             site_id: string;
             /** @description Will be automatically set to Manual for creation through API */
-            source?: components["schemas"]["EntitySource"];
+            readonly source?: components["schemas"]["EntitySource"];
             /** @description Tags assigned to this entity. */
             tags: string[];
         };
@@ -9231,8 +9232,8 @@ export interface components {
              * @description Completion of the current phase, from 0 to 1.
              */
             progress: number;
-            reason?: null | components["schemas"]["DiscoveryTerminalReason"];
-            scanned?: null | components["schemas"]["ScannedEntityIds"];
+            reason?: components["schemas"]["DiscoveryTerminalReason"] | null;
+            scanned?: components["schemas"]["ScannedEntityIds"] | null;
             /**
              * Format: uuid
              * @description The discovery run this update belongs to.
@@ -9585,7 +9586,7 @@ export interface components {
         } | {
             /** @description The OS family this daemon runs. */
             actual: components["schemas"]["OsFamily"];
-            actual_os?: null | components["schemas"]["DaemonOs"];
+            actual_os?: components["schemas"]["DaemonOs"] | null;
             /** @enum {string} */
             code: "CredentialDaemonOsMismatch";
             /**
@@ -9809,20 +9810,35 @@ export interface components {
          *     defaults to the tighter of its two layouts.
          */
         DisplaySettings: {
-            /** @default browser_default */
+            /**
+             * @description 12- or 24-hour clock for displayed times.
+             * @default browser_default
+             */
             clock: components["schemas"]["ClockFormat"];
-            /** @default browser_default */
+            /**
+             * @description Order of day, month and year in displayed dates.
+             * @default browser_default
+             */
             date_order: components["schemas"]["DateOrder"];
-            /** @default compact */
+            /**
+             * @description Cell padding and row height in entity tables.
+             * @default compact
+             */
             table_density: components["schemas"]["TableDensity"];
             /**
              * @description IANA time zone dates are shown in. `None` uses the browser's zone.
              * @default null
              */
             time_zone: string | null;
-            /** @default relative */
+            /**
+             * @description Whether recent events show as relative ("3h ago") or absolute times.
+             * @default relative
+             */
             timestamps: components["schemas"]["TimestampStyle"];
-            /** @default monday */
+            /**
+             * @description First day of the week in day pickers.
+             * @default monday
+             */
             week_start: components["schemas"]["WeekStart"];
         };
         /** @description The docker install method. */
@@ -10187,7 +10203,7 @@ export interface components {
              *     with `org_id` and `plan` set from the organization's current state.
              */
             entitlement: string;
-            instances?: null | components["schemas"]["InstanceUsage"];
+            instances?: components["schemas"]["InstanceUsage"] | null;
         };
         /** @enum {string} */
         EntityDiscriminants: "Site" | "Vlan" | "Subnet" | "Host" | "Service" | "IPAddress" | "Interface" | "Port" | "Binding" | "Discovery" | "Daemon" | "DaemonApiKey" | "Tag" | "TagGroup" | "User" | "UserApiKey" | "Credential" | "Organization" | "Invite" | "Topology" | "Snapshot" | "Share" | "Dependency";
@@ -10297,7 +10313,7 @@ export interface components {
         FieldDefinition: {
             /** @description Value pre-filled when the field is first shown. */
             default_value?: string | null;
-            field_set?: null | components["schemas"]["FieldSetRole"];
+            field_set?: components["schemas"]["FieldSetRole"] | null;
             /** @description How the field should be rendered and validated. */
             field_type: components["schemas"]["FieldType"];
             /**
@@ -10316,7 +10332,7 @@ export interface components {
             help_text?: string | null;
             /** @description Server-assigned unique identifier. */
             id: string;
-            inline_format?: null | components["schemas"]["InlineFormat"];
+            inline_format?: components["schemas"]["InlineFormat"] | null;
             /** @description Human-facing field label. */
             label: string;
             /** @description Whether the field may be left empty. */
@@ -10618,7 +10634,7 @@ export interface components {
              */
             site_id: string;
             /** @description How this host came to be known — discovered, imported, or created by hand. */
-            source: components["schemas"]["EntitySource"];
+            readonly source: components["schemas"]["EntitySource"];
             /** @description Tags assigned to this entity. */
             tags: string[];
             /**
@@ -10629,7 +10645,7 @@ export interface components {
              *     clears it when the interface goes away.
              */
             virtualization_interface_id: string | null;
-            virtualization_metadata: null | components["schemas"]["HostVirtualization"];
+            virtualization_metadata: components["schemas"]["HostVirtualization"] | null;
             /**
              * Format: uuid
              * @description The service doing the virtualizing — the hypervisor this VM runs on.
@@ -10679,7 +10695,7 @@ export interface components {
         /** @description What one rung of the ladder holds for a particular host. */
         HostNameLadderEntry: {
             rung: components["schemas"]["HostNameRung"];
-            source: null | components["schemas"]["AttributeSource"];
+            source: components["schemas"]["AttributeSource"] | null;
             /**
              * @description The rung's value, or `None` when the host has nothing there. A value holding only
              *     whitespace counts as nothing.
@@ -10881,19 +10897,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-21T23:11:20.295062Z",
+         *               "created_at": "2026-10-22T23:24:30.797110Z",
          *               "first_discovery_id": null,
-         *               "id": "fb484bf1-2c00-4e55-91d8-da633e6022fd",
+         *               "id": "3d638c11-1399-42ba-ad25-99cc4c837064",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-21T23:11:20.295062Z",
+         *               "last_seen_at": "2026-10-22T23:24:30.797110Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-21T23:11:20.295062Z",
-         *               "valid_from": "2026-10-21T23:11:20.295062Z",
+         *               "updated_at": "2026-10-22T23:24:30.797110Z",
+         *               "valid_from": "2026-10-22T23:24:30.797110Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10906,7 +10922,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "UptimeKuma",
+         *           "service_definition": "Consul",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -10947,11 +10963,11 @@ export interface components {
              */
             readonly asset_tag?: string | null;
             /** @description What produced the asset tag. Read-only. */
-            asset_tag_source?: components["schemas"]["AttributeSource"];
+            readonly asset_tag_source?: components["schemas"]["AttributeSource"];
             /** @description LLDP chassis identifier, used to match the host to its neighbours. */
             chassis_id?: string | null;
             /** @description What produced the LLDP chassis identifier. Read-only: decided by whichever source read it. */
-            chassis_id_source?: components["schemas"]["AttributeSource"];
+            readonly chassis_id_source?: components["schemas"]["AttributeSource"];
             /**
              * Format: date-time
              * @description When this record was first created.
@@ -10966,7 +10982,7 @@ export interface components {
              *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
              *     Read-only.
              */
-            device_type?: components["schemas"]["DeviceType"];
+            readonly device_type?: components["schemas"]["DeviceType"];
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.
@@ -10978,11 +10994,11 @@ export interface components {
              *     list and another on the map.
              */
             readonly display_name?: string | null;
-            display_name_rung?: null | components["schemas"]["HostNameRung"];
+            readonly display_name_rung?: components["schemas"]["HostNameRung"] | null;
             /** @description ENTITY-MIB entPhysicalFirmwareRev — firmware revision of the device. Read-only, as above. */
             readonly firmware_revision: string | null;
             /** @description What produced the firmware revision. Read-only: decided by whichever source read it. */
-            firmware_revision_source?: components["schemas"]["AttributeSource"];
+            readonly firmware_revision_source?: components["schemas"]["AttributeSource"];
             /**
              * Format: uuid
              * @description The discovery run that first observed this host. Drives the "First found by" column.
@@ -10999,7 +11015,7 @@ export interface components {
              * @description What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.
              *     Read-only: decided by whichever source read it.
              */
-            hostname_source?: components["schemas"]["AttributeSource"];
+            readonly hostname_source?: components["schemas"]["AttributeSource"];
             /**
              * Format: uuid
              * @description Server-assigned unique identifier.
@@ -11024,15 +11040,15 @@ export interface components {
             /** @description Link to the host's own management interface. */
             management_url?: string | null;
             /** @description What produced the management URL. Read-only: decided by whichever source read it. */
-            management_url_source?: components["schemas"]["AttributeSource"];
+            readonly management_url_source?: components["schemas"]["AttributeSource"];
             /** @description ENTITY-MIB entPhysicalMfgName — hardware manufacturer. Read-only, as above. */
             readonly manufacturer?: string | null;
             /** @description What produced the manufacturer. Read-only: decided by whichever source read it. */
-            manufacturer_source?: components["schemas"]["AttributeSource"];
+            readonly manufacturer_source?: components["schemas"]["AttributeSource"];
             /** @description ENTITY-MIB entPhysicalModelName — hardware model. Read-only, as above. */
             readonly model?: string | null;
             /** @description What produced the model. Read-only: decided by whichever source read it. */
-            model_source?: components["schemas"]["AttributeSource"];
+            readonly model_source?: components["schemas"]["AttributeSource"];
             /** @description Human-facing name for the host. */
             name: string;
             /** @description Every rung of the display-name ladder for this host, highest first, with what each holds. */
@@ -11041,19 +11057,19 @@ export interface components {
              * @description What produced `name`. Read-only: it is decided by whoever supplied the name, not by the
              *     caller.
              */
-            name_source?: components["schemas"]["AttributeSource"];
-            os: null | components["schemas"]["HostOs"];
+            readonly name_source?: components["schemas"]["AttributeSource"];
+            readonly os: components["schemas"]["HostOs"] | null;
             /**
              * @description What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS
              *     in a string the host emitted rather than reading it off the host.
              */
-            os_source?: components["schemas"]["AttributeSource"];
+            readonly os_source?: components["schemas"]["AttributeSource"];
             /** @description Open ports on this host. */
             ports: components["schemas"]["Port"][];
             /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
             readonly serial_number?: string | null;
             /** @description What produced the serial number. Read-only: decided by whichever source read it. */
-            serial_number_source?: components["schemas"]["AttributeSource"];
+            readonly serial_number_source?: components["schemas"]["AttributeSource"];
             /** @description Services running on this host. */
             services: components["schemas"]["Service"][];
             /**
@@ -11064,32 +11080,32 @@ export interface components {
             /** @description ENTITY-MIB entPhysicalSoftwareRev — software revision of the device. Read-only, as above. */
             readonly software_revision: string | null;
             /** @description What produced the software revision. Read-only: decided by whichever source read it. */
-            software_revision_source?: components["schemas"]["AttributeSource"];
+            readonly software_revision_source?: components["schemas"]["AttributeSource"];
             /** @description How this host came to be known — discovered, imported, or created by hand. */
             source: components["schemas"]["EntitySource"];
             /** @description SNMP sysContact — administrative contact as configured on the device. */
             sys_contact?: string | null;
             /** @description What produced SNMP sysContact. Read-only: decided by whichever source read it. */
-            sys_contact_source?: components["schemas"]["AttributeSource"];
+            readonly sys_contact_source?: components["schemas"]["AttributeSource"];
             /** @description SNMP sysDescr — the device's own description of itself. */
             sys_descr?: string | null;
             /** @description What produced SNMP sysDescr. Read-only: decided by whichever source read it. */
-            sys_descr_source?: components["schemas"]["AttributeSource"];
+            readonly sys_descr_source?: components["schemas"]["AttributeSource"];
             /** @description SNMP sysLocation — physical location as configured on the device. */
             sys_location?: string | null;
             /** @description What produced SNMP sysLocation. Read-only: decided by whichever source read it. */
-            sys_location_source?: components["schemas"]["AttributeSource"];
+            readonly sys_location_source?: components["schemas"]["AttributeSource"];
             /**
              * @description SNMP sysName.0 — the administratively-assigned hostname. Read-only: discovery collects it
              *     from the device, so neither create nor update accepts it.
              */
             readonly sys_name?: string | null;
             /** @description What produced SNMP sysName. Read-only: decided by whichever source read it. */
-            sys_name_source?: components["schemas"]["AttributeSource"];
+            readonly sys_name_source?: components["schemas"]["AttributeSource"];
             /** @description SNMP sysObjectID — the vendor's identifier for the device model. */
             sys_object_id?: string | null;
             /** @description What produced SNMP sysObjectID. Read-only: decided by whichever source read it. */
-            sys_object_id_source?: components["schemas"]["AttributeSource"];
+            readonly sys_object_id_source?: components["schemas"]["AttributeSource"];
             /** @description Tags assigned to this entity. */
             tags: string[];
             /**
@@ -11107,7 +11123,7 @@ export interface components {
              * @description The interface on the virtualizing host that presents this host, for a network identity.
              */
             virtualization_interface_id?: string | null;
-            virtualization_metadata?: null | components["schemas"]["HostVirtualization"];
+            virtualization_metadata?: components["schemas"]["HostVirtualization"] | null;
             /**
              * Format: uuid
              * @description The host this one runs under: the host of its virtualizing service.
@@ -11624,7 +11640,7 @@ export interface components {
             readonly valid_to?: string | null;
         };
         InterfaceBase: components["schemas"]["MacEvidence"] & components["schemas"]["FdbMacs"] & {
-            admin_status?: null | components["schemas"]["IfAdminStatus"];
+            admin_status?: components["schemas"]["IfAdminStatus"] | null;
             /**
              * Format: uuid
              * @description The host this entity belongs to.
@@ -11705,7 +11721,7 @@ export interface components {
              *     database or echoed in a response ever has it populated.
              */
             neighbor_candidates?: components["schemas"]["InterfaceNeighborEvidence"][];
-            oper_status?: null | components["schemas"]["IfOperStatus"];
+            oper_status?: components["schemas"]["IfOperStatus"] | null;
             /**
              * Format: uuid
              * @description The site this entity belongs to.
@@ -11756,7 +11772,7 @@ export interface components {
          *     created, and an existing row missing from the list is deleted.
          */
         InterfaceInput: {
-            admin_status?: null | components["schemas"]["IfAdminStatus"];
+            admin_status?: components["schemas"]["IfAdminStatus"] | null;
             /**
              * Format: uuid
              * @description Client-provided UUID for this interface.
@@ -11786,7 +11802,7 @@ export interface components {
              * @example a4:bb:6d:12:34:56
              */
             mac_address?: string | null;
-            oper_status?: null | components["schemas"]["IfOperStatus"];
+            oper_status?: components["schemas"]["IfOperStatus"] | null;
             /**
              * Format: int64
              * @description Interface speed in bits per second
@@ -11852,7 +11868,7 @@ export interface components {
              *     the daemon's own host.
              */
             evidence_source?: components["schemas"]["AttributeSource"];
-            lldp_chassis_id?: null | components["schemas"]["LldpChassisId"];
+            lldp_chassis_id?: components["schemas"]["LldpChassisId"] | null;
             /**
              * @description Remote management IP from LLDP neighbor (lldpRemManAddr). IPv4 or IPv6.
              * @example 192.168.1.1
@@ -11860,7 +11876,7 @@ export interface components {
             lldp_mgmt_addr?: string | null;
             /** @description Remote port description from LLDP neighbor (lldpRemPortDesc) */
             lldp_port_desc?: string | null;
-            lldp_port_id?: null | components["schemas"]["LldpPortId"];
+            lldp_port_id?: components["schemas"]["LldpPortId"] | null;
             /** @description Remote system description from LLDP neighbor (lldpRemSysDesc) - platform info */
             lldp_sys_desc?: string | null;
             /** @description Remote system name from LLDP neighbor (lldpRemSysName) */
@@ -11976,7 +11992,7 @@ export interface components {
             entity_name: string;
             /** @description Purchase order number printed on every invoice. */
             po_number?: string | null;
-            tax_id?: null | components["schemas"]["InvoiceBillingTaxId"];
+            tax_id?: components["schemas"]["InvoiceBillingTaxId"] | null;
         };
         /**
          * @description What to do once the billing entity is recorded.
@@ -11987,17 +12003,17 @@ export interface components {
         InvoiceBillingRequest: {
             details: components["schemas"]["InvoiceBillingDetails"];
             mode: components["schemas"]["InvoiceBillingMode"];
-            plan?: null | components["schemas"]["BillingPlan"];
+            plan?: components["schemas"]["BillingPlan"] | null;
         };
         /** @description Invoice billing state shown on the License tab. */
         InvoiceBillingStatus: {
             /** @description The subscription is billed by sent invoice. */
             bills_by_invoice: boolean;
-            open_invoice?: null | components["schemas"]["InvoiceSummary"];
-            pending_quote?: null | components["schemas"]["PendingQuote"];
+            open_invoice?: components["schemas"]["InvoiceSummary"] | null;
+            pending_quote?: components["schemas"]["PendingQuote"] | null;
             /** @description Purchase order number printed on invoices. */
             po_number?: string | null;
-            written_off_invoice?: null | components["schemas"]["InvoiceSummary"];
+            written_off_invoice?: components["schemas"]["InvoiceSummary"] | null;
         };
         /** @description Tax ID of the billing entity, as Stripe's Tax ID Element returns it. */
         InvoiceBillingTaxId: {
@@ -12481,7 +12497,7 @@ export interface components {
              *     Used by Hypervisor and Stack subcontainers to show the service's logo.
              */
             associated_service_definition?: string | null;
-            color?: null | components["schemas"]["Color"];
+            color?: components["schemas"]["Color"] | null;
             /** @description What this container groups — a host, a subnet, an application, and so on. */
             container_type?: components["schemas"]["ContainerType"];
             /**
@@ -12561,7 +12577,7 @@ export interface components {
         OnboardingStateResponse: {
             /** @description Organization name from pending setup */
             org_name?: string | null;
-            site?: null | components["schemas"]["OnboardingSiteState"];
+            site?: components["schemas"]["OnboardingSiteState"] | null;
             /**
              * Format: uuid
              * @description Site ID from pending setup (if any)
@@ -12569,13 +12585,13 @@ export interface components {
             site_id?: string | null;
             /** @description Current onboarding step (if any) */
             step?: string | null;
-            use_case?: null | components["schemas"]["UseCase"];
+            use_case?: components["schemas"]["UseCase"] | null;
         };
         /** @description Request to save onboarding step */
         OnboardingStepRequest: {
             /** @description Identifier of the onboarding step the user has reached. */
             step: string;
-            use_case?: null | components["schemas"]["UseCase"];
+            use_case?: components["schemas"]["UseCase"] | null;
         };
         /**
          * @description Direction for ORDER BY clauses.
@@ -12646,7 +12662,7 @@ export interface components {
              *     powers the 14-day downgrade banner.
              */
             readonly last_downgrade_at?: string | null;
-            last_downgrade_from_plan?: null | components["schemas"]["BillingPlan"];
+            readonly last_downgrade_from_plan?: components["schemas"]["BillingPlan"] | null;
             /**
              * Format: date-time
              * @description Most recent `Paused` billing event's timestamp; powers the 6-month
@@ -12682,8 +12698,8 @@ export interface components {
             readonly next_renewal_at?: string | null;
             /** @description Progress through first-run setup. */
             onboarding: components["schemas"]["OnboardingOperationDiscriminants"][];
-            plan: null | components["schemas"]["BillingPlan"];
-            plan_status: null | components["schemas"]["PlanStatus"];
+            readonly plan: components["schemas"]["BillingPlan"] | null;
+            readonly plan_status: components["schemas"]["PlanStatus"] | null;
             /**
              * Format: date-time
              * @description When the free trial ends, if one is running.
@@ -12710,7 +12726,7 @@ export interface components {
          *         "offset": 0,
          *         "total_count": 142
          *       },
-         *       "server_version": "0.18.2"
+         *       "server_version": "0.19.0"
          *     }
          */
         PaginatedApiMeta: {
@@ -12723,7 +12739,7 @@ export interface components {
             pagination: components["schemas"]["PaginationMeta"];
             /**
              * @description Server version (semver)
-             * @example 0.18.2
+             * @example 0.19.0
              */
             server_version: string;
         };
@@ -12901,11 +12917,11 @@ export interface components {
                  */
                 readonly asset_tag?: string | null;
                 /** @description What produced the asset tag. Read-only. */
-                asset_tag_source?: components["schemas"]["AttributeSource"];
+                readonly asset_tag_source?: components["schemas"]["AttributeSource"];
                 /** @description LLDP chassis identifier, used to match the host to its neighbours. */
                 chassis_id?: string | null;
                 /** @description What produced the LLDP chassis identifier. Read-only: decided by whichever source read it. */
-                chassis_id_source?: components["schemas"]["AttributeSource"];
+                readonly chassis_id_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: date-time
                  * @description When this record was first created.
@@ -12920,7 +12936,7 @@ export interface components {
                  *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
                  *     Read-only.
                  */
-                device_type?: components["schemas"]["DeviceType"];
+                readonly device_type?: components["schemas"]["DeviceType"];
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -12932,11 +12948,11 @@ export interface components {
                  *     list and another on the map.
                  */
                 readonly display_name?: string | null;
-                display_name_rung?: null | components["schemas"]["HostNameRung"];
+                readonly display_name_rung?: components["schemas"]["HostNameRung"] | null;
                 /** @description ENTITY-MIB entPhysicalFirmwareRev — firmware revision of the device. Read-only, as above. */
                 readonly firmware_revision: string | null;
                 /** @description What produced the firmware revision. Read-only: decided by whichever source read it. */
-                firmware_revision_source?: components["schemas"]["AttributeSource"];
+                readonly firmware_revision_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: uuid
                  * @description The discovery run that first observed this host. Drives the "First found by" column.
@@ -12953,7 +12969,7 @@ export interface components {
                  * @description What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.
                  *     Read-only: decided by whichever source read it.
                  */
-                hostname_source?: components["schemas"]["AttributeSource"];
+                readonly hostname_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: uuid
                  * @description Server-assigned unique identifier.
@@ -12978,15 +12994,15 @@ export interface components {
                 /** @description Link to the host's own management interface. */
                 management_url?: string | null;
                 /** @description What produced the management URL. Read-only: decided by whichever source read it. */
-                management_url_source?: components["schemas"]["AttributeSource"];
+                readonly management_url_source?: components["schemas"]["AttributeSource"];
                 /** @description ENTITY-MIB entPhysicalMfgName — hardware manufacturer. Read-only, as above. */
                 readonly manufacturer?: string | null;
                 /** @description What produced the manufacturer. Read-only: decided by whichever source read it. */
-                manufacturer_source?: components["schemas"]["AttributeSource"];
+                readonly manufacturer_source?: components["schemas"]["AttributeSource"];
                 /** @description ENTITY-MIB entPhysicalModelName — hardware model. Read-only, as above. */
                 readonly model?: string | null;
                 /** @description What produced the model. Read-only: decided by whichever source read it. */
-                model_source?: components["schemas"]["AttributeSource"];
+                readonly model_source?: components["schemas"]["AttributeSource"];
                 /** @description Human-facing name for the host. */
                 name: string;
                 /** @description Every rung of the display-name ladder for this host, highest first, with what each holds. */
@@ -12995,19 +13011,19 @@ export interface components {
                  * @description What produced `name`. Read-only: it is decided by whoever supplied the name, not by the
                  *     caller.
                  */
-                name_source?: components["schemas"]["AttributeSource"];
-                os: null | components["schemas"]["HostOs"];
+                readonly name_source?: components["schemas"]["AttributeSource"];
+                readonly os: components["schemas"]["HostOs"] | null;
                 /**
                  * @description What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS
                  *     in a string the host emitted rather than reading it off the host.
                  */
-                os_source?: components["schemas"]["AttributeSource"];
+                readonly os_source?: components["schemas"]["AttributeSource"];
                 /** @description Open ports on this host. */
                 ports: components["schemas"]["Port"][];
                 /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
                 readonly serial_number?: string | null;
                 /** @description What produced the serial number. Read-only: decided by whichever source read it. */
-                serial_number_source?: components["schemas"]["AttributeSource"];
+                readonly serial_number_source?: components["schemas"]["AttributeSource"];
                 /** @description Services running on this host. */
                 services: components["schemas"]["Service"][];
                 /**
@@ -13018,32 +13034,32 @@ export interface components {
                 /** @description ENTITY-MIB entPhysicalSoftwareRev — software revision of the device. Read-only, as above. */
                 readonly software_revision: string | null;
                 /** @description What produced the software revision. Read-only: decided by whichever source read it. */
-                software_revision_source?: components["schemas"]["AttributeSource"];
+                readonly software_revision_source?: components["schemas"]["AttributeSource"];
                 /** @description How this host came to be known — discovered, imported, or created by hand. */
                 source: components["schemas"]["EntitySource"];
                 /** @description SNMP sysContact — administrative contact as configured on the device. */
                 sys_contact?: string | null;
                 /** @description What produced SNMP sysContact. Read-only: decided by whichever source read it. */
-                sys_contact_source?: components["schemas"]["AttributeSource"];
+                readonly sys_contact_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysDescr — the device's own description of itself. */
                 sys_descr?: string | null;
                 /** @description What produced SNMP sysDescr. Read-only: decided by whichever source read it. */
-                sys_descr_source?: components["schemas"]["AttributeSource"];
+                readonly sys_descr_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysLocation — physical location as configured on the device. */
                 sys_location?: string | null;
                 /** @description What produced SNMP sysLocation. Read-only: decided by whichever source read it. */
-                sys_location_source?: components["schemas"]["AttributeSource"];
+                readonly sys_location_source?: components["schemas"]["AttributeSource"];
                 /**
                  * @description SNMP sysName.0 — the administratively-assigned hostname. Read-only: discovery collects it
                  *     from the device, so neither create nor update accepts it.
                  */
                 readonly sys_name?: string | null;
                 /** @description What produced SNMP sysName. Read-only: decided by whichever source read it. */
-                sys_name_source?: components["schemas"]["AttributeSource"];
+                readonly sys_name_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysObjectID — the vendor's identifier for the device model. */
                 sys_object_id?: string | null;
                 /** @description What produced SNMP sysObjectID. Read-only: decided by whichever source read it. */
-                sys_object_id_source?: components["schemas"]["AttributeSource"];
+                readonly sys_object_id_source?: components["schemas"]["AttributeSource"];
                 /** @description Tags assigned to this entity. */
                 tags: string[];
                 /**
@@ -13061,7 +13077,7 @@ export interface components {
                  * @description The interface on the virtualizing host that presents this host, for a network identity.
                  */
                 virtualization_interface_id?: string | null;
-                virtualization_metadata?: null | components["schemas"]["HostVirtualization"];
+                virtualization_metadata?: components["schemas"]["HostVirtualization"] | null;
                 /**
                  * Format: uuid
                  * @description The host this one runs under: the host of its virtualizing service.
@@ -13200,7 +13216,7 @@ export interface components {
                  *     none does. Children are the subnets whose parent is this one.
                  */
                 readonly parent_subnet_id?: string | null;
-                range_evidence: null | components["schemas"]["RangeEvidence"];
+                readonly range_evidence: components["schemas"]["RangeEvidence"] | null;
                 /**
                  * Format: int64
                  * @description Addresses a host can hold in this range. Saturates for IPv6 ranges wider than a `/64`.
@@ -13770,7 +13786,7 @@ export interface components {
              *     the existing record's name is kept.
              */
             name?: string | null;
-            os?: null | components["schemas"]["DaemonOs"];
+            os?: components["schemas"]["DaemonOs"] | null;
             /**
              * @description Credential/integration references to seed onto the daemon's first
              *     discovery run. References only — never secret material. Empty by default.
@@ -13851,7 +13867,7 @@ export interface components {
          */
         ProxmoxGuestType: "Qemu" | "Lxc";
         ProxmoxVirtualization: {
-            guest_type?: null | components["schemas"]["ProxmoxGuestType"];
+            guest_type?: components["schemas"]["ProxmoxGuestType"] | null;
             /** @description Whether the guest was running at the last scan. */
             state?: components["schemas"]["GuestState"];
             /** @description Proxmox VMID of the guest. */
@@ -13860,7 +13876,7 @@ export interface components {
             vm_name?: string | null;
         };
         PublicConfigResponse: {
-            available_upgrade?: null | components["schemas"]["AvailableUpgrade"];
+            available_upgrade?: components["schemas"]["AvailableUpgrade"] | null;
             /** @description How this instance is run: cloud, commercial self-hosted, or community. */
             deployment_type: components["schemas"]["DeploymentType"];
             /** @description Whether email/password login is turned off, leaving OIDC as the only method. */
@@ -13894,7 +13910,7 @@ export interface components {
              *     the hard `exp` — the silent grace window.
              */
             license_in_grace_period: boolean;
-            license_instances?: null | components["schemas"]["InstanceUsage"];
+            license_instances?: components["schemas"]["InstanceUsage"] | null;
             /**
              * Format: date
              * @description User-visible expiry — the date displayed to end users under
@@ -13914,7 +13930,7 @@ export interface components {
              * @description Further days past the user-visible expiry before a key stops working.
              */
             license_key_grace_days: number;
-            license_key_type?: null | components["schemas"]["LicenseKeyType"];
+            license_key_type?: components["schemas"]["LicenseKeyType"] | null;
             /**
              * @description Whether this deployment can sign license keys. False on any server
              *     without a signing key, where the Settings License tab and the
@@ -13923,7 +13939,7 @@ export interface components {
              *     key can be present but unparseable.
              */
             license_signing_available: boolean;
-            license_status?: null | components["schemas"]["LicenseStatusDiscriminants"];
+            license_status?: components["schemas"]["LicenseStatusDiscriminants"] | null;
             /**
              * Format: date-time
              * @description End of the paid period, shown as "Valid through" and in the expiry
@@ -14461,19 +14477,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-21T23:11:20.296107Z",
+         *           "created_at": "2026-10-22T23:24:30.798422Z",
          *           "first_discovery_id": null,
-         *           "id": "a2a12d3b-2db8-4341-b718-d08a2e228760",
+         *           "id": "a2609fdf-a5a1-41dc-9602-83992cfdca81",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-21T23:11:20.296107Z",
+         *           "last_seen_at": "2026-10-22T23:24:30.798422Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-21T23:11:20.296107Z",
-         *           "valid_from": "2026-10-21T23:11:20.296107Z",
+         *           "updated_at": "2026-10-22T23:24:30.798422Z",
+         *           "valid_from": "2026-10-22T23:24:30.798422Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14486,7 +14502,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "UptimeKuma",
+         *       "service_definition": "Consul",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -14569,10 +14585,10 @@ export interface components {
              */
             site_id: string;
             /** @description Will be automatically set to Manual for creation through API */
-            source: components["schemas"]["EntitySource"];
+            readonly source: components["schemas"]["EntitySource"];
             /** @description Tags assigned to this entity. */
             tags: string[];
-            virtualization_metadata?: null | components["schemas"]["ServiceVirtualization"];
+            virtualization_metadata?: components["schemas"]["ServiceVirtualization"] | null;
             /**
              * Format: uuid
              * @description The container runtime service hosting this container — see the note on
@@ -14609,7 +14625,7 @@ export interface components {
             service_definition: string;
             /** @description Tags for categorization */
             tags?: string[];
-            virtualization_metadata?: null | components["schemas"]["ServiceVirtualization"];
+            virtualization_metadata?: components["schemas"]["ServiceVirtualization"] | null;
             /**
              * Format: uuid
              * @description The container runtime service hosting this container, if any.
@@ -14655,7 +14671,7 @@ export interface components {
         SetupRequest: {
             /** @description Name for the organization created during setup. */
             organization_name: string;
-            site?: null | components["schemas"]["SiteSetup"];
+            site?: components["schemas"]["SiteSetup"] | null;
         };
         /** @description Response from setup endpoint */
         SetupResponse: {
@@ -14946,6 +14962,7 @@ export interface components {
         SnmpV3SecurityOption: "NoAuthNoPriv" | "AuthNoPriv" | "Md5Auth";
         /** @description The SNMPv3 options a credential uses that daemons before 0.18.1 cannot parse. */
         SnmpV3SecurityOptionsGap: {
+            /** @description The options the credential uses, each one a reason older daemons reject it. */
             options: components["schemas"]["SnmpV3SecurityOption"][];
         };
         /**
@@ -15203,7 +15220,7 @@ export interface components {
              *     none does. Children are the subnets whose parent is this one.
              */
             readonly parent_subnet_id?: string | null;
-            range_evidence: null | components["schemas"]["RangeEvidence"];
+            readonly range_evidence: components["schemas"]["RangeEvidence"] | null;
             /**
              * Format: int64
              * @description Addresses a host can hold in this range. Saturates for IPv6 ranges wider than a `/64`.
@@ -15288,7 +15305,7 @@ export interface components {
             color: components["schemas"]["Color"];
             /** @description Free-text notes about the tag. */
             description?: string | null;
-            icon?: null | components["schemas"]["TagIcon"];
+            icon?: components["schemas"]["TagIcon"] | null;
             /** @description Human-facing name for this tag. */
             name: string;
             /**
@@ -15354,7 +15371,7 @@ export interface components {
              * @description Whether this is a system group or one the organization named. Set by the server: groups
              *     created through the API are always `Custom`.
              */
-            group_type: components["schemas"]["TagGroupType"];
+            readonly group_type: components["schemas"]["TagGroupType"];
             /** @description The group's name. A system group's name is fixed. */
             name: string;
             /**
@@ -15550,7 +15567,7 @@ export interface components {
          */
         TopologyHost: components["schemas"]["Host"] & {
             /** @description What this host is, as a device: the device type its icon shows. See [`Host::device_type`]. */
-            device_type?: components["schemas"]["DeviceType"];
+            readonly device_type?: components["schemas"]["DeviceType"];
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.
@@ -15648,7 +15665,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "cf7a19bd-bec1-45fe-a4ee-405412ccbafe",
+             *           "id": "b61ff00f-03fe-478f-922f-26c5c9e76dd7",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15658,23 +15675,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "b6877c62-f296-4087-ae61-3385246c677a",
+             *           "id": "a22641af-b046-4940-9b4c-875c68f8eafe",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "2a94985b-f96e-4bff-9446-b963123a15c5",
+             *           "id": "e05ac25c-09ec-4858-876a-2650eb6e5d62",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "beb9a8aa-cc26-491f-8f2b-82a7d43f0a61",
+             *           "id": "7e39eeb0-7d32-4562-b84a-04d418861f4f",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "b6877c62-f296-4087-ae61-3385246c677a",
+             *           "id": "a22641af-b046-4940-9b4c-875c68f8eafe",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15688,19 +15705,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "3d356d50-1768-483f-b465-9edb33a557f9",
+             *         "id": "a99d6b46-68d6-43c4-a525-490a3b91fe37",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "082a2c3f-a4a3-4b8c-ba77-7aa1520253a5",
+             *         "id": "8fe4cd9e-fab0-440a-b1e7-fd5ab7d59e88",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "acd12a7a-0e84-44c8-84d0-af2592efa43f",
+             *         "id": "f967cec4-5269-46c1-9491-cfd8564fa019",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "1a329408-2a64-45e3-98b5-76e7859c3bf4",
+             *         "id": "50a1ee48-9fcf-42b0-a125-62d00e6b9280",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15721,7 +15738,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "d590674f-2ffb-4439-b3d1-4de154d1883d",
+             *         "id": "81c93f96-89ea-4939-bc26-3a2dfb6570ff",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15730,15 +15747,15 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "c6516da8-0b61-4ab5-b81f-076be381f5ba",
+             *         "id": "f61d5397-b585-4834-b712-1d6c80fb5232",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "b0bd1374-93b3-4a57-abe4-0bce8f4d702e",
+             *         "id": "d60f75db-1e3d-438f-af5b-dad909acab79",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "e3f2a698-a292-4caf-97a3-1ead9989bfb2",
+             *         "id": "34dbdc76-1ca6-40db-a080-fa6f763b746d",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -15982,7 +15999,7 @@ export interface components {
              * @description The interface on the virtualizing host that presents this host, for a network identity.
              */
             virtualization_interface_id?: string | null;
-            virtualization_metadata?: null | components["schemas"]["HostVirtualization"];
+            virtualization_metadata?: components["schemas"]["HostVirtualization"] | null;
             /**
              * Format: uuid
              * @description The hypervisor service this VM runs on.
@@ -16233,7 +16250,7 @@ export interface components {
              *     the UI pluralizes as needed.
              */
             collective_noun?: string | null;
-            container_entity?: null | components["schemas"]["EntityDiscriminants"];
+            container_entity?: components["schemas"]["EntityDiscriminants"] | null;
             /**
              * @description Filter values this view hides out of the box, keyed the same way as the
              *     hide-set in request options.
@@ -16303,7 +16320,7 @@ export interface components {
         ViewInspectorConfig: {
             /** @description Inspector sections shown when a container is selected. */
             container_sections: components["schemas"]["InspectorSection"][];
-            dependency_creation?: null | components["schemas"]["DependencyMemberType"];
+            dependency_creation?: components["schemas"]["DependencyMemberType"] | null;
             /** @description Inspector sections shown when an element is selected. */
             element_sections: components["schemas"]["InspectorSection"][];
             /** @description Whether the inspector offers the application picker. */
@@ -18092,9 +18109,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the key's name. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                group_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                order_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -18103,7 +18120,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -18247,9 +18264,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the key's name. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                group_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                order_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -18258,7 +18275,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -18308,9 +18325,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the key's name. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                group_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DaemonApiKeyOrderField"];
+                order_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -18319,7 +18336,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -18517,9 +18534,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the key's name. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -18528,7 +18545,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -18667,9 +18684,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the key's name. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -18678,7 +18695,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -18723,9 +18740,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the key's name. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["UserApiKeyOrderField"];
+                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -18734,7 +18751,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19213,9 +19230,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the name and description. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["CredentialOrderField"];
+                group_by?: components["schemas"]["CredentialOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["CredentialOrderField"];
+                order_by?: components["schemas"]["CredentialOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -19224,7 +19241,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19380,9 +19397,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the name and description. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["CredentialOrderField"];
+                group_by?: components["schemas"]["CredentialOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["CredentialOrderField"];
+                order_by?: components["schemas"]["CredentialOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -19391,7 +19408,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19550,9 +19567,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the name and url. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DaemonOrderField"];
+                group_by?: components["schemas"]["DaemonOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DaemonOrderField"];
+                order_by?: components["schemas"]["DaemonOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -19561,7 +19578,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19748,9 +19765,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the name and url. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DaemonOrderField"];
+                group_by?: components["schemas"]["DaemonOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DaemonOrderField"];
+                order_by?: components["schemas"]["DaemonOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -19759,7 +19776,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19809,9 +19826,9 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the name and url. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DaemonOrderField"];
+                group_by?: components["schemas"]["DaemonOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DaemonOrderField"];
+                order_by?: components["schemas"]["DaemonOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -19820,7 +19837,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -20236,11 +20253,11 @@ export interface operations {
                 /** @description Filter by site ID */
                 site_id?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DependencyOrderField"];
+                group_by?: components["schemas"]["DependencyOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DependencyOrderField"];
+                order_by?: components["schemas"]["DependencyOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -20332,11 +20349,11 @@ export interface operations {
                 /** @description Filter by site ID */
                 site_id?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DependencyOrderField"];
+                group_by?: components["schemas"]["DependencyOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DependencyOrderField"];
+                order_by?: components["schemas"]["DependencyOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -20529,11 +20546,11 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DiscoveryOrderField"];
+                group_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DiscoveryOrderField"];
+                order_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -20854,11 +20871,11 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DiscoveryOrderField"];
+                group_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DiscoveryOrderField"];
+                order_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -20937,11 +20954,11 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DiscoveryOrderField"];
+                group_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DiscoveryOrderField"];
+                order_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -21233,9 +21250,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["HostOrderField"];
+                group_by?: components["schemas"]["HostOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["HostOrderField"];
+                order_by?: components["schemas"]["HostOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -21247,7 +21264,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -21497,9 +21514,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["HostOrderField"];
+                group_by?: components["schemas"]["HostOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["HostOrderField"];
+                order_by?: components["schemas"]["HostOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -21511,7 +21528,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -21609,9 +21626,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["HostOrderField"];
+                group_by?: components["schemas"]["HostOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["HostOrderField"];
+                order_by?: components["schemas"]["HostOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -21623,7 +21640,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -21721,9 +21738,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["HostOrderField"];
+                group_by?: components["schemas"]["HostOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["HostOrderField"];
+                order_by?: components["schemas"]["HostOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -21735,7 +21752,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -23560,7 +23577,7 @@ export interface operations {
                 /** @description Only entities carrying every one of these tags. Repeat for several. */
                 tag_ids?: string[] | null;
                 /** @description Search only this entity type, for its later pages. Omit for the first page of every type. */
-                entity_type?: null | components["schemas"]["EntityDiscriminants"];
+                entity_type?: components["schemas"]["EntityDiscriminants"] | null;
                 /** @description Matches per type (1-50, default 5). */
                 limit?: number | null;
                 /** @description Matches to skip in each type. */
@@ -23629,9 +23646,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["ServiceOrderField"];
+                group_by?: components["schemas"]["ServiceOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["ServiceOrderField"];
+                order_by?: components["schemas"]["ServiceOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -23643,7 +23660,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Only services exposed on one of these port numbers, over either protocol. */
                 ports?: number[] | null;
                 /** @description Exclude services belonging to these categories. */
@@ -23785,9 +23802,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["ServiceOrderField"];
+                group_by?: components["schemas"]["ServiceOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["ServiceOrderField"];
+                order_by?: components["schemas"]["ServiceOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -23799,7 +23816,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Only services exposed on one of these port numbers, over either protocol. */
                 ports?: number[] | null;
                 /** @description Exclude services belonging to these categories. */
@@ -23883,9 +23900,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["ServiceOrderField"];
+                group_by?: components["schemas"]["ServiceOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["ServiceOrderField"];
+                order_by?: components["schemas"]["ServiceOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -23897,7 +23914,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Only services exposed on one of these port numbers, over either protocol. */
                 ports?: number[] | null;
                 /** @description Exclude services belonging to these categories. */
@@ -24501,9 +24518,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["SiteOrderField"];
+                group_by?: components["schemas"]["SiteOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["SiteOrderField"];
+                order_by?: components["schemas"]["SiteOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -24512,7 +24529,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -24651,9 +24668,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["SiteOrderField"];
+                group_by?: components["schemas"]["SiteOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["SiteOrderField"];
+                order_by?: components["schemas"]["SiteOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -24662,7 +24679,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -24708,9 +24725,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["SiteOrderField"];
+                group_by?: components["schemas"]["SiteOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["SiteOrderField"];
+                order_by?: components["schemas"]["SiteOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -24719,7 +24736,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -25042,9 +25059,9 @@ export interface operations {
                  */
                 tag_sets?: string[] | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["SubnetOrderField"];
+                group_by?: components["schemas"]["SubnetOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["SubnetOrderField"];
+                order_by?: components["schemas"]["SubnetOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -25053,7 +25070,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -25176,9 +25193,9 @@ export interface operations {
                  */
                 tag_sets?: string[] | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["SubnetOrderField"];
+                group_by?: components["schemas"]["SubnetOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["SubnetOrderField"];
+                order_by?: components["schemas"]["SubnetOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -25187,7 +25204,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -25252,9 +25269,9 @@ export interface operations {
                  */
                 tag_sets?: string[] | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["SubnetOrderField"];
+                group_by?: components["schemas"]["SubnetOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["SubnetOrderField"];
+                order_by?: components["schemas"]["SubnetOrderField"] | null;
                 /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
                 group_by_tag_group?: string | null;
                 /**
@@ -25263,7 +25280,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -25493,11 +25510,11 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the name and description. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["TagGroupOrderField"];
+                group_by?: components["schemas"]["TagGroupOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["TagGroupOrderField"];
+                order_by?: components["schemas"]["TagGroupOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -25760,11 +25777,11 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the name and description. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["TagOrderField"];
+                group_by?: components["schemas"]["TagOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["TagOrderField"];
+                order_by?: components["schemas"]["TagOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -25988,11 +26005,11 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the name and description. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["TagOrderField"];
+                group_by?: components["schemas"]["TagOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["TagOrderField"];
+                order_by?: components["schemas"]["TagOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -26032,11 +26049,11 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the name and description. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["TagOrderField"];
+                group_by?: components["schemas"]["TagOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["TagOrderField"];
+                order_by?: components["schemas"]["TagOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -26226,7 +26243,7 @@ export interface operations {
                  * @description The view to build the graph for. When omitted, the graph of every view is built and
                  *     returned. The topology tab always sends the view it draws.
                  */
-                view?: null | components["schemas"]["TopologyView"];
+                view?: components["schemas"]["TopologyView"] | null;
             };
             header?: never;
             path?: never;
@@ -26579,11 +26596,11 @@ export interface operations {
                 /** @description Free-text search. Case-insensitive substring match against the email. */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["MemberOrderField"];
+                group_by?: components["schemas"]["MemberOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["MemberOrderField"];
+                order_by?: components["schemas"]["MemberOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -26791,11 +26808,11 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["VlanOrderField"];
+                group_by?: components["schemas"]["VlanOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["VlanOrderField"];
+                order_by?: components["schemas"]["VlanOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -26952,11 +26969,11 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["VlanOrderField"];
+                group_by?: components["schemas"]["VlanOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["VlanOrderField"];
+                order_by?: components["schemas"]["VlanOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -27013,11 +27030,11 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["VlanOrderField"];
+                group_by?: components["schemas"]["VlanOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["VlanOrderField"];
+                order_by?: components["schemas"]["VlanOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */

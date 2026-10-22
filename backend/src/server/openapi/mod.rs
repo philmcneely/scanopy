@@ -537,27 +537,33 @@ fn add_security_schemes(spec: &mut OpenApi) {
     // User API key authentication (most common for API consumers)
     components.security_schemes.insert(
         "user_api_key".to_string(),
-        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-            "Authorization",
-            "User API key (Bearer scp_u_...). Create in Platform > API Keys.",
+        RefOr::T(SecurityScheme::ApiKey(ApiKey::Header(
+            ApiKeyValue::with_description(
+                "Authorization",
+                "User API key (Bearer scp_u_...). Create in Platform > API Keys.",
+            ),
         ))),
     );
 
     // Daemon API key authentication
     components.security_schemes.insert(
         "daemon_api_key".to_string(),
-        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-            "Authorization",
-            "Daemon API key (Bearer scp_d_...). Requires X-Daemon-ID header.",
+        RefOr::T(SecurityScheme::ApiKey(ApiKey::Header(
+            ApiKeyValue::with_description(
+                "Authorization",
+                "Daemon API key (Bearer scp_d_...). Requires X-Daemon-ID header.",
+            ),
         ))),
     );
 
     // Session cookie authentication (used by web UI)
     components.security_schemes.insert(
         "session".to_string(),
-        SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::with_description(
-            "session_id",
-            "Browser session cookie. Obtained via /api/auth/login.",
+        RefOr::T(SecurityScheme::ApiKey(ApiKey::Cookie(
+            ApiKeyValue::with_description(
+                "session_id",
+                "Browser session cookie. Obtained via /api/auth/login.",
+            ),
         ))),
     );
 }
