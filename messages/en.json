@@ -1060,7 +1060,6 @@
 	"discovery_warningAffectsHosts": "Affects {count} hosts",
 	"discovery_warningAffectsSubnets": "Affects {count} subnets",
 	"discovery_warningAtAddress": "at {address}",
-	"discovery_warningDeviceCount": "{count} devices",
 	"discovery_warningGapContainerBridge": "was not tried at {addresses} on Docker or Podman bridge networks",
 	"discovery_warningGapCredentialType": "was not sent",
 	"discovery_warningGapSnmpV3Options": "was not sent, because it uses {options}",

@@ -25,7 +25,7 @@ import warningCodes from '$lib/data/warning-codes.json';
 import warningRemedies from '$lib/data/warning-remedies.json';
 import { metaDescription, metaDescriptionWith, metaName, metaNameWith } from '$lib/i18n/metadata';
 import { joinList } from '$lib/i18n/list';
-import { isCheckable } from './snmpCheck';
+import { snmpCheckOf, type CredentialLookup, type SnmpCheckOutcome } from './snmpCheck';
 import { toColor, type Color } from '$lib/shared/utils/styling';
 import { osLabel } from '$lib/features/daemons/utils';
 import { credentialIntegrations } from '$lib/shared/stores/metadata';
@@ -42,7 +42,6 @@ import {
 	discovery_warningSnmpV3OptionAuthNoPriv,
 	discovery_warningSnmpV3OptionMd5Auth,
 	discovery_warningSnmpV3OptionNoAuthNoPriv,
-	discovery_warningDeviceCount,
 	discovery_warningInferredFrom,
 	discovery_warningSeenBy,
 	discovery_warningNoPortId,
@@ -106,6 +105,14 @@ export interface WarningStatement {
 	warnings: DiscoveryWarning[];
 }
 
+/** One device in a row that offers commands: what the row says about it, and how to check it. */
+export interface DeviceCheck {
+	address: string;
+	credentialId: string | null;
+	sentence: string;
+	outcome: NonNullable<SnmpCheckOutcome>;
+}
+
 /** How many addresses, hosts or subnets a row concerns, and the one when there is only one. */
 export interface WarningAffects {
 	type: 'address' | 'host' | 'subnet';
@@ -127,6 +134,12 @@ export interface WarningEntry {
 	icon: string;
 	/** What the row concerns, counted for its one-line header. `null` for a scan-level code. */
 	affects: WarningAffects | null;
+	/**
+	 * One device at a time, for a row that offers commands: each device's own sentence and what
+	 * checking it takes. Empty when no device in the row has commands, and the row lists its
+	 * statements instead.
+	 */
+	devices: DeviceCheck[];
 	/** What the row says, shown on disclosure. Usually one statement; more when they differ. */
 	details: WarningStatement[];
 	/** Every occurrence behind the row, so an action can read ids off the payload. */
@@ -664,7 +677,12 @@ function describeProvisionalSubnet(
 	// far-end evidence that produced them — the pass that inferred it may have been scans ago, and
 	// one inferred while placing a controller-reported address never had a neighbour at all. The
 	// range alone is still the actionable part.
-	if (!w.addresses.length) return { near: null, nearText: w.cidr, far: null, farText: '' };
+	// The range itself links to its subnet, which is where it is confirmed. A subnet deleted since
+	// the scan lost its id and reads as the bare range.
+	const range: WarningSubject = w.subnet_id
+		? { label: w.cidr, entity: { type: 'Subnet', id: w.subnet_id } }
+		: { label: w.cidr };
+	if (!w.addresses.length) return { near: range, nearText: '', far: null, farText: '' };
 
 	// Paired positionally where both are present: `sys_names` omits far ends that sent none, so a
 	// group where only some did would otherwise misalign names against addresses.
@@ -675,9 +693,9 @@ function describeProvisionalSubnet(
 	const seenBy = [...new Set(w.seen_by_host_ids.map(hostName).filter(Boolean))] as string[];
 	const from = discovery_warningInferredFrom({ far_ends: joinList(named, 'conjunction') });
 	const text = seenBy.length
-		? `${w.cidr}, ${from} ${discovery_warningSeenBy({ devices: joinList(seenBy, 'conjunction') })}`
-		: `${w.cidr}, ${from}`;
-	return { near: null, nearText: text, far: null, farText: '' };
+		? `${from} ${discovery_warningSeenBy({ devices: joinList(seenBy, 'conjunction') })}`
+		: from;
+	return { near: range, nearText: text, far: null, farText: '' };
 }
 
 function portParams(
@@ -762,6 +780,11 @@ function examplesOf(group_: DiscoveryWarning[], hostName: HostNameLookup): Warni
 				return [describePort(w, hostName)];
 			case 'ProvisionalSubnetInferred':
 				return [describeProvisionalSubnet(w, hostName)];
+			// The hosts a credential would be added for, one per line, each linking to its host.
+			case 'IntegrationWithoutCredential': {
+				const host = hostSubject(w.host_id, hostName);
+				return host ? [{ near: host, nearText: '', far: null, farText: '' }] : [];
+			}
 			default:
 				return [];
 		}
@@ -785,23 +808,44 @@ function renderStatements(
 	const fallback = warningCodes.find((c) => c.id === code)?.description;
 	if (!fallback) return [];
 
-	const checkable = isCheckable(code);
-	return bucketByStatement(code, group_, context).map((bucket) => {
-		const params = build(bucket, context);
-		// A row an operator can check lists its devices in the device selector, so a sentence about
-		// several of them counts them rather than naming each a second time.
-		const devices = new Set(
-			bucket.flatMap((w) => ('address' in w && w.address ? [w.address] : []))
-		);
-		if (checkable && devices.size > 1 && 'addresses' in params) {
-			params.addresses = discovery_warningDeviceCount({ count: devices.size });
-		}
-		return {
-			sentence: metaDescriptionWith('warning_codes', code, params, fallback),
-			examples: examplesOf(bucket, hostName),
-			warnings: bucket
-		};
-	});
+	return bucketByStatement(code, group_, context).map((bucket) => ({
+		sentence: metaDescriptionWith('warning_codes', code, build(bucket, context), fallback),
+		examples: examplesOf(bucket, hostName),
+		warnings: bucket
+	}));
+}
+
+/**
+ * Each device in a row, one at a time, when at least one of them has commands to offer.
+ *
+ * A device gets the sentence for itself alone, so the reader takes in one device's result and
+ * its command together rather than a grouped sentence and a list to match it against. A row where
+ * no device has commands returns none, and lists its statements, so the devices are still named.
+ */
+function deviceChecksOf(
+	code: DiscoveryWarningCode,
+	row: DiscoveryWarning[],
+	credentialOf: CredentialLookup,
+	context: ParamContext
+): DeviceCheck[] {
+	const build = WARNING_PARAMS[code] as (w: DiscoveryWarning[], context: ParamContext) => Params;
+	const fallback = warningCodes.find((c) => c.id === code)?.description;
+	if (!fallback) return [];
+
+	const byAddress = new Map<string, DeviceCheck>();
+	for (const warning of row) {
+		if (!('address' in warning) || !warning.address || byAddress.has(warning.address)) continue;
+		const outcome = snmpCheckOf(warning, credentialOf);
+		if (!outcome) continue;
+		byAddress.set(warning.address, {
+			address: warning.address,
+			credentialId: 'credential_id' in warning ? (warning.credential_id ?? null) : null,
+			sentence: metaDescriptionWith('warning_codes', code, build([warning], context), fallback),
+			outcome
+		});
+	}
+	const devices = [...byAddress.values()];
+	return devices.some((d) => 'commands' in d.outcome) ? devices : [];
 }
 
 /**
@@ -941,7 +985,8 @@ function byTitle(
 export function buildWarningReport(
 	warnings: DiscoveryWarning[],
 	nameOfEntity: EntityNameLookup = NO_ENTITY_NAMES,
-	daemonName: string | null = null
+	daemonName: string | null = null,
+	credentialOf: CredentialLookup = () => undefined
 ): WarningSection[] {
 	const context: ParamContext = { daemonName: daemonName ?? discovery_warningUnknownDaemon() };
 	// The example and sentence builders below only ever name hosts, so they keep taking the
@@ -973,6 +1018,7 @@ export function buildWarningReport(
 				color: toColor(meta.color),
 				icon: meta.icon,
 				affects: affectsOf(row, hostName),
+				devices: deviceChecksOf(code, row, credentialOf, context),
 				details: renderStatements(code, row, hostName, context),
 				warnings: row
 			});
