@@ -18,10 +18,11 @@
 	let stalled = $derived(!cancelling && $sessionStallMinutes(session_id, phase) !== null);
 </script>
 
-<div class="flex items-center gap-2">
-	<ProgressTrack class="flex-1">
+<!-- Wraps so the stall tag drops below the bar in a narrow column instead of overflowing it. -->
+<div class="flex flex-wrap items-center gap-2">
+	<ProgressTrack class="min-w-16 flex-1">
 		<AnimatedProgressBar {progress} {stalled} />
 	</ProgressTrack>
-	<span class="text-secondary text-xs">{progress}%</span>
+	<span class="text-secondary shrink-0 text-xs">{progress}%</span>
 	<StallTag {session_id} {phase} {cancelling} />
 </div>

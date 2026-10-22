@@ -390,8 +390,8 @@
 	{#if session}
 		{@const isCancelling = $cancellingSessions.get(session.session_id) === true}
 		{@const phase = isCancelling ? common_cancelling() : session.phase}
-		<div class="min-w-[16rem] space-y-2">
-			<div class="flex items-center gap-2">
+		<div class="min-w-0 space-y-2">
+			<div class="flex flex-wrap items-center gap-x-2">
 				<span class="text-secondary text-sm font-medium">{common_phase()}:</span>
 				<span class="text-accent text-sm font-medium">{phase}</span>
 			</div>
