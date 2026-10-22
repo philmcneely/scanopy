@@ -43,7 +43,7 @@ use crate::server::hosts::r#impl::attributes::{HostHostnameValue, HostOsValue};
 use crate::server::hosts::r#impl::virtualization::{
     HostVirtualizationDiscriminants, ProxmoxGuestType,
 };
-use crate::server::interfaces::r#impl::base::InterfaceDataComplete;
+use crate::server::interfaces::r#impl::base::{Interface, InterfaceDataComplete};
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::r#impl::base::ServiceMatchBaselineParams;
 use crate::server::services::r#impl::definitions::{ServiceDefinitionExt, VirtualizationRole};
@@ -446,46 +446,76 @@ async fn create_guest_host(
         );
         return Ok((response.id, false));
     };
-    let mut all_recorded = true;
-    for identity in identities {
-        let presenting = identities::presenting_interface_id(identity, &response.interfaces);
-        if presenting.is_none() {
-            tracing::warn!(
-                guest = %guest_label(guest),
-                interface = identity.interface.as_deref().unwrap_or("-"),
-                "The guest's interface for a network identity was not stored; recording the \
-                 identity without it"
-            );
-        }
-        let (host, ip_addresses) =
-            identities::identity_host(identity, owner, presenting, subnets, site_id);
-        if let Err(e) = ctx
-            .ops
-            .create_integration_host(
-                ctx.integration,
-                host,
-                ip_addresses,
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-                // One interface of the guest's, seen from the guest; never an interface table.
-                false,
-                InterfaceDataComplete::none(),
-                ctx.cancel,
+    // Recorded together: in ServerPoll mode each waits for the server's next collection.
+    let records: Vec<_> = identities
+        .iter()
+        .map(|identity| {
+            record_identity(
+                ctx,
+                guest,
+                identity,
+                owner,
+                &response.interfaces,
+                subnets,
+                site_id,
             )
-            .await
-        {
-            tracing::warn!(
-                guest = %guest_label(guest),
-                interface = identity.interface.as_deref().unwrap_or("-"),
-                error = %e,
-                "Failed to record a Proxmox VE guest's network identity"
-            );
-            all_recorded = false;
-        }
-    }
+        })
+        .collect();
+    let all_recorded = futures::future::join_all(records)
+        .await
+        .into_iter()
+        .all(|recorded| recorded);
     Ok((response.id, all_recorded))
+}
+
+/// Record one of a guest's network identities as a host of its own, linked to `owner`, the
+/// guest's Network Identities service. Returns whether it was recorded.
+async fn record_identity(
+    ctx: &IntegrationContext<'_>,
+    guest: &GuestSummary,
+    identity: &NetworkIdentity,
+    owner: Uuid,
+    guest_interfaces: &[Interface],
+    subnets: &[Subnet],
+    site_id: Uuid,
+) -> bool {
+    let presenting = identities::presenting_interface_id(identity, guest_interfaces);
+    if presenting.is_none() {
+        tracing::warn!(
+            guest = %guest_label(guest),
+            interface = identity.interface.as_deref().unwrap_or("-"),
+            "The guest's interface for a network identity was not stored; recording the \
+             identity without it"
+        );
+    }
+    let (host, ip_addresses) =
+        identities::identity_host(identity, owner, presenting, subnets, site_id);
+    if let Err(e) = ctx
+        .ops
+        .create_integration_host(
+            ctx.integration,
+            host,
+            ip_addresses,
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            // One interface of the guest's, seen from the guest; never an interface table.
+            false,
+            InterfaceDataComplete::none(),
+            ctx.cancel,
+        )
+        .await
+    {
+        tracing::warn!(
+            guest = %guest_label(guest),
+            interface = identity.interface.as_deref().unwrap_or("-"),
+            error = %e,
+            "Failed to record a Proxmox VE guest's network identity"
+        );
+        return false;
+    }
+    true
 }
 
 /// `pve/110 (gitlab)`, for log lines.
