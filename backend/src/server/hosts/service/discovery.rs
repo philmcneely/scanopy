@@ -279,6 +279,24 @@ impl HostService {
                 host.base.chassis_id.as_ref().map(|c| c.value().0.as_str()),
             )
             .await?;
+        // A report that reached a container at its bridge address from outside the runtime
+        // describes the container, not the runtime host it matched (see `container_reports`).
+        let mut interfaces_complete = interfaces_complete;
+        if let Some(m) = &matched
+            && let Some(reached) = self
+                .reached_container(m, host.base.virtualization_metadata.as_ref(), &ip_addresses)
+                .await?
+        {
+            reached.confine(
+                &m.host,
+                &mut host,
+                &mut ip_addresses,
+                &mut services,
+                &mut interfaces,
+                &mut subnets,
+                &mut interfaces_complete,
+            );
+        }
         let mut previous_subnets: HashSet<Uuid> = matched
             .as_ref()
             .map(|m| m.ip_addresses.iter().map(|i| i.base.subnet_id).collect())
