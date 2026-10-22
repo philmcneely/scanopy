@@ -207,6 +207,8 @@
 	 * devices only to say so of each would be noise.
 	 */
 	function checksOf(entry: WarningEntry) {
+		// A local accumulator, rebuilt on each call; nothing reads it reactively.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const byAddress = new Map<
 			string,
 			{
