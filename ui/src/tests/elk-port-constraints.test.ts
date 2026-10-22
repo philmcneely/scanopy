@@ -190,6 +190,51 @@ describe('L2 Physical at a mixed collapse level', () => {
 	});
 });
 
+/**
+ * A ring of three switches, each linked to the next, next to a separate component. Laid out RIGHT
+ * with POLYLINE routing and connected-component compaction, ELK returned NaN for the x of every
+ * root container and for the root's width, so every L2 node and edge rendered at x = NaN.
+ */
+function physicalRingInput(): ElkLayoutInput {
+	const input = mixedCollapseInput();
+	const nodes: TopologyNode[] = [];
+	for (const host of ['ring-a', 'ring-b', 'ring-c', 'hub', 'leaf-a', 'leaf-b']) {
+		nodes.push(hostContainer(host), interfaceElement(`${host}-if`, host, host));
+	}
+	const edges: TopologyEdge[] = [
+		physicalLink('ring-a-if', 'ring-b-if'),
+		physicalLink('ring-b-if', 'ring-c-if'),
+		physicalLink('ring-c-if', 'ring-a-if'),
+		physicalLink('hub-if', 'leaf-a-if'),
+		physicalLink('hub-if', 'leaf-b-if')
+	];
+	return {
+		...input,
+		nodes,
+		edges,
+		collapsedContainers: new Set(),
+		parentIndex: buildTopologyParentIndex(nodes),
+		elementNodeSizes: new Map(
+			nodes.filter((n) => n.node_type === 'Element').map((n) => [n.id, { x: 250, y: 54 }])
+		),
+		topology: { ...input.topology, nodes, edges }
+	};
+}
+
+describe('L2 Physical with a physical-link ring', () => {
+	it('places every node at a finite position', async () => {
+		const result = await computeElkLayout(physicalRingInput());
+
+		const nonFinite = [...result.nodePositions]
+			.filter(([, pos]) => !Number.isFinite(pos.x) || !Number.isFinite(pos.y))
+			.map(([id, pos]) => `${id}: ${pos.x},${pos.y}`);
+		expect(nonFinite).toEqual([]);
+		for (const [id, size] of result.containerSizes) {
+			expect(Number.isFinite(size.width) && Number.isFinite(size.height), id).toBe(true);
+		}
+	});
+});
+
 describe('portConstraintFor', () => {
 	it('fixes positions only when every port on the container has them', () => {
 		expect(
