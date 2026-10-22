@@ -51,11 +51,6 @@ function parametersOf(groupId: string): WalkParameters | null {
 	return (entry?.metadata as WalkParameters | undefined) ?? null;
 }
 
-/** Whether a code is one an operator can check against the device with net-snmp. */
-export function isCheckable(code: string): boolean {
-	return checkOf(code) !== null;
-}
-
 function checkOf(code: string): { check: SnmpCheck; group: string | null } | null {
 	const metadata = warningCodes.find((c) => c.id === code)?.metadata as
 		{ snmp_check?: SnmpCheck | null; snmp_check_group?: string | null } | undefined;

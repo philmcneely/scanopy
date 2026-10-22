@@ -5,7 +5,6 @@ import discoveryIntegrations from '$lib/data/discovery-integrations.json';
 import claimSources from '$lib/data/claim-sources.json';
 import type { components } from '$lib/api/schema';
 import { snmpCheckOf, type CredentialLookup } from '$lib/features/discovery/utils/snmpCheck';
-import { discovery_warningDeviceCount } from '$lib/paraglide/messages';
 import {
 	buildWarningReport,
 	credentialIdsOf,
@@ -145,7 +144,8 @@ describe('discovery warning rendering', () => {
 
 		// The customer's two devices failed identically, and read as one line naming both.
 		expect(same).toHaveLength(1);
-		expect(same[0]).toContain(discovery_warningDeviceCount({ count: 2 }));
+		expect(same[0]).toContain('10.91.16.1');
+		expect(same[0]).toContain('10.91.16.11');
 		// A device whose reads ended differently is a different statement.
 		expect(different).toHaveLength(2);
 	});
@@ -285,7 +285,7 @@ describe('discovery warning rendering', () => {
 		}
 	});
 
-	it('collapses one problem on many devices into a single sentence counting them', () => {
+	it('collapses one problem on many devices into a single sentence naming each of them', () => {
 		// The wall of text this replaced: four switches restricting the same SNMP view produced
 		// four near-identical paragraphs differing only in the address. The claim carries no
 		// per-device figure, so there is nothing to keep them apart.
@@ -301,10 +301,9 @@ describe('discovery warning rendering', () => {
 		expect(report[0].entries).toHaveLength(1);
 		expect(report[0].entries[0].affects).toEqual({ type: 'address', count: 4, only: null });
 		expect(report[0].entries[0].details).toHaveLength(1);
-		// A row an operator can check lists its devices in the selector, so its sentence counts them.
-		expect(report[0].entries[0].details[0].sentence).toContain(
-			discovery_warningDeviceCount({ count: 4 })
-		);
+		for (const device of devices) {
+			expect(report[0].entries[0].details[0].sentence).toContain(device);
+		}
 	});
 
 	it('keeps a device apart when its statement differs, not just its address', () => {
@@ -323,9 +322,8 @@ describe('discovery warning rendering', () => {
 		// Still one row — it is one code — but two sentences under it.
 		expect(section.entries).toHaveLength(1);
 		expect(section.entries[0].details).toHaveLength(2);
-		expect(section.entries[0].details[0].sentence).toContain(
-			discovery_warningDeviceCount({ count: 2 })
-		);
+		expect(section.entries[0].details[0].sentence).toContain('192.168.7.248');
+		expect(section.entries[0].details[0].sentence).toContain('192.168.7.252');
 		expect(section.entries[0].details[1].sentence).toContain('192.168.7.236');
 		expect(section.entries[0].details[1].sentence).not.toContain('192.168.7.248');
 	});
@@ -599,6 +597,53 @@ describe('SNMP check commands', () => {
 		expect(outcome && 'reason' in outcome && outcome.reason).toContain('10.0.0.9');
 	});
 
+	it('takes a row with commands one device at a time, each with its own sentence', () => {
+		const claim = (address: string, credential_id: string | null) =>
+			({
+				code: 'ClaimedCapabilityEmpty',
+				address,
+				source: 'SysServicesBridgeBit',
+				group: 'BridgePortNumbering',
+				credential_id
+			}) as unknown as DiscoveryWarning;
+
+		const [row] = buildWarningReport(
+			[claim('192.168.7.212', credentialId), claim('192.168.7.218', null)],
+			undefined,
+			null,
+			credentials
+		).flatMap((s) => s.entries);
+
+		expect(row.devices.map((d) => d.address)).toEqual(['192.168.7.212', '192.168.7.218']);
+		const [withCommands, without] = row.devices;
+		expect(withCommands.sentence).toContain('192.168.7.212');
+		expect(withCommands.sentence).not.toContain('192.168.7.218');
+		expect('commands' in withCommands.outcome).toBe(true);
+		expect('reason' in without.outcome).toBe(true);
+	});
+
+	it('lists every device when no device in the row has commands', () => {
+		const claim = (address: string) =>
+			({
+				code: 'ClaimedCapabilityEmpty',
+				address,
+				source: 'SysServicesBridgeBit',
+				group: 'BridgePortNumbering',
+				credential_id: null
+			}) as unknown as DiscoveryWarning;
+
+		const [row] = buildWarningReport(
+			[claim('192.168.7.212'), claim('192.168.7.218')],
+			undefined,
+			null,
+			credentials
+		).flatMap((s) => s.entries);
+
+		expect(row.devices).toEqual([]);
+		expect(row.details[0].sentence).toContain('192.168.7.212');
+		expect(row.details[0].sentence).toContain('192.168.7.218');
+	});
+
 	it('offers nothing for a code no device read can repeat', () => {
 		const [[outcome]] = outcomesOf([
 			{
@@ -638,5 +683,57 @@ describe('warning row header counts', () => {
 		const row = rowOf([{ code: 'ScanTimeLimit', hours: 4, hosts_not_scanned: 12 }]);
 
 		expect(row.affects).toBeNull();
+	});
+});
+
+/** The lines under a row that name each thing it is about, as links where there is one. */
+describe('warning row example links', () => {
+	it('links an assumed range to its subnet', () => {
+		const [line] = buildWarningReport([
+			{
+				code: 'ProvisionalSubnetInferred',
+				cidr: '10.20.31.0/24',
+				subnet_id: '00000000-0000-0000-0000-000000000003',
+				addresses: ['10.20.31.9'],
+				sys_names: ['offsite-branch-01'],
+				seen_by_host_ids: [],
+				widened_by_vlan: false,
+				count: 1
+			} as unknown as DiscoveryWarning
+		])
+			.flatMap((s) => s.entries)
+			.flatMap((e) => e.details)
+			.flatMap((d) => d.examples);
+
+		expect(line.near).toEqual({
+			label: '10.20.31.0/24',
+			entity: { type: 'Subnet', id: '00000000-0000-0000-0000-000000000003' }
+		});
+		expect(line.nearText).not.toContain('10.20.31.0/24');
+	});
+
+	it('lists the hosts an integration was found on without a credential', () => {
+		const hostNames: EntityNameLookup = (type, id) =>
+			type === 'Host' ? `host-${id.slice(-1)}` : undefined;
+		const onHost = (host_id: string) =>
+			({
+				code: 'IntegrationWithoutCredential',
+				integration: 'Snmp',
+				host_id
+			}) as unknown as DiscoveryWarning;
+
+		const lines = buildWarningReport(
+			[
+				onHost('00000000-0000-0000-0000-000000000001'),
+				onHost('00000000-0000-0000-0000-000000000002')
+			],
+			hostNames
+		)
+			.flatMap((s) => s.entries)
+			.flatMap((e) => e.details)
+			.flatMap((d) => d.examples);
+
+		expect(lines.map((l) => l.near?.label)).toEqual(['host-1', 'host-2']);
+		expect(lines.every((l) => l.near?.entity?.type === 'Host')).toBe(true);
 	});
 });

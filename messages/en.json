@@ -1055,7 +1055,6 @@
 	"discovery_warningAffectsHosts": "Affects {count} hosts",
 	"discovery_warningAffectsSubnets": "Affects {count} subnets",
 	"discovery_warningAtAddress": "at {address}",
-	"discovery_warningDeviceCount": "{count} devices",
 	"discovery_warningInferredFrom": "inferred from {far_ends}",
 	"discovery_warningNoFurtherDetail": "no further detail",
 	"discovery_warningNoPortId": "with no port id",

@@ -172,7 +172,7 @@
 		return loaded ?? { id: entity.id, name: label };
 	}
 
-	let sections = $derived(buildWarningReport(warnings, nameOfEntity));
+	let sections = $derived(buildWarningReport(warnings, nameOfEntity, null, credentialOf));
 
 	/** Which rows are showing their explanation, by `WarningEntry.key`. */
 	const openRows = new SvelteSet<string>();
@@ -200,31 +200,6 @@
 
 	/** Which device a row's command box shows, by `WarningEntry.key`. Unset means the default. */
 	const selectedDevices = new SvelteMap<string, string>();
-
-	/**
-	 * The devices a row can check, with what checking each takes. Empty when none of them has
-	 * commands: a row whose every device lacks a credential has nothing to offer, and listing the
-	 * devices only to say so of each would be noise.
-	 */
-	function checksOf(entry: WarningEntry) {
-		const byAddress = new Map<
-			string,
-			{
-				address: string;
-				credentialId: string | null;
-				outcome: NonNullable<ReturnType<typeof snmpCheckOf>>;
-			}
-		>();
-		for (const warning of entry.warnings) {
-			if (!('address' in warning) || !warning.address || byAddress.has(warning.address)) continue;
-			const outcome = snmpCheckOf(warning, credentialOf);
-			if (!outcome) continue;
-			const credentialId = 'credential_id' in warning ? (warning.credential_id ?? null) : null;
-			byAddress.set(warning.address, { address: warning.address, credentialId, outcome });
-		}
-		const checks = [...byAddress.values()];
-		return checks.some((check) => 'commands' in check.outcome) ? checks : [];
-	}
 
 	/** The credential a device was read with, as a chip that opens it. */
 	function credentialChipOf(credentialId: string | null): WarningSubject | null {
@@ -466,45 +441,48 @@
 							</div>
 
 							{#if isOpen}
-								{@const checks = checksOf(entry)}
 								<div class="space-y-2 pb-1 pl-12 pt-1">
-									{#each entry.details as statement, i (i)}
-										<div class="space-y-1">
-											<p class="text-tertiary text-sm">{statement.sentence}</p>
-											{#if statement.examples.length > 0}
-												<ul class="space-y-0.5">
-													{#each statement.examples as example, j (j)}
-														<li class="text-tertiary flex flex-wrap items-center gap-1 text-xs">
-															{#if example.near}
-																{@render entityChip(example.near)}
-															{/if}
-															{#if example.nearText}<span>{example.nearText}</span>{/if}
-															<!-- The arrow is only drawn with something on both sides: a
+									<!-- A row with commands takes one device at a time: its own result and its
+									     command. Any other row lists its statements, naming every device. -->
+									{#if entry.devices.length === 0}
+										{#each entry.details as statement, i (i)}
+											<div class="space-y-1">
+												<p class="text-tertiary text-sm">{statement.sentence}</p>
+												{#if statement.examples.length > 0}
+													<ul class="space-y-0.5">
+														{#each statement.examples as example, j (j)}
+															<li class="text-tertiary flex flex-wrap items-center gap-1 text-xs">
+																{#if example.near}
+																	{@render entityChip(example.near)}
+																{/if}
+																{#if example.nearText}<span>{example.nearText}</span>{/if}
+																<!-- The arrow is only drawn with something on both sides: a
 															     far end nothing matched, or a host deleted since the scan,
 															     would otherwise leave it pointing at nothing. -->
-															{#if (example.near || example.nearText) && (example.far || example.farText)}
-																<span class="text-tertiary/60" aria-hidden="true">→</span>
-															{/if}
-															{#if example.far}
-																{@render entityChip(example.far)}
-															{/if}
-															{#if example.farText}<span>{example.farText}</span>{/if}
-														</li>
-													{/each}
-												</ul>
-											{/if}
-										</div>
-									{/each}
-									<!-- One command box per row: pick a device and the box shows what checking it
-									     takes. A device without commands says why in place of the box. -->
-									{#if checks.length > 0}
+																{#if (example.near || example.nearText) && (example.far || example.farText)}
+																	<span class="text-tertiary/60" aria-hidden="true">→</span>
+																{/if}
+																{#if example.far}
+																	{@render entityChip(example.far)}
+																{/if}
+																{#if example.farText}<span>{example.farText}</span>{/if}
+															</li>
+														{/each}
+													</ul>
+												{/if}
+											</div>
+										{/each}
+									{:else}
 										{@const selected =
-											checks.find((c) => c.address === selectedDevices.get(entry.key)) ??
-											checks.find((c) => 'commands' in c.outcome) ??
-											checks[0]}
-										{@const options = checks.map((c) => ({ value: c.address, label: c.address }))}
+											entry.devices.find((c) => c.address === selectedDevices.get(entry.key)) ??
+											entry.devices.find((c) => 'commands' in c.outcome) ??
+											entry.devices[0]}
+										{@const options = entry.devices.map((c) => ({
+											value: c.address,
+											label: c.address
+										}))}
 										<div class="space-y-2 pt-1">
-											{#if checks.length > DEVICE_SEGMENTS}
+											{#if entry.devices.length > DEVICE_SEGMENTS}
 												<div class="max-w-xs">
 													<RichSelect
 														selectedValue={selected.address}
@@ -513,13 +491,14 @@
 														displayComponent={SimpleOptionDisplay}
 													/>
 												</div>
-											{:else if checks.length > 1}
+											{:else if entry.devices.length > 1}
 												<SegmentedControl
 													{options}
 													selected={selected.address}
 													onchange={(address) => selectedDevices.set(entry.key, address)}
 												/>
 											{/if}
+											<p class="text-tertiary text-sm">{selected.sentence}</p>
 											{#if 'commands' in selected.outcome}
 												{@const credential = credentialChipOf(selected.credentialId)}
 												<div class="space-y-1">
