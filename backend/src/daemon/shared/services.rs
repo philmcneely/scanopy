@@ -122,7 +122,7 @@ mod tests {
         );
         let terminal = services.discovery_service.terminal_payload.read().await;
         assert_eq!(
-            terminal.as_ref().map(|p| p.phase.clone()),
+            terminal.as_ref().map(|p| p.phase),
             Some(DiscoveryPhase::Complete)
         );
     }

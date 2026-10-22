@@ -132,6 +132,7 @@ pub(super) struct DeclinedAddresses {
 }
 
 impl NetworkScan {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         subnet_ids: Option<Vec<Uuid>>,
         host_naming_fallback: HostNamingFallback,
