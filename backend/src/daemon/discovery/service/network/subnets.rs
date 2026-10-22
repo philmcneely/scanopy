@@ -7,7 +7,6 @@ use tokio_util::sync::CancellationToken;
 
 use crate::daemon::discovery::service::ops::DiscoveryOps;
 use crate::daemon::utils::base::{DaemonUtils, PlatformDaemonUtils};
-use crate::server::daemons::r#impl::base::DaemonMode;
 use crate::server::subnets::r#impl::base::Subnet;
 
 use super::NetworkScan;
@@ -48,14 +47,14 @@ impl NetworkScan {
         if !self.known_subnets.is_empty() {
             return Ok(self.known_subnets.clone());
         }
-        if ops.config_store.get_mode().await? == DaemonMode::ServerPoll {
+        let Some(api_client) = &ops.api_client else {
             return Err(anyhow::anyhow!(
                 "The server sent no subnets with this scan, and a ServerPoll daemon cannot ask \
                  for them. Upgrade the server, or scan the daemon's own subnets instead of \
                  naming them."
             ));
-        }
-        ops.api_client
+        };
+        api_client
             .get("/api/v1/subnets", "Failed to get subnets")
             .await
     }
@@ -121,10 +120,12 @@ impl NetworkScan {
                     true
                 })
                 .collect();
-            let subnet_futures = subnets
+            let (mut resolved, to_create) = reuse_created_subnets(subnets, &self.created_subnets);
+            let subnet_futures = to_create
                 .iter()
                 .map(|subnet| ops.create_subnet(subnet, cancel));
-            try_join_all(subnet_futures).await?
+            resolved.extend(try_join_all(subnet_futures).await?);
+            resolved
         };
 
         Ok(ResolvedScanTargets {
@@ -350,6 +351,25 @@ pub(crate) fn resolve_rescan_subnets(
     resolution
 }
 
+/// Split the daemon's own subnets into those this session already created, returned as the
+/// server confirmed them, and those still to create. The session creates its interface subnets
+/// before the network phase; submitting them again cost a ServerPoll run another poll round and
+/// a DaemonPoll run one redundant POST per subnet.
+pub(crate) fn reuse_created_subnets(
+    own: Vec<Subnet>,
+    created: &[Subnet],
+) -> (Vec<Subnet>, Vec<Subnet>) {
+    let mut reused = Vec::new();
+    let mut to_create = Vec::new();
+    for subnet in own {
+        match created.iter().find(|c| *c.base.cidr == *subnet.base.cidr) {
+            Some(created) => reused.push(created.clone()),
+            None => to_create.push(subnet),
+        }
+    }
+    (reused, to_create)
+}
+
 /// The most specific of `cidrs` that contains `ip`.
 ///
 /// Longest prefix wins, matching the server's dangling-subnet repair
@@ -434,6 +454,25 @@ mod tests {
 
     fn targets(ips: &[&str]) -> HashSet<IpAddr> {
         ips.iter().map(|s| ip(s)).collect()
+    }
+
+    /// A subnet the session already created is handed back as the server confirmed it, under
+    /// the server's id, and is not submitted again. One it hasn't is.
+    #[test]
+    fn the_network_phase_creates_only_subnets_the_session_has_not() {
+        let confirmed = subnet("192.168.4.0/22");
+        let own = vec![subnet("192.168.4.0/22"), subnet("172.16.102.0/24")];
+
+        let (reused, to_create) = reuse_created_subnets(own, std::slice::from_ref(&confirmed));
+
+        assert_eq!(
+            reused.iter().map(|s| s.id).collect::<Vec<_>>(),
+            vec![confirmed.id]
+        );
+        assert_eq!(
+            to_create.iter().map(|s| *s.base.cidr).collect::<Vec<_>>(),
+            vec![cidr("172.16.102.0/24")]
+        );
     }
 
     /// The reported bug: a daemon host carries 127.0.0.1 alongside its real address, and the

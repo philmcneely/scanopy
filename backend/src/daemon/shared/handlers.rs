@@ -76,7 +76,7 @@ pub fn create_router(state: Arc<DaemonAppState>, mode: DaemonMode) -> Router<Arc
 }
 
 async fn get_health() -> ApiResult<Json<ApiResponse<String>>> {
-    tracing::info!("Received healthcheck request");
+    tracing::debug!("Received healthcheck request");
 
     Ok(Json(ApiResponse::success(
         "Scanopy Daemon Running".to_string(),

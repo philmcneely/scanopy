@@ -1631,6 +1631,17 @@ exec(\\\"try:\\\\n p=urllib.request.urlopen(r,context=c,timeout=1)\\\\nexcept Ex
                     .await
                 {
                     Ok(inspected) => Some((inspected, summary)),
+                    // Listed, then removed before the inspect reached it.
+                    Err(bollard::errors::Error::DockerResponseServerError {
+                        status_code: 404,
+                        ..
+                    }) => {
+                        tracing::debug!(
+                            container_id = %id,
+                            "Container removed between list and inspect; skipping it"
+                        );
+                        None
+                    }
                     Err(e) => {
                         tracing::warn!(
                             container_id = %id,

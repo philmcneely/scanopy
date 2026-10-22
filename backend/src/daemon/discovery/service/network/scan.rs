@@ -29,7 +29,6 @@ use crate::server::services::r#impl::base::{Service, ServiceMatchBaselineParams}
 use crate::server::shared::attribution::{AttributeSource, Attributed};
 use crate::server::shared::types::entities::EntitySource;
 use crate::server::{
-    daemons::r#impl::base::DaemonMode,
     hosts::r#impl::{
         api::{DiscoveryHostRequest, HostResponse},
         attributes::HostHostnameValue,
@@ -135,10 +134,25 @@ impl NetworkScan {
             (Vec::new(), subnets)
         };
 
+        // The subnets the ARP and ICMP sweeps address one by one. A link-local subnet stays in
+        // scope for mDNS, whose responders are still released below, but is never swept.
+        let arp_swept_subnets = swept_subnets(&interfaced_subnets, target_ips.as_ref());
+        for subnet in interfaced_subnets
+            .iter()
+            .chain(&non_interfaced_subnets)
+            .filter(|s| target_ips.is_none() && s.is_link_local())
+        {
+            tracing::info!(
+                cidr = %subnet.base.cidr,
+                "Not sweeping link-local subnet; its hosts are found through mDNS"
+            );
+        }
+
         let count_ips =
             |subnets: &[Subnet]| -> u64 { count_scan_ips(subnets, target_ips.as_ref()) };
-        let interfaced_ip_count = count_ips(&interfaced_subnets);
-        let non_interfaced_ip_count = count_ips(&non_interfaced_subnets);
+        let interfaced_ip_count = count_ips(&arp_swept_subnets);
+        let non_interfaced_ip_count =
+            count_ips(&swept_subnets(&non_interfaced_subnets, target_ips.as_ref()));
         let total_ips = interfaced_ip_count + non_interfaced_ip_count;
 
         // Calculate estimated ARP duration for progress reporting
@@ -168,7 +182,7 @@ impl NetworkScan {
 
         ops.report_progress(0).await?;
 
-        let arp_subnet_count = interfaced_subnets.len();
+        let arp_subnet_count = arp_swept_subnets.len();
 
         // Use the port batch size from the coordinated calculation
         let effective_batch_size = port_scan_batch_size;
@@ -283,7 +297,7 @@ impl NetworkScan {
             // uses — this list is materialised, and an uncapped /8 would exhaust memory the way
             // the streaming enumeration below is careful not to.
             let mut targets: Vec<std::net::Ipv4Addr> = Vec::new();
-            for subnet in &scanned_subnets {
+            for subnet in &swept_subnets(&scanned_subnets, target_ips.as_ref()) {
                 for addr in scan_addresses(&subnet.base.cidr, target_ips.as_ref()) {
                     // The network and broadcast addresses are skipped here and nowhere else: ARP
                     // enumerates them harmlessly because nothing owns them and nothing replies,
@@ -329,10 +343,10 @@ impl NetworkScan {
         // would lose the MAC only ARP carries.
         let mut arp_forwarders: Vec<std::thread::JoinHandle<()>> = Vec::new();
 
-        if !interfaced_subnets.is_empty() {
+        if !arp_swept_subnets.is_empty() {
             let mut subnet_to_ips: HashMap<IpCidr, (Subnet, Vec<std::net::Ipv4Addr>)> =
                 HashMap::new();
-            for subnet in &interfaced_subnets {
+            for subnet in &arp_swept_subnets {
                 let entry = subnet_to_ips
                     .entry(*subnet.base.cidr)
                     .or_insert_with(|| (subnet.clone(), Vec::new()));
@@ -443,6 +457,16 @@ impl NetworkScan {
                         // Use spawn_blocking since std::sync::mpsc::recv_timeout is blocking
                         let host_tx = host_tx.clone();
                         let subnet = subnet.clone();
+                        // The receiver's own cap, plus as long again for the margin: the
+                        // forwarder normally ends when the receiver closes the channel.
+                        let forwarder_timeout = super::sweep_receiver_lifetime(
+                            target_count,
+                            1 + arp_retries,
+                            Duration::from_micros(1_000_000 / u64::from(arp_rate_pps.max(1))),
+                            arp::ROUND_WAIT,
+                            arp::POST_SCAN_RECEIVE,
+                        )
+                        .saturating_mul(2);
 
                         // Use a background thread for the blocking recv, forward via channel.
                         // Hard timeout prevents infinite hangs if the ARP receiver thread
@@ -452,7 +476,6 @@ impl NetworkScan {
                         // address" a fact rather than a guess.
                         arp_forwarders.push(std::thread::spawn(move || {
                             let forwarder_start = Instant::now();
-                            let forwarder_timeout = Duration::from_secs(600); // 10 minutes
                             let mut forwarded = 0u64;
                             loop {
                                 if forwarder_start.elapsed() >= forwarder_timeout {
@@ -623,6 +646,9 @@ impl NetworkScan {
                             LivenessEvidence::Mdns
                         } else if responders.contains(&addr) {
                             LivenessEvidence::Icmp
+                        } else if stream_targets.is_none() && subnet.is_link_local() {
+                            // Not swept: only an address something answered for is queued.
+                            continue;
                         } else {
                             LivenessEvidence::Enumerated
                         };
@@ -846,7 +872,6 @@ impl NetworkScan {
                                 let early_subnet = subnet.clone();
                                 let early_cancel = cancel.clone();
                                 let early_entity_buffer = ops.entity_buffer.clone();
-                                let early_config_store = ops.config_store.clone();
                                 let early_api_client = ops.api_client.clone();
                                 let early_handle = tokio::spawn(async move {
                                     // Unnamed: the address is an identifier, and the display ladder
@@ -887,15 +912,14 @@ impl NetworkScan {
                                         superseded_wire_shape: false,
                                     };
                                     early_entity_buffer.push_host(request.clone()).await;
-                                    let mode = early_config_store.get_mode().await?;
-                                    match mode {
-                                        DaemonMode::DaemonPoll => {
+                                    match early_api_client {
+                                        Some(early_api_client) => {
                                             let _response: HostResponse = early_api_client
                                                 .post("/api/v1/hosts/discovery", &request, "Failed to create early host")
                                                 .await?;
                                             Ok(host_id)
                                         }
-                                        DaemonMode::ServerPoll => {
+                                        None => {
                                             let _actual = early_entity_buffer
                                                 .await_host(&host_id, Duration::from_secs(120), &early_cancel)
                                                 .await
@@ -2016,6 +2040,21 @@ pub(crate) fn scan_addresses<'a>(
     }
 }
 
+/// The subnets whose addresses the ARP and ICMP sweeps (and, without ARP, the enumeration) probe
+/// one by one. A link-local `169.254.0.0/16` is left out of a whole-subnet scan: its 65,536
+/// self-assigned addresses took about an hour per run at the default ARP rate, for hosts mDNS
+/// already finds. A rescan names its addresses, so it sweeps them wherever they are.
+pub(crate) fn swept_subnets(
+    subnets: &[Subnet],
+    target_ips: Option<&HashSet<IpAddr>>,
+) -> Vec<Subnet> {
+    subnets
+        .iter()
+        .filter(|s| target_ips.is_some() || !s.is_link_local())
+        .cloned()
+        .collect()
+}
+
 /// Number of addresses a scan will actually probe across `subnets`.
 ///
 /// Without a target filter this is the full address space of each CIDR, derived
@@ -2339,6 +2378,50 @@ mod tests {
 
     fn ip(s: &str) -> IpAddr {
         IpAddr::from_str(s).unwrap()
+    }
+
+    /// A whole-subnet scan leaves the daemon's link-local subnet out of the per-address sweeps
+    /// and keeps its real LAN. A rescan of an address there still reaches it.
+    #[test]
+    fn a_sweep_skips_the_link_local_subnet_unless_a_rescan_names_an_address_in_it() {
+        let subnets = vec![subnet("192.168.4.0/22"), subnet("169.254.0.0/16")];
+        let cidrs = |swept: Vec<Subnet>| {
+            swept
+                .iter()
+                .map(|s| s.base.cidr.to_string())
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(cidrs(swept_subnets(&subnets, None)), vec!["192.168.4.0/22"]);
+
+        let rescan = HashSet::from([ip("169.254.154.142")]);
+        assert_eq!(swept_subnets(&subnets, Some(&rescan)).len(), 2);
+    }
+
+    /// A receiver must outlast its sender's whole schedule, or replies after the cap are lost.
+    /// The old fixed 300s fell short of a /16 at the default 50 pps.
+    #[test]
+    fn a_sweep_receiver_outlives_its_send_schedule() {
+        for (targets, rounds, rate_pps) in [
+            (254, 3, 50),
+            (1022, 3, 50),
+            (65_534, 3, 50),
+            (65_534, 1, 500),
+        ] {
+            let send_delay = Duration::from_micros(1_000_000 / rate_pps);
+            let sending = send_delay * (targets * rounds) + arp::ROUND_WAIT * rounds;
+            let lifetime = super::super::sweep_receiver_lifetime(
+                targets as usize,
+                rounds,
+                send_delay,
+                arp::ROUND_WAIT,
+                arp::POST_SCAN_RECEIVE,
+            );
+            assert!(
+                lifetime > sending + arp::POST_SCAN_RECEIVE,
+                "{targets} targets × {rounds} rounds at {rate_pps} pps: {lifetime:?} ≤ {sending:?}"
+            );
+        }
     }
 
     #[test]
