@@ -895,7 +895,7 @@
 
 {#snippet stepHeading(number: number, label: string)}
 	{#if showSteps}
-		<h3 class="text-base font-semibold text-primary">
+		<h3 class="border-b border-(--color-border) pb-2 text-sm font-semibold text-primary">
 			{common_stepNumber({ number: String(number) })}
 			{label}
 		</h3>
