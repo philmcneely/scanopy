@@ -15,6 +15,7 @@
 	import SegmentedControl from '$lib/shared/components/forms/SegmentedControl.svelte';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
+	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	import { CredentialTypeDisplay } from '$lib/shared/components/forms/selection/display/CredentialTypeDisplay.svelte';
 	import type { Credential, CredentialType } from '../types/base';
@@ -59,6 +60,7 @@
 		common_details,
 		common_name,
 		common_stepNumber,
+		daemons_credentialWizardExistingFieldsReadOnly,
 		daemons_credentialWizardStepConfigure,
 		daemons_credentialWizardStepSelectTarget,
 		common_options,
@@ -896,7 +898,11 @@
 <!-- A wizard card that shows both targets and fields puts each in a numbered step card. -->
 {#snippet stepCard(number: number, label: string, content: Snippet)}
 	{#if showSteps}
-		<InfoCard title={`${common_stepNumber({ number: String(number) })} ${label}`}>
+		<InfoCard>
+			<h3 class="text-lg font-semibold text-primary">
+				{common_stepNumber({ number: String(number) })}
+				{label}
+			</h3>
 			<div class="space-y-4">{@render content()}</div>
 		</InfoCard>
 	{:else}
@@ -1032,6 +1038,11 @@
 		     a disabled <fieldset> disables every descendant control, including SegmentedControls. -->
 		{#if !hideFields}
 			{#snippet fieldsStep()}
+				<!-- Read-only reference to a saved credential: its fields are edited on their own, not
+				     here. A seeded default's fields are fixed, so it gets no edit pointer. -->
+				{#if disabled && !credential?.is_default}
+					<InlineInfo body={daemons_credentialWizardExistingFieldsReadOnly()} />
+				{/if}
 				<fieldset {disabled} class="m-0 min-w-0 space-y-4 border-0 p-0">
 					<form.Field
 						name={nameFieldName}
@@ -1082,7 +1093,7 @@
 	{#each fieldSections as fieldSection (fieldSection.key)}
 		{#if useGroupHeaders}
 			<section class="space-y-3">
-				<h3 class="border-b border-(--color-border) pb-2 text-sm font-semibold text-primary">
+				<h3 class="border-b border-(--color-border) pb-2 text-base font-semibold text-primary">
 					{fieldSection.title}
 				</h3>
 				{@render fieldSectionContents(fieldSection)}
