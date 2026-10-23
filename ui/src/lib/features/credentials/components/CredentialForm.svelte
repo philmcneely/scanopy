@@ -996,11 +996,15 @@
 								</form.Field>
 							</div>
 						{/if}
-						<button
-							type="button"
-							class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
-							onclick={() => handleRemoveTarget(i)}>&times;</button
-						>
+						<!-- A type that can only target the daemon host keeps that row: removing it would
+						     leave the credential nothing to run on. -->
+						{#if !(isDaemonHostValue(ip) && !supportsRemoteHosts)}
+							<button
+								type="button"
+								class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
+								onclick={() => handleRemoveTarget(i)}>&times;</button
+							>
+						{/if}
 					</div>
 				{/each}
 				<div class="flex flex-wrap items-center gap-3">

@@ -42,6 +42,9 @@
 		/** The daemon's OS when known (create-daemon flow, or a daemon created with one). New
 		 *  credentials take its OS family, and existing ones set up for another are blocked. */
 		daemonOs?: DaemonOS | null;
+		/** Keep the remove action on rows with hosts assigned elsewhere. Set where the user added
+		 *  those rows (daemon setup); otherwise they're listed for their assignments and stay. */
+		assignedRowsRemovable?: boolean;
 	}
 
 	let {
@@ -53,7 +56,8 @@
 		fixedCapabilityTypeIds = [],
 		daemonVersion = null,
 		daemonName = null,
-		daemonOs = null
+		daemonOs = null,
+		assignedRowsRemovable = false
 	}: Props = $props();
 
 	const bulkCreateCredentialsMutation = useBulkCreateCredentialsMutation();
@@ -149,5 +153,6 @@
 		{daemonName}
 		onRemoveCredential={handleRemoveCredential}
 		{daemonOs}
+		{assignedRowsRemovable}
 	/>
 </div>

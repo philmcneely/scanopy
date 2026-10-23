@@ -85,6 +85,8 @@
 		 *  credentials take its OS family as their `daemon_os` and hide the Daemon OS picker;
 		 *  existing credentials set up for another family are blocked. */
 		daemonOs?: DaemonOS | null;
+		/** Keep the remove action on rows with `lockedHosts`. See `CredentialsStep`. */
+		assignedRowsRemovable?: boolean;
 	}
 
 	let {
@@ -96,7 +98,8 @@
 		claimedDaemonHostIntegrations = [],
 		daemonVersion = null,
 		daemonName = null,
-		daemonOs = null
+		daemonOs = null,
+		assignedRowsRemovable = false
 	}: Props = $props();
 
 	let fixedDaemonOs = $derived(daemonOs ? osFamilyOf(daemonOs) : null);
@@ -118,11 +121,14 @@
 	// Local items array for ListConfigEditor display
 	let items = $derived(pendingCredentials.map((p) => p.credential));
 
-	// A credential assigned through the junction is never removable from this list: the
-	// assignment lives on the host/credential, so the trash would either do nothing or
-	// imply it had unassigned it. Its targets *here* are removed row by row instead.
+	// Where rows are listed for their junction assignments (discovery), a credential assigned
+	// that way is never removable: the assignment lives on the host/credential, so the trash
+	// would either do nothing or imply it had unassigned it. Its targets *here* are removed row
+	// by row instead. Where the user added the row (daemon setup), removing it is theirs to do.
 	let assignedElsewhereCredIds = $derived(
-		pendingCredentials.filter((p) => p.lockedHosts?.length).map((p) => p.credential.id)
+		assignedRowsRemovable
+			? []
+			: pendingCredentials.filter((p) => p.lockedHosts?.length).map((p) => p.credential.id)
 	);
 
 	function isDaemonHostOnly(typeId: string): boolean {
@@ -138,10 +144,11 @@
 	 * Whether a pending credential claims its integration's daemon host: a daemon-host-only
 	 * type (the local socket) always does; a configurable cred does when it targets a loopback.
 	 * The daemon host is a single endpoint per `single_endpoint_per_host` integration, so only
-	 * one credential may hold it.
+	 * one credential may hold it. Existing rows count too (the seeded socket is one); a row
+	 * listed only for its assigned hosts targets nothing here, so it claims nothing.
 	 */
 	function claimsDaemonHost(p: PendingCredential): boolean {
-		if (p.isExisting) return false;
+		if (isLockedOnly(p)) return false;
 		const meta = credentialTypes.getMetadata(p.credential.credential_type.type);
 		if (!meta?.single_endpoint_per_host) return false;
 		return isDaemonHostOnlyTargets(meta.targets) || p.targetIps.some(isLoopback);
@@ -168,7 +175,7 @@
 	 *  already claimed elsewhere — used to disable the "Add daemon host" action. */
 	function daemonHostUnavailableFor(index: number): boolean {
 		const p = pendingCredentials[index];
-		if (!p || p.isExisting) return false;
+		if (!p) return false;
 		const meta = credentialTypes.getMetadata(p.credential.credential_type.type);
 		if (!meta?.single_endpoint_per_host || !meta.associated_service) return false;
 		return integrationClaimsDaemonHost(meta.associated_service, index);

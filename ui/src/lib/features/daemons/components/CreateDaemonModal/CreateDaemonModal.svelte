@@ -888,6 +888,7 @@
 				bind:credentialIds
 				daemonOs={selectedOS}
 				daemonName={String(formValues.name ?? '')}
+				assignedRowsRemovable
 			/>
 		{:else}
 			<div class="flex-1 overflow-auto p-4 sm:p-6">
