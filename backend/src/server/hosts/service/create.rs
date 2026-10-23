@@ -531,6 +531,35 @@ impl HostService {
             other => other,
         };
 
+        // A guest whose hypervisor names its NICs gives up rows another NIC answered for, each to
+        // a host of its own (`rows_a_guest_sheds`).
+        let shed_devices: Vec<HashSet<Uuid>> = match &matching_result {
+            Some(m) if matches!(conflict_behavior, ConflictBehavior::Upsert) => {
+                m.rows_a_guest_sheds(&ip_addresses, &interfaces)
+            }
+            _ => Vec::new(),
+        };
+
+        // A daemon's report of its own host retires the addresses it no longer has
+        // (`stale_self_reported_rows`).
+        let retired_self_reported: HashSet<Uuid> = match &matching_result {
+            Some(m) if matches!(conflict_behavior, ConflictBehavior::Upsert) => {
+                let stale =
+                    super::self_report::stale_self_reported_rows(&m.ip_addresses, &ip_addresses);
+                if !stale.is_empty()
+                    && self
+                        .daemon_service
+                        .exists(StorableFilter::<Daemon>::new_from_host_ids(&[m.host.id]))
+                        .await?
+                {
+                    stale
+                } else {
+                    HashSet::new()
+                }
+            }
+            _ => HashSet::new(),
+        };
+
         let is_new_host = matching_result.is_none();
         let mut same_device: Vec<SameDevice> = Vec::new();
         let mut host_matched_by: Option<HostMatchedBy> = None;
@@ -580,10 +609,7 @@ impl HostService {
 
         // Check host limit for new hosts (not upserts)
         if is_new_host && let Some(ctx) = limit_ctx {
-            // SCD2: limit applies to live hosts only; closed historical copies
-            // don't count toward plan limits.
-            let filter = StorableFilter::<Host>::new_from_site_ids(&ctx.org_site_ids).live();
-            let current_hosts = self.get_all(filter).await?.len() as u64;
+            let current_hosts = self.live_host_count(ctx).await?;
             if current_hosts >= ctx.limit {
                 return Err(anyhow!(
                     "Host limit reached ({}/{}). Upgrade your plan for unlimited hosts.",
@@ -612,6 +638,25 @@ impl HostService {
             self.detach_addresses(from, &created_host, rows, &authentication)
                 .await?;
         }
+        // Each device shed is a new host, so the plan limit applies as it does to any other.
+        let shed_devices = match limit_ctx {
+            Some(ctx)
+                if !shed_devices.is_empty()
+                    && self.live_host_count(ctx).await? + shed_devices.len() as u64 > ctx.limit =>
+            {
+                tracing::warn!(
+                    host_id = %created_host.id,
+                    devices = shed_devices.len(),
+                    "Host limit reached; leaving addresses its NICs do not carry on this guest"
+                );
+                Vec::new()
+            }
+            _ => shed_devices,
+        };
+        self.shed_guest_addresses(&created_host, &shed_devices, &authentication)
+            .await?;
+        self.retire_self_reported_addresses(&created_host, &retired_self_reported, &authentication)
+            .await?;
 
         // Capture daemon interface ID → IP mapping before ip_addresses are consumed.
         // Used later to remap credential assignment ip_address_ids to server-assigned IDs.
@@ -1859,6 +1904,13 @@ impl HostService {
 
     /// Merge `proven` into `destination` with [`Self::consolidate_hosts`], the same merge a person
     /// triggers from the API.
+    /// The live hosts across the organization's sites, the count a plan's host limit applies to.
+    /// SCD2: closed historical copies don't count.
+    async fn live_host_count(&self, ctx: &HostLimitContext) -> Result<u64> {
+        let filter = StorableFilter::<Host>::new_from_site_ids(&ctx.org_site_ids).live();
+        Ok(self.get_all(filter).await?.len() as u64)
+    }
+
     async fn merge_same_device(
         &self,
         destination_id: &Uuid,

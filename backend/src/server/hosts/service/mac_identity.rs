@@ -170,7 +170,9 @@ pub(crate) fn select_matching_host_by_mac(
 /// A weak value is one nothing stops the device changing, so on its own it may not anchor a match.
 /// When the device itself answers with the value another source already recorded for an existing
 /// host, both name the same NIC as it is now: a PROFINET DCP responder on a VM's macvlan interface,
-/// whose `8a:…` MAC Proxmox's guest agent reported first. A value several devices share (Docker's
+/// whose `8a:…` MAC Proxmox's guest agent reported first. That copy names the link's network
+/// identity, not the VM: once the VM's config MACs are known, `mac_carriers` leaves its other MACs
+/// out ([`HostCandidate::mac_is_foreign`](super::HostCandidate::mac_is_foreign)). A value several devices share (Docker's
 /// default bridge MACs) still resolves nowhere, because the tier needs a single host.
 pub(crate) fn corroborated(incoming: &MacEvidence, stored: &MacEvidence) -> bool {
     incoming.source().method().binds_claim_to_subject() && !stored.source().method().is_guess()
