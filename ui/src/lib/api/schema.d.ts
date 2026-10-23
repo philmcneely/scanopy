@@ -7735,9 +7735,6 @@ export interface components {
             details: components["schemas"]["ContainerBridgeGap"];
             /** @enum {string} */
             type: "TargetsContainerBridgeWithCredentials";
-        } | {
-            /** @enum {string} */
-            type: "FallsBackToSnmpV1";
         };
         ChangePlanPreview: {
             /**
@@ -9282,6 +9279,7 @@ export interface components {
              * @description The stored credential the device was read with. `None` from a daemon that predates it.
              */
             credential_id: string | null;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device whose walk fell short. */
             address: string;
@@ -9297,6 +9295,7 @@ export interface components {
              * @description The stored credential the device was read with. `None` from a daemon that predates it.
              */
             credential_id: string | null;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9313,6 +9312,7 @@ export interface components {
              * @description Entries per table that collection stops at.
              */
             limit: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9324,6 +9324,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9335,6 +9336,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9346,6 +9348,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9357,6 +9360,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9368,6 +9372,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9379,6 +9384,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9391,6 +9397,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device that published the count. */
             address: string;
@@ -9412,6 +9419,7 @@ export interface components {
              * @description Rows the read returned.
              */
             observed: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             source: components["schemas"]["ClaimSource"];
         } | {
             /** @description The device that published the count. */
@@ -9434,6 +9442,7 @@ export interface components {
              * @description Rows the read returned.
              */
             observed: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             source: components["schemas"]["ClaimSource"];
         } | {
             /** @description The device that declared the capability. */
@@ -9446,6 +9455,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             source: components["schemas"]["ClaimSource"];
         } | {
             /** @description The device that declared the capability. */
@@ -9458,6 +9468,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             source: components["schemas"]["ClaimSource"];
         } | {
             /** @description The device that reported the neighbours. */
@@ -9474,6 +9485,7 @@ export interface components {
              * @description Neighbours discarded for want of a matching interface.
              */
             dropped: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             /**
              * Format: int32
              * @description Neighbours the device reported in all.
@@ -9494,6 +9506,7 @@ export interface components {
              * @description Neighbours discarded for want of a matching interface.
              */
             dropped: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             /**
              * Format: int32
              * @description Neighbours the device reported in all.
@@ -9514,6 +9527,7 @@ export interface components {
              * @description Neighbours drawn against a port that may be the wrong one.
              */
             misplaced: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | (components["schemas"]["MalformedNeighbours"] & {
             /** @enum {string} */
             code: "MalformedNeighboursWalkCutShort";
@@ -9545,6 +9559,7 @@ export interface components {
              *     which recorded only that nothing came back.
              */
             failures: components["schemas"]["SnmpWalkFailure"][] | null;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device whose VLANs could not be recorded. */
             address: string;
@@ -12337,6 +12352,7 @@ export interface components {
              *     topology or all of it.
              */
             kept: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         };
         /**
          * @description Where on an element card a mark paints.
@@ -15050,6 +15066,11 @@ export interface components {
             /** @enum {string} */
             security_level: "AuthPriv";
         };
+        /**
+         * @description SNMP protocol version
+         * @enum {string}
+         */
+        SnmpVersion: "V1" | "V2c" | "V3";
         /**
          * @description How a read that returned nothing ended, as the daemon observed it.
          *

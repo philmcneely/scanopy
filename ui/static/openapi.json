@@ -30138,22 +30138,6 @@
                 ]
               }
             }
-          },
-          {
-            "type": "object",
-            "title": "FallsBackToSnmpV1",
-            "description": "The daemon tries a community credential over SNMPv2c only, so a device that answers only\nSNMPv1 is not reached. The credential was sent.",
-            "required": [
-              "type"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "FallsBackToSnmpV1"
-                ]
-              }
-            }
           }
         ],
         "description": "What a daemon missed of one credential because it is too old for part of it."
@@ -33465,6 +33449,7 @@
               "address",
               "collected",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33491,6 +33476,17 @@
                 ],
                 "format": "uuid",
                 "description": "The stored credential the device was read with. `None` from a daemon that predates it."
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -33502,6 +33498,7 @@
               "address",
               "collected",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33528,6 +33525,17 @@
                 ],
                 "format": "uuid",
                 "description": "The stored credential the device was read with. `None` from a daemon that predates it."
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -33540,6 +33548,7 @@
               "group",
               "limit",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33569,6 +33578,17 @@
                 "format": "int32",
                 "description": "Entries per table that collection stops at.",
                 "minimum": 0
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -33580,6 +33600,7 @@
               "address",
               "group",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33603,6 +33624,17 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -33614,6 +33646,7 @@
               "address",
               "group",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33637,6 +33670,17 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -33648,6 +33692,7 @@
               "address",
               "group",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33671,6 +33716,17 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -33682,6 +33738,7 @@
               "address",
               "group",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33705,6 +33762,17 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -33716,6 +33784,7 @@
               "address",
               "group",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33739,6 +33808,17 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -33750,6 +33830,7 @@
               "address",
               "group",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33773,6 +33854,17 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -33785,6 +33877,7 @@
               "group",
               "cause",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33811,6 +33904,17 @@
               },
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -33825,6 +33929,7 @@
               "expected",
               "observed",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33861,6 +33966,17 @@
                 "description": "Rows the read returned.",
                 "minimum": 0
               },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "source": {
                 "$ref": "#/components/schemas/ClaimSource"
               }
@@ -33877,6 +33993,7 @@
               "expected",
               "observed",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33913,6 +34030,17 @@
                 "description": "Rows the read returned.",
                 "minimum": 0
               },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "source": {
                 "$ref": "#/components/schemas/ClaimSource"
               }
@@ -33927,6 +34055,7 @@
               "group",
               "source",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33951,6 +34080,17 @@
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
               },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "source": {
                 "$ref": "#/components/schemas/ClaimSource"
               }
@@ -33965,6 +34105,7 @@
               "group",
               "source",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -33989,6 +34130,17 @@
               "group": {
                 "$ref": "#/components/schemas/SnmpWalkGroup"
               },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "source": {
                 "$ref": "#/components/schemas/ClaimSource"
               }
@@ -34003,6 +34155,7 @@
               "dropped",
               "total",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -34030,6 +34183,17 @@
                 "description": "Neighbours discarded for want of a matching interface.",
                 "minimum": 0
               },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "total": {
                 "type": "integer",
                 "format": "int32",
@@ -34047,6 +34211,7 @@
               "dropped",
               "total",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -34074,6 +34239,17 @@
                 "description": "Neighbours discarded for want of a matching interface.",
                 "minimum": 0
               },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "total": {
                 "type": "integer",
                 "format": "int32",
@@ -34090,6 +34266,7 @@
               "address",
               "misplaced",
               "credential_id",
+              "snmp_version",
               "code"
             ],
             "properties": {
@@ -34116,6 +34293,17 @@
                 "format": "int32",
                 "description": "Neighbours drawn against a port that may be the wrong one.",
                 "minimum": 0
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -34241,6 +34429,7 @@
             "required": [
               "address",
               "credential_id",
+              "snmp_version",
               "failures",
               "code"
             ],
@@ -34272,6 +34461,17 @@
                   "$ref": "#/components/schemas/SnmpWalkFailure"
                 },
                 "description": "Each table whose read failed, and how. These are not reported again on their own.\nEmpty when every read ended normally; `None` from a daemon that predates the field,\nwhich recorded only that nothing came back."
+              },
+              "snmp_version": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SnmpVersion",
+                    "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -40581,7 +40781,8 @@
           "discarded",
           "kept",
           "consequence",
-          "credential_id"
+          "credential_id",
+          "snmp_version"
         ],
         "properties": {
           "address": {
@@ -40613,6 +40814,17 @@
             "format": "int32",
             "description": "Records that survived, which is what decides whether this cost the device some of its\ntopology or all of it.",
             "minimum": 0
+          },
+          "snmp_version": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SnmpVersion",
+                "description": "The SNMP version the device answered on. `None` from a daemon that predates it."
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -46489,6 +46701,15 @@
           }
         ],
         "description": "The security material of an SNMPv3 credential, by security level. A level carries exactly\nthe fields it uses, so a credential cannot hold a privacy password it never sends.\n\n`S` is the secret's representation: `SecretValue` where the credential is stored,\n`ResolvableSecret` on the server→daemon wire. Flattened into its parent, so the stored JSON\nkeeps the flat shape it had before levels existed."
+      },
+      "SnmpVersion": {
+        "type": "string",
+        "description": "SNMP protocol version",
+        "enum": [
+          "V1",
+          "V2c",
+          "V3"
+        ]
       },
       "SnmpWalkCause": {
         "type": "string",

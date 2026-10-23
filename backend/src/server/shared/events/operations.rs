@@ -296,6 +296,7 @@ pub(crate) mod tests {
         let system = || AuthenticatedEntity::System;
         let warning = DiscoveryWarning::InterfaceSetCutShort {
             credential_id: None,
+            snmp_version: None,
             address: "192.0.2.1".parse().expect("address"),
             collected: 3,
         };

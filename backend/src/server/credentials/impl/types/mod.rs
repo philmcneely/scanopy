@@ -900,8 +900,8 @@ impl CredentialType {
             GnmiQueryCredential, SnmpQueryCredential, SnmpV3Params,
         };
         match self {
-            // V2c on the wire for every daemon. A daemon after `last_without_snmp_v1_fallback`
-            // falls back to v1 when v2c gets no answer; an older one tries v2c only.
+            // V2c on the wire for every daemon. From 0.19.1 the daemon also tries v1 on each port;
+            // an older one tries v2c only.
             CredentialType::SnmpCommunity { community } => {
                 CredentialQueryPayload::Snmp(SnmpQueryCredential {
                     version: SnmpVersion::V2c,

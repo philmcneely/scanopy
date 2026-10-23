@@ -38,7 +38,6 @@ import {
 	discovery_warningAtAddress,
 	discovery_warningGapContainerBridge,
 	discovery_warningGapCredentialType,
-	discovery_warningGapSnmpV1Fallback,
 	discovery_warningGapSnmpV3Options,
 	discovery_warningSnmpV3OptionAuthNoPriv,
 	discovery_warningSnmpV3OptionMd5Auth,
@@ -292,8 +291,6 @@ function capabilityGap(gap: CapabilityGap): string {
 	switch (gap.type) {
 		case 'ParsesCredentialType':
 			return discovery_warningGapCredentialType();
-		case 'FallsBackToSnmpV1':
-			return discovery_warningGapSnmpV1Fallback();
 		case 'UsesSnmpV3SecurityOptions':
 			return discovery_warningGapSnmpV3Options({
 				options: joinList(

@@ -685,6 +685,37 @@ describe('SNMP check commands', () => {
 
 		expect(outcome).toBeNull();
 	});
+
+	it('checks a community credential over the version the device answered on', () => {
+		const communityId = '00000000-0000-0000-0000-0000000000c2';
+		const community = {
+			id: communityId,
+			credential_type: { type: 'SnmpCommunity', community: { mode: 'Inline', value: 'x' } }
+		} as unknown as Credential;
+		const commandsFor = (snmp_version: string | null) => {
+			const outcome = snmpCheckOf(
+				{
+					code: 'SnmpWalkFailed',
+					address: '10.0.0.5',
+					group: 'Interfaces',
+					cause: 'TimedOut',
+					credential_id: communityId,
+					snmp_version
+				} as unknown as DiscoveryWarning,
+				(id) => (id === communityId ? community : undefined)
+			);
+			return (outcome as { commands: string[] }).commands;
+		};
+
+		// SNMPv1 has no GETBULK, so a v1 device gets only walks that can reach it.
+		const v1 = commandsFor('V1');
+		expect(v1.length).toBeGreaterThan(0);
+		expect(v1.every((c) => c.startsWith('snmpwalk ') && c.includes('-v1 '))).toBe(true);
+
+		for (const version of ['V2c', null]) {
+			expect(commandsFor(version).every((c) => c.includes('-v2c '))).toBe(true);
+		}
+	});
 });
 
 /** What a collapsed row says it concerns, in place of a strip of chips. */

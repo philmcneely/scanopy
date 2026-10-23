@@ -1064,7 +1064,6 @@
 	"discovery_warningAtAddress": "at {address}",
 	"discovery_warningGapContainerBridge": "was not tried at {addresses} on Docker or Podman bridge networks",
 	"discovery_warningGapCredentialType": "was not sent",
-	"discovery_warningGapSnmpV1Fallback": "was tried over SNMPv2c only, so devices that answer only SNMPv1 were not reached",
 	"discovery_warningGapSnmpV3Options": "was not sent, because it uses {options}",
 	"discovery_warningInferredFrom": "inferred from {far_ends}",
 	"discovery_warningNoFurtherDetail": "no further detail",

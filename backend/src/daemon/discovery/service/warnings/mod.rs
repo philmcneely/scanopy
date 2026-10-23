@@ -34,6 +34,7 @@ pub use crate::daemon::discovery::types::warnings::{
 use crate::server::credentials::r#impl::mapping::{
     CredentialQueryPayloadDiscriminants, is_unresolvable_credential,
 };
+use crate::server::credentials::r#impl::types::SnmpVersion;
 use crate::server::ports::r#impl::base::PortType;
 
 // ============================================================================
@@ -155,6 +156,8 @@ pub struct UnresolvedLldpPorts {
     /// warnings the operator gets, because the sentence covering both was wrong half the time.
     pub reason: LocalPortPlacementReason,
     pub credential_id: Option<Uuid>,
+    /// The SNMP version the device answered on.
+    pub snmp_version: Option<SnmpVersion>,
 }
 
 /// A device that answered the credential and then produced nothing at all.
@@ -177,6 +180,8 @@ pub struct UnresolvedLldpPorts {
 pub struct SnmpCollectedNothing {
     pub ip: IpAddr,
     pub credential_id: Option<Uuid>,
+    /// The SNMP version the device answered on.
+    pub snmp_version: Option<SnmpVersion>,
     pub failures: Vec<SnmpWalkFailure>,
 }
 
@@ -202,6 +207,8 @@ pub struct MalformedNeighbours {
     /// What accounts for most of the loss on this device.
     pub reason: MalformedNeighbourReason,
     pub credential_id: Option<Uuid>,
+    /// The SNMP version the device answered on.
+    pub snmp_version: Option<SnmpVersion>,
 }
 
 /// Why a device's neighbour records could not be used.
@@ -296,6 +303,8 @@ pub struct IncompleteSnmpWalk {
     /// Why it came up short, when the walk could establish that.
     pub reason: Option<ShortfallReason>,
     pub credential_id: Option<Uuid>,
+    /// The SNMP version the device answered on.
+    pub snmp_version: Option<SnmpVersion>,
 }
 
 /// What one host's SNMP collection managed to read, per group.
@@ -446,6 +455,7 @@ pub fn snmp_walk_shortfalls(ip: IpAddr, outcome: SnmpCollectionOutcome) -> Vec<I
         returned_any: outcome.returned_any(),
         reason: outcome.reason,
         credential_id: None,
+        snmp_version: None,
     })
     .collect()
 }
@@ -461,11 +471,13 @@ pub fn snmp_walk_shortfalls(ip: IpAddr, outcome: SnmpCollectionOutcome) -> Vec<I
 pub fn snmp_device_findings(
     ip: IpAddr,
     credential_id: Option<Uuid>,
+    snmp_version: Option<SnmpVersion>,
     outcome: SnmpCollectionOutcome,
 ) -> (Vec<IncompleteSnmpWalk>, Option<SnmpCollectedNothing>) {
     let mut shortfalls = snmp_walk_shortfalls(ip, outcome);
     for shortfall in &mut shortfalls {
         shortfall.credential_id = credential_id;
+        shortfall.snmp_version = snmp_version;
     }
     if !outcome.returned_nothing() {
         return (shortfalls, None);
@@ -485,6 +497,7 @@ pub fn snmp_device_findings(
     let summary = SnmpCollectedNothing {
         ip,
         credential_id,
+        snmp_version,
         failures,
     };
     (shortfalls, Some(summary))
@@ -516,6 +529,8 @@ pub struct ContradictedClaim {
     /// leaves the reader to reconcile two accounts of one device.
     pub reason: Option<ShortfallReason>,
     pub credential_id: Option<Uuid>,
+    /// The SNMP version the device answered on.
+    pub snmp_version: Option<SnmpVersion>,
 }
 
 /// How far below its own claim a device has to land before it is worth a line.
@@ -541,6 +556,7 @@ const CLAIM_SHORTFALL_RATIO: usize = 2;
 pub fn contradicted_claims(
     ip: IpAddr,
     credential_id: Option<Uuid>,
+    snmp_version: Option<SnmpVersion>,
     outcome: SnmpCollectionOutcome,
 ) -> Vec<ContradictedClaim> {
     [
@@ -576,6 +592,7 @@ pub fn contradicted_claims(
             observed: group_outcome.observed,
             reason: group_outcome.reason,
             credential_id,
+            snmp_version,
         })
     })
     .collect()
@@ -600,6 +617,8 @@ pub struct IncompleteInterfaceWalk {
     /// `true` when the whole interface set was read and only attribute columns fell short.
     pub set_complete: bool,
     pub credential_id: Option<Uuid>,
+    /// The SNMP version the device answered on.
+    pub snmp_version: Option<SnmpVersion>,
 }
 
 // ============================================================================
@@ -860,7 +879,7 @@ mod tests {
             vlan_names: empty,
         };
 
-        let (shortfalls, summary) = snmp_device_findings(ip("10.91.16.1"), None, outcome);
+        let (shortfalls, summary) = snmp_device_findings(ip("10.91.16.1"), None, None, outcome);
 
         assert!(shortfalls.is_empty(), "{shortfalls:?}");
         assert_eq!(
@@ -897,7 +916,7 @@ mod tests {
             ..SnmpCollectionOutcome::default()
         };
 
-        let (shortfalls, summary) = snmp_device_findings(ip("10.91.16.1"), None, outcome);
+        let (shortfalls, summary) = snmp_device_findings(ip("10.91.16.1"), None, None, outcome);
 
         assert!(
             shortfalls.iter().any(|s| s.group == SnmpWalkGroup::Lldp
@@ -922,7 +941,7 @@ mod tests {
             ..quiet_groups()
         };
 
-        let (shortfalls, summary) = snmp_device_findings(ip("10.91.16.11"), None, outcome);
+        let (shortfalls, summary) = snmp_device_findings(ip("10.91.16.11"), None, None, outcome);
 
         assert!(summary.is_none());
         assert_eq!(shortfalls.len(), 1);
@@ -1159,7 +1178,7 @@ mod tests {
         };
 
         assert!(
-            contradicted_claims(ip("192.168.7.247"), None, outcome).is_empty(),
+            contradicted_claims(ip("192.168.7.247"), None, None, outcome).is_empty(),
             "a device one interface short of its own count is not a finding"
         );
     }
@@ -1183,7 +1202,7 @@ mod tests {
         };
 
         assert!(
-            contradicted_claims(ip("192.168.7.240"), None, outcome).is_empty(),
+            contradicted_claims(ip("192.168.7.240"), None, None, outcome).is_empty(),
             "hitting our own cap is not the device disagreeing with itself"
         );
     }
@@ -1203,7 +1222,7 @@ mod tests {
             ..quiet_groups()
         };
 
-        assert!(contradicted_claims(ip("192.168.7.231"), None, outcome).is_empty());
+        assert!(contradicted_claims(ip("192.168.7.231"), None, None, outcome).is_empty());
     }
 
     /// A contradiction and a shortfall are different statements about one device, and it can
@@ -1225,7 +1244,7 @@ mod tests {
         let addr = ip("192.168.200.151");
 
         assert_eq!(snmp_walk_shortfalls(addr, outcome).len(), 1);
-        assert_eq!(contradicted_claims(addr, None, outcome).len(), 1);
+        assert_eq!(contradicted_claims(addr, None, None, outcome).len(), 1);
     }
 
     /// The credential the fixture attempts under, so the tests can tell "carried through"

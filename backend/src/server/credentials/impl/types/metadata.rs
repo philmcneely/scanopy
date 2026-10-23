@@ -377,8 +377,7 @@ impl CredentialTypeDiscriminants {
         match self {
             // The unified credential wire shipped in 0.16.2. Older daemons ignore
             // `credential_mappings` via #[serde(default)], so filtering these out is harmless.
-            // SnmpCommunity goes on that wire as v2c; the v1 fallback is the `FallsBackToSnmpV1`
-            // capability, so an older daemon still gets the credential.
+            // SnmpCommunity goes on that wire as v2c, so an older daemon still uses it, over v2c only.
             Self::SnmpCommunity | Self::DockerProxy | Self::DockerSocket => {
                 last_without_credential_wire()
             }

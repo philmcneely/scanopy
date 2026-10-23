@@ -460,6 +460,7 @@ impl DiscoveryIntegration for SnmpIntegration {
                     collected: snmp_if_entries.len(),
                     set_complete: if_table.set_complete,
                     credential_id: ctx.credential_id,
+                    snmp_version: Some(credential.version),
                 })
                 .await;
         }
@@ -536,6 +537,7 @@ impl DiscoveryIntegration for SnmpIntegration {
                         kept,
                         reason,
                         credential_id: ctx.credential_id,
+                        snmp_version: Some(credential.version),
                     })
                     .await;
             }
@@ -606,6 +608,7 @@ impl DiscoveryIntegration for SnmpIntegration {
                         if_set_complete,
                     ),
                     credential_id: ctx.credential_id,
+                    snmp_version: Some(credential.version),
                 })
                 .await;
         }
@@ -995,15 +998,24 @@ impl DiscoveryIntegration for SnmpIntegration {
 
         // A device that answered the probe and then produced nothing gets one line naming every
         // table that failed and how, instead of a line per table and a summary beside them.
-        let (incomplete, collected_nothing) =
-            snmp_device_findings(ip, ctx.credential_id, collection_outcome);
+        let (incomplete, collected_nothing) = snmp_device_findings(
+            ip,
+            ctx.credential_id,
+            Some(credential.version),
+            collection_outcome,
+        );
         ctx.ops.record_snmp_shortfalls(incomplete).await;
 
         // Separate from the shortfalls above, and emitted alongside them rather than instead of
         // them: a shortfall says why *we* stopped reading, a contradiction says what the *device*
         // said was there. A device that misreports its own count still scans — everything read is
         // already recorded by this point, and nothing here can fail a collection.
-        let contradicted = contradicted_claims(ip, ctx.credential_id, collection_outcome);
+        let contradicted = contradicted_claims(
+            ip,
+            ctx.credential_id,
+            Some(credential.version),
+            collection_outcome,
+        );
         if !contradicted.is_empty() {
             ctx.ops.record_contradicted_claims(contradicted).await;
         }
