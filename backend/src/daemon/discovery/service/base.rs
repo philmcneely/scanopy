@@ -8,8 +8,8 @@ use std::{
 
 use crate::daemon::discovery::service::warnings::{
     ContradictedClaim, CredentialIssue, EqualReachIntegrations, IncompleteInterfaceWalk,
-    IncompleteSnmpWalk, MalformedNeighbours, SnmpCollectedNothing, UnresolvedLldpPorts,
-    VlanRecordingFailed,
+    IncompleteSnmpWalk, MalformedNeighbours, SnmpCollectedNothing, UnreachedProxmoxGuest,
+    UnresolvedLldpPorts, VlanRecordingFailed,
 };
 use crate::daemon::discovery::types::base::DiscoverySessionInfo;
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
@@ -181,6 +181,8 @@ pub struct DiscoverySession {
     pub(super) vlan_recording_failures: Arc<std::sync::Mutex<Vec<VlanRecordingFailed>>>,
     /// Hosts whose interfaces two full-ifTable integrations both collected.
     pub(super) equal_reach_integrations: Arc<std::sync::Mutex<Vec<EqualReachIntegrations>>>,
+    /// Running Proxmox VE guests at addresses no subnet this scan covers.
+    pub(super) unreached_proxmox_guests: Arc<std::sync::Mutex<Vec<UnreachedProxmoxGuest>>>,
     /// IP-targeted credentials that produced nothing, and why.
     pub(super) credential_issues: Arc<std::sync::Mutex<Vec<CredentialIssue>>>,
     /// What each stored credential did, keyed by credential. Not warnings: successes are recorded
@@ -217,6 +219,7 @@ impl DiscoverySession {
             snmp_collected_nothing: Arc::new(std::sync::Mutex::new(Vec::new())),
             vlan_recording_failures: Arc::new(std::sync::Mutex::new(Vec::new())),
             equal_reach_integrations: Arc::new(std::sync::Mutex::new(Vec::new())),
+            unreached_proxmox_guests: Arc::new(std::sync::Mutex::new(Vec::new())),
             credential_issues: Arc::new(std::sync::Mutex::new(Vec::new())),
             credential_results: Arc::new(std::sync::Mutex::new(Default::default())),
         }

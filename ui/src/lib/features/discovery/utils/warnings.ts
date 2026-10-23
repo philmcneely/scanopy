@@ -267,6 +267,13 @@ const addressesOf = (group_: { address: string }[]) =>
 		'conjunction'
 	);
 
+/** Each guest by its Proxmox VE name and address: an address on an internal bridge names nothing. */
+const guestsOf = (group_: { address: string; guest: string }[]) =>
+	joinList(
+		group_.map((w) => `${w.guest} (${w.address})`),
+		'conjunction'
+	);
+
 type CapabilityGap = components['schemas']['CapabilityGap'];
 type SnmpV3SecurityOption = components['schemas']['SnmpV3SecurityOption'];
 
@@ -429,6 +436,16 @@ const WARNING_PARAMS = {
 	// integration shares a sentence, and `discovers` is that integration's own description.
 	IntegrationWithoutCredential: (w) =>
 		integrationWithoutCredentialParams(w[0].integration, w.length),
+
+	// One per guest. The bridge and node identify the statement, so guests on one bridge share a
+	// sentence.
+	ProxmoxGuestOutsideScan: (w) => ({ addresses: guestsOf(w) }),
+	ProxmoxGuestBehindNode: (w) => ({
+		addresses: guestsOf(w),
+		bridge: w[0].bridge,
+		node: w[0].node
+	}),
+	ProxmoxGuestIsolated: (w) => ({ addresses: guestsOf(w), bridge: w[0].bridge }),
 
 	// One warning per subnet, so the first is the only one — unlike the address-scoped codes above,
 	// which the daemon raises per host and the UI folds together here.

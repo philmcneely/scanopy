@@ -458,6 +458,7 @@ impl DiscoveryRunner {
             // The daemon-host phase runs before the network sweep, so the subnets it just
             // created are all that is known at this point.
             known_subnets: created_subnets,
+            scanned_subnets: created_subnets,
             scanning_subnet: None,
             ip_address_id: Some(ip_address.id),
         };

@@ -9666,6 +9666,33 @@ export interface components {
             /** @description The integration that would read it. */
             integration: components["schemas"]["CredentialIntegration"];
         } | {
+            /** @description The guest's first address. */
+            address: string;
+            /** @enum {string} */
+            code: "ProxmoxGuestOutsideScan";
+            /** @description Its Proxmox VE name, else its VMID. */
+            guest: string;
+        } | {
+            /** @description The guest's first address. */
+            address: string;
+            /** @description The bridge its NIC is on. */
+            bridge: string;
+            /** @enum {string} */
+            code: "ProxmoxGuestBehindNode";
+            /** @description Its Proxmox VE name, else its VMID. */
+            guest: string;
+            /** @description The node it runs on. */
+            node: string;
+        } | {
+            /** @description The guest's first address. */
+            address: string;
+            /** @description The bridge its NIC is on. */
+            bridge: string;
+            /** @enum {string} */
+            code: "ProxmoxGuestIsolated";
+            /** @description Its Proxmox VE name, else its VMID. */
+            guest: string;
+        } | {
             /** @description The subnet the addresses are in. */
             cidr: string;
             /** @enum {string} */

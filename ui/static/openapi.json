@@ -34761,6 +34761,99 @@
           },
           {
             "type": "object",
+            "title": "ProxmoxGuestOutsideScan",
+            "description": "A running guest at addresses no subnet this scan covers, on a shared network or one the\nnode's config doesn't list, so it was recorded without ports or services.",
+            "required": [
+              "address",
+              "guest",
+              "code"
+            ],
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "The guest's first address."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "ProxmoxGuestOutsideScan"
+                ]
+              },
+              "guest": {
+                "type": "string",
+                "description": "Its Proxmox VE name, else its VMID."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ProxmoxGuestBehindNode",
+            "description": "A running guest on a bridge with no uplink that only its node holds an address on (a NAT'd\n`vmbr1`), so only a daemon on that node reaches it.",
+            "required": [
+              "address",
+              "guest",
+              "node",
+              "bridge",
+              "code"
+            ],
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "The guest's first address."
+              },
+              "bridge": {
+                "type": "string",
+                "description": "The bridge its NIC is on."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "ProxmoxGuestBehindNode"
+                ]
+              },
+              "guest": {
+                "type": "string",
+                "description": "Its Proxmox VE name, else its VMID."
+              },
+              "node": {
+                "type": "string",
+                "description": "The node it runs on."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ProxmoxGuestIsolated",
+            "description": "A running guest on a bridge with no uplink and no node address, so only a daemon on a guest\nattached to that bridge reaches it.",
+            "required": [
+              "address",
+              "guest",
+              "bridge",
+              "code"
+            ],
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "The guest's first address."
+              },
+              "bridge": {
+                "type": "string",
+                "description": "The bridge its NIC is on."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "ProxmoxGuestIsolated"
+                ]
+              },
+              "guest": {
+                "type": "string",
+                "description": "Its Proxmox VE name, else its VMID."
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "ConnectionsWithoutProtocolResponse",
             "description": "Addresses on a routed subnet completed a TCP handshake and then answered nothing, so no\nhost was recorded at any of them.\n\nThe shape a middlebox in the path produces: a firewall session helper, a load balancer or a\nscrubbing appliance answering on behalf of addresses with nothing behind them. One warning\nper subnet rather than per address — the case that raises it raises it for every address in\nthe range, and 254 copies of a sentence is not 254 findings.",
             "required": [
