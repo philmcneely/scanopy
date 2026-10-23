@@ -1228,7 +1228,7 @@
 						}}
 						onblur={() => formField.handleBlur()}
 						class="select-trigger w-full rounded-md px-3 py-2 text-sm text-primary"
-						class:input-field-error={formField.state.meta.errors?.length > 0}
+						class:select-trigger-error={formField.state.meta.errors?.length > 0}
 					>
 						{#each field.options ?? [] as option (option.value)}
 							<option value={option.value}>{option.label}</option>
