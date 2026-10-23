@@ -170,7 +170,7 @@
 	let isEditing = $derived(credential !== null);
 
 	// Selected credential type ID for dynamic form rendering
-	let selectedTypeId = $state<string>('SnmpV2c');
+	let selectedTypeId = $state<string>('SnmpCommunity');
 
 	// Notify the parent when the selected type changes (drives the assignments surface)
 	$effect(() => {
@@ -443,7 +443,7 @@
 				form.setFieldValue?.('name', defaults.name);
 			}
 		} else {
-			const typeId = fixedCredentialType ?? typeChoices?.[0] ?? 'SnmpV2c';
+			const typeId = fixedCredentialType ?? typeChoices?.[0] ?? 'SnmpCommunity';
 			selectedTypeId = typeId;
 			initDefaultFieldValues(typeId);
 		}

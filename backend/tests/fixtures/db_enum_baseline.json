@@ -145,10 +145,9 @@
     "Proxmox"
   ],
   "CredentialType": [
-    "SnmpV2c",
+    "SnmpCommunity",
     "DockerProxy",
     "DockerSocket",
-    "SnmpV1",
     "SnmpV3",
     "PodmanProxy",
     "PodmanSocket",

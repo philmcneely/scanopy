@@ -2,7 +2,7 @@
 //!
 //! Both UniFi transports — API key and local admin — reach the same controller endpoint with
 //! the same host, port and site; only the auth material differs. So they collapse to a single
-//! wire payload carrying a [`UnifiAuth`] discriminator, the same way SnmpV1/V2c/V3 collapse to
+//! wire payload carrying a [`UnifiAuth`] discriminator, the same way SnmpCommunity and SnmpV3 collapse to
 //! one `SnmpQueryCredential` carrying a version.
 
 use crate::server::credentials::r#impl::mapping::{

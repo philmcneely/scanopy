@@ -1,15 +1,18 @@
-//! A simulated device answering SNMPv3 over a real UDP socket, USM included.
+//! A simulated device answering SNMP over a real UDP socket: USM for a v3 device, a community
+//! for the rest.
 //!
 //! [`super::transport::SimAgent`] stands in for snmpd below the session: it answers walks, and
-//! never sees a security level, a key or a digest. That leaves the v3 session itself — the level
-//! the credential asks for, the hash it authenticates with, the cipher it encrypts with — reachable
-//! only on the lab VM. This puts the same device data behind a USM front end, so a daemon test
-//! can open a real [`create_session`] against it and fail when the session is built wrong.
+//! never sees a protocol version, a security level, a key or a digest. That leaves the session
+//! itself — the version a community credential lands on, the level a v3 credential asks for, the
+//! hash it authenticates with, the cipher it encrypts with — reachable only on the lab VM. This
+//! puts the same device data behind a front end that checks them, so a daemon test can open a real
+//! [`create_session`] or run the real probe against it and fail when either is built wrong.
 //!
 //! Message security is snmp2's own, the library the daemon uses, so a defect shared by both ends
 //! of snmp2 passes here. The lab VM (`make snmp-verify`, net-snmp) is the independent check.
-//! What this does hold is everything Scanopy decides: which level a credential maps to, which
-//! fields it carries, and that a request at the wrong level or with the wrong key is not answered.
+//! What this does hold is everything Scanopy decides: which version a community credential is
+//! tried over, which level a v3 credential maps to, which fields it carries, and that a request
+//! over a version the device refuses, at the wrong level or with the wrong key is not answered.
 //!
 //! [`create_session`]: crate::daemon::discovery::integration::snmp::session::create_session
 
@@ -17,12 +20,12 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use secrecy::ExposeSecret;
 use snmp2::v3::{Auth, KeyExtension, Security};
-use snmp2::{AsnReader, MessageType, Pdu, Value, Varbinds};
+use snmp2::{AsnReader, MessageType, Pdu, Value, Varbinds, Version};
 use tokio::net::UdpSocket;
 use tokio::task::JoinHandle;
 
-use super::SimDevice;
 use super::transport::SimAgent;
+use super::{CommunityVersions, SimDevice};
 use crate::daemon::discovery::integration::snmp::oids::{oid_parts, system};
 use crate::server::credentials::r#impl::types::{CredentialType, SecretValue, SnmpV3Security};
 
@@ -34,26 +37,34 @@ const ENGINE_TIME: i64 = 1000;
 const USM_STATS_UNKNOWN_ENGINE_IDS: &str = "1.3.6.1.6.3.15.1.1.4.0";
 
 /// A running agent. Stops when dropped.
-pub struct UsmAgent {
+pub struct UdpAgent {
     addr: SocketAddr,
     task: JoinHandle<()>,
 }
 
-impl Drop for UsmAgent {
+impl Drop for UdpAgent {
     fn drop(&mut self) {
         self.task.abort();
     }
 }
 
-impl UsmAgent {
-    /// Serve `device`'s data on a loopback port, to its own v3 credential.
+impl UdpAgent {
+    /// Serve `device`'s data on a loopback port, to its own credential.
     pub async fn start(device: &SimDevice) -> Self {
         let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))
             .await
             .expect("bind a loopback port");
         let addr = socket.local_addr().expect("a bound socket has an address");
+        let front = match &device.credential {
+            CredentialType::SnmpCommunity { community } => Front::Community {
+                community: exposed(community).into_bytes(),
+                versions: device.community_versions,
+            },
+            CredentialType::SnmpV3 { .. } => Front::Usm(agent_security(device)),
+            other => panic!("{} has a non-SNMP credential: {other:?}", device.name),
+        };
         let responder = Responder {
-            security: agent_security(device),
+            front,
             agent: device.agent(),
             device: device.clone(),
         };
@@ -142,16 +153,69 @@ struct Request {
     max_repetitions: u32,
 }
 
+/// How the device authenticates a request.
+enum Front {
+    /// The device's v3 user.
+    Usm(Security),
+    /// The device's community, over the versions it answers.
+    Community {
+        community: Vec<u8>,
+        versions: CommunityVersions,
+    },
+}
+
 struct Responder {
-    security: Security,
+    front: Front,
     agent: SimAgent,
     device: SimDevice,
 }
 
 impl Responder {
-    /// The reply to one datagram, or `None` where snmpd would stay silent: a request it cannot
-    /// authenticate or decrypt, or one at a level the user is not configured for.
+    /// The reply to one datagram, or `None` where snmpd would stay silent: a request over a
+    /// version the device refuses, with the wrong community, one it cannot authenticate or
+    /// decrypt, or one at a level the user is not configured for.
     fn respond(&self, datagram: &[u8]) -> Option<Vec<u8>> {
+        match &self.front {
+            Front::Usm(security) => self.respond_usm(security, datagram),
+            Front::Community {
+                community,
+                versions,
+            } => self.respond_community(community, *versions, datagram),
+        }
+    }
+
+    fn respond_community(
+        &self,
+        community: &[u8],
+        versions: CommunityVersions,
+        datagram: &[u8],
+    ) -> Option<Vec<u8>> {
+        let pdu = Pdu::from_bytes(datagram).ok()?;
+        let answers = match pdu.version().ok()? {
+            Version::V1 => versions != CommunityVersions::V2cOnly,
+            Version::V2C => versions != CommunityVersions::V1Only,
+            _ => false,
+        };
+        if !answers || pdu.community != community {
+            return None;
+        }
+        let request = Request {
+            message_type: pdu.message_type,
+            oids: pdu.varbinds.clone().map(|(oid, _)| oid_vec(&oid)).collect(),
+            max_repetitions: pdu.error_index,
+        };
+        let varbinds = encode_varbinds(&self.answer(&request));
+
+        // The reply reuses the request's own PDU, which carries its version, community and id.
+        let mut reply = pdu;
+        reply.message_type = MessageType::Response;
+        reply.error_status = 0;
+        reply.error_index = 0;
+        reply.varbinds = Varbinds::from_bytes(&varbinds);
+        reply.to_bytes().ok()
+    }
+
+    fn respond_usm(&self, user: &Security, datagram: &[u8]) -> Option<Vec<u8>> {
         if request_engine_id(datagram)?.is_empty() {
             return self.discovery_report(datagram);
         }
@@ -160,7 +224,7 @@ impl Responder {
         // parse gets a fresh copy of the datagram and of the user.
         let request = {
             let bytes = datagram.to_vec();
-            let mut security = self.security.clone();
+            let mut security = user.clone();
             let pdu = Pdu::from_bytes_with_security(&bytes, Some(&mut security)).ok()?;
             Request {
                 message_type: pdu.message_type,
@@ -173,13 +237,13 @@ impl Responder {
         // The reply reuses the request's own PDU, which carries its request id and the v3 version
         // `Pdu` will not let a caller set.
         let bytes = datagram.to_vec();
-        let mut security = self.security.clone();
+        let mut security = user.clone();
         let mut reply = Pdu::from_bytes_with_security(&bytes, Some(&mut security)).ok()?;
         reply.message_type = MessageType::Response;
         reply.error_status = 0;
         reply.error_index = 0;
         reply.varbinds = Varbinds::from_bytes(&varbinds);
-        reply.to_bytes_with_security(Some(&self.security)).ok()
+        reply.to_bytes_with_security(Some(user)).ok()
     }
 
     /// RFC 3414 §4: an unauthenticated Report carrying this engine's id, boots and time.
@@ -391,7 +455,7 @@ mod tests {
     ///
     /// A short deadline on the read: an agent that will not answer a request leaves the client
     /// waiting out its own timeout, and the test only needs to know nothing came back.
-    async fn sys_name(agent: &UsmAgent, credential: &CredentialType) -> anyhow::Result<String> {
+    async fn sys_name(agent: &UdpAgent, credential: &CredentialType) -> anyhow::Result<String> {
         let CredentialQueryPayload::Snmp(snmp) = credential.to_query_payload() else {
             panic!("not an SNMP credential");
         };
@@ -439,7 +503,7 @@ mod tests {
         assert!(devices.len() >= 3, "the lab lost its v3 devices");
 
         for device in devices {
-            let agent = UsmAgent::start(&device).await;
+            let agent = UdpAgent::start(&device).await;
             let name = sys_name(&agent, &device.credential)
                 .await
                 .unwrap_or_else(|e| {
@@ -485,7 +549,7 @@ mod tests {
 
         for credential in cases {
             let device = switch_with(credential.clone());
-            let agent = UsmAgent::start(&device).await;
+            let agent = UdpAgent::start(&device).await;
             let name = sys_name(&agent, &credential)
                 .await
                 .unwrap_or_else(|e| panic!("{credential:?} was not answered: {e:#}"));
@@ -501,7 +565,7 @@ mod tests {
             auth_protocol: SnmpV3AuthProtocol::Md5,
             auth_password: secret("md5authpass1"),
         });
-        let agent = UsmAgent::start(&switch_with(device_user)).await;
+        let agent = UdpAgent::start(&switch_with(device_user)).await;
 
         let mismatches = [
             // Wrong password.

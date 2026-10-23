@@ -15,6 +15,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-tplink-01",
@@ -23,9 +25,10 @@ pub fn device() -> SimDevice {
             issue: "#668",
             defect: "lldpRemTable indexed without lldpRemTimeMark, so every row arrives one sub-id short and the device vanishes raising no warning at all",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("TL-SX3016F 1.0 - TP-Link 16-Port 10G SFP+ Managed Switch".into()),
             sys_object_id: Some("1.3.6.1.4.1.11863.5.1.1".into()),

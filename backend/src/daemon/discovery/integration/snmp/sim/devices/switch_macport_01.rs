@@ -14,6 +14,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-macport-01",
@@ -22,9 +24,10 @@ pub fn device() -> SimDevice {
             issue: "the Westermo WeOS report, August 2026",
             defect: "ifDescr carries the media type in front of the name, so only ifName and ifAlias hold the bare port name a neighbour advertises",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("WeOS 5.21.0 industrial ethernet switch".into()),
             sys_object_id: Some("1.3.6.1.4.1.16177.1.1".into()),

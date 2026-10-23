@@ -23,6 +23,8 @@ const SHARED_NIC_MAC: &str = "50:eb:f6:26:54:79";
 /// never lets a filter driver appear as a distinct IP-configurable adapter. So the real NIC (7) is
 /// `ip_addr`-bound here and the three filter ifIndexes (18-20, matching the customer's own
 /// `if_index` values) are not.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "pc-windows-nic-filters",
@@ -31,9 +33,10 @@ pub fn device() -> SimDevice {
             issue: "#668",
             defect: "one MAC reported on a real NIC and its NDIS filter/LWF pseudo-interfaces makes LLDP port resolution ambiguous",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("public"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Hardware: x64 Family 25 Model 33 Stepping 0 AT/AT COMPATIBLE - Software: Windows Version 10.0 (Build 19045 Multiprocessor Free)".into()),
             sys_object_id: Some("1.3.6.1.4.1.311.1.1.3.1.1".into()),

@@ -34,7 +34,8 @@ pub(super) fn generate_discoveries(
 
     // Credential IDs for integration targets.
     let default_snmp_cred_id =
-        super::credentials::find_default(credentials, CredentialTypeDiscriminants::SnmpV2c).id;
+        super::credentials::find_default(credentials, CredentialTypeDiscriminants::SnmpCommunity)
+            .id;
     let linux_inventory_cred_id = credentials
         .iter()
         .find(|c| c.base.name == "Linux Inventory")
@@ -199,6 +200,7 @@ pub(super) fn generate_discoveries(
                                 group: SnmpWalkGroup::Lldp,
                                 source: ClaimSource::LldpLocalIdentity,
                                 credential_id: Some(network_devices_cred_id),
+                                snmp_version: None,
                             },
                             // ClearsOnTheNextScan: a partial ARP-table read was discarded
                             // rather than recorded.
@@ -206,6 +208,7 @@ pub(super) fn generate_discoveries(
                                 address: IpAddr::V4(Ipv4Addr::new(10, 0, 40, 20)),
                                 group: SnmpWalkGroup::ArpTable,
                                 credential_id: Some(network_devices_cred_id),
+                                snmp_version: None,
                             },
                             // NothingToDo: a firewall has no bridge ports to number, and no
                             // later scan changes that.
@@ -213,6 +216,7 @@ pub(super) fn generate_discoveries(
                                 address: IpAddr::V4(Ipv4Addr::new(10, 0, 1, 1)),
                                 group: SnmpWalkGroup::BridgePortNumbering,
                                 credential_id: Some(network_devices_cred_id),
+                                snmp_version: None,
                             },
                         ],
                         // What each credential produced: SNMP collected from the network devices,

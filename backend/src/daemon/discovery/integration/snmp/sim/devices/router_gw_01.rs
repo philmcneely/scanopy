@@ -18,6 +18,8 @@ use super::inline;
 /// `switch_core_01::cdp_table`.
 pub const NAME: &str = "router-gw-01";
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: NAME,
@@ -25,9 +27,10 @@ pub fn device() -> SimDevice {
         purpose: Purpose::Control {
             role: "a far end named by switch-core-01's Gi0/2 and by CDP",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("secret42"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Juniper Networks, Inc. JunOS 21.4R3-S5, MX204".into()),
             sys_object_id: Some("1.3.6.1.4.1.2636.1.1.1.2.29".into()),

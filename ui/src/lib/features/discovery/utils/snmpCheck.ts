@@ -27,6 +27,7 @@ import {
 import type { DiscoveryWarning } from './warnings';
 
 type SnmpCheck = components['schemas']['SnmpCheck'];
+type SnmpVersion = components['schemas']['SnmpVersion'];
 type Credential = components['schemas']['Credential'];
 
 /** A stored credential by id, or `undefined` when it is gone or this viewer cannot read it. */
@@ -71,17 +72,19 @@ function shellWord(value: string): string {
 
 /**
  * The net-snmp options that authenticate as a stored credential: its version, user, security
- * level, protocols and context, with each secret a placeholder. `null` for a credential that is
- * gone, that this viewer cannot read, or that is not an SNMP credential: a command with its
- * authentication left blank checks nothing.
+ * level, protocols and context, with each secret a placeholder. A community credential is tried
+ * over v2c and v1, so its version is the one the device `answered` on, v2c when the warning does
+ * not say. `null` for a credential that is gone, that this viewer cannot read, or that is not an
+ * SNMP credential: a command with its authentication left blank checks nothing.
  */
-export function snmpOptionsFor(credential: Credential | undefined): string | null {
+export function snmpOptionsFor(
+	credential: Credential | undefined,
+	answered: SnmpVersion | null
+): string | null {
 	const type = credential?.credential_type;
 	switch (type?.type) {
-		case 'SnmpV1':
-			return `-v1 -c ${common_snmpCommunityPlaceholder()}`;
-		case 'SnmpV2c':
-			return `-v2c -c ${common_snmpCommunityPlaceholder()}`;
+		case 'SnmpCommunity':
+			return `${answered === 'V1' ? '-v1' : '-v2c'} -c ${common_snmpCommunityPlaceholder()}`;
 		case 'SnmpV3': {
 			const options = ['-v3', `-u ${shellWord(type.security_name)}`];
 			switch (type.security_level) {
@@ -154,7 +157,8 @@ export function snmpCheckOf(
 	}
 
 	const credentialId = 'credential_id' in warning ? warning.credential_id : null;
-	const options = snmpOptionsFor(credentialId ? credentialOf(credentialId) : undefined);
+	const answered = 'snmp_version' in warning ? warning.snmp_version : null;
+	const options = snmpOptionsFor(credentialId ? credentialOf(credentialId) : undefined, answered);
 	if (options === null)
 		return { reason: discovery_snmpCheckNoCredential({ address: warning.address }) };
 	const claimObject = declared.check === 'Claim' ? claimObjectOf(warning) : null;
@@ -165,26 +169,31 @@ export function snmpCheckOf(
 		const common = `${options} -t ${walk.timeout_seconds} -r ${walk.retries}`;
 		const page = `-Cr${walk.max_repetitions}`;
 		const column = `${warning.address} ${walk.first_column}`;
+		// SNMPv1 has no GETBULK, so a device read over v1 is checked with `snmpwalk` alone.
+		const bulkwalk = (args: string) =>
+			answered === 'V1' ? [] : [`snmpbulkwalk ${common} ${args}`];
 
 		switch (declared.check) {
 			case 'Repeat':
 				return [
-					`snmpbulkwalk ${common} ${page} ${column}`,
-					`snmpbulkwalk ${common} -Cr1 ${column}`,
+					...bulkwalk(`${page} ${column}`),
+					...bulkwalk(`-Cr1 ${column}`),
 					`snmpwalk ${common} ${column}`
 				];
 			case 'Recount':
-				return [`snmpbulkwalk ${common} ${page} ${column}`, `snmpwalk ${common} ${column}`];
+				return [...bulkwalk(`${page} ${column}`), `snmpwalk ${common} ${column}`];
 			case 'Claim':
 				return [
 					...(claimObject ? [`snmpget ${common} ${warning.address} ${claimObject}`] : []),
-					`snmpbulkwalk ${common} ${page} ${column}`,
+					...bulkwalk(`${page} ${column}`),
 					`snmpwalk ${common} ${column}`
 				];
 			case 'Unordered':
-				return [`snmpbulkwalk ${common} -Cc ${page} ${column}`, `snmpwalk ${common} -Cc ${column}`];
+				return [...bulkwalk(`-Cc ${page} ${column}`), `snmpwalk ${common} -Cc ${column}`];
 			case 'Table':
-				return [`snmpbulkwalk ${common} ${page} ${warning.address} ${walk.table}`];
+				return answered === 'V1'
+					? [`snmpwalk ${common} ${warning.address} ${walk.table}`]
+					: [`snmpbulkwalk ${common} ${page} ${warning.address} ${walk.table}`];
 		}
 	});
 

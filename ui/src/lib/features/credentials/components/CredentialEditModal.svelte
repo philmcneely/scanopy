@@ -164,7 +164,7 @@
 	// Assignment state (source of truth; synced into the submit payload).
 	// The selected type drives which assignment surface(s) show; kept in sync via
 	// CredentialForm's onTypeChange and reset on open.
-	let selectedTypeId = $state('SnmpV2c');
+	let selectedTypeId = $state('SnmpCommunity');
 	let assignedSiteIds = $state<string[]>([]);
 	let hostAssignments = $state<CredentialHostAssignment[]>([]);
 
@@ -268,7 +268,9 @@
 		hostAssignments =
 			credential?.host_assignments ??
 			initialHostIds.map((host_id) => ({ host_id, ip_address_ids: null }));
-		selectedTypeId = credential ? getCredentialTypeId(credential) : (typeChoices?.[0] ?? 'SnmpV2c');
+		selectedTypeId = credential
+			? getCredentialTypeId(credential)
+			: (typeChoices?.[0] ?? 'SnmpCommunity');
 		form.reset(getDefaultValues());
 		credentialFormRef?.reset();
 		// After both resets, which each clear the shared form's name.

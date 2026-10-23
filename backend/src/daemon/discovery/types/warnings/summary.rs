@@ -83,11 +83,13 @@ mod tests {
             },
             DiscoveryWarning::SnmpWalkPartialDiscarded {
                 credential_id: None,
+                snmp_version: None,
                 address: addr(3),
                 group: SnmpWalkGroup::ArpTable,
             },
             DiscoveryWarning::SnmpWalkUnsupported {
                 credential_id: None,
+                snmp_version: None,
                 address: addr(4),
                 group: SnmpWalkGroup::BridgePortNumbering,
             },

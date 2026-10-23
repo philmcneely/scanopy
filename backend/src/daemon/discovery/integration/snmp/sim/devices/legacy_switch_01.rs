@@ -14,17 +14,20 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "legacy-switch-01",
         ip: Ipv4Addr::UNSPECIFIED,
         purpose: Purpose::Regression {
             issue: "#557",
-            defect: "SNMPv1 has no getbulk, so every table must come back over getnext",
+            defect: "SNMPv1 has no getbulk, so every table must come back over getnext. Shares the `netdefault` community with the v2c devices, so one credential reaches it only through the v1 fallback",
         },
-        credential: CredentialType::SnmpV1 {
-            community: inline("legacyv1"),
+        credential: CredentialType::SnmpCommunity {
+            community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::V1Only,
         system: SystemInfo {
             sys_descr: Some("Cisco IOS Software, C2950 Software, Version 12.1(22)EA14".into()),
             sys_object_id: Some("1.3.6.1.4.1.9.1.359".into()),

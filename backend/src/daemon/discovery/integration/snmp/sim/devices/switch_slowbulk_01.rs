@@ -27,6 +27,8 @@ use super::inline;
 ///
 /// The local port table answers normally here, on purpose: this device isolates the neighbour
 /// read. `switch-shortports-01` is the other half, where the port table is what falls short.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-slowbulk-01",
@@ -35,9 +37,10 @@ pub fn device() -> SimDevice {
             issue: "#668",
             defect: "getbulk on the LLDP remote tables never answers while getnext does; before the fallback the chassis-id column returned nothing and every neighbour was discarded, so the switch reported no LLDP at all",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Scanopy SNMP simulator, slow-getbulk profile".into()),
             sys_object_id: Some("1.3.6.1.4.1.99999.3".into()),

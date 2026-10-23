@@ -19,6 +19,8 @@ use super::inline;
 /// an ordinary ethernet `if_type`. A separate switch from `switch_dlink_01` (whose four ports
 /// already cover the earlier symptoms from the same issue) so this one scenario's fixture and test
 /// can change without touching that one's.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-dlink-02",
@@ -27,9 +29,10 @@ pub fn device() -> SimDevice {
             issue: "#668",
             defect: "a far end's MAC is carried by several of its own physical interfaces (a real NIC and its NDIS filter/LWF pseudo-interfaces), so the port cannot be told apart by if_type alone",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("D-Link DGS-1210-48 Rev.GX/7.20.003".into()),
             sys_object_id: Some("1.3.6.1.4.1.171.10.76.28".into()),

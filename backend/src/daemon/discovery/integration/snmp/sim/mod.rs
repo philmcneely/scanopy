@@ -16,7 +16,7 @@ pub mod lldp;
 pub mod mibs;
 pub mod tables;
 pub mod transport;
-pub mod usm;
+pub mod udp;
 pub mod wire;
 
 use std::net::Ipv4Addr;
@@ -112,6 +112,18 @@ impl AgentFaults {
     }
 }
 
+/// Which protocol versions a community-credential device answers. A community credential tries
+/// v2c and then v1, so a device locked to either one is what proves the daemon reaches it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommunityVersions {
+    /// v1 and v2c, as a plain `rocommunity` answers. Also what a v3 device carries; it is unused.
+    Both,
+    /// v1 only (GH #557). v2c gets no answer, so only the v1 fallback reads the device.
+    V1Only,
+    /// v2c only. v1 gets no answer, so the daemon must not fall back when v2c answers.
+    V2cOnly,
+}
+
 /// A simulated device: everything the deployment and the tests need, in one value.
 #[derive(Debug, Clone)]
 pub struct SimDevice {
@@ -120,6 +132,8 @@ pub struct SimDevice {
     pub ip: Ipv4Addr,
     pub purpose: Purpose,
     pub credential: CredentialType,
+    /// The versions a community credential reaches this device on.
+    pub community_versions: CommunityVersions,
     pub system: SystemInfo,
     pub tables: Tables,
     /// Which `pass` handler serves the ARP table. Two devices deliberately misbehave here.
@@ -536,17 +550,27 @@ impl SimDevice {
 
     /// This device answering SNMP, for driving the real collection path against.
     ///
-    /// Whether it offers getbulk follows from its credential rather than being set per device:
-    /// SNMPv1 has no getbulk, so the v1 agent forces every column through getnext.
+    /// Whether it offers getbulk follows from the versions it answers rather than being set per
+    /// device: SNMPv1 has no getbulk, so the v1 agent forces every column through getnext.
     pub fn agent(&self) -> SimAgent {
         let agent = SimAgent::new(&self.data_files(), self.registrations())
             .refusing_getbulk(self.refuses_getbulk())
             .silent_on(self.silenced())
             .rejecting_getbulk_above(self.rejects_getbulk)
             .erroring_on(self.rejected(), self.tables.faults.error_status);
-        match self.credential {
-            CredentialType::SnmpV1 { .. } => agent.without_getbulk(),
-            _ => agent,
+        match self.community_versions {
+            CommunityVersions::V1Only => agent.without_getbulk(),
+            CommunityVersions::Both | CommunityVersions::V2cOnly => agent,
+        }
+    }
+
+    /// The protocol version this device is read over: v3 for a v3 credential, otherwise the
+    /// version a community credential lands on, which is v2c unless the device answers only v1.
+    pub fn snmp_version(&self) -> &'static str {
+        match (&self.credential, self.community_versions) {
+            (CredentialType::SnmpV3 { .. }, _) => "v3",
+            (_, CommunityVersions::V1Only) => "v1",
+            (_, CommunityVersions::Both | CommunityVersions::V2cOnly) => "v2c",
         }
     }
 

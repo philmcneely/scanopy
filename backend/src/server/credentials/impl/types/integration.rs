@@ -92,7 +92,7 @@ impl CredentialTypeDiscriminants {
     /// credential variant cannot compile until it names its integration.
     pub fn integration(&self) -> CredentialIntegration {
         match self {
-            Self::SnmpV1 | Self::SnmpV2c | Self::SnmpV3 => CredentialIntegration::Snmp,
+            Self::SnmpCommunity | Self::SnmpV3 => CredentialIntegration::Snmp,
             Self::Gnmi => CredentialIntegration::Gnmi,
             Self::DockerProxy | Self::DockerSocket => CredentialIntegration::Docker,
             Self::PodmanProxy | Self::PodmanSocket => CredentialIntegration::Podman,

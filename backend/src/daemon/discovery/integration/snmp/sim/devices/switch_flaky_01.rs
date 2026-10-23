@@ -14,6 +14,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-flaky-01",
@@ -22,9 +24,10 @@ pub fn device() -> SimDevice {
             issue: "#668",
             defect: "malformed neighbour records — each variant drives a different discard counter and a different piece of operator advice",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Scanopy SNMP simulator, flaky-LLDP profile".into()),
             sys_object_id: Some("1.3.6.1.4.1.99999.1".into()),

@@ -48,17 +48,20 @@ pub fn warn_incomplete_interface_walks(
             let address = record.ip;
             let collected = count(record.collected);
             let credential_id = record.credential_id;
+            let snmp_version = record.snmp_version;
             if record.set_complete {
                 DiscoveryWarning::InterfaceDetailsCutShort {
                     address,
                     collected,
                     credential_id,
+                    snmp_version,
                 }
             } else {
                 DiscoveryWarning::InterfaceSetCutShort {
                     address,
                     collected,
                     credential_id,
+                    snmp_version,
                 }
             }
         })
@@ -78,17 +81,20 @@ pub fn warn_incomplete_snmp_walks(records: &[IncompleteSnmpWalk]) -> Vec<Discove
             let address = record.ip;
             let group = record.group;
             let credential_id = record.credential_id;
+            let snmp_version = record.snmp_version;
             match record.reason {
                 Some(ShortfallReason::EntryCap { limit }) => DiscoveryWarning::SnmpWalkEntryCap {
                     address,
                     group,
                     limit: count(limit),
                     credential_id,
+                    snmp_version,
                 },
                 Some(ShortfallReason::Unsupported) => DiscoveryWarning::SnmpWalkUnsupported {
                     address,
                     group,
                     credential_id,
+                    snmp_version,
                 },
                 // Ahead of the `returned_any` arms deliberately: a desynchronised agent is a
                 // statement about the agent, and it holds whether or not rows came back.
@@ -96,6 +102,7 @@ pub fn warn_incomplete_snmp_walks(records: &[IncompleteSnmpWalk]) -> Vec<Discove
                     address,
                     group,
                     credential_id,
+                    snmp_version,
                 },
                 _ if record.returned_any => {
                     if group.partial_read_is_discarded() {
@@ -103,12 +110,14 @@ pub fn warn_incomplete_snmp_walks(records: &[IncompleteSnmpWalk]) -> Vec<Discove
                             address,
                             group,
                             credential_id,
+                            snmp_version,
                         }
                     } else {
                         DiscoveryWarning::SnmpWalkPartialRecorded {
                             address,
                             group,
                             credential_id,
+                            snmp_version,
                         }
                     }
                 }
@@ -122,6 +131,7 @@ pub fn warn_incomplete_snmp_walks(records: &[IncompleteSnmpWalk]) -> Vec<Discove
                         address,
                         group,
                         credential_id,
+                        snmp_version,
                     }
                 }
                 Some(ShortfallReason::Failed(cause)) => DiscoveryWarning::SnmpWalkFailed {
@@ -129,12 +139,14 @@ pub fn warn_incomplete_snmp_walks(records: &[IncompleteSnmpWalk]) -> Vec<Discove
                     group,
                     cause,
                     credential_id,
+                    snmp_version,
                 },
                 // Short with no rows and no cause: nothing was observed to name.
                 None => DiscoveryWarning::SnmpWalkNoAnswer {
                     address,
                     group,
                     credential_id,
+                    snmp_version,
                 },
             }
         })
@@ -168,6 +180,7 @@ pub fn warn_contradicted_claims(records: &[ContradictedClaim]) -> Vec<DiscoveryW
                             expected,
                             observed,
                             credential_id: record.credential_id,
+                            snmp_version: record.snmp_version,
                         }
                     } else {
                         DiscoveryWarning::ClaimedCountUnderRead {
@@ -177,6 +190,7 @@ pub fn warn_contradicted_claims(records: &[ContradictedClaim]) -> Vec<DiscoveryW
                             expected,
                             observed,
                             credential_id: record.credential_id,
+                            snmp_version: record.snmp_version,
                         }
                     }
                 }
@@ -187,6 +201,7 @@ pub fn warn_contradicted_claims(records: &[ContradictedClaim]) -> Vec<DiscoveryW
                             group,
                             source,
                             credential_id: record.credential_id,
+                            snmp_version: record.snmp_version,
                         }
                     } else {
                         DiscoveryWarning::ClaimedCapabilityEmpty {
@@ -194,6 +209,7 @@ pub fn warn_contradicted_claims(records: &[ContradictedClaim]) -> Vec<DiscoveryW
                             group,
                             source,
                             credential_id: record.credential_id,
+                            snmp_version: record.snmp_version,
                         }
                     }
                 }
@@ -223,6 +239,7 @@ pub fn warn_unresolved_lldp_ports(records: &[UnresolvedLldpPorts]) -> Vec<Discov
                     dropped,
                     total,
                     credential_id: record.credential_id,
+                    snmp_version: record.snmp_version,
                 },
                 LocalPortPlacementReason::ReadCutShort => {
                     DiscoveryWarning::LldpLocalPortDroppedReadCutShort {
@@ -230,6 +247,7 @@ pub fn warn_unresolved_lldp_ports(records: &[UnresolvedLldpPorts]) -> Vec<Discov
                         dropped,
                         total,
                         credential_id: record.credential_id,
+                        snmp_version: record.snmp_version,
                     }
                 }
             });
@@ -240,6 +258,7 @@ pub fn warn_unresolved_lldp_ports(records: &[UnresolvedLldpPorts]) -> Vec<Discov
                 address: record.ip,
                 misplaced: count(misplaced),
                 credential_id: record.credential_id,
+                snmp_version: record.snmp_version,
             });
         }
     }
@@ -262,6 +281,7 @@ pub fn warn_malformed_neighbours(records: &[MalformedNeighbours]) -> Vec<Discove
                 kept: count(record.kept),
                 consequence: MalformedNeighbourConsequence::from_kept(record.kept),
                 credential_id: record.credential_id,
+                snmp_version: record.snmp_version,
             };
             match record.reason {
                 MalformedNeighbourReason::WalkCutShort => {
@@ -290,6 +310,7 @@ pub fn warn_snmp_collected_nothing(records: &[SnmpCollectedNothing]) -> Vec<Disc
         .map(|record| DiscoveryWarning::SnmpCollectedNothing {
             address: record.ip,
             credential_id: record.credential_id,
+            snmp_version: record.snmp_version,
             failures: Some(record.failures.clone()),
         })
         .collect()
@@ -565,6 +586,7 @@ mod tests {
             returned_any,
             reason,
             credential_id: None,
+            snmp_version: None,
         }
     }
 
@@ -702,6 +724,7 @@ mod tests {
             warnings,
             vec![DiscoveryWarning::SnmpWalkEntryCap {
                 credential_id: None,
+                snmp_version: None,
                 address: ip("10.0.0.1"),
                 group: SnmpWalkGroup::BridgeForwarding,
                 limit: 10_000,
@@ -736,6 +759,7 @@ mod tests {
     fn a_device_reading_far_below_its_own_count_carries_both_figures() {
         let warnings = warn_contradicted_claims(&[ContradictedClaim {
             credential_id: None,
+            snmp_version: None,
             ip: ip("192.168.200.151"),
             group: SnmpWalkGroup::Interfaces,
             claim: DeviceClaim::Count {
@@ -750,6 +774,7 @@ mod tests {
             warnings,
             vec![DiscoveryWarning::ClaimedCountUnderRead {
                 credential_id: None,
+                snmp_version: None,
                 address: ip("192.168.200.151"),
                 group: SnmpWalkGroup::Interfaces,
                 source: ClaimSource::IfNumber,
@@ -770,6 +795,7 @@ mod tests {
     fn a_cut_short_read_is_a_different_code_from_a_completed_short_one() {
         let claim = |reason| ContradictedClaim {
             credential_id: None,
+            snmp_version: None,
             ip: ip("192.168.7.250"),
             group: SnmpWalkGroup::Interfaces,
             claim: DeviceClaim::Count {
@@ -798,6 +824,7 @@ mod tests {
     fn an_unsupported_table_is_not_treated_as_a_cut_short_read() {
         let warnings = warn_contradicted_claims(&[ContradictedClaim {
             credential_id: None,
+            snmp_version: None,
             ip: ip("10.0.0.1"),
             group: SnmpWalkGroup::BridgePortNumbering,
             claim: DeviceClaim::Implements {
@@ -822,6 +849,7 @@ mod tests {
     fn discarded_and_misplaced_neighbours_are_separate_outcomes() {
         let both = warn_unresolved_lldp_ports(&[UnresolvedLldpPorts {
             credential_id: None,
+            snmp_version: None,
             ip: ip("192.168.7.238"),
             unresolved: 3,
             dropped: 1,
@@ -833,12 +861,14 @@ mod tests {
             vec![
                 DiscoveryWarning::LldpLocalPortDropped {
                     credential_id: None,
+                    snmp_version: None,
                     address: ip("192.168.7.238"),
                     dropped: 1,
                     total: 4,
                 },
                 DiscoveryWarning::LldpLocalPortMisplaced {
                     credential_id: None,
+                    snmp_version: None,
                     address: ip("192.168.7.238"),
                     misplaced: 2,
                 },
@@ -847,6 +877,7 @@ mod tests {
 
         let dropped_only = warn_unresolved_lldp_ports(&[UnresolvedLldpPorts {
             credential_id: None,
+            snmp_version: None,
             ip: ip("192.168.7.238"),
             unresolved: 3,
             dropped: 3,
@@ -872,6 +903,7 @@ mod tests {
         let dropped = |reason| {
             warn_unresolved_lldp_ports(&[UnresolvedLldpPorts {
                 credential_id: None,
+                snmp_version: None,
                 ip: ip("192.168.7.253"),
                 unresolved: 0,
                 dropped: 2,
@@ -900,6 +932,7 @@ mod tests {
     fn a_device_that_dropped_nothing_still_reports_its_unconfirmed_ports() {
         let warnings = warn_unresolved_lldp_ports(&[UnresolvedLldpPorts {
             credential_id: None,
+            snmp_version: None,
             ip: ip("10.0.0.1"),
             unresolved: 2,
             dropped: 0,
@@ -911,6 +944,7 @@ mod tests {
             warnings,
             vec![DiscoveryWarning::LldpLocalPortMisplaced {
                 credential_id: None,
+                snmp_version: None,
                 address: ip("10.0.0.1"),
                 misplaced: 2,
             }]
@@ -922,6 +956,7 @@ mod tests {
         assert!(
             warn_unresolved_lldp_ports(&[UnresolvedLldpPorts {
                 credential_id: None,
+                snmp_version: None,
                 ip: ip("10.0.0.1"),
                 unresolved: 0,
                 dropped: 0,
@@ -1030,6 +1065,7 @@ mod tests {
     fn each_malformed_neighbour_cause_gets_its_own_code() {
         let record = |reason| MalformedNeighbours {
             credential_id: None,
+            snmp_version: None,
             ip: ip("192.168.7.244"),
             group: SnmpWalkGroup::Lldp,
             discarded: 14,
@@ -1065,6 +1101,7 @@ mod tests {
     fn a_partial_loss_does_not_claim_the_device_has_no_links() {
         let partial = warn_malformed_neighbours(&[MalformedNeighbours {
             credential_id: None,
+            snmp_version: None,
             ip: ip("10.0.0.1"),
             group: SnmpWalkGroup::Lldp,
             discarded: 2,
@@ -1073,6 +1110,7 @@ mod tests {
         }]);
         let total = warn_malformed_neighbours(&[MalformedNeighbours {
             credential_id: None,
+            snmp_version: None,
             ip: ip("10.0.0.1"),
             group: SnmpWalkGroup::Lldp,
             discarded: 2,
@@ -1099,6 +1137,7 @@ mod tests {
         assert!(
             warn_malformed_neighbours(&[MalformedNeighbours {
                 credential_id: None,
+                snmp_version: None,
                 ip: ip("10.0.0.1"),
                 group: SnmpWalkGroup::Lldp,
                 discarded: 0,
@@ -1117,12 +1156,14 @@ mod tests {
         let warnings = warn_incomplete_interface_walks(&[
             IncompleteInterfaceWalk {
                 credential_id: None,
+                snmp_version: None,
                 ip: ip("192.168.7.233"),
                 collected: 3,
                 set_complete: true,
             },
             IncompleteInterfaceWalk {
                 credential_id: None,
+                snmp_version: None,
                 ip: ip("192.168.7.242"),
                 collected: 17,
                 set_complete: false,
@@ -1134,11 +1175,13 @@ mod tests {
             vec![
                 DiscoveryWarning::InterfaceDetailsCutShort {
                     credential_id: None,
+                    snmp_version: None,
                     address: ip("192.168.7.233"),
                     collected: 3,
                 },
                 DiscoveryWarning::InterfaceSetCutShort {
                     credential_id: None,
+                    snmp_version: None,
                     address: ip("192.168.7.242"),
                     collected: 17,
                 },

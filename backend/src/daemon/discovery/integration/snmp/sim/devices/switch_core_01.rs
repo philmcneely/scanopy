@@ -20,6 +20,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-core-01",
@@ -27,9 +29,10 @@ pub fn device() -> SimDevice {
         purpose: Purpose::Control {
             role: "the lab's baseline switch and the far end most other devices resolve against; also the first forwarding database and the only CDP cache",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some(
                 "Cisco IOS Software, C2960 Software (C2960-LANBASEK9-M), Version 15.2(7)E3".into(),

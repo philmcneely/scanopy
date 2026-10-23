@@ -13,6 +13,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "firewall-01",
@@ -20,9 +22,10 @@ pub fn device() -> SimDevice {
         purpose: Purpose::Control {
             role: "a non-switch baseline that still answers LLDP",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("secret42"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Fortinet FortiGate 60F v7.2.6 build1517 (GA.F)".into()),
             sys_object_id: Some("1.3.6.1.4.1.12356.101.1.1".into()),

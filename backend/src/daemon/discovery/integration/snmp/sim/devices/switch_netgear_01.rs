@@ -14,6 +14,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-netgear-01",
@@ -22,9 +24,10 @@ pub fn device() -> SimDevice {
             issue: "#664",
             defect: "its LLDP chassis id is on no port and no IP, so the far end is identifiable only through the chassis_id recorded from its own LLDP local identity",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("NETGEAR GS724Tv3 ProSAFE 24-port Gigabit Smart Switch".into()),
             sys_object_id: Some("1.3.6.1.4.1.4526.100.4.15".into()),

@@ -251,7 +251,7 @@ const consequence = (id: string) =>
  * The integration's display name.
  *
  * Keyed by `CredentialQueryPayloadDiscriminants`, which is what the warning carries. Not
- * `credential-types.json`: that is keyed by `CredentialType` (SnmpV1/V2c/V3, UnifiApiKey, …), so
+ * `credential-types.json`: that is keyed by `CredentialType` (SnmpCommunity/SnmpV3, UnifiApiKey, …), so
  * `DockerProxy` resolved there by coincidence while `Snmp`, `UnifiController` and `InstantOn` fell
  * through and rendered as their raw discriminants.
  */

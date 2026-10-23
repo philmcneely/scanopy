@@ -7,6 +7,8 @@ use crate::daemon::discovery::integration::snmp::sim::{Purpose, SimDevice, Table
 use crate::daemon::discovery::integration::snmp::types::SystemInfo;
 use crate::server::credentials::r#impl::types::{CredentialType, SnmpV3Security};
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "secure-switch-03",
@@ -20,6 +22,7 @@ pub fn device() -> SimDevice {
             security: SnmpV3Security::NoAuthNoPriv,
             context_name: None,
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Linux lab-pdu-01 4.14.0 armv7l".into()),
             sys_object_id: Some("1.3.6.1.4.1.8072.3.2.10".into()),
