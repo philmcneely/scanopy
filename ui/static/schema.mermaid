@@ -58,8 +58,6 @@ erDiagram
 "public.bindings" }o--o| "public.ports" : "FOREIGN KEY (port_id) REFERENCES ports(id) ON DELETE CASCADE"
 "public.bindings" }o--o| "public.snapshots" : "FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE"
 "public.dependency_members" }o--|| "public.dependencies" : "FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE"
-"public.dependency_members" }o--|| "public.services" : "FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE"
-"public.dependency_members" }o--o| "public.bindings" : "FOREIGN KEY (binding_id) REFERENCES bindings(id) ON DELETE CASCADE"
 "public.dependency_members" }o--o| "public.snapshots" : "FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE"
 "public.user_api_keys" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.user_api_keys" }o--|| "public.organizations" : "FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE"
@@ -221,6 +219,8 @@ erDiagram
   uuid snapshot_id FK
   uuid virtualization_service_id FK
   jsonb cidr_source
+  jsonb name_source
+  jsonb subnet_type_source
 }
 "public.dependencies" {
   uuid id
@@ -449,10 +449,10 @@ erDiagram
 "public.dependency_members" {
   uuid id
   uuid dependency_id FK
-  uuid binding_id FK
+  uuid binding_id
   integer position
   timestamp_with_time_zone created_at
-  uuid service_id FK
+  uuid service_id
   timestamp_with_time_zone valid_from
   timestamp_with_time_zone valid_to
   uuid lineage_id
@@ -556,6 +556,7 @@ erDiagram
   uuid last_discovery_id FK
   uuid first_discovery_id FK
   uuid snapshot_id FK
+  jsonb name_source
 }
 "public.subnet_vlans" {
   uuid id
