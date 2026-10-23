@@ -806,6 +806,7 @@ impl TypeMetadataProvider for ClientProbe {
             Self::SnmpEngine => "SNMP",
             Self::DockerPing => "Docker",
             Self::PodmanPing => "Podman",
+            Self::Ipp => "IPP",
         }
     }
 }

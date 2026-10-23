@@ -49,10 +49,12 @@ mod capability;
 mod coverage;
 mod defaults;
 mod junctions;
+mod targetless;
 
 pub use capability::DaemonPlacement;
 pub(crate) use capability::refusal_for_daemon;
 pub use coverage::{FoundIntegration, IntegrationCoverage, SiteTriedAt, find_uncovered};
+pub use targetless::find_targetless;
 
 /// The set of things a credential targets, normalized across the site and host
 /// junction tables so two credentials can be tested for overlap. Used to enforce

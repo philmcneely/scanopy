@@ -363,6 +363,8 @@ pub mod workstation;
 
 // Mobile
 pub mod client;
+pub mod ipad;
+pub mod iphone;
 
 // IoT
 pub mod amazon_echo;
@@ -395,6 +397,7 @@ pub mod opc_ua;
 pub mod airprint_printer;
 pub mod cups;
 pub mod hp_printer;
+pub mod ipp_printer;
 pub mod jetdirect;
 pub mod print_server;
 

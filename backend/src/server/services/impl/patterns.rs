@@ -300,6 +300,9 @@ pub enum ClientProbe {
     /// Podman's API service answered `GET /_ping` with its `Server: Libpod/` token, before any
     /// auth. Not [`Self::Podman`], which means a credential reached it.
     PodmanPing,
+    /// A `Get-Printer-Attributes` request came back as an `application/ipp` message, whatever its
+    /// status.
+    Ipp,
 }
 
 impl ClientProbe {
@@ -362,7 +365,8 @@ impl ClientProbe {
             | Self::H323
             | Self::SnmpEngine
             | Self::DockerPing
-            | Self::PodmanPing => M::Native,
+            | Self::PodmanPing
+            | Self::Ipp => M::Native,
         }
     }
 }

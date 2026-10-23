@@ -4140,19 +4140,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-22T23:24:30.832627Z",
+             *       "created_at": "2026-10-23T14:41:16.882776Z",
              *       "first_discovery_id": null,
-             *       "id": "fc6c2dca-1633-473a-bfca-7132fb921d9b",
+             *       "id": "193da40e-804e-4be4-a3f6-6c35540e3b8f",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-22T23:24:30.832627Z",
+             *       "last_seen_at": "2026-10-23T14:41:16.882776Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-22T23:24:30.832627Z",
-             *       "valid_from": "2026-10-22T23:24:30.832627Z",
+             *       "updated_at": "2026-10-23T14:41:16.882776Z",
+             *       "valid_from": "2026-10-23T14:41:16.882776Z",
              *       "valid_to": null
              *     }
              */
@@ -4552,6 +4552,8 @@ export interface components {
                 recent_discoveries: components["schemas"]["RecentDiscovery"][];
                 /** @description Per-site counts for every site the caller can see. */
                 sites: components["schemas"]["SiteSummary"][];
+                /** @description Credentials no scan will send to a daemon, by name. */
+                targetless_credentials: components["schemas"]["TargetlessCredential"][];
                 /** @description Integrations found on hosts with no credential of them, most hosts first. */
                 uncovered_integrations: components["schemas"]["UncoveredIntegration"][];
             };
@@ -5028,19 +5030,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-22T23:24:30.797940Z",
+             *               "created_at": "2026-10-23T14:41:16.847359Z",
              *               "first_discovery_id": null,
-             *               "id": "1eb91317-7aa9-4574-9e4b-588aaf5d3fdf",
+             *               "id": "89e551bf-5fdb-4c23-b3bc-ab37f992f9c1",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-22T23:24:30.797940Z",
+             *               "last_seen_at": "2026-10-23T14:41:16.847359Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-22T23:24:30.797940Z",
-             *               "valid_from": "2026-10-22T23:24:30.797940Z",
+             *               "updated_at": "2026-10-23T14:41:16.847359Z",
+             *               "valid_from": "2026-10-23T14:41:16.847359Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5053,7 +5055,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Consul",
+             *           "service_definition": "Print Server",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -6052,19 +6054,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-22T23:24:30.827090Z",
+             *           "created_at": "2026-10-23T14:41:16.877154Z",
              *           "first_discovery_id": null,
-             *           "id": "c87c9317-ad74-4576-ba13-b477778df3a4",
+             *           "id": "8d3b7d72-92cb-421f-b1d0-8dc7bc9b55fe",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-22T23:24:30.827090Z",
+             *           "last_seen_at": "2026-10-23T14:41:16.877154Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-22T23:24:30.827090Z",
-             *           "valid_from": "2026-10-22T23:24:30.827090Z",
+             *           "updated_at": "2026-10-23T14:41:16.877154Z",
+             *           "valid_from": "2026-10-23T14:41:16.877154Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6077,7 +6079,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Consul",
+             *       "service_definition": "Print Server",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7516,19 +7518,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-22T23:24:30.798643Z",
+         *       "created_at": "2026-10-23T14:41:16.848071Z",
          *       "first_discovery_id": null,
-         *       "id": "f2f2a59d-eea4-4275-840d-c0c7d18a5bc4",
+         *       "id": "c7fbb5ff-4d31-4aaa-a41c-8e6f2488f099",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-22T23:24:30.798643Z",
+         *       "last_seen_at": "2026-10-23T14:41:16.848071Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-22T23:24:30.798643Z",
-         *       "valid_from": "2026-10-22T23:24:30.798643Z",
+         *       "updated_at": "2026-10-23T14:41:16.848071Z",
+         *       "valid_from": "2026-10-23T14:41:16.848071Z",
          *       "valid_to": null
          *     }
          */
@@ -7799,7 +7801,7 @@ export interface components {
          *     `every_client_probe_variant_has_a_producer` is what now says so.
          * @enum {string}
          */
-        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing";
+        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing" | "Ipp";
         /** @enum {string} */
         ClockFormat: "browser_default" | "twelve_hour" | "twenty_four_hour";
         /** @enum {string} */
@@ -7918,7 +7920,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Consul",
+         *           "service_definition": "Print Server",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -8784,6 +8786,8 @@ export interface components {
             recent_discoveries: components["schemas"]["RecentDiscovery"][];
             /** @description Per-site counts for every site the caller can see. */
             sites: components["schemas"]["SiteSummary"][];
+            /** @description Credentials no scan will send to a daemon, by name. */
+            targetless_credentials: components["schemas"]["TargetlessCredential"][];
             /** @description Integrations found on hosts with no credential of them, most hosts first. */
             uncovered_integrations: components["schemas"]["UncoveredIntegration"][];
         };
@@ -8967,7 +8971,7 @@ export interface components {
          *     evidence names gets its own variant.
          * @enum {string}
          */
-        DeviceType: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Mobile" | "Industrial" | "IoT" | "Server" | "Unidentified";
+        DeviceType: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Tablet" | "Mobile" | "Industrial" | "IoT" | "Server" | "Unidentified";
         Discovery: components["schemas"]["DiscoveryBase"] & {
             /**
              * Format: date-time
@@ -9618,6 +9622,15 @@ export interface components {
              * @example 0.18.0
              */
             last_unsupported_daemon_version: string;
+        } | {
+            /** @enum {string} */
+            code: "CredentialWithoutTarget";
+            /**
+             * Format: uuid
+             * @description The stored credential. `None` once it is deleted.
+             */
+            credential_id: string | null;
+            integration: components["schemas"]["CredentialQueryPayloadDiscriminants"];
         } | {
             /** @description The address the credential is bound to. */
             address: string;
@@ -10897,19 +10910,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-22T23:24:30.797110Z",
+         *               "created_at": "2026-10-23T14:41:16.846517Z",
          *               "first_discovery_id": null,
-         *               "id": "3d638c11-1399-42ba-ad25-99cc4c837064",
+         *               "id": "4a9af728-471b-4e60-9410-96f761c38134",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-22T23:24:30.797110Z",
+         *               "last_seen_at": "2026-10-23T14:41:16.846517Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-22T23:24:30.797110Z",
-         *               "valid_from": "2026-10-22T23:24:30.797110Z",
+         *               "updated_at": "2026-10-23T14:41:16.846517Z",
+         *               "valid_from": "2026-10-23T14:41:16.846517Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10922,7 +10935,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Consul",
+         *           "service_definition": "Print Server",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -14477,19 +14490,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-22T23:24:30.798422Z",
+         *           "created_at": "2026-10-23T14:41:16.847846Z",
          *           "first_discovery_id": null,
-         *           "id": "a2609fdf-a5a1-41dc-9602-83992cfdca81",
+         *           "id": "3152a1da-4d56-4cc5-b4eb-01b893a4a07e",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-22T23:24:30.798422Z",
+         *           "last_seen_at": "2026-10-23T14:41:16.847846Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-22T23:24:30.798422Z",
-         *           "valid_from": "2026-10-22T23:24:30.798422Z",
+         *           "updated_at": "2026-10-23T14:41:16.847846Z",
+         *           "valid_from": "2026-10-23T14:41:16.847846Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14502,7 +14515,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Consul",
+         *       "service_definition": "Print Server",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15425,6 +15438,18 @@ export interface components {
         };
         /** @enum {string} */
         Target: "DaemonHost" | "Site" | "Hosts";
+        /** @description A credential with no site or host assignment that no discovery targets, so no daemon receives it. */
+        TargetlessCredential: {
+            /**
+             * Format: uuid
+             * @description The credential.
+             */
+            id: string;
+            /** @description The integration it authenticates. */
+            integration: components["schemas"]["CredentialIntegration"];
+            /** @description Its name. */
+            name: string;
+        };
         /** @description Request to test reachability of a daemon URL. */
         TestReachabilityRequest: {
             /** @description If true, also perform an HTTP GET to {url}/health after the TCP check */
@@ -15665,7 +15690,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "b61ff00f-03fe-478f-922f-26c5c9e76dd7",
+             *           "id": "27e14ca3-4546-4860-875d-a73908710e0c",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15675,23 +15700,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "a22641af-b046-4940-9b4c-875c68f8eafe",
+             *           "id": "37bdb822-cb3a-4c96-ad03-5df6c0287d89",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "e05ac25c-09ec-4858-876a-2650eb6e5d62",
+             *           "id": "043ab3b5-e3b3-4f33-94ca-21ae41c3f146",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "7e39eeb0-7d32-4562-b84a-04d418861f4f",
+             *           "id": "f7563682-a53e-4ba8-9bed-2fd013cf6215",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "a22641af-b046-4940-9b4c-875c68f8eafe",
+             *           "id": "37bdb822-cb3a-4c96-ad03-5df6c0287d89",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15705,19 +15730,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "a99d6b46-68d6-43c4-a525-490a3b91fe37",
+             *         "id": "5ceaf406-2fcf-4543-84a8-d0420cf3bc3a",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "8fe4cd9e-fab0-440a-b1e7-fd5ab7d59e88",
+             *         "id": "0a85efa9-8880-4568-9dc5-ace6b3e80c18",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "f967cec4-5269-46c1-9491-cfd8564fa019",
+             *         "id": "1eaf0006-3835-45a8-9376-fae42485dab7",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "50a1ee48-9fcf-42b0-a125-62d00e6b9280",
+             *         "id": "e1cebb65-f178-4b32-95b3-24eef451114d",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15738,7 +15763,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "81c93f96-89ea-4939-bc26-3a2dfb6570ff",
+             *         "id": "546b56cc-9227-4891-9527-386353a6cb66",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15747,15 +15772,15 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "f61d5397-b585-4834-b712-1d6c80fb5232",
+             *         "id": "fca62037-fe2e-49ec-b201-4b5654db1644",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "d60f75db-1e3d-438f-af5b-dad909acab79",
+             *         "id": "fa3007e3-9dc6-47c1-a4e9-4ee14900bf22",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "34dbdc76-1ca6-40db-a080-fa6f763b746d",
+             *         "id": "e1dad18e-309d-48f5-8e62-4762778af00d",
              *         "rule": "ByStack"
              *       }
              *     ]

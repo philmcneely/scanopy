@@ -424,6 +424,8 @@ const WARNING_PARAMS = {
 		daemon: daemonName,
 		version: w[0].daemon_version ?? common_unknown()
 	}),
+	// Server-raised, one per credential. The run's Credentials tab names each one.
+	CredentialWithoutTarget: (w) => ({ credential: integration(w[0].integration) }),
 
 	// One per host. The integration identifies the statement, so every host running one
 	// integration shares a sentence, and `discovers` is that integration's own description.
