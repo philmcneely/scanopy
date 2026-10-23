@@ -112,8 +112,8 @@
 		itemDisplayComponent={SiteDisplay}
 	/>
 {:else}
-	<div class="card card-static">
-		<p class="text-secondary text-sm">
+	<div class="card-static card">
+		<p class="text-sm text-secondary">
 			Users with {permissionLevel} permissions have access to all sites.
 		</p>
 	</div>

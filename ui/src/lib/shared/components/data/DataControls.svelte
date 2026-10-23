@@ -1120,7 +1120,7 @@
 			data-tooltip={resolveTooltip(action)}
 			class="{toolbarButtonClass(
 				action.tone
-			)} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+			)} flex toolbar-control items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{action.label}
 			{#if key}
@@ -1139,11 +1139,11 @@
 	<!-- Sentinel for sticky detection -->
 	<div bind:this={sentinelRef} class="h-0 w-full"></div>
 
-	<!-- Sticky Controls Bar. `!mt-0`: the zero-height sentinel above would otherwise give it the
+	<!-- Sticky Controls Bar. `mt-0!`: the zero-height sentinel above would otherwise give it the
 	     group's gap, putting the toolbar 16px below the sidebar's first row instead of level. -->
 	<div
-		class="sticky top-0 z-20 -mx-4 !mt-0 border-b bg-[var(--color-bg-body)] px-4 pb-4 {isStuck
-			? 'border-[var(--color-border)] pt-4 shadow-lg'
+		class="sticky top-0 z-20 -mx-4 mt-0! border-b bg-(--color-bg-body) px-4 pb-4 {isStuck
+			? 'border-(--color-border) pt-4 shadow-lg'
 			: 'border-transparent'}"
 	>
 		<ControlsBar
@@ -1253,9 +1253,9 @@
 				onfocusout={(e) => {
 					if (!e.currentTarget.contains(e.relatedTarget as Node | null)) editingTags = false;
 				}}
-				class="card card-static pointer-events-auto flex max-w-full items-center gap-2 !px-4 !py-2 !shadow-[0_10px_40px_rgba(0,0,0,0.25)] ring-1 ring-black/5 dark:!border-gray-600 dark:!bg-gray-800 dark:!shadow-[0_10px_40px_rgba(0,0,0,0.7)] dark:ring-white/10"
+				class="card-static pointer-events-auto flex max-w-full items-center gap-2 card px-4! py-2! shadow-[0_10px_40px_rgba(0,0,0,0.25)]! ring-1 ring-black/5 dark:border-gray-600! dark:bg-gray-800! dark:shadow-[0_10px_40px_rgba(0,0,0,0.7)]! dark:ring-white/10"
 			>
-				<span class="text-secondary whitespace-nowrap text-sm"
+				<span class="text-sm whitespace-nowrap text-secondary"
 					>{selectedIds.size > 1 ? common_commonTags() : common_tags()}</span
 				>
 				<TagPickerInline
@@ -1266,10 +1266,10 @@
 					onRemove={handleBulkTagRemove}
 				/>
 				{#if commonTags.length === 0 && selectedIds.size > 1}
-					<span class="text-tertiary whitespace-nowrap text-xs">{common_noCommonTags()}</span>
+					<span class="text-xs whitespace-nowrap text-tertiary">{common_noCommonTags()}</span>
 				{/if}
 				<span
-					class="text-tertiary ml-2 flex items-center gap-1.5 whitespace-nowrap border-l border-[var(--color-border)] pl-3 text-xs"
+					class="ml-2 flex items-center gap-1.5 border-l border-(--color-border) pl-3 text-xs whitespace-nowrap text-tertiary"
 				>
 					<span
 						class="flex items-center gap-1.5 transition-opacity {searchFocused ? 'opacity-40' : ''}"

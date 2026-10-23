@@ -195,7 +195,7 @@
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="flex-1 overflow-auto p-6">
 			<div class="space-y-6">
-				<p class="text-secondary text-sm">
+				<p class="text-sm text-secondary">
 					{users_inviteInstructions()}
 				</p>
 
@@ -256,8 +256,8 @@
 
 				{#if invite}
 					<InfoCard title={users_inviteLink()}>
-						<div class="rounded-md border border-[var(--color-border)] p-3">
-							<code class="text-primary block break-all text-sm">{formatInviteUrl(invite)}</code>
+						<div class="rounded-md border border-(--color-border) p-3">
+							<code class="block text-sm break-all text-primary">{formatInviteUrl(invite)}</code>
 						</div>
 
 						{#if isSecureContext}
@@ -278,8 +278,8 @@
 						{/if}
 
 						<div class="flex items-center gap-2">
-							<Calendar class="text-secondary h-4 w-4 flex-shrink-0" />
-							<p class="text-secondary text-sm">
+							<Calendar class="h-4 w-4 shrink-0 text-secondary" />
+							<p class="text-sm text-secondary">
 								{users_expires({ timestamp: formatTimestamp(invite.expires_at) })}
 							</p>
 						</div>

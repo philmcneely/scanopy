@@ -233,10 +233,10 @@
 					<InfoCard title={common_emailAndPassword()}>
 						<div class="flex items-center justify-between gap-4">
 							<div class="flex min-w-0 items-center gap-4">
-								<Mail class="text-secondary h-5 w-5 flex-shrink-0" />
+								<Mail class="h-5 w-5 shrink-0 text-secondary" />
 								<div class="min-w-0">
-									<p class="text-primary text-sm font-medium">{common_email()}</p>
-									<p class="text-secondary truncate text-xs">{user.email}</p>
+									<p class="text-sm font-medium text-primary">{common_email()}</p>
+									<p class="truncate text-xs text-secondary">{user.email}</p>
 								</div>
 							</div>
 							{#if !hasLinkedOidc}
@@ -254,8 +254,8 @@
 						</div>
 						<div class="flex items-center justify-between gap-4">
 							<div class="flex items-center gap-4">
-								<Key class="text-secondary h-5 w-5 flex-shrink-0" />
-								<p class="text-primary text-sm font-medium">{common_password()}</p>
+								<Key class="h-5 w-5 shrink-0 text-secondary" />
+								<p class="text-sm font-medium text-primary">{common_password()}</p>
 							</div>
 							<button
 								type="button"
@@ -273,7 +273,7 @@
 					<!-- Identity providers: link one for single sign-on. -->
 					{#if hasOidcProviders}
 						<InfoCard title={settings_account_identityProviders()}>
-							<p class="text-secondary text-xs">
+							<p class="text-xs text-secondary">
 								{settings_account_oidcLinkHelp()}
 							</p>
 							<div class="space-y-3">
@@ -284,25 +284,25 @@
 										<div class="mr-2 flex items-center gap-4">
 											<OidcProviderLogo {provider}>
 												{#snippet fallback()}
-													<Link class="text-secondary h-5 w-5 flex-shrink-0" />
+													<Link class="h-5 w-5 shrink-0 text-secondary" />
 												{/snippet}
 											</OidcProviderLogo>
 											<div>
-												<p class="text-primary text-sm font-medium">{provider.name}</p>
+												<p class="text-sm font-medium text-primary">{provider.name}</p>
 												{#if isLinked}
-													<p class="text-secondary text-xs">
+													<p class="text-xs text-secondary">
 														{settings_account_linkedOn({
 															date: formatDate(user.oidc_linked_at || '')
 														})}
 													</p>
 												{:else if isDisabled}
-													<p class="text-secondary text-xs">
+													<p class="text-xs text-secondary">
 														{settings_account_unlinkFirst({
 															provider: linkedProvider?.name || ''
 														})}
 													</p>
 												{:else}
-													<p class="text-secondary text-xs">{settings_account_notLinked()}</p>
+													<p class="text-xs text-secondary">{settings_account_notLinked()}</p>
 												{/if}
 											</div>
 										</div>
@@ -342,12 +342,12 @@
 						<InfoCard variant="compact">
 							<div class="flex items-center justify-between">
 								<div class="flex items-center gap-4">
-									<Shield class="text-secondary h-5 w-5 flex-shrink-0" />
+									<Shield class="h-5 w-5 shrink-0 text-secondary" />
 									<div>
-										<p class="text-primary text-sm font-medium">
+										<p class="text-sm font-medium text-primary">
 											{cookies_preferences()}
 										</p>
-										<p class="text-secondary text-xs">
+										<p class="text-xs text-secondary">
 											{settings_account_cookiePreferencesDesc()}
 										</p>
 									</div>
@@ -363,8 +363,8 @@
 					<InfoCard variant="compact">
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-4">
-								<LogOut class="text-secondary h-5 w-5" />
-								<span class="text-primary text-sm">{settings_account_signOut()}</span>
+								<LogOut class="h-5 w-5 text-secondary" />
+								<span class="text-sm text-primary">{settings_account_signOut()}</span>
 							</div>
 							<button type="button" onclick={handleLogout} class="btn-secondary">
 								{common_logout()}
@@ -373,11 +373,11 @@
 					</InfoCard>
 				</div>
 			{:else}
-				<div class="text-secondary py-8 text-center">{settings_account_loadingUser()}</div>
+				<div class="py-8 text-center text-secondary">{settings_account_loadingUser()}</div>
 			{/if}
 		{:else if subView === 'credentials'}
 			<div class="space-y-2">
-				<p class="text-secondary mb-2 text-sm">
+				<p class="mb-2 text-sm text-secondary">
 					{user?.has_password
 						? settings_account_updateCredentials()
 						: settings_account_setPassword()}
@@ -426,7 +426,7 @@
 			</div>
 		{:else if subView === 'email-change'}
 			<div class="space-y-2">
-				<p class="text-secondary mb-2 text-sm">
+				<p class="mb-2 text-sm text-secondary">
 					{settings_account_emailChangeIntro()}
 				</p>
 				<div class="space-y-6">

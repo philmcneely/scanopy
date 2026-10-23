@@ -76,25 +76,25 @@
 <!-- Above the modal band. Modals are also z-50 and the billing modal is rendered
      last on the page, so an equal z-index left toasts painted behind it by DOM
      order. Fixed here rather than by reordering, because four routes mount this. -->
-<div class="pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
+<div class="pointer-events-none fixed right-4 bottom-4 z-100 flex flex-col gap-2">
 	{#each toasts as toast (toast.id)}
 		{@const colors = getToastColors(toast.type)}
 		{@const IconComponent = getToastIcon(toast.type)}
 
 		<div
-			class="pointer-events-auto min-w-80 max-w-md rounded-lg border {colors.bg} {colors.border} shadow-lg backdrop-blur-sm"
+			class="pointer-events-auto max-w-md min-w-80 rounded-lg border {colors.bg} {colors.border} shadow-lg backdrop-blur-xs"
 			transition:fly={{ x: 300, duration: 300 }}
 		>
 			<div class="p-4">
 				<div class="flex items-start gap-3">
 					<!-- Icon -->
-					<div class="mt-0.5 flex-shrink-0">
+					<div class="mt-0.5 shrink-0">
 						<svelte:component this={IconComponent} class="h-5 w-5 {colors.icon}" />
 					</div>
 
 					<!-- Content -->
 					<div class="min-w-0 flex-1">
-						<p class="text-sm {colors.text} break-words">
+						<p class="text-sm {colors.text} wrap-break-word">
 							{toast.message}
 						</p>
 
@@ -121,7 +121,7 @@
 						<button
 							type="button"
 							on:click={() => dismissToast(toast.id)}
-							class="flex-shrink-0 rounded p-1 {colors.button} transition-colors hover:bg-white/10"
+							class="shrink-0 rounded-sm p-1 {colors.button} transition-colors hover:bg-white/10"
 							title={common_dismiss()}
 						>
 							<X class="h-4 w-4" />

@@ -149,13 +149,13 @@
 
 	<!-- Bulk assign bar -->
 	{#if selectedHosts.length > 0}
-		<div class="card card-static flex flex-wrap items-center gap-2 border-t px-4 py-3 shadow-lg">
-			<span class="text-secondary whitespace-nowrap text-sm font-medium">
+		<div class="card-static flex flex-wrap items-center gap-2 card border-t px-4 py-3 shadow-lg">
+			<span class="text-sm font-medium whitespace-nowrap text-secondary">
 				{appWizard_selectedCount({
 					summary: `${selectedHosts.length} ${selectedHosts.length === 1 ? 'host' : 'hosts'}`
 				})}
 			</span>
-			<span class="text-tertiary whitespace-nowrap text-sm">{appWizard_bulkAssign()}</span>
+			<span class="text-sm whitespace-nowrap text-tertiary">{appWizard_bulkAssign()}</span>
 			{#each appTags as tag (tag.id)}
 				<button
 					type="button"

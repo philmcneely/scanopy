@@ -30,5 +30,5 @@
 	title={common_clickToCopy()}
 >
 	<span class="min-w-0 {variant === 'inline' ? 'break-all' : 'truncate'}">{value}</span>
-	<Copy class="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />
+	<Copy class="h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />
 </button>

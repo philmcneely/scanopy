@@ -173,7 +173,7 @@
 					}
 				}}
 			/>
-			<p class="text-tertiary text-xs">{discovery_daemonHelp()}</p>
+			<p class="text-xs text-tertiary">{discovery_daemonHelp()}</p>
 		</div>
 
 		<!-- Run Type Selection -->
@@ -200,7 +200,7 @@
 							displayComponent={SimpleOptionDisplay}
 							disabled={readOnly}
 						/>
-						<p class="text-tertiary mt-1 text-xs">
+						<p class="mt-1 text-xs text-tertiary">
 							{field.state.value === 'AdHoc'
 								? discovery_adHocDescription()
 								: discovery_scheduledDescription()}
@@ -239,15 +239,15 @@
 		<CollapsibleCard title={discovery_scanInfo()} expanded={true}>
 			<div class="space-y-1">
 				{#if scanCount === 0}
-					<p class="text-secondary text-sm">{discovery_neverRun()}</p>
+					<p class="text-sm text-secondary">{discovery_neverRun()}</p>
 				{:else}
-					<p class="text-secondary text-sm">
+					<p class="text-sm text-secondary">
 						{discovery_lastRun({ time: lastRun ? formatTimestamp(lastRun) : '—' })}
 					</p>
-					<p class="text-secondary text-sm">{discovery_scanCount({ count: String(scanCount) })}</p>
+					<p class="text-sm text-secondary">{discovery_scanCount({ count: String(scanCount) })}</p>
 				{/if}
 				<!-- Which run is full is decided on the server; it sends the result for the next run. -->
-				<p class="text-tertiary text-xs">
+				<p class="text-xs text-tertiary">
 					{formData.next_run_is_full_scan ? discovery_nextRunFull() : discovery_nextRunLight()}
 				</p>
 			</div>

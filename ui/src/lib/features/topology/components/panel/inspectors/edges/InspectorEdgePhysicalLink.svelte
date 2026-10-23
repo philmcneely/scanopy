@@ -83,7 +83,7 @@
 
 	{#if evidenceRow?.neighbor_seen_at}
 		<div class="flex items-center gap-2 text-sm">
-			<span class="text-secondary font-medium">{topology_neighborEvidence()}</span>
+			<span class="font-medium text-secondary">{topology_neighborEvidence()}</span>
 			<span>{formatRelativeTime(evidenceRow.neighbor_seen_at)}</span>
 			{#if evidenceTag}
 				<Tag {...evidenceTag} pill />
@@ -101,7 +101,7 @@
 		>
 			<div class="space-y-1">
 				{#if sourceHost}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							context={{
 								services: topology?.services.filter((s) => s.host_id === sourceHost.id) ?? [],
@@ -115,7 +115,7 @@
 					</div>
 				{/if}
 				{#if sourceInterface}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							context={{ compact: true }}
 							item={sourceInterface}
@@ -137,7 +137,7 @@
 		>
 			<div class="space-y-1">
 				{#if targetHost}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							context={{
 								services: topology?.services.filter((s) => s.host_id === targetHost.id) ?? [],
@@ -151,7 +151,7 @@
 					</div>
 				{/if}
 				{#if targetInterface}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							context={{ compact: true }}
 							item={targetInterface}

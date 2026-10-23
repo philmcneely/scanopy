@@ -85,7 +85,7 @@
 			onclick={() => (isOpen = !isOpen)}
 			aria-haspopup="menu"
 			aria-expanded={isOpen}
-			class="text-link inline-flex items-center gap-1 self-center text-sm hover:underline"
+			class="inline-flex items-center gap-1 self-center text-sm text-link hover:underline"
 		>
 			{moreLabel}
 			<ChevronDown class="h-4 w-4 transition-transform {isOpen ? 'rotate-180' : ''}" />

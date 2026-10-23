@@ -48,6 +48,6 @@
 	{/snippet}
 	<div class="px-6 py-4">
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -- static i18n string with fixed links -->
-		<p class="text-secondary text-sm">{@html auth_termsUpdatedBody()}</p>
+		<p class="text-sm text-secondary">{@html auth_termsUpdatedBody()}</p>
 	</div>
 </GenericModal>

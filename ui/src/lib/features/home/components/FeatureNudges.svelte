@@ -288,7 +288,7 @@
 
 {#if visibleNudgeIds.length > 0}
 	<section>
-		<h3 class="text-primary mb-3 text-base font-semibold">Suggestions</h3>
+		<h3 class="mb-3 text-base font-semibold text-primary">Suggestions</h3>
 		<div class="grid gap-4 sm:grid-cols-2">
 			{#each nudges.filter((n) => visibleNudgeIds.includes(n.id)) as nudge (nudge.id)}
 				<FeatureNudge

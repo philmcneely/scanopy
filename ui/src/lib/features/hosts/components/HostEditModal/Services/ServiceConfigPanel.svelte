@@ -418,14 +418,14 @@
 					{#each [{ label: hosts_deviceFacts_containerName(), value: container.container_name }, { label: hosts_deviceFacts_composeProject(), value: container.compose_project }] as fact (fact.label)}
 						{#if fact.value}
 							<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-								<dt class="text-secondary w-40 shrink-0">{fact.label}</dt>
-								<dd class="text-primary min-w-0 flex-1 break-words">{fact.value}</dd>
+								<dt class="w-40 shrink-0 text-secondary">{fact.label}</dt>
+								<dd class="min-w-0 flex-1 wrap-break-word text-primary">{fact.value}</dd>
 							</div>
 						{/if}
 					{/each}
 					{#if container.container_id}
 						<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-							<dt class="text-secondary w-40 shrink-0">{hosts_deviceFacts_containerId()}</dt>
+							<dt class="w-40 shrink-0 text-secondary">{hosts_deviceFacts_containerId()}</dt>
 							<dd class="min-w-0 flex-1">
 								<CopyableValue value={container.container_id} variant="inline" />
 							</dd>
@@ -433,7 +433,7 @@
 					{/if}
 					{#if container.state}
 						<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-							<dt class="text-secondary w-40 shrink-0">{common_status()}</dt>
+							<dt class="w-40 shrink-0 text-secondary">{common_status()}</dt>
 							<dd class="min-w-0 flex-1"><GuestStateTag state={container.state} /></dd>
 						</div>
 					{/if}
@@ -442,7 +442,7 @@
 		{/if}
 
 		<InfoCard title={common_bindings()}>
-			<p class="text-muted text-xs">
+			<p class="text-xs text-muted">
 				{hosts_services_bindingsHelp()}
 			</p>
 			<!-- Port Bindings -->

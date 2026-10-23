@@ -124,8 +124,8 @@
 	<!-- Only the icon, heading and button are centred; the explanatory bodies stay
 	     left-aligned, since centred prose reads badly. -->
 	<div class="space-y-4 py-4">
-		<KeyRound class="text-tertiary mx-auto h-10 w-10" />
-		<h3 class="text-primary text-center text-lg font-medium">{daemons_bindKey()}</h3>
+		<KeyRound class="mx-auto h-10 w-10 text-tertiary" />
+		<h3 class="text-center text-lg font-medium text-primary">{daemons_bindKey()}</h3>
 
 		{#if isServerPoll}
 			<InlineWarning title={daemons_bindKeyTitle()} body={daemons_bindKeyServerPollWarning()} />

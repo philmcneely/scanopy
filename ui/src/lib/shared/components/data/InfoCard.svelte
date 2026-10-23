@@ -25,11 +25,11 @@
 </script>
 
 {#if !dismissed}
-	<div class="card card-static">
+	<div class="card-static card">
 		<div class="flex items-start gap-2">
 			<div class="min-w-0 flex-1">
 				{#if title}
-					<h3 class="text-primary mb-3 text-sm font-semibold">{title}</h3>
+					<h3 class="mb-3 text-sm font-semibold text-primary">{title}</h3>
 				{/if}
 				<div class={variant === 'compact' ? 'space-y-2' : 'space-y-3'}>
 					<slot />
@@ -38,7 +38,7 @@
 			{#if dismissableKey}
 				<button
 					on:click={dismiss}
-					class="text-secondary hover:text-primary shrink-0 rounded p-0.5 transition-colors hover:bg-white/10"
+					class="shrink-0 rounded-sm p-0.5 text-secondary transition-colors hover:bg-white/10 hover:text-primary"
 					aria-label={common_dismiss()}
 				>
 					<X class="h-4 w-4" />

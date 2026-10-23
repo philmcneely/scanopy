@@ -40,7 +40,7 @@
 </script>
 
 <!-- Shroud over the topology viewer -->
-<div class="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm"></div>
+<div class="absolute inset-0 z-20 bg-black/60 backdrop-blur-xs"></div>
 
 <div class="topology-overlay-anchor" style="--overlay-left-offset: {leftOffset}px;">
 	<GenericModal

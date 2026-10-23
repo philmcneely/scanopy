@@ -114,12 +114,12 @@
 	<div class="flex h-full w-full flex-col">
 		{#if shareName}
 			<header
-				class="flex flex-shrink-0 items-center justify-between border-b px-4 py-3"
+				class="flex shrink-0 items-center justify-between border-b px-4 py-3"
 				style="border-color: var(--color-border); background: var(--color-bg-elevated)"
 			>
 				<div class="flex items-center gap-3">
-					<Share2 class="text-info h-8 w-8" />
-					<h1 class="text-primary font-semibold">{shareName}</h1>
+					<Share2 class="h-8 w-8 text-info" />
+					<h1 class="font-semibold text-primary">{shareName}</h1>
 				</div>
 				<div class="flex items-center gap-4">
 					{#if showViewSwitcher}
@@ -163,7 +163,7 @@
 							href={resolve('/share/[id]', { id: shareId })}
 							target="_blank"
 							rel="noopener noreferrer"
-							class="text-secondary hover:text-primary flex items-center justify-center rounded-md border border-gray-600 px-2 py-1 transition-colors"
+							class="flex items-center justify-center rounded-md border border-gray-600 px-2 py-1 text-secondary transition-colors hover:text-primary"
 							aria-label={shares_openInFullView()}
 							use:tooltip
 							data-tooltip={shares_openInFullView()}

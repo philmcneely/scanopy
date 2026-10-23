@@ -256,10 +256,10 @@
 <div class="relative {fitToContent ? 'inline-grid' : ''}">
 	<!-- Label -->
 	{#if label}
-		<div class="text-secondary mb-2 block text-sm font-medium">
+		<div class="mb-2 block text-sm font-medium text-secondary">
 			{label}
 			{#if required}
-				<span class="text-danger ml-1">*</span>
+				<span class="ml-1 text-danger">*</span>
 			{/if}
 		</div>
 	{/if}
@@ -277,7 +277,7 @@
 						{displayComponent}
 						staticTags={true}
 					/>
-					<span class="h-4 w-4 flex-shrink-0"></span>
+					<span class="h-4 w-4 shrink-0"></span>
 				</div>
 			{/each}
 		</div>
@@ -288,7 +288,7 @@
 		bind:this={triggerElement}
 		type="button"
 		onclick={handleToggle}
-		class="select-trigger text-primary flex w-full items-center justify-between rounded-md px-3 py-2
+		class="select-trigger flex w-full items-center justify-between rounded-md px-3 py-2 text-primary
            {fitToContent ? 'col-start-1 row-start-1' : ''}
            {error ? 'border-red-500' : ''}
            {disabled || options.length == 0 ? 'cursor-not-allowed opacity-50' : ''}"
@@ -311,19 +311,19 @@
 		</div>
 
 		<ChevronDown
-			class="text-tertiary h-4 w-4 flex-shrink-0 transition-transform {isOpen ? 'rotate-180' : ''}"
+			class="h-4 w-4 shrink-0 text-tertiary transition-transform {isOpen ? 'rotate-180' : ''}"
 		/>
 	</button>
 
 	<!-- Error Message -->
 	{#if error}
-		<div class="text-danger mt-1 flex items-center gap-2 text-sm">
+		<div class="mt-1 flex items-center gap-2 text-sm text-danger">
 			<span>{error}</span>
 		</div>
 	{/if}
 
 	{#if helpText}
-		<p class="text-tertiary mt-1 text-xs">{helpText}</p>
+		<p class="mt-1 text-xs text-tertiary">{helpText}</p>
 	{/if}
 </div>
 
@@ -345,7 +345,7 @@
 				bind:value={filterText}
 				type="text"
 				placeholder={common_typeToFilter()}
-				class="input-field text-primary w-full rounded px-2 py-1 text-sm"
+				class="input-field w-full rounded-sm px-2 py-1 text-sm text-primary"
 				onkeydown={handleInputKeydown}
 				onclick={(e) => e.stopPropagation()}
 				oninput={handleFilterInput}
@@ -357,7 +357,7 @@
 	<div class="relative flex min-h-0 flex-col">
 		{#if canScrollUp}
 			<div
-				class="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 rounded-t-md bg-gradient-to-b from-[var(--color-bg-elevated)] to-transparent"
+				class="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 rounded-t-md bg-linear-to-b from-(--color-bg-elevated) to-transparent"
 			></div>
 		{/if}
 		<div
@@ -366,9 +366,9 @@
 			onscroll={handleScroll}
 		>
 			{#if loading && options.length === 0}
-				<div class="text-tertiary px-3 py-4 text-center text-sm">{common_loading()}</div>
+				<div class="px-3 py-4 text-center text-sm text-tertiary">{common_loading()}</div>
 			{:else if groupedOptions.length === 0 || groupedOptions.every((group) => group.options.length === 0)}
-				<div class="text-tertiary px-3 py-4 text-center text-sm">
+				<div class="px-3 py-4 text-center text-sm text-tertiary">
 					{common_noOptionsMatch({ filterText })}
 				</div>
 			{:else}
@@ -377,7 +377,7 @@
 						<!-- Category Header -->
 						{#if group.category !== null}
 							<div
-								class="text-secondary sticky top-0 border-b px-3 py-2 text-xs font-semibold uppercase tracking-wide"
+								class="sticky top-0 border-b px-3 py-2 text-xs font-semibold tracking-wide text-secondary uppercase"
 								style="border-color: var(--color-border); background: var(--color-bg-surface)"
 							>
 								{group.category}
@@ -424,13 +424,13 @@
 					{/if}
 				{/each}
 				{#if loading && hasMore}
-					<div class="text-tertiary px-3 py-2 text-center text-sm">{common_loading()}</div>
+					<div class="px-3 py-2 text-center text-sm text-tertiary">{common_loading()}</div>
 				{/if}
 			{/if}
 		</div>
 		{#if canScrollDown}
 			<div
-				class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 rounded-b-md bg-gradient-to-t from-[var(--color-bg-elevated)] to-transparent"
+				class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 rounded-b-md bg-linear-to-t from-(--color-bg-elevated) to-transparent"
 			></div>
 		{/if}
 	</div>

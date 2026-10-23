@@ -56,14 +56,14 @@
 	{#if isEditing}
 		<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 			{#if liveOverride.trim()}
-				<span class="text-primary break-all text-lg font-semibold">{liveOverride}</span>
+				<span class="text-lg font-semibold break-all text-primary">{liveOverride}</span>
 				<Tag
 					label={hosts_identity_manualOverride()}
 					color="Gray"
 					title={attributeSourceDescription('Manual')}
 				/>
 			{:else if discovered}
-				<span class="text-primary break-all text-lg font-semibold">{discovered.value}</span>
+				<span class="text-lg font-semibold break-all text-primary">{discovered.value}</span>
 				{#if discovered.rung !== 'Name'}
 					<Tag label={hosts_identity_fromRung({ rung: rungLabel(discovered.rung) })} color="Gray" />
 				{/if}
@@ -71,12 +71,12 @@
 					<AttributeSourceTag source={discovered.source} />
 				{/if}
 			{:else}
-				<span class="text-secondary text-lg font-semibold">{hosts_unnamedHost()}</span>
-				<span class="text-secondary text-sm">{hosts_identity_nothingDiscovered()}</span>
+				<span class="text-lg font-semibold text-secondary">{hosts_unnamedHost()}</span>
+				<span class="text-sm text-secondary">{hosts_identity_nothingDiscovered()}</span>
 			{/if}
 			<button
 				type="button"
-				class="text-secondary hover:text-primary rounded p-1 transition-colors hover:bg-white/10"
+				class="rounded-sm p-1 text-secondary transition-colors hover:bg-white/10 hover:text-primary"
 				aria-label={hosts_identity_editName()}
 				title={hosts_identity_editName()}
 				aria-expanded={editingName}

@@ -121,10 +121,10 @@
 
 			<!-- Right Panel - Configuration -->
 			<div
-				class="list-config-pane {configPanelWidth} min-h-0 overflow-y-auto border-l border-[var(--color-border)] p-6"
+				class="list-config-pane {configPanelWidth} min-h-0 overflow-y-auto border-l border-(--color-border) p-6"
 			>
 				<slot name="config" {selectedItem} {selectedIndex} onChange={handleItemChange}>
-					<div class="text-tertiary flex h-32 items-center justify-center">
+					<div class="flex h-32 items-center justify-center text-tertiary">
 						<p>Select an item to configure</p>
 					</div>
 				</slot>

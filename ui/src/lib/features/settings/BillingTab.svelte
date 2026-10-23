@@ -607,8 +607,8 @@
 	<div class="border-t pt-3" style="border-color: var(--color-border)">
 		<div class="flex items-baseline justify-between gap-3">
 			<div>
-				<p class="text-primary font-medium">{label}</p>
-				<p class="text-secondary text-sm">
+				<p class="font-medium text-primary">{label}</p>
+				<p class="text-sm text-secondary">
 					{common_billingUsage({ count: used, included })}
 					{#if overageCents != null && overageCents > 0 && over}
 						{common_billingExtra({ extra: used - included, price: overageCents / 100 })}
@@ -622,15 +622,15 @@
 				     warning, so it stays neutral (never amber). -->
 				{#if over}
 					<div class="text-right">
-						<p class="text-primary text-xl font-bold">
+						<p class="text-xl font-bold text-primary">
 							+${((used - included) * overageCents) / 100}
 						</p>
-						<p class="text-secondary text-xs">
+						<p class="text-xs text-secondary">
 							{settings_billing_per({ rate: org?.plan?.rate ?? 'Month' })}
 						</p>
 					</div>
 				{:else}
-					<p class="text-secondary text-sm">
+					<p class="text-sm text-secondary">
 						{settings_billing_usageAddOn({ price: overageCents / 100 })}
 					</p>
 				{/if}
@@ -638,19 +638,19 @@
 				<!-- Hard cap: can't buy more on this plan — flag it and point to the
 				     only way to get more. -->
 				<div class="text-right">
-					<p class="text-secondary text-sm">{common_atLimit()}</p>
+					<p class="text-sm text-secondary">{common_atLimit()}</p>
 					{#if !airGappedPlanLocked}
 						<button
 							type="button"
 							onclick={openPlanPicker}
-							class="text-link text-xs hover:underline"
+							class="text-xs text-link hover:underline"
 						>
 							{settings_billing_usageUpgradeToAddMore()}
 						</button>
 					{/if}
 				</div>
 			{:else}
-				<p class="text-tertiary text-sm">{common_included()}</p>
+				<p class="text-sm text-tertiary">{common_included()}</p>
 			{/if}
 		</div>
 		{#if used > 0}
@@ -680,7 +680,7 @@
 				<InfoCard>
 					<svelte:fragment slot="default">
 						<div class="mb-3 flex items-center justify-between">
-							<h3 class="text-primary text-sm font-semibold">{settings_billing_currentPlan()}</h3>
+							<h3 class="text-sm font-semibold text-primary">{settings_billing_currentPlan()}</h3>
 							<div class="flex items-center gap-2">
 								<StatusIcon class={`h-4 w-4 ${planStatusColor}`} />
 								<span class={`text-sm font-medium ${planStatusColor}`}>
@@ -694,15 +694,15 @@
 								<!-- Base Plan -->
 								<div class="flex items-baseline justify-between">
 									<div>
-										<p class="text-primary text-lg font-semibold">
+										<p class="text-lg font-semibold text-primary">
 											{billingPlans.getName(org.plan.type || null)}
 										</p>
 										{#if isTrialing && trialEndDate}
-											<p class="text-secondary mt-1 text-xs">
+											<p class="mt-1 text-xs text-secondary">
 												{settings_billing_trialEndsOn({ date: formatLongDate(trialEndDate) })}
 											</p>
 										{:else if currentPlanRenewalLine}
-											<p class="text-secondary mt-1 text-xs">{currentPlanRenewalLine}</p>
+											<p class="mt-1 text-xs text-secondary">{currentPlanRenewalLine}</p>
 										{/if}
 										{#if activeDiscount}
 											<p
@@ -723,18 +723,18 @@
 									</div>
 									<div class="text-right">
 										{#if activeDiscount && discountedPriceLabel}
-											<p class="text-tertiary text-sm line-through">
+											<p class="text-sm text-tertiary line-through">
 												${org.plan.base_cents / 100}
 											</p>
-											<p class="text-primary text-2xl font-bold">
+											<p class="text-2xl font-bold text-primary">
 												${discountedPriceLabel}
 											</p>
 										{:else}
-											<p class="text-primary text-2xl font-bold">
+											<p class="text-2xl font-bold text-primary">
 												${org.plan.base_cents / 100}
 											</p>
 										{/if}
-										<p class="text-secondary text-xs">
+										<p class="text-xs text-secondary">
 											{settings_billing_per({ rate: org.plan.rate })}
 										</p>
 									</div>
@@ -795,7 +795,7 @@
 
 				<!-- Additional Info -->
 				<InfoCard title={settings_billing_needHelp()}>
-					<p class="text-secondary text-sm">
+					<p class="text-sm text-secondary">
 						{settings_billing_contactUs()}
 						<a href="mailto:billing@scanopy.net" class="text-link hover:underline"
 							>billing@scanopy.net</a
@@ -815,9 +815,9 @@
 				{/if}
 			</div>
 		{:else}
-			<div class="text-secondary py-8 text-center">
+			<div class="py-8 text-center text-secondary">
 				<p>{settings_billing_unableToLoad()}</p>
-				<p class="text-tertiary mt-2 text-sm">{common_tryAgainLater()}</p>
+				<p class="mt-2 text-sm text-tertiary">{common_tryAgainLater()}</p>
 			</div>
 		{/if}
 	</div>

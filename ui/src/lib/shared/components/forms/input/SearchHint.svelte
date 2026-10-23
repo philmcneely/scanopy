@@ -23,9 +23,9 @@
 {/snippet}
 
 {#if inline}
-	<span class="text-tertiary text-xs">{@render hint()}</span>
+	<span class="text-xs text-tertiary">{@render hint()}</span>
 {:else}
-	<p class="text-tertiary border-t px-4 py-2 text-xs" style="border-color: var(--color-border)">
+	<p class="border-t px-4 py-2 text-xs text-tertiary" style="border-color: var(--color-border)">
 		{@render hint()}
 	</p>
 {/if}

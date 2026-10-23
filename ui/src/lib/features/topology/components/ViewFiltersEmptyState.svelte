@@ -35,7 +35,7 @@
 		<div class="rounded-full bg-amber-500/10 p-3">
 			<Funnel class="h-8 w-8 text-amber-500" />
 		</div>
-		<p class="text-secondary text-sm">
+		<p class="text-sm text-secondary">
 			{topology_emptyByFilterDescription({ viewName })}
 		</p>
 

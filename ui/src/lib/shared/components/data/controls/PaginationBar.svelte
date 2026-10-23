@@ -123,7 +123,7 @@
 {#snippet keyHint(shortcut: string | undefined)}
 	{#if shortcut}
 		<span
-			class="text-tertiary font-normal transition-opacity {shortcutsPaused ? 'opacity-40' : ''}"
+			class="font-normal text-tertiary transition-opacity {shortcutsPaused ? 'opacity-40' : ''}"
 			title={shortcutsPaused ? common_shortcutsPausedInSearch() : undefined}>({shortcut})</span
 		>
 	{/if}
@@ -151,7 +151,7 @@
 	shortcut: string | undefined,
 	icon: Snippet
 )}
-	<button type="button" class="btn-secondary summary-control" {onclick}>
+	<button type="button" class="summary-control btn-secondary" {onclick}>
 		{@render icon()}
 		{label}
 		{@render keyHint(shortcut)}
@@ -174,13 +174,13 @@
 			type="button"
 			{onclick}
 			disabled={!enabled}
-			class="group rounded transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+			class="group rounded-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
 			aria-label={label}
 			title={shortcutsPaused ? common_shortcutsPausedInSearch() : label}
 		>
 			<KbdKey
 				key={shortcut}
-				class="group-enabled:group-hover:border-gray-400 group-enabled:group-hover:text-gray-900 dark:group-enabled:group-hover:border-gray-500 dark:group-enabled:group-hover:text-gray-100"
+				class="group-hover:group-enabled:border-gray-400 group-hover:group-enabled:text-gray-900 dark:group-hover:group-enabled:border-gray-500 dark:group-hover:group-enabled:text-gray-100"
 			/>
 		</button>
 	{:else}
@@ -188,7 +188,7 @@
 			type="button"
 			{onclick}
 			disabled={!enabled}
-			class="btn-secondary summary-control disabled:cursor-not-allowed disabled:opacity-50"
+			class="summary-control btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
 			aria-label={label}
 			title={label}
 		>
@@ -201,7 +201,7 @@
 	{/if}
 {/snippet}
 
-<div class="text-tertiary flex items-center justify-between text-sm">
+<div class="flex items-center justify-between text-sm text-tertiary">
 	<!-- Left: the table's own controls, then the clears for what narrows or shapes the view. -->
 	<div class="flex items-center gap-2">
 		{#if columnMenu}
@@ -212,7 +212,7 @@
 				type="button"
 				onclick={runExport}
 				disabled={isExporting}
-				class="btn-secondary summary-control disabled:cursor-not-allowed disabled:opacity-50"
+				class="summary-control btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				<Download class="h-3.5 w-3.5" />
 				{isExporting ? common_exporting() : common_export()}
@@ -252,7 +252,7 @@
 		{#if totalPages > 1}
 			{@render pageButton(onPrevPage, canGoPrev, common_previousPage(), pageShortcuts.prev, 'prev')}
 		{/if}
-		<span class="text-secondary text-xs tabular-nums">
+		<span class="text-xs text-secondary tabular-nums">
 			{#if totalCount === 0}
 				{common_noItems()}
 			{:else if totalPages > 1}
@@ -284,7 +284,7 @@
 				<select
 					value={pageSize}
 					onchange={(e) => onPageSizeChange(parseInt(e.currentTarget.value) as PageSizeOption)}
-					class="input-field summary-control mx-0 !py-0 !pl-2 !pr-6"
+					class="mx-0 summary-control input-field py-0! pr-6! pl-2!"
 				>
 					{#each PAGE_SIZE_OPTIONS as size (size)}
 						<option value={size}>{size}</option>

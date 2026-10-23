@@ -70,7 +70,7 @@
 		class="flex min-h-0 flex-wrap gap-1.5 overflow-y-auto rounded-md bg-black/5 p-2 dark:bg-white/5"
 	>
 		{#if tags.length === 0}
-			<p class="text-tertiary text-xs">{common_noTagsAvailable()}</p>
+			<p class="text-xs text-tertiary">{common_noTagsAvailable()}</p>
 		{:else}
 			{#each tags as tag (tag.id)}
 				{@const selected = isSelected(tag)}
@@ -93,7 +93,7 @@
 {/snippet}
 
 <div class="flex min-h-0 flex-col gap-2">
-	<div class="text-secondary text-sm font-medium">{field.label}</div>
+	<div class="text-sm font-medium text-secondary">{field.label}</div>
 
 	{#if showStale}
 		<!-- Server-side: the list holds one page, so only the server can filter by staleness. -->
@@ -102,9 +102,9 @@
 				type="checkbox"
 				checked={staleOnly}
 				onchange={onToggleStale}
-				class="checkbox-card h-4 w-4 rounded"
+				class="h-4 w-4 checkbox-card rounded-sm"
 			/>
-			<span class="text-secondary text-sm">{common_staleOnly()}</span>
+			<span class="text-sm text-secondary">{common_staleOnly()}</span>
 		</label>
 	{/if}
 
@@ -117,18 +117,18 @@
 					type="checkbox"
 					checked={filter?.showTrue}
 					onchange={() => onToggleBoolean(fieldKey, 'showTrue')}
-					class="checkbox-card h-4 w-4 rounded"
+					class="h-4 w-4 checkbox-card rounded-sm"
 				/>
-				<span class="text-secondary text-sm">{common_showTrue()}</span>
+				<span class="text-sm text-secondary">{common_showTrue()}</span>
 			</label>
 			<label class="flex cursor-pointer items-center gap-2">
 				<input
 					type="checkbox"
 					checked={filter?.showFalse}
 					onchange={() => onToggleBoolean(fieldKey, 'showFalse')}
-					class="checkbox-card h-4 w-4 rounded"
+					class="h-4 w-4 checkbox-card rounded-sm"
 				/>
-				<span class="text-secondary text-sm">{common_showFalse()}</span>
+				<span class="text-sm text-secondary">{common_showFalse()}</span>
 			</label>
 		</div>
 	{:else if fieldKey === 'tags'}
@@ -153,7 +153,7 @@
 			class="min-h-0 space-y-1.5 overflow-y-auto rounded-md bg-black/5 p-2 dark:bg-white/5"
 		>
 			{#if uniqueValues.length === 0}
-				<p class="text-tertiary text-xs">{common_noValuesAvailable()}</p>
+				<p class="text-xs text-tertiary">{common_noValuesAvailable()}</p>
 			{:else}
 				{#each uniqueValues as value (value)}
 					{@const label = filterLabelOf(field, value)}
@@ -162,9 +162,9 @@
 							type="checkbox"
 							checked={filter?.values.has(value)}
 							onchange={() => onToggleString(fieldKey, value)}
-							class="checkbox-card h-4 w-4 rounded"
+							class="h-4 w-4 checkbox-card rounded-sm"
 						/>
-						<span class="text-secondary truncate text-sm" title={label}>{label}</span>
+						<span class="truncate text-sm text-secondary" title={label}>{label}</span>
 					</label>
 				{/each}
 			{/if}

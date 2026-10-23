@@ -22,7 +22,7 @@
 	<div class="entity-metadata-toggle relative h-0 shrink-0">
 		<button
 			type="button"
-			class="text-tertiary hover:text-secondary absolute bottom-1.5 left-3 z-10 flex items-center gap-1 rounded bg-[var(--color-bg-elevated)] px-1.5 py-0.5 text-xs transition-colors"
+			class="absolute bottom-1.5 left-3 z-10 flex items-center gap-1 rounded-sm bg-(--color-bg-elevated) px-1.5 py-0.5 text-xs text-tertiary transition-colors hover:text-secondary"
 			aria-expanded={expanded}
 			onclick={() => (expanded = !expanded)}
 		>

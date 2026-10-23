@@ -26,8 +26,8 @@
 
 <section>
 	<div class="mb-3 flex items-center justify-between">
-		<h3 class="text-primary text-base font-semibold">Daemons</h3>
-		<span class="text-tertiary text-sm">
+		<h3 class="text-base font-semibold text-primary">Daemons</h3>
+		<span class="text-sm text-tertiary">
 			<span class="text-success">{healthyCount} healthy</span>
 			{#if issueCount > 0}
 				<span class="text-warning">&middot; {issueCount} need attention</span>
@@ -39,7 +39,7 @@
 			{@const clickable = hasIssue(daemon)}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
-				class="card card-static"
+				class="card-static card"
 				class:cursor-pointer={clickable}
 				onclick={clickable ? () => onNavigate('daemons') : undefined}
 				onkeydown={clickable

@@ -36,7 +36,7 @@
 			href={withUtm(upgrade.release_notes_url, 'release_notes')}
 			target="_blank"
 			rel="noopener noreferrer"
-			class="ml-2 rounded px-2 py-0.5 text-xs font-medium underline hover:no-underline"
+			class="ml-2 rounded-sm px-2 py-0.5 text-xs font-medium underline hover:no-underline"
 		>
 			{common_releaseNotes()}
 		</a>
@@ -44,7 +44,7 @@
 			href={withUtm(docsUrl('/docs/self-hosted-server/upgrading/'), 'upgrade_docs')}
 			target="_blank"
 			rel="noopener noreferrer"
-			class="ml-2 rounded px-2 py-0.5 text-xs font-medium underline hover:no-underline"
+			class="ml-2 rounded-sm px-2 py-0.5 text-xs font-medium underline hover:no-underline"
 		>
 			{upgradeBanner_howToUpgrade()}
 		</a>

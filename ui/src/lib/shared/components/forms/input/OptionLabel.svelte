@@ -18,14 +18,14 @@
 </script>
 
 <label for={id} class="flex cursor-pointer items-start gap-2" class:disabled>
-	<div class="mt-0.5 flex-shrink-0">
+	<div class="mt-0.5 shrink-0">
 		{@render children()}
 	</div>
 	<div class="flex flex-col">
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -- label content is sanitized -->
-		<span class="text-primary text-sm">{@html label}</span>
+		<span class="text-sm text-primary">{@html label}</span>
 		{#if helpText}
-			<span class="text-tertiary text-xs">{helpText}</span>
+			<span class="text-xs text-tertiary">{helpText}</span>
 		{/if}
 	</div>
 </label>

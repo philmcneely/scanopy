@@ -253,22 +253,22 @@
 
 		{#if needsPlanChoice}
 			<div class="space-y-2">
-				<p class="text-secondary text-sm">{billing_invoice_choosePlan()}</p>
+				<p class="text-sm text-secondary">{billing_invoice_choosePlan()}</p>
 				<div class="flex flex-wrap gap-2">
 					{#each licensedPlans as licensed (licensed.type)}
 						{@const selected = selectedPlan?.type === licensed.type}
 						<button
 							type="button"
-							class="card flex-1 p-3 text-left transition-all {selected
+							class="flex-1 card p-3 text-left transition-all {selected
 								? 'ring-2 ring-primary-500'
 								: 'hover:bg-gray-100 dark:hover:bg-gray-800'}"
 							aria-pressed={selected}
 							onclick={() => (selectedPlan = licensed)}
 						>
-							<span class="text-primary block text-sm font-medium">
+							<span class="block text-sm font-medium text-primary">
 								{billingPlans.getName(licensed.type)}
 							</span>
-							<span class="text-secondary text-xs">
+							<span class="text-xs text-secondary">
 								${(licensed.base_cents / 100).toLocaleString('en-US')}
 							</span>
 						</button>
@@ -333,7 +333,7 @@
 
 		<button
 			type="button"
-			class="text-link text-sm hover:underline"
+			class="text-sm text-link hover:underline"
 			disabled={busyMode != null}
 			onclick={onPayByCard}
 		>

@@ -49,9 +49,9 @@
 
 {#if text}
 	<div class={className}>
-		<p class="text-secondary text-xs">{text}</p>
+		<p class="text-xs text-secondary">{text}</p>
 		{#if is_full_scan && phase === 'Scanning'}
-			<p class="text-tertiary text-xs">{discovery_fullScanRunning()}</p>
+			<p class="text-xs text-tertiary">{discovery_fullScanRunning()}</p>
 		{/if}
 		{#if phase === 'Scanning' && estimated_remaining_secs != null && estimated_remaining_secs > 3600}
 			<DocsHint

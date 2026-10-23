@@ -13,7 +13,7 @@
 	let parts = $derived(text.split('%link%'));
 </script>
 
-<p class="text-tertiary text-xs {className}">
+<p class="text-xs text-tertiary {className}">
 	{parts[0]}<a
 		{href}
 		target="_blank"

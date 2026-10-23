@@ -109,7 +109,7 @@
 	<!-- Icon -->
 	{#if icon}
 		{@const Icon = icon}
-		<div class="flex h-7 w-7 flex-shrink-0 items-center justify-center">
+		<div class="flex h-7 w-7 shrink-0 items-center justify-center">
 			<Icon class="h-5 w-5 {displayComponent.getIconColor?.(item, context) || 'text-secondary'}" />
 		</div>
 	{/if}
@@ -117,9 +117,9 @@
 	<!-- Label and description -->
 	<div class="min-w-0 flex-1 overflow-hidden text-left">
 		<div bind:this={containerEl} class="flex min-w-0 items-center gap-2">
-			<span class="text-secondary min-w-0 [overflow-wrap:anywhere]">{label}</span>
+			<span class="min-w-0 wrap-anywhere text-secondary">{label}</span>
 			{#if tags.length > 0}
-				<div class="flex flex-shrink-0 items-center gap-1">
+				<div class="flex shrink-0 items-center gap-1">
 					{#each visibleTags as tag, i (`${tag.label}-${i}`)}
 						<DisplayTag {tag} interactive={!staticTags && !staticTagsContext} />
 					{/each}
@@ -130,7 +130,7 @@
 			{/if}
 		</div>
 		{#if description.length > 0}
-			<span class="text-tertiary mt-1 block text-xs">{description}</span>
+			<span class="mt-1 block text-xs text-tertiary">{description}</span>
 		{/if}
 		{#if showEditableDescription && descriptionOnSave}
 			<div class="mt-2 border-t border-gray-700/50 pt-2">
@@ -161,7 +161,7 @@
 
 <!-- Hidden measurement container -->
 {#if tags.length > 0}
-	<div bind:this={measureEl} class="invisible absolute -left-[9999px]" aria-hidden="true">
+	<div bind:this={measureEl} class="invisible absolute left-[-9999px]" aria-hidden="true">
 		<span bind:this={labelMeasureEl} class="whitespace-nowrap">{label}</span>
 		<div class="flex gap-1">
 			{#each tags as tag, i (`measure-${tag.label}-${i}`)}

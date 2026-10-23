@@ -60,7 +60,7 @@
 
 <div class="space-y-4">
 	<div class="space-y-2">
-		<label for="password" class="text-secondary block text-sm font-medium">
+		<label for="password" class="block text-sm font-medium text-secondary">
 			{passwordLabel}
 			{#if required}<span class="text-red-400">*</span>{/if}
 		</label>
@@ -79,7 +79,7 @@
 		<!-- Password Requirements -->
 		{#if value}
 			<div class="space-y-1 rounded-md p-3" style="background: var(--color-bg-surface)">
-				<p class="text-secondary text-xs font-medium">{common_passwordRequirements()}</p>
+				<p class="text-xs font-medium text-secondary">{common_passwordRequirements()}</p>
 				<p class="text-xs {passwordLongEnough ? 'text-success' : 'text-tertiary'}">
 					{passwordLongEnough ? '✓' : '○'}
 					{common_passwordMinChars()}
@@ -100,7 +100,7 @@
 		{/if}
 
 		{#if showPasswordErrors}
-			<div class="text-danger flex items-center gap-2">
+			<div class="flex items-center gap-2 text-danger">
 				<AlertCircle size={16} />
 				<p class="text-xs">{passwordErrors[0]}</p>
 			</div>
@@ -109,7 +109,7 @@
 
 	{#if confirmPasswordField}
 		<div class="space-y-2">
-			<label for="confirmPassword" class="text-secondary block text-sm font-medium">
+			<label for="confirmPassword" class="block text-sm font-medium text-secondary">
 				{confirmPasswordLabel}
 				{#if required}<span class="text-red-400">*</span>{/if}
 			</label>
@@ -124,7 +124,7 @@
 				class:input-field-error={showConfirmErrors}
 			/>
 			{#if showConfirmErrors}
-				<div class="text-danger flex items-center gap-2">
+				<div class="flex items-center gap-2 text-danger">
 					<AlertCircle size={16} />
 					<p class="text-xs">{confirmErrors[0]}</p>
 				</div>

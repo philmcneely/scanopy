@@ -39,7 +39,7 @@
 	<div class="space-y-1 p-4">
 		{#each shortcuts as shortcut (shortcut.keys.join('+'))}
 			<div class="flex items-center justify-between py-1.5">
-				<span class="text-secondary text-sm">{shortcut.description()}</span>
+				<span class="text-sm text-secondary">{shortcut.description()}</span>
 				<div class="flex items-center gap-1">
 					{#each shortcut.keys as key (key)}
 						<KbdKey key={keyLabel(key)} size="md" />

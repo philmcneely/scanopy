@@ -120,7 +120,7 @@
 	{@const field = performanceFields.find((f) => f.id === id)}
 	{#if field}
 		<div class="space-y-2">
-			<label for={`scan_${field.id}`} class="text-secondary block text-sm font-medium">
+			<label for={`scan_${field.id}`} class="block text-sm font-medium text-secondary">
 				{field.label}
 			</label>
 			<input
@@ -142,7 +142,7 @@
 				class="input-field"
 			/>
 			{#if field.help_text}
-				<p class="text-tertiary text-xs">{field.help_text}</p>
+				<p class="text-xs text-tertiary">{field.help_text}</p>
 			{/if}
 		</div>
 	{/if}
@@ -154,7 +154,7 @@
 		<div class="flex flex-col gap-1 {besideInput ? 'pt-7' : ''}">
 			<label
 				for={`scan_${field.id}`}
-				class="text-secondary flex cursor-pointer items-center gap-2 text-sm font-medium {besideInput
+				class="flex cursor-pointer items-center gap-2 text-sm font-medium text-secondary {besideInput
 					? 'min-h-9'
 					: ''}"
 			>
@@ -164,12 +164,12 @@
 					checked={!!getScanValue(field.id)}
 					disabled={readOnly}
 					onchange={(e) => updateScanSetting(field.id, e.currentTarget.checked)}
-					class="checkbox-card h-4 w-4 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+					class="h-4 w-4 checkbox-card focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
 				/>
 				<div>{field.label}</div>
 			</label>
 			{#if field.help_text}
-				<p class="text-tertiary text-xs">{field.help_text}</p>
+				<p class="text-xs text-tertiary">{field.help_text}</p>
 			{/if}
 		</div>
 	{/if}
@@ -177,7 +177,7 @@
 
 <div class="space-y-4">
 	<div class="flex flex-wrap items-baseline gap-x-1">
-		<p class="text-tertiary text-xs">{discovery_scanSettingsHelp()}</p>
+		<p class="text-xs text-tertiary">{discovery_scanSettingsHelp()}</p>
 		<DocsHint
 			text={discovery_docsScanSettings()}
 			href="https://scanopy.net/docs/using-scanopy/discovery/"

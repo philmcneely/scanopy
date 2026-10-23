@@ -486,12 +486,12 @@
 							: incrementalFeatures
 					)}
 
-					<div class="plan-card card card-static flex flex-col">
+					<div class="plan-card card-static flex flex-col card">
 						<!-- Plan Header -->
 						<div class="flex flex-col items-center gap-2 pb-4">
 							<div class="flex items-center gap-2">
 								<IconComponent class="{colorHelper.icon} h-5 w-5 lg:h-6 lg:w-6" />
-								<span class="text-primary text-base font-semibold lg:text-lg">
+								<span class="text-base font-semibold text-primary lg:text-lg">
 									{billingPlanHelpers.getName(plan.type)}
 								</span>
 							</div>
@@ -500,7 +500,7 @@
 						<!-- Pricing -->
 						<div class="flex flex-col items-center gap-1 pb-4">
 							<div class="flex items-baseline gap-1">
-								<span class="text-primary text-2xl font-bold lg:text-3xl">
+								<span class="text-2xl font-bold text-primary lg:text-3xl">
 									{hasExtras(plan)
 										? formatCents(
 												plan.rate === 'Year'
@@ -510,11 +510,11 @@
 										: formatBasePricing(plan)}
 								</span>
 								{#if formatRate(plan)}
-									<span class="text-tertiary text-sm">{formatRate(plan)}</span>
+									<span class="text-sm text-tertiary">{formatRate(plan)}</span>
 								{/if}
 							</div>
 							{#if hasExtras(plan)}
-								<div class="text-tertiary text-center text-xs">
+								<div class="text-center text-xs text-tertiary">
 									{billing_priceBase()}
 									{formatCents(plan.rate === 'Year' ? plan.base_cents / 12 : plan.base_cents)}
 									{#if getExtraSeats(plan.type) > 0}
@@ -536,7 +536,7 @@
 								<!-- Annual price on the card, monthly equivalent under it. The
 								     invisible copy keeps card rows aligned for plans with no annual price. -->
 								<div
-									class={`text-tertiary text-center text-xs ${isSelfHostedAnnual(plan) && !hasExtras(plan) ? 'opacity-100' : 'opacity-0'}`}
+									class={`text-center text-xs text-tertiary ${isSelfHostedAnnual(plan) && !hasExtras(plan) ? 'opacity-100' : 'opacity-0'}`}
 								>
 									{billing_rateMonthlyEquivalent({
 										amount: isSelfHostedAnnual(plan) ? formatCents(plan.base_cents / 12) : ''
@@ -554,7 +554,7 @@
 
 						<!-- Description -->
 						{#if description}
-							<p class="text-tertiary pb-4 text-center text-xs leading-relaxed lg:text-sm">
+							<p class="pb-4 text-center text-xs leading-relaxed text-tertiary lg:text-sm">
 								{description}
 							</p>
 						{/if}
@@ -583,7 +583,7 @@
 										{/if}
 									</button>
 									{#if trial && !isCurrentlyTrialing}
-										<div class="text-tertiary pt-2 text-center text-xs">
+										<div class="pt-2 text-center text-xs text-tertiary">
 											{firstInvoiceCaption(plan)}
 										</div>
 									{/if}
@@ -607,7 +607,7 @@
 								<div class="flex flex-col">
 									<span class="text-secondary">{common_seats()}</span>
 									{#if plan.seat_cents}
-										<span class="text-tertiary text-xs">{formatSeatAddonPricing(plan)}</span>
+										<span class="text-xs text-tertiary">{formatSeatAddonPricing(plan)}</span>
 									{/if}
 								</div>
 								{#if plan.seat_cents && plan.included_seats !== null}
@@ -620,7 +620,7 @@
 										>
 											<Minus class="h-3 w-3" />
 										</button>
-										<span class="text-primary w-8 text-center text-sm font-medium">
+										<span class="w-8 text-center text-sm font-medium text-primary">
 											{(plan.included_seats ?? 0) + getExtraSeats(plan.type)}
 										</span>
 										<button
@@ -632,7 +632,7 @@
 										</button>
 									</div>
 								{:else}
-									<span class="text-primary font-medium">
+									<span class="font-medium text-primary">
 										{formatIncludedValue(plan.included_seats, plan)}
 									</span>
 								{/if}
@@ -643,7 +643,7 @@
 								<div class="flex flex-col">
 									<span class="text-secondary">{common_sites()}</span>
 									{#if plan.site_cents}
-										<span class="text-tertiary text-xs">{formatSiteAddonPricing(plan)}</span>
+										<span class="text-xs text-tertiary">{formatSiteAddonPricing(plan)}</span>
 									{/if}
 								</div>
 								{#if plan.site_cents && plan.included_sites !== null}
@@ -656,7 +656,7 @@
 										>
 											<Minus class="h-3 w-3" />
 										</button>
-										<span class="text-primary w-8 text-center text-sm font-medium">
+										<span class="w-8 text-center text-sm font-medium text-primary">
 											{(plan.included_sites ?? 0) + getExtraSites(plan.type)}
 										</span>
 										<button
@@ -668,7 +668,7 @@
 										</button>
 									</div>
 								{:else}
-									<span class="text-primary font-medium">
+									<span class="font-medium text-primary">
 										{formatIncludedValue(plan.included_sites, plan)}
 									</span>
 								{/if}
@@ -679,10 +679,10 @@
 								<div class="flex flex-col">
 									<span class="text-secondary">{common_hosts()}</span>
 									{#if plan.host_cents}
-										<span class="text-tertiary text-xs">{formatHostAddonPricing(plan)}</span>
+										<span class="text-xs text-tertiary">{formatHostAddonPricing(plan)}</span>
 									{/if}
 								</div>
-								<span class="text-primary font-medium">
+								<span class="font-medium text-primary">
 									{formatIncludedValue(plan.included_hosts, plan)}
 								</span>
 							</div>
@@ -691,7 +691,7 @@
 							{#if getHosting(plan) === 'SelfHosted'}
 								<div class="flex items-center justify-between text-sm">
 									<span class="text-secondary">{common_servers()}</span>
-									<span class="text-primary font-medium">
+									<span class="font-medium text-primary">
 										{formatIncludedServers(plan)}
 									</span>
 								</div>
@@ -700,7 +700,7 @@
 							<!-- Snapshot Retention -->
 							<div class="flex items-center justify-between text-sm">
 								<span class="text-secondary">{billing_snapshotRetention()}</span>
-								<span class="text-primary font-medium">
+								<span class="font-medium text-primary">
 									{formatSnapshotRetention(plan)}
 								</span>
 							</div>
@@ -709,7 +709,7 @@
 						<!-- Incremental Features -->
 						<div class="flex-1 py-4">
 							{#if prevTier && prevTierVisible}
-								<p class="text-secondary mb-2 text-xs font-medium">
+								<p class="mb-2 text-xs font-medium text-secondary">
 									{billing_everythingInPlanPlus({ planName: billingPlanHelpers.getName(prevTier) })}
 								</p>
 							{/if}
@@ -718,7 +718,7 @@
 							{#if displayFeatures.length > 0}
 								<button
 									type="button"
-									class="text-tertiary mb-2 flex items-center gap-1 text-xs font-medium sm:hidden"
+									class="mb-2 flex items-center gap-1 text-xs font-medium text-tertiary sm:hidden"
 									onclick={() => toggleFeatures(plan.type)}
 								>
 									{expandedFeatures.has(plan.type)
@@ -737,7 +737,7 @@
 									{@const category = featureHelpers.getCategory(featureKey)}
 									{#if i === 0 || category !== featureHelpers.getCategory(displayFeatures[i - 1])}
 										<li
-											class="text-tertiary text-[10px] font-medium uppercase tracking-wider {i > 0
+											class="text-[10px] font-medium tracking-wider text-tertiary uppercase {i > 0
 												? 'mt-2'
 												: ''}"
 										>
@@ -747,7 +747,7 @@
 									{@const comingSoon = isComingSoon(featureKey)}
 									<li class="flex items-start gap-2 text-sm">
 										<Check
-											class="mt-0.5 h-4 w-4 flex-shrink-0 {comingSoon
+											class="mt-0.5 h-4 w-4 shrink-0 {comingSoon
 												? 'text-gray-500'
 												: 'text-success'}"
 										/>
@@ -786,7 +786,7 @@
 
 		<!-- Full Comparison Grid (expandable) -->
 		{#if showFullComparison}
-			<div class="card mx-4 overflow-auto p-0 lg:mx-10">
+			<div class="mx-4 overflow-auto card p-0 lg:mx-10">
 				<!-- Plan Name Headers -->
 				<div
 					class="comparison-row comparison-header-row"
@@ -797,7 +797,7 @@
 					</div>
 					{#each filteredPlans as plan (plan.type)}
 						<div class="comparison-value-cell">
-							<span class="text-primary text-xs font-semibold lg:text-sm"
+							<span class="text-xs font-semibold text-primary lg:text-sm"
 								>{billingPlanHelpers.getName(plan.type)}</span
 							>
 						</div>
@@ -808,7 +808,7 @@
 					<!-- Category Header -->
 					<div class="comparison-category-row">
 						<span
-							class="text-secondary p-2 text-xs font-semibold uppercase tracking-wide lg:p-3 lg:text-sm"
+							class="p-2 text-xs font-semibold tracking-wide text-secondary uppercase lg:p-3 lg:text-sm"
 						>
 							{category}
 						</span>
@@ -835,14 +835,14 @@
 										{#if value}
 											<Check class="mx-auto h-4 w-4 text-success lg:h-5 lg:w-5" />
 										{:else}
-											<X class="text-muted mx-auto h-4 w-4 lg:h-5 lg:w-5" />
+											<X class="mx-auto h-4 w-4 text-muted lg:h-5 lg:w-5" />
 										{/if}
 									{:else if typeof value === 'number' && value === 0}
-										<X class="text-muted mx-auto h-4 w-4 lg:h-5 lg:w-5" />
+										<X class="mx-auto h-4 w-4 text-muted lg:h-5 lg:w-5" />
 									{:else if value === null}
 										<span class="text-tertiary">&mdash;</span>
 									{:else}
-										<span class="text-secondary text-xs lg:text-sm">{value}</span>
+										<span class="text-xs text-secondary lg:text-sm">{value}</span>
 									{/if}
 								</div>
 							{/each}

@@ -252,7 +252,7 @@
 	}
 </script>
 
-<div class="relative flex min-h-screen flex-col items-center bg-[var(--color-bg-elevated)] p-4">
+<div class="relative flex min-h-screen flex-col items-center bg-(--color-bg-elevated) p-4">
 	<!-- Background image with overlay -->
 	<div class="absolute inset-0 z-0">
 		<div
@@ -267,22 +267,22 @@
 	<!-- Progress Indicator - fixed position above modal (hidden for invite flow
 	     and when the org-limit gate replaces the whole flow) -->
 	{#if !isInviteFlow && !showOrgLimitGate && configLoaded}
-		<div class="fixed left-1/2 top-2 z-[200] -translate-x-1/2 sm:top-6">
+		<div class="fixed top-2 left-1/2 z-200 -translate-x-1/2 sm:top-6">
 			<div class="flex flex-col items-center gap-1">
 				<div
-					class="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 shadow-lg backdrop-blur-sm dark:bg-gray-800/90"
+					class="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 shadow-lg backdrop-blur-xs dark:bg-gray-800/90"
 				>
 					{#if currentStepNumber > 1}
 						<button
 							type="button"
 							onclick={handleBack}
-							class="text-secondary hover:text-primary -ml-1 flex items-center transition-colors"
+							class="-ml-1 flex items-center text-secondary transition-colors hover:text-primary"
 							aria-label={common_goBack()}
 						>
 							<ChevronLeft class="h-4 w-4" />
 						</button>
 					{/if}
-					<span class="text-secondary text-sm">
+					<span class="text-sm text-secondary">
 						{onboarding_stepProgress({ current: currentStepNumber, total: totalSteps })}
 					</span>
 					<div class="flex gap-1">
@@ -297,7 +297,7 @@
 					</div>
 				</div>
 				{#if onboardingConfigData && isCloud(onboardingConfigData)}
-					<span class="text-tertiary text-xs">{onboarding_noCreditCard()}</span>
+					<span class="text-xs text-tertiary">{onboarding_noCreditCard()}</span>
 				{/if}
 			</div>
 		</div>

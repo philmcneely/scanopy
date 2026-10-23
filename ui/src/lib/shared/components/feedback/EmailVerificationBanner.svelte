@@ -23,7 +23,7 @@
 		<button
 			onclick={handleResend}
 			disabled={resendMutation.isPending}
-			class="ml-2 rounded px-2 py-0.5 text-xs font-medium underline hover:no-underline disabled:opacity-50"
+			class="ml-2 rounded-sm px-2 py-0.5 text-xs font-medium underline hover:no-underline disabled:opacity-50"
 		>
 			{resendMutation.isPending ? common_sending() : common_resend()}
 		</button>

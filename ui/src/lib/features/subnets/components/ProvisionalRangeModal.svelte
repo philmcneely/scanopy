@@ -164,7 +164,7 @@
 		<div class="flex min-h-0 flex-1 flex-col">
 			<div class="flex-1 overflow-auto p-6">
 				<div class="space-y-4">
-					<p class="text-secondary text-sm">
+					<p class="text-sm text-secondary">
 						{subnets_resolveRangeIntro({ cidr: subnet.cidr })}
 					</p>
 
@@ -192,7 +192,7 @@
 							{/if}
 							<button
 								type="button"
-								class="text-link text-sm hover:underline"
+								class="text-sm text-link hover:underline"
 								onclick={() => evidence && openSourceScan(evidence.discovery_id)}
 							>
 								{subnets_rangeEvidenceOpenScan()}
@@ -203,16 +203,16 @@
 					<div class="flex flex-col gap-3">
 						{#each options as option (option.id)}
 							{@const colors = createColorHelper(option.color)}
-							<button onclick={() => option.run(subnet)} class="card w-full text-left">
+							<button onclick={() => option.run(subnet)} class="w-full card text-left">
 								<div class="flex items-center gap-3">
 									<div
-										class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg {colors.bg}"
+										class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {colors.bg}"
 									>
 										<option.icon class="h-5 w-5 {colors.icon}" />
 									</div>
 									<div class="min-w-0 flex-1">
-										<p class="text-primary text-sm font-medium">{option.title}</p>
-										<p class="text-secondary text-xs">{option.description}</p>
+										<p class="text-sm font-medium text-primary">{option.title}</p>
+										<p class="text-xs text-secondary">{option.description}</p>
 									</div>
 								</div>
 							</button>

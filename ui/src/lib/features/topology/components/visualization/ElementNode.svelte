@@ -328,10 +328,10 @@
 		{:else if glyph.type === 'software'}
 			<SoftwareGlyph definition={glyph.definition} />
 		{:else}
-			<PortIcon class="h-4 w-4 flex-shrink-0 {portIconColor}" />
+			<PortIcon class="h-4 w-4 shrink-0 {portIconColor}" />
 		{/if}
 	</span>
-	<span class="text-secondary truncate text-[11px] font-medium leading-tight">
+	<span class="truncate text-[11px] leading-tight font-medium text-secondary">
 		{label}
 	</span>
 	<span class="flex justify-center">
@@ -396,7 +396,7 @@
 							<!-- A guest's run state, from the view's Status mark: a dot in the state's colour,
 							     centred on the tile's top-left corner. The tooltip's Status row names it. -->
 							<span
-								class="absolute -left-2 -top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
+								class="absolute -top-2 -left-2 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
 								style="background: var(--color-topology-node-bg);"
 							>
 								<span
@@ -422,7 +422,7 @@
 								{#each iconCard.badgeDefinitions as definition, i (definition)}
 									{@const layer = Math.min(i, 2) * 3}
 									<span
-										class="absolute left-[var(--stack-x)] top-[var(--stack-y)] flex leading-none transition-[left,top] duration-150 group-hover/icon-card:left-[var(--fan-x)] group-hover/icon-card:top-0"
+										class="absolute top-(--stack-y) left-(--stack-x) flex leading-none transition-[left,top] duration-150 group-hover/icon-card:top-0 group-hover/icon-card:left-(--fan-x)"
 										style="--stack-x: {pileX - layer}px; --stack-y: {-layer}px; --fan-x: {count > 1
 											? (i - (count - 1) / 2) * fanStep - BADGE_PX / 2
 											: pileX}px; z-index: {count - i};"
@@ -440,7 +440,7 @@
 					{/if}
 					<div
 						data-entity-header
-						class="text-primary line-clamp-2 w-full break-words text-center text-xs font-medium leading-tight"
+						class="line-clamp-2 w-full text-center text-xs leading-tight font-medium wrap-break-word text-primary"
 					>
 						{iconCard.label}
 					</div>
@@ -469,16 +469,16 @@
 								{/if}
 							</span>
 							<span
-								class="text-tertiary flex min-w-0 items-center gap-0.5 text-[11px] font-medium leading-tight"
+								class="flex min-w-0 items-center gap-0.5 text-[11px] leading-tight font-medium text-tertiary"
 							>
 								{#if group.collapsed}
-									<ChevronRight class="h-3 w-3 flex-shrink-0" />
+									<ChevronRight class="h-3 w-3 shrink-0" />
 								{:else}
-									<ChevronDown class="h-3 w-3 flex-shrink-0" />
+									<ChevronDown class="h-3 w-3 shrink-0" />
 								{/if}
 								<span class="truncate">{group.headerName}</span>
 							</span>
-							<span class="text-tertiary text-center text-[10px] tabular-nums leading-none">
+							<span class="text-center text-[10px] leading-none text-tertiary tabular-nums">
 								{group.members.length}
 							</span>
 						</button>
@@ -500,7 +500,7 @@
 			<!-- An element that did not resolve to an icon card (a service whose record is gone): its
 			     staleness, header and a line naming what is missing. -->
 			{#if staleTag}
-				<div class="flex flex-shrink-0 justify-center px-2 pt-2">
+				<div class="flex shrink-0 justify-center px-2 pt-2">
 					<div class="scale-90">
 						<Tag {...staleTag} pill />
 					</div>
@@ -509,14 +509,14 @@
 			{#if nodeRenderData.headerText}
 				<div
 					data-entity-header
-					class="text-tertiary truncate px-2 pt-2 text-center text-xs font-medium leading-none"
+					class="truncate px-2 pt-2 text-center text-xs leading-none font-medium text-tertiary"
 				>
 					{nodeRenderData.headerText}
 				</div>
 			{/if}
 			{#if nodeRenderData.bodyText}
 				<div
-					class="text-secondary truncate px-3 py-2 text-center text-xs leading-none"
+					class="truncate px-3 py-2 text-center text-xs leading-none text-secondary"
 					title={nodeRenderData.bodyText}
 				>
 					{nodeRenderData.bodyText}

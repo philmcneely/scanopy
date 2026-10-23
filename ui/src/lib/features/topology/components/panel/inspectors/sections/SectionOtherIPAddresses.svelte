@@ -55,7 +55,7 @@
 	>
 		<div class="space-y-1">
 			{#each otherInterfaces as iface (iface.id)}
-				<div class="card card-static">
+				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={interfaceContext}
 						item={iface}

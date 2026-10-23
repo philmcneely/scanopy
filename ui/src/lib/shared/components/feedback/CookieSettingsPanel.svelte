@@ -72,7 +72,7 @@
 	<!-- Hidden instance used only for acceptAll/rejectAll methods -->
 {:else}
 	<div class="space-y-4">
-		<p class="text-secondary text-sm">
+		<p class="text-sm text-secondary">
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted i18n content -->
 			{@html cookies_preferencesDesc()}
 		</p>
@@ -83,11 +83,11 @@
 				<div class="flex items-center justify-between">
 					<label class="flex cursor-pointer items-center gap-3">
 						<input type="checkbox" checked disabled class="accent-blue-600" />
-						<span class="text-primary text-sm font-medium">{common_necessary()}</span>
+						<span class="text-sm font-medium text-primary">{common_necessary()}</span>
 					</label>
-					<span class="text-tertiary text-xs uppercase tracking-wider">{cookies_alwaysOn()}</span>
+					<span class="text-xs tracking-wider text-tertiary uppercase">{cookies_alwaysOn()}</span>
 				</div>
-				<p class="text-secondary text-xs leading-relaxed">{cookies_necessaryDesc()}</p>
+				<p class="text-xs leading-relaxed text-secondary">{cookies_necessaryDesc()}</p>
 			</InfoCard>
 
 			<!-- Analytics -->
@@ -95,10 +95,10 @@
 				<div class="flex items-center justify-between">
 					<label class="flex cursor-pointer items-center gap-3">
 						<input type="checkbox" bind:checked={preferences.analytics} class="accent-blue-600" />
-						<span class="text-primary text-sm font-medium">{common_analytics()}</span>
+						<span class="text-sm font-medium text-primary">{common_analytics()}</span>
 					</label>
 				</div>
-				<p class="text-secondary text-xs leading-relaxed">{cookies_analyticsDesc()}</p>
+				<p class="text-xs leading-relaxed text-secondary">{cookies_analyticsDesc()}</p>
 			</InfoCard>
 
 			<!-- Marketing -->
@@ -106,14 +106,14 @@
 				<div class="flex items-center justify-between">
 					<label class="flex cursor-pointer items-center gap-3">
 						<input type="checkbox" bind:checked={preferences.marketing} class="accent-blue-600" />
-						<span class="text-primary text-sm font-medium">{common_marketing()}</span>
+						<span class="text-sm font-medium text-primary">{common_marketing()}</span>
 					</label>
 				</div>
-				<p class="text-secondary text-xs leading-relaxed">{cookies_marketingDesc()}</p>
+				<p class="text-xs leading-relaxed text-secondary">{cookies_marketingDesc()}</p>
 			</InfoCard>
 		</div>
 
-		<div class="flex flex-wrap justify-end gap-2 border-t border-[var(--color-border)] pt-3">
+		<div class="flex flex-wrap justify-end gap-2 border-t border-(--color-border) pt-3">
 			<button type="button" onclick={rejectAll} class="btn-secondary">{cookies_rejectAll()}</button>
 			<button type="button" onclick={acceptAll} class="btn-secondary">{cookies_acceptAll()}</button>
 			<button type="button" onclick={savePreferences} class="btn-primary">

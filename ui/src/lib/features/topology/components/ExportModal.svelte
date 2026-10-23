@@ -810,10 +810,10 @@
 
 			{#if selectedFormatDef?.supportsTheme}
 				<div class="flex items-center justify-between">
-					<span class="text-secondary text-sm font-medium">{topology_exportTheme()}</span>
+					<span class="text-sm font-medium text-secondary">{topology_exportTheme()}</span>
 					<div class="flex gap-1">
 						<button
-							class="btn-secondary gap-1 !px-2.5 !py-1 !text-xs {exportTheme === 'light'
+							class="btn-secondary gap-1 px-2.5! py-1! text-xs! {exportTheme === 'light'
 								? 'list-item-selected'
 								: ''}"
 							onclick={() => (exportTheme = 'light')}
@@ -822,7 +822,7 @@
 							{common_light()}
 						</button>
 						<button
-							class="btn-secondary gap-1 !px-2.5 !py-1 !text-xs {exportTheme === 'dark'
+							class="btn-secondary gap-1 px-2.5! py-1! text-xs! {exportTheme === 'dark'
 								? 'list-item-selected'
 								: ''}"
 							onclick={() => (exportTheme = 'dark')}
@@ -836,15 +836,15 @@
 
 			{#if selectedFormatDef?.supportsHeader}
 				<!-- One block: the checkbox and the header it adds, so the preview reads as its result. -->
-				<label class="card card-static flex cursor-pointer items-start gap-2 px-3 py-2">
+				<label class="card-static flex cursor-pointer items-start gap-2 card px-3 py-2">
 					<input
 						type="checkbox"
-						class="checkbox-card mt-0.5 h-4 w-4"
+						class="mt-0.5 h-4 w-4 checkbox-card"
 						bind:checked={includeHeader}
 					/>
 					<span class="min-w-0 space-y-1">
-						<span class="text-secondary block text-sm">{topology_exportIncludeHeader()}</span>
-						<span class="text-tertiary block text-xs">
+						<span class="block text-sm text-secondary">{topology_exportIncludeHeader()}</span>
+						<span class="block text-xs text-tertiary">
 							<span class="block truncate font-medium">{headerPreview.title}</span>
 							<span class="block">{headerPreview.subtitle}</span>
 						</span>

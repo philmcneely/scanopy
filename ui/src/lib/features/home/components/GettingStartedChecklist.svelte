@@ -283,8 +283,8 @@
 		<div
 			class="rounded-lg border border-green-300 bg-green-50 p-6 text-center dark:border-green-600/30 dark:bg-green-900/20"
 		>
-			<h3 class="text-primary text-base font-semibold">{gettingStarted_allSet()}</h3>
-			<p class="text-secondary mt-1 text-sm">
+			<h3 class="text-base font-semibold text-primary">{gettingStarted_allSet()}</h3>
+			<p class="mt-1 text-sm text-secondary">
 				{gettingStarted_allSetDescription()}
 			</p>
 		</div>
@@ -293,9 +293,9 @@
 	<section>
 		<div class="card">
 			<div class="mb-3 flex items-center justify-between">
-				<h3 class="text-primary text-base font-semibold">{gettingStarted_title()}</h3>
+				<h3 class="text-base font-semibold text-primary">{gettingStarted_title()}</h3>
 				<div class="flex items-center gap-3">
-					<span class="text-tertiary text-sm"
+					<span class="text-sm text-tertiary"
 						>{gettingStarted_complete({
 							completed: String(completedCount),
 							total: String(steps.length)
@@ -304,7 +304,7 @@
 					{#if completedCount > 0}
 						<button
 							onclick={dismiss}
-							class="text-tertiary hover:text-secondary text-sm transition-colors"
+							class="text-sm text-tertiary transition-colors hover:text-secondary"
 						>
 							{common_dismiss()}
 						</button>
@@ -326,13 +326,11 @@
 					>
 						{#snippet icon()}
 							{#if complete}
-								<Check class="h-5 w-5 flex-shrink-0 text-green-400" />
+								<Check class="h-5 w-5 shrink-0 text-green-400" />
 							{:else if isActiveDiscoveryStep}
-								<Loader2 class="h-5 w-5 flex-shrink-0 animate-spin text-blue-500" />
+								<Loader2 class="h-5 w-5 shrink-0 animate-spin text-blue-500" />
 							{:else}
-								<Circle
-									class="h-5 w-5 flex-shrink-0 {enabled ? 'text-tertiary' : 'text-disabled'}"
-								/>
+								<Circle class="h-5 w-5 shrink-0 {enabled ? 'text-tertiary' : 'text-disabled'}" />
 							{/if}
 						{/snippet}
 						{#snippet labelExtra()}
@@ -340,7 +338,7 @@
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<!-- svelte-ignore a11y_no_static_element_interactions -->
 								<span
-									class="inline-flex cursor-pointer items-center gap-1 rounded bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 transition-colors hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50"
+									class="inline-flex cursor-pointer items-center gap-1 rounded-sm bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 transition-colors hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50"
 									onclick={handleTroubleTagClick}
 								>
 									<Info class="h-3 w-3" />
@@ -350,7 +348,7 @@
 						{/snippet}
 						{#snippet subContent()}
 							{#if !complete && enabled && !isAccountStep && !isActiveDiscoveryStep}
-								<p class="text-tertiary text-xs">{step.description()}</p>
+								<p class="text-xs text-tertiary">{step.description()}</p>
 							{:else if isActiveDiscoveryStep && activeScanSession}
 								<div class="mt-0.5 flex items-center gap-2">
 									<DiscoveryEstimation
@@ -369,26 +367,26 @@
 						{#snippet detail()}
 							{#if isActiveDiscoveryStep}
 								{#if hasEmail}
-									<p class="text-secondary mt-1 text-xs">
+									<p class="mt-1 text-xs text-secondary">
 										{gettingStarted_emailNotification()}
 									</p>
 								{/if}
 
-								<p class="text-tertiary mb-1 mt-2 text-xs font-medium">
+								<p class="mt-2 mb-1 text-xs font-medium text-tertiary">
 									{gettingStarted_whileYouWait()}
 								</p>
 
 								<!-- In-app suggestions -->
 								{#each inAppSuggestions as suggestion (suggestion.label)}
 									<button
-										class="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs text-blue-600 transition-colors hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+										class="flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-xs text-blue-600 transition-colors hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
 										onclick={() => suggestion.action()}
 										disabled={suggestion.completed}
 									>
 										{#if suggestion.completed}
-											<Check class="h-3 w-3 flex-shrink-0 text-green-400" />
+											<Check class="h-3 w-3 shrink-0 text-green-400" />
 										{:else}
-											<Circle class="h-3 w-3 flex-shrink-0" />
+											<Circle class="h-3 w-3 shrink-0" />
 										{/if}
 										<span class:line-through={suggestion.completed}>{suggestion.label}</span>
 									</button>
@@ -397,7 +395,7 @@
 								<!-- Fun suggestions -->
 								{#each funSuggestions as item (item.id)}
 									<button
-										class="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs text-blue-600 transition-colors hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+										class="flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-xs text-blue-600 transition-colors hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
 										onclick={() => {
 											if (item.url) {
 												window.open(item.url, '_blank', 'noopener,noreferrer');
@@ -406,13 +404,13 @@
 										}}
 									>
 										{#if funChecked[item.id]}
-											<Check class="h-3 w-3 flex-shrink-0 text-green-400" />
+											<Check class="h-3 w-3 shrink-0 text-green-400" />
 										{:else}
-											<Circle class="h-3 w-3 flex-shrink-0" />
+											<Circle class="h-3 w-3 shrink-0" />
 										{/if}
 										<span class:line-through={funChecked[item.id]}>{item.label}</span>
 										{#if item.url}
-											<ExternalLink class="h-3 w-3 flex-shrink-0 opacity-50" />
+											<ExternalLink class="h-3 w-3 shrink-0 opacity-50" />
 										{/if}
 									</button>
 								{/each}

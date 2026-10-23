@@ -41,23 +41,23 @@
 		onclick={() => toggleInspectorSection(id)}
 	>
 		{#if collapsed}
-			<ChevronRight class="text-tertiary h-3.5 w-3.5 flex-shrink-0" />
+			<ChevronRight class="h-3.5 w-3.5 shrink-0 text-tertiary" />
 		{:else}
-			<ChevronDown class="text-tertiary h-3.5 w-3.5 flex-shrink-0" />
+			<ChevronDown class="h-3.5 w-3.5 shrink-0 text-tertiary" />
 		{/if}
 		{#if icon}
 			{@const Icon = icon}
-			<Icon class="h-4 w-4 flex-shrink-0 {iconClass}" />
+			<Icon class="h-4 w-4 shrink-0 {iconClass}" />
 		{/if}
-		<span class="text-secondary truncate text-sm font-medium">{title}</span>
+		<span class="truncate text-sm font-medium text-secondary">{title}</span>
 		{#if count !== undefined}
-			<span class="text-tertiary flex-shrink-0 text-xs tabular-nums">{count}</span>
+			<span class="shrink-0 text-xs text-tertiary tabular-nums">{count}</span>
 		{/if}
 	</button>
 	{#if !collapsed}
-		<div class="border-border ml-[7px] mt-1 space-y-1 border-l pl-3">
+		<div class="border-border mt-1 ml-[7px] space-y-1 border-l pl-3">
 			{#if description}
-				<p class="text-tertiary text-xs">{description}</p>
+				<p class="text-xs text-tertiary">{description}</p>
 			{/if}
 			{@render children()}
 		</div>

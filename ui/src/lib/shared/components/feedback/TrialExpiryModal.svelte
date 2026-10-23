@@ -102,7 +102,7 @@
 		<AlertTriangle class="h-5 w-5 text-amber-500" />
 	{/snippet}
 	<div class="px-6 py-4">
-		<p class="text-secondary text-sm">
+		<p class="text-sm text-secondary">
 			{org && hasLicensedPlan(org) ? billing_trialModalBodyLicense() : billing_trialModalBody()}
 		</p>
 	</div>

@@ -46,30 +46,30 @@
 
 <GenericModal title={hosts_exportTitle()} {isOpen} {onClose} size="sm">
 	<div class="p-6">
-		<p class="text-secondary mb-4 text-sm">{hosts_exportChooseFormat()}</p>
+		<p class="mb-4 text-sm text-secondary">{hosts_exportChooseFormat()}</p>
 
 		<div class="space-y-3">
 			<button
 				onclick={handleExportCsv}
 				disabled={isExporting}
-				class="card flex w-full items-start gap-4 p-4 text-left transition-colors hover:border-blue-500/50 disabled:opacity-50"
+				class="flex w-full items-start gap-4 card p-4 text-left transition-colors hover:border-blue-500/50 disabled:opacity-50"
 			>
-				<FileSpreadsheet class="text-tertiary h-6 w-6 shrink-0" />
+				<FileSpreadsheet class="h-6 w-6 shrink-0 text-tertiary" />
 				<div>
-					<div class="text-primary font-medium">{hosts_exportCsvTitle()}</div>
-					<div class="text-tertiary text-sm">{hosts_exportCsvDesc()}</div>
+					<div class="font-medium text-primary">{hosts_exportCsvTitle()}</div>
+					<div class="text-sm text-tertiary">{hosts_exportCsvDesc()}</div>
 				</div>
 			</button>
 
 			<button
 				onclick={handleExportZip}
 				disabled={isExporting}
-				class="card flex w-full items-start gap-4 p-4 text-left transition-colors hover:border-blue-500/50 disabled:opacity-50"
+				class="flex w-full items-start gap-4 card p-4 text-left transition-colors hover:border-blue-500/50 disabled:opacity-50"
 			>
-				<FileArchive class="text-tertiary h-6 w-6 shrink-0" />
+				<FileArchive class="h-6 w-6 shrink-0 text-tertiary" />
 				<div>
-					<div class="text-primary font-medium">{hosts_exportZipTitle()}</div>
-					<div class="text-tertiary text-sm">{hosts_exportZipDesc()}</div>
+					<div class="font-medium text-primary">{hosts_exportZipTitle()}</div>
+					<div class="text-sm text-tertiary">{hosts_exportZipDesc()}</div>
 				</div>
 			</button>
 		</div>

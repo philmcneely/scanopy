@@ -84,32 +84,32 @@
 
 <!-- Floating Panel -->
 <div
-	class="topology-options absolute left-4 top-4 duration-300 {isTutorial || raised
+	class="topology-options absolute top-4 left-4 duration-300 {isTutorial || raised
 		? 'z-30'
 		: 'z-10'} {$optionsPanelExpanded ? '' : 'w-auto'}"
 	style={$optionsPanelExpanded ? `width: ${OPTIONS_PANEL_WIDTH_PX}px` : ''}
 >
-	<div class="card card-static p-0 shadow-lg">
+	<div class="card-static card p-0 shadow-lg">
 		{#if $optionsPanelExpanded}
 			<!-- Header with collapse button and tabs -->
 			<div class="flex items-end">
 				{#if !isTutorial}
 					<button
-						class="btn-icon flex-shrink-0 rounded-xl p-3"
+						class="btn-icon shrink-0 rounded-xl p-3"
 						onclick={() => optionsPanelExpanded.set(false)}
 						aria-label={topology_collapsePanel()}
 					>
-						<ChevronLeft class="text-secondary h-5 w-5" />
+						<ChevronLeft class="h-5 w-5 text-secondary" />
 					</button>
 				{/if}
 				{#if showingOptions && !isTutorial}
 					<div class="flex flex-1">
 						{#each tabs as tab (tab.id)}
 							<button
-								class="flex flex-1 items-center justify-center gap-1.5 border-b-2 pb-2 pt-2.5 text-xs font-medium transition-colors {activeTab ===
+								class="flex flex-1 items-center justify-center gap-1.5 border-b-2 pt-2.5 pb-2 text-xs font-medium transition-colors {activeTab ===
 								tab.id
 									? 'border-blue-500 text-blue-400'
-									: 'text-secondary hover:text-primary border-gray-300 dark:border-gray-700'}"
+									: 'border-gray-300 text-secondary hover:text-primary dark:border-gray-700'}"
 								onclick={() => (activeTab = tab.id)}
 							>
 								<tab.icon class="h-3.5 w-3.5" />
@@ -147,7 +147,7 @@
 						}}
 					/>
 				{:else if isTutorial}
-					<div class="text-secondary py-4 text-center text-sm">
+					<div class="py-4 text-center text-sm text-secondary">
 						{topology_tutorialPanelHint()}
 					</div>
 				{:else if $selectedNode}
@@ -169,7 +169,7 @@
 				onclick={() => optionsPanelExpanded.set(true)}
 				aria-label={topology_expandPanel()}
 			>
-				<ChevronRight class="text-secondary h-5 w-5" />
+				<ChevronRight class="h-5 w-5 text-secondary" />
 			</button>
 		{/if}
 	</div>

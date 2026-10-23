@@ -60,7 +60,7 @@
 				color={entities.getColorHelper('IPAddress').color}
 			/>
 			{#if linkedSubnet}
-				<span class="text-tertiary text-xs">on</span>
+				<span class="text-xs text-tertiary">on</span>
 				<EntityTag
 					entityRef={entityRef('Subnet', linkedSubnet.id, linkedSubnet)}
 					label={linkedSubnet.name && linkedSubnet.name !== linkedSubnet.cidr
@@ -102,7 +102,7 @@
 							icon={entities.getIconComponent('Interface')}
 							color={entities.getColorHelper('Interface').color}
 						/>
-						<span class="text-tertiary text-xs">on</span>
+						<span class="text-xs text-tertiary">on</span>
 					{/if}
 					{#if neighbour.neighborHost}
 						<EntityTag

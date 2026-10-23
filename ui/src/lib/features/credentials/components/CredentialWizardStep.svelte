@@ -530,7 +530,7 @@
 		linkText={descriptionLinkText ?? daemons_credentialWizardDescriptionLinkText()}
 	/>
 	{#if siteCredentials.length > 0}
-		<p class="text-tertiary mt-1 text-xs">
+		<p class="mt-1 text-xs text-tertiary">
 			{daemons_credentialWizardSiteCredentials()}
 			{#each siteCredentials as cred (cred.id)}
 				<EntityTag

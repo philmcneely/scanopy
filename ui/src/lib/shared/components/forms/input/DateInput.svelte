@@ -67,7 +67,7 @@
 		{disabled}
 		{min}
 		{max}
-		class="input-field datetime-picker"
+		class="datetime-picker input-field"
 		class:input-field-error={hasErrors}
 	/>
 </FormField>

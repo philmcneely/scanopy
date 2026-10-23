@@ -445,7 +445,7 @@
 							aria-expanded={showDropdown}
 							aria-controls={dropdownId}
 							aria-autocomplete="list"
-							class="h-6 rounded-full px-2 text-xs transition-[width] focus:outline-none focus:ring-1 focus:ring-blue-500 {ghostTag
+							class="h-6 rounded-full px-2 text-xs transition-[width] focus:ring-1 focus:ring-blue-500 focus:outline-hidden {ghostTag
 								? 'w-56'
 								: 'w-24'}"
 							style="border: 1px solid var(--color-border-input); background: var(--color-bg-input); color: var(--color-text-primary)"
@@ -470,7 +470,7 @@
 					<button
 						type="button"
 						onclick={handleAddClick}
-						class="text-tertiary hover:text-secondary inline-flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-gray-400 transition-colors dark:border-gray-500"
+						class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-gray-400 text-tertiary transition-colors hover:text-secondary dark:border-gray-500"
 					>
 						<Plus class="h-3 w-3" />
 					</button>
@@ -482,7 +482,7 @@
 
 {#if label}
 	<div class="space-y-2">
-		<div class="text-secondary block text-sm font-medium">{label}</div>
+		<div class="block text-sm font-medium text-secondary">{label}</div>
 		{@render picker()}
 	</div>
 {:else}
@@ -500,7 +500,7 @@
 	onClose={() => (open = false)}
 >
 	{#if unavailableNote}
-		<p class="text-tertiary border-b px-3 py-2 text-xs" style="border-color: var(--color-border)">
+		<p class="border-b px-3 py-2 text-xs text-tertiary" style="border-color: var(--color-border)">
 			{unavailableNote}
 		</p>
 	{/if}

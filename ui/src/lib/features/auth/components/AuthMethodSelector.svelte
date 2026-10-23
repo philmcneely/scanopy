@@ -74,7 +74,7 @@
 					<div class="w-full border-t" style="border-color: var(--color-border)"></div>
 				</div>
 				<div class="relative flex justify-center text-sm">
-					<span class="text-tertiary bg-[var(--color-bg-elevated)] px-2">{common_or()}</span>
+					<span class="bg-(--color-bg-elevated) px-2 text-tertiary">{common_or()}</span>
 				</div>
 			</div>
 		{/if}

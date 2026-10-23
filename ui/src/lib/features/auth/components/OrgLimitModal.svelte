@@ -34,11 +34,11 @@
 	{/snippet}
 
 	<div class="space-y-4 p-4 sm:p-6">
-		<p class="text-secondary text-center text-sm">
+		<p class="text-center text-sm text-secondary">
 			{auth_orgLimitReachedBody()}
 		</p>
 		{#if adminContactEmail}
-			<p class="text-secondary text-center text-sm">
+			<p class="text-center text-sm text-secondary">
 				{auth_orgLimitReachedContact()}
 				<a href="mailto:{adminContactEmail}" class="text-accent underline hover:no-underline">
 					{adminContactEmail}
@@ -47,7 +47,7 @@
 		{/if}
 		{#if onSwitchToLogin}
 			<div class="text-center">
-				<button type="button" onclick={onSwitchToLogin} class="text-link text-sm hover:underline">
+				<button type="button" onclick={onSwitchToLogin} class="text-sm text-link hover:underline">
 					{auth_signInInstead()}
 				</button>
 			</div>

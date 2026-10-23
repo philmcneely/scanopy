@@ -236,7 +236,7 @@
 			<!-- Step 1: Target Selection -->
 			<div>
 				<!-- Source host info -->
-				<div class="card card-static mb-6">
+				<div class="card-static mb-6 card">
 					<EntityDisplay
 						context={hostDisplayContext(ipAddressesData, otherHostServices.services)}
 						item={otherHost}
@@ -273,7 +273,7 @@
 					body={hosts_consolidateModal_warningBody()}
 				/>
 
-				<p class="text-secondary text-sm">
+				<p class="text-sm text-secondary">
 					{hosts_consolidateModal_previewSubtitle()}
 				</p>
 

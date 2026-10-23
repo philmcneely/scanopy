@@ -86,9 +86,7 @@
 </script>
 
 {#if isStaticTags}
-	<span
-		class="inline-flex max-w-full flex-shrink-0 items-center gap-1 whitespace-nowrap rounded-full"
-	>
+	<span class="inline-flex max-w-full shrink-0 items-center gap-1 rounded-full whitespace-nowrap">
 		<Tag icon={chipIcon} {color} {disabled} {label} {badge} pill={true} />
 	</span>
 {:else if disableNavigate}
@@ -98,7 +96,7 @@
 	<div
 		bind:this={triggerEl}
 		role="presentation"
-		class="inline-flex max-w-full flex-shrink-0 items-center gap-1 whitespace-nowrap rounded-full"
+		class="inline-flex max-w-full shrink-0 items-center gap-1 rounded-full whitespace-nowrap"
 		onmouseenter={handleMouseEnter}
 		onmouseleave={handleMouseLeave}
 	>
@@ -107,7 +105,7 @@
 {:else}
 	<div
 		bind:this={triggerEl}
-		class="inline-flex max-w-full flex-shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-full brightness-100 transition-all hover:brightness-90 dark:hover:brightness-125"
+		class="inline-flex max-w-full shrink-0 cursor-pointer items-center gap-1 rounded-full whitespace-nowrap brightness-100 transition-all hover:brightness-90 dark:hover:brightness-125"
 		onmouseenter={handleMouseEnter}
 		onmouseleave={handleMouseLeave}
 		onclick={handleClick}

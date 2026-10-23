@@ -25,7 +25,7 @@
 		<div class="rounded-full bg-emerald-500/10 p-3">
 			<Cable class="h-8 w-8 text-emerald-500" />
 		</div>
-		<p class="text-secondary text-sm">
+		<p class="text-sm text-secondary">
 			{topology_l2EmptyDescription()}
 		</p>
 		{#if !hasInterfaceCredential}

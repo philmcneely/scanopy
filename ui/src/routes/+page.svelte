@@ -388,7 +388,7 @@
 {:else if appInitialized}
 	<div class="flex h-screen">
 		<!-- Sidebar -->
-		<div class="flex-shrink-0">
+		<div class="shrink-0">
 			<Sidebar
 				bind:activeTab
 				bind:collapsed={sidebarCollapsed}
@@ -452,7 +452,7 @@
 						{#if tab.subTabIds && tab.subTabDefs}
 							<div
 								class={!tab.subTabIds.includes(activeTab)
-									? 'relative h-0 overflow-hidden [contain:paint]'
+									? 'relative h-0 overflow-hidden contain-[paint]'
 									: ''}
 							>
 								<ContentSubTabs
@@ -464,7 +464,7 @@
 							</div>
 						{:else}
 							<div
-								class={activeTab !== tab.id ? 'relative h-0 overflow-hidden [contain:paint]' : ''}
+								class={activeTab !== tab.id ? 'relative h-0 overflow-hidden contain-[paint]' : ''}
 							>
 								<tab.component isReadOnly={tab.isReadOnly} isActive={activeTab === tab.id} />
 							</div>

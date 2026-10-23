@@ -22,8 +22,7 @@
 	const toneClasses: Record<string, string> = {
 		default:
 			'border-gray-300 bg-gray-50 text-gray-600 shadow-[0_1px_0_1px_rgba(0,0,0,0.08)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:shadow-[0_1px_0_1px_rgba(0,0,0,0.3)]',
-		inherit:
-			'bg-transparent text-current [border-color:color-mix(in_srgb,currentColor_45%,transparent)]'
+		inherit: 'bg-transparent text-current border-[color-mix(in_srgb,currentColor_45%,transparent)]'
 	};
 
 	// Monospace fonts draw the modifier glyphs small and low, so those take the UI font, as the

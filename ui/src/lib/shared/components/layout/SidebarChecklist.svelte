@@ -79,7 +79,7 @@
 		<div class="flex justify-center px-2 py-2">
 			<button
 				onclick={onExpandSidebar}
-				class="text-tertiary hover:text-secondary flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-[10px] font-bold transition-colors hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
+				class="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-[10px] font-bold text-tertiary transition-colors hover:bg-gray-100 hover:text-secondary dark:border-gray-700 dark:hover:bg-gray-800"
 				aria-label="{gettingStarted_title()}: {progressText}"
 				use:tooltip={{
 					content: { title: gettingStarted_title(), sections: [{ text: progressText }] }
@@ -90,10 +90,10 @@
 		</div>
 	{:else}
 		<!-- Expanded sidebar: pill header + accordion steps -->
-		<div class="border-b border-t px-2 py-2" style="border-color: var(--color-border)">
+		<div class="border-t border-b px-2 py-2" style="border-color: var(--color-border)">
 			<button
 				onclick={toggleExpanded}
-				class="text-secondary hover:text-primary flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+				class="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-semibold text-secondary transition-colors hover:bg-gray-100 hover:text-primary dark:hover:bg-gray-800"
 			>
 				<span class="whitespace-nowrap">{gettingStarted_title()}</span>
 				<div class="flex items-center gap-2">
@@ -124,9 +124,9 @@
 									? 'opacity-50'
 									: ''}"
 							>
-								<Info class="h-3.5 w-3.5 flex-shrink-0 text-yellow-500" />
+								<Info class="h-3.5 w-3.5 shrink-0 text-yellow-500" />
 								<button
-									class="text-primary truncate rounded hover:underline"
+									class="truncate rounded-sm text-primary hover:underline"
 									onclick={() => {
 										trackChecklistStepClicked(step.id, 'sidebar');
 										executeStepAction(step, onNavigate);
@@ -135,7 +135,7 @@
 									{step.label()}
 								</button>
 								<button
-									class="ml-auto flex-shrink-0 rounded text-[10px] font-medium text-yellow-500 hover:underline"
+									class="ml-auto shrink-0 rounded-sm text-[10px] font-medium text-yellow-500 hover:underline"
 									onclick={() => {
 										showTroubleshootingModal = true;
 									}}
@@ -157,13 +157,13 @@
 								}}
 							>
 								{#if complete}
-									<Check class="h-3.5 w-3.5 flex-shrink-0 text-green-400" />
+									<Check class="h-3.5 w-3.5 shrink-0 text-green-400" />
 								{:else if discoverySpinner}
-									<Loader2 class="h-3.5 w-3.5 flex-shrink-0 animate-spin text-blue-500" />
+									<Loader2 class="h-3.5 w-3.5 shrink-0 animate-spin text-blue-500" />
 								{:else if enabled}
-									<Circle class="text-tertiary h-3.5 w-3.5 flex-shrink-0" />
+									<Circle class="h-3.5 w-3.5 shrink-0 text-tertiary" />
 								{:else}
-									<Circle class="text-disabled h-3.5 w-3.5 flex-shrink-0" />
+									<Circle class="h-3.5 w-3.5 shrink-0 text-disabled" />
 								{/if}
 								<span
 									class="truncate"

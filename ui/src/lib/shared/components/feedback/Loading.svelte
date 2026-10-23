@@ -9,5 +9,5 @@
 
 <div class="py-8 text-center">
 	<Radar class="mx-auto h-8 w-8 animate-[spin_1.5s_linear_infinite] text-blue-500" />
-	<p class="text-secondary mt-2">{displayMessage}</p>
+	<p class="mt-2 text-secondary">{displayMessage}</p>
 </div>

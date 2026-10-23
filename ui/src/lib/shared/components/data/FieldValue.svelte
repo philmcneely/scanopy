@@ -90,7 +90,7 @@
 				<button
 					type="button"
 					onclick={() => (showAll = true)}
-					class="text-tertiary hover:text-secondary text-xs transition-colors"
+					class="text-xs text-tertiary transition-colors hover:text-secondary"
 				>
 					{common_moreItems({ count: overflow })}
 				</button>
@@ -102,7 +102,9 @@
 	<span class="sr-only">{common_none()}</span>
 {:else}
 	<span
-		class="text-tertiary block {column.display.wrap ? 'whitespace-normal break-words' : 'truncate'}"
+		class="block text-tertiary {column.display.wrap
+			? 'wrap-break-word whitespace-normal'
+			: 'truncate'}"
 		{title}>{text}</span
 	>
 {/if}

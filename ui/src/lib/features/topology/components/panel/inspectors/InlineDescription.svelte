@@ -46,7 +46,7 @@
 
 {#if editing}
 	<textarea
-		class="text-secondary w-full resize-none rounded border border-gray-600 bg-transparent px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+		class="w-full resize-none rounded-sm border border-gray-600 bg-transparent px-2 py-1 text-xs text-secondary focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
 		bind:value={draft}
 		maxlength={maxLength}
 		rows={2}
@@ -56,7 +56,7 @@
 	></textarea>
 {:else if editable && !value}
 	<button
-		class="text-tertiary hover:text-secondary flex items-center gap-1 text-xs italic"
+		class="flex items-center gap-1 text-xs text-tertiary italic hover:text-secondary"
 		onclick={startEdit}
 	>
 		<Pencil class="h-3 w-3" />
@@ -65,13 +65,13 @@
 {:else if value}
 	{#if editable}
 		<button
-			class="text-secondary flex w-full cursor-text items-center gap-1 text-left text-xs hover:opacity-80"
+			class="flex w-full cursor-text items-center gap-1 text-left text-xs text-secondary hover:opacity-80"
 			onclick={startEdit}
 		>
 			<span class="flex-1 text-left">{value}</span>
 			<Pencil class="h-3 w-3 shrink-0 opacity-50" />
 		</button>
 	{:else}
-		<p class="text-secondary text-xs">{value}</p>
+		<p class="text-xs text-secondary">{value}</p>
 	{/if}
 {/if}

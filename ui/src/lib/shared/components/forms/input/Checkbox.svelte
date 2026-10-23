@@ -22,7 +22,7 @@
 			checked={field.state.value}
 			{disabled}
 			onchange={(e) => field.handleChange(e.currentTarget.checked)}
-			class="checkbox-card h-4 w-4 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+			class="h-4 w-4 checkbox-card focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
 		/>
 	</FormField>
 </div>

@@ -289,7 +289,7 @@
 </script>
 
 {#if isCheckingAuth && !$page.url.pathname.startsWith('/onboarding')}
-	<div class="flex min-h-screen items-center justify-center bg-[var(--color-bg-elevated)]">
+	<div class="flex min-h-screen items-center justify-center bg-(--color-bg-elevated)">
 		<Loading />
 	</div>
 {:else}

@@ -232,7 +232,7 @@
 >
 	<div class="min-h-0 flex-1 space-y-4 overflow-auto p-6">
 		{#if description}
-			<p class="text-secondary text-sm">{description}</p>
+			<p class="text-sm text-secondary">{description}</p>
 		{/if}
 
 		<!-- Stripe mounts the Payment Element iframe here. Keep it mounted (so it
@@ -255,7 +255,7 @@
 			<div class="text-center">
 				<button
 					type="button"
-					class="text-link text-sm hover:underline"
+					class="text-sm text-link hover:underline"
 					disabled={busy}
 					onclick={altAction.onclick}
 				>

@@ -490,7 +490,7 @@
 	<div
 		class="{showBackdrop ? 'modal-page modal-background' : 'modal-page'} {anchor === 'container'
 			? 'modal-page-anchored'
-			: ''} {compactPadding ? '!px-2 !py-1 sm:!px-4 sm:!py-4' : ''} {listOrder ? 'sm:!px-16' : ''}"
+			: ''} {compactPadding ? 'px-2! py-1! sm:px-4! sm:py-4!' : ''} {listOrder ? 'sm:px-16!' : ''}"
 		onclick={handleBackdropClick}
 		role="dialog"
 		aria-modal="true"
@@ -507,7 +507,7 @@
 			<button
 				type="button"
 				onclick={() => goBack()}
-				class="fixed left-6 top-6 z-50 flex items-center gap-2 rounded-full bg-white/80 py-2 pl-2 pr-4 text-sm text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800/80 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+				class="fixed top-6 left-6 z-50 flex items-center gap-2 rounded-full bg-white/80 py-2 pr-4 pl-2 text-sm text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800/80 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
 				aria-label={returnTitle ? `Back to ${returnTitle}` : 'Go back'}
 			>
 				<ArrowLeft class="h-5 w-5" />
@@ -524,7 +524,7 @@
 
 		<!-- Modal content -->
 		<div
-			class="relative outline-none {borderless ? '' : 'modal-container'} {sizeClasses[
+			class="relative outline-hidden {borderless ? '' : 'modal-container'} {sizeClasses[
 				size
 			]} {compactPadding
 				? size === 'full' || size === 'wide' || fixedHeight
@@ -545,7 +545,7 @@
 				<button
 					type="button"
 					onclick={handleClose}
-					class="absolute right-4 top-3 z-30 rounded-full bg-white/80 p-2 text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800/80 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+					class="absolute top-3 right-4 z-30 rounded-full bg-white/80 p-2 text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800/80 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
 					aria-label={common_closeModal()}
 				>
 					<X class="h-5 w-5" />
@@ -573,14 +573,14 @@
 								{@render headerIcon?.()}
 								<h2
 									id="modal-title"
-									class="text-primary absolute left-1/2 max-w-[calc(100%-5rem)] -translate-x-1/2 text-center text-xl font-semibold"
+									class="absolute left-1/2 max-w-[calc(100%-5rem)] -translate-x-1/2 text-center text-xl font-semibold text-primary"
 								>
 									{title}
 								</h2>
 							{:else}
 								<div class="flex min-w-0 items-center gap-3 {inlineTabs ? 'mr-4' : ''}">
 									{@render headerIcon?.()}
-									<h2 id="modal-title" class="text-primary truncate text-xl font-semibold">
+									<h2 id="modal-title" class="truncate text-xl font-semibold text-primary">
 										{title}
 									</h2>
 								</div>
@@ -622,13 +622,13 @@
 							<button
 								type="button"
 								onclick={() => !tab.disabled && handleTabClick(tab.id)}
-								class="shrink-0 whitespace-nowrap border-b-2 px-1 text-sm font-medium transition-colors
+								class="shrink-0 border-b-2 px-1 text-sm font-medium whitespace-nowrap transition-colors
 									{inline ? 'py-1' : 'pb-3'}
 									{tab.disabled
-									? 'text-muted cursor-not-allowed border-transparent opacity-50'
+									? 'cursor-not-allowed border-transparent text-muted opacity-50'
 									: activeTab === tab.id
-										? 'text-primary border-blue-500'
-										: 'text-muted hover:text-secondary border-transparent'}"
+										? 'border-blue-500 text-primary'
+										: 'border-transparent text-muted hover:text-secondary'}"
 								aria-current={activeTab === tab.id ? 'page' : undefined}
 								aria-disabled={tab.disabled ? 'true' : undefined}
 							>
@@ -637,7 +637,7 @@
 										<span class="relative">
 											<tab.icon class="h-4 w-4" />
 											{#if tab.notification}
-												<span class="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-500"
+												<span class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-500"
 												></span>
 											{/if}
 										</span>
@@ -733,7 +733,7 @@
 		type="button"
 		disabled={!targetId}
 		onclick={() => targetId && requestNavigation(targetId)}
-		class="fixed {side} top-1/2 z-50 hidden -translate-y-1/2 rounded p-1 text-gray-200 transition-colors hover:text-white disabled:cursor-default disabled:opacity-30 sm:flex"
+		class="fixed {side} top-1/2 z-50 hidden -translate-y-1/2 rounded-sm p-1 text-gray-200 transition-colors hover:text-white disabled:cursor-default disabled:opacity-30 sm:flex"
 		aria-label={label}
 		title={label}
 	>

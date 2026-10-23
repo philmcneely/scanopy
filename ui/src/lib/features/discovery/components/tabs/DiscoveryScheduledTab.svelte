@@ -392,8 +392,8 @@
 		{@const phase = isCancelling ? common_cancelling() : session.phase}
 		<div class="min-w-0 space-y-2">
 			<div class="flex flex-wrap items-center gap-x-2">
-				<span class="text-secondary text-sm font-medium">{common_phase()}:</span>
-				<span class="text-accent text-sm font-medium">{phase}</span>
+				<span class="text-sm font-medium text-secondary">{common_phase()}:</span>
+				<span class="text-sm font-medium text-accent">{phase}</span>
 			</div>
 
 			<DiscoveryEstimation

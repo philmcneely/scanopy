@@ -52,7 +52,7 @@
 
 <div class="mt-2 w-full border-t border-gray-200 pt-2 dark:border-gray-700">
 	<div class="flex items-center gap-2">
-		<button type="button" class="text-tertiary flex items-center gap-1 text-xs" onclick={toggle}>
+		<button type="button" class="flex items-center gap-1 text-xs text-tertiary" onclick={toggle}>
 			{#if expanded}
 				<ChevronDown class="h-3.5 w-3.5" />
 			{:else}
@@ -73,13 +73,13 @@
 					     panel's right edge, the same column as the parent row's checkbox. -->
 					<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 					<span
-						class="-mx-2 block rounded odd:bg-gray-50 dark:odd:bg-gray-800/30"
+						class="-mx-2 block rounded-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
 						data-tooltip={reason ?? undefined}
 						use:tooltip
 						onclick={(e) => e.stopPropagation()}
 					>
 						<label
-							class="flex items-center gap-3 rounded py-1.5 pl-8 pr-2 {reason
+							class="flex items-center gap-3 rounded py-1.5 pr-2 pl-8 {reason
 								? 'cursor-not-allowed opacity-60'
 								: 'child-row-interactive cursor-pointer'}"
 						>
@@ -93,7 +93,7 @@
 							</div>
 							<input
 								type="checkbox"
-								class="checkbox-card h-4 w-4 flex-shrink-0"
+								class="h-4 w-4 shrink-0 checkbox-card"
 								checked={selection.isSelected(child)}
 								disabled={reason !== null}
 								onchange={() => selection.onToggle(child)}
@@ -101,7 +101,7 @@
 						</label>
 					</span>
 				{:else}
-					<div class="rounded px-2 py-1.5 pl-6 odd:bg-gray-50 dark:odd:bg-gray-800/30">
+					<div class="rounded-sm px-2 py-1.5 pl-6 odd:bg-gray-50 dark:odd:bg-gray-800/30">
 						<ListSelectItem item={child} context={getContext(child)} {displayComponent} />
 					</div>
 				{/if}

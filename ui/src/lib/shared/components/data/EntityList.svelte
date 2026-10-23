@@ -6,13 +6,13 @@
 {#if items.length > 0}
 	<div>
 		{#if title.length > 0}
-			<h4 class="text-secondary mb-2 font-medium">
+			<h4 class="mb-2 font-medium text-secondary">
 				{title} ({items.length})
 			</h4>
 		{/if}
-		<ul class="card card-static space-y-2">
+		<ul class="card-static space-y-2 card">
 			{#each items as item (item.id)}
-				<li class="text-secondary flex items-center gap-2 text-sm">
+				<li class="flex items-center gap-2 text-sm text-secondary">
 					<span>• {item.name}</span>
 				</li>
 			{/each}

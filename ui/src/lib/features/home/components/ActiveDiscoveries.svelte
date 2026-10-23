@@ -24,12 +24,12 @@
 
 {#if scanningSessions.length > 0}
 	<section>
-		<h3 class="text-primary mb-3 text-base font-semibold">Active Discoveries</h3>
+		<h3 class="mb-3 text-base font-semibold text-primary">Active Discoveries</h3>
 		<div class="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4">
 			{#each scanningSessions as session (session.session_id)}
 				{@const daemon = daemons.find((d) => d.id == session.daemon_id)}
 				<div
-					class="card card-static cursor-pointer"
+					class="card-static cursor-pointer card"
 					onclick={onNavigate}
 					onkeydown={(e) => {
 						if (e.key === 'Enter' || e.key === ' ') onNavigate();
@@ -38,7 +38,7 @@
 					tabindex={0}
 				>
 					<div class="mb-2 flex items-center justify-between">
-						<span class="text-primary text-sm font-medium">
+						<span class="text-sm font-medium text-primary">
 							{session.discovery_type.type} Discovery
 						</span>
 						<EntityTag

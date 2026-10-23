@@ -1592,7 +1592,7 @@
 </script>
 
 <div
-	class="h-full w-full overflow-hidden !p-0"
+	class="h-full w-full overflow-hidden p-0!"
 	class:card={!isEmbed}
 	class:card-static={!isEmbed}
 	class:collapse-transition={animatingCollapse}

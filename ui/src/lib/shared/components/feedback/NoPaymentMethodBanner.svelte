@@ -58,7 +58,7 @@
 		{#snippet actions()}
 			<button
 				onclick={handleCta}
-				class="ml-2 rounded px-2 py-0.5 text-xs font-medium underline hover:no-underline disabled:opacity-50"
+				class="ml-2 rounded-sm px-2 py-0.5 text-xs font-medium underline hover:no-underline disabled:opacity-50"
 			>
 				{billing_addPaymentMethod()}
 			</button>

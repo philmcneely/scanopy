@@ -853,7 +853,7 @@
 <div class="w-full space-y-4">
 	<!-- Header with count, focus, and clear -->
 	<div class="flex items-center justify-between">
-		<span class="text-secondary text-sm font-medium">
+		<span class="text-sm font-medium text-secondary">
 			{appWizard_selectedCount({ summary: selectionSummary })}
 		</span>
 		<div class="flex items-center gap-1">
@@ -884,10 +884,10 @@
 			{#each tagGroups as group (group.entityType)}
 				{@const nonAppCommon = group.commonTags.filter((id) => !appTagSet.has(id))}
 				<div class="space-y-2">
-					<span class="text-secondary block text-sm font-medium">{group.label}</span>
-					<div class="card card-static space-y-2 p-2">
+					<span class="block text-sm font-medium text-secondary">{group.label}</span>
+					<div class="card-static space-y-2 card p-2">
 						{#if nonAppCommon.length === 0 && group.entities.length > 1}
-							<p class="text-tertiary text-xs italic">
+							<p class="text-xs text-tertiary italic">
 								{noCommonTagsHintText(group.entityType)}
 							</p>
 						{/if}
@@ -926,10 +926,10 @@
 			{#if inspectorConfig.show_application_picker}
 				<!-- App-group tag picker — with cross-group and inheritance awareness -->
 				<div class="space-y-2">
-					<span class="text-secondary block text-sm font-medium">{common_application()}</span>
-					<div class="card card-static space-y-2 p-2">
+					<span class="block text-sm font-medium text-secondary">{common_application()}</span>
+					<div class="card-static space-y-2 card p-2">
 						{#if appState.type === 'cross-group'}
-							<p class="text-tertiary text-xs">{tags_crossGroupSelectionHint()}</p>
+							<p class="text-xs text-tertiary">{tags_crossGroupSelectionHint()}</p>
 						{:else}
 							{#if appState.type === 'single' && appState.allInherited && currentAppTag}
 								<div class="flex flex-wrap items-center gap-1">
@@ -939,9 +939,9 @@
 										icon={concepts.getIconComponent('Application')}
 										isShiny={true}
 									/>
-									<span class="text-tertiary text-xs">{tags_inheritedFromHost()}</span>
+									<span class="text-xs text-tertiary">{tags_inheritedFromHost()}</span>
 								</div>
-								<p class="text-tertiary text-xs">{tags_inheritedOverrideHint()}</p>
+								<p class="text-xs text-tertiary">{tags_inheritedOverrideHint()}</p>
 							{/if}
 							<div class="flex flex-wrap items-center gap-1.5">
 								{#if appState.type === 'ungrouped' && !ungroupedDismissed}
@@ -978,7 +978,7 @@
 		{#if inspectorConfig.dependency_creation || isEditMode}
 			<!-- Dependency creation / edit — flat layout, no outer wrapping card -->
 			<div class="space-y-3">
-				<span class="text-secondary block text-sm font-medium"
+				<span class="block text-sm font-medium text-secondary"
 					>{isEditMode ? dependencies_editDependency() : dependencies_createDependency()}</span
 				>
 
@@ -995,11 +995,11 @@
 								selected={field.state.value}
 								onchange={(v) => field.handleChange(v as DependencyType)}
 							/>
-							<span class="text-secondary text-xs"
+							<span class="text-xs text-secondary"
 								>{dependencyTypes.getName(field.state.value)}</span
 							>
 							<button
-								class="btn-secondary ml-auto flex items-center gap-1 p-1.5 text-xs"
+								class="ml-auto btn-secondary flex items-center gap-1 p-1.5 text-xs"
 								onclick={togglePreview}
 								title={showPreview ? topology_hidePreview() : topology_showPreview()}
 							>
@@ -1033,7 +1033,7 @@
 
 				<!-- Edge style & color — collapsed by default; matches how EdgeStyleForm
 				     renders on a selected dep edge. -->
-				<div class="card card-static p-2">
+				<div class="card-static card p-2">
 					<EdgeStyleForm
 						bind:formData={edgeStyleFormData}
 						bind:collapsed={edgeStyleCollapsed}
@@ -1056,7 +1056,7 @@
 								fullWidth={true}
 							/>
 							<!-- Only reached in a view that doesn't draw bindings, so both hints point to L3. -->
-							<p class="text-tertiary mt-1 text-xs">
+							<p class="mt-1 text-xs text-tertiary">
 								{field.state.value === 'Bindings'
 									? dependencies_withPortsL3Hint()
 									: dependencies_servicesOnlyL3Hint()}
@@ -1077,15 +1077,15 @@
 								.slice(0, targetIdx)
 								.filter((t) => t.type === 'service' || t.candidateServiceIds.length > 0).length}
 							{#if depType === 'HubAndSpoke' && targetIdx === 0}
-								<span class="text-tertiary block text-xs font-semibold uppercase"
+								<span class="block text-xs font-semibold text-tertiary uppercase"
 									>{common_hub()}</span
 								>
 							{:else if depType === 'HubAndSpoke' && targetIdx === 1}
 								<div class="flex flex-col items-center gap-0.5">
-									<span class="text-tertiary text-xs">{common_serves()}</span>
-									<ArrowDown class="text-secondary h-4 w-4" />
+									<span class="text-xs text-tertiary">{common_serves()}</span>
+									<ArrowDown class="h-4 w-4 text-secondary" />
 								</div>
-								<span class="text-tertiary mt-2 block text-xs font-semibold uppercase"
+								<span class="mt-2 block text-xs font-semibold text-tertiary uppercase"
 									>{common_spokes()}</span
 								>
 							{/if}
@@ -1098,8 +1098,8 @@
 							/>
 							{#if depType === 'RequestPath' && targetIdx < depTargets.length - 1}
 								<div class="flex flex-col items-center gap-0.5">
-									<span class="text-tertiary text-xs">{common_makesRequestTo()}</span>
-									<ArrowDown class="text-secondary h-4 w-4" />
+									<span class="text-xs text-tertiary">{common_makesRequestTo()}</span>
+									<ArrowDown class="h-4 w-4 text-secondary" />
 								</div>
 							{/if}
 						{/each}
@@ -1143,7 +1143,7 @@
 	{:else}
 		<!-- Show reason why actions are unavailable -->
 		{#if mutateDisabledReason}
-			<div class="text-tertiary py-2 text-center text-sm">
+			<div class="py-2 text-center text-sm text-tertiary">
 				{mutateDisabledReason}
 			</div>
 		{/if}

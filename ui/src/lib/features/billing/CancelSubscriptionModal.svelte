@@ -367,10 +367,10 @@
 		{#if currentStep === 1}
 			<div class="space-y-4">
 				<div>
-					<h3 class="text-primary text-lg font-semibold">
+					<h3 class="text-lg font-semibold text-primary">
 						{settings_billing_cancelModal_reasonHeading()}
 					</h3>
-					<p class="text-secondary mt-1 text-sm">
+					<p class="mt-1 text-sm text-secondary">
 						{settings_billing_cancelModal_reasonHelp()}
 					</p>
 				</div>
@@ -401,16 +401,16 @@
 			<div class="space-y-4">
 				{#each offersForReason as offerId (offerId)}
 					{#if offerId === 'pause'}
-						<div class="card card-static space-y-3 p-4">
+						<div class="card-static space-y-3 card p-4">
 							<div>
-								<h4 class="text-primary text-base font-semibold">
+								<h4 class="text-base font-semibold text-primary">
 									{metaName(
 										'save_offers',
 										'pause',
 										offerMeta('pause')?.name ?? settings_billing_saveOffer_pauseTitle()
 									)}
 								</h4>
-								<p class="text-secondary mt-1 text-sm">
+								<p class="mt-1 text-sm text-secondary">
 									{settings_billing_saveOffer_pauseSubtitle()}
 								</p>
 							</div>
@@ -436,7 +436,7 @@
 										</button>
 									{/each}
 								</div>
-								<p class="text-tertiary text-sm">
+								<p class="text-sm text-tertiary">
 									{settings_billing_saveOffer_pausePreview({
 										resumesAt: formatLongDate(pauseResumesAt)
 									})}
@@ -460,16 +460,16 @@
 							{/if}
 						</div>
 					{:else if offerId === 'discount'}
-						<div class="card card-static space-y-3 p-4">
+						<div class="card-static space-y-3 card p-4">
 							<div>
-								<h4 class="text-primary text-base font-semibold">
+								<h4 class="text-base font-semibold text-primary">
 									{metaName(
 										'save_offers',
 										'discount',
 										offerMeta('discount')?.name ?? settings_billing_saveOffer_discountTitle()
 									)}
 								</h4>
-								<p class="text-secondary mt-1 text-sm">
+								<p class="mt-1 text-sm text-secondary">
 									{#if saveOfferCoupon?.billing_rate === 'Year'}
 										{settings_billing_saveOffer_discountSubtitleYearly({
 											percentOff: saveOfferCoupon.percent_off,
@@ -494,12 +494,12 @@
 						</div>
 					{/if}
 				{/each}
-				<div class="card card-static space-y-3 p-4">
+				<div class="card-static space-y-3 card p-4">
 					<div>
-						<h4 class="text-primary text-base font-semibold">
+						<h4 class="text-base font-semibold text-primary">
 							{settings_billing_cancelModal_confirmHeading()}
 						</h4>
-						<p class="text-secondary mt-1 text-sm">
+						<p class="mt-1 text-sm text-secondary">
 							{settings_billing_cancelModal_confirmDisclosure({
 								periodEnd: 'the end of your current billing cycle'
 							})}

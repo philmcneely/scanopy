@@ -50,7 +50,7 @@
 
 <InfoCard title={common_servers()}>
 	<div class="space-y-3">
-		<p class="text-secondary text-sm">{settings_billing_license_serversHint()}</p>
+		<p class="text-sm text-secondary">{settings_billing_license_serversHint()}</p>
 		{#if usage && usage.limit != null && usage.active > usage.limit}
 			<InlineWarning
 				title={settings_billing_license_overLimit({ active: usage.active, limit: usage.limit })}
@@ -65,14 +65,14 @@
 			/>
 		{/if}
 		{#if instancesQuery.isSuccess && instances.length === 0}
-			<p class="text-secondary text-sm">{settings_billing_license_noServers()}</p>
+			<p class="text-sm text-secondary">{settings_billing_license_noServers()}</p>
 		{/if}
 		{#each instances as { instance, active, refused } (instance.id)}
 			<InfoCard variant="compact">
 				<div class="flex items-center justify-between gap-4">
 					<div class="min-w-0 {active ? '' : 'opacity-60'}">
 						<div class="flex min-w-0 items-center gap-2">
-							<p class="text-primary truncate text-sm font-medium">
+							<p class="truncate text-sm font-medium text-primary">
 								{#if instance.instance_id}
 									<span class="font-mono">{instance.instance_id}</span>
 								{:else}
@@ -86,12 +86,12 @@
 								<Tag label={common_production()} color="Blue" />
 							{/if}
 							{#if !active}
-								<span class="text-secondary text-xs">{common_inactive()}</span>
+								<span class="text-xs text-secondary">{common_inactive()}</span>
 							{:else if refused}
 								<Tag label={common_readOnly()} color="Red" />
 							{/if}
 						</div>
-						<p class="text-secondary text-xs">
+						<p class="text-xs text-secondary">
 							{#if instance.last_seen_ip}
 								{common_ipAddress()}: <span class="font-mono">{instance.last_seen_ip}</span> ·
 							{/if}
@@ -103,7 +103,7 @@
 					</div>
 					<button
 						type="button"
-						class="btn-secondary flex flex-shrink-0 items-center gap-2"
+						class="btn-secondary flex shrink-0 items-center gap-2"
 						onclick={() => (pendingDelete = instance.id)}
 						disabled={deleteMutation.isPending}
 					>

@@ -921,7 +921,7 @@
 						<!-- Provisioning or the install-command fetch is in flight (reaching Install via
 						     the tab strip doesn't await it). Show nothing until the server's command and
 						     the key both exist. -->
-						<div class="text-muted flex flex-1 items-center justify-center gap-3 p-6">
+						<div class="flex flex-1 items-center justify-center gap-3 p-6 text-muted">
 							<Loader2 class="h-4 w-4 animate-spin" />
 							{daemons_provisioningDaemon()}
 						</div>

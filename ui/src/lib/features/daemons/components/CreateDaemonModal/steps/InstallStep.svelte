@@ -249,14 +249,14 @@
 				{#if isServerPoll}
 					<!-- ServerPoll: show health check result, then progress bar if reachable -->
 					{#if isCheckingHealth}
-						<Loader2 class="text-primary h-10 w-10 animate-spin" />
-						<p class="text-secondary text-sm">{daemons_troubleshoot_testingConnection()}</p>
+						<Loader2 class="h-10 w-10 animate-spin text-primary" />
+						<p class="text-sm text-secondary">{daemons_troubleshoot_testingConnection()}</p>
 					{:else if serverPollReachable}
 						<div class="flex w-full max-w-xs items-center gap-2">
 							<ProgressTrack class="flex-1">
 								<AnimatedProgressBar progress={waitingProgress} />
 							</ProgressTrack>
-							<span class="text-secondary text-xs tabular-nums">{Math.round(waitingProgress)}%</span
+							<span class="text-xs text-secondary tabular-nums">{Math.round(waitingProgress)}%</span
 							>
 						</div>
 						<div class="max-w-md text-left">
@@ -264,7 +264,7 @@
 						</div>
 					{:else if healthResult}
 						<!-- Health check failed -->
-						<h3 class="text-primary text-base font-semibold">
+						<h3 class="text-base font-semibold text-primary">
 							{daemons_troubleshoot_connectionTestFailed()}
 						</h3>
 						<div class="max-w-md text-left">
@@ -295,13 +295,13 @@
 						<ProgressTrack class="flex-1">
 							<AnimatedProgressBar progress={waitingProgress} />
 						</ProgressTrack>
-						<span class="text-secondary text-xs tabular-nums">{Math.round(waitingProgress)}%</span>
+						<span class="text-xs text-secondary tabular-nums">{Math.round(waitingProgress)}%</span>
 					</div>
 					<div>
-						<h3 class="text-primary text-base font-semibold">
+						<h3 class="text-base font-semibold text-primary">
 							{daemons_troubleshoot_waitingTitle()}
 						</h3>
-						<p class="text-secondary mt-1 text-sm">
+						<p class="mt-1 text-sm text-secondary">
 							{daemons_troubleshoot_waitingDesc()}
 						</p>
 					</div>
@@ -311,10 +311,10 @@
 			<div class="flex flex-col items-center gap-4 py-8 text-center">
 				<CheckCircle2 class="h-10 w-10 text-green-400" />
 				<div>
-					<h3 class="text-primary text-base font-semibold">
+					<h3 class="text-base font-semibold text-primary">
 						{daemons_troubleshoot_connectedTitle()}
 					</h3>
-					<p class="text-secondary mt-1 text-sm">
+					<p class="mt-1 text-sm text-secondary">
 						{daemons_troubleshoot_connectedDesc()}
 					</p>
 				</div>
@@ -322,7 +322,7 @@
 					{common_viewTopology()}
 				</button>
 				{#if hasEmail && isFirstDaemon}
-					<p class="text-secondary text-sm">
+					<p class="text-sm text-secondary">
 						{common_firstDiscoveryEmailHint()}
 					</p>
 				{/if}
@@ -330,8 +330,8 @@
 		{:else if connectionStatus === 'trouble'}
 			<div class="flex flex-col gap-4 py-4">
 				<div class="flex items-center gap-3">
-					<AlertTriangle class="h-8 w-8 flex-shrink-0 text-yellow-400" />
-					<h3 class="text-primary text-base font-semibold">
+					<AlertTriangle class="h-8 w-8 shrink-0 text-yellow-400" />
+					<h3 class="text-base font-semibold text-primary">
 						{#if isServerPoll}
 							{daemons_troubleshoot_troubleTitleServerPoll()}
 						{:else}
@@ -399,7 +399,7 @@
 				{/snippet}
 				{#if selectedOS === 'linux'}
 					{#if linuxMethod === 'binary'}
-						<p class="text-secondary text-sm">
+						<p class="text-sm text-secondary">
 							{daemons_installCommandDescription()}
 						</p>
 						<CodeContainer
@@ -426,7 +426,7 @@
 						/>
 					{/if}
 				{:else if selectedOS === 'macos'}
-					<p class="text-secondary text-sm">
+					<p class="text-sm text-secondary">
 						{daemons_installCommandDescription()}
 					</p>
 					<CodeContainer
@@ -446,7 +446,7 @@
 					/>
 					-->
 					{#if windowsMethod === 'exe'}
-						<p class="text-secondary text-sm">
+						<p class="text-sm text-secondary">
 							{daemons_installCommandDescription()}
 						</p>
 						<CodeContainer
@@ -472,10 +472,10 @@
 								{/if}
 								{daemons_msiDownloadButton()}
 							</button>
-							<span class="text-secondary font-mono text-xs">{artifacts.msi.filename}</span>
+							<span class="font-mono text-xs text-secondary">{artifacts.msi.filename}</span>
 						</div>
 						{#if msiNeedsRename}
-							<p class="text-tertiary text-xs">
+							<p class="text-xs text-tertiary">
 								{daemons_msiRenameHint({ filename: artifacts.msi.filename })}
 							</p>
 						{/if}
@@ -489,7 +489,7 @@
 						{/if}
 					{/if}
 				{:else if selectedOS === 'freebsd'}
-					<p class="text-secondary text-sm">
+					<p class="text-sm text-secondary">
 						{daemons_installCommandDescription()}
 					</p>
 					<CodeContainer

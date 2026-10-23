@@ -87,7 +87,7 @@
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>
-			<div class="card card-static">
+			<div class="card-static card">
 				<EntityDisplayWrapper
 					context={{
 						services:
@@ -113,7 +113,7 @@
 			iconClass={entities.getColorHelper('Service').icon}
 			description={null}
 		>
-			<div class="card card-static">
+			<div class="card-static card">
 				<EntityDisplayWrapper
 					context={{
 						ipAddressId: null,
@@ -142,7 +142,7 @@
 		>
 			<div class="space-y-1">
 				{#each containerHosts as host (host.id)}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							context={{
 								services: topology?.services.filter((s) => s.host_id == host.id) ?? [],
@@ -172,7 +172,7 @@
 		>
 			<div class="space-y-1">
 				{#each containerizedServices as service (service.id)}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							context={{
 								ipAddressId: null,
@@ -204,7 +204,7 @@
 		>
 			<div class="space-y-1">
 				{#each allBridgeSubnets as subnet (subnet.id)}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							context={{ compact: true }}
 							item={subnet}

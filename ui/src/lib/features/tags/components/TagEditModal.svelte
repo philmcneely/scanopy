@@ -283,7 +283,7 @@
 						<form.Field name="color">
 							{#snippet children(field)}
 								<div class="space-y-2">
-									<div class="text-secondary block text-sm font-medium">{common_color()}</div>
+									<div class="block text-sm font-medium text-secondary">{common_color()}</div>
 									<div class="flex flex-wrap gap-1.5">
 										{#each AVAILABLE_COLORS as color (color)}
 											{@const ch = createColorHelper(color)}

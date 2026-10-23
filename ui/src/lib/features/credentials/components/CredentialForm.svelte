@@ -895,7 +895,7 @@
 			     Shown in both modes: it is a fact about the credential, not about the choice
 			     being made here. -->
 			{#if lockedHosts.length > 0}
-				<p class="text-tertiary flex flex-wrap items-center gap-1 text-xs">
+				<p class="flex flex-wrap items-center gap-1 text-xs text-tertiary">
 					<span>{credentials_alreadyAssignedTo()}</span>
 					{#each lockedHosts as host (host.id)}
 						<EntityTag
@@ -921,7 +921,7 @@
 			{/if}
 
 			{#if targetMode === 'broadcast'}
-				<p class="text-muted text-xs">{daemons_credentialWizardBroadcastHelp()}</p>
+				<p class="text-xs text-muted">{daemons_credentialWizardBroadcastHelp()}</p>
 			{:else}
 				{#each targetIpValues as ip, i (i)}
 					<div class="flex items-center gap-2">
@@ -958,7 +958,7 @@
 						{/if}
 						<button
 							type="button"
-							class="text-muted hover:text-primary shrink-0 p-1 text-lg leading-none"
+							class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
 							onclick={() => handleRemoveTarget(i)}>&times;</button
 						>
 					</div>
@@ -976,7 +976,7 @@
 							>
 								<button
 									type="button"
-									class="text-muted cursor-not-allowed text-sm opacity-40"
+									class="cursor-not-allowed text-sm text-muted opacity-40"
 									disabled>+ {daemons_credentialWizardAddDaemonHostTarget()}</button
 								>
 							</span>
@@ -984,22 +984,22 @@
 							<!-- Already added: disabled, no hover state -->
 							<button
 								type="button"
-								class="text-muted cursor-not-allowed text-sm opacity-40"
+								class="cursor-not-allowed text-sm text-muted opacity-40"
 								disabled>+ {daemons_credentialWizardAddDaemonHostTarget()}</button
 							>
 						{:else}
-							<button type="button" class="text-link text-sm" onclick={handleAddDaemonHostTarget}
+							<button type="button" class="text-sm text-link" onclick={handleAddDaemonHostTarget}
 								>+ {daemons_credentialWizardAddDaemonHostTarget()}</button
 							>
 						{/if}
 					{/if}
 					{#if supportsRemoteHosts}
-						<button type="button" class="text-link text-sm" onclick={handleAddIpTarget}
+						<button type="button" class="text-sm text-link" onclick={handleAddIpTarget}
 							>+ {daemons_credentialWizardAddRemoteHostTarget()}</button
 						>
 					{/if}
 				</div>
-				<p class="text-muted text-xs">{daemons_credentialWizardTargetIpHelp()}</p>
+				<p class="text-xs text-muted">{daemons_credentialWizardTargetIpHelp()}</p>
 			{/if}
 		{/if}
 
@@ -1133,7 +1133,7 @@
 			onSelect={handleTypeChange}
 		/>
 		{#if !isEditing}
-			<p class="text-muted mt-1 text-xs">{credentials_typeImmutableWarning()}</p>
+			<p class="mt-1 text-xs text-muted">{credentials_typeImmutableWarning()}</p>
 		{/if}
 	</div>
 {/snippet}
@@ -1152,7 +1152,7 @@
 					onChange={(os) => (daemonOs = os)}
 					variant="inline"
 				/>
-				<p class="text-muted text-xs">{credentials_daemonOsHelp()}</p>
+				<p class="text-xs text-muted">{credentials_daemonOsHelp()}</p>
 			</div>
 		{/snippet}
 	</form.Field>
@@ -1164,7 +1164,7 @@
 		{#if field.field_type === 'select'}
 			<form.Field name={fName} validators={getFieldValidators(field)}>
 				{#snippet children(formField: AnyFieldApi)}
-					<label for={field.id} class="text-secondary block text-sm font-medium">
+					<label for={field.id} class="block text-sm font-medium text-secondary">
 						{field.label}
 						{#if !field.optional}
 							<span class="text-red-400">*</span>
@@ -1179,7 +1179,7 @@
 							formField.handleChange(target.value);
 						}}
 						onblur={() => formField.handleBlur()}
-						class="select-trigger text-primary w-full rounded-md px-3 py-2 text-sm"
+						class="select-trigger w-full rounded-md px-3 py-2 text-sm text-primary"
 						class:input-field-error={formField.state.meta.errors?.length > 0}
 					>
 						{#each field.options ?? [] as option (option.value)}
@@ -1191,7 +1191,7 @@
 		{:else if field.field_type === 'secretpathorinline'}
 			<form.Field name={fName} validators={getFieldValidators(field)}>
 				{#snippet children(formField: AnyFieldApi)}
-					<label for={field.id} class="text-secondary block text-sm font-medium">
+					<label for={field.id} class="block text-sm font-medium text-secondary">
 						{field.label}
 						{#if !field.optional}
 							<span class="text-red-400">*</span>
@@ -1208,7 +1208,7 @@
 							size="sm"
 						/>
 						{#if getSecretFieldMode(field.id) === 'inline'}
-							<p class="text-muted text-xs">
+							<p class="text-xs text-muted">
 								{credentials_secretStoredInDatabase()}
 							</p>
 							{#if field.inline_format === 'pemprivatekey' || field.inline_format === 'sshprivatekey' || !field.inline_format}
@@ -1224,14 +1224,14 @@
 										onblur={() => formField.handleBlur()}
 										placeholder={placeholderFor(field) || '-----BEGIN PRIVATE KEY-----'}
 										rows={4}
-										class="input-field text-primary w-full rounded-md px-3 py-2 pr-10 font-mono text-sm"
+										class="input-field w-full rounded-md px-3 py-2 pr-10 font-mono text-sm text-primary"
 										class:password-field={!secretFieldVisible[field.id]}
 										class:input-field-error={formField.state.meta.errors?.length > 0}
 									></textarea>
 									{#if getSecretFieldDisplayValue(field.id) && getSecretFieldDisplayValue(field.id) !== '********'}
 										<button
 											type="button"
-											class="text-muted hover:text-secondary absolute right-2 top-2"
+											class="absolute top-2 right-2 text-muted hover:text-secondary"
 											onclick={() => (secretFieldVisible[field.id] = !secretFieldVisible[field.id])}
 										>
 											{#if secretFieldVisible[field.id]}
@@ -1255,13 +1255,13 @@
 										}}
 										onblur={() => formField.handleBlur()}
 										placeholder={placeholderFor(field)}
-										class="input-field text-primary w-full rounded-md px-3 py-2 pr-10 text-sm"
+										class="input-field w-full rounded-md px-3 py-2 pr-10 text-sm text-primary"
 										class:input-field-error={formField.state.meta.errors?.length > 0}
 									/>
 									{#if getSecretFieldDisplayValue(field.id) && getSecretFieldDisplayValue(field.id) !== '********'}
 										<button
 											type="button"
-											class="text-muted hover:text-secondary absolute right-2 top-1/2 -translate-y-1/2"
+											class="absolute top-1/2 right-2 -translate-y-1/2 text-muted hover:text-secondary"
 											onclick={() => (secretFieldVisible[field.id] = !secretFieldVisible[field.id])}
 										>
 											{#if secretFieldVisible[field.id]}
@@ -1274,7 +1274,7 @@
 								</div>
 							{/if}
 						{:else}
-							<p class="text-muted text-xs">
+							<p class="text-xs text-muted">
 								{credentials_filePathReadByDaemon()}
 							</p>
 							<input
@@ -1288,7 +1288,7 @@
 								}}
 								onblur={() => formField.handleBlur()}
 								placeholder={filePathPlaceholder(field, daemonOs)}
-								class="input-field text-primary w-full rounded-md px-3 py-2 text-sm"
+								class="input-field w-full rounded-md px-3 py-2 text-sm text-primary"
 								class:input-field-error={formField.state.meta.errors?.length > 0}
 							/>
 						{/if}
@@ -1298,7 +1298,7 @@
 		{:else if field.field_type === 'pathorinline'}
 			<form.Field name={fName} validators={getFieldValidators(field)}>
 				{#snippet children(formField: AnyFieldApi)}
-					<label for={field.id} class="text-secondary block text-sm font-medium">
+					<label for={field.id} class="block text-sm font-medium text-secondary">
 						{field.label}
 						{#if !field.optional}
 							<span class="text-red-400">*</span>
@@ -1315,7 +1315,7 @@
 							size="sm"
 						/>
 						{#if getFileFieldMode(field.id) === 'inline'}
-							<p class="text-muted text-xs">
+							<p class="text-xs text-muted">
 								{credentials_secretStoredInDatabase()}
 							</p>
 							{#if field.inline_format === 'pemcertificate'}
@@ -1330,7 +1330,7 @@
 									onblur={() => formField.handleBlur()}
 									placeholder={placeholderFor(field)}
 									rows={4}
-									class="input-field text-primary w-full rounded-md px-3 py-2 font-mono text-sm"
+									class="input-field w-full rounded-md px-3 py-2 font-mono text-sm text-primary"
 									class:input-field-error={formField.state.meta.errors?.length > 0}
 								></textarea>
 							{:else}
@@ -1345,12 +1345,12 @@
 									}}
 									onblur={() => formField.handleBlur()}
 									placeholder={placeholderFor(field)}
-									class="input-field text-primary w-full rounded-md px-3 py-2 text-sm"
+									class="input-field w-full rounded-md px-3 py-2 text-sm text-primary"
 									class:input-field-error={formField.state.meta.errors?.length > 0}
 								/>
 							{/if}
 						{:else}
-							<p class="text-muted text-xs">
+							<p class="text-xs text-muted">
 								{credentials_filePathReadByDaemon()}
 							</p>
 							<input
@@ -1364,7 +1364,7 @@
 								}}
 								onblur={() => formField.handleBlur()}
 								placeholder={filePathPlaceholder(field, daemonOs)}
-								class="input-field text-primary w-full rounded-md px-3 py-2 text-sm"
+								class="input-field w-full rounded-md px-3 py-2 text-sm text-primary"
 								class:input-field-error={formField.state.meta.errors?.length > 0}
 							/>
 						{/if}
@@ -1391,7 +1391,7 @@
 			<form.Field name={fName} validators={getFieldValidators(field)}>
 				{#snippet children(formField: AnyFieldApi)}
 					{@const source = getScriptSource(field.id)}
-					<label for={field.id} class="text-secondary block text-sm font-medium">
+					<label for={field.id} class="block text-sm font-medium text-secondary">
 						{field.label}
 						{#if !field.optional}
 							<span class="text-red-400">*</span>
@@ -1406,7 +1406,7 @@
 							size="sm"
 						/>
 						{#if source.mode === 'Inline'}
-							<p class="text-muted text-xs">
+							<p class="text-xs text-muted">
 								{credentials_secretStoredInDatabase()}
 							</p>
 							<textarea
@@ -1419,11 +1419,11 @@
 								}}
 								onblur={() => formField.handleBlur()}
 								rows={8}
-								class="input-field text-primary w-full rounded-md px-3 py-2 font-mono text-sm"
+								class="input-field w-full rounded-md px-3 py-2 font-mono text-sm text-primary"
 								class:input-field-error={formField.state.meta.errors?.length > 0}
 							></textarea>
 						{:else}
-							<p class="text-muted text-xs">
+							<p class="text-xs text-muted">
 								{source.mode === 'DaemonFile'
 									? credentials_filePathReadByDaemon()
 									: credentials_filePathRunByScannedHost()}
@@ -1441,7 +1441,7 @@
 								placeholder={source.mode === 'HostFile'
 									? placeholderFor(field)
 									: filePathPlaceholder(field, daemonOs)}
-								class="input-field text-primary w-full rounded-md px-3 py-2 text-sm"
+								class="input-field w-full rounded-md px-3 py-2 text-sm text-primary"
 								class:input-field-error={formField.state.meta.errors?.length > 0}
 							/>
 						{/if}
@@ -1451,7 +1451,7 @@
 		{:else if field.field_type === 'text'}
 			<form.Field name={fName} validators={getFieldValidators(field)}>
 				{#snippet children(formField: AnyFieldApi)}
-					<label for={field.id} class="text-secondary block text-sm font-medium">
+					<label for={field.id} class="block text-sm font-medium text-secondary">
 						{field.label}
 						{#if !field.optional}
 							<span class="text-red-400">*</span>
@@ -1468,7 +1468,7 @@
 						onblur={() => formField.handleBlur()}
 						placeholder={placeholderFor(field)}
 						rows={8}
-						class="input-field text-primary w-full rounded-md px-3 py-2 font-mono text-sm"
+						class="input-field w-full rounded-md px-3 py-2 font-mono text-sm text-primary"
 						class:password-field={isSecret}
 						class:input-field-error={formField.state.meta.errors?.length > 0}
 					></textarea>
@@ -1477,7 +1477,7 @@
 		{:else}
 			<form.Field name={fName} validators={getFieldValidators(field)}>
 				{#snippet children(formField: AnyFieldApi)}
-					<label for={field.id} class="text-secondary block text-sm font-medium">
+					<label for={field.id} class="block text-sm font-medium text-secondary">
 						{field.label}
 						{#if !field.optional}
 							<span class="text-red-400">*</span>
@@ -1494,7 +1494,7 @@
 						}}
 						onblur={() => formField.handleBlur()}
 						placeholder={placeholderFor(field)}
-						class="input-field text-primary w-full rounded-md px-3 py-2 text-sm"
+						class="input-field w-full rounded-md px-3 py-2 text-sm text-primary"
 						class:input-field-error={formField.state.meta.errors?.length > 0}
 					/>
 				{/snippet}
@@ -1502,7 +1502,7 @@
 		{/if}
 
 		{#if field.help_text}
-			<p class="text-muted text-xs">{field.help_text}</p>
+			<p class="text-xs text-muted">{field.help_text}</p>
 		{/if}
 		{#if field.field_type === 'scriptsource' && integrationDocsPath}
 			<DocsHint

@@ -422,7 +422,7 @@
 					<th
 						bind:this={selectHeader}
 						scope="col"
-						class="pin-left w-10 px-[var(--cell-px)] py-[var(--cell-py)]"
+						class="pin-left w-10 px-(--cell-px) py-(--cell-py)"
 					>
 						<input
 							type="checkbox"
@@ -431,7 +431,7 @@
 							onchange={onToggleAll}
 							aria-label={allSelected ? common_deselectAll() : common_selectAllOnPage()}
 							title="{common_selectAllOnPage()} ({shortcutLabel('A')})"
-							class="checkbox-card h-4 w-4"
+							class="h-4 w-4 checkbox-card"
 						/>
 					</th>
 				{/if}
@@ -446,7 +446,7 @@
 							scope="col"
 							aria-sort={ariaSort(column.id)}
 							style="{width ? `width: ${width}px;` : ''} {pin.style}"
-							class="text-secondary {pin.class} whitespace-nowrap px-[var(--cell-px)] py-[var(--cell-py)] text-xs font-medium {column.align ===
+							class="text-secondary {pin.class} px-(--cell-px) py-(--cell-py) text-xs font-medium whitespace-nowrap {column.align ===
 							'right'
 								? 'text-right'
 								: 'text-left'}"
@@ -481,7 +481,7 @@
 					<th
 						bind:this={actionsHeader}
 						scope="col"
-						class="text-secondary pin-right px-[var(--cell-px)] py-[var(--cell-py)] text-left text-xs font-medium"
+						class="pin-right px-(--cell-px) py-(--cell-py) text-left text-xs font-medium text-secondary"
 					>
 						{common_actions()}
 					</th>
@@ -501,13 +501,13 @@
 						<th
 							scope="colgroup"
 							colspan={spannedColumns}
-							class="bg-black/[0.07] px-[var(--cell-px)] py-[var(--cell-py)] text-left dark:bg-white/[0.08]"
+							class="bg-black/[0.07] px-(--cell-px) py-(--cell-py) text-left dark:bg-white/8"
 						>
 							<button
 								type="button"
 								onclick={() => onToggleCollapse(group.key)}
 								aria-expanded={!isCollapsed}
-								class="text-primary pin-content flex w-max items-center gap-2 text-sm font-semibold"
+								class="pin-content flex w-max items-center gap-2 text-sm font-semibold text-primary"
 							>
 								{#if isCollapsed}
 									<ChevronRight class="h-4 w-4" aria-hidden="true" />
@@ -515,7 +515,7 @@
 									<ChevronDown class="h-4 w-4" aria-hidden="true" />
 								{/if}
 								<span>{group.name}</span>
-								<span class="text-tertiary text-xs font-normal">
+								<span class="text-xs font-normal text-tertiary">
 									{#if group.range}
 										{common_groupTotalShowing({
 											total: group.range.total,
@@ -589,13 +589,13 @@
 		<th
 			scope="rowgroup"
 			colspan={spannedColumns}
-			class="px-[var(--cell-px)] py-[var(--cell-py)] text-left font-medium"
+			class="px-(--cell-px) py-(--cell-py) text-left font-medium"
 		>
 			<button
 				type="button"
 				onclick={() => onToggleCollapse(entry.key)}
 				aria-expanded={!isCollapsed}
-				class="text-secondary pin-content flex w-max items-center gap-1.5 text-sm"
+				class="pin-content flex w-max items-center gap-1.5 text-sm text-secondary"
 			>
 				{#if isCollapsed}
 					<ChevronRight class="h-4 w-4" aria-hidden="true" />
@@ -604,7 +604,7 @@
 				{/if}
 				<span>{entry.label}</span>
 				{#if entry.range}
-					<span class="text-tertiary text-xs font-normal">
+					<span class="text-xs font-normal text-tertiary">
 						{common_groupTotalShowing({
 							total: entry.range.total,
 							start: entry.range.start,
@@ -628,7 +628,7 @@
 			onclick={() => onToggleCollapse(section.key)}
 			aria-expanded={!isCollapsed}
 			aria-label={isCollapsed ? common_expand() : common_collapse()}
-			class="text-tertiary hover:text-primary flex shrink-0 items-center transition-colors"
+			class="flex shrink-0 items-center text-tertiary transition-colors hover:text-primary"
 		>
 			{#if isCollapsed}
 				<ChevronRight class="h-4 w-4" aria-hidden="true" />
@@ -643,7 +643,7 @@
 
 {#snippet treeCount(tree: TreeCell<T>)}
 	{#if tree.section}
-		<span class="text-tertiary shrink-0 text-xs font-normal">
+		<span class="shrink-0 text-xs font-normal text-tertiary">
 			{#if tree.range}
 				{common_groupTotalShowing({
 					total: tree.range.total,
@@ -666,7 +666,7 @@
 	<!-- The checkbox is the keyboard path; the row click is a larger mouse target for the same. -->
 	<tr
 		data-keeps-selection
-		class="border-t bg-[var(--row-tint)] transition-colors {selectable || openAction
+		class="border-t bg-(--row-tint) transition-colors {selectable || openAction
 			? 'cursor-pointer'
 			: ''} {isSelected
 			? '[--row-tint:rgb(0_0_0/0.05)] dark:[--row-tint:rgb(255_255_255/0.05)]'
@@ -689,7 +689,7 @@
 		}}
 	>
 		{#if selectable}
-			<td class="pin-left w-10 px-[var(--cell-px)] py-[var(--cell-py)] align-middle">
+			<td class="pin-left w-10 px-(--cell-px) py-(--cell-py) align-middle">
 				<input
 					type="checkbox"
 					checked={isSelected}
@@ -700,7 +700,7 @@
 						e.currentTarget.checked = selectedIds.has(itemId);
 					}}
 					aria-label={common_selectRow({ name: rowLabel(item) })}
-					class="checkbox-card h-4 w-4"
+					class="h-4 w-4 checkbox-card"
 				/>
 			</td>
 		{/if}
@@ -714,7 +714,7 @@
 					<th
 						scope="row"
 						style={pin.style}
-						class="text-primary {pin.class} px-[var(--cell-px)] py-[var(--cell-py)] text-left align-middle font-medium"
+						class="text-primary {pin.class} px-(--cell-px) py-(--cell-py) text-left align-middle font-medium"
 					>
 						{#if tree}
 							{#if depth > 0}
@@ -736,8 +736,7 @@
 				{:else}
 					<td
 						style={pin.style}
-						class="{pin.class} px-[var(--cell-px)] py-[var(--cell-py)] align-middle {column.align ===
-						'right'
+						class="{pin.class} px-(--cell-px) py-(--cell-py) align-middle {column.align === 'right'
 							? 'text-right'
 							: ''}"
 					>
@@ -751,7 +750,7 @@
 
 		{#if rowActions}
 			{@const actions = shownActions(rowActions)}
-			<td class="pin-right px-[var(--cell-px)] py-[var(--cell-py)] text-right align-middle">
+			<td class="pin-right px-(--cell-px) py-(--cell-py) text-right align-middle">
 				<div class="flex items-center justify-end gap-1">
 					{#each actions as action (action.label)}
 						{@const tip = resolveTooltip(action) ?? action.label}
@@ -788,7 +787,7 @@
 			type="button"
 			onclick={() => onToggleSort(column.id)}
 			aria-label={common_sortByColumn({ column: column.label })}
-			class="hover:text-primary group inline-flex min-w-0 items-center gap-1 transition-colors"
+			class="group inline-flex min-w-0 items-center gap-1 transition-colors hover:text-primary"
 		>
 			<span class="truncate">{column.label}</span>
 			<!--
@@ -797,13 +796,13 @@
 			-->
 			{#if sortState.field === column.id}
 				{#if sortState.direction === 'asc'}
-					<ArrowUpNarrowWide class="text-accent h-3.5 w-3.5" aria-hidden="true" />
+					<ArrowUpNarrowWide class="h-3.5 w-3.5 text-accent" aria-hidden="true" />
 				{:else}
-					<ArrowDownWideNarrow class="text-accent h-3.5 w-3.5" aria-hidden="true" />
+					<ArrowDownWideNarrow class="h-3.5 w-3.5 text-accent" aria-hidden="true" />
 				{/if}
 			{:else}
 				<ArrowUpDown
-					class="text-tertiary group-hover:text-secondary group-focus-visible:text-secondary h-3.5 w-3.5"
+					class="h-3.5 w-3.5 text-tertiary group-hover:text-secondary group-focus-visible:text-secondary"
 					aria-hidden="true"
 				/>
 			{/if}
@@ -833,7 +832,7 @@
 		aria-valuemax={MAX_COLUMN_WIDTH}
 		aria-valuenow={width}
 		tabindex="0"
-		class="group absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none select-none justify-end focus:outline-none"
+		class="group absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none justify-end select-none focus:outline-hidden"
 		onmousedown={(e) => startResize(e, header)}
 		ontouchstart={(e) => startResize(e, header)}
 		ondblclick={() => resetWidth(column.id)}

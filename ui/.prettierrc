@@ -12,5 +12,5 @@
 			}
 		}
 	],
-	"tailwindConfig": "./tailwind.config.js"
+	"tailwindStylesheet": "./src/app.css"
 }

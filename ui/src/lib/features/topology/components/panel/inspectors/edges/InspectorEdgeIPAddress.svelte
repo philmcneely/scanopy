@@ -57,7 +57,7 @@
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>
-			<div class="card card-static">
+			<div class="card-static card">
 				<EntityDisplayWrapper
 					context={{
 						services: topology?.services.filter((s) => host && s.host_id == host.id) ?? [],
@@ -82,7 +82,7 @@
 	>
 		<div class="space-y-1">
 			{#if sourceInterface}
-				<div class="card card-static">
+				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={interfaceContext}
 						item={sourceInterface}
@@ -92,7 +92,7 @@
 			{/if}
 
 			{#if targetInterface}
-				<div class="card card-static">
+				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={interfaceContext}
 						item={targetInterface}

@@ -74,7 +74,7 @@
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>
-			<div class="card card-static">
+			<div class="card-static card">
 				<EntityDisplayWrapper
 					context={hostContext(guestHost)}
 					item={guestHost}
@@ -95,7 +95,7 @@
 		>
 			<div class="space-y-1">
 				{#each identityHosts as identityHost (identityHost.id)}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							context={hostContext(identityHost, ['guest'])}
 							item={identityHost}
@@ -115,7 +115,7 @@
 			iconClass={entities.getColorHelper('Interface').icon}
 			description={null}
 		>
-			<div class="card card-static">
+			<div class="card-static card">
 				<EntityDisplayWrapper
 					context={{ compact: true }}
 					item={identityInterface}

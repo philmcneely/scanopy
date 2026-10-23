@@ -57,7 +57,7 @@
 		bind:this={triggerEl}
 		type="button"
 		onclick={toggle}
-		class="select-trigger text-primary flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5
+		class="select-trigger flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-primary
            {error ? 'border-red-500' : ''}
            {disabled || options.length === 0 ? 'cursor-not-allowed opacity-50' : ''}"
 		disabled={disabled || options.length === 0}
@@ -72,18 +72,18 @@
 				disablePopover={true}
 			/>
 		{:else}
-			<span class="text-secondary text-sm">
+			<span class="text-sm text-secondary">
 				{options.length === 0
 					? common_noOptionsAvailable()
 					: (placeholder ?? common_selectOption())}
 			</span>
 		{/if}
 		<ChevronDown
-			class="text-tertiary h-4 w-4 flex-shrink-0 transition-transform {isOpen ? 'rotate-180' : ''}"
+			class="h-4 w-4 shrink-0 text-tertiary transition-transform {isOpen ? 'rotate-180' : ''}"
 		/>
 	</button>
 	{#if error}
-		<div class="text-danger mt-1 text-xs">{error}</div>
+		<div class="mt-1 text-xs text-danger">{error}</div>
 	{/if}
 </div>
 

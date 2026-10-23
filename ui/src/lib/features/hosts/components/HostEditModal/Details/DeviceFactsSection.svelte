@@ -292,20 +292,20 @@
 </script>
 
 {#if sections.length > 0}
-	<div class="card card-static">
+	<div class="card-static card">
 		<div class="divide-y divide-gray-200 dark:divide-gray-700">
 			{#each sections as section (section.title)}
 				<div class="space-y-2 py-3 first:pt-0 last:pb-0">
-					<h4 class="text-secondary text-xs font-semibold uppercase tracking-wide">
+					<h4 class="text-xs font-semibold tracking-wide text-secondary uppercase">
 						{section.title}
 					</h4>
 					{#if section.summary}
-						<p class="text-secondary text-sm">{section.summary}</p>
+						<p class="text-sm text-secondary">{section.summary}</p>
 					{/if}
 					{#each section.facts as fact (fact.label)}
 						<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-							<span class="text-secondary w-40 shrink-0 text-sm">{fact.label}</span>
-							<span class="text-primary min-w-0 flex-1 break-words text-sm">
+							<span class="w-40 shrink-0 text-sm text-secondary">{fact.label}</span>
+							<span class="min-w-0 flex-1 text-sm wrap-break-word text-primary">
 								{#if fact.guestState}
 									<GuestStateTag state={fact.guestState} />
 								{:else if fact.entity}

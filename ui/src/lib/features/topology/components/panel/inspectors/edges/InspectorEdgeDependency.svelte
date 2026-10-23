@@ -236,7 +236,7 @@
 			description={null}
 		>
 			<div class="space-y-3">
-				<div class="card card-static">
+				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={groupContext}
 						item={group}
@@ -288,8 +288,8 @@
 						{#if bindingService && bindingHost && bindingData}
 							<div
 								class={isRequestPath
-									? `card card-static ${bindingId == sourceId || bindingId == targetId ? 'ring-1 ring-gray-500' : ''}`
-									: `card card-static ${bindingId == sourceId ? `ring-1 ${groupColor.ring}` : bindingId == targetId ? 'ring-1 ring-gray-500' : ''}`}
+									? `card-static card ${bindingId == sourceId || bindingId == targetId ? 'ring-1 ring-gray-500' : ''}`
+									: `card-static card ${bindingId == sourceId ? `ring-1 ${groupColor.ring}` : bindingId == targetId ? 'ring-1 ring-gray-500' : ''}`}
 							>
 								<EntityDisplayWrapper
 									context={bindingContext}
@@ -299,11 +299,11 @@
 							</div>
 							{#if bindingId == sourceId && isRequestPath}
 								<div class="flex flex-col items-center">
-									<ArrowDown class="text-secondary h-5 w-5" />
+									<ArrowDown class="h-5 w-5 text-secondary" />
 								</div>
 							{/if}
 						{:else if !bindingData}
-							<div class="card card-static text-secondary text-sm">
+							<div class="card-static card text-sm text-secondary">
 								{dependencies_missingMember()}
 							</div>
 						{/if}
@@ -312,7 +312,7 @@
 					{#each group.members.service_ids as serviceId (serviceId)}
 						{@const service = topology?.services.find((s) => s.id === serviceId)}
 						{#if service}
-							<div class="card card-static">
+							<div class="card-static card">
 								<EntityDisplayWrapper
 									context={{ compact: true } satisfies ServiceDisplayContext}
 									item={service}
@@ -320,7 +320,7 @@
 								/>
 							</div>
 						{:else}
-							<div class="card card-static text-secondary text-sm">
+							<div class="card-static card text-sm text-secondary">
 								{dependencies_missingMember()}
 							</div>
 						{/if}

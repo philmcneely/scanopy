@@ -115,7 +115,7 @@
 </script>
 
 <div class="space-y-6">
-	<p class="text-secondary text-sm">
+	<p class="text-sm text-secondary">
 		{ungroupedTags.length > 0
 			? appWizard_defineGroupsDescription_convert()
 			: appWizard_defineGroupsDescription_create()}
@@ -129,7 +129,7 @@
 	<!-- Suggested groups as application-styled tags -->
 	{#if availableSuggestions.length > 0}
 		<div>
-			<h3 class="text-secondary mb-2 text-xs font-medium uppercase tracking-wide">
+			<h3 class="mb-2 text-xs font-medium tracking-wide text-secondary uppercase">
 				{appWizard_suggestedGroups()}
 			</h3>
 			<div class="flex flex-wrap gap-2">
@@ -157,7 +157,7 @@
 	<!-- Convert existing tags -->
 	{#if ungroupedTags.length > 0}
 		<div>
-			<h3 class="text-secondary mb-2 text-xs font-medium uppercase tracking-wide">
+			<h3 class="mb-2 text-xs font-medium tracking-wide text-secondary uppercase">
 				{appWizard_convertExisting()}
 			</h3>
 			<div class="flex flex-wrap gap-2">
@@ -183,7 +183,7 @@
 
 	<!-- Custom group entry via TagPickerInline -->
 	<div>
-		<h3 class="text-secondary mb-2 text-xs font-medium uppercase tracking-wide">
+		<h3 class="mb-2 text-xs font-medium tracking-wide text-secondary uppercase">
 			{appWizard_createYourOwn()}
 		</h3>
 		<TagPickerInline
@@ -199,7 +199,7 @@
 	</div>
 
 	<!-- Footnote / empty state -->
-	<p class="text-tertiary text-center text-sm italic">
+	<p class="text-center text-sm text-tertiary italic">
 		{#if appTags.length === 0}
 			{appWizard_noGroupsYet()}&nbsp;
 		{/if}

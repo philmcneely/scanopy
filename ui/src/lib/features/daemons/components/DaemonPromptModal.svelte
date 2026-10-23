@@ -49,7 +49,7 @@
 			<div class="space-y-6">
 				<MiniTopologyPreview active={isOpen} />
 
-				<p class="text-secondary text-sm">{daemons_promptBody()}</p>
+				<p class="text-sm text-secondary">{daemons_promptBody()}</p>
 			</div>
 		</div>
 	</div>

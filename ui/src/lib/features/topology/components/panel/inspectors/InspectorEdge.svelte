@@ -97,7 +97,7 @@
 <div class="w-full space-y-4">
 	{#if !edgeData}
 		<div class="space-y-3">
-			<p class="text-tertiary text-sm">{inspector_edgeDataUnavailable()}</p>
+			<p class="text-sm text-tertiary">{inspector_edgeDataUnavailable()}</p>
 		</div>
 	{:else if edgeData.isAggregated && originalEdges}
 		<InspectorEdgeAggregated edges={originalEdges} />

@@ -225,7 +225,7 @@
 				{#if isDependencyEdge(edgeType)}
 					{@const uniqueDeps = dependencyEdgeGroups.get(edgeType) ?? []}
 					{#each uniqueDeps as dep (dep.id)}
-						<div class="card card-static">
+						<div class="card-static card">
 							<EntityDisplayWrapper
 								item={dep}
 								context={{ compact: true }}
@@ -236,7 +236,7 @@
 							{#each dep.members.service_ids as serviceId (serviceId)}
 								{@const service = topology?.services.find((s) => s.id === serviceId)}
 								{#if service}
-									<div class="card card-static ml-3">
+									<div class="card-static ml-3 card">
 										<EntityDisplayWrapper
 											context={{ compact: true } satisfies ServiceDisplayContext}
 											item={service}
@@ -251,7 +251,7 @@
 									s.bindings.some((b) => b.id === bindingId)
 								)}
 								{#if bindingService}
-									<div class="card card-static ml-3">
+									<div class="card-static ml-3 card">
 										<EntityDisplayWrapper
 											context={{ compact: true } satisfies ServiceDisplayContext}
 											item={bindingService}
@@ -262,19 +262,19 @@
 							{/each}
 						{/if}
 					{:else}
-						<div class="card card-static">
+						<div class="card-static card">
 							<div class="px-2 py-1">
-								<span class="text-secondary text-sm">{typeName}</span>
+								<span class="text-sm text-secondary">{typeName}</span>
 							</div>
 						</div>
 					{/each}
 				{:else if isContainerRuntime(edgeType) && svcVirtData}
 					{#if svcVirtData.mode === 'single'}
 						{#if svcVirtData.containerizer}
-							<span class="text-tertiary mb-1 block text-xs font-medium"
+							<span class="mb-1 block text-xs font-medium text-tertiary"
 								>{topology_containerService()}</span
 							>
-							<div class="card card-static">
+							<div class="card-static card">
 								<EntityDisplayWrapper
 									item={svcVirtData.containerizer}
 									context={{ ipAddressId: null, ports: topology?.ports ?? [], compact: true }}
@@ -283,11 +283,11 @@
 							</div>
 						{/if}
 						{#if svcVirtData.containerized.length > 0}
-							<span class="text-tertiary mb-1 block text-xs font-medium">
+							<span class="mb-1 block text-xs font-medium text-tertiary">
 								{common_containerizedServices()} ({svcVirtData.containerized.length})
 							</span>
 							{#each svcVirtData.containerized as service (service.id)}
-								<div class="card card-static">
+								<div class="card-static card">
 									<EntityDisplayWrapper
 										item={service}
 										context={{ ipAddressId: null, ports: topology?.ports ?? [], compact: true }}
@@ -297,11 +297,11 @@
 							{/each}
 						{/if}
 						{#if svcVirtData.containerHosts.length > 0}
-							<span class="text-tertiary mb-1 block text-xs font-medium">
+							<span class="mb-1 block text-xs font-medium text-tertiary">
 								{hosts_virtualization_containerHosts()} ({svcVirtData.containerHosts.length})
 							</span>
 							{#each svcVirtData.containerHosts as host (host.id)}
-								<div class="card card-static">
+								<div class="card-static card">
 									<EntityDisplayWrapper
 										item={host}
 										context={hostContext(host.id)}
@@ -312,7 +312,7 @@
 						{/if}
 					{:else}
 						{#each svcVirtData.hosts as { host, containerCount, runtimes } (host.id)}
-							<div class="card card-static">
+							<div class="card-static card">
 								<EntityDisplayWrapper
 									item={host}
 									context={{
@@ -325,7 +325,7 @@
 									{#each runtimes as runtime (runtime)}
 										<Tag {...serviceDefinitions.getTag(runtime)} />
 									{/each}
-									<span class="text-tertiary text-xs"
+									<span class="text-xs text-tertiary"
 										>{topology_containerCount({ count: containerCount })}</span
 									>
 								</div>
@@ -335,10 +335,10 @@
 				{:else if edgeType === 'NetworkIdentity' && identityGroups.length > 0}
 					{#each identityGroups as group (group.serviceId)}
 						{#if group.guest}
-							<span class="text-tertiary mb-1 block text-xs font-medium"
+							<span class="mb-1 block text-xs font-medium text-tertiary"
 								>{common_presentedBy()}</span
 							>
-							<div class="card card-static">
+							<div class="card-static card">
 								<EntityDisplayWrapper
 									item={group.guest}
 									context={hostContext(group.guest.id)}
@@ -346,11 +346,11 @@
 								/>
 							</div>
 						{/if}
-						<span class="text-tertiary mb-1 block text-xs font-medium">
+						<span class="mb-1 block text-xs font-medium text-tertiary">
 							{hostVirtualizations.getName('NetworkIdentity')} ({group.identities.length})
 						</span>
 						{#each group.identities as host (host.id)}
-							<div class="card card-static">
+							<div class="card-static card">
 								<EntityDisplayWrapper
 									item={host}
 									context={hostContext(host.id, ['guest'])}
@@ -361,7 +361,7 @@
 					{/each}
 				{:else}
 					{#each typeEdges as edge (edge.id)}
-						<div class="card card-static">
+						<div class="card-static card">
 							{#if displayComponent}
 								<EntityDisplayWrapper
 									item={edge}
@@ -370,7 +370,7 @@
 								/>
 							{:else}
 								<div class="px-2 py-1">
-									<span class="text-secondary text-sm">{typeName}</span>
+									<span class="text-sm text-secondary">{typeName}</span>
 								</div>
 							{/if}
 						</div>

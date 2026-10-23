@@ -64,7 +64,7 @@
 	<dl class="grid grid-cols-[auto_1fr] items-center gap-x-6 gap-y-1 text-sm">
 		{#if showPo && !editingPo}
 			<dt class="text-secondary">{billing_invoice_poNumber()}</dt>
-			<dd class="text-primary flex items-center gap-3">
+			<dd class="flex items-center gap-3 text-primary">
 				<span>{status.po_number ?? '—'}</span>
 				<button type="button" class="text-link hover:underline" onclick={startEditingPo}>
 					{common_edit()}
@@ -105,11 +105,11 @@
 {/if}
 
 {#if quote}
-	<div class="card card-static space-y-3 p-4">
-		<h3 class="text-primary text-sm font-semibold">
+	<div class="card-static space-y-3 card p-4">
+		<h3 class="text-sm font-semibold text-primary">
 			{billing_invoice_quoteTitle({ number: quote.number ?? '' })}
 		</h3>
-		<p class="text-secondary text-sm">
+		<p class="text-sm text-secondary">
 			{status.po_number
 				? billing_invoice_quoteBodyWithPo({
 						amount: formatMoney(quote.amount_total_cents, quote.currency),

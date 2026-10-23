@@ -85,7 +85,7 @@
 	<button
 		type="button"
 		use:revealWhen={highlighted === CREATE_ROW}
-		class="select-option flex w-full items-center gap-2 border-b px-3 py-2 text-left text-xs transition-colors {highlighted ===
+		class="flex select-option w-full items-center gap-2 border-b px-3 py-2 text-left text-xs transition-colors {highlighted ===
 		CREATE_ROW
 			? ACTIVE
 			: ''}"
@@ -105,7 +105,7 @@
 	{@const heading = headingAt(index)}
 	{#if heading}
 		<div
-			class="text-secondary sticky top-0 border-b px-3 py-2 text-xs font-semibold uppercase tracking-wide"
+			class="sticky top-0 border-b px-3 py-2 text-xs font-semibold tracking-wide text-secondary uppercase"
 			style="border-color: var(--color-border); background: var(--color-bg-surface)"
 		>
 			{heading}
@@ -114,7 +114,7 @@
 	<button
 		type="button"
 		use:revealWhen={highlighted === option.id}
-		class="select-option flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors {grouped
+		class="flex select-option w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors {grouped
 			? 'scroll-mt-9'
 			: ''} {highlighted === option.id ? ACTIVE : ''}"
 		onmousedown={() => onSelect(option.id)}
@@ -123,7 +123,7 @@
 			{@render row(option)}
 		{:else}
 			{#if option.icon}
-				<option.icon class="text-secondary h-3 w-3 shrink-0" />
+				<option.icon class="h-3 w-3 shrink-0 text-secondary" />
 			{:else if option.swatch}
 				<span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background-color: {option.swatch};"
 				></span>

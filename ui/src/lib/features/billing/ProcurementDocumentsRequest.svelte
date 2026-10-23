@@ -56,7 +56,7 @@
 			<button
 				type="submit"
 				disabled={!anySelected}
-				class="text-link text-sm hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
+				class="text-sm text-link hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
 			>
 				{settings_billing_procurementDocuments()}
 			</button>

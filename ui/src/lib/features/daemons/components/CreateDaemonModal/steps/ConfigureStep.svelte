@@ -228,6 +228,6 @@
 
 	<div class="space-y-2">
 		<OsSelector {selectedOS} {onOsSelect} showMethods={false} osDisabled={osLocked} />
-		<p class="text-muted text-xs">{osLocked ? daemons_osLocked() : daemons_osHelp()}</p>
+		<p class="text-xs text-muted">{osLocked ? daemons_osLocked() : daemons_osHelp()}</p>
 	</div>
 </div>

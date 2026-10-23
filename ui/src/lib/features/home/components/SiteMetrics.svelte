@@ -13,7 +13,7 @@
 </script>
 
 <section>
-	<h3 class="text-primary mb-3 text-base font-semibold">{common_sites()}</h3>
+	<h3 class="mb-3 text-base font-semibold text-primary">{common_sites()}</h3>
 	<div class="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4">
 		{#each sites as site (site.id)}
 			<SiteCard {site} />

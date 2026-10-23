@@ -64,7 +64,7 @@
 			iconClass={entities.getColorHelper('Service').icon}
 			description={null}
 		>
-			<div class="card card-static">
+			<div class="card-static card">
 				<EntityDisplayWrapper
 					context={{
 						ipAddressId: null,
@@ -92,7 +92,7 @@
 		>
 			<div class="space-y-1">
 				{#each bridgeSubnets as subnet (subnet.id)}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							context={{
 								showEntityTagPicker: true,

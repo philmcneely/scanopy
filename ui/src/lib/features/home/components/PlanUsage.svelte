@@ -83,14 +83,14 @@
 {#if hasLimits}
 	<section>
 		<div class="mb-3 flex items-center justify-between">
-			<h3 class="text-primary text-base font-semibold">Plan Usage</h3>
+			<h3 class="text-base font-semibold text-primary">Plan Usage</h3>
 			{#if showUpgrade}
 				<UpgradeButton feature="plan_usage" surface="home_plan_usage" gate_type="limit_hit" />
 			{/if}
 		</div>
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each rows as row (row.label)}
-				<div class="card card-static">
+				<div class="card-static card">
 					<div class="mb-2 flex items-center justify-between text-sm">
 						<span class="text-secondary">{row.label}</span>
 						<span class={textColor(row)}>{row.current} / {row.limit}</span>

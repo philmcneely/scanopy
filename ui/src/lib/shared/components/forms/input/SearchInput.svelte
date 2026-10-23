@@ -104,17 +104,19 @@
 <div class="flex items-center gap-2 {inset ? 'px-4 py-3' : ''}">
 	<div class="relative min-w-0 flex-1">
 		<Search
-			class="text-tertiary pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+			class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-tertiary"
 		/>
 		{#if chips}
 			<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 			<div
-				class="input-field flex flex-wrap items-center gap-1.5 pl-10 text-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 {rightPadding}"
+				class="flex input-field flex-wrap items-center gap-1.5 pl-10 text-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 {rightPadding}"
 				onclick={() => inputEl?.focus()}
 			>
 				{@render chips()}
 				<div class="relative min-w-32 flex-1">
-					{@render textInput('w-full border-0 bg-transparent p-0 focus:outline-none focus:ring-0')}
+					{@render textInput(
+						'w-full border-0 bg-transparent p-0 focus:outline-hidden focus:ring-0'
+					)}
 					{#if ghost}
 						<InputGhost {value}>{@render ghost()}</InputGhost>
 					{/if}
@@ -130,7 +132,7 @@
 					onClear?.();
 					inputEl?.focus();
 				}}
-				class="text-tertiary hover:text-secondary absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1.5 transition-colors"
+				class="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-1.5 text-tertiary transition-colors hover:text-secondary"
 				aria-label={common_clearSearch()}
 			>
 				{#if clearShortcut}
@@ -142,7 +144,7 @@
 			<KbdKey
 				key={shortcut!}
 				size="sm"
-				class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+				class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
 			/>
 		{/if}
 	</div>
