@@ -4,6 +4,7 @@
 	import { entities } from '$lib/shared/stores/metadata';
 	import DeviceGlyph from '$lib/features/hosts/components/DeviceGlyph.svelte';
 	import SoftwareGlyph from './SoftwareGlyph.svelte';
+	import PortGlyph from './PortGlyph.svelte';
 	import type { EntityGlyph } from '../../entity-glyph';
 	import {
 		selectedEdge as globalSelectedEdge,
@@ -43,10 +44,6 @@
 	const TILE_PX = 48;
 	const CARD_INNER_PX = ICON_ELEMENT_WIDTH_PX - 16;
 	import { stateFill as markedStateFill, type MarkValue } from '../../element-marks';
-
-	// A port's glyph: the Interface entity's own icon, in its colour.
-	const PortIcon = entities.getIconComponent('Interface');
-	const portIconColor = entities.getColorHelper('Interface').icon;
 
 	let { id, data, width }: NodeProps = $props();
 
@@ -139,7 +136,7 @@
 	// Staleness pill — computed with the rest of the card content because it
 	// renders in flow and therefore affects card height.
 	let staleTag = $derived(elementRender?.staleTag ?? null);
-	// The icon card: a device or software glyph above a label, or a port's single row.
+	// The icon card: a device, software or port glyph above a label.
 	let iconCard = $derived(elementRender?.iconCard ?? null);
 	/**
 	 * The fill a reduced card paints itself, from the one state signal it has.
@@ -320,7 +317,7 @@
 </script>
 
 <!-- One row's three cells, for a grid of a 20px glyph, the name and a trailing status dot (in the
-     colour of the view's Status mark, when it paints one): a member of a manager box, or a port. -->
+     colour of the view's Status mark, when it paints one): a member of a manager box. -->
 {#snippet rowCells(glyph: EntityGlyph, label: string, status: MarkValue | undefined)}
 	<span class="flex">
 		{#if glyph.type === 'device'}
@@ -328,7 +325,7 @@
 		{:else if glyph.type === 'software'}
 			<SoftwareGlyph definition={glyph.definition} />
 		{:else}
-			<PortIcon class="h-4 w-4 shrink-0 {portIconColor}" />
+			<PortGlyph />
 		{/if}
 	</span>
 	<span class="truncate text-[11px] leading-tight font-medium text-secondary">
@@ -353,26 +350,7 @@
 			unchanged; without that the empty card collapses and ELK's next input shifts, which
 			would make the graph reflow as you zoom.
 		-->
-		{#if !simplified && iconCard?.glyph.type === 'port'}
-			<!-- A port: one row, the same as a manager box's member, its status the view's Status mark.
-			     Each port is its own node, so a link's handle sits level with this row. -->
-			<div
-				class="flex flex-col gap-1 px-2 py-1.5"
-				use:tooltip={{ anchorClosest: '.svelte-flow__node', content: iconCard.tooltip }}
-			>
-				{#if staleTag}
-					<div class="flex scale-90 justify-center">
-						<Tag {...staleTag} pill />
-					</div>
-				{/if}
-				<div
-					data-entity-header
-					class="grid grid-cols-[1.25rem_minmax(0,1fr)_0.75rem] items-center gap-x-1.5"
-				>
-					{@render rowCells(iconCard.glyph, iconCard.label, marks.Status)}
-				</div>
-			</div>
-		{:else if !simplified && iconCard}
+		{#if !simplified && iconCard}
 			<!-- Icon card. The glyph comes first in DOM order: the diagram exports take each
 			     node's first icon as its shape icon. -->
 			<div class="group/icon-card flex flex-col items-center gap-1.5 px-2 py-2">
@@ -391,10 +369,13 @@
 							<DeviceGlyph deviceType={iconCard.glyph.deviceType} size="lg" />
 						{:else if iconCard.glyph.type === 'software'}
 							<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
+						{:else}
+							<PortGlyph size="lg" />
 						{/if}
 						{#if marks.Status}
-							<!-- A guest's run state, from the view's Status mark: a dot in the state's colour,
-							     centred on the tile's top-left corner. The tooltip's Status row names it. -->
+							<!-- A guest's run state or a port's link state, from the view's Status mark: a dot
+							     in the state's colour, centred on the tile's top-left corner. The tooltip's
+							     Status row names it. -->
 							<span
 								class="absolute -top-2 -left-2 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
 								style="background: var(--color-topology-node-bg);"
