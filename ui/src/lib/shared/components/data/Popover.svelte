@@ -125,7 +125,13 @@
 			updatePosition();
 		}
 
-		const resizeObserver = new ResizeObserver(() => updatePosition());
+		// Refit on the next frame, not inside the delivery: the fit sets the popover's width and
+		// height, which resizes the observed content and would raise the ResizeObserver loop error.
+		let frame = 0;
+		const resizeObserver = new ResizeObserver(() => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(updatePosition);
+		});
 		resizeObserver.observe(contentEl);
 		resizeObserver.observe(triggerElement);
 		window.addEventListener('scroll', handleScroll, true);
@@ -133,6 +139,7 @@
 
 		return () => {
 			resizeObserver.disconnect();
+			cancelAnimationFrame(frame);
 			window.removeEventListener('scroll', handleScroll, true);
 			window.removeEventListener('resize', updatePosition);
 		};

@@ -89,9 +89,18 @@
 
 	onMount(() => {
 		calculateVisibleTags();
-		const observer = new ResizeObserver(() => calculateVisibleTags());
+		// Recount on the next frame, not inside the delivery: hiding a tag can unwrap the label and
+		// change the row's height, which inside the callback raises the ResizeObserver loop error.
+		let frame = 0;
+		const observer = new ResizeObserver(() => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(calculateVisibleTags);
+		});
 		if (containerEl) observer.observe(containerEl);
-		return () => observer.disconnect();
+		return () => {
+			observer.disconnect();
+			cancelAnimationFrame(frame);
+		};
 	});
 
 	// Recalculate when the tags or the label change
