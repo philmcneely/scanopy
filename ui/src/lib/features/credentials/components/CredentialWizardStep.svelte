@@ -593,10 +593,12 @@
 						     A credential already assigned to a host through the junction lands here too,
 						     with those assignments rendered as locked target rows — one card per
 						     credential, whether this discovery targets it, it is assigned elsewhere,
-						     or both. -->
-						<div class="mb-4">
-							<InlineInfo body={daemons_credentialWizardExistingDescription()} />
-						</div>
+						     or both. A seeded default gets no edit/targets hint: its fields are fixed. -->
+						{#if !pending.credential.is_default}
+							<div class="mb-4">
+								<InlineInfo body={daemons_credentialWizardExistingDescription()} />
+							</div>
+						{/if}
 						<CredentialForm
 							bind:this={credentialFormRefs[index]}
 							{form}
