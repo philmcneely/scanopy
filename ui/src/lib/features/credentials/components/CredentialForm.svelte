@@ -1082,7 +1082,9 @@
 	{#each fieldSections as fieldSection (fieldSection.key)}
 		{#if useGroupHeaders}
 			<section class="space-y-3">
-				<h3 class="text-sm font-semibold text-primary">{fieldSection.title}</h3>
+				<h3 class="border-b border-(--color-border) pb-2 text-sm font-semibold text-primary">
+					{fieldSection.title}
+				</h3>
 				{@render fieldSectionContents(fieldSection)}
 			</section>
 		{:else}
