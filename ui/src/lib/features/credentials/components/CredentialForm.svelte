@@ -256,7 +256,7 @@
 	let visibleFieldGroups = $derived(groupFieldsByGroup(currentFields));
 
 	type FieldGroup = ReturnType<typeof groupFieldsByGroup>[number];
-	interface FieldCard {
+	interface FieldSection {
 		key: string;
 		title: string;
 		/** Holds the name/description/type fields (standard mode only). */
@@ -269,22 +269,22 @@
 		return name ?? common_options();
 	}
 
-	// A card holds two or more fields: a group with one field joins the card before it (the
-	// Details card for the first group), or the next card when nothing precedes it.
-	function buildFieldCards(withIdentity: boolean, groups: FieldGroup[]): FieldCard[] {
-		const cards: FieldCard[] = [];
+	// A section holds two or more fields: a group with one field joins the section before it (the
+	// Details section for the first group), or the next section when nothing precedes it.
+	function buildFieldSections(withIdentity: boolean, groups: FieldGroup[]): FieldSection[] {
+		const sections: FieldSection[] = [];
 		if (withIdentity) {
-			cards.push({ key: '_identity', title: common_details(), identity: true, groups: [] });
+			sections.push({ key: '_identity', title: common_details(), identity: true, groups: [] });
 		}
 		let pending: FieldGroup[] = [];
 		for (const group of groups) {
-			const last = cards.at(-1);
+			const last = sections.at(-1);
 			if (group.fields.length === 1) {
 				if (last) last.groups.push(group);
 				else pending.push(group);
 				continue;
 			}
-			cards.push({
+			sections.push({
 				key: group.name ?? '_ungrouped',
 				title: groupTitle(group.name),
 				identity: false,
@@ -293,30 +293,30 @@
 			pending = [];
 		}
 		if (pending.length > 0) {
-			cards.push({
+			sections.push({
 				key: pending[0].name ?? '_ungrouped',
 				title: groupTitle(pending[0].name),
 				identity: false,
 				groups: pending
 			});
 		}
-		return cards;
+		return sections;
 	}
 
 	// Standard mode: the identity fields and each field group. Compact mode keeps the name on the
 	// surface above the groups.
-	function cardsFor(groups: FieldGroup[]): FieldCard[] {
+	function sectionsFor(groups: FieldGroup[]): FieldSection[] {
 		return compact
-			? buildFieldCards(false, groups)
-			: buildFieldCards(section !== 'fields', section !== 'identity' ? groups : []);
+			? buildFieldSections(false, groups)
+			: buildFieldSections(section !== 'fields', section !== 'identity' ? groups : []);
 	}
 
-	let fieldCards = $derived(cardsFor(visibleFieldGroups));
+	let fieldSections = $derived(sectionsFor(visibleFieldGroups));
 
-	// One card's worth of fields sits on the modal surface; two or more cards each get a title.
+	// One section's worth of fields renders without a header; two or more sections each get one.
 	// Decided from every field of the type, so a field-set choice that hides a group (SNMPv3
 	// authNoPriv hides Privacy) shows or hides fields without switching the layout to flat.
-	let useGroupCards = $derived(cardsFor(groupFieldsByGroup(typeFields)).length > 1);
+	let useGroupHeaders = $derived(sectionsFor(groupFieldsByGroup(typeFields)).length > 1);
 
 	// Track target IPs as local $state for reactivity (TanStack Form doesn't drive Svelte 5 reactivity)
 	let targetIpValues = $state<string[]>(['']);
@@ -1052,7 +1052,7 @@
 						{/snippet}
 					</form.Field>
 
-					{@render fieldCardList()}
+					{@render fieldSectionList()}
 				</fieldset>
 			{/snippet}
 			{@render stepCard(2, daemons_credentialWizardStepConfigure(), fieldsStep)}
@@ -1067,36 +1067,37 @@
 		}}
 		class="flex flex-col gap-4"
 	>
-		<!-- Standard mode: name/type and the field groups, laid out by `fieldCards`. A caller showing
+		<!-- Standard mode: name/type and the field groups, laid out by `fieldSections`. A caller showing
 		     one section unmounts the other's fields, so validation only reaches what is on screen; the
 		     values and modes live in this component and the form, and survive. -->
 		{#if section !== 'fields'}
 			{@render integrationDocsHint()}
 		{/if}
 
-		{@render fieldCardList()}
+		{@render fieldSectionList()}
 	</form>
 {/if}
 
-{#snippet fieldCardList()}
-	{#each fieldCards as card (card.key)}
-		{#if useGroupCards}
-			<InfoCard title={card.title}>
-				{@render fieldCardContents(card)}
-			</InfoCard>
+{#snippet fieldSectionList()}
+	{#each fieldSections as fieldSection (fieldSection.key)}
+		{#if useGroupHeaders}
+			<section class="space-y-3">
+				<h3 class="text-sm font-semibold text-primary">{fieldSection.title}</h3>
+				{@render fieldSectionContents(fieldSection)}
+			</section>
 		{:else}
-			{@render fieldCardContents(card)}
+			{@render fieldSectionContents(fieldSection)}
 		{/if}
 	{/each}
 {/snippet}
 
-{#snippet fieldCardContents(card: FieldCard)}
-	{#if card.identity}
+{#snippet fieldSectionContents(fieldSection: FieldSection)}
+	{#if fieldSection.identity}
 		<div class="space-y-4">
 			{@render identityFields()}
 		</div>
 	{/if}
-	{#each card.groups as group (group.name ?? '_ungrouped')}
+	{#each fieldSection.groups as group (group.name ?? '_ungrouped')}
 		{@render fieldList(group.fields)}
 	{/each}
 {/snippet}
