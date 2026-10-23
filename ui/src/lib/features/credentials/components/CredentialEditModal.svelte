@@ -33,6 +33,7 @@
 		common_next,
 		common_saving,
 		common_update,
+		credentials_assignmentRequired,
 		credentials_assignmentsClearedOnTypeChange,
 		credentials_createCredential,
 		credentials_description,
@@ -194,6 +195,18 @@
 				{ assignedSiteIds, hostAssignments },
 				daemonHostIds
 			);
+
+			// A credential created here with no assignment is never sent to a daemon. The daemon and
+			// discovery flows create theirs with discovery targets instead, so this is the one
+			// create path that has to insist.
+			if (
+				!isEditing &&
+				permitted.assignedSiteIds.length === 0 &&
+				permitted.hostAssignments.length === 0
+			) {
+				pushError(credentials_assignmentRequired());
+				return;
+			}
 
 			// `value` also carries CredentialForm's scratch state — `fields` (raw per-field
 			// strings) and `targetIps` — because those inputs register under this form. Neither

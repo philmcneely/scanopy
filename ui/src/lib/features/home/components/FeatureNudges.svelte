@@ -55,7 +55,10 @@
 		home_nudges_interfacesTitle,
 		home_nudges_tagsAction,
 		home_nudges_tagsDescription,
-		home_nudges_tagsTitle
+		home_nudges_tagsTitle,
+		home_nudges_targetlessCredentialAction,
+		home_nudges_targetlessCredentialDescription,
+		home_nudges_targetlessCredentialTitle
 	} from '$lib/paraglide/messages';
 
 	type Organization = components['schemas']['Organization'];
@@ -133,6 +136,22 @@
 				actionLabel: createIntegrationCredentialLabel(integration),
 				action: () => openCredentialCreate(integration, { hostIds: host_ids, siteIds: site_ids }),
 				visible: has('FirstDiscoveryCompleted'),
+				icon: credentialIntegrations.getIconComponent(integration),
+				iconColor: credentialIntegrations.getColorHelper(integration).icon,
+				dismissOnAction: false
+			})),
+			// One per credential no scan sends to a daemon. Gone once it has a target, so acting on it
+			// does not dismiss it.
+			...dashboard.targetless_credentials.map(({ id, name, integration }): Nudge => ({
+				id: `targetless-credential-${id}`,
+				title: home_nudges_targetlessCredentialTitle({ name }),
+				description: home_nudges_targetlessCredentialDescription(),
+				actionLabel: home_nudges_targetlessCredentialAction(),
+				action: () => {
+					onNavigate('credentials');
+					openModal('credential-editor', { id, tab: 'assignments' });
+				},
+				visible: true,
 				icon: credentialIntegrations.getIconComponent(integration),
 				iconColor: credentialIntegrations.getColorHelper(integration).icon,
 				dismissOnAction: false

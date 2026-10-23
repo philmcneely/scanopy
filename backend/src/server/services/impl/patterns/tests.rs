@@ -939,6 +939,48 @@ fn an_apple_tv_is_identified_by_its_announcement_and_only_by_it() {
     }
 }
 
+/// iPhones and iPads are told apart by the `_device-info` model prefix, including models newer
+/// than any exact identifier Recog lists, and a Mac's model matches neither.
+#[test]
+fn iphones_and_ipads_are_identified_by_their_device_info_model() {
+    use crate::server::services::definitions::{ipad::IPad, iphone::IPhone};
+
+    let ports = vec![];
+    let phone_pattern = IPhone.discovery_pattern();
+    let tablet_pattern = IPad.discovery_pattern();
+
+    for (label, model, phone_matches, tablet_matches) in [
+        (
+            "an iPhone newer than Recog's list",
+            "model=iPhone17,1",
+            true,
+            false,
+        ),
+        (
+            "an iPad newer than Recog's list",
+            "model=iPad16,3",
+            false,
+            true,
+        ),
+        ("a MacBook", "model=Mac17,2", false, false),
+    ] {
+        let mut ctx = TestContext::new();
+        ctx.dns_sd = Some(announcing(&[(DnsSdServiceType::DEVICE_INFO, &[model][..])]));
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
+        assert_eq!(
+            phone_pattern.matches(&params).is_ok(),
+            phone_matches,
+            "{label} vs the iPhone definition"
+        );
+        assert_eq!(
+            tablet_pattern.matches(&params).is_ok(),
+            tablet_matches,
+            "{label} vs the iPad definition"
+        );
+    }
+}
+
 /// "The browse never reached this host" and "the host does not run this service" are different
 /// statements, and the difference is not cosmetic: mDNS is link-local, so a device on a routed
 /// subnet can run the service and never be asked. The reason text has to say which happened,

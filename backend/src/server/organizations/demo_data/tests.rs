@@ -290,6 +290,7 @@ fn demo_credentials_are_valid_and_described() {
 #[test]
 fn demo_credentials_are_assigned_within_their_targets() {
     use crate::server::credentials::r#impl::types::{CredentialTypeDiscriminants, Target};
+    use crate::server::credentials::service::find_targetless;
     use strum::IntoDiscriminant;
 
     let demo = DemoData::generate(Uuid::new_v4(), Uuid::new_v4(), UseCase::default());
@@ -323,20 +324,19 @@ fn demo_credentials_are_assigned_within_their_targets() {
         );
     }
 
+    // One credential is left without a target on purpose, so the demo shows the warning and the
+    // home nudge. The Podman socket keeps none either (both demo daemons run Docker), and as a
+    // seeded default it is not reported.
     let used: HashSet<Uuid> = uses.iter().map(|(id, _)| *id).collect();
-    for credential in &demo.credentials {
-        // A Podman socket can only target a daemon host, and both demo daemons run Docker.
-        if credential.base.credential_type.discriminant()
-            == CredentialTypeDiscriminants::PodmanSocket
-        {
-            continue;
-        }
-        assert!(
-            used.contains(&credential.id),
-            "{} is not assigned to any host, site or discovery",
-            credential.base.name
-        );
-    }
+    let targetless = find_targetless(demo.credentials.clone(), &used, &HashSet::new());
+    assert_eq!(
+        targetless
+            .iter()
+            .map(|c| c.base.credential_type.discriminant())
+            .collect::<Vec<_>>(),
+        [CredentialTypeDiscriminants::SnmpV3],
+        "exactly one demo credential has no target"
+    );
 }
 
 #[test]

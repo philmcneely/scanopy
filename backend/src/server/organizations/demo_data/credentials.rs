@@ -77,6 +77,23 @@ pub(super) fn generate_credentials(organization_id: Uuid, now: DateTime<Utc>) ->
                 context_name: None,
             },
         ),
+        // Created ahead of the branch office's daemon and not yet targeted, so the demo carries
+        // the warning and home nudge for a credential no scan uses.
+        credential(
+            "Branch Office SNMPv3",
+            "SNMPv3 for the branch office switches, ready for when the branch daemon is installed.",
+            None,
+            CredentialType::SnmpV3 {
+                security_name: "scanopy-branch".to_string(),
+                security: SnmpV3Security::AuthPriv {
+                    auth_protocol: SnmpV3AuthProtocol::Sha256,
+                    auth_password: inline("branch-snmp-auth-2026"),
+                    priv_protocol: SnmpV3PrivProtocol::Aes128,
+                    priv_password: inline("branch-snmp-priv-2026"),
+                },
+                context_name: None,
+            },
+        ),
         credential(
             "Arista gNMI",
             "Streaming telemetry from the Arista data center switch over gNMI.",

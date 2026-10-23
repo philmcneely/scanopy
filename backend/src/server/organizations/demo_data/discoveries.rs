@@ -50,6 +50,11 @@ pub(super) fn generate_discoveries(
         .find(|c| c.base.name == "Network Devices")
         .unwrap()
         .id;
+    let branch_snmp_cred_id = credentials
+        .iter()
+        .find(|c| c.base.name == "Branch Office SNMPv3")
+        .unwrap()
+        .id;
     let docker_socket_cred_id =
         super::credentials::find_default(credentials, CredentialTypeDiscriminants::DockerSocket).id;
 
@@ -180,6 +185,12 @@ pub(super) fn generate_discoveries(
                                 address: IpAddr::V4(Ipv4Addr::new(10, 0, 1, 15)),
                                 integration: CredentialQueryPayloadDiscriminants::Snmp,
                                 credential_id: Some(network_devices_cred_id),
+                            },
+                            // FixInScanopy: a credential stored without a target, which no scan
+                            // sends to a daemon.
+                            DiscoveryWarning::CredentialWithoutTarget {
+                                integration: CredentialQueryPayloadDiscriminants::Snmp,
+                                credential_id: Some(branch_snmp_cred_id),
                             },
                             // CheckTheDevice: the switch claims LLDP (it answered
                             // lldpLocChassisId) but its neighbour table came back empty.

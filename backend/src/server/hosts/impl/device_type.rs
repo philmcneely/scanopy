@@ -46,6 +46,7 @@ pub enum DeviceType {
     Camera,
     Phone,
     Workstation,
+    Tablet,
     Mobile,
     Industrial,
     IoT,
@@ -82,6 +83,7 @@ impl EntityMetadataProvider for DeviceType {
             DeviceType::Camera => Icon::Cctv,
             DeviceType::Phone => Icon::Phone,
             DeviceType::Workstation => Icon::Laptop,
+            DeviceType::Tablet => Icon::Tablet,
             DeviceType::Mobile => Icon::Smartphone,
             DeviceType::Industrial => Icon::Factory,
             DeviceType::IoT => Icon::CircuitBoard,
@@ -106,6 +108,7 @@ impl TypeMetadataProvider for DeviceType {
             DeviceType::Camera => "Camera",
             DeviceType::Phone => "Phone",
             DeviceType::Workstation => "Workstation",
+            DeviceType::Tablet => "Tablet",
             DeviceType::Mobile => "Mobile device",
             DeviceType::Industrial => "Industrial controller",
             DeviceType::IoT => "IoT device",
@@ -126,7 +129,8 @@ impl TypeMetadataProvider for DeviceType {
             DeviceType::Camera => "Streams video",
             DeviceType::Phone => "Carries voice calls",
             DeviceType::Workstation => "A computer a person works at",
-            DeviceType::Mobile => "A phone or tablet",
+            DeviceType::Tablet => "A tablet",
+            DeviceType::Mobile => "A phone or other handheld device",
             DeviceType::Industrial => "Controls building or industrial equipment",
             DeviceType::IoT => "A smart-home or embedded device",
             DeviceType::Server => "Runs applications for other hosts",
@@ -142,12 +146,15 @@ impl Host {
     /// 1. The highest-precedence device type the host's own services declare. A matched definition names
     ///    the product the host runs, so it outranks the OS.
     /// 2. The device type its OS family implies.
-    /// 3. `Server`, when the host runs containers: a container runtime, or software inside one.
-    /// 4. `Unidentified`.
+    /// 3. The device type its hostname or name implies: iOS names a device after its product
+    ///    ("Maya's iPhone"), and that name reaches us through PTR, mDNS and controller DHCP leases.
+    /// 4. `Server`, when the host runs containers: a container runtime, or software inside one.
+    /// 5. `Unidentified`.
     ///
-    /// Containerized software sits below the OS because it says what the container does, not what
-    /// the machine is: a laptop running Postgres in Docker is still a laptop. A Linux host gives no
-    /// OS device type, so the same containers still make it a server.
+    /// A name sits below services and the OS because anyone can type one. Containerized software
+    /// sits below the OS because it says what the container does, not what the machine is: a laptop
+    /// running Postgres in Docker is still a laptop. A Linux host gives no OS device type, so the
+    /// same containers still make it a server.
     pub fn device_type<'a>(&self, services: impl IntoIterator<Item = &'a Service>) -> DeviceType {
         let (containerized, own): (Vec<&Service>, Vec<&Service>) = services
             .into_iter()
@@ -169,15 +176,42 @@ impl Host {
                     .as_ref()
                     .and_then(|os| os.value().0.device_type())
             })
+            .or_else(|| self.named_device_type())
             .or(runs_containers.then_some(DeviceType::Server))
             .unwrap_or_default()
     }
+
+    /// The device type the hostname or name names by product, for products that name themselves.
+    fn named_device_type(&self) -> Option<DeviceType> {
+        let hostname = self.base.hostname.as_ref().map(|h| h.value().0.clone());
+        let name = self.base.name.value().as_str().into_owned();
+        [hostname, Some(name)]
+            .into_iter()
+            .flatten()
+            .find_map(|label| device_type_from_label(&label))
+    }
+}
+
+/// `"Mayas-iPhone"`, `"Maya's iPad"` and `"iphone15"` name a product; `"iphoneclone"` does not. A
+/// word matches when it is the product name, optionally followed by a model number.
+fn device_type_from_label(label: &str) -> Option<DeviceType> {
+    label
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .find_map(|word| {
+            let word = word.to_ascii_lowercase();
+            let product = word.trim_end_matches(|c: char| c.is_ascii_digit());
+            match product {
+                "iphone" => Some(DeviceType::Mobile),
+                "ipad" => Some(DeviceType::Tablet),
+                _ => None,
+            }
+        })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::server::hosts::r#impl::attributes::HostOsValue;
+    use crate::server::hosts::r#impl::attributes::{HostHostnameValue, HostOsValue};
     use crate::server::hosts::r#impl::os::{HostOs, HostOsFamily};
     use crate::server::services::definitions::{
         docker_daemon::Docker, pf_sense::PfSense, postgresql::PostgreSQL, proxmox::Proxmox,
@@ -307,6 +341,41 @@ mod tests {
         assert_eq!(
             host_with_os(None).device_type(&[]),
             DeviceType::Unidentified
+        );
+    }
+
+    /// A product name in the hostname identifies a host nothing else does, and yields to every
+    /// stronger rung.
+    #[test]
+    fn a_product_name_identifies_a_host_below_services_and_the_os() {
+        let named = |hostname: &str| {
+            let mut host = host_with_os(None);
+            host.base.hostname = Some(Attributed::new(
+                HostHostnameValue(hostname.to_string()),
+                AttributeSource::ReverseDns,
+            ));
+            host
+        };
+        assert_eq!(
+            named("Mayas-iPhone.local").device_type(&[]),
+            DeviceType::Mobile
+        );
+        assert_eq!(named("ipad13.lan").device_type(&[]), DeviceType::Tablet);
+        assert_eq!(
+            named("iphoneclone.lan").device_type(&[]),
+            DeviceType::Unidentified
+        );
+
+        // The OS and services both outrank the name.
+        let mut mac = named("Mayas-iPhone");
+        mac.base.os = Some(Attributed::new(
+            HostOsValue(HostOs::family_only(HostOsFamily::MacOs)),
+            AttributeSource::SshBannerMatch,
+        ));
+        assert_eq!(mac.device_type(&[]), DeviceType::Workstation);
+        assert_eq!(
+            named("ipad").device_type(&[service(Box::new(TrueNAS))]),
+            DeviceType::Storage
         );
     }
 

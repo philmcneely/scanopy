@@ -2,7 +2,9 @@
 //! read back onto `run_type.results.warnings` wherever the run is read through this service.
 use super::*;
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
+use crate::server::credentials::r#impl::base::Credential;
 use crate::server::credentials::service::{FoundIntegration, SiteTriedAt};
+use crate::server::sites::r#impl::Site;
 
 impl DiscoveryService {
     /// Store the warnings a historical run carries in memory. Called once, right after the run's
@@ -61,6 +63,50 @@ impl DiscoveryService {
             }
         }
         Ok((found, tried_at))
+    }
+
+    /// The organization's credentials no future scan will send to a daemon: no site or host
+    /// assignment, and no discovery of the organization targets them.
+    ///
+    /// `finishing_session` is a run completing now. Its `Hosts` and `DaemonHost` targets don't
+    /// count, because the successful scan clears them: a working one becomes a host assignment, a
+    /// failed one leaves nothing. Its `Site` targets still count, since the scan moves them into
+    /// the site's credentials.
+    pub async fn targetless_credentials(
+        &self,
+        organization_id: &Uuid,
+        finishing_session: Option<&Uuid>,
+    ) -> Result<Vec<Credential>> {
+        let site_ids: Vec<Uuid> = self
+            .site_service
+            .get_all(StorableFilter::<Site>::new_from_org_id(organization_id))
+            .await?
+            .into_iter()
+            .map(|s| s.id)
+            .collect();
+        let finishing = match finishing_session {
+            Some(session_id) => self.lookup_discovery_id(session_id).await,
+            None => None,
+        };
+
+        let mut targeted = HashSet::new();
+        if !site_ids.is_empty() {
+            let filter = StorableFilter::<Discovery>::new_from_site_ids(&site_ids).live_configs();
+            for discovery in self.discovery_storage.get_all(filter).await? {
+                let clearing = Some(discovery.id) == finishing;
+                targeted.extend(
+                    discovery
+                        .integration_targets
+                        .iter()
+                        .filter(|t| !clearing || matches!(t, IntegrationTarget::Site { .. }))
+                        .map(IntegrationTarget::credential_id),
+                );
+            }
+        }
+
+        self.credential_service
+            .targetless_credentials(organization_id, &targeted)
+            .await
     }
 
     /// Fill each historical run's warnings from the table.

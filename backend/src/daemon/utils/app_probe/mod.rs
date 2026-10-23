@@ -33,6 +33,7 @@ pub mod ethernet_ip;
 pub mod ftp;
 pub mod h323;
 pub mod ike;
+pub mod ipp;
 pub mod kafka;
 pub mod kerberos;
 pub mod ldap;

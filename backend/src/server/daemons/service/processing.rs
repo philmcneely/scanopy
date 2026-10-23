@@ -2,6 +2,7 @@
 use super::*;
 use crate::daemon::discovery::types::base::DiscoveryPhase;
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
+use crate::server::credentials::r#impl::base::Credential;
 use crate::server::daemons::r#impl::api::ScannedEntityIds;
 use crate::server::shared::events::types::DeletionReason;
 
@@ -597,6 +598,7 @@ impl DaemonService {
         if update.phase == DiscoveryPhase::Complete {
             self.report_integrations_without_credentials(&mut update)
                 .await;
+            self.report_targetless_credentials(&mut update).await;
         }
 
         if update.phase.is_terminal() {
@@ -704,6 +706,41 @@ impl DaemonService {
                 session_id = %update.session_id,
                 error = %e,
                 "Could not check which integrations this scan found without a credential"
+            ),
+        }
+    }
+
+    /// Fold `CredentialWithoutTarget` into the terminal payload: one per credential of the
+    /// organization that no future scan will send to a daemon.
+    ///
+    /// Before `update_session`, which clears this run's one-shot targets, so the check can leave
+    /// them out by session. Best-effort, like the warning above.
+    async fn report_targetless_credentials(&self, update: &mut DiscoveryUpdatePayload) {
+        let organization_id = match self.site_service.get_by_id(&update.site_id).await {
+            Ok(Some(site)) => site.base.organization_id,
+            Ok(None) => return,
+            Err(e) => {
+                tracing::warn!(
+                    session_id = %update.session_id,
+                    error = %e,
+                    "Could not look up the site to check for credentials without a target"
+                );
+                return;
+            }
+        };
+
+        match self
+            .discovery_service
+            .targetless_credentials(&organization_id, Some(&update.session_id))
+            .await
+        {
+            Ok(targetless) => update
+                .warnings
+                .extend(targetless.iter().map(Credential::targetless_warning)),
+            Err(e) => tracing::warn!(
+                session_id = %update.session_id,
+                error = %e,
+                "Could not check for credentials without a target"
             ),
         }
     }
