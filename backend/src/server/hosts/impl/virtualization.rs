@@ -115,20 +115,6 @@ impl HostVirtualization {
         }
     }
 
-    /// The id its manager knows the guest by, which survives the guest moving between that
-    /// manager's hosts: a Proxmox VMID, a vCenter or ESXi VM id, a container ID. `None` for a
-    /// network identity, which is its owner's interface rather than a guest, and for a guest
-    /// assigned by hand (the UI writes no id).
-    pub fn guest_id(&self) -> Option<&str> {
-        match self {
-            Self::Proxmox(p) => p.vm_id.as_deref(),
-            Self::VCenter(v) => v.vm_id.as_deref(),
-            Self::ESXi(e) => e.vm_id.as_deref(),
-            Self::Docker(c) | Self::Podman(c) => c.container_id.as_deref(),
-            Self::NetworkIdentity(_) => None,
-        }
-    }
-
     /// Whether this host is a container under a runtime, rather than a machine.
     pub fn is_container(&self) -> bool {
         match self {

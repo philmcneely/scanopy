@@ -5,17 +5,9 @@
 //! address on whichever host holds that MAC. The runtime's report names exactly the container's
 //! addresses, so a report that matches such a host takes only those addresses (with what is bound
 //! to them) to a host of its own, and leaves the rest where they were.
-//!
-//! A hypervisor guest gives up the same way: its hypervisor's report names every NIC it has, so
-//! an address another NIC answered for goes back to that device (`rows_a_guest_sheds`).
 use super::*;
 use crate::server::credentials::r#impl::types::CredentialAssignment;
-use crate::server::ip_addresses::r#impl::base::MacEvidence;
 use crate::server::ports::r#impl::base::PortBase;
-use crate::server::services::definitions::snmp::Snmp;
-use crate::server::services::r#impl::patterns::ClientProbe;
-use crate::server::shared::types::metadata::HasId;
-use std::collections::BTreeMap;
 
 impl HostMatch {
     /// The rows a container report takes from the host it matched, or `None` when it adopts that
@@ -49,133 +41,9 @@ impl HostMatch {
         (!named.is_empty() && !others.is_empty())
             .then(|| named.into_iter().map(|row| row.id).collect())
     }
-
-    /// The rows a guest gives up to the devices they belong to, one set per device, when its
-    /// hypervisor's report names the guest's NICs.
-    ///
-    /// The report's `HypervisorConfig` MACs are every NIC the hypervisor gave the guest, whichever
-    /// hypervisor it is. A stored row whose MAC is none of them is some other device's when either
-    /// the outside saw that MAC answer for the address (our ARP reply: a VMware guest an earlier
-    /// sweep filed here), or the report itself names that MAC as a link inside the guest (a
-    /// macvlan link the guest agent lists, which the report carries as an interface). Each such
-    /// MAC is one device and gets its rows back as a host of its own.
-    ///
-    /// Left alone: rows naming an address the report also names (the guest's own address, whose
-    /// MAC the report corrects), rows with no MAC, and rows the guest's own collectors filed with
-    /// a MAC the report doesn't name (SNMP, SSH, a container runtime's bridge addresses).
-    pub(crate) fn rows_a_guest_sheds(
-        &self,
-        incoming: &[IPAddress],
-        incoming_interfaces: &[Interface],
-    ) -> Vec<HashSet<Uuid>> {
-        let (config_macs, links_inside): (HashSet<MacAddress>, HashSet<MacAddress>) = {
-            let (config, other): (Vec<&MacEvidence>, Vec<&MacEvidence>) = incoming
-                .iter()
-                .filter_map(|i| i.base.mac_address.as_ref())
-                .chain(
-                    incoming_interfaces
-                        .iter()
-                        .filter_map(|i| i.base.mac_address.as_ref()),
-                )
-                .partition(|e| e.source() == AttributeSource::HypervisorConfig);
-            (
-                config.into_iter().map(|e| e.value().0).collect(),
-                other.into_iter().map(|e| e.value().0).collect(),
-            )
-        };
-        let macs_identify_host = self
-            .host
-            .base
-            .virtualization_metadata
-            .as_ref()
-            .is_none_or(HostVirtualization::macs_identify_host);
-        if config_macs.is_empty() || !macs_identify_host {
-            return Vec::new();
-        }
-
-        let mut by_mac: BTreeMap<String, HashSet<Uuid>> = BTreeMap::new();
-        for row in &self.ip_addresses {
-            let Some(evidence) = &row.base.mac_address else {
-                continue;
-            };
-            let mac = evidence.value().0;
-            let foreign = !config_macs.contains(&mac)
-                && (evidence.source() == AttributeSource::ArpReply || links_inside.contains(&mac));
-            if foreign
-                && !should_skip_for_matching(row)
-                && !incoming.iter().any(|i| ip_addresses_share_address(i, row))
-            {
-                by_mac
-                    .entry(evidence.value().0.to_string())
-                    .or_default()
-                    .insert(row.id);
-            }
-        }
-        by_mac.into_values().collect()
-    }
 }
 
 impl HostService {
-    /// Give each device whose rows `guest` held (`rows_a_guest_sheds`) a host of its own, and move
-    /// its rows there with what only they carry.
-    ///
-    /// The new host is bare: the device's own next payload (a network identity's report, a deep
-    /// scan) matches it by address and fills it in. Once the guest holds no SNMP service, the
-    /// `Probe(Snmp)` interfaces on it came from another device's walk that landed here, and are
-    /// dropped: that device's walk records them on its own host.
-    pub(crate) async fn shed_guest_addresses(
-        &self,
-        guest: &Host,
-        devices: &[HashSet<Uuid>],
-        authentication: &AuthenticatedEntity,
-    ) -> Result<()> {
-        if devices.is_empty() {
-            return Ok(());
-        }
-        for rows in devices {
-            let device = self
-                .create_unlocked(
-                    Host::new(HostBase {
-                        site_id: guest.base.site_id,
-                        source: EntitySource::Discovery,
-                        ..Default::default()
-                    }),
-                    authentication.clone(),
-                    None,
-                )
-                .await?;
-            tracing::info!(
-                guest_id = %guest.id,
-                device_id = %device.id,
-                addresses = rows.len(),
-                "Moving addresses a guest's NICs do not carry to a host of their own"
-            );
-            self.detach_addresses(guest, &device, rows, authentication)
-                .await?;
-        }
-
-        let runs_snmp = self
-            .service_service
-            .get_all(StorableFilter::<Service>::new_from_host_ids(&[guest.id]).live())
-            .await?
-            .iter()
-            .any(|s| s.base.service_definition.id() == Snmp.id());
-        if !runs_snmp {
-            for interface in self.interface_service.get_for_host(&guest.id).await? {
-                if interface.base.interface_source == AttributeSource::Probe(ClientProbe::Snmp) {
-                    self.interface_service
-                        .delete(
-                            &interface.id,
-                            authentication.clone(),
-                            DeletionReason::EntityNoLongerReported,
-                        )
-                        .await?;
-                }
-            }
-        }
-        Ok(())
-    }
-
     /// Move the `rows` of `from` to `to`, with what only they carry.
     ///
     /// - The address rows move with their ids.
@@ -374,7 +242,7 @@ mod tests {
     use crate::server::hosts::r#impl::virtualization::{
         ContainerHostVirtualization, ContainerNetworkType, ProxmoxVirtualization,
     };
-    use crate::server::ip_addresses::r#impl::base::{IPAddressBase, MacEvidence, MacEvidenceValue};
+    use crate::server::ip_addresses::r#impl::base::IPAddressBase;
 
     fn row(host_id: Uuid, subnet_id: Uuid, ip: &str) -> IPAddress {
         IPAddress::new(IPAddressBase {
@@ -473,185 +341,6 @@ mod tests {
         assert_eq!(
             m.rows_a_container_takes(Some(&container()), &incoming),
             None
-        );
-    }
-
-    fn with_mac(mut row: IPAddress, mac: &str, source: AttributeSource) -> IPAddress {
-        row.base.mac_address = Some(MacEvidence::new(
-            MacEvidenceValue(mac.parse().unwrap()),
-            source,
-        ));
-        row
-    }
-
-    fn snmp_test() -> HostVirtualization {
-        HostVirtualization::Proxmox(ProxmoxVirtualization {
-            state: Default::default(),
-            vm_name: Some("snmp-test".to_string()),
-            vm_id: Some("107".to_string()),
-            guest_type: None,
-        })
-    }
-
-    const ETH0: &str = "02:e9:65:cc:7f:7b";
-
-    /// snmp-test as the dev DB held it on 2026-10-22, receiving its Proxmox report: eth0's
-    /// addresses under the config MAC, and an interface per macvlan link under the link's MAC.
-    /// Three other devices' rows come off it, one host each: the VMware guest at 6.1 and the two
-    /// sim links. The guest's own addresses, the `docker0` row its own SNMP read filed, and a
-    /// container's bridge address its runtime reported stay.
-    #[test]
-    fn a_guest_report_sheds_each_other_devices_rows_to_its_own_set() {
-        let (vm, lan, v6, bridge) = (
-            Uuid::new_v4(),
-            Uuid::new_v4(),
-            Uuid::new_v4(),
-            Uuid::new_v4(),
-        );
-        let config = AttributeSource::HypervisorConfig;
-        let agent = AttributeSource::Probe(ClientProbe::Proxmox);
-        let arp = AttributeSource::ArpReply;
-        let own_421 = with_mac(row(vm, lan, "192.168.4.21"), ETH0, arp);
-        let own_596 = with_mac(row(vm, lan, "192.168.5.96"), ETH0, config);
-        let own_v6 = with_mac(
-            row(vm, v6, "fd0b:d38d:98f6:1:e9:65ff:fecc:7f7b"),
-            ETH0,
-            config,
-        );
-        let vmware = with_mac(row(vm, lan, "192.168.6.1"), "00:0c:29:87:81:5d", arp);
-        let link_230 = with_mac(row(vm, lan, "192.168.7.230"), "ca:ef:69:ca:e3:4c", arp);
-        let link_230_v6 = with_mac(
-            row(vm, v6, "fd0b:d38d:98f6:1:c8ef:69ff:feca:e34c"),
-            "ca:ef:69:ca:e3:4c",
-            agent,
-        );
-        let link_231 = with_mac(row(vm, lan, "192.168.7.231"), "42:d3:d4:77:c4:0f", arp);
-        let link_231_v6 = with_mac(
-            row(vm, v6, "fd0b:d38d:98f6:1:40d3:d4ff:fe77:c40f"),
-            "42:d3:d4:77:c4:0f",
-            agent,
-        );
-        let docker0 = with_mac(
-            row(vm, bridge, "172.17.0.1"),
-            "02:42:ac:11:00:01",
-            AttributeSource::Probe(ClientProbe::Snmp),
-        );
-        let container_bridge = with_mac(
-            row(vm, bridge, "172.17.0.2"),
-            "f6:af:f2:ff:a5:ff",
-            AttributeSource::Probe(ClientProbe::Docker),
-        );
-        let m = matched(
-            Some(snmp_test()),
-            vec![
-                own_421,
-                own_596,
-                own_v6,
-                vmware.clone(),
-                link_230.clone(),
-                link_230_v6.clone(),
-                link_231.clone(),
-                link_231_v6.clone(),
-                docker0,
-                container_bridge,
-            ],
-        );
-        let link = |mac: &str| {
-            use crate::server::interfaces::r#impl::base::InterfaceBase;
-            Interface::new(InterfaceBase {
-                mac_address: Some(MacEvidence::new(
-                    MacEvidenceValue(mac.parse().unwrap()),
-                    agent,
-                )),
-                interface_source: agent,
-                ..Default::default()
-            })
-        };
-        let links = [link("ca:ef:69:ca:e3:4c"), link("42:d3:d4:77:c4:0f")];
-        let report = [
-            with_mac(row(Uuid::nil(), lan, "192.168.4.21"), ETH0, config),
-            with_mac(row(Uuid::nil(), lan, "192.168.5.96"), ETH0, config),
-            with_mac(
-                row(Uuid::nil(), v6, "fd0b:d38d:98f6:1:e9:65ff:fecc:7f7b"),
-                ETH0,
-                config,
-            ),
-        ];
-
-        let mut shed = m.rows_a_guest_sheds(&report, &links);
-        shed.sort_by_key(|set| set.len());
-        let expected = [
-            HashSet::from([vmware.id]),
-            HashSet::from([link_230.id, link_230_v6.id]),
-            HashSet::from([link_231.id, link_231_v6.id]),
-        ];
-        assert_eq!(shed.len(), expected.len());
-        for set in &expected {
-            assert!(shed.contains(set), "missing {set:?}");
-        }
-    }
-
-    /// A payload naming no config MAC (a sweep, an SNMP read of the guest) says nothing about the
-    /// guest's NICs, so nothing is shed; nor from a host whose MACs are its runtime's.
-    #[test]
-    fn nothing_is_shed_without_a_config_mac_or_from_an_ipvlan_host() {
-        let (vm, lan) = (Uuid::new_v4(), Uuid::new_v4());
-        let rows = vec![
-            with_mac(
-                row(vm, lan, "192.168.4.21"),
-                ETH0,
-                AttributeSource::HypervisorConfig,
-            ),
-            with_mac(
-                row(vm, lan, "192.168.6.1"),
-                "00:0c:29:87:81:5d",
-                AttributeSource::ArpReply,
-            ),
-        ];
-        let sweep = [with_mac(
-            row(Uuid::nil(), lan, "192.168.4.21"),
-            ETH0,
-            AttributeSource::ArpReply,
-        )];
-        assert!(
-            matched(Some(snmp_test()), rows.clone())
-                .rows_a_guest_sheds(&sweep, &[])
-                .is_empty()
-        );
-
-        let report = [with_mac(
-            row(Uuid::nil(), lan, "192.168.4.21"),
-            ETH0,
-            AttributeSource::HypervisorConfig,
-        )];
-        assert!(
-            matched(Some(container()), rows)
-                .rows_a_guest_sheds(&report, &[])
-                .is_empty()
-        );
-    }
-
-    /// A guest with no address still names its NIC on an interface row, which is enough.
-    #[test]
-    fn a_config_mac_on_an_interface_row_names_the_guests_nic() {
-        use crate::server::interfaces::r#impl::base::InterfaceBase;
-        let (vm, lan) = (Uuid::new_v4(), Uuid::new_v4());
-        let stray = with_mac(
-            row(vm, lan, "192.168.6.1"),
-            "00:0c:29:87:81:5d",
-            AttributeSource::ArpReply,
-        );
-        let m = matched(Some(snmp_test()), vec![stray.clone()]);
-        let nic = Interface::new(InterfaceBase {
-            mac_address: Some(MacEvidence::new(
-                MacEvidenceValue(ETH0.parse().unwrap()),
-                AttributeSource::HypervisorConfig,
-            )),
-            ..Default::default()
-        });
-        assert_eq!(
-            m.rows_a_guest_sheds(&[], &[nic]),
-            vec![HashSet::from([stray.id])]
         );
     }
 

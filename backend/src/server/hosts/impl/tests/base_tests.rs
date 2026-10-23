@@ -346,41 +346,6 @@ fn container_host_follows_its_container_id() {
     assert_eq!(existing.virtualization_service_id, Some(runtime_b));
 }
 
-/// A vCenter or ESXi guest that migrated keeps its guest id, so its link follows it to the new
-/// host's service exactly as a Proxmox guest's does, and a different guest id stays put.
-#[test]
-fn a_vcenter_or_esxi_guest_follows_its_guest_id() {
-    use crate::server::hosts::r#impl::virtualization::{
-        EsxiVirtualization, HostVirtualization, VCenterVirtualization,
-    };
-    let guest = |owner: Uuid, virtualization: HostVirtualization| HostBase {
-        virtualization_service_id: Some(owner),
-        virtualization_metadata: Some(virtualization),
-        ..Default::default()
-    };
-    let vcenter = |vm_id: &str| {
-        HostVirtualization::VCenter(VCenterVirtualization {
-            vm_name: Some("gitlab".to_string()),
-            vm_id: Some(vm_id.to_string()),
-        })
-    };
-    let esxi = |vm_id: &str| {
-        HostVirtualization::ESXi(EsxiVirtualization {
-            vm_name: Some("gitlab".to_string()),
-            vm_id: Some(vm_id.to_string()),
-        })
-    };
-    let (host_a, host_b) = (Uuid::new_v4(), Uuid::new_v4());
-
-    for virtualization in [vcenter, esxi] {
-        let mut existing = guest(host_a, virtualization("vm-42"));
-        assert!(!existing.fill_virtualization_from(&guest(host_b, virtualization("vm-43"))));
-        assert_eq!(existing.virtualization_service_id, Some(host_a));
-        assert!(existing.fill_virtualization_from(&guest(host_b, virtualization("vm-42"))));
-        assert_eq!(existing.virtualization_service_id, Some(host_b));
-    }
-}
-
 /// The stored JSON of a container host reads back as the same host, and a reader that meets a
 /// runtime it does not know reads the host as not virtualized instead of rejecting the row.
 #[test]
