@@ -118,12 +118,7 @@ impl CredentialTypeDiscriminants {
     /// Used by `generate-fixtures` and anywhere variant iteration is needed.
     pub fn to_credential_type(&self) -> CredentialType {
         match self {
-            Self::SnmpV1 => CredentialType::SnmpV1 {
-                community: SecretValue::Inline {
-                    value: SecretString::from(String::new()),
-                },
-            },
-            Self::SnmpV2c => CredentialType::SnmpV2c {
+            Self::SnmpCommunity => CredentialType::SnmpCommunity {
                 community: SecretValue::Inline {
                     value: SecretString::from(String::new()),
                 },
@@ -239,8 +234,7 @@ impl CredentialTypeDiscriminants {
     pub fn upstream_support(&self) -> UpstreamSupport {
         match self {
             // Standard protocol, or the vendor's own documented API.
-            Self::SnmpV1
-            | Self::SnmpV2c
+            Self::SnmpCommunity
             | Self::SnmpV3
             | Self::Gnmi
             | Self::DockerProxy
@@ -283,8 +277,7 @@ impl CredentialTypeDiscriminants {
     /// Display name for this credential transport (e.g. "Docker Socket").
     pub(crate) fn display_name(&self) -> &'static str {
         match self {
-            Self::SnmpV1 => "SNMP v1",
-            Self::SnmpV2c => "SNMP v2c",
+            Self::SnmpCommunity => "SNMP v1/v2c",
             Self::SnmpV3 => "SNMP v3",
             Self::Gnmi => "gNMI",
             Self::DockerProxy => "Docker Proxy",
@@ -311,8 +304,9 @@ impl CredentialTypeDiscriminants {
     /// belongs in field help text, not here.
     pub(crate) fn transport_note(&self) -> &'static str {
         match self {
-            Self::SnmpV1 => "Uses SNMPv1.",
-            Self::SnmpV2c => "Uses SNMPv2c.",
+            Self::SnmpCommunity => {
+                "Uses SNMPv2c, and SNMPv1 for a device that does not answer v2c."
+            }
             Self::SnmpV3 => "Uses SNMPv3.",
             Self::Gnmi => "Connects over gRPC; username and password travel as request metadata.",
             Self::DockerProxy | Self::PodmanProxy => "Connects over TCP, optionally with TLS.",
@@ -335,11 +329,10 @@ impl CredentialTypeDiscriminants {
         }
     }
 
-    /// Short transport label within an integration (e.g. "Socket", "Proxy", "v2c").
+    /// Short transport label within an integration (e.g. "Socket", "Proxy", "v3").
     pub(crate) fn transport_label(&self) -> &'static str {
         match self {
-            Self::SnmpV1 => "v1",
-            Self::SnmpV2c => "v2c",
+            Self::SnmpCommunity => "v1/v2c",
             Self::SnmpV3 => "v3",
             Self::Gnmi => "gNMI",
             Self::DockerProxy | Self::PodmanProxy => "Proxy",
@@ -378,21 +371,22 @@ impl CredentialTypeDiscriminants {
     /// Only for parsing the type at all. Options or targets within a type that need a newer daemon
     /// are capabilities of their own, which withhold just that part (see `UsesSnmpV3SecurityOptions`).
     ///
-    /// Gated on the 7-way `CredentialType` discriminant, NOT the collapsed
-    /// `CredentialQueryPayload` wire tag: SnmpV1 carries a different gate than SnmpV2c despite
-    /// both sharing the single `Snmp` wire variant.
+    /// Gated on the `CredentialType` discriminant, NOT the collapsed `CredentialQueryPayload` wire
+    /// tag: SnmpCommunity and SnmpV3 carry different gates despite sharing the `Snmp` wire variant.
     pub fn last_unsupported_daemon_version(&self) -> semver::Version {
         match self {
             // The unified credential wire shipped in 0.16.2. Older daemons ignore
             // `credential_mappings` via #[serde(default)], so filtering these out is harmless.
-            Self::SnmpV2c | Self::DockerProxy | Self::DockerSocket => {
+            // SnmpCommunity goes on that wire as v2c; the v1 fallback is the `FallsBackToSnmpV1`
+            // capability, so an older daemon still gets the credential.
+            Self::SnmpCommunity | Self::DockerProxy | Self::DockerSocket => {
                 last_without_credential_wire()
             }
-            // The SnmpV1 and SnmpV3 values of the inner `SnmpVersion` shipped in 0.17.0, with v3 as
+            // The SnmpV3 value of the inner `SnmpVersion` shipped in 0.17.0, as
             // AuthPriv over SHA and AES. The security levels and MD5 that 0.18.1 added are the
             // `UsesSnmpV3SecurityOptions` capability, so an AuthPriv credential still reaches the
             // daemons that can run it.
-            Self::SnmpV1 | Self::SnmpV3 => semver::Version::new(0, 16, 2),
+            Self::SnmpV3 => semver::Version::new(0, 16, 2),
             // Podman variants shipped in 0.17.2.
             Self::PodmanProxy | Self::PodmanSocket => semver::Version::new(0, 17, 1),
             // UniFi variants shipped in 0.17.7.
@@ -417,8 +411,7 @@ impl CredentialTypeDiscriminants {
     /// declaration rather than defaulting a brand-new, unvalidated integration to `Stable`.
     pub fn stability(&self) -> CredentialStability {
         match self {
-            Self::SnmpV1
-            | Self::SnmpV2c
+            Self::SnmpCommunity
             | Self::SnmpV3
             | Self::DockerProxy
             | Self::DockerSocket

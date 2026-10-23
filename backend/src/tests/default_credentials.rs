@@ -24,7 +24,7 @@ use crate::server::{
 };
 
 fn community(value: &str) -> CredentialType {
-    CredentialType::SnmpV2c {
+    CredentialType::SnmpCommunity {
         community: SecretValue::Inline {
             value: SecretString::from(value.to_string()),
         },
@@ -52,7 +52,7 @@ async fn org_credentials(services: &ServiceFactory, organization_id: Uuid) -> Ve
 async fn snmp_default(services: &ServiceFactory, organization_id: Uuid) -> Credential {
     services
         .credential_service
-        .find_default(organization_id, CredentialTypeDiscriminants::SnmpV2c)
+        .find_default(organization_id, CredentialTypeDiscriminants::SnmpCommunity)
         .await
         .unwrap()
         .expect("the organization has an SNMP default")

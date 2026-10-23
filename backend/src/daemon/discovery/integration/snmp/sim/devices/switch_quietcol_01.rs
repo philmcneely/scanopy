@@ -23,6 +23,8 @@ use super::inline;
 ///
 /// Not a model of the reporter's Dell OS10 switch, whose walk stops for a reason its scan logs do
 /// not yet show. `switch-dell-01` is that device.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-quietcol-01",
@@ -31,9 +33,10 @@ pub fn device() -> SimDevice {
             issue: "#685",
             defect: "a neighbour walk that stops part way lost every row it had read, and once it kept them the warning still said they were not recorded",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Scanopy SNMP simulator, silent-column profile".into()),
             sys_object_id: Some("1.3.6.1.4.1.99999.4".into()),

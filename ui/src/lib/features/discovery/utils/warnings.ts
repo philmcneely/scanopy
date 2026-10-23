@@ -38,6 +38,7 @@ import {
 	discovery_warningAtAddress,
 	discovery_warningGapContainerBridge,
 	discovery_warningGapCredentialType,
+	discovery_warningGapSnmpV1Fallback,
 	discovery_warningGapSnmpV3Options,
 	discovery_warningSnmpV3OptionAuthNoPriv,
 	discovery_warningSnmpV3OptionMd5Auth,
@@ -251,7 +252,7 @@ const consequence = (id: string) =>
  * The integration's display name.
  *
  * Keyed by `CredentialQueryPayloadDiscriminants`, which is what the warning carries. Not
- * `credential-types.json`: that is keyed by `CredentialType` (SnmpV1/V2c/V3, UnifiApiKey, …), so
+ * `credential-types.json`: that is keyed by `CredentialType` (SnmpCommunity/SnmpV3, UnifiApiKey, …), so
  * `DockerProxy` resolved there by coincidence while `Snmp`, `UnifiController` and `InstantOn` fell
  * through and rendered as their raw discriminants.
  */
@@ -291,6 +292,8 @@ function capabilityGap(gap: CapabilityGap): string {
 	switch (gap.type) {
 		case 'ParsesCredentialType':
 			return discovery_warningGapCredentialType();
+		case 'FallsBackToSnmpV1':
+			return discovery_warningGapSnmpV1Fallback();
 		case 'UsesSnmpV3SecurityOptions':
 			return discovery_warningGapSnmpV3Options({
 				options: joinList(

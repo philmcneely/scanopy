@@ -27,6 +27,10 @@ pub enum CapabilityGap {
     /// rest of the credential was.
     #[schema(title = "TargetsContainerBridgeWithCredentials")]
     TargetsContainerBridgeWithCredentials(ContainerBridgeGap),
+    /// The daemon tries a community credential over SNMPv2c only, so a device that answers only
+    /// SNMPv1 is not reached. The credential was sent.
+    #[schema(title = "FallsBackToSnmpV1")]
+    FallsBackToSnmpV1,
 }
 
 impl CapabilityGap {
@@ -35,6 +39,11 @@ impl CapabilityGap {
     pub fn describe(&self) -> String {
         match self {
             Self::ParsesCredentialType => "cannot be read by this daemon".to_string(),
+            Self::FallsBackToSnmpV1 => {
+                "is tried over SNMPv2c only by this daemon, so devices that answer only SNMPv1 are \
+                 not reached"
+                    .to_string()
+            }
             Self::UsesSnmpV3SecurityOptions(gap) => format!(
                 "uses {}, which this daemon cannot read",
                 gap.options

@@ -11,6 +11,8 @@ use super::{inline, switch_silent_01};
 /// or fragmented responses, that serves no GETBULK. The walk already falls back to GETNEXT for the
 /// rest of the session once GETBULK goes unanswered, so this device is read in full. It does not
 /// produce the customer's warnings, which is how it rules that cause out.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-bulkdrop-01",
@@ -18,9 +20,10 @@ pub fn device() -> SimDevice {
         purpose: Purpose::Control {
             role: "drops GETBULK on every table and answers GETNEXT, showing the GETNEXT fallback reads such a device in full",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: switch_silent_01::system("switch-bulkdrop-01"),
         tables: Tables {
             faults: AgentFaults {

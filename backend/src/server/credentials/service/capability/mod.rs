@@ -22,6 +22,7 @@ use uuid::Uuid;
 
 mod container_bridge;
 mod parses_type;
+mod snmp_v1_fallback;
 mod snmp_v3;
 
 pub use container_bridge::DaemonPlacement;
@@ -30,6 +31,7 @@ pub(crate) use container_bridge::{
     retain_reachable_overrides,
 };
 pub(crate) use parses_type::ParsesCredentialType;
+pub(crate) use snmp_v1_fallback::FallsBackToSnmpV1;
 pub(crate) use snmp_v3::UsesSnmpV3SecurityOptions;
 
 /// Something a credential's configuration can rely on that older daemons lack.

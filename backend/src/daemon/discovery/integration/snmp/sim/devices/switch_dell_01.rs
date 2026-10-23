@@ -14,6 +14,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-dell-01",
@@ -22,7 +24,8 @@ pub fn device() -> SimDevice {
             issue: "#685",
             defect: "OS10 breakout port names carry both anchor characters, and lldpLocPortNum is a separate namespace numbering the management port 4 and the front panel from 555",
         },
-        credential: CredentialType::SnmpV2c { community: inline("netdefault") },
+        credential: CredentialType::SnmpCommunity { community: inline("netdefault") },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Dell EMC Networking OS10 Enterprise. Dell EMC Networking S4112T-ON. OS Version 10.4.3.4".into()),
             sys_object_id: Some("1.3.6.1.4.1.674.11000.5000.100.2.1".into()),

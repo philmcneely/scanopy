@@ -11,6 +11,8 @@ use crate::server::credentials::r#impl::types::{
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "secure-switch-04",
@@ -29,6 +31,7 @@ pub fn device() -> SimDevice {
             },
             context_name: None,
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some(
                 "Cisco IOS Software, C2960 Software (C2960-LANBASEK9-M), Version 12.2(55)SE12"

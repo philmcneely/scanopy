@@ -678,6 +678,11 @@ impl CredentialService {
         withheld.extend(capability::retain_capable::<
             capability::UsesSnmpV3SecurityOptions,
         >(&(), &mut mappings_by_credential, daemon_version));
+        withheld.extend(capability::retain_capable::<capability::FallsBackToSnmpV1>(
+            &(),
+            &mut mappings_by_credential,
+            daemon_version,
+        ));
         withheld.extend(capability::retain_capable::<
             capability::TargetsContainerBridgeWithCredentials,
         >(
@@ -693,7 +698,7 @@ impl CredentialService {
 
 /// A credential mapping plus the 7-way credential type it came from.
 ///
-/// The wire payload collapses SnmpV1/V2c/V3 into one `Snmp` tag, but the daemon-version floor
+/// The wire payload collapses SnmpCommunity and SnmpV3 into one `Snmp` tag, but the daemon-version floor
 /// differs between them, so the version gate has to run before that collapse — which means the
 /// discriminant has to survive alongside the mapping.
 pub(crate) struct TypedCredentialMapping {
@@ -1029,7 +1034,7 @@ mod single_endpoint_tests {
     fn non_single_endpoint_integration_never_conflicts() {
         // SNMP is try-many, not single-endpoint per host.
         let h = Uuid::from_u128(42);
-        let snmp = cred_type(CredentialTypeDiscriminants::SnmpV2c);
+        let snmp = cred_type(CredentialTypeDiscriminants::SnmpCommunity);
         let t = CredentialTargets::for_host(h);
         assert!(!single_endpoint_targets_conflict(&snmp, &t, &snmp, &t));
     }
@@ -1050,7 +1055,7 @@ mod integration_target_tests {
     }
 
     fn snmp_v2c(community: &str) -> CredentialType {
-        CredentialType::SnmpV2c {
+        CredentialType::SnmpCommunity {
             community: crate::server::credentials::r#impl::types::SecretValue::Inline {
                 value: secrecy::SecretString::from(community.to_string()),
             },
@@ -1513,7 +1518,7 @@ mod integration_target_tests {
     #[test]
     fn two_site_targets_of_one_type_both_survive() {
         let mut map: Mappings = Mappings::new();
-        let cred_type = CredentialTypeDiscriminants::SnmpV2c.to_credential_type();
+        let cred_type = CredentialTypeDiscriminants::SnmpCommunity.to_credential_type();
 
         for id in [Uuid::from_u128(1), Uuid::from_u128(2)] {
             apply_integration_target(
@@ -1533,7 +1538,7 @@ mod integration_target_tests {
     /// A `Site`-scoped target becomes a site-level default, not an IP override.
     #[test]
     fn site_scope_sets_default_not_override() {
-        let cred_type = CredentialTypeDiscriminants::SnmpV2c.to_credential_type();
+        let cred_type = CredentialTypeDiscriminants::SnmpCommunity.to_credential_type();
         let target = IntegrationTarget::Site {
             credential_id: Uuid::new_v4(),
         };
@@ -1548,7 +1553,7 @@ mod integration_target_tests {
     #[test]
     fn hosts_scope_overrides_each_ip() {
         let cred_id = Uuid::new_v4();
-        let cred_type = CredentialTypeDiscriminants::SnmpV2c.to_credential_type();
+        let cred_type = CredentialTypeDiscriminants::SnmpCommunity.to_credential_type();
         let ips = vec![
             "10.0.0.5".parse::<IpAddr>().unwrap(),
             "10.0.0.6".parse::<IpAddr>().unwrap(),

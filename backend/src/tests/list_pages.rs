@@ -243,7 +243,7 @@ async fn credentials_group_and_filter_on_their_types_metadata() {
             ..Default::default()
         })
     };
-    let snmp = credential(org.id, CredentialTypeDiscriminants::SnmpV2c);
+    let snmp = credential(org.id, CredentialTypeDiscriminants::SnmpCommunity);
     let gnmi = credential(org.id, CredentialTypeDiscriminants::Gnmi);
     let docker = credential(org.id, CredentialTypeDiscriminants::DockerSocket);
     for c in [&snmp, &gnmi, &docker] {
@@ -334,7 +334,7 @@ async fn every_documented_credential_filter_narrows_the_rows() {
     assert_every_param_narrows(
         |query: &CredentialFilterQuery| query.narrow(&scope).expect("filter builds"),
         &[
-            ("type", "SnmpV2c"),
+            ("type", "SnmpCommunity"),
             ("integrations", "Docker"),
             ("beta", "true"),
             ("unofficial_api", "true"),

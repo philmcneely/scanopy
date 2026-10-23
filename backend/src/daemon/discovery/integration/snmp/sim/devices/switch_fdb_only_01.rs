@@ -14,6 +14,8 @@ use super::inline;
 /// TP-Link T1700G-28TQ returns "No such object" for it. `resolve_lldp_links`'s candidate-based
 /// filter has nothing to see on this device by design; `resolve_fdb_links` is the only pass that
 /// can produce a link for it.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-fdb-only-01",
@@ -22,9 +24,10 @@ pub fn device() -> SimDevice {
             issue: "#709",
             defect: "serves dot1dTpFdbTable but no LLDP remote table at all, so a port with an unambiguous single-MAC FDB entry never became a physical link before resolve_fdb_links was wired in",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("TP-Link T1700G-28TQ Switch".into()),
             sys_object_id: Some("1.3.6.1.4.1.11863.1.1.10".into()),

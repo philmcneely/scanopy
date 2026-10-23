@@ -10,6 +10,8 @@ use super::{inline, switch_silent_01};
 /// The other shape that fits the customer's warning set: the device answers every table request,
 /// GETBULK and GETNEXT, with an error status. Until the cause travelled with the warning this read
 /// as "stopped answering", which is the one thing this device never did.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-generr-01",
@@ -18,9 +20,10 @@ pub fn device() -> SimDevice {
             issue: "the silent-devices customer report",
             defect: "a device answering every table request with genErr was reported as having stopped answering",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: switch_silent_01::system("switch-generr-01"),
         tables: Tables {
             faults: AgentFaults {

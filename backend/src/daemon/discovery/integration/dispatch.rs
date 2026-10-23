@@ -356,8 +356,8 @@ pub async fn probe_integrations(
         } = task;
         async move {
             // Failures of IP-targeted credentials, reported only if nothing here wins.
-            // Reporting them eagerly would flag the benign try-many case: SnmpV1, V2c and V3
-            // assigned to one host are all attempted and the first success wins, so the ones
+            // Reporting them eagerly would flag the benign try-many case: community and v3
+            // credentials assigned to one host are all attempted and the first success wins, so the ones
             // tried before it "failed" without anything being wrong.
             let mut targeted_failures: Vec<CredentialIssue> = Vec::new();
             for applicable in &credentials {
@@ -536,7 +536,7 @@ pub async fn execute_integrations(
     params: &ExecuteParams<'_>,
 ) -> Result<(), Error> {
     // Multiple credential mappings can resolve to the same integration + winning
-    // credential (e.g. SnmpV1/V2c/V3 credentials plus the injected public default all
+    // credential (e.g. community and v3 credentials plus the injected public default all
     // collapse to the single Snmp discriminant, which has one probe winner). Running
     // execute() once per mapping re-does the full collection against the same host
     // with the same credential — pure repetition. dedup_execution_keys() collapses
@@ -777,7 +777,7 @@ mod tests {
 
     #[test]
     fn dedup_collapses_duplicate_snmp_mappings_to_one() {
-        // SnmpV1/V2c/V3 + injected public default all resolve to the single Snmp
+        // Community, v3 and the injected public default all resolve to the single Snmp
         // discriminant with one probe winner: three mappings, one collection.
         let mappings = vec![snmp_mapping(), snmp_mapping(), snmp_mapping()];
         let cred_id = Some(Uuid::new_v4());

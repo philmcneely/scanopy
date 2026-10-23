@@ -34,7 +34,8 @@ pub(super) fn generate_discoveries(
 
     // Credential IDs for integration targets.
     let default_snmp_cred_id =
-        super::credentials::find_default(credentials, CredentialTypeDiscriminants::SnmpV2c).id;
+        super::credentials::find_default(credentials, CredentialTypeDiscriminants::SnmpCommunity)
+            .id;
     let linux_inventory_cred_id = credentials
         .iter()
         .find(|c| c.base.name == "Linux Inventory")

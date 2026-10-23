@@ -4856,13 +4856,13 @@
           "Credentials"
         ],
         "summary": "List all Credentials",
-        "description": "Returns all credentials in the authenticated user's organization.\nOptionally filter by type (e.g. `?type=SnmpV2c`).",
+        "description": "Returns all credentials in the authenticated user's organization.\nOptionally filter by type (e.g. `?type=SnmpCommunity`).",
         "operationId": "get_all_credentials",
         "parameters": [
           {
             "name": "type",
             "in": "query",
-            "description": "Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several.",
+            "description": "Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several.",
             "required": false,
             "schema": {
               "type": [
@@ -5301,7 +5301,7 @@
           {
             "name": "type",
             "in": "query",
-            "description": "Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several.",
+            "description": "Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several.",
             "required": false,
             "schema": {
               "type": [
@@ -30138,6 +30138,22 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "FallsBackToSnmpV1",
+            "description": "The daemon tries a community credential over SNMPv2c only, so a device that answers only\nSNMPv1 is not reached. The credential was sent.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "FallsBackToSnmpV1"
+                ]
+              }
+            }
           }
         ],
         "description": "What a daemon missed of one credential because it is too old for part of it."
@@ -31206,8 +31222,8 @@
         "oneOf": [
           {
             "type": "object",
-            "title": "SnmpV1",
-            "description": "SNMPv1 community string — for legacy devices that only speak v1.",
+            "title": "SnmpCommunity",
+            "description": "SNMP community string, tried over SNMPv2c and then SNMPv1, so one credential also reaches\ndevices that only answer v1.",
             "required": [
               "community",
               "type"
@@ -31215,33 +31231,12 @@
             "properties": {
               "community": {
                 "$ref": "#/components/schemas/SecretValue",
-                "description": "SNMPv1 community string."
+                "description": "SNMP community string."
               },
               "type": {
                 "type": "string",
                 "enum": [
-                  "SnmpV1"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "title": "SnmpV2c",
-            "description": "SNMPv2c community string for querying network devices",
-            "required": [
-              "community",
-              "type"
-            ],
-            "properties": {
-              "community": {
-                "$ref": "#/components/schemas/SecretValue",
-                "description": "SNMPv2c community string."
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "SnmpV2c"
+                  "SnmpCommunity"
                 ]
               }
             }
@@ -31807,8 +31802,7 @@
       "CredentialTypeDiscriminants": {
         "type": "string",
         "enum": [
-          "SnmpV1",
-          "SnmpV2c",
+          "SnmpCommunity",
           "SnmpV3",
           "Gnmi",
           "DockerProxy",

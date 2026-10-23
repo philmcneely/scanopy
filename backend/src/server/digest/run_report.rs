@@ -201,7 +201,7 @@ mod tests {
     fn snmp(name: &str, community: &str) -> Credential {
         Credential::new(CredentialBase {
             name: name.to_string(),
-            credential_type: CredentialType::SnmpV2c {
+            credential_type: CredentialType::SnmpCommunity {
                 community: SecretValue::Inline {
                     value: SecretString::from(community.to_string()),
                 },

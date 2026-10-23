@@ -78,9 +78,7 @@ function shellWord(value: string): string {
 export function snmpOptionsFor(credential: Credential | undefined): string | null {
 	const type = credential?.credential_type;
 	switch (type?.type) {
-		case 'SnmpV1':
-			return `-v1 -c ${common_snmpCommunityPlaceholder()}`;
-		case 'SnmpV2c':
+		case 'SnmpCommunity':
 			return `-v2c -c ${common_snmpCommunityPlaceholder()}`;
 		case 'SnmpV3': {
 			const options = ['-v3', `-u ${shellWord(type.security_name)}`];

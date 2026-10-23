@@ -66,14 +66,14 @@ async fn discovers_engine(addr: SocketAddr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::daemon::discovery::integration::snmp::sim::{self, usm::UsmAgent};
+    use crate::daemon::discovery::integration::snmp::sim::{self, udp::UdpAgent};
     use std::net::Ipv4Addr;
     use tokio::net::UdpSocket;
 
     #[tokio::test]
     async fn an_agent_answers_engine_discovery_without_a_credential() {
         let device = sim::device("secure-switch-01");
-        let agent = UsmAgent::start(&device).await;
+        let agent = UdpAgent::start(&device).await;
 
         assert!(discovers_engine(SocketAddr::new(agent.ip(), agent.port())).await);
     }

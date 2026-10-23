@@ -18,6 +18,8 @@ use super::inline;
 /// real switch (GH #688). Identifiers are rewritten for the lab; the structure is the device's
 /// own: a management port at ifIndex 3, thirty-two 100G ports at 10001, 10005, … 10125, and an
 /// LLDP-V2-MIB with three neighbours whose rows are keyed by those ifIndex values.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-ocnos-01",
@@ -26,9 +28,10 @@ pub fn device() -> SimDevice {
             issue: "#688",
             defect: "serves LLDP-V2-MIB only: classic lldpRemTable is absent, so the walk finds no neighbours and the device contributes no L2 edges",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some(
                 "Hardware Model:UFI_S9600-32X, Software version: OcNOS,7.0.1.60".into(),

@@ -1237,7 +1237,7 @@ export interface paths {
         /**
          * List all Credentials
          * @description Returns all credentials in the authenticated user's organization.
-         *     Optionally filter by type (e.g. `?type=SnmpV2c`).
+         *     Optionally filter by type (e.g. `?type=SnmpCommunity`).
          */
         get: operations["get_all_credentials"];
         put?: never;
@@ -7735,6 +7735,9 @@ export interface components {
             details: components["schemas"]["ContainerBridgeGap"];
             /** @enum {string} */
             type: "TargetsContainerBridgeWithCredentials";
+        } | {
+            /** @enum {string} */
+            type: "FallsBackToSnmpV1";
         };
         ChangePlanPreview: {
             /**
@@ -8221,15 +8224,10 @@ export interface components {
          *     Each variant represents a different credential protocol/method.
          */
         CredentialType: {
-            /** @description SNMPv1 community string. */
+            /** @description SNMP community string. */
             community: components["schemas"]["SecretValue"];
             /** @enum {string} */
-            type: "SnmpV1";
-        } | {
-            /** @description SNMPv2c community string. */
-            community: components["schemas"]["SecretValue"];
-            /** @enum {string} */
-            type: "SnmpV2c";
+            type: "SnmpCommunity";
         } | (components["schemas"]["SnmpV3Security_SecretValue"] & {
             /** @description Optional context name (default/empty context used if unset). */
             context_name?: string | null;
@@ -8415,7 +8413,7 @@ export interface components {
             type: "ProxmoxApiToken";
         };
         /** @enum {string} */
-        CredentialTypeDiscriminants: "SnmpV1" | "SnmpV2c" | "SnmpV3" | "Gnmi" | "DockerProxy" | "DockerSocket" | "PodmanProxy" | "PodmanSocket" | "UnifiApiKey" | "UnifiLocalAdmin" | "InstantOnAccount" | "SshPassword" | "SshKey" | "WakeOnLan" | "ProxmoxApiToken";
+        CredentialTypeDiscriminants: "SnmpCommunity" | "SnmpV3" | "Gnmi" | "DockerProxy" | "DockerSocket" | "PodmanProxy" | "PodmanSocket" | "UnifiApiKey" | "UnifiLocalAdmin" | "InstantOnAccount" | "SshPassword" | "SshKey" | "WakeOnLan" | "ProxmoxApiToken";
         Daemon: components["schemas"]["DaemonBase"] & {
             /**
              * Format: date-time
@@ -19227,7 +19225,7 @@ export interface operations {
     get_all_credentials: {
         parameters: {
             query?: {
-                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several. */
+                /** @description Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several. */
                 type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
                 /** @description Only credentials of one of these integrations. Repeat for several. */
                 integrations?: components["schemas"]["CredentialIntegration"][] | null;
@@ -19394,7 +19392,7 @@ export interface operations {
     export_credentials_csv: {
         parameters: {
             query?: {
-                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several. */
+                /** @description Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several. */
                 type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
                 /** @description Only credentials of one of these integrations. Repeat for several. */
                 integrations?: components["schemas"]["CredentialIntegration"][] | null;

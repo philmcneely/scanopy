@@ -17,7 +17,7 @@ const type = (
 ) => ({ id, metadata: { fields: [], integration, targets } });
 
 const types = [
-	type('SnmpV2c', 'Snmp', ['DaemonHost', 'Hosts', 'Site']),
+	type('SnmpCommunity', 'Snmp', ['DaemonHost', 'Hosts', 'Site']),
 	type('SnmpV3', 'Snmp', ['DaemonHost', 'Hosts', 'Site']),
 	type('DockerProxy', 'Docker', ['DaemonHost', 'Hosts']),
 	type('DockerSocket', 'Docker', ['DaemonHost']),

@@ -368,6 +368,17 @@ pub fn resolves_routed_rescan(version: Option<&Version>) -> bool {
     version.is_some_and(|v| v > &last_without_routed_rescan())
 }
 
+/// The last release whose daemon tries a community credential over v2c only. Later daemons fall
+/// back to v1 when v2c gets no answer. Read by the `FallsBackToSnmpV1` capability.
+///
+/// Equal to this build's own version until the release carrying it is tagged, so a build of this
+/// branch is warned about until then.
+///
+/// Legacy cleanup: remove with the capability once the enforced ceiling passes it.
+pub fn last_without_snmp_v1_fallback() -> Version {
+    Version::new(0, 19, 0)
+}
+
 /// The gates the UI names in its copy ("installed at v0.17.4 or earlier"), written to
 /// `daemon-version-gates.json` by `generate_ui_data_fixtures` so no version is typed into a
 /// message.
@@ -460,6 +471,10 @@ fn capability_gates() -> Vec<(String, Version)> {
             last_without_bridge_credentials(),
         ),
         ("last_without_routed_rescan", last_without_routed_rescan()),
+        (
+            "last_without_snmp_v1_fallback",
+            last_without_snmp_v1_fallback(),
+        ),
     ]
     .into_iter()
     .map(|(name, v)| (name.to_string(), v))

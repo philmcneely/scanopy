@@ -1,7 +1,7 @@
 //! Seeded default credentials.
 //!
 //! Every organization gets one credential per seeded type when it is created: the local Docker
-//! socket, the local Podman socket and SNMPv2c `public`. A default is recognized by its content
+//! socket, the local Podman socket and the SNMP community `public`. A default is recognized by its content
 //! alone. A credential identical to its type's seeded default is that default, and an
 //! organization holds at most one per type.
 
@@ -9,7 +9,7 @@ use secrecy::{ExposeSecret, SecretString};
 
 use super::{CredentialType, CredentialTypeDiscriminants, SecretValue};
 
-/// The community the SNMPv2c default sends. Most devices ship with it.
+/// The community the SNMP default sends. Most devices ship with it.
 const PUBLIC_COMMUNITY: &str = "public";
 
 /// What an organization's default credential of one type is created with.
@@ -35,17 +35,16 @@ impl CredentialTypeDiscriminants {
                 description: "Added to every new daemon. Reads the local Podman socket at its default path.",
                 credential_type: CredentialType::PodmanSocket { socket_path: None },
             }),
-            Self::SnmpV2c => Some(SeededDefault {
+            Self::SnmpCommunity => Some(SeededDefault {
                 name: "SNMP (public)",
-                description: "Assigned to every new site. Tries the SNMPv2c community \"public\" on every host.",
-                credential_type: CredentialType::SnmpV2c {
+                description: "Assigned to every new site. Tries the SNMP community \"public\" on every host, over v2c and then v1.",
+                credential_type: CredentialType::SnmpCommunity {
                     community: SecretValue::Inline {
                         value: SecretString::from(PUBLIC_COMMUNITY.to_string()),
                     },
                 },
             }),
-            Self::SnmpV1
-            | Self::SnmpV3
+            Self::SnmpV3
             | Self::Gnmi
             | Self::DockerProxy
             | Self::PodmanProxy
@@ -72,7 +71,7 @@ impl CredentialType {
             | (Self::PodmanSocket { socket_path }, Self::PodmanSocket { .. }) => {
                 socket_path.as_ref().is_none_or(|p| p.is_blank())
             }
-            (Self::SnmpV2c { community }, Self::SnmpV2c { community: seeded }) => {
+            (Self::SnmpCommunity { community }, Self::SnmpCommunity { community: seeded }) => {
                 // Compared on the value, not with `==`, so the redacted sentinel never matches.
                 match (community, seeded) {
                     (SecretValue::Inline { value }, SecretValue::Inline { value: expected }) => {
@@ -126,26 +125,18 @@ mod tests {
 
     #[test]
     fn another_community_or_a_file_is_not_the_snmp_default() {
-        let other = CredentialType::SnmpV2c {
+        let other = CredentialType::SnmpCommunity {
             community: SecretValue::Inline {
                 value: SecretString::from("private".to_string()),
             },
         };
         assert!(!other.is_default());
 
-        let file = CredentialType::SnmpV2c {
+        let file = CredentialType::SnmpCommunity {
             community: SecretValue::FilePath {
                 path: PUBLIC_COMMUNITY.into(),
             },
         };
         assert!(!file.is_default());
-
-        // SNMPv1 `public` is a different type with no seeded default.
-        let v1 = CredentialType::SnmpV1 {
-            community: SecretValue::Inline {
-                value: SecretString::from(PUBLIC_COMMUNITY.to_string()),
-            },
-        };
-        assert!(!v1.is_default());
     }
 }

@@ -10,6 +10,8 @@ use crate::server::interfaces::r#impl::base::if_type;
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-unsorted-01",
@@ -18,9 +20,10 @@ pub fn device() -> SimDevice {
             issue: "#674",
             defect: "an ARP table served out of ascending OID order; a strictly ascending walk gives up and every multi-column row is discarded",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("PoE switch, firmware V3.3.3".into()),
             sys_object_id: Some("1.3.6.1.4.1.99999.1.1".into()),

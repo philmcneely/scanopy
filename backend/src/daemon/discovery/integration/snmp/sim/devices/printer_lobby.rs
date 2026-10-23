@@ -8,6 +8,8 @@ use crate::server::credentials::r#impl::types::CredentialType;
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "printer-lobby",
@@ -15,9 +17,10 @@ pub fn device() -> SimDevice {
         purpose: Purpose::Control {
             role: "an endpoint with no bridge and no neighbours",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("public"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("HP LaserJet Pro MFP M428fdw, FW 2406334_042882".into()),
             sys_object_id: Some("1.3.6.1.4.1.11.2.3.9.1".into()),

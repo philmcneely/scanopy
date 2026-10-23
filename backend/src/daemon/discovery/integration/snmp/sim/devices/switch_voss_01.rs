@@ -14,6 +14,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-voss-01",
@@ -22,9 +24,10 @@ pub fn device() -> SimDevice {
             issue: "Issue 2, July 2026",
             defect: "Extreme VOSS reports local-port == ifIndex, so it must stay correct on both old and new code — the regression guard for the remap",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Extreme Networks VSP-7400, VOSS 8.10".into()),
             sys_object_id: Some("1.3.6.1.4.1.2272.30".into()),
