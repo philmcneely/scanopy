@@ -33,7 +33,7 @@
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import RadioGroup from '$lib/shared/components/forms/input/RadioGroup.svelte';
 	import type { FieldDefinition, FieldType } from '$lib/shared/stores/metadata';
-	import { Eye, EyeOff } from 'lucide-svelte';
+	import { Eye, EyeOff, Plus } from 'lucide-svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import { docsUrl } from '$lib/shared/utils/docs';
 	import {
@@ -974,29 +974,37 @@
 								})}
 								use:tooltip
 							>
-								<button
-									type="button"
-									class="cursor-not-allowed text-sm text-muted opacity-40"
-									disabled>+ {daemons_credentialWizardAddDaemonHostTarget()}</button
-								>
+								<button type="button" class="btn-secondary px-3 py-1.5 text-sm" disabled>
+									<Plus size={14} />
+									{daemons_credentialWizardAddDaemonHostTarget()}
+								</button>
 							</span>
 						{:else if hasDaemonHostTarget}
-							<!-- Already added: disabled, no hover state -->
+							<!-- Already added: disabled -->
+							<button type="button" class="btn-secondary px-3 py-1.5 text-sm" disabled>
+								<Plus size={14} />
+								{daemons_credentialWizardAddDaemonHostTarget()}
+							</button>
+						{:else}
 							<button
 								type="button"
-								class="cursor-not-allowed text-sm text-muted opacity-40"
-								disabled>+ {daemons_credentialWizardAddDaemonHostTarget()}</button
+								class="btn-secondary px-3 py-1.5 text-sm"
+								onclick={handleAddDaemonHostTarget}
 							>
-						{:else}
-							<button type="button" class="text-sm text-link" onclick={handleAddDaemonHostTarget}
-								>+ {daemons_credentialWizardAddDaemonHostTarget()}</button
-							>
+								<Plus size={14} />
+								{daemons_credentialWizardAddDaemonHostTarget()}
+							</button>
 						{/if}
 					{/if}
 					{#if supportsRemoteHosts}
-						<button type="button" class="text-sm text-link" onclick={handleAddIpTarget}
-							>+ {daemons_credentialWizardAddRemoteHostTarget()}</button
+						<button
+							type="button"
+							class="btn-secondary px-3 py-1.5 text-sm"
+							onclick={handleAddIpTarget}
 						>
+							<Plus size={14} />
+							{daemons_credentialWizardAddRemoteHostTarget()}
+						</button>
 					{/if}
 				</div>
 				<p class="text-xs text-muted">{daemons_credentialWizardTargetIpHelp()}</p>
