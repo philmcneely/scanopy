@@ -310,12 +310,18 @@
 			: buildFieldCards(section !== 'fields', section !== 'identity' ? groups : []);
 	}
 
-	let fieldCards = $derived(cardsFor(visibleFieldGroups));
-
 	// One card's worth of fields sits on the modal surface; two or more cards each get a title.
 	// Decided from every field of the type, so a field-set choice that hides a group (SNMPv3
 	// authNoPriv hides Privacy) shows or hides fields without switching the layout to flat.
 	let useGroupCards = $derived(cardsFor(groupFieldsByGroup(typeFields)).length > 1);
+
+	// Fields are all carded or all flat: once groups are carded, compact mode's name gets a
+	// Details card too, as standard mode's identity fields do.
+	let fieldCards = $derived(
+		compact && useGroupCards
+			? buildFieldCards(true, visibleFieldGroups)
+			: cardsFor(visibleFieldGroups)
+	);
 
 	// Track target IPs as local $state for reactivity (TanStack Form doesn't drive Svelte 5 reactivity)
 	let targetIpValues = $state<string[]>(['']);
@@ -1028,19 +1034,10 @@
 			{#if fieldsNotice}
 				<InlineInfo body={fieldsNotice} />
 			{:else}
-				<form.Field
-					name={nameFieldName}
-					validators={{
-						onBlur: ({ value }: { value: string }) => required(value) || max(100)(value),
-						onSubmit: ({ value }: { value: string }) => required(value) || max(100)(value)
-					}}
-					listeners={{ onChange: ({ value }: { value: string }) => onChange?.({ name: value }) }}
-				>
-					{#snippet children(field: AnyFieldApi)}
-						<TextInput label={common_name()} id="credential-name-{fieldPrefix}" {field} required />
-					{/snippet}
-				</form.Field>
-
+				<!-- With carded groups the name sits in the Details card instead. -->
+				{#if !useGroupCards}
+					{@render compactNameField()}
+				{/if}
 				{@render fieldCardList()}
 			{/if}
 		{/if}
@@ -1080,7 +1077,11 @@
 {#snippet fieldCardContents(card: FieldCard)}
 	{#if card.identity}
 		<div class="space-y-4">
-			{@render identityFields()}
+			{#if compact}
+				{@render compactNameField()}
+			{:else}
+				{@render identityFields()}
+			{/if}
 		</div>
 	{/if}
 	{#each card.groups as group (group.name ?? '_ungrouped')}
@@ -1096,6 +1097,21 @@
 	{#if showTypeSelector}
 		{@render typeField()}
 	{/if}
+{/snippet}
+
+{#snippet compactNameField()}
+	<form.Field
+		name={nameFieldName}
+		validators={{
+			onBlur: ({ value }: { value: string }) => required(value) || max(100)(value),
+			onSubmit: ({ value }: { value: string }) => required(value) || max(100)(value)
+		}}
+		listeners={{ onChange: ({ value }: { value: string }) => onChange?.({ name: value }) }}
+	>
+		{#snippet children(field: AnyFieldApi)}
+			<TextInput label={common_name()} id="credential-name-{fieldPrefix}" {field} required />
+		{/snippet}
+	</form.Field>
 {/snippet}
 
 {#snippet nameField()}
