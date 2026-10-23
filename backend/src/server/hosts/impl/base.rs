@@ -370,9 +370,10 @@ impl HostBase {
     /// owner the host already has, its metadata refreshes (a renamed guest).
     ///
     /// A different owner moves the link only for the same guest moving: the stored metadata and
-    /// the report name the same manager's guest id, which survives a live migration (a Proxmox
-    /// VMID is cluster-wide and follows the guest from node to node; a container ID is the same
-    /// container whichever runtime service reports it). A hand assignment never carries a guest
+    /// the report name the same manager's guest id ([`HostVirtualization::guest_id`]), which
+    /// survives a live migration (a Proxmox VMID is cluster-wide and follows the guest from node to
+    /// node, as a vCenter VM id does across ESXi hosts; a container ID is the same container
+    /// whichever runtime service reports it). A hand assignment never carries a guest
     /// id (the UI writes `vm_id: null`), so it is never moved.
     pub fn fill_virtualization_from(&mut self, incoming: &HostBase) -> bool {
         let Some(incoming_owner) = incoming.virtualization_service_id else {
@@ -387,21 +388,11 @@ impl HostBase {
                         && self.virtualization_interface_id != incoming.virtualization_interface_id)
             }
             Some(_) => {
-                // Keyed by variant too, so a VMID never matches a container ID.
+                // Keyed by variant too, so a VMID never matches a container ID. A network identity
+                // names no guest id, so an owned identity never moves.
                 let guest_id = |v: &Option<HostVirtualization>| {
                     let v = v.as_ref()?;
-                    let id = match v {
-                        HostVirtualization::Proxmox(p) => p.vm_id.as_ref(),
-                        HostVirtualization::Docker(c) | HostVirtualization::Podman(c) => {
-                            c.container_id.as_ref()
-                        }
-                        // A network identity names no guest id: its interface is the owner's, so an
-                        // owned identity never moves.
-                        HostVirtualization::VCenter(_)
-                        | HostVirtualization::ESXi(_)
-                        | HostVirtualization::NetworkIdentity(_) => None,
-                    }?;
-                    Some((v.id(), id.clone()))
+                    Some((v.id(), v.guest_id()?.to_string()))
                 };
                 guest_id(&self.virtualization_metadata)
                     .is_some_and(|id| Some(id) == guest_id(&incoming.virtualization_metadata))
