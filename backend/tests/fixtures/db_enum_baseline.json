@@ -330,7 +330,8 @@
     "ESXi",
     "Docker",
     "Podman",
-    "NetworkIdentity"
+    "NetworkIdentity",
+    "Libvirt"
   ],
   "IntegrationTarget": [
     "DaemonHost",

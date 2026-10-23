@@ -222,6 +222,7 @@ pub mod docker_swarm;
 pub mod dockge;
 pub mod esxi;
 pub mod kubernetes;
+pub mod libvirt;
 pub mod nomad;
 pub mod openshift;
 pub mod podman;

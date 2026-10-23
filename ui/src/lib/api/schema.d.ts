@@ -11190,6 +11190,10 @@ export interface components {
             /** @enum {string} */
             type: "ESXi";
         } | {
+            details: components["schemas"]["LibvirtVirtualization"];
+            /** @enum {string} */
+            type: "Libvirt";
+        } | {
             details: components["schemas"]["ContainerHostVirtualization"];
             /** @enum {string} */
             type: "Docker";
@@ -12065,6 +12069,14 @@ export interface components {
         LegacyCapabilities: {
             /** @description Subnets the daemon has an interface on, as reported by older daemons. */
             interfaced_subnet_ids: string[];
+        };
+        LibvirtVirtualization: {
+            /** @description Whether the domain was running at the last scan. Hand-assigned guests read as running. */
+            state?: components["schemas"]["GuestState"];
+            /** @description libvirt domain UUID of the guest. */
+            vm_id?: string | null;
+            /** @description Domain name as configured in libvirt. */
+            vm_name?: string | null;
         };
         /**
          * @description A server instance that has checked in with an organization's online key,

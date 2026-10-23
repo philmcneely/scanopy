@@ -45,6 +45,7 @@
 		settings_system_displayUpdated,
 		settings_system_license,
 		settings_system_licenseLinkText,
+		settings_system_libvirtAttribution,
 		settings_system_preview,
 		settings_system_recogAttribution,
 		settings_system_simpleIconsAttribution,
@@ -333,6 +334,11 @@
 		<DocsHint
 			text={settings_system_dashboardIconsAttribution()}
 			href="https://github.com/scanopy/scanopy/blob/main/backend/assets/dashboard-icons/LICENSE"
+			linkText={common_license()}
+		/>
+		<DocsHint
+			text={settings_system_libvirtAttribution()}
+			href="https://github.com/scanopy/scanopy/blob/main/backend/assets/libvirt/LICENSE"
 			linkText={common_license()}
 		/>
 		<DocsHint

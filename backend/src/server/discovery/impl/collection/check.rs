@@ -131,7 +131,9 @@ pub fn present_in(
             ),
             // No integration reports these. A producer that starts to is flagged until an
             // integration declares it.
-            HostVirtualization::VCenter(_) | HostVirtualization::ESXi(_) => {
+            HostVirtualization::Libvirt(_)
+            | HostVirtualization::VCenter(_)
+            | HostVirtualization::ESXi(_) => {
                 mark(CollectedData::VirtualMachines, AttributeSource::Unspecified)
             }
             // An address the host presents from an interface of its own. Its addresses already

@@ -4,6 +4,7 @@ use crate::server::hosts::r#impl::virtualization::HostVirtualizationDiscriminant
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::definitions::docker_daemon::Docker;
 use crate::server::services::definitions::esxi::Esxi;
+use crate::server::services::definitions::libvirt::Libvirt;
 use crate::server::services::definitions::network_identities::NetworkIdentities;
 use crate::server::services::definitions::podman::Podman;
 use crate::server::services::definitions::proxmox::Proxmox;
@@ -289,6 +290,9 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
             }),
             _ if id == Esxi.id() => Some(VirtualizationRole::Hypervisor {
                 hosts: HostVirtualizationDiscriminants::ESXi,
+            }),
+            _ if id == Libvirt.id() => Some(VirtualizationRole::Hypervisor {
+                hosts: HostVirtualizationDiscriminants::Libvirt,
             }),
             _ if id == Docker.id() => Some(VirtualizationRole::ContainerRuntime {
                 services: ServiceVirtualizationDiscriminants::Docker,
