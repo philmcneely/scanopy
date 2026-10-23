@@ -15,10 +15,9 @@ use crate::server::services::r#impl::definitions::{ServiceDefinition, ServiceDef
 use crate::server::shared::storage::snapshot::DiscoveryTracked;
 use crate::server::{
     digest::payload::{
-        AffectedHostCard, DigestRecipient, DiscoveryDigestFlags, DiscoveryDigestOperation,
-        DiscoveryDigestPayload, DiscoveryDigestScope, EntityFreshness, HostSummary,
-        InterfaceSummary, IpAddressSummary, PortSummary, ServiceSummary, SubnetSummary,
-        VlanSummary,
+        AffectedHostCard, DigestRecipient, DiscoveryDigestOperation, DiscoveryDigestPayload,
+        DiscoveryDigestScope, EntityFreshness, HostSummary, InterfaceSummary, IpAddressSummary,
+        PortSummary, ServiceSummary, SubnetSummary, VlanSummary,
     },
     digest::run_report,
     hosts::{
@@ -164,9 +163,8 @@ impl DiscoveryDigestService {
                 payload: Box::new(digest),
             },
             AuthenticatedEntity::System,
-        )
-        .with_flags(DiscoveryDigestFlags::default());
-        self.event_bus.publish(event).await?;
+        );
+        self.event_bus.publish(event).await;
         Ok(())
     }
 
@@ -617,21 +615,23 @@ fn compute_digest_status<T: DiscoveryTracked>(
 enum ScanCoverage {
     /// Swept these subnets. A host is covered iff it holds a live IP in one.
     Subnets(HashSet<Uuid>),
-    /// Touched a single host — no subnet sweep at all. A rescan, or the frozen
-    /// `Docker` / `SelfReport` types.
-    SingleHost(Uuid),
+    /// Touched only these hosts — no subnet sweep at all. A rescan, or the frozen
+    /// `Docker` / `SelfReport` types (which name one host).
+    Hosts(HashSet<Uuid>),
 }
 
 impl ScanCoverage {
     fn for_session(discovery_type: &DiscoveryType, scanned: &ScannedEntityIds) -> Self {
         match discovery_type {
             DiscoveryType::Docker { host_id, .. } | DiscoveryType::SelfReport { host_id } => {
-                Self::SingleHost(*host_id)
+                Self::Hosts(HashSet::from([*host_id]))
             }
             // Unreachable while the digest skips rescans outright, but it stops
             // the fallback below from claiming subnet-wide coverage for a run
-            // that touched one host, should that suppression ever be relaxed.
-            DiscoveryType::Rescan { target_host_id, .. } => Self::SingleHost(*target_host_id),
+            // that touched only its target hosts, should that suppression ever be relaxed.
+            DiscoveryType::Rescan {
+                target_host_ids, ..
+            } => Self::Hosts(target_host_ids.iter().copied().collect()),
             // An explicit subnet list is the user's stated target. Otherwise
             // fall back to the subnets the daemon actually confirmed this run.
             DiscoveryType::Network {
@@ -655,7 +655,7 @@ impl ScanCoverage {
     /// even as an addition. A session that saw a host covers that host, whatever placing it in a
     /// subnet would have concluded.
     ///
-    /// It deliberately does not widen the `SingleHost` arm. Those sessions name the one host they
+    /// It deliberately does not widen the `Hosts` arm. Those sessions name the hosts they
     /// speak for, and a Docker or self-report run touches several while claiming authority over
     /// exactly one.
     ///
@@ -668,7 +668,7 @@ impl ScanCoverage {
         observed: bool,
     ) -> bool {
         match self {
-            Self::SingleHost(id) => *id == host_id,
+            Self::Hosts(ids) => ids.contains(&host_id),
             Self::Subnets(swept) => {
                 observed
                     || host_subnets.is_some_and(|subnets| subnets.iter().any(|s| swept.contains(s)))
@@ -825,7 +825,7 @@ fn interface_summary(i: &Interface, status: EntityFreshness, is_fresh: bool) -> 
 fn subnet_summary(s: &Subnet) -> SubnetSummary {
     SubnetSummary {
         id: s.id,
-        label: s.base.name.clone(),
+        label: s.base.name().to_string(),
     }
 }
 
@@ -833,7 +833,7 @@ fn vlan_summary(v: &Vlan) -> VlanSummary {
     VlanSummary {
         id: v.id,
         vlan_number: v.base.vlan_number,
-        name: v.base.name.clone(),
+        name: v.base.name.to_string(),
     }
 }
 

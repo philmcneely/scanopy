@@ -1,1 +1,4 @@
 allow-private-module-inception = true
+disallowed-methods = [
+    { path = "tokio::net::TcpStream::connect", reason = "application probes connect through ProbeContext::connect, so a container's relay carries them" },
+]

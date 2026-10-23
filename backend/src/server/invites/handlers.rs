@@ -9,6 +9,7 @@ use crate::server::shared::events::traits::{Event, OrgScope};
 use crate::server::shared::events::types::{
     BillingOperation, OnboardingOperation, OnboardingOperationDiscriminants,
 };
+use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 use crate::server::shared::services::traits::{CrudService, EventBusService};
 use crate::server::shared::storage::filter::StorableFilter;
 use crate::server::shared::storage::traits::Entity;
@@ -35,6 +36,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
     OpenApiRouter::new()
         .routes(routes!(get_invites, create_invite))
         .routes(routes!(get_invite, revoke_invite))
+        .routes(routes!(bulk_revoke_invites))
         // Accept invite link - redirect endpoint, not suitable for OpenAPI
         .route("/{id}/accept", get(accept_invite_link))
 }
@@ -114,7 +116,7 @@ async fn create_invite(
         let total_seats_used = current_members + pending_invites;
 
         if total_seats_used >= max_seats as usize {
-            let _ = state
+            state
                 .services
                 .event_bus
                 .publish(Event::new(
@@ -193,7 +195,7 @@ async fn create_invite(
                 OnboardingOperation::InviteSent,
                 entity,
             ))
-            .await?;
+            .await;
     }
 
     if let Some(send_to) = send_to
@@ -281,11 +283,7 @@ async fn get_invites(
         .list_active_invites(&organization_id)
         .await
         .into_iter()
-        .filter(|i| {
-            i.base.created_by == user_id
-                || i.base.permissions < permissions
-                || permissions == UserOrgPermissions::Owner
-        })
+        .filter(|i| i.is_listed_for(permissions, user_id))
         .collect();
 
     Ok(Json(ApiResponse::success(invites)))
@@ -314,14 +312,85 @@ async fn revoke_invite(
         .ok_or_else(ApiError::organization_required)?;
     let user_id = auth.user_id().ok_or_else(ApiError::user_required)?;
 
-    // Get user permissions from entity
-    let permissions = match &auth.entity {
-        AuthenticatedEntity::User { permissions, .. }
-        | AuthenticatedEntity::ApiKey { permissions, .. } => *permissions,
-        _ => return Err(ApiError::forbidden("User or API key required")),
-    };
+    let permissions = caller_permissions(&auth.entity)?;
 
-    // Get the invite to verify ownership
+    let invite = revocable_invite(&state, id, organization_id, user_id, permissions).await?;
+
+    state
+        .services
+        .invite_service
+        .delete(
+            &invite.id,
+            auth.into_entity(),
+            DeletionReason::EntityRequested,
+        )
+        .await
+        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
+
+    Ok(Json(ApiResponse::success(())))
+}
+
+/// Revoke invites
+///
+/// Revokes each invite, as `DELETE /{id}/revoke` does for one. The request is refused, and
+/// nothing is revoked, if any invite is invalid or one the caller can't revoke.
+#[utoipa::path(
+    post,
+    path = "/bulk-revoke",
+    tag = Invite::ENTITY_NAME_PLURAL,
+    request_body(content = Vec<Uuid>, description = "IDs of the invites to revoke"),
+    responses(
+        (status = 200, description = "Invites revoked", body = EmptyApiResponse),
+        (status = 400, description = "An invite is invalid", body = ApiErrorResponse),
+        (status = 403, description = "An invite can't be revoked by the caller", body = ApiErrorResponse),
+    ),
+     security(("user_api_key" = []), ("session" = []))
+)]
+async fn bulk_revoke_invites(
+    State(state): State<Arc<AppState>>,
+    auth: Authorized<RequireVerified<Admin>>,
+    ApiJson(ids): ApiJson<Vec<Uuid>>,
+) -> ApiResult<Json<ApiResponse<()>>> {
+    if ids.is_empty() {
+        return Err(ApiError::bulk_empty());
+    }
+    let organization_id = auth
+        .organization_id()
+        .ok_or_else(ApiError::organization_required)?;
+    let user_id = auth.user_id().ok_or_else(ApiError::user_required)?;
+    let permissions = caller_permissions(&auth.entity)?;
+
+    for id in &ids {
+        revocable_invite(&state, *id, organization_id, user_id, permissions).await?;
+    }
+
+    state
+        .services
+        .invite_service
+        .delete_many(&ids, auth.into_entity(), DeletionReason::EntityRequested)
+        .await
+        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
+
+    Ok(Json(ApiResponse::success(())))
+}
+
+/// The role of the user or API key making the request.
+fn caller_permissions(entity: &AuthenticatedEntity) -> Result<UserOrgPermissions, ApiError> {
+    match entity {
+        AuthenticatedEntity::User { permissions, .. }
+        | AuthenticatedEntity::ApiKey { permissions, .. } => Ok(*permissions),
+        _ => Err(ApiError::forbidden("User or API key required")),
+    }
+}
+
+/// The invite, if it is valid, in the caller's organization, and one they may revoke.
+async fn revocable_invite(
+    state: &Arc<AppState>,
+    id: Uuid,
+    organization_id: Uuid,
+    caller_id: Uuid,
+    caller_permissions: UserOrgPermissions,
+) -> Result<Invite, ApiError> {
     let invite = state
         .services
         .invite_service
@@ -332,23 +401,28 @@ async fn revoke_invite(
     if invite.base.organization_id != organization_id {
         return Err(ApiError::entity_access_denied::<Invite>(id));
     }
-
-    // Verify user can revoke this invite
-    if !(user_id == invite.base.created_by
-        || invite.base.permissions < permissions
-        || permissions == UserOrgPermissions::Owner)
-    {
+    if !may_revoke(
+        caller_id,
+        caller_permissions,
+        invite.base.created_by,
+        invite.base.permissions,
+    ) {
         return Err(ApiError::permission_denied());
     }
+    Ok(invite)
+}
 
-    state
-        .services
-        .invite_service
-        .delete(&id, auth.into_entity())
-        .await
-        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
-
-    Ok(Json(ApiResponse::success(())))
+/// Whether the caller may revoke this invite: one they created, or one for a role below theirs,
+/// or any as an Owner. The users list offers Revoke on the same terms.
+fn may_revoke(
+    caller_id: Uuid,
+    caller_permissions: UserOrgPermissions,
+    created_by: Uuid,
+    invite_permissions: UserOrgPermissions,
+) -> bool {
+    caller_id == created_by
+        || invite_permissions < caller_permissions
+        || caller_permissions == UserOrgPermissions::Owner
 }
 
 /// Accept an invite link - redirects to registration/login with pending org invite in session
@@ -436,7 +510,11 @@ async fn accept_invite_link(
             if let Err(e) = state
                 .services
                 .invite_service
-                .delete(&id, AuthenticatedEntity::System)
+                .delete(
+                    &id,
+                    AuthenticatedEntity::System,
+                    DeletionReason::InviteConsumed,
+                )
                 .await
             {
                 tracing::warn!("Failed to revoke invite {}: {}", id, e);
@@ -493,7 +571,11 @@ async fn accept_invite_link(
             state
                 .services
                 .user_service
-                .update(&mut user, AuthenticatedEntity::System)
+                .update(
+                    &mut user,
+                    AuthenticatedEntity::System,
+                    UpdateReason::UserJoinedOrganization,
+                )
                 .await
                 .map_err(|_| {
                     Redirect::to(&format!(
@@ -577,7 +659,8 @@ pub async fn process_pending_invite(
             OnboardingOperationDiscriminants::InviteAccepted,
         )
         .await
-        && let Err(e) = state
+    {
+        state
             .services
             .invite_service
             .event_bus()
@@ -588,9 +671,7 @@ pub async fn process_pending_invite(
                 OnboardingOperation::InviteAccepted,
                 AuthenticatedEntity::System,
             ))
-            .await
-    {
-        tracing::warn!("Failed to emit InviteAccepted telemetry event: {}", e);
+            .await;
     }
 
     // Clear session data
@@ -606,4 +687,22 @@ pub async fn process_pending_invite(
         site_ids,
         send_to,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use UserOrgPermissions::{Admin, Member, Owner};
+
+    #[test]
+    fn revoking_follows_who_created_the_invite_and_the_role_it_grants() {
+        let (me, someone) = (Uuid::new_v4(), Uuid::new_v4());
+        assert!(
+            may_revoke(me, Admin, me, Owner),
+            "the creator can always revoke"
+        );
+        assert!(!may_revoke(me, Admin, someone, Admin));
+        assert!(may_revoke(me, Admin, someone, Member));
+        assert!(may_revoke(me, Owner, someone, Owner));
+    }
 }

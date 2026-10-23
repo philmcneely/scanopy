@@ -183,7 +183,7 @@
 	}
 
 	function getInterfaceContext(): IPAddressDisplayContext {
-		return { subnets };
+		return { subnets, services: knownHostServices.services };
 	}
 
 	// Scoped IP addresses for a host assignment (null = all)

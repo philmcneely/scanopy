@@ -13,7 +13,7 @@ impl ServiceDefinition for MQTT {
         "MQTT"
     }
     fn description(&self) -> &'static str {
-        "Generic MQTT broker"
+        "Generic MQTT broker, such as Mosquitto or EMQX"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::MessageQueue

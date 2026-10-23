@@ -129,7 +129,7 @@ jobs:
       - name: Copy fixtures to website repo
         run: |
           mkdir -p website/src/lib/fixtures/
-          cp ui/static/services.json website/src/lib/fixtures/
+          cp ui/src/lib/data/services.json website/src/lib/fixtures/
           cp ui/src/lib/data/features.json website/src/lib/fixtures/
           cp ui/src/lib/data/billing-plans.json website/src/lib/fixtures/
           cp ui/src/lib/data/integrations.json website/src/lib/fixtures/
@@ -147,6 +147,7 @@ jobs:
           cp ui/src/lib/data/views.json website/src/lib/fixtures/
           cp ui/src/lib/data/warning-codes.json website/src/lib/fixtures/
           cp ui/src/lib/data/warning-remedies.json website/src/lib/fixtures/
+          cp ui/src/lib/data/identity-provider-logos.json website/src/lib/fixtures/
           cp ui/static/openapi-public.json website/src/lib/fixtures/openapi.json
           cp ui/static/schema.mermaid website/src/lib/fixtures/schema.mermaid
           cp ui/static/schema-er.mermaid website/src/lib/fixtures/schema-er.mermaid

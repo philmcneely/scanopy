@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::{ServiceDefinition, ServiceDefinitionExt};
@@ -16,6 +17,9 @@ impl ServiceDefinition for Gateway {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkCore
     }
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::Router)
+    }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
@@ -26,7 +30,7 @@ impl ServiceDefinition for Gateway {
                         .service_params
                         .matched_services
                         .iter()
-                        .any(|s| !s.base.service_definition.is_gateway())
+                        .any(|s| s.base.service_definition.is_gateway())
                 },
                 |_| Vec::new(),
                 "No other gateway services matched",

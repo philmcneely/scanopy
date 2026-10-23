@@ -5,6 +5,7 @@
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import type { ModalTab } from '$lib/shared/components/layout/GenericModal.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import { pushError, pushSuccess } from '$lib/shared/stores/feedback';
 	import { trackEvent } from '$lib/shared/utils/analytics';
 	import { entities } from '$lib/shared/stores/metadata';
@@ -80,6 +81,7 @@
 		daemons_installCopiedToastWindows,
 		daemons_installBackToInstall,
 		daemons_installReturnToCommands,
+		daemons_testingConnectionTo,
 		daemons_verifyEmailForMoreDaemons
 	} from '$lib/paraglide/messages';
 	import { credentialTypes } from '$lib/shared/stores/metadata';
@@ -281,9 +283,10 @@
 	let formValues = $state<Record<string, string | number | boolean>>(buildDefaultValues());
 
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			formValues = { ...form.state.values } as Record<string, string | number | boolean>;
 		});
+		return unsubscribe;
 	});
 
 	// Derived commands.
@@ -706,6 +709,122 @@
 
 	let colorHelper = entities.getColorHelper('Daemon');
 	let title = daemons_createDaemon();
+
+	async function handleCredentialsContinue() {
+		const ids = await credentialsStep?.collectCredentialIds();
+		if (ids === null || ids === undefined) return; // validation failed
+		trackEvent('daemon_wizard_step_completed', {
+			step: 'credentials',
+			skipped: ids.length === 0,
+			types_selected: new Set(pendingCredentials.map((p) => p.credential.credential_type.type))
+				.size,
+			credentials_attached: ids.length
+		});
+		// Provision after the credentials exist, so they're seeded onto the
+		// daemon's discovery row in the same call.
+		await ensureProvisioned();
+		activeTab = 'install';
+	}
+
+	function handleEmailInstallCommand() {
+		if (!committedInstallParams) return;
+		// The server rebuilds the command from the same params the
+		// on-screen command came from; it never takes rendered text.
+		emailInstallMutation.mutate(
+			{
+				daemon_id: provisionedDaemonId,
+				...committedInstallParams,
+				os: selectedOS,
+				docker: isDockerInstall,
+				api_key: keyState
+			},
+			{
+				onSuccess: () => pushSuccess(daemons_installCommandEmailed())
+			}
+		);
+	}
+
+	let actions = $derived.by<ModalAction[]>(() => {
+		if (activeTab === 'credentials') {
+			return [
+				{
+					role: 'primary',
+					label:
+						unsavedCredentialCount > 0
+							? daemons_credentialWizardReturn({ count: unsavedCredentialCount })
+							: daemons_credentialWizardReturnToInstall(),
+					onClick: handleCredentialsContinue,
+					disabled: credentialsStep?.busy || isProvisioning,
+					icon: ArrowRight,
+					iconAfter: true
+				}
+			];
+		}
+		if (showAdvanced) {
+			return [
+				{
+					role: 'primary',
+					label: daemons_installBackToInstall(),
+					onClick: closeAdvanced,
+					icon: ArrowLeft
+				}
+			];
+		}
+		if (activeTab === 'configure') {
+			return [
+				{
+					role: 'primary',
+					label: isTestingReachability
+						? daemons_testingConnectionTo({
+								url: String(formValues.daemonUrl ?? ''),
+								port: String(formValues.daemonPort || 60073)
+							})
+						: common_next(),
+					onClick: handleNext,
+					disabled: isTestingReachability || provisionNeedsVerification,
+					large: true,
+					busy: isTestingReachability,
+					icon: ArrowRight,
+					iconAfter: !isTestingReachability
+				}
+			];
+		}
+		if (activeTab !== 'install') return [];
+		if (connectionStatus === 'connected') {
+			return [{ role: 'primary', label: common_close(), onClick: handleOnClose }];
+		}
+		if (connectionStatus === 'waiting' || connectionStatus === 'trouble') {
+			return [
+				{
+					role: 'secondary',
+					label: daemons_installReturnToCommands(),
+					onClick: handleReviewCommands
+				},
+				{ role: 'cancel', label: common_close(), onClick: handleOnClose }
+			];
+		}
+		return [
+			...(hasEmail && currentInstallCommand && committedInstallParams
+				? [
+						{
+							role: 'secondary' as const,
+							label: daemons_emailInstallCommand(),
+							onClick: handleEmailInstallCommand,
+							disabled: emailInstallMutation.isPending,
+							icon: Mail
+						}
+					]
+				: []),
+			hasCopied
+				? { role: 'primary', label: installCtaLabel, onClick: handleInstalled, icon: Check }
+				: {
+						role: 'primary',
+						label: daemons_installCopyCommand(),
+						onClick: handleCopyCommand,
+						icon: Copy
+					}
+		];
+	});
 </script>
 
 <GenericModal
@@ -720,6 +839,7 @@
 	{activeTab}
 	tabStyle="stepper"
 	onTabChange={handleTabChange}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={entities.getIconComponent('Daemon')} color={colorHelper.color} />
@@ -809,117 +929,5 @@
 				{/key}
 			</div>
 		{/if}
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex flex-wrap items-center justify-end gap-3">
-				{#if activeTab === 'credentials'}
-					<button
-						type="button"
-						class="btn-primary"
-						disabled={credentialsStep?.busy || isProvisioning}
-						onclick={async () => {
-							const ids = await credentialsStep?.collectCredentialIds();
-							if (ids === null || ids === undefined) return; // validation failed
-							trackEvent('daemon_wizard_step_completed', {
-								step: 'credentials',
-								skipped: ids.length === 0,
-								types_selected: new Set(
-									pendingCredentials.map((p) => p.credential.credential_type.type)
-								).size,
-								credentials_attached: ids.length
-							});
-							// Provision after the credentials exist, so they're seeded onto the
-							// daemon's discovery row in the same call.
-							await ensureProvisioned();
-							activeTab = 'install';
-						}}
-					>
-						{#if unsavedCredentialCount > 0}
-							{daemons_credentialWizardReturn({ count: unsavedCredentialCount })}
-						{:else}
-							{daemons_credentialWizardReturnToInstall()}
-						{/if}
-						<ArrowRight class="h-4 w-4" />
-					</button>
-				{:else if showAdvanced}
-					<button type="button" class="btn-primary" onclick={closeAdvanced}>
-						<ArrowLeft class="h-4 w-4" />
-						{daemons_installBackToInstall()}
-					</button>
-				{:else if activeTab === 'configure'}
-					<button
-						type="button"
-						class="btn-primary btn-primary-lg"
-						onclick={handleNext}
-						disabled={isTestingReachability || provisionNeedsVerification}
-					>
-						{#if isTestingReachability}
-							<Loader2 class="h-4 w-4 animate-spin" />
-							Testing connection to {formValues.daemonUrl}:{formValues.daemonPort || 60073}...
-						{:else}
-							{common_next()}
-							<ArrowRight class="h-4 w-4" />
-						{/if}
-					</button>
-				{:else if activeTab === 'install'}
-					{#if connectionStatus === 'connected'}
-						<button type="button" class="btn-primary" onclick={handleOnClose}>
-							{common_close()}
-						</button>
-					{:else if connectionStatus === 'waiting' || connectionStatus === 'trouble'}
-						<button type="button" class="btn-secondary" onclick={handleReviewCommands}>
-							{daemons_installReturnToCommands()}
-						</button>
-						<button type="button" class="btn-secondary" onclick={handleOnClose}>
-							{common_close()}
-						</button>
-					{:else}
-						{#if hasEmail && currentInstallCommand && committedInstallParams}
-							{@const emailParams = committedInstallParams}
-							<button
-								type="button"
-								class="btn-secondary w-full text-sm sm:w-auto"
-								disabled={emailInstallMutation.isPending}
-								onclick={() => {
-									// The server rebuilds the command from the same params the
-									// on-screen command came from; it never takes rendered text.
-									emailInstallMutation.mutate(
-										{
-											daemon_id: provisionedDaemonId,
-											...emailParams,
-											os: selectedOS,
-											docker: isDockerInstall,
-											api_key: keyState
-										},
-										{
-											onSuccess: () => pushSuccess(daemons_installCommandEmailed())
-										}
-									);
-								}}
-							>
-								<Mail class="h-4 w-4" />
-								{daemons_emailInstallCommand()}
-							</button>
-						{/if}
-						{#if hasCopied}
-							<button type="button" class="btn-primary w-full sm:w-auto" onclick={handleInstalled}>
-								<Check class="h-4 w-4" />
-								{installCtaLabel}
-							</button>
-						{:else}
-							<button
-								type="button"
-								class="btn-primary w-full sm:w-auto"
-								onclick={handleCopyCommand}
-							>
-								<Copy class="h-4 w-4" />
-								{daemons_installCopyCommand()}
-							</button>
-						{/if}
-					{/if}
-				{/if}
-			</div>
-		</div>
 	</div>
 </GenericModal>

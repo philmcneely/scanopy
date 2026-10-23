@@ -1226,8 +1226,60 @@ pub(super) fn generate_interfaces(
             target_if_index: 1,
         });
 
-        // Ports 5-24 — empty/down
-        for port_num in 5..=24 {
+        // Ports 5-6 — access ports in Servers (VLAN 20) for the storage nodes. Neither node is
+        // read over SNMP, so the only evidence tying DC Storage to a VLAN is the MAC each port
+        // learned, which the firewall's ARP table places on the storage subnet.
+        for (port_num, alias, learned) in [
+            (5, "minio-storage", "f8:bc:12:dc:14:01"),
+            (6, "ceph-node01", "f8:bc:12:dc:15:01"),
+        ] {
+            interfaces.push(Interface {
+                display_name: None,
+                valid_from: now,
+                valid_to: None,
+                lineage_id: None,
+                last_seen_at: now,
+                last_discovery_id: None,
+                first_discovery_id: None,
+                id: Uuid::new_v4(),
+                created_at: now,
+                updated_at: now,
+                base: InterfaceBase {
+                    neighbor_candidates: Default::default(),
+                    host_id: host.id,
+                    site_id: site.id,
+                    if_index: Some(port_num),
+                    if_descr: Some(format!("Port 1/0/{}", port_num)),
+                    if_name: None,
+                    if_alias: Some(alias.to_string()),
+                    if_type: Some(6),
+                    speed_bps: Some(10_000_000_000),
+                    admin_status: Some(IfAdminStatus::Up),
+                    oper_status: Some(IfOperStatus::Up),
+                    mac_address: Some(MacEvidence::new(
+                        MacEvidenceValue(MacAddress::new([
+                            0x00,
+                            0x1c,
+                            0x73,
+                            0xdc,
+                            0x02,
+                            port_num as u8,
+                        ])),
+                        AttributeSource::ArpReply,
+                    )),
+                    ip_address_id: None,
+                    ip_configured: false,
+                    fdb_macs: Some(FdbMacs::new(FdbMacsValue(vec![learned.to_string()]), SNMP)),
+                    interface_source: SNMP,
+                    vlan_membership_source: SNMP,
+                    native_vlan_id: find_vlan(site.id, 20),
+                    vlan_ids: None,
+                },
+            });
+        }
+
+        // Ports 7-24 — empty/down
+        for port_num in 7..=24 {
             interfaces.push(Interface {
                 display_name: None,
                 valid_from: now,

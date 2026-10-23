@@ -23,12 +23,12 @@ use crate::server::discovery::r#impl::scan_settings::defaults;
 use crate::server::interfaces::r#impl::base::{Interface, InterfaceBase, InterfaceDataComplete};
 use crate::server::ip_addresses::r#impl::base::{IPAddress, IPAddressBase};
 use crate::server::ip_addresses::r#impl::base::{MacEvidence, MacEvidenceValue};
-use crate::server::ports::r#impl::base::PortType;
+use crate::server::ports::r#impl::base::{PortType, TransportProtocol};
+use crate::server::ports::r#impl::coverage::PortCoverage;
 use crate::server::services::r#impl::base::{Service, ServiceMatchBaselineParams};
 use crate::server::shared::attribution::{AttributeSource, Attributed};
 use crate::server::shared::types::entities::EntitySource;
 use crate::server::{
-    daemons::r#impl::base::DaemonMode,
     hosts::r#impl::{
         api::{DiscoveryHostRequest, HostResponse},
         attributes::HostHostnameValue,
@@ -77,12 +77,8 @@ impl NetworkScan {
         // Filter out loopback subnets — they are not scannable
         let subnets: Vec<Subnet> = subnets
             .into_iter()
-            .filter(|s| !s.base.subnet_type.is_loopback())
+            .filter(|s| !s.base.subnet_type().is_loopback())
             .collect();
-
-        // A targeted rescan narrows enumeration to specific addresses within the
-        // subnets above. `None` means sweep them entirely.
-        let is_targeted = |ip: &IpAddr| target_ips.as_ref().is_none_or(|t| t.contains(ip));
 
         // Credentials resolve per-IP during the scan of that IP, and the enumeration above is
         // the only source of addresses — `target_ips` narrows it and never adds to it. So a
@@ -138,10 +134,25 @@ impl NetworkScan {
             (Vec::new(), subnets)
         };
 
+        // The subnets the ARP and ICMP sweeps address one by one. A link-local subnet stays in
+        // scope for mDNS, whose responders are still released below, but is never swept.
+        let arp_swept_subnets = swept_subnets(&interfaced_subnets, target_ips.as_ref());
+        for subnet in interfaced_subnets
+            .iter()
+            .chain(&non_interfaced_subnets)
+            .filter(|s| target_ips.is_none() && s.is_link_local())
+        {
+            tracing::info!(
+                cidr = %subnet.base.cidr,
+                "Not sweeping link-local subnet; its hosts are found through mDNS"
+            );
+        }
+
         let count_ips =
             |subnets: &[Subnet]| -> u64 { count_scan_ips(subnets, target_ips.as_ref()) };
-        let interfaced_ip_count = count_ips(&interfaced_subnets);
-        let non_interfaced_ip_count = count_ips(&non_interfaced_subnets);
+        let interfaced_ip_count = count_ips(&arp_swept_subnets);
+        let non_interfaced_ip_count =
+            count_ips(&swept_subnets(&non_interfaced_subnets, target_ips.as_ref()));
         let total_ips = interfaced_ip_count + non_interfaced_ip_count;
 
         // Calculate estimated ARP duration for progress reporting
@@ -171,7 +182,7 @@ impl NetworkScan {
 
         ops.report_progress(0).await?;
 
-        let arp_subnet_count = interfaced_subnets.len();
+        let arp_subnet_count = arp_swept_subnets.len();
 
         // Use the port batch size from the coordinated calculation
         let effective_batch_size = port_scan_batch_size;
@@ -286,11 +297,8 @@ impl NetworkScan {
             // uses — this list is materialised, and an uncapped /8 would exhaust memory the way
             // the streaming enumeration below is careful not to.
             let mut targets: Vec<std::net::Ipv4Addr> = Vec::new();
-            for subnet in &scanned_subnets {
-                for addr in subnet.base.cidr.iter().map(|a| a.address()) {
-                    if !is_targeted(&addr) {
-                        continue;
-                    }
+            for subnet in &swept_subnets(&scanned_subnets, target_ips.as_ref()) {
+                for addr in scan_addresses(&subnet.base.cidr, target_ips.as_ref()) {
                     // The network and broadcast addresses are skipped here and nowhere else: ARP
                     // enumerates them harmlessly because nothing owns them and nothing replies,
                     // while an echo request to the same address is answered by every responder on
@@ -335,17 +343,14 @@ impl NetworkScan {
         // would lose the MAC only ARP carries.
         let mut arp_forwarders: Vec<std::thread::JoinHandle<()>> = Vec::new();
 
-        if !interfaced_subnets.is_empty() {
+        if !arp_swept_subnets.is_empty() {
             let mut subnet_to_ips: HashMap<IpCidr, (Subnet, Vec<std::net::Ipv4Addr>)> =
                 HashMap::new();
-            for subnet in &interfaced_subnets {
+            for subnet in &arp_swept_subnets {
                 let entry = subnet_to_ips
                     .entry(*subnet.base.cidr)
                     .or_insert_with(|| (subnet.clone(), Vec::new()));
-                for addr in subnet.base.cidr.iter().map(|a| a.address()) {
-                    if !is_targeted(&addr) {
-                        continue;
-                    }
+                for addr in scan_addresses(&subnet.base.cidr, target_ips.as_ref()) {
                     if let IpAddr::V4(ipv4) = addr {
                         entry.1.push(ipv4);
                         if entry.1.len() >= max_arp_targets {
@@ -452,6 +457,16 @@ impl NetworkScan {
                         // Use spawn_blocking since std::sync::mpsc::recv_timeout is blocking
                         let host_tx = host_tx.clone();
                         let subnet = subnet.clone();
+                        // The receiver's own cap, plus as long again for the margin: the
+                        // forwarder normally ends when the receiver closes the channel.
+                        let forwarder_timeout = super::sweep_receiver_lifetime(
+                            target_count,
+                            1 + arp_retries,
+                            Duration::from_micros(1_000_000 / u64::from(arp_rate_pps.max(1))),
+                            arp::ROUND_WAIT,
+                            arp::POST_SCAN_RECEIVE,
+                        )
+                        .saturating_mul(2);
 
                         // Use a background thread for the blocking recv, forward via channel.
                         // Hard timeout prevents infinite hangs if the ARP receiver thread
@@ -461,7 +476,6 @@ impl NetworkScan {
                         // address" a fact rather than a guess.
                         arp_forwarders.push(std::thread::spawn(move || {
                             let forwarder_start = Instant::now();
-                            let forwarder_timeout = Duration::from_secs(600); // 10 minutes
                             let mut forwarded = 0u64;
                             loop {
                                 if forwarder_start.elapsed() >= forwarder_timeout {
@@ -623,10 +637,7 @@ impl NetworkScan {
                 // streams, so a bogus CIDR cannot exhaust memory here.
                 let responders = icmp.responders().await;
                 for subnet in non_interfaced_subnets {
-                    for addr in subnet.base.cidr.iter().map(|a| a.address()) {
-                        if stream_targets.as_ref().is_some_and(|t| !t.contains(&addr)) {
-                            continue;
-                        }
+                    for addr in scan_addresses(&subnet.base.cidr, stream_targets.as_ref()) {
                         // Both non-ARP signals are consulted here, not just the ping sweep. When
                         // ARP is unavailable outright every subnet takes this path, the daemon's
                         // own segment included — and that is exactly where a browse has something
@@ -635,6 +646,9 @@ impl NetworkScan {
                             LivenessEvidence::Mdns
                         } else if responders.contains(&addr) {
                             LivenessEvidence::Icmp
+                        } else if stream_targets.is_none() && subnet.is_link_local() {
+                            // Not swept: only an address something answered for is queued.
+                            continue;
                         } else {
                             LivenessEvidence::Enumerated
                         };
@@ -858,7 +872,6 @@ impl NetworkScan {
                                 let early_subnet = subnet.clone();
                                 let early_cancel = cancel.clone();
                                 let early_entity_buffer = ops.entity_buffer.clone();
-                                let early_config_store = ops.config_store.clone();
                                 let early_api_client = ops.api_client.clone();
                                 let early_handle = tokio::spawn(async move {
                                     // Unnamed: the address is an identifier, and the display ladder
@@ -895,18 +908,18 @@ impl NetworkScan {
                                         interface_data_complete: InterfaceDataComplete::default(),
                                         // This daemon is this build; it submits the current
                                         // shape by construction.
+                                        port_coverage: Default::default(),
                                         superseded_wire_shape: false,
                                     };
                                     early_entity_buffer.push_host(request.clone()).await;
-                                    let mode = early_config_store.get_mode().await?;
-                                    match mode {
-                                        DaemonMode::DaemonPoll => {
+                                    match early_api_client {
+                                        Some(early_api_client) => {
                                             let _response: HostResponse = early_api_client
                                                 .post("/api/v1/hosts/discovery", &request, "Failed to create early host")
                                                 .await?;
                                             Ok(host_id)
                                         }
-                                        DaemonMode::ServerPoll => {
+                                        None => {
                                             let _actual = early_entity_buffer
                                                 .await_host(&host_id, Duration::from_secs(120), &early_cancel)
                                                 .await
@@ -1445,6 +1458,7 @@ impl NetworkScan {
                 vec![],
                 false,
                 InterfaceDataComplete::none(),
+                PortCoverage::default(),
                 cancel,
             )
             .await
@@ -1501,6 +1515,9 @@ impl NetworkScan {
         // the address is alive without yielding a MAC, and putting it through this check would
         // drop it again for answering no TCP port — undoing the entire point of the ping sweep.
         let mut responsiveness_ports: HashSet<u16> = HashSet::new();
+        // Every TCP port either connect pass got a definite answer from, for the coverage the
+        // server needs before a stored port can change hands.
+        let mut covered_tcp_ports: Vec<u16> = Vec::new();
         if !evidence.is_confirmed_live() {
             // Every port the deep scan would look at, so this check can only skip an address
             // nothing we were going to probe answers on. See `liveness_probe_ports`.
@@ -1512,7 +1529,7 @@ impl NetworkScan {
                 "Checking responsiveness (no liveness signal yet)"
             );
 
-            let responsive_ports = scan_tcp_ports(
+            let responsiveness_scan = scan_tcp_ports(
                 ip,
                 cancel.clone(),
                 effective_batch_size,
@@ -1521,6 +1538,8 @@ impl NetworkScan {
                 scan_controller.clone(),
             )
             .await?;
+            covered_tcp_ports.extend(responsiveness_scan.covered);
+            let responsive_ports = responsiveness_scan.open;
 
             // The responsiveness check itself is accounted work (seeded into total_cost
             // up front for every non-interfaced IP); mark it complete now, on both the
@@ -1585,7 +1604,7 @@ impl NetworkScan {
                 return Err(Error::msg("Discovery was cancelled"));
             }
 
-            let open_ports = scan_tcp_ports(
+            let scan = scan_tcp_ports(
                 ip,
                 cancel.clone(),
                 effective_batch_size,
@@ -1594,7 +1613,8 @@ impl NetworkScan {
                 scan_controller.clone(),
             )
             .await?;
-            all_tcp_ports.extend(open_ports);
+            covered_tcp_ports.extend(scan.covered);
+            all_tcp_ports.extend(scan.open);
 
             // Update cost-based progress: each batch contributes a fraction of scan_cost_cs
             if let Some(counter) = completed_cost {
@@ -1622,6 +1642,7 @@ impl NetworkScan {
         }
         open_ports.sort_by_key(|p| (p.number(), p.protocol()));
         open_ports.dedup();
+        let connect_open: Vec<u16> = open_ports.iter().map(|p| p.number()).collect();
 
         // SNMP ports come from `SnmpIntegration.probe()` in the integration probes below, with the
         // credentials the site and host are assigned. SNMP `public` is one of them: a default
@@ -1637,9 +1658,18 @@ impl NetworkScan {
             is_gateway: gateway_ips.contains(&ip),
             cancel: cancel.clone(),
             scan_controller: scan_controller.clone(),
+            probe_raw_socket_ports,
+            port_map: Default::default(),
+            tunnel: None,
         };
-        let app_probe_results =
-            scan_app_probes(&probe_ctx, &open_ports, effective_batch_size, scan_rate_pps).await;
+        let app_probe_results = scan_app_probes(
+            &probe_ctx,
+            &open_ports,
+            effective_batch_size,
+            scan_rate_pps,
+            true,
+        )
+        .await;
         for result in &app_probe_results {
             if !open_ports.contains(&result.port) {
                 open_ports.push(result.port);
@@ -1653,10 +1683,17 @@ impl NetworkScan {
 
         // Integration probes — each checks connectivity and returns a ClientProbe for service matching
         use crate::daemon::discovery::integration::dispatch;
+        // An integration gated on a raw-socket port sees it closed when the setting is off, as
+        // the application probes above do (GH #801).
+        let integration_gate_ports: Vec<PortType> = open_ports
+            .iter()
+            .copied()
+            .filter(|p| probe_raw_socket_ports || !p.is_raw_socket())
+            .collect();
         let mut probe_results = dispatch::probe_integrations(
             ip,
             credential_mappings,
-            &open_ports,
+            &integration_gate_ports,
             false, // network scan: keep the probe-gate (cheap broad scan)
             &cancel,
             utils,
@@ -1801,8 +1838,9 @@ impl NetworkScan {
             ip_address_source: evidence.address_source(),
         });
 
-        // Filter raw socket ports from service matching when probe_raw_socket_ports is off,
-        // matching the same filtering applied in scan_endpoints() for endpoint probing.
+        // Filter raw socket ports from service matching when probe_raw_socket_ports is off.
+        // Nothing has written to them: the application probes, integration gates and
+        // scan_endpoints() each applied the same check before sending.
         if !probe_raw_socket_ports {
             open_ports.retain(|p| !p.is_raw_socket());
         }
@@ -1827,6 +1865,17 @@ impl NetworkScan {
                 );
             }
         }
+
+        // A port the filters above withheld answered, so it is not covered: covering it would tell
+        // the server nothing listens there.
+        let mut port_coverage = PortCoverage::default();
+        port_coverage.add(
+            ip,
+            TransportProtocol::Tcp,
+            covered_tcp_ports.into_iter().filter(|p| {
+                !connect_open.contains(p) || open_ports.contains(&PortType::new_tcp(*p))
+            }),
+        );
 
         if let Ok(Some(mut host_data)) = ops
             .build_host_from_scan(
@@ -1933,6 +1982,7 @@ impl NetworkScan {
                     subnets,
                     interfaces_complete,
                     interface_data_complete,
+                    port_coverage,
                     &cancel,
                 )
                 .await
@@ -1967,6 +2017,42 @@ impl NetworkScan {
 
         Ok(None)
     }
+}
+
+/// The addresses a scan enumerates in `cidr`: all of them, or for a rescan (`target_ips`) only
+/// the targets inside it, in order. A rescan of one address on a routed /16 would otherwise walk
+/// 65,536 addresses to find it.
+pub(crate) fn scan_addresses<'a>(
+    cidr: &'a IpCidr,
+    target_ips: Option<&HashSet<IpAddr>>,
+) -> Box<dyn Iterator<Item = IpAddr> + Send + 'a> {
+    match target_ips {
+        Some(targets) => {
+            let mut inside: Vec<IpAddr> = targets
+                .iter()
+                .copied()
+                .filter(|ip| cidr.contains(ip))
+                .collect();
+            inside.sort();
+            Box::new(inside.into_iter())
+        }
+        None => Box::new(cidr.iter().map(|a| a.address())),
+    }
+}
+
+/// The subnets whose addresses the ARP and ICMP sweeps (and, without ARP, the enumeration) probe
+/// one by one. A link-local `169.254.0.0/16` is left out of a whole-subnet scan: its 65,536
+/// self-assigned addresses took about an hour per run at the default ARP rate, for hosts mDNS
+/// already finds. A rescan names its addresses, so it sweeps them wherever they are.
+pub(crate) fn swept_subnets(
+    subnets: &[Subnet],
+    target_ips: Option<&HashSet<IpAddr>>,
+) -> Vec<Subnet> {
+    subnets
+        .iter()
+        .filter(|s| target_ips.is_some() || !s.is_link_local())
+        .cloned()
+        .collect()
 }
 
 /// Number of addresses a scan will actually probe across `subnets`.
@@ -2269,19 +2355,21 @@ mod tests {
     use crate::server::shared::storage::traits::Storable;
     use crate::server::subnets::r#impl::base::SubnetBase;
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::subnets::r#impl::types::SubnetType;
     use std::str::FromStr;
 
     fn subnet(cidr: &str) -> Subnet {
         Subnet::new(SubnetBase {
+            vlan_ids: Vec::new(),
             cidr: SubnetCidr::new(
                 SubnetCidrValue(cidr::IpCidr::from_str(cidr).unwrap()),
                 AttributeSource::DaemonSelfReport,
             ),
             site_id: uuid::Uuid::new_v4(),
-            name: cidr.to_string(),
+            name: SubnetName::unattributed(cidr.to_string()),
             description: None,
-            subnet_type: SubnetType::Lan,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
             virtualization_service_id: None,
             source: crate::server::shared::types::entities::EntitySource::System,
             tags: Vec::new(),
@@ -2290,6 +2378,50 @@ mod tests {
 
     fn ip(s: &str) -> IpAddr {
         IpAddr::from_str(s).unwrap()
+    }
+
+    /// A whole-subnet scan leaves the daemon's link-local subnet out of the per-address sweeps
+    /// and keeps its real LAN. A rescan of an address there still reaches it.
+    #[test]
+    fn a_sweep_skips_the_link_local_subnet_unless_a_rescan_names_an_address_in_it() {
+        let subnets = vec![subnet("192.168.4.0/22"), subnet("169.254.0.0/16")];
+        let cidrs = |swept: Vec<Subnet>| {
+            swept
+                .iter()
+                .map(|s| s.base.cidr.to_string())
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(cidrs(swept_subnets(&subnets, None)), vec!["192.168.4.0/22"]);
+
+        let rescan = HashSet::from([ip("169.254.154.142")]);
+        assert_eq!(swept_subnets(&subnets, Some(&rescan)).len(), 2);
+    }
+
+    /// A receiver must outlast its sender's whole schedule, or replies after the cap are lost.
+    /// The old fixed 300s fell short of a /16 at the default 50 pps.
+    #[test]
+    fn a_sweep_receiver_outlives_its_send_schedule() {
+        for (targets, rounds, rate_pps) in [
+            (254, 3, 50),
+            (1022, 3, 50),
+            (65_534, 3, 50),
+            (65_534, 1, 500),
+        ] {
+            let send_delay = Duration::from_micros(1_000_000 / rate_pps);
+            let sending = send_delay * (targets * rounds) + arp::ROUND_WAIT * rounds;
+            let lifetime = super::super::sweep_receiver_lifetime(
+                targets as usize,
+                rounds,
+                send_delay,
+                arp::ROUND_WAIT,
+                arp::POST_SCAN_RECEIVE,
+            );
+            assert!(
+                lifetime > sending + arp::POST_SCAN_RECEIVE,
+                "{targets} targets × {rounds} rounds at {rate_pps} pps: {lifetime:?} ≤ {sending:?}"
+            );
+        }
     }
 
     #[test]

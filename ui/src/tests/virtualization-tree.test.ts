@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { buildTreeSections, groupItems } from '$lib/shared/components/data/controls/grouping';
+import {
+	buildTreeSections,
+	groupItems,
+	mergeRootedTrees
+} from '$lib/shared/components/data/controls/grouping';
 import type { FieldConfig } from '$lib/shared/components/data/types';
 import {
 	missingRootIds,
@@ -72,13 +76,11 @@ describe('virtualization tree grouping', () => {
 			}
 		];
 
-		const groups = groupItems(
-			page,
-			fields,
-			'virtualized_by',
-			{ ungrouped: '-', yes: 'Yes', no: 'No' },
-			true
-		);
+		const groups = groupItems(page, fields, 'virtualized_by', {
+			ungrouped: '-',
+			yes: 'Yes',
+			no: 'No'
+		});
 		expect([...groups.entries()].map(([name, rows]) => [name, rows.map((r) => r.id)])).toEqual([
 			['Not virtualized', ['printer']],
 			['pve-01', ['docker-vm', 'pihole']]
@@ -86,7 +88,7 @@ describe('virtualization tree grouping', () => {
 	});
 
 	it('heads a section with the guest that runs others, even when its root is on another page', () => {
-		const entries = buildTreeSections([vm, container], virtualizationTree, true, 'pve-01');
+		const entries = buildTreeSections([vm, container], virtualizationTree, 'pve-01');
 		expect(entries).toEqual([
 			{
 				type: 'section',
@@ -95,6 +97,48 @@ describe('virtualization tree grouping', () => {
 				count: 1,
 				depth: 0,
 				entries: [{ type: 'row', item: container, depth: 1 }]
+			}
+		]);
+	});
+
+	it('files a tree whose node is on another page under "Virtualized", headed by the node', () => {
+		const range = { start: 4, end: 5, total: 5 };
+		const groups = [
+			{
+				key: 'Not virtualized',
+				name: 'Not virtualized',
+				items: [lone],
+				range: null,
+				entries: buildTreeSections([lone], virtualizationTree, 'Not virtualized'),
+				rootRanges: null
+			},
+			{
+				key: 'pve-01',
+				name: 'pve-01',
+				items: [vm, container],
+				range,
+				entries: buildTreeSections([vm, container], virtualizationTree, 'pve-01'),
+				rootRanges: null
+			}
+		];
+		const merged = mergeRootedTrees(groups, virtualizationTree, null);
+		expect(merged.map((g) => g.name)).toEqual(['Not virtualized', 'Virtualized']);
+		expect(merged[1].entries).toEqual([
+			{
+				type: 'continued',
+				key: `pve-01${NUL}pve-01`,
+				label: 'pve-01',
+				range,
+				entries: [
+					{
+						type: 'section',
+						key: `pve-01${NUL}docker-vm`,
+						item: vm,
+						count: 1,
+						depth: 1,
+						entries: [{ type: 'row', item: container, depth: 2 }]
+					}
+				]
 			}
 		]);
 	});

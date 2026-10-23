@@ -19,7 +19,7 @@
 
 import type { components } from '$lib/api/schema';
 import type { Site } from '$lib/features/sites/types';
-import { createColorHelper, type Color } from '$lib/shared/utils/styling';
+import { createColorHelper } from '$lib/shared/utils/styling';
 import { filterValueOf } from './interactions';
 import { cardEntityForFilter } from './resolvers';
 import type { RenderableTopology, TopologyNode } from './types/base';
@@ -27,24 +27,24 @@ import { viewElementConfig, type ViewElementConfig } from './view-filters';
 
 type ElementMark = components['schemas']['ElementMark'];
 export type MarkChannel = components['schemas']['MarkChannel'];
+/** The filter value a mark paints: its colour, and the icon and label a corner marker draws. */
+export type MarkValue = components['schemas']['FilterValue'];
 
-/** The colour each channel paints on one card; an absent channel renders neutral. */
-export type ElementMarks = Partial<Record<MarkChannel, Color>>;
+/** The filter value each channel paints on one card; an absent channel renders neutral. */
+export type ElementMarks = Partial<Record<MarkChannel, MarkValue>>;
 
 /** A reduced card with no mark: neutral texture, tuned per theme in `app.css`. */
 export const NEUTRAL_FILL = 'var(--color-topology-lod-unknown)';
-/** A status dot with no mark. */
-export const NEUTRAL_DOT = 'rgb(156, 163, 175)';
 
-/** The chip colour of the filter value `mark` names, or undefined if the view does not offer it. */
-export function markColor(config: ViewElementConfig, mark: ElementMark): Color | undefined {
+/** The chip value `mark` names, or undefined if the view does not offer it. */
+export function markValue(config: ViewElementConfig, mark: ElementMark): MarkValue | undefined {
 	return config.metadata_filters
 		?.find((f) => f.filter_type === mark.filter_type && f.entities.includes(mark.entity))
-		?.values.find((v) => v.id === mark.value)?.color;
+		?.values.find((v) => v.id === mark.value);
 }
 
 /**
- * The colours `view` paints on the card `node` draws. Per channel the first matching mark wins,
+ * The filter values `view` paints on the card `node` draws, each with its colour. Per channel the first matching mark wins,
  * which is how L2 puts a down port above a stale one.
  */
 export function elementMarks(
@@ -59,21 +59,46 @@ export function elementMarks(
 	for (const mark of config.element_marks ?? []) {
 		if (marks[mark.channel]) continue;
 		const entity = cardEntityForFilter(node, topology, mark.entity);
-		if (!entity) continue;
-		const site = sites.find((n) => n.id === (entity as { site_id?: string }).site_id);
-		if (filterValueOf(entity, mark.filter_type, site) !== mark.value) continue;
-		const color = markColor(config, mark);
-		if (color) marks[mark.channel] = color;
+		const value = entity ? paintedValue(config, mark, entity, sites) : undefined;
+		if (value) marks[mark.channel] = value;
 	}
 	return marks;
 }
 
-/** CSS colour for a reduced card's fill. */
-export function stateFill(marks: ElementMarks): string {
-	return marks.StateFill ? createColorHelper(marks.StateFill).rgb : NEUTRAL_FILL;
+/**
+ * The filter value `view` paints through `channel` on one entity drawn inside a card rather than
+ * as a card of its own: a container in a runtime's group on a VM's card.
+ */
+export function entityMark(
+	view: string,
+	channel: MarkChannel,
+	entityType: string,
+	entity: object,
+	sites: Site[]
+): MarkValue | undefined {
+	const config = viewElementConfig(view);
+	if (!config) return undefined;
+	for (const mark of config.element_marks ?? []) {
+		if (mark.channel !== channel || mark.entity !== entityType) continue;
+		const value = paintedValue(config, mark, entity, sites);
+		if (value) return value;
+	}
+	return undefined;
 }
 
-/** CSS colour for a port card's status dot. */
-export function statusDot(marks: ElementMarks): string {
-	return marks.StatusDot ? createColorHelper(marks.StatusDot).rgb : NEUTRAL_DOT;
+/** The chip value `mark` names, when `entity` carries it. */
+function paintedValue(
+	config: ViewElementConfig,
+	mark: ElementMark,
+	entity: object,
+	sites: Site[]
+): MarkValue | undefined {
+	const site = sites.find((n) => n.id === (entity as { site_id?: string }).site_id);
+	if (filterValueOf(entity, mark.filter_type, site) !== mark.value) return undefined;
+	return markValue(config, mark);
+}
+
+/** CSS colour for a reduced card's fill. */
+export function stateFill(marks: ElementMarks): string {
+	return marks.StateFill ? createColorHelper(marks.StateFill.color).rgb : NEUTRAL_FILL;
 }

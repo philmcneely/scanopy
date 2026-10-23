@@ -4,19 +4,20 @@ use crate::server::shared::sse::until_shutdown;
 use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::metadata::HasId;
 use crate::server::{
-    auth::middleware::{
-        auth::AuthenticatedEntity,
-        permissions::{Authorized, IsDaemon, Member, Viewer},
-    },
+    auth::middleware::permissions::{Authorized, IsDaemon, Member, Viewer},
     config::AppState,
-    credentials::r#impl::types::CredentialTypeDiscriminants,
     daemons::r#impl::{api::DiscoveryUpdatePayload, version::supports_unified_discovery},
     discovery::r#impl::{base::Discovery, types::DiscoveryType},
+    discovery::service::start_refusal,
     shared::{
         extractors::Query,
         handlers::{
-            ordering::OrderField,
-            query::{FilterQueryExtractor, OrderDirection, PaginationParams},
+            list::list_page,
+            ordering::{OrderField, in_sql},
+            query::{
+                FilterQueryExtractor, OrderDirection, PaginationParams, deserialize_bool_values,
+            },
+            traits::ListScope,
             traits::{create_handler, update_handler},
         },
         services::traits::CrudService,
@@ -47,6 +48,7 @@ use const_format::concatcp;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
 use std::{convert::Infallible, sync::Arc};
+use strum::IntoEnumIterator;
 use tokio::sync::broadcast;
 use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -83,7 +85,27 @@ pub enum DiscoveryOrderField {
     Duration,
     /// How many warnings the run recorded. Rows with no results count as zero.
     Warnings,
+    /// How a scan configuration runs: `Scheduled` or `AdHoc`.
+    RunType,
+    /// When a scan configuration last ran. Configurations that never ran sort last.
+    LastRun,
+    /// How many scans a configuration has completed.
+    ScanCount,
+    /// Whether the configuration's next run is forced to a full scan.
+    ForceFullScan,
+    /// Whether the configuration's type is a frozen legacy one, from `DiscoveryType::is_legacy`.
+    Legacy,
 }
+
+/// Whether a discovery's type is a legacy one, built from `DiscoveryType::is_legacy`.
+static LEGACY_SQL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    in_sql(
+        "discovery.discovery_type->>'type'",
+        DiscoveryType::iter()
+            .filter(DiscoveryType::is_legacy)
+            .map(|t| t.id()),
+    )
+});
 
 /// A historical run's start, read out of the JSONB payload as a timestamp so it orders by time
 /// rather than by its text rendering.
@@ -107,13 +129,18 @@ impl OrderField for DiscoveryOrderField {
             Self::Warnings => {
                 "(SELECT COUNT(*) FROM discovery_warnings WHERE discovery_warnings.discovery_id = discovery.id)"
             }
+            Self::RunType => "discovery.run_type->>'type'",
+            Self::LastRun => "(discovery.run_type->>'last_run')::timestamptz",
+            Self::ScanCount => "discovery.scan_count",
+            Self::ForceFullScan => "discovery.force_full_scan",
+            Self::Legacy => LEGACY_SQL.as_str(),
         }
     }
 
     fn nulls_last(&self) -> bool {
         matches!(
             self,
-            Self::Phase | Self::StartedAt | Self::FinishedAt | Self::Duration
+            Self::Phase | Self::StartedAt | Self::FinishedAt | Self::Duration | Self::LastRun
         )
     }
 }
@@ -144,6 +171,27 @@ pub struct DiscoveryFilterQuery {
     /// Free-text search across the discovery's name and the name of the daemon
     /// that runs it.
     pub search: Option<String>,
+    /// Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for
+    /// several.
+    pub run_types: Option<Vec<String>>,
+    /// Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat
+    /// it). Sent empty, matches none.
+    #[serde(default, deserialize_with = "deserialize_bool_values")]
+    pub legacy: Option<Vec<bool>>,
+    /// Only configurations whose next run is forced to a full scan (`true`), not (`false`), or
+    /// both (repeat it). Sent empty, matches none.
+    #[serde(default, deserialize_with = "deserialize_bool_values")]
+    pub force_full_scan: Option<Vec<bool>>,
+    /// Filter by tag IDs (returns discoveries that have ANY of the specified tags)
+    pub tag_ids: Option<Vec<Uuid>>,
+    /// Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated
+    /// list of tag ids. One entry per tag group the list is filtered by.
+    pub tag_sets: Option<Vec<String>>,
+    /// Group by the tag each row holds from this tag group. Takes the place of `group_by`.
+    pub group_by_tag_group: Option<Uuid>,
+    /// Sort by the position of the tag each row holds from this tag group. Takes the place of
+    /// `order_by`.
+    pub order_by_tag_group: Option<Uuid>,
     /// Primary ordering field (used for grouping). Always sorts ASC to keep groups together.
     pub group_by: Option<DiscoveryOrderField>,
     /// Secondary ordering field (sorting within groups or standalone sort).
@@ -156,22 +204,6 @@ pub struct DiscoveryFilterQuery {
     /// Number of results to skip. Default: 0.
     #[param(minimum = 0)]
     pub offset: Option<u32>,
-}
-
-impl DiscoveryFilterQuery {
-    /// Build the ORDER BY clause.
-    pub fn apply_ordering(
-        &self,
-        filter: StorableFilter<Discovery>,
-    ) -> (StorableFilter<Discovery>, String) {
-        crate::server::shared::handlers::ordering::apply_ordering(
-            self.group_by,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "discovery.created_at DESC",
-        )
-    }
 }
 
 impl FilterQueryExtractor for DiscoveryFilterQuery {
@@ -252,52 +284,8 @@ async fn get_all_discoveries(
     auth: Authorized<Viewer>,
     Query(query): Query<DiscoveryFilterQuery>,
 ) -> ApiResult<Json<PaginatedApiResponse<Discovery>>> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    let base_filter = StorableFilter::<Discovery>::new_from_site_ids(&site_ids);
-    let filter = query.apply_to_filter(base_filter, &site_ids, organization_id);
-
-    // Server-side because the list is paginated: a client-side search would
-    // only ever match the page already loaded.
-    let filter = match query.search.as_deref() {
-        Some(search) if !search.trim().is_empty() => filter.text_search(search),
-        _ => filter,
-    };
-
-    let pagination = query.pagination();
-    let filter = pagination.apply_to_filter(filter);
-    let (filter, order_by) = query.apply_ordering(filter);
-
-    // Grouped lists report each group's full size, not the slice on this page.
-    let group_counts = match query.group_by {
-        Some(group_field) => Some(
-            state
-                .services
-                .discovery_service
-                .count_by_group(filter.clone(), group_field.group_sql())
-                .await?,
-        ),
-        None => None,
-    };
-
-    let result = state
-        .services
-        .discovery_service
-        .get_paginated_ordered(filter, &order_by)
-        .await?;
-
-    let limit = pagination.effective_limit().unwrap_or(0);
-    let offset = pagination.effective_offset();
-
-    let response = PaginatedApiResponse::success(result.items, result.total_count, limit, offset);
-
-    Ok(Json(match group_counts {
-        Some(counts) => response.with_group_counts(counts),
-        None => response,
-    }))
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Discovery>(&state, &scope, &query).await?))
 }
 
 // Generated handlers for operations that use generic CRUD logic
@@ -320,6 +308,11 @@ fn active_session_error() -> ApiError {
     )
 }
 
+/// A session the daemon is picking up right now can't be cancelled until it has started.
+pub(super) fn session_starting_error() -> ApiError {
+    ApiError::conflict("The session is starting on its daemon. Try again in a moment.")
+}
+
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
     OpenApiRouter::new()
         .routes(routes!(get_all_discoveries, create_discovery))
@@ -334,6 +327,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(start_session))
         .routes(routes!(get_active_sessions))
         .routes(routes!(cancel_discovery))
+        .merge(super::bulk::create_router())
         // Internal daemon endpoints
         .routes(routes!(receive_discovery_update))
         // SSE endpoint (internal - not well-supported by OpenAPI)
@@ -427,11 +421,11 @@ pub async fn create_discovery(
     if discovery
         .base
         .discovery_type
-        .rescan_target_host_id()
+        .rescan_target_host_ids()
         .is_some()
     {
         return Err(ApiError::bad_request(
-            "Rescans are created by the server for a single host and cannot be submitted \
+            "Rescans are created by the server and cannot be submitted \
              via the API.",
         ));
     }
@@ -458,16 +452,18 @@ pub async fn create_discovery(
             // old". A provisioned daemon carries no version until it first contacts
             // the server (provisioning no longer writes one optimistically), so a
             // never-connected daemon lands here with `None` — telling that operator
-            // to "upgrade to 0.15.0" is misleading; the daemon simply hasn't checked
+            // to "upgrade" is misleading; the daemon simply hasn't checked
             // in yet.
             return Err(match daemon.base.version {
                 None => ApiError::bad_request(
                     "Daemon has not connected to the server yet, so its version is unknown. \
                      Wait for it to contact the server, then trigger discovery again.",
                 ),
-                Some(_) => ApiError::bad_request(
-                    "Daemon does not support unified discovery. Upgrade to version 0.15.0 or later.",
-                ),
+                Some(_) => ApiError::bad_request(&format!(
+                    "Daemon does not support unified discovery. Upgrade to a version newer \
+                     than {}.",
+                    crate::server::daemons::r#impl::version::last_without_unified_discovery()
+                )),
             });
         }
     }
@@ -484,7 +480,7 @@ pub async fn create_discovery(
             if let Some(subnet) = state.services.subnet_service.get_by_id(subnet_id).await?
                 && subnet.base.site_id != discovery.base.site_id
             {
-                return Err(ApiError::discovery_subnet_site_mismatch(&subnet.base.name));
+                return Err(ApiError::discovery_subnet_site_mismatch(subnet.base.name()));
             }
         }
     }
@@ -519,11 +515,11 @@ pub async fn update_discovery(
     if discovery
         .base
         .discovery_type
-        .rescan_target_host_id()
+        .rescan_target_host_ids()
         .is_some()
     {
         return Err(ApiError::bad_request(
-            "Rescans are created by the server for a single host and cannot be submitted \
+            "Rescans are created by the server and cannot be submitted \
              via the API.",
         ));
     }
@@ -568,19 +564,12 @@ pub async fn update_discovery(
                 {
                     return Err(ApiError::bad_request(&refusal));
                 }
-                let disc = CredentialTypeDiscriminants::from(&cred.base.credential_type);
-                if !disc.compatible_with_daemon(daemon.base.version.as_ref()) {
-                    return Err(ApiError::bad_request(&format!(
-                        "Credential type \"{}\" requires daemon version {} or newer, but this daemon is on {}. Upgrade the daemon or choose a compatible credential type.",
-                        disc.display_name(),
-                        disc.minimum_daemon_version(),
-                        daemon
-                            .base
-                            .version
-                            .as_ref()
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(|| "an unknown version".to_string()),
-                    )));
+                if let Some(refusal) = crate::server::credentials::service::refusal_for_daemon(
+                    &cred,
+                    &daemon.base.name,
+                    daemon.base.version.as_ref(),
+                ) {
+                    return Err(ApiError::bad_request(&refusal));
                 }
             }
         }
@@ -648,7 +637,7 @@ async fn receive_discovery_update(
         .services
         .daemon_service
         .process_discovery_progress(update)
-        .await?;
+        .await;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -687,29 +676,16 @@ async fn start_session(
             discovery.base.site_id,
         ));
     }
-
-    // Auto-wake daemon if on standby. Grant the same grace window as the
-    // restart reactivation path so the nightly inactivity check doesn't
-    // re-standby the daemon before the just-queued discovery completes.
-    if let Some(mut daemon) = state
+    let running = state
         .services
-        .daemon_service
-        .get_by_id(&discovery.base.daemon_id)
-        .await?
-        && daemon.base.standby
-    {
-        daemon.base.standby = false;
-        daemon.base.standby_cleared_at = Some(chrono::Utc::now());
-        state
-            .services
-            .daemon_service
-            .update(&mut daemon, AuthenticatedEntity::System)
-            .await?;
-        tracing::info!(
-            daemon_id = %daemon.id,
-            "Cleared daemon standby (discovery session started)"
-        );
+        .discovery_service
+        .has_active_session_for_discovery(&discovery.id)
+        .await;
+    if let Some(refusal) = start_refusal(&discovery, running) {
+        return Err(refusal.into_api_error(&discovery.base.name));
     }
+
+    wake_daemon(&state, discovery.base.daemon_id).await?;
 
     let update = state
         .services
@@ -718,6 +694,18 @@ async fn start_session(
         .await?;
 
     Ok(Json(ApiResponse::success(update)))
+}
+
+/// Takes the discovery's daemon off standby, so it picks up the session about to be queued.
+pub(super) async fn wake_daemon(state: &Arc<AppState>, daemon_id: Uuid) -> Result<(), ApiError> {
+    if let Some(mut daemon) = state.services.daemon_service.get_by_id(&daemon_id).await? {
+        state
+            .services
+            .daemon_service
+            .wake_from_standby(&mut daemon)
+            .await?;
+    }
+    Ok(())
 }
 
 async fn discovery_stream(
@@ -800,6 +788,9 @@ async fn cancel_discovery(
     if !auth.site_ids().contains(&session.site_id) {
         return Err(ApiError::entity_access_denied::<Site>(session.site_id));
     }
+    if session.phase == DiscoveryPhase::Starting {
+        return Err(session_starting_error());
+    }
 
     state
         .services
@@ -807,6 +798,5 @@ async fn cancel_discovery(
         .cancel_session(session_id, auth.into_entity())
         .await?;
 
-    tracing::info!("Discovery session was {} cancelled", session_id);
     Ok(Json(ApiResponse::success(())))
 }

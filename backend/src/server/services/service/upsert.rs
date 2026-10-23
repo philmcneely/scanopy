@@ -13,26 +13,15 @@ impl ServiceService {
         let mut binding_updates = 0;
 
         let service_before_updates = existing_service.clone();
-
-        tracing::trace!(
-            "Upserting new service data {:?} into {:?}",
-            new_service_data,
-            existing_service
-        );
+        let mut reason = UpdateReason::EntityRediscovered;
 
         for new_service_binding in &new_service_data.base.bindings {
             // Check if this binding is already covered by existing bindings
             // (e.g., a specific interface binding is covered by an "all ip_addresses" binding for the same port)
-            let is_covered = Self::is_binding_covered_by_existing(
+            if Self::is_binding_covered_by_existing(
                 new_service_binding,
                 &existing_service.base.bindings,
-            );
-
-            if is_covered {
-                tracing::trace!(
-                    "Skipping binding {:?} - already covered by existing all-ip_addresses binding",
-                    new_service_binding.base.binding_type
-                );
+            ) {
                 continue;
             }
 
@@ -88,21 +77,14 @@ impl ServiceService {
         // proxy's container identity onto the runtime the proxy fronts, leaving the runtime owned
         // by itself. Such a stored row is cleared here, and incoming container details naming the
         // service as its own owner are not taken, since that identity is another container's.
+        // Either names the update's reason, which Service's log writes at WARN.
         if existing_service.base.virtualization_service_id == Some(existing_service.id) {
-            tracing::warn!(
-                service_id = %existing_service.id,
-                service_name = %existing_service.base.name,
-                "Clearing container details that name the service as its own owner"
-            );
             existing_service.base.virtualization_service_id = None;
             existing_service.base.virtualization_metadata = None;
+            reason = UpdateReason::ServiceContainerDetailsRejected;
         }
         if new_service_data.base.virtualization_service_id == Some(existing_service.id) {
-            tracing::warn!(
-                service_id = %existing_service.id,
-                service_name = %existing_service.base.name,
-                "Ignoring container details whose owner is the service itself"
-            );
+            reason = UpdateReason::ServiceContainerDetailsRejected;
         } else {
             if let Some(virtualization_metadata) = &new_service_data.base.virtualization_metadata {
                 existing_service.base.virtualization_metadata =
@@ -112,6 +94,12 @@ impl ServiceService {
                 existing_service.base.virtualization_service_id = Some(owner);
             }
         }
+        // A container that stopped, or moved runtime, is a change even with its bindings as they
+        // were: the open page and the topology need to hear it.
+        let virtualization_changed = existing_service.base.virtualization_metadata
+            != service_before_updates.base.virtualization_metadata
+            || existing_service.base.virtualization_service_id
+                != service_before_updates.base.virtualization_service_id;
 
         existing_service.base.source = match (
             existing_service.base.source,
@@ -143,7 +131,11 @@ impl ServiceService {
                 }
             }
 
-            // New service data upserted to a manually or system-created record
+            // A person or the system created this record, and discovery matching it does not make
+            // it discovery's: a manual or system service stays exempt from staleness and is never
+            // released when its port goes quiet or changes hands.
+            (existing_source @ (EntitySource::Manual | EntitySource::System), _) => existing_source,
+
             (_, EntitySource::DiscoveryWithMatch { details }) => {
                 EntitySource::DiscoveryWithMatch { details }
             }
@@ -177,43 +169,28 @@ impl ServiceService {
                 &existing_service.id,
                 &bindings_with_ids,
                 authentication.clone(),
+                // The only bindings an upsert removes are specific ones an all-addresses binding
+                // now covers.
+                DeletionReason::EntityNoLongerReported,
+                UpdateReason::EntityRediscovered,
             )
             .await?;
 
         // Update service with the saved bindings (which have actual IDs and preserved created_at)
         existing_service.base.bindings = saved_bindings;
 
-        let mut data = Vec::new();
-
-        if binding_updates > 0 {
-            data.push(format!("{} bindings", binding_updates))
-        };
-
-        if !data.is_empty() {
-            let trigger_stale = existing_service.triggers_staleness(Some(service_before_updates));
-
-            if let Some(scope) = EntityScope::from_ids(
-                existing_service.id,
-                existing_service.clone().into(),
-                self.get_site_id(&existing_service),
-                self.get_organization_id(&existing_service),
-            ) {
-                self.event_bus()
-                    .publish(
-                        Event::new(scope, EntityOperation::Updated, authentication).with_flags(
-                            EntityEventFlags {
-                                trigger_stale,
-                                ..Default::default()
-                            },
-                        ),
-                    )
-                    .await?;
-            }
-        } else {
-            tracing::debug!(
-                service_id = %existing_service.id,
-                "Service upsert - no binding changes needed"
-            );
+        // A rejection publishes even when nothing else changed, so its WARN line is written.
+        if binding_updates > 0
+            || virtualization_changed
+            || reason == UpdateReason::ServiceContainerDetailsRejected
+        {
+            self.publish_updated(
+                &service_before_updates,
+                &existing_service,
+                authentication,
+                reason,
+            )
+            .await;
         }
 
         Ok(existing_service)

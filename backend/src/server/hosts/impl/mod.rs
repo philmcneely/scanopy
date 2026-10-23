@@ -1,6 +1,7 @@
 pub mod api;
 pub mod attributes;
 pub mod base;
+pub mod device_type;
 pub mod handlers;
 pub mod legacy;
 pub mod name;
@@ -8,4 +9,3 @@ pub mod name_ladder;
 pub mod os;
 pub mod storage;
 pub mod virtualization;
-pub mod virtualization_tree;

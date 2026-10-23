@@ -6,6 +6,7 @@
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		common_errorOccurred,
 		common_loading,
@@ -61,6 +62,15 @@
 		form.reset();
 		serverError = '';
 	}
+
+	let actions = $derived<ModalAction[]>([
+		{
+			role: 'primary',
+			label: loading ? common_loading() : displaySubmitLabel,
+			onClick: handleSubmit,
+			disabled: loading
+		}
+	]);
 </script>
 
 <GenericModal
@@ -72,6 +82,7 @@
 	showCloseButton={false}
 	preventCloseOnClickOutside={true}
 	centerTitle={true}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={Lock} color="Blue" />
@@ -109,14 +120,6 @@
 				{#if serverError}
 					<p class="text-danger text-sm">{serverError}</p>
 				{/if}
-			</div>
-		</div>
-
-		<div class="modal-footer">
-			<div class="flex items-center justify-end">
-				<button type="submit" disabled={loading} class="btn-primary">
-					{loading ? common_loading() : displaySubmitLabel}
-				</button>
 			</div>
 		</div>
 	</form>

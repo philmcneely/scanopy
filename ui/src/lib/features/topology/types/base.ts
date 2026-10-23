@@ -21,7 +21,8 @@ export type Vlan = components['schemas']['Vlan'];
  * Bundle entities carrying the metadata filter values the backend stamps on them
  * (`filter_values`, read through `filterValueOf`).
  */
-export type TopologyHost = Host & Pick<components['schemas']['TopologyHost'], 'filter_values'>;
+export type TopologyHost = Host &
+	Pick<components['schemas']['TopologyHost'], 'filter_values' | 'device_type'>;
 export type TopologyService = components['schemas']['TopologyService'];
 export type TopologyInterface = components['schemas']['TopologyInterface'];
 
@@ -77,28 +78,23 @@ export interface RenderableTopology extends Topology {
 export type ElementNode = Extract<TopologyNode, { node_type: 'Element' }>;
 export type ContainerNode = Extract<TopologyNode, { node_type: 'Container' }>;
 
-// Frontend-specific render types (not from backend)
-export interface PortStatus {
-	operStatus: 'Up' | 'Down' | string;
-	speed: string | null;
-	macAddress: string | null;
-}
-
 type ElementEntityTypeDiscriminant = components['schemas']['ElementEntityType']['element_type'];
 
+// Frontend-specific render types (not from backend)
 export interface ElementRenderData {
 	elementType: ElementEntityTypeDiscriminant;
 	headerText: string | null;
-	subtitleText?: string | null;
-	footerText: string | null;
+	/**
+	 * An address card names its address: true unless the address is the container subnet's
+	 * placeholder, which names nothing.
+	 */
+	namesAddress?: boolean;
+	/** Text naming what failed to resolve, drawn when the element has no icon card. */
 	bodyText: string | null;
 	showServices: boolean;
 	services: Service[];
-	hiddenOpenPorts: Service[];
 	/** The card's selection key: the node id, or an IP card's address id (null with no address). */
 	ip_address_id: string | null;
-	isCategoryHidden?: boolean;
-	portStatus?: PortStatus;
 	/**
 	 * Entities the backend inlined on this card under a manager (`inline_groups`): a runtime with
 	 * its containers, a guest's Network Identities with its identity hosts. Their services are

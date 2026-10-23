@@ -8,6 +8,7 @@ use crate::server::shared::{
     concepts::Concept,
     types::{
         Color, Icon,
+        guest_state::GuestState,
         metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
     },
 };
@@ -44,6 +45,9 @@ pub struct DockerVirtualization {
     /// Compose project the container belongs to, when it was started by Compose.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compose_project: Option<String>,
+    /// Whether the container was running at the last scan.
+    #[serde(default)]
+    pub state: GuestState,
 }
 
 #[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash, ToSchema)]
@@ -55,9 +59,20 @@ pub struct PodmanVirtualization {
     /// Compose project the container belongs to, when it was started by Compose.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compose_project: Option<String>,
+    /// Whether the container was running at the last scan.
+    #[serde(default)]
+    pub state: GuestState,
 }
 
 impl ServiceVirtualization {
+    /// Whether the container was running at the last scan; every container runtime reports it.
+    pub fn guest_state(&self) -> GuestState {
+        match self {
+            Self::Docker(docker) => docker.state,
+            Self::Podman(podman) => podman.state,
+        }
+    }
+
     // The runtime service that owns this container is `Service::virtualization_service_id`, a
     // real foreign key, rather than a field inside each payload — see the note on
     // `HostVirtualization`.
@@ -132,6 +147,7 @@ mod tests {
     #[test]
     fn docker_virtualization_serde_round_trip_with_compose_project() {
         let virt = ServiceVirtualization::Docker(DockerVirtualization {
+            state: Default::default(),
             container_name: Some("plex".to_string()),
             container_id: Some("abc123".to_string()),
             compose_project: Some("media-stack".to_string()),
@@ -152,6 +168,7 @@ mod tests {
     #[test]
     fn docker_virtualization_serde_round_trip_without_compose_project() {
         let virt = ServiceVirtualization::Docker(DockerVirtualization {
+            state: Default::default(),
             container_name: Some("nginx".to_string()),
             container_id: Some("def456".to_string()),
             compose_project: None,

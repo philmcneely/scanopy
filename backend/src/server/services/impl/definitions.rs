@@ -1,4 +1,5 @@
 use crate::daemon::utils::app_probe::AppProbe;
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::hosts::r#impl::virtualization::HostVirtualizationDiscriminants;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::definitions::docker_daemon::Docker;
@@ -114,6 +115,13 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
     fn logo_needs_white_background(&self) -> bool {
         false
     }
+
+    /// The device type this service implies for the host running it. Defaults to the category's;
+    /// override it only where the category holds several roles, as NetworkAccess holds both
+    /// access points and gateways, or where the software runs on any host, as Samba does.
+    fn device_type(&self) -> Option<DeviceType> {
+        self.category().device_type()
+    }
 }
 
 impl<T: ServiceDefinition> HasId for T
@@ -161,6 +169,10 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
     fn connect_only_rationale(&self) -> Option<ConnectOnly> {
         ServiceDefinition::connect_only_rationale(&**self)
     }
+
+    fn device_type(&self) -> Option<DeviceType> {
+        ServiceDefinition::device_type(&**self)
+    }
 }
 
 // Helper methods to be used in rest of codebase, not overridable by definition implementations
@@ -193,6 +205,15 @@ pub enum VirtualizationRole {
 }
 
 impl VirtualizationRole {
+    /// The host virtualization this role's hosts carry: its VMs, container hosts or identities.
+    pub fn hosts(&self) -> HostVirtualizationDiscriminants {
+        match self {
+            Self::Hypervisor { hosts }
+            | Self::ContainerRuntime { hosts, .. }
+            | Self::IdentityHost { hosts } => *hosts,
+        }
+    }
+
     /// Serde "type" discriminant of the variant manual assignment writes (e.g. "Proxmox",
     /// "VCenter", "Podman"): the host variant for a hypervisor, the service variant for a
     /// container runtime, the host variant for an identity host. Container hosts and network
@@ -322,6 +343,7 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
             "manages_virtualization": role.as_ref().map(<&'static str>::from),
             "virtualization_variant": role.as_ref().map(VirtualizationRole::variant_tag),
             "is_gateway": self.is_gateway(),
+            "device_type": ServiceDefinition::device_type(&**self),
             "is_generic": ServiceDefinition::is_generic(&**self),
             "has_logo": self.has_logo(),
             "logo_ext": logo_ext,

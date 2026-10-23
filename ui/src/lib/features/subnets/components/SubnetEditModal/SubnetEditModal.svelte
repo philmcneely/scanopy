@@ -9,7 +9,7 @@
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import type { Subnet } from '../../types/base';
 	import SelectSite from '$lib/features/sites/components/SelectSite.svelte';
-	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
+	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
@@ -18,7 +18,9 @@
 		type SimpleOption
 	} from '$lib/shared/components/forms/selection/display/SimpleOptionDisplay';
 	import { useSitesQuery } from '$lib/features/sites/queries';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
+		common_tags,
 		common_cancel,
 		common_cidr,
 		common_create,
@@ -70,18 +72,47 @@
 	);
 	let saveLabel = $derived(isEditing ? common_update() : common_create());
 
-	function getDefaultValues(): Subnet {
-		return subnet ? { ...subnet } : createEmptySubnetFormData(defaultSiteId);
+	// The fields the form edits, merged onto the subnet on submit. Not the whole `Subnet`: the
+	// generated type is an intersection of the range, name and type carriers, and TanStack's
+	// field-path types exceed TypeScript's instantiation depth walking it. The form edits values,
+	// never their sources; the server stamps one a person changed `Manual`.
+	interface SubnetFormValues {
+		name: string;
+		cidr: string;
+		description: string;
+		site_id: string;
+		subnet_type: Subnet['subnet_type'];
+		tags: string[];
+	}
+
+	function editing(): Subnet {
+		return subnet ?? createEmptySubnetFormData(defaultSiteId);
+	}
+
+	function formValues(source: Subnet): SubnetFormValues {
+		return {
+			name: source.name,
+			cidr: source.cidr,
+			description: source.description ?? '',
+			site_id: source.site_id,
+			subnet_type: source.subnet_type,
+			tags: source.tags
+		};
+	}
+
+	function getDefaultValues(): SubnetFormValues {
+		return formValues(editing());
 	}
 
 	// Create form with initial empty values - we'll reset it when the modal opens
 	const form = createForm(() => ({
-		defaultValues: createEmptySubnetFormData(''),
+		defaultValues: formValues(createEmptySubnetFormData('')),
 		onSubmit: async ({ value }) => {
 			const subnetData: Subnet = {
+				...editing(),
 				...value,
 				name: value.name.trim(),
-				description: value.description?.trim() || '',
+				description: value.description.trim(),
 				cidr: value.cidr.trim()
 			};
 
@@ -106,7 +137,7 @@
 
 	// CIDR disabled state - use a function to avoid reactive dependency on form.state
 	function getIsCidrDisabled(): boolean {
-		return isContainerSubnet(form.state.values) || isEditing;
+		return isContainerSubnet(editing()) || isEditing;
 	}
 
 	async function handleSubmit() {
@@ -135,6 +166,26 @@
 			iconColor: subnetTypes.getColorHelper(st.id).icon
 		}))
 	);
+
+	let actions = $derived<ModalAction[]>([
+		...(isEditing && onDelete
+			? [
+					{
+						role: 'danger' as const,
+						label: deleting ? common_deleting() : common_delete(),
+						onClick: handleDelete,
+						disabled: deleting || loading
+					}
+				]
+			: []),
+		{ role: 'cancel', label: common_cancel(), onClick: onClose, disabled: loading || deleting },
+		{
+			role: 'primary',
+			label: loading ? common_saving() : saveLabel,
+			onClick: handleSubmit,
+			disabled: loading || deleting
+		}
+	]);
 </script>
 
 <GenericModal
@@ -147,6 +198,7 @@
 	{onClose}
 	onOpen={handleOpen}
 	showCloseButton={true}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={entities.getIconComponent('Subnet')} color={colorHelper.color} />
@@ -247,8 +299,9 @@
 					<!-- Tags -->
 					<form.Field name="tags">
 						{#snippet children(field)}
-							<TagPicker
+							<TagPickerInline
 								entityType="Subnet"
+								label={common_tags()}
 								selectedTagIds={field.state.value || []}
 								onChange={(tags) => field.handleChange(tags)}
 							/>
@@ -261,36 +314,5 @@
 		{#if isEditing && subnet}
 			<EntityMetadataSection entities={[subnet]} />
 		{/if}
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex items-center justify-between">
-				<div>
-					{#if isEditing && onDelete}
-						<button
-							type="button"
-							disabled={deleting || loading}
-							onclick={handleDelete}
-							class="btn-danger"
-						>
-							{deleting ? common_deleting() : common_delete()}
-						</button>
-					{/if}
-				</div>
-				<div class="flex items-center gap-3">
-					<button
-						type="button"
-						disabled={loading || deleting}
-						onclick={onClose}
-						class="btn-secondary"
-					>
-						{common_cancel()}
-					</button>
-					<button type="submit" disabled={loading || deleting} class="btn-primary">
-						{loading ? common_saving() : saveLabel}
-					</button>
-				</div>
-			</div>
-		</div>
 	</form>
 </GenericModal>

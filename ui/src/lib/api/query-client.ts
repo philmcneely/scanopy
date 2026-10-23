@@ -108,15 +108,18 @@ export const queryKeys = {
 	},
 	sites: {
 		all: ['sites'] as const,
+		fieldValues: () => [...queryKeys.sites.all, 'field-values'] as const,
 		detail: (id: string) => [...queryKeys.sites.all, 'detail', id] as const
 	},
 	subnets: {
 		all: ['subnets'] as const,
+		fieldValues: () => [...queryKeys.subnets.all, 'field-values'] as const,
 		bySite: (siteId: string) => [...queryKeys.subnets.all, 'site', siteId] as const,
 		detail: (id: string) => [...queryKeys.subnets.all, 'detail', id] as const
 	},
 	vlans: {
 		all: ['vlans'] as const,
+		fieldValues: () => [...queryKeys.vlans.all, 'field-values'] as const,
 		bySite: (siteId: string) => [...queryKeys.vlans.all, 'site', siteId] as const,
 		detail: (id: string) => [...queryKeys.vlans.all, 'detail', id] as const
 	},
@@ -126,6 +129,8 @@ export const queryKeys = {
 	},
 	users: {
 		all: ['users'] as const,
+		// Users and pending invites in one list, full or a page.
+		members: () => [...queryKeys.users.all, 'members'] as const,
 		me: () => [...queryKeys.users.all, 'me'] as const,
 		detail: (id: string) => [...queryKeys.users.all, 'detail', id] as const
 	},
@@ -139,6 +144,7 @@ export const queryKeys = {
 	},
 	daemons: {
 		all: ['daemons'] as const,
+		fieldValues: () => [...queryKeys.daemons.all, 'field-values'] as const,
 		detail: (id: string) => [...queryKeys.daemons.all, 'detail', id] as const
 	},
 	discovery: {
@@ -149,14 +155,17 @@ export const queryKeys = {
 	},
 	apiKeys: {
 		all: ['apiKeys'] as const,
+		fieldValues: () => [...queryKeys.apiKeys.all, 'field-values'] as const,
 		detail: (id: string) => [...queryKeys.apiKeys.all, 'detail', id] as const
 	},
 	userApiKeys: {
 		all: ['userApiKeys'] as const,
+		fieldValues: () => [...queryKeys.userApiKeys.all, 'field-values'] as const,
 		detail: (id: string) => [...queryKeys.userApiKeys.all, 'detail', id] as const
 	},
 	tags: {
 		all: ['tags'] as const,
+		fieldValues: () => [...queryKeys.tags.all, 'field-values'] as const,
 		detail: (id: string) => [...queryKeys.tags.all, 'detail', id] as const
 	},
 	tagGroups: {

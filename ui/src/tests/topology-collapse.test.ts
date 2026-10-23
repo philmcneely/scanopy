@@ -8,6 +8,7 @@ import {
 	stepExpand,
 	collapseLevel,
 	collapsedContainers,
+	computeCollapsedEdges,
 	stepCollapse,
 	expandedInlineGroups,
 	inlineGroupKey
@@ -56,11 +57,12 @@ describe('computeCollapsedForLevel — collapsed_by_default root', () => {
 		container('ung', 'ApplicationUngrouped')
 	];
 
-	it('collapses a collapsed_by_default root at every level except 4', () => {
+	it('collapses a collapsed_by_default root at every level except 5', () => {
 		expect(computeCollapsedForLevel(1, nodes, containerTypes, null).has('ung')).toBe(true);
 		expect(computeCollapsedForLevel(2, nodes, containerTypes, null).has('ung')).toBe(true);
 		expect(computeCollapsedForLevel(3, nodes, containerTypes, null).has('ung')).toBe(true);
-		expect(computeCollapsedForLevel(4, nodes, containerTypes, null).has('ung')).toBe(false);
+		expect(computeCollapsedForLevel(4, nodes, containerTypes, null).has('ung')).toBe(true);
+		expect(computeCollapsedForLevel(5, nodes, containerTypes, null).has('ung')).toBe(false);
 	});
 
 	it('still expands a plain root at level 2 and collapses subcontainers', () => {
@@ -77,7 +79,7 @@ describe('computeCollapsedForLevel — scale collapse', () => {
 	// drawn. Two hosts' worth of containers, padded past the threshold.
 	// Includes one of each type the ladder distinguishes — a plain root, a
 	// subcontainer, and a collapsed-by-default root — so the four levels are
-	// genuinely distinguishable. Without the last one, levels 3 and 4 coincide
+	// genuinely distinguishable. Without the last one, levels 3 and 5 coincide
 	// for want of anything to auto-collapse, which is a property of the fixture
 	// rather than of the ladder.
 	const atScale = [
@@ -102,8 +104,9 @@ describe('computeCollapsedForLevel — scale collapse', () => {
 		expect(inferCurrentLevel(loaded, atScale, containerTypes, null)).toBe(1);
 	});
 
-	it('gives every level a distinct collapsed set, so no two render alike', () => {
-		const sets = ([1, 2, 3, 4] as const).map(
+	it('gives every container level a distinct collapsed set, so no two render alike', () => {
+		// Level 4 shares level 3's containers; it differs in the manager boxes on cards.
+		const sets = ([1, 2, 3, 5] as const).map(
 			(l) => computeCollapsedForLevel(l, atScale, containerTypes, null).size
 		);
 		// Strictly decreasing: each step up genuinely expands something.
@@ -114,8 +117,8 @@ describe('computeCollapsedForLevel — scale collapse', () => {
 		}
 	});
 
-	it('still expands everything at level 4, so the user can always get out', () => {
-		expect(computeCollapsedForLevel(4, atScale, containerTypes, null).size).toBe(0);
+	it('still expands everything at level 5, so the user can always get out', () => {
+		expect(computeCollapsedForLevel(5, atScale, containerTypes, null).size).toBe(0);
 	});
 
 	it('leaves sub-threshold graphs exactly as they were', () => {
@@ -160,7 +163,7 @@ describe('getVisibleNodes — transitive ancestor collapse', () => {
 describe('nextEffectiveLevel — skipping rungs that change nothing', () => {
 	// The Application view as reported: with no application tags every service lands in one
 	// `ApplicationUngrouped` root, which is collapsed_by_default. Collapsing a root hides
-	// everything inside it, so levels 3, 2 and 1 all render the same diagram and only 4 differs.
+	// everything inside it, so levels 4 down to 1 all render the same diagram and only 5 differs.
 	const applicationView = [
 		container('ungrouped', 'ApplicationUngrouped'),
 		container('stack', 'Stack', 'ungrouped'),
@@ -168,11 +171,12 @@ describe('nextEffectiveLevel — skipping rungs that change nothing', () => {
 	];
 
 	it('walks past levels whose diagram matches the current one', () => {
-		// Rendered fully expanded at level 4.
-		collapseLevel.set(4);
+		// Rendered fully expanded at level 5.
+		collapseLevel.set(5);
 		collapsedContainers.set(new Set());
 
-		// 3 collapses the auto-collapse root, which is a real change.
+		// 3 collapses the auto-collapse root, which is a real change. 4 draws the same with no
+		// manager boxes in the view, so the step lands on 3.
 		expect(nextEffectiveLevel('collapse', applicationView, containerTypes, null)).toBe(3);
 
 		// Now at 3, with the root collapsed. 2 and 1 only add containers already hidden inside
@@ -182,11 +186,11 @@ describe('nextEffectiveLevel — skipping rungs that change nothing', () => {
 		expect(nextEffectiveLevel('collapse', applicationView, containerTypes, null)).toBe(null);
 
 		// Expanding back out still works.
-		expect(nextEffectiveLevel('expand', applicationView, containerTypes, null)).toBe(4);
+		expect(nextEffectiveLevel('expand', applicationView, containerTypes, null)).toBe(5);
 	});
 
 	it('still steps one rung at a time where every level differs', () => {
-		// A plain root plus a subcontainer and an auto-collapse root: all four levels distinct.
+		// A plain root plus a subcontainer and an auto-collapse root: every container level distinct.
 		const layered = [
 			container('root', 'Subnet'),
 			container('sub', 'NestedTag', 'root'),
@@ -194,7 +198,7 @@ describe('nextEffectiveLevel — skipping rungs that change nothing', () => {
 			element('svc', 'sub')
 		];
 
-		collapseLevel.set(4);
+		collapseLevel.set(5);
 		collapsedContainers.set(new Set());
 		expect(nextEffectiveLevel('collapse', layered, containerTypes, null)).toBe(3);
 
@@ -270,7 +274,7 @@ describe('stepping the ladder protects what the level leaves open', () => {
 	});
 });
 
-describe('level 5 opens manager boxes on host cards', () => {
+describe('level 4 opens manager boxes; level 5 opens auto-collapse containers last', () => {
 	// One host with a guest card whose Network Identities box is drawn inline.
 	const hostCard = {
 		id: 'guest',
@@ -282,7 +286,7 @@ describe('level 5 opens manager boxes on host cards', () => {
 			{ entity_id: 'mv-1', entity_type: 'Host', group_id: 'identities', role: 'Member' }
 		]
 	} as unknown as TopologyNode;
-	// The collapsed-by-default root keeps levels 3 and 4 apart.
+	// The collapsed-by-default root keeps levels 4 and 5 apart.
 	const nodes = [
 		container('host', 'Subnet'),
 		container('sub', 'NestedTag', 'host'),
@@ -290,45 +294,103 @@ describe('level 5 opens manager boxes on host cards', () => {
 		hostCard
 	];
 	const box = inlineGroupKey('guest', 'identities');
+	const level = () => inferCurrentLevel(get(collapsedContainers), nodes, containerTypes, null);
 
-	const at = (level: 3 | 4, expanded: string[] = []) => {
+	const at = (level: 2 | 3, expanded: string[] = []) => {
 		collapsedContainers.set(computeCollapsedForLevel(level, nodes, containerTypes, null));
 		collapseLevel.set(level);
 		expandedInlineGroups.set(new Set(expanded));
 	};
 
-	it('expands from 4 to 5 and opens every box, then collapses back and closes them', () => {
-		at(4);
-		expect(inferCurrentLevel(get(collapsedContainers), nodes, containerTypes, null)).toBe(4);
-
-		expect(stepExpand(nodes, containerTypes, null).newLevel).toBe(5);
-		expect(get(expandedInlineGroups).has(box)).toBe(true);
-		expect(inferCurrentLevel(get(collapsedContainers), nodes, containerTypes, null)).toBe(5);
-
-		expect(stepCollapse(nodes, containerTypes, null).newLevel).toBe(4);
-		expect(get(expandedInlineGroups).has(box)).toBe(false);
-	});
-
-	it('expanding from 3 with a box opened by hand goes to 4 and keeps it open', () => {
-		at(3, [box]);
+	it('opens the boxes at 4, the auto-collapse root at 5, and closes them in reverse', () => {
+		at(3);
+		expect(level()).toBe(3);
 
 		expect(stepExpand(nodes, containerTypes, null).newLevel).toBe(4);
 		expect(get(expandedInlineGroups).has(box)).toBe(true);
+		expect(get(collapsedContainers).has('ung')).toBe(true);
+		expect(level()).toBe(4);
+
+		expect(stepExpand(nodes, containerTypes, null).newLevel).toBe(5);
+		expect(get(collapsedContainers).has('ung')).toBe(false);
+		expect(level()).toBe(5);
+
+		expect(stepCollapse(nodes, containerTypes, null).newLevel).toBe(4);
+		expect(get(collapsedContainers).has('ung')).toBe(true);
+		expect(get(expandedInlineGroups).has(box)).toBe(true);
+
+		expect(stepCollapse(nodes, containerTypes, null).newLevel).toBe(3);
+		expect(get(expandedInlineGroups).has(box)).toBe(false);
+	});
+
+	it('expanding from 2 with a box opened by hand keeps it open, which is level 4', () => {
+		at(2, [box]);
+
+		// With the box already open, levels 3 and 4 draw the same diagram, so the step lands on
+		// the level inference reads back.
+		expect(stepExpand(nodes, containerTypes, null).newLevel).toBe(4);
+		expect(get(expandedInlineGroups).has(box)).toBe(true);
+		expect(level()).toBe(4);
 	});
 
 	it('leaves boxes in other views alone', () => {
-		at(4, ['other-view-card|docker']);
+		at(3, ['other-view-card|docker']);
 
 		stepExpand(nodes, containerTypes, null);
 		stepCollapse(nodes, containerTypes, null);
 		expect(get(expandedInlineGroups)).toEqual(new Set(['other-view-card|docker']));
 	});
 
-	it('never reaches 5 in a view with no boxes', () => {
+	it('steps from 3 straight to 5 in a view with no boxes', () => {
+		const noBoxes = [container('host', 'Subnet'), container('ung', 'ApplicationUngrouped')];
+		collapsedContainers.set(computeCollapsedForLevel(3, noBoxes, containerTypes, null));
+		expandedInlineGroups.set(new Set());
+
+		expect(nextEffectiveLevel('expand', noBoxes, containerTypes, null)).toBe(5);
+	});
+
+	it('has nowhere to expand to once everything is open', () => {
 		const plain = [container('host', 'Subnet'), container('sub', 'NestedTag', 'host')];
 		collapsedContainers.set(new Set());
 		expandedInlineGroups.set(new Set());
 
 		expect(nextEffectiveLevel('expand', plain, containerTypes, null)).toBe(null);
+	});
+});
+
+describe('computeCollapsedEdges — edges the view disables', () => {
+	type TopologyEdge = components['schemas']['Edge'];
+	const edge = (id: string, edge_type: string, view_config: { type: string }): TopologyEdge =>
+		({
+			id,
+			source: 'inside',
+			target: 'outside',
+			edge_type,
+			view_config
+		}) as unknown as TopologyEdge;
+	const nodes = [container('subnet', 'Subnet'), element('inside', 'subnet')];
+
+	// The L3 view disables PhysicalLink; collapsing a subnet merged them into visible edges.
+	it('leaves a disabled edge out of the merged edge, as the expanded view does', () => {
+		const result = computeCollapsedEdges(
+			[
+				edge('physical', 'PhysicalLink', { type: 'disabled' }),
+				edge('same-host', 'SameHost', { type: 'active' })
+			],
+			new Set(['subnet']),
+			nodes,
+			[]
+		);
+		expect(result.map((agg) => agg.originalEdges.map((e) => e.id))).toEqual([['same-host']]);
+	});
+
+	it('draws no merged edge when every crossing edge is disabled', () => {
+		const result = computeCollapsedEdges(
+			[edge('physical', 'PhysicalLink', { type: 'disabled' })],
+			new Set(['subnet']),
+			nodes,
+			[]
+		);
+		expect(result).toEqual([]);
 	});
 });

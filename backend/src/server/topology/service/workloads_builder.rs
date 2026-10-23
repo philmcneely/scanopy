@@ -752,6 +752,7 @@ mod tests {
             base: HostBase {
                 name: HostName::manual(name.to_string()),
                 virtualization_metadata: Some(HostVirtualization::Proxmox(ProxmoxVirtualization {
+                    state: Default::default(),
                     vm_name: Some(name.to_string()),
                     vm_id: None,
                     guest_type: None,
@@ -804,6 +805,7 @@ mod tests {
                 name: name.to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some(name.to_string()),
                         container_id: None,
                         compose_project: None,
@@ -1339,6 +1341,7 @@ mod tests {
         let mut host = make_host(name);
         host.base.virtualization_metadata =
             Some(HostVirtualization::Docker(ContainerHostVirtualization {
+                state: Default::default(),
                 container_name: Some(name.to_string()),
                 container_id: None,
                 compose_project: None,

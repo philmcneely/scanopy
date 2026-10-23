@@ -1,6 +1,11 @@
 use crate::server::shared::attribution::AttributeSource;
+use crate::server::shared::events::log::{EntityLog, changes};
 use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event};
-use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+use crate::server::shared::events::types::{DeletionReason, UpdateReason};
+use crate::server::shared::handlers::tree::TreePosition;
+use crate::server::subnets::r#impl::base::{
+    SubnetCidr, SubnetCidrValue, SubnetName, SubnetNameValue, SubnetTypeAttributed, SubnetTypeValue,
+};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     discovery_warnings::service::DiscoveryWarningService,
@@ -12,7 +17,7 @@ use crate::server::{
         storage::{
             filter::StorableFilter,
             generic::GenericPostgresStorage,
-            traits::{Storable, Storage},
+            traits::{PaginatedResult, Storable, Storage, Unique},
         },
         types::entities::EntitySource,
     },
@@ -24,11 +29,13 @@ use crate::server::{
         types::SubnetType,
     },
     tags::entity_tags::EntityTagService,
+    vlans::service::VlanService,
 };
 use anyhow::{Error, Result};
 use async_trait::async_trait;
 use chrono::Utc;
 use cidr::IpCidr;
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -44,6 +51,9 @@ pub struct SubnetService {
     ip_address_service: Arc<IPAddressService>,
     /// For where an assumed range came from, which only its creating scan's warning records.
     warning_service: Arc<DiscoveryWarningService>,
+    /// For each subnet's VLANs (`Subnet::vlan_ids`), which `VlanService` reads from its
+    /// `subnet_vlans` junction. No cycle: `VlanService` is built before this one.
+    vlan_service: Arc<VlanService>,
 }
 
 impl EventBusService<Subnet> for SubnetService {
@@ -105,14 +115,27 @@ impl SubnetService {
                 correction,
                 authentication,
             ))
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!(
-                    subnet_id = %corrected.id,
-                    error = %e,
-                    "Could not report a corrected subnet range"
-                );
-            });
+            .await;
+    }
+
+    /// Where each of `ids` sits in its site's nesting tree, against every live subnet on the
+    /// sites they belong to.
+    pub async fn tree_positions_of(&self, ids: &[Uuid]) -> Result<HashMap<Uuid, TreePosition>> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let listed = self
+            .storage
+            .get_all(StorableFilter::<Subnet>::new_from_entity_ids(ids))
+            .await?;
+        let mut site_ids: Vec<Uuid> = listed.iter().map(|s| s.base.site_id).collect();
+        site_ids.sort();
+        site_ids.dedup();
+        let site_subnets = self
+            .storage
+            .get_all(StorableFilter::<Subnet>::new_from_site_ids(&site_ids).live())
+            .await?;
+        Ok(nesting::positions(ids, &site_subnets))
     }
 
     /// `subnets` with their nesting and utilization, live or as of `at`.
@@ -204,18 +227,22 @@ impl SubnetService {
         for mut address in self.ip_address_service.get_for_subnet(&source.id).await? {
             address.base.subnet_id = target.id;
             self.ip_address_service
-                .update(&mut address, authentication.clone())
+                .update(
+                    &mut address,
+                    authentication.clone(),
+                    UpdateReason::IpAddressSubnetMerged,
+                )
                 .await?;
         }
 
-        self.delete(&source.id, authentication).await?;
-
-        tracing::info!(
-            merged = %source.base.cidr,
-            into = %target.base.cidr,
-            site_id = %target.base.site_id,
-            "Merged an assumed range into the range that contains it"
-        );
+        self.delete(
+            &source.id,
+            authentication,
+            DeletionReason::SubnetMergedInto {
+                subnet_id: target.id,
+            },
+        )
+        .await?;
 
         Ok(target)
     }
@@ -323,7 +350,11 @@ impl SubnetService {
             address.base.subnet_id = subnet_id;
             match self
                 .ip_address_service
-                .update(&mut address, AuthenticatedEntity::System)
+                .update(
+                    &mut address,
+                    AuthenticatedEntity::System,
+                    UpdateReason::IpAddressSubnetNarrowed,
+                )
                 .await
             {
                 Ok(_) => moved += 1,
@@ -364,8 +395,8 @@ pub(crate) fn matches_existing_subnet(incoming: &Subnet, existing: &Subnet) -> b
             // runtime service matches. Distinct runtimes carry
             // distinct service ids, so a Docker and a Podman bridge
             // with the same CIDR never collide.
-            if incoming.base.subnet_type.is_container_bridge()
-                && existing.base.subnet_type.is_container_bridge()
+            if incoming.base.subnet_type().is_container_bridge()
+                && existing.base.subnet_type().is_container_bridge()
             {
                 match (
                     incoming.base.virtualization_service_id,
@@ -394,6 +425,59 @@ impl CrudService<Subnet> for SubnetService {
 
     fn entity_tag_service(&self) -> Option<&Arc<EntityTagService>> {
         Some(&self.entity_tag_service)
+    }
+
+    async fn get_by_id(&self, id: &Uuid) -> Result<Option<Subnet>, anyhow::Error> {
+        match self.storage().get_by_id(id).await? {
+            Some(mut subnet) => {
+                self.hydrate_vlans(std::slice::from_mut(&mut subnet))
+                    .await?;
+                self.hydrate_tags(&mut subnet).await?;
+                Ok(Some(subnet))
+            }
+            None => Ok(None),
+        }
+    }
+
+    async fn get_all(&self, filter: StorableFilter<Subnet>) -> Result<Vec<Subnet>, anyhow::Error> {
+        let mut subnets = self.storage().get_all(filter).await?;
+        self.hydrate_vlans(&mut subnets).await?;
+        self.bulk_hydrate_tags(&mut subnets, None).await?;
+        Ok(subnets)
+    }
+
+    async fn get_unique(
+        &self,
+        filter: StorableFilter<Subnet>,
+    ) -> Result<Unique<Subnet>, anyhow::Error> {
+        match self.storage().get_unique(filter).await? {
+            Unique::One(mut subnet) => {
+                self.hydrate_vlans(std::slice::from_mut(&mut subnet))
+                    .await?;
+                self.hydrate_tags(&mut subnet).await?;
+                Ok(Unique::One(subnet))
+            }
+            Unique::None => Ok(Unique::None),
+            Unique::Multiple => Ok(Unique::Multiple),
+        }
+    }
+
+    async fn get_paginated(
+        &self,
+        filter: StorableFilter<Subnet>,
+    ) -> Result<PaginatedResult<Subnet>, anyhow::Error> {
+        self.get_paginated_ordered(filter, "created_at ASC").await
+    }
+
+    async fn get_paginated_ordered(
+        &self,
+        filter: StorableFilter<Subnet>,
+        order_by: &str,
+    ) -> Result<PaginatedResult<Subnet>, anyhow::Error> {
+        let mut paginated = self.storage().get_paginated(filter, order_by).await?;
+        self.hydrate_vlans(&mut paginated.items).await?;
+        self.bulk_hydrate_tags(&mut paginated.items, None).await?;
+        Ok(paginated)
     }
 
     /// Counts only the subnets the user curates, so the dashboard's per-site
@@ -475,14 +559,6 @@ impl CrudService<Subnet> for SubnetService {
             .or(correctable)
         {
             Some(existing_subnet) => {
-                tracing::info!(
-                    existing_subnet_id = %existing_subnet.id,
-                    existing_subnet_name = %existing_subnet.base.name,
-                    new_subnet_id = %subnet.id,
-                    new_subnet_name = %subnet.base.name,
-                    subnet_cidr = %subnet.base.cidr,
-                    "Duplicate subnet found, refreshing last_seen_at and returning existing"
-                );
                 // SCD2 semantics: every successful natural-key match advances
                 // last_seen_at, even when no field changes. Otherwise
                 // unchanged subnets falsely look stale to (future) staleness
@@ -494,26 +570,18 @@ impl CrudService<Subnet> for SubnetService {
                 let mut refreshed = existing_subnet.clone();
                 refreshed.last_seen_at = subnet.last_seen_at;
 
-                // Repair rows left behind by the interface-name heuristic that
-                // used to be able to type a subnet as a container bridge (#663).
-                if subnet.corrects_container_bridge_guess(existing_subnet) {
-                    tracing::info!(
-                        subnet_id = %existing_subnet.id,
-                        subnet_cidr = %existing_subnet.base.cidr,
-                        from = ?existing_subnet.base.subnet_type,
-                        to = ?subnet.base.subnet_type,
-                        "Reclassifying subnet mistyped as a container bridge"
-                    );
-                    refreshed.base.subnet_type = subnet.base.subnet_type;
-                }
+                // The name and type by the same ladder as the range. A placeholder name (the
+                // CIDR, `Unspecified`) takes the name a controller gives the network, and a type
+                // guessed from an interface name takes the controller's own; a value a person set
+                // is never displaced. This also repairs the rows the interface-name heuristic once
+                // typed as container bridges (#663): those are stored `Unspecified`.
+                refreshed.base.name.apply_in_place(subnet.base.name.clone());
+                refreshed
+                    .base
+                    .subnet_type
+                    .apply_in_place(subnet.base.subnet_type.clone());
 
                 if let Some(owner) = subnet.owner_for_ownerless_bridge(existing_subnet) {
-                    tracing::info!(
-                        subnet_id = %existing_subnet.id,
-                        subnet_cidr = %existing_subnet.base.cidr,
-                        owner = %owner,
-                        "Ownerless container bridge adopts the runtime that reported it"
-                    );
                     refreshed.base.virtualization_service_id = Some(owner);
                 }
 
@@ -528,6 +596,19 @@ impl CrudService<Subnet> for SubnetService {
                 let corrected = refreshed.apply_cidr(*subnet.base.cidr, subnet.base.cidr.source());
 
                 self.storage.update(&mut refreshed).await?;
+
+                // Every rescan moves last_seen_at, which subscribers don't need to hear about;
+                // anything else this path changes (the type, the owner, the range) is published,
+                // as host and service upserts do.
+                if !changes(existing_subnet, &refreshed, Subnet::LOG_IGNORED_PATHS).is_empty() {
+                    self.publish_updated(
+                        existing_subnet,
+                        &refreshed,
+                        authentication.clone(),
+                        UpdateReason::SubnetRediscovered,
+                    )
+                    .await;
+                }
 
                 if corrected {
                     self.report_correction(&refreshed, before, authentication.clone())
@@ -578,7 +659,7 @@ impl CrudService<Subnet> for SubnetService {
                                 },
                             ),
                         )
-                        .await?;
+                        .await;
                 }
 
                 subnet
@@ -626,15 +707,23 @@ impl SubnetService {
         };
 
         let mut subnet = Subnet::new(SubnetBase {
+            vlan_ids: Vec::new(),
             // A range nothing read, only inferred — the whole reason this rung exists.
             cidr: SubnetCidr::new(SubnetCidrValue(cidr), AttributeSource::LldpNeighbourAddress),
             site_id,
-            name: cidr.to_string(),
+            // A placeholder: any name something reports replaces it.
+            name: SubnetName::new(
+                SubnetNameValue(cidr.to_string()),
+                AttributeSource::Unspecified,
+            ),
             description: None,
             // Not `Management` even where a management address produced it: on a flat network that
             // address is just the device's LAN address, and typing the subnet would be a second
             // guess stacked on the first.
-            subnet_type: SubnetType::Unknown,
+            subnet_type: SubnetTypeAttributed::new(
+                SubnetTypeValue(SubnetType::Unknown),
+                AttributeSource::Unspecified,
+            ),
             virtualization_service_id: None,
             source: EntitySource::Discovery,
             tags: Vec::new(),
@@ -642,14 +731,20 @@ impl SubnetService {
         subnet.last_seen_at = Utc::now();
 
         let created = self.create(subnet, AuthenticatedEntity::System).await?;
-        tracing::info!(
-            site_id = %site_id,
-            ip = %ip,
-            cidr = %cidr,
-            subnet_id = %created.id,
-            "Inferred a subnet for an address nothing on this site holds"
-        );
         Ok(Placement::Inferred(created.id))
+    }
+
+    /// Fill each subnet's read-only `vlan_ids` from the live `subnet_vlans` links.
+    async fn hydrate_vlans(&self, subnets: &mut [Subnet]) -> Result<()> {
+        if subnets.is_empty() {
+            return Ok(());
+        }
+        let ids: Vec<Uuid> = subnets.iter().map(|s| s.id).collect();
+        let mut vlans_map = self.vlan_service.get_ids_for_subnets(&ids).await?;
+        for subnet in subnets.iter_mut() {
+            subnet.base.vlan_ids = vlans_map.remove(&subnet.id).unwrap_or_default();
+        }
+        Ok(())
     }
 
     pub fn new(
@@ -658,6 +753,7 @@ impl SubnetService {
         entity_tag_service: Arc<EntityTagService>,
         ip_address_service: Arc<IPAddressService>,
         warning_service: Arc<DiscoveryWarningService>,
+        vlan_service: Arc<VlanService>,
     ) -> Self {
         Self {
             storage,
@@ -665,6 +761,7 @@ impl SubnetService {
             entity_tag_service,
             ip_address_service,
             warning_service,
+            vlan_service,
         }
     }
 }
@@ -673,6 +770,7 @@ impl SubnetService {
 mod tests {
     use super::*;
     use crate::server::subnets::r#impl::base::SubnetBase;
+    use crate::server::subnets::r#impl::base::SubnetTypeAttributed;
 
     fn subnet(cidr: &str, source: EntitySource, cidr_source: AttributeSource) -> Subnet {
         Subnet::new(SubnetBase {
@@ -704,7 +802,7 @@ mod tests {
 
     fn bridge(cidr: &str, owner: Option<Uuid>) -> Subnet {
         let mut s = discovered(cidr);
-        s.base.subnet_type = SubnetType::DockerBridge;
+        s.base.subnet_type = SubnetTypeAttributed::unattributed(SubnetType::DockerBridge);
         s.base.virtualization_service_id = owner;
         s
     }

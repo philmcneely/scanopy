@@ -1,9 +1,10 @@
 <script lang="ts" generics="V, OC">
 	import { ChevronDown } from 'lucide-svelte';
 	import ListSelectItem from './ListSelectItem.svelte';
-	import { tooltip } from '$lib/shared/actions/tooltip';
+	import Popover from '$lib/shared/components/data/Popover.svelte';
+	import { tooltip, tooltipLabel } from '$lib/shared/actions/tooltip';
 	import type { EntityDisplayComponent } from './types';
-	import { tick, onMount } from 'svelte';
+	import { tick } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import throttle from 'just-throttle';
 	import {
@@ -111,11 +112,8 @@
 	}
 
 	let isOpen = $state(false);
-	let dropdownElement: HTMLDivElement | undefined = $state();
 	let triggerElement: HTMLButtonElement | undefined = $state();
 	let inputElement: HTMLInputElement | undefined = $state();
-	let dropdownPosition = $state({ top: 0, left: 0, width: 0, maxHeight: 384 });
-	let openUpward = $state(false);
 	let filterText = $state('');
 	let scrollContainerEl: HTMLDivElement | undefined = $state();
 	let canScrollUp = $state(false);
@@ -128,23 +126,6 @@
 		canScrollDown = scrollTop + clientHeight < scrollHeight - 2;
 	}
 
-	// Portal container for escaping transform contexts (e.g., SvelteFlow)
-	let portalContainer: HTMLDivElement | null = $state(null);
-
-	onMount(() => {
-		portalContainer = document.createElement('div');
-		portalContainer.style.position = 'absolute';
-		portalContainer.style.top = '0';
-		portalContainer.style.left = '0';
-		portalContainer.style.width = '0';
-		portalContainer.style.height = '0';
-		document.body.appendChild(portalContainer);
-
-		return () => {
-			portalContainer?.remove();
-		};
-	});
-
 	// Lock body scroll when dropdown is open
 	$effect(() => {
 		if (isOpen) {
@@ -155,19 +136,6 @@
 			};
 		}
 	});
-
-	// Portal action to move element to body, escaping any transform contexts
-	function portal(node: HTMLElement) {
-		if (portalContainer) {
-			portalContainer.appendChild(node);
-		}
-		return {
-			destroy() {
-				// Node will be removed when portalContainer is cleaned up
-				// or when Svelte removes it from the DOM
-			}
-		};
-	}
 
 	let selectedItem = $derived(
 		options.find((i) => displayComponent.getId(i) === selectedValue) ??
@@ -189,7 +157,9 @@
 			const tags = displayComponent.getTags?.(option, context) ?? [];
 			// Fall back to the tooltip for a tag drawn as an icon alone: it has no visible text, but
 			// its name is still what someone types to find it.
-			const tagLabels = tags.map((tag) => (tag.label ?? tag.title ?? '').toLowerCase()).join(' ');
+			const tagLabels = tags
+				.map((tag) => (tag.label ?? tooltipLabel(tag.title)).toLowerCase())
+				.join(' ');
 
 			return (
 				label.includes(searchTerm) ||
@@ -228,35 +198,6 @@
 		return sortedEntries.map(([category, options]) => ({ category, options }));
 	});
 
-	// Simple one-time positioning when dropdown opens
-	async function calculatePosition() {
-		if (!triggerElement) return;
-
-		await tick();
-		const rect = triggerElement.getBoundingClientRect();
-		const viewportHeight = window.innerHeight;
-		const dropdownMaxHeight = 384; // max-h-96 = 24rem = 384px
-		const gap = 1; // Minimal gap to prevent overlap
-		const viewportPadding = 8; // Minimum distance from viewport edge
-
-		// Simple logic: if not enough space below, open upward
-		const spaceBelow = viewportHeight - rect.bottom - gap;
-		openUpward = spaceBelow < dropdownMaxHeight && rect.top > spaceBelow;
-
-		// Constrain dropdown height to available viewport space
-		const availableSpace = openUpward
-			? rect.top - gap - viewportPadding
-			: viewportHeight - rect.bottom - gap - viewportPadding;
-		const maxHeight = Math.min(dropdownMaxHeight, availableSpace);
-
-		dropdownPosition = {
-			top: openUpward ? rect.top - gap : rect.bottom + gap,
-			left: rect.left,
-			width: rect.width,
-			maxHeight
-		};
-	}
-
 	async function handleToggle(e: MouseEvent) {
 		e.preventDefault();
 		e.stopPropagation();
@@ -264,8 +205,7 @@
 			if (!isOpen) {
 				isOpen = true;
 				resetFilter();
-				await calculatePosition(); // Calculate once when opening
-				// Focus the input after the dropdown is positioned
+				await tick();
 				setTimeout(() => inputElement?.focus(), 0);
 			} else {
 				isOpen = false;
@@ -296,16 +236,10 @@
 		}
 	}
 
-	function handleClickOutside(event: MouseEvent) {
-		if (
-			dropdownElement &&
-			!dropdownElement.contains(event.target as Node) &&
-			triggerElement &&
-			!triggerElement.contains(event.target as Node)
-		) {
-			isOpen = false;
-			resetFilter();
-		}
+	// Popover calls this on a click outside or Escape.
+	function close() {
+		isOpen = false;
+		resetFilter();
 	}
 
 	function handleInputKeydown(e: KeyboardEvent) {
@@ -318,9 +252,6 @@
 		e.stopPropagation();
 	}
 </script>
-
-<!-- Only handle outside clicks -->
-<svelte:window onclick={handleClickOutside} />
 
 <div class="relative {fitToContent ? 'inline-grid' : ''}">
 	<!-- Label -->
@@ -396,115 +327,111 @@
 	{/if}
 </div>
 
-<!-- Portal dropdown to body - escapes SvelteFlow transform context -->
-{#if isOpen && !disabled && portalContainer}
-	<div
-		bind:this={dropdownElement}
-		use:portal
-		class="select-dropdown fixed z-[9999] overflow-hidden scroll-smooth rounded-md shadow-lg"
-		style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px; width: {dropdownPosition.width}px; max-height: {dropdownPosition.maxHeight}px;
-           {openUpward ? 'transform: translateY(-100%);' : ''}"
-	>
-		<!-- Search Input -->
-		{#if showSearch}
+<!-- Portalled by Popover, which escapes SvelteFlow's transform context. The search box stays put
+     and only the options scroll. -->
+<Popover
+	{triggerElement}
+	isOpen={isOpen && !disabled}
+	role="presentation"
+	align="start"
+	matchTriggerWidth
+	onClose={close}
+>
+	<!-- Search Input -->
+	{#if showSearch}
+		<div class="mb-2 shrink-0">
+			<input
+				bind:this={inputElement}
+				bind:value={filterText}
+				type="text"
+				placeholder={common_typeToFilter()}
+				class="input-field text-primary w-full rounded px-2 py-1 text-sm"
+				onkeydown={handleInputKeydown}
+				onclick={(e) => e.stopPropagation()}
+				oninput={handleFilterInput}
+			/>
+		</div>
+	{/if}
+
+	<!-- Options list with scroll container -->
+	<div class="relative flex min-h-0 flex-col">
+		{#if canScrollUp}
 			<div
-				class="sticky top-0 border-b p-2"
-				style="border-color: var(--color-border); background: var(--color-bg-input)"
-			>
-				<input
-					bind:this={inputElement}
-					bind:value={filterText}
-					type="text"
-					placeholder={common_typeToFilter()}
-					class="input-field text-primary w-full rounded px-2 py-1 text-sm"
-					onkeydown={handleInputKeydown}
-					onclick={(e) => e.stopPropagation()}
-					oninput={handleFilterInput}
-				/>
-			</div>
+				class="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 rounded-t-md bg-gradient-to-b from-[var(--color-bg-elevated)] to-transparent"
+			></div>
 		{/if}
-
-		<!-- Options list with scroll container -->
-		<div class="relative">
-			{#if canScrollUp}
-				<div
-					class="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 rounded-t-md bg-gradient-to-b from-[var(--color-bg-elevated)] to-transparent"
-				></div>
-			{/if}
-			<div
-				bind:this={scrollContainerEl}
-				class="overflow-y-auto"
-				style="max-height: {dropdownPosition.maxHeight - (showSearch ? 44 : 0)}px"
-				onscroll={handleScroll}
-			>
-				{#if loading && options.length === 0}
-					<div class="text-tertiary px-3 py-4 text-center text-sm">{common_loading()}</div>
-				{:else if groupedOptions.length === 0 || groupedOptions.every((group) => group.options.length === 0)}
-					<div class="text-tertiary px-3 py-4 text-center text-sm">
-						{common_noOptionsMatch({ filterText })}
-					</div>
-				{:else}
-					{#each groupedOptions as group, groupIndex (group.category ?? '__ungrouped__')}
-						{#if group.options.length > 0}
-							<!-- Category Header -->
-							{#if group.category !== null}
-								<div
-									class="text-secondary sticky top-0 border-b px-3 py-2 text-xs font-semibold uppercase tracking-wide"
-									style="border-color: var(--color-border); background: var(--color-bg-surface)"
-								>
-									{group.category}
-								</div>
-							{/if}
-
-							<!-- Options in this category -->
-							{#each group.options as option, optionIndex (displayComponent.getId(option))}
-								{@const context = getOptionContext(option, optionIndex)}
-								{@const isLastInGroup = optionIndex === group.options.length - 1}
-								{@const isLastGroup = groupIndex === groupedOptions.length - 1}
-								{@const isDisabled = displayComponent.getDisabled?.(option, context) ?? false}
-								{@const isClickableDisabled = isDisabled && onDisabledClick != null}
-								{@const disabledReason = isDisabled
-									? (displayComponent.getDisabledReason?.(option, context) ?? null)
-									: null}
-								<button
-									use:tooltip
-									data-tooltip={disabledReason}
-									type="button"
-									onclick={(e) => {
-										e.preventDefault();
-										e.stopPropagation();
-										if (isDisabled) {
-											isOpen = false;
-											resetFilter();
-											onDisabledClick?.(displayComponent.getId(option));
-										} else {
-											handleSelect(displayComponent.getId(option));
-										}
-									}}
-									class="select-option w-full px-3 py-3 text-left transition-colors
-                       {isDisabled
-										? isClickableDisabled
-											? 'cursor-pointer'
-											: 'cursor-not-allowed opacity-60'
-										: ''}
-                       {!isLastInGroup || !isLastGroup ? 'border-b' : ''}"
-									style={!isLastInGroup || !isLastGroup ? 'border-color: var(--color-border)' : ''}
-								>
-									<ListSelectItem {context} item={option} {displayComponent} staticTags={true} />
-								</button>
-							{/each}
+		<div
+			bind:this={scrollContainerEl}
+			class="min-h-0 overflow-y-auto scroll-smooth"
+			onscroll={handleScroll}
+		>
+			{#if loading && options.length === 0}
+				<div class="text-tertiary px-3 py-4 text-center text-sm">{common_loading()}</div>
+			{:else if groupedOptions.length === 0 || groupedOptions.every((group) => group.options.length === 0)}
+				<div class="text-tertiary px-3 py-4 text-center text-sm">
+					{common_noOptionsMatch({ filterText })}
+				</div>
+			{:else}
+				{#each groupedOptions as group, groupIndex (group.category ?? '__ungrouped__')}
+					{#if group.options.length > 0}
+						<!-- Category Header -->
+						{#if group.category !== null}
+							<div
+								class="text-secondary sticky top-0 border-b px-3 py-2 text-xs font-semibold uppercase tracking-wide"
+								style="border-color: var(--color-border); background: var(--color-bg-surface)"
+							>
+								{group.category}
+							</div>
 						{/if}
-					{/each}
-					{#if loading && hasMore}
-						<div class="text-tertiary px-3 py-2 text-center text-sm">{common_loading()}</div>
+
+						<!-- Options in this category -->
+						{#each group.options as option, optionIndex (displayComponent.getId(option))}
+							{@const context = getOptionContext(option, optionIndex)}
+							{@const isLastInGroup = optionIndex === group.options.length - 1}
+							{@const isLastGroup = groupIndex === groupedOptions.length - 1}
+							{@const isDisabled = displayComponent.getDisabled?.(option, context) ?? false}
+							{@const isClickableDisabled = isDisabled && onDisabledClick != null}
+							{@const disabledReason = isDisabled
+								? (displayComponent.getDisabledReason?.(option, context) ?? null)
+								: null}
+							<button
+								use:tooltip
+								data-tooltip={disabledReason}
+								type="button"
+								onclick={(e) => {
+									e.preventDefault();
+									e.stopPropagation();
+									if (isDisabled) {
+										isOpen = false;
+										resetFilter();
+										onDisabledClick?.(displayComponent.getId(option));
+									} else {
+										handleSelect(displayComponent.getId(option));
+									}
+								}}
+								class="select-option w-full px-3 py-3 text-left transition-colors
+                       {isDisabled
+									? isClickableDisabled
+										? 'cursor-pointer'
+										: 'cursor-not-allowed opacity-60'
+									: ''}
+                       {!isLastInGroup || !isLastGroup ? 'border-b' : ''}"
+								style={!isLastInGroup || !isLastGroup ? 'border-color: var(--color-border)' : ''}
+							>
+								<ListSelectItem {context} item={option} {displayComponent} staticTags={true} />
+							</button>
+						{/each}
 					{/if}
+				{/each}
+				{#if loading && hasMore}
+					<div class="text-tertiary px-3 py-2 text-center text-sm">{common_loading()}</div>
 				{/if}
-			</div>
-			{#if canScrollDown}
-				<div
-					class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 rounded-b-md bg-gradient-to-t from-[var(--color-bg-elevated)] to-transparent"
-				></div>
 			{/if}
 		</div>
+		{#if canScrollDown}
+			<div
+				class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 rounded-b-md bg-gradient-to-t from-[var(--color-bg-elevated)] to-transparent"
+			></div>
+		{/if}
 	</div>
-{/if}
+</Popover>

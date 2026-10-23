@@ -22,6 +22,7 @@ use crate::{
         },
         hosts::r#impl::{api::DiscoveryHostRequest, api::HostResponse},
         subnets::r#impl::base::Subnet,
+        vlans::handlers::{VlanDiscoveryRequest, VlanDiscoveryResponse},
     },
 };
 
@@ -73,6 +74,18 @@ pub struct BufferedEntities {
     pub hosts: Vec<DiscoveryHostRequest>,
     /// Discovered subnets
     pub subnets: Vec<Subnet>,
+    /// VLAN submissions waiting for the server to upsert them and answer with their ids. Absent
+    /// from daemons that predate ServerPoll VLAN recording.
+    #[serde(default)]
+    pub vlans: Vec<PendingVlanBatch>,
+}
+
+/// One `upsert_vlans` call, buffered for a ServerPoll server to collect. `pending_id` pairs the
+/// server's answer with the call waiting on it.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PendingVlanBatch {
+    pub pending_id: Uuid,
+    pub request: VlanDiscoveryRequest,
 }
 
 impl BufferedEntities {
@@ -81,7 +94,7 @@ impl BufferedEntities {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.hosts.is_empty() && self.subnets.is_empty()
+        self.hosts.is_empty() && self.subnets.is_empty() && self.vlans.is_empty()
     }
 }
 
@@ -103,6 +116,10 @@ pub struct CreatedEntitiesPayload {
     pub subnets: Vec<(Uuid, Subnet)>,
     /// Hosts: (pending_id, actual_host_response) pairs - includes children (ip_addresses, ports, services)
     pub hosts: Vec<(Uuid, HostResponse)>,
+    /// VLAN batches: (pending_id, the ids the server gave each VLAN number). Ignored by daemons
+    /// that predate ServerPoll VLAN recording.
+    #[serde(default)]
+    pub vlans: Vec<(Uuid, VlanDiscoveryResponse)>,
     /// Set when a host was skipped due to billing host limit (limit value, org_id)
     #[serde(skip)]
     pub billing_limit_hit: Option<(u64, Uuid)>,

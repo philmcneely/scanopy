@@ -39,16 +39,15 @@ export interface GroupLabels {
  * stringified `true`/`false`. The header is only a display key: matching a group
  * to its server total goes through `serverGroupKey`, which reads the raw value.
  *
- * When the server supplied group totals the rows already arrive in the server's
- * group order, so the buckets are left in insertion order — re-sorting here
- * would desync the headers from the cumulative offsets those totals index by.
+ * The rows arrive in the server's group order, so the buckets keep insertion
+ * order: re-sorting here would desync the headers from the cumulative offsets
+ * the server's totals index by.
  */
 export function groupItems<T>(
 	items: T[],
 	fields: FieldConfig<T>[],
 	groupFieldKey: string | null,
-	labels: GroupLabels,
-	preserveOrder: boolean
+	labels: GroupLabels
 ): Map<string, T[]> {
 	if (!groupFieldKey) return new Map();
 
@@ -67,25 +66,7 @@ export function groupItems<T>(
 		groups.get(groupKey)!.push(item);
 	});
 
-	if (preserveOrder) return groups;
-
-	// A field that orders its values (a CIDR, a tag group's tags) orders its groups the same way;
-	// every row of a group holds the same value, so its first row stands for it.
-	// The group of rows with no value comes last, as those rows do in a sort.
-	const compare = field.compare;
-	const missing = (item: T) => {
-		const value = getFieldValue(item, field);
-		return value === null || value === undefined;
-	};
-	return new Map(
-		[...groups.entries()].sort((a, b) => {
-			const [aMissing, bMissing] = [missing(a[1][0]), missing(b[1][0])];
-			if (aMissing !== bMissing) return aMissing ? 1 : -1;
-			return compare
-				? compare(a[1][0], b[1][0]) || a[0].localeCompare(b[0])
-				: a[0].localeCompare(b[0]);
-		})
-	);
+	return groups;
 }
 
 /**
@@ -118,7 +99,23 @@ export interface TreeSection<T> {
 	entries: TreeEntry<T>[];
 }
 
-export type TreeEntry<T> = TreeRow<T> | TreeSection<T>;
+/**
+ * The head of a tree whose root row is on another page: names the root and stands in for its row,
+ * so the page's rows of that tree nest under it as they would under the root. It is not a row of
+ * the page, so it holds no item.
+ */
+export interface TreeContinuation<T> {
+	type: 'continued';
+	key: string;
+	/** The root's name: the header its group would have had. */
+	label: string;
+	/** How much of the tree this page shows. */
+	range: GroupSlice | null;
+	/** The page's rows of the tree, one level in. */
+	entries: TreeEntry<T>[];
+}
+
+export type TreeEntry<T> = TreeRow<T> | TreeSection<T> | TreeContinuation<T>;
 
 /**
  * What a tree row's first cell shows besides its value: the section when the row has children
@@ -152,39 +149,69 @@ export interface RenderGroup<T> {
 export const ROOTED_TREES_KEY = `${String.fromCharCode(0)}rooted-trees`;
 
 /**
- * Collect every group that is one tree under a real root into a single group headed
- * `tree.rootsLabel()`, placed where the first of them was.
+ * Collect every group that is one tree into a single group headed `tree.rootsLabel()`, placed where
+ * the first of them was.
  *
  * Each such group is otherwise headed by its own root's name, with that root's row repeated
  * under it, which reads as the root nesting under itself. Merged, the roots are ordinary rows
  * carrying their own chevrons, and the shared header sets them apart from the rows outside any
  * tree ("Virtualized" beside "Not Virtualized"). A root's own page range moves onto its row.
+ *
+ * A tree whose root row is on another page joins too, under a continuation entry that names the
+ * root and carries the tree's page range, so its rows nest as they would under the root.
+ *
+ * `range` is how much of every tree, together, this page shows (see `rootedTreesPosition`); the
+ * merged header shows it in place of a count of the page's rows.
  */
 export function mergeRootedTrees<T>(
 	groups: RenderGroup<T>[],
-	tree: TreeConfig<T>
+	tree: TreeConfig<T>,
+	range: GroupSlice | null
 ): RenderGroup<T>[] {
-	const isRooted = (group: RenderGroup<T>) =>
-		group.entries !== null && isSingleRootTree(group.entries, tree);
+	const rootOf = (group: RenderGroup<T>) =>
+		group.entries !== null && group.items.length > 0 ? tree.rootKey(group.items[0]) : null;
+	const isRooted = (group: RenderGroup<T>) => rootOf(group) !== null;
 	const rooted = groups.filter(isRooted);
 	if (rooted.length === 0) return groups;
 
 	const rootRanges = new Map<string, GroupSlice>();
-	for (const group of rooted) {
-		if (group.range) rootRanges.set(tree.key(group.entries![0].item), group.range);
-	}
+	const entries = rooted.flatMap((group): TreeEntry<T>[] => {
+		const root = rootOf(group)!;
+		if (group.items.some((item) => tree.key(item) === root)) {
+			if (group.range) rootRanges.set(root, group.range);
+			return group.entries!;
+		}
+		return [
+			{
+				type: 'continued',
+				key: group.key + PATH_SEPARATOR + root,
+				label: group.name,
+				range: group.range,
+				entries: group.entries!.map((entry) => deeper(entry))
+			}
+		];
+	});
 	const merged: RenderGroup<T> = {
 		key: ROOTED_TREES_KEY,
 		name: tree.rootsLabel(),
 		items: rooted.flatMap((group) => group.items),
-		range: null,
-		entries: rooted.flatMap((group) => group.entries!),
+		range,
+		entries,
 		rootRanges
 	};
 
 	const at = groups.findIndex(isRooted);
 	const rest = groups.filter((group) => !isRooted(group));
 	return [...rest.slice(0, at), merged, ...rest.slice(at)];
+}
+
+/** An entry and everything under it, one level further in. */
+function deeper<T>(entry: TreeEntry<T>): TreeEntry<T> {
+	if (entry.type === 'row') return { ...entry, depth: entry.depth + 1 };
+	if (entry.type === 'section') {
+		return { ...entry, depth: entry.depth + 1, entries: entry.entries.map((e) => deeper(e)) };
+	}
+	return { ...entry, entries: entry.entries.map((e) => deeper(e)) };
 }
 
 interface TreeNode<T> {
@@ -198,49 +225,28 @@ const PATH_SEPARATOR = String.fromCharCode(0);
 /**
  * One group's rows as the nested sections the tree `tree` describes.
  *
- * Every row with children becomes a section: the row itself, with its children one level in.
- *
- * - With `serverPaginated` the rows keep the order they arrived in, which the server made
- *   parent-first across every page, and nesting comes from `tree.depth`. A row whose ancestors are
- *   on an earlier page starts at the top of the group.
- * - Otherwise every row is in hand, so nesting comes from `tree.parentKey`: a row whose parent is
- *   not in the group (filtered out, say) starts at the top. Siblings are ordered by `compare`
- *   when given, else kept in arrival order. A cycle is cut where it would repeat.
+ * Every row with children becomes a section: the row itself, with its children one level in. The
+ * rows keep the order they arrived in, which the server made parent-first across every page, and
+ * nesting comes from `tree.depth`. A row whose ancestors are on an earlier page starts at the top
+ * of the group.
  *
  * `groupKey` prefixes every section key, so the same row under two groupings keeps two states.
  */
 export function buildTreeSections<T>(
 	items: T[],
 	tree: TreeConfig<T>,
-	serverPaginated: boolean,
-	groupKey: string,
-	compare?: (a: T, b: T) => number
+	groupKey: string
 ): TreeEntry<T>[] {
-	const forest = serverPaginated
-		? forestFromDepths(items, tree)
-		: forestFromParents(items, tree, compare);
-	return forest.map((node) => toEntry(node, 0, groupKey, tree));
-}
-
-/**
- * Whether a group's entries are one tree under a real root, so it joins the merged group of trees.
- * A root whose parent is filtered out or on another page is not a real root: that group keeps its
- * own header, which names the ancestor that isn't shown. A lone row with nothing under it is no
- * tree, so a "Not Virtualized" group of one stays where it is.
- */
-export function isSingleRootTree<T>(entries: TreeEntry<T>[], tree: TreeConfig<T>): boolean {
-	return (
-		entries.length === 1 &&
-		entries[0].type === 'section' &&
-		tree.parentKey(entries[0].item) === null
-	);
+	return forestFromDepths(items, tree).map((node) => toEntry(node, 0, groupKey, tree));
 }
 
 /** Every row of a group's entries, in the order they are drawn. */
 export function flattenTreeEntries<T>(entries: TreeEntry<T>[]): T[] {
-	return entries.flatMap((entry) =>
-		entry.type === 'row' ? [entry.item] : [entry.item, ...flattenTreeEntries(entry.entries)]
-	);
+	return entries.flatMap((entry) => {
+		if (entry.type === 'row') return [entry.item];
+		if (entry.type === 'section') return [entry.item, ...flattenTreeEntries(entry.entries)];
+		return flattenTreeEntries(entry.entries);
+	});
 }
 
 function toEntry<T>(
@@ -266,44 +272,12 @@ function descendantCount<T>(node: TreeNode<T>): number {
 	return node.children.reduce((sum, child) => sum + 1 + descendantCount(child), 0);
 }
 
-function forestFromParents<T>(
-	items: T[],
-	tree: TreeConfig<T>,
-	compare?: (a: T, b: T) => number
-): TreeNode<T>[] {
-	const present = new Set(items.map((item) => tree.key(item)));
-	const children = new Map<string | null, T[]>();
-	for (const item of items) {
-		const parent = tree.parentKey(item);
-		const slot = parent !== null && present.has(parent) ? parent : null;
-		if (!children.has(slot)) children.set(slot, []);
-		children.get(slot)!.push(item);
-	}
-	if (compare) {
-		for (const siblings of children.values()) siblings.sort(compare);
-	}
-
-	const seen = new Set<string>();
-	const build = (parent: string | null): TreeNode<T>[] => {
-		const nodes: TreeNode<T>[] = [];
-		for (const item of children.get(parent) ?? []) {
-			const key = tree.key(item);
-			// A key seen twice would be a cycle; stop rather than recurse forever.
-			if (seen.has(key)) continue;
-			seen.add(key);
-			nodes.push({ item, children: build(key) });
-		}
-		return nodes;
-	};
-	return build(null);
-}
-
 function forestFromDepths<T>(items: T[], tree: TreeConfig<T>): TreeNode<T>[] {
 	const roots: TreeNode<T>[] = [];
 	// Open ancestors, deepest last. A row nests under the nearest one shallower than itself.
 	const stack: { depth: number; node: TreeNode<T> }[] = [];
 	for (const item of items) {
-		const depth = tree.depth?.(item) ?? 0;
+		const depth = tree.depth(item);
 		while (stack.length > 0 && stack[stack.length - 1].depth >= depth) stack.pop();
 		const node: TreeNode<T> = { item, children: [] };
 		if (stack.length > 0) stack[stack.length - 1].node.children.push(node);
@@ -311,18 +285,6 @@ function forestFromDepths<T>(items: T[], tree: TreeConfig<T>): TreeNode<T>[] {
 		stack.push({ depth, node });
 	}
 	return roots;
-}
-
-/**
- * Tree fields a server-paginated list cannot draw: without `depth` the client would have to
- * derive depth from the loaded page, which misses any parent on another page.
- */
-export function treeDepthViolations<T>(
-	fields: FieldConfig<T>[],
-	serverPaginated: boolean
-): string[] {
-	if (!serverPaginated) return [];
-	return fields.filter((field) => field.tree && !field.tree.depth).map(getFieldKey);
 }
 
 function groupLabel<T>(value: FieldValue, field: FieldConfig<T>, labels: GroupLabels): string {
@@ -367,4 +329,20 @@ export function serverGroupKey<T>(
 		: getFieldValue(groupItems[0], field);
 
 	return raw === null || raw === undefined ? UNGROUPED_KEY : String(raw);
+}
+
+/**
+ * The block every tree's group occupies across all pages, for the merged header of a tree
+ * grouping: where the first tree's group starts and how many rows all trees hold. Null when no
+ * group is a tree.
+ *
+ * The server lists the rows in no tree (key `''`) first and every tree after them, contiguously
+ * (`tree_order` in `backend/src/server/shared/handlers/tree.rs`), so the trees are one run.
+ */
+export function rootedTreesPosition(counts: ServerGroupCount[] | null): GroupPosition | null {
+	const trees = (counts ?? []).filter((group) => group.value != null && group.value !== '');
+	if (trees.length === 0) return null;
+	const offsets = computeGroupOffsets(counts);
+	const start = offsets.get(trees[0].value!)!.start;
+	return { start, count: trees.reduce((sum, group) => sum + group.count, 0) };
 }

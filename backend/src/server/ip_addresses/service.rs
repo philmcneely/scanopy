@@ -4,7 +4,7 @@ use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     ip_addresses::r#impl::base::IPAddress,
     shared::{
-        events::bus::EventBus,
+        events::{bus::EventBus, types::UpdateReason},
         services::traits::{ChildCrudService, CrudService, EventBusService},
         storage::{filter::StorableFilter, generic::GenericPostgresStorage, traits::Storage},
         types::api::ValidationError,
@@ -118,6 +118,22 @@ impl IPAddressService {
     // Position management helpers (for direct API operations)
     // =========================================================================
 
+    /// Lock a host's IP address positions. Assigning the next position and inserting the new row
+    /// is a read-modify-write with no row to lock (the new row doesn't exist yet); without this,
+    /// concurrent creates on one host get duplicate positions. Released by the guard, or on drop.
+    pub async fn lock_positions(
+        &self,
+        host_id: Uuid,
+    ) -> Result<crate::server::shared::storage::lock::SessionLockGuard> {
+        Ok(self
+            .storage
+            .session_lock(
+                crate::server::shared::storage::lock::LockKey::IpPositions { host_id },
+                crate::server::shared::storage::lock::DEFAULT_LOCK_TIMEOUT,
+            )
+            .await?)
+    }
+
     /// Get the next available position for a new IP address on a host.
     /// Returns the count of existing IP addresses (which becomes the next position).
     pub async fn get_next_position_for_host(&self, host_id: &Uuid) -> Result<i32> {
@@ -181,7 +197,8 @@ impl IPAddressService {
         // Only update if there are gaps to close
         if needs_update {
             for ip in &mut ip_addresses {
-                self.update(ip, authentication.clone()).await?;
+                self.update(ip, authentication.clone(), UpdateReason::EntityMaintained)
+                    .await?;
             }
         }
 

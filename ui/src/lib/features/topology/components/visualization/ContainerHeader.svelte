@@ -13,17 +13,22 @@
 	import type { ColorStyle, Color } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import type { TagProps } from '$lib/shared/components/data/types';
+	import type { components } from '$lib/api/schema';
+	import DeviceGlyph from '$lib/features/hosts/components/DeviceGlyph.svelte';
+	import SoftwareGlyph from './SoftwareGlyph.svelte';
 	import {
 		topology_elementCount,
 		topology_ungroupedCount,
 		topology_searchContainerMatches
 	} from '$lib/paraglide/messages';
+	import { tooltip as tooltipAction, type TooltipContent } from '$lib/shared/actions/tooltip';
 
 	/** A group container's pill: a category or tag the group collects, with its tooltip. */
-	export type GroupPill = { label: string; color: Color; title?: string };
+	export type GroupPill = { label: string; color: Color; title?: string | TooltipContent };
 
 	export type SubgroupRow = {
-		logoComponent: IconComponent | null;
+		/** Service definition whose logo marks the subgroup, drawn round as software. */
+		logoDefinition: string | null;
 		headerText: string;
 		labels: GroupPill[];
 		childCount: number;
@@ -38,7 +43,8 @@
 		isCollapsible,
 		headerText,
 		iconComponent = null,
-		logoComponent = null,
+		logoDefinition = null,
+		deviceType = null,
 		fillIcon = false,
 		colorHelper,
 		groupLabels = [],
@@ -53,13 +59,20 @@
 		countOnly = false,
 		searchMatchCount = 0,
 		searchHighlightRingStyle = '',
-		staleTag = null
+		staleTag = null,
+		tooltip = null
 	}: {
 		isCollapsed: boolean;
 		isCollapsible: boolean;
 		headerText: string;
 		iconComponent: IconComponent | null;
-		logoComponent: IconComponent | null;
+		/** Service definition whose logo marks the container, drawn round as software. */
+		logoDefinition: string | null;
+		/**
+		 * The device type a container standing for a device draws, as the same square tile as its icon card,
+		 * in place of its icon. Expanded or collapsed, the tile holds the header's identity slot.
+		 */
+		deviceType?: components['schemas']['DeviceType'] | null;
 		fillIcon: boolean;
 		colorHelper: ColorStyle;
 		groupLabels: GroupPill[];
@@ -78,6 +91,8 @@
 		searchHighlightRingStyle?: string;
 		/** Staleness pill for the entity this container stands for, from `getFreshnessTag`. */
 		staleTag?: TagProps | null;
+		/** Hover text for the container's name: the entity it stands for, or what the group holds. */
+		tooltip?: TooltipContent | null;
 	} = $props();
 
 	let subgroupTotal = $derived(subgroupSummaries.reduce((sum, s) => sum + s.childCount, 0));
@@ -194,13 +209,19 @@
 			<span class="caret text-secondary" class:caret-collapsed={isCollapsed}></span>
 		{/if}
 
-		{#if iconComponent}
+		{#if deviceType}
+			<DeviceGlyph {deviceType} />
+		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<IconComp class={`h-5 w-5 ${colorHelper.icon}`} fill={fillIcon ? 'currentColor' : 'none'} />
 		{/if}
 
 		{#if headerText}
-			<span data-entity-header class="text-s text-secondary whitespace-nowrap font-medium">
+			<span
+				data-entity-header
+				class="text-s text-secondary whitespace-nowrap font-medium"
+				use:tooltipAction={{ content: tooltip }}
+			>
 				{headerText}
 			</span>
 		{/if}
@@ -218,15 +239,18 @@
 		{#if isCollapsible}
 			<span data-fixed class="flex items-center"><span class="caret text-secondary"></span></span>
 		{/if}
-		{#if logoComponent}
-			{@const LogoComp = logoComponent}
-			<span data-fixed><LogoComp class="h-4 w-4 flex-shrink-0" /></span>
+		{#if deviceType}
+			<span data-fixed><DeviceGlyph {deviceType} /></span>
+		{/if}
+		{#if logoDefinition}
+			<span data-fixed><SoftwareGlyph definition={logoDefinition} framed={false} /></span>
 		{/if}
 		{#if headerText}
 			<span
 				data-fixed
 				data-entity-header
 				class="text-tertiary flex-shrink-0 whitespace-nowrap text-xs font-medium"
+				use:tooltipAction={{ content: tooltip }}
 			>
 				{headerText}{groupLabels.length > 0 ? ':' : ''}
 			</span>
@@ -259,7 +283,9 @@
 				><span class="caret caret-collapsed text-secondary"></span></span
 			>
 		{/if}
-		{#if iconComponent}
+		{#if deviceType}
+			<span data-fixed><DeviceGlyph {deviceType} /></span>
+		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<span data-fixed
 				><IconComp
@@ -268,15 +294,15 @@
 				/></span
 			>
 		{/if}
-		{#if logoComponent}
-			{@const LogoComp = logoComponent}
-			<span data-fixed><LogoComp class="h-4 w-4 flex-shrink-0" /></span>
+		{#if logoDefinition}
+			<span data-fixed><SoftwareGlyph definition={logoDefinition} framed={false} /></span>
 		{/if}
 		{#if headerText}
 			<span
 				data-fixed
 				data-entity-header
 				class="text-tertiary whitespace-nowrap text-xs font-medium"
+				use:tooltipAction={{ content: tooltip }}
 			>
 				{headerText}{groupLabels.length > 0 ? ':' : ''}
 			</span>
@@ -321,7 +347,10 @@
 		<div class="flex min-w-fit flex-col items-center gap-2 whitespace-nowrap px-6 py-4">
 			<!-- The container's name is not repeated here: a collapsed root container is named by
 			     its external title pill, which stays visible above the box in both states. -->
-			<span class="text-secondary text-base font-medium underline">
+			<span
+				class="text-secondary text-base font-medium underline"
+				use:tooltipAction={{ content: tooltip }}
+			>
 				{topology_elementCount({ summary: childSummary })}
 			</span>
 			{#if searchMatchCount > 0}
@@ -342,9 +371,8 @@
 					class="flex items-center gap-1 whitespace-nowrap rounded-md border border-dashed border-gray-300 px-2 py-1 dark:border-gray-600"
 					style="background: var(--color-topology-subgroup-bg);"
 				>
-					{#if summary.logoComponent}
-						{@const GroupLogo = summary.logoComponent}
-						<GroupLogo class="h-4 w-4 flex-shrink-0" />
+					{#if summary.logoDefinition}
+						<SoftwareGlyph definition={summary.logoDefinition} framed={false} />
 					{/if}
 					{#if summary.headerText}
 						<span class="text-tertiary text-xs"

@@ -106,6 +106,8 @@ fn warnings(f: &Fixture) -> Vec<DiscoveryWarning> {
         }),
         DiscoveryWarning::SnmpCollectedNothing {
             address: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 9)),
+            credential_id: None,
+            failures: Some(Vec::new()),
         },
     ]
 }
@@ -130,11 +132,7 @@ async fn finish_run(
     update.started_at = Some(Utc::now() - Duration::minutes(1));
     update.finished_at = Some(Utc::now());
     update.warnings = warnings;
-    services
-        .discovery_service
-        .update_session(update)
-        .await
-        .unwrap();
+    services.discovery_service.update_session(update).await;
 
     storage
         .discovery
@@ -167,7 +165,7 @@ async fn warnings_of(services: &ServiceFactory, discovery_id: Uuid) -> Vec<Disco
 }
 
 async fn records_of(storage: &StorageFactory, discovery_id: Uuid) -> Vec<DiscoveryWarningRecord> {
-    GenericPostgresStorage::<DiscoveryWarningRecord>::new(storage.pool.clone())
+    GenericPostgresStorage::<DiscoveryWarningRecord>::new(storage.pool().clone())
         .get_all(StorableFilter::new_from_uuids_column(
             "discovery_id",
             &[discovery_id],
@@ -188,7 +186,7 @@ fn sorted(mut warnings: Vec<DiscoveryWarning>) -> Vec<String> {
 async fn stored_json_warnings(storage: &StorageFactory, discovery_id: Uuid) -> serde_json::Value {
     sqlx::query("SELECT run_type->'results'->'warnings' AS w FROM discovery WHERE id = $1")
         .bind(discovery_id)
-        .fetch_one(&storage.pool)
+        .fetch_one(storage.pool())
         .await
         .unwrap()
         .get::<Option<serde_json::Value>, _>("w")
@@ -307,7 +305,7 @@ async fn a_run_reads_only_warnings_on_its_own_site() {
         other_site.id,
         &DiscoveryWarning::ReverseDnsTimedOut { count: 3 },
     );
-    GenericPostgresStorage::<DiscoveryWarningRecord>::new(storage.pool.clone())
+    GenericPostgresStorage::<DiscoveryWarningRecord>::new(storage.pool().clone())
         .create(&stray)
         .await
         .unwrap();
@@ -360,14 +358,14 @@ async fn the_backfill_copies_stored_json_warnings_once() {
     )
     .bind(run.id)
     .bind(&json)
-    .execute(&storage.pool)
+    .execute(storage.pool())
     .await
     .unwrap();
 
     for _ in 0..2 {
         for statement in split_statements(MIGRATION) {
             sqlx::raw_sql(&statement)
-                .execute(&storage.pool)
+                .execute(storage.pool())
                 .await
                 .unwrap();
         }
@@ -465,7 +463,7 @@ async fn an_assumed_range_carries_the_evidence_of_the_scan_that_created_it() {
         .create(site(&org_id), AuthenticatedEntity::System)
         .await
         .unwrap();
-    GenericPostgresStorage::<DiscoveryWarningRecord>::new(storage.pool.clone())
+    GenericPostgresStorage::<DiscoveryWarningRecord>::new(storage.pool().clone())
         .create(&DiscoveryWarningRecord::from_warning(
             creating.id,
             other_site.id,

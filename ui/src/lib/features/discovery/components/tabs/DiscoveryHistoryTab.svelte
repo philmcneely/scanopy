@@ -3,6 +3,7 @@
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import { narrowsList } from '$lib/shared/components/data/controls/listQuery';
+	import { listIsEmpty } from '$lib/api/list-page';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
 	import type { Discovery } from '../../types/base';
 	import DiscoveryEditModal from '../DiscoveryModal/DiscoveryEditModal.svelte';
@@ -15,7 +16,7 @@
 		useCreateDiscoveryMutation,
 		useUpdateDiscoveryMutation,
 		useBulkDeleteDiscoveriesMutation,
-		type DiscoveryHistoryQueryParams
+		useDeleteDiscoveryMutation
 	} from '../../queries';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
@@ -32,11 +33,13 @@
 		closeModal,
 		resolveModalDeepLink
 	} from '$lib/shared/stores/modal-registry';
-	import { Info } from 'lucide-svelte';
+	import { Info, Trash2 } from 'lucide-svelte';
 	import { useTagGroupsQuery, useTagsQuery } from '$lib/features/tags/queries';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import { runOutcomeTag, type OutcomeTag } from '../../utils/outcome';
 	import {
+		common_confirmDeleteName,
+		common_delete,
 		common_details,
 		common_none,
 		daemons_installPromptDiscoveries,
@@ -73,14 +76,14 @@
 	let isNarrowed = $derived(listQuery !== null && narrowsList(listQuery));
 
 	// Queries
-	const discoveriesQuery = useDiscoveryHistoryQuery(
-		(): DiscoveryHistoryQueryParams => ({
-			limit: pageSize,
-			offset: (currentPage - 1) * pageSize,
-			list: listQuery ?? undefined
-		}),
-		() => isActive
-	);
+	const discoveriesQuery = useDiscoveryHistoryQuery(() => ({
+		limit: pageSize,
+		offset: (currentPage - 1) * pageSize,
+		list: listQuery ?? undefined,
+		// Every tab is mounted at once, so an ungated query would fetch on boot and on every
+		// discovery event for a tab nobody is looking at.
+		enabled: isActive
+	}));
 	// Filter options: the values the run history actually holds. Scoped to history rows the way
 	// the list is, so scheduled configurations add none, and never narrowed by the active filters,
 	// so the options do not shrink as the user filters. Gated like the list.
@@ -118,6 +121,7 @@
 	const createDiscoveryMutation = useCreateDiscoveryMutation();
 	const updateDiscoveryMutation = useUpdateDiscoveryMutation();
 	const bulkDeleteDiscoveriesMutation = useBulkDeleteDiscoveriesMutation();
+	const deleteDiscoveryMutation = useDeleteDiscoveryMutation();
 
 	// Derived data
 	let discoveriesData = $derived(discoveriesQuery.data?.items ?? []);
@@ -194,6 +198,12 @@
 		closeModal();
 	}
 
+	function handleDeleteDiscovery(discovery: Discovery) {
+		if (confirm(common_confirmDeleteName({ name: discovery.name }))) {
+			deleteDiscoveryMutation.mutate(discovery.id);
+		}
+	}
+
 	async function handleBulkDelete(ids: string[]) {
 		if (confirm(discovery_confirmDeleteHistorical({ count: ids.length }))) {
 			await bulkDeleteDiscoveriesMutation.mutateAsync(ids);
@@ -226,7 +236,24 @@
 
 	/** Row actions. */
 	function discoveryActions(discovery: Discovery): CardAction[] {
-		return [{ label: common_details(), icon: Info, onClick: () => handleEditDiscovery(discovery) }];
+		const details: CardAction = {
+			label: common_details(),
+			icon: Info,
+			isOpen: true,
+			onClick: () => handleEditDiscovery(discovery)
+		};
+		if (isReadOnly) return [details];
+		return [
+			details,
+			{
+				label: common_delete(),
+				icon: Trash2,
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
+				onClick: () => handleDeleteDiscovery(discovery)
+			}
+		];
 	}
 
 	// Related entities the registry's discovery fields read: the daemon, the site.
@@ -275,7 +302,7 @@
 		<PreDaemonEmptyState title={daemons_installPromptDiscoveries()} {isReadOnly} />
 	{:else if isLoading}
 		<Loading />
-	{:else if discoveriesData.length === 0 && !isNarrowed}
+	{:else if listIsEmpty(discoveriesQuery, isNarrowed)}
 		<!--
 			"No sessions yet" only when nothing is narrowing the list. The search and the
 			field filters run server-side and are restored from storage on mount, so an
@@ -292,7 +319,6 @@
 			title={discovery_historyTitle()}
 			items={discoveriesData}
 			{fields}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			storageKey="scanopy-discovery-historical-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}

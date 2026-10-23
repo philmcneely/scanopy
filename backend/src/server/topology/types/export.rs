@@ -62,7 +62,7 @@ pub fn topology_to_mermaid(nodes: &[Node], edges: &[Edge], data: &TopologyData) 
         if let Some(subnet) = subnets.get(subnet_id) {
             let sub_label = format!(
                 "{} - {}",
-                mermaid_escape(&subnet.base.name),
+                mermaid_escape(subnet.base.name()),
                 subnet.base.cidr
             );
             writeln!(

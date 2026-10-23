@@ -14,6 +14,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "relationships",
           "id": "host_id",
           "label": "Host",
           "many": false,
@@ -53,6 +54,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "virtualization",
           "id": "hypervisor_service_id",
           "label": "Hypervisor",
           "many": false,
@@ -92,6 +94,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "relationships",
           "id": "identities_service_id",
           "label": "Identity Service",
           "many": false,
@@ -131,6 +134,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "relationships",
           "id": "host_id",
           "label": "Host",
           "many": false,
@@ -149,6 +153,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "virtualization",
           "id": "service_id",
           "label": "Runtime",
           "many": false,
@@ -167,6 +172,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "virtualization",
           "id": "containerized_service_ids",
           "label": "Containers",
           "many": true,
@@ -185,6 +191,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "network",
           "id": "subnet_ids",
           "label": "Bridge Subnets",
           "many": true,
@@ -224,6 +231,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "relationships",
           "id": "service_id",
           "label": "Service",
           "many": false,
@@ -263,6 +271,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "relationships",
           "id": "dependency_id",
           "label": "Dependency",
           "many": false,
@@ -302,6 +311,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "relationships",
           "id": "dependency_id",
           "label": "Dependency",
           "many": false,
@@ -341,6 +351,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "network",
           "id": "source_entity_id",
           "label": "From Interface",
           "many": false,
@@ -359,6 +370,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "network",
           "id": "target_entity_id",
           "label": "To Interface",
           "many": false,
@@ -378,6 +390,7 @@
             "fixture": "discovery_protocols",
             "type": "Metadata"
           },
+          "group": "network",
           "id": "protocol",
           "label": "Protocol",
           "many": false,
@@ -411,6 +424,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "relationships",
           "id": "source_host_id",
           "label": "From Host",
           "many": false,
@@ -429,6 +443,7 @@
           "format": {
             "type": "Entity"
           },
+          "group": "relationships",
           "id": "target_host_id",
           "label": "To Host",
           "many": false,
@@ -448,6 +463,7 @@
             "fixture": "discovery_protocols",
             "type": "Metadata"
           },
+          "group": "network",
           "id": "protocol",
           "label": "Protocol",
           "many": false,

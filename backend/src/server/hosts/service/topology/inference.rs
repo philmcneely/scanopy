@@ -18,6 +18,7 @@ use crate::server::subnets::r#impl::{
 };
 
 use super::*;
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 
 impl HostService {
     /// Create a subnet for every range these far ends imply, and report each one.
@@ -54,6 +55,7 @@ impl HostService {
         let mut observed = ScannedEntityIds::default();
         for range in infer_ranges(&far_ends, &live) {
             let mut subnet = Subnet::new(SubnetBase {
+                vlan_ids: Vec::new(),
                 // The whole point: a range nothing read, only inferred, so the row asks to be
                 // confirmed rather than asserting itself.
                 cidr: SubnetCidr::new(
@@ -61,12 +63,12 @@ impl HostService {
                     AttributeSource::LldpNeighbourAddress,
                 ),
                 site_id,
-                name: range.cidr.to_string(),
+                name: SubnetName::unattributed(range.cidr.to_string()),
                 description: None,
                 // Not `Management` even though a management address is what usually produces this:
                 // on a flat network that address is simply the device's LAN address, and typing the
                 // subnet would be a second guess stacked on the first.
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Discovery,
                 tags: Vec::new(),
@@ -89,15 +91,6 @@ impl HostService {
                     continue;
                 }
             };
-
-            tracing::info!(
-                site_id = %site_id,
-                cidr = %range.cidr,
-                subnet_id = %created.id,
-                addresses = range.far_ends.len(),
-                widened_by_vlan = range.widened_by_vlan,
-                "Inferred a subnet from far-end addresses"
-            );
 
             observed.found_subnet_ids.push(created.id);
             for addressed in &range.far_ends {
@@ -402,6 +395,7 @@ impl HostService {
                     // the same host collected.
                     false,
                     InterfaceDataComplete::none(),
+                    &crate::server::ports::r#impl::coverage::PortCoverage::default(),
                 )
                 .await
             {

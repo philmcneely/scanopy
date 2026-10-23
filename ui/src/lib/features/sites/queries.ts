@@ -8,6 +8,7 @@ import { apiClient } from '$lib/api/client';
 import { requireSuccess, unwrapData } from '$lib/api/query-helpers';
 import type { Site } from './types';
 import type { User } from '$lib/features/users/types';
+import { invalidateListPages, useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 
 /**
  * Query hook for fetching all sites
@@ -38,6 +39,15 @@ export function useSitesQuery(options?: {
 	}));
 }
 
+/** One page of the sites list, kept apart from the full list every picker and lookup reads. */
+export function useSitesListQuery(params: () => ListPageParams) {
+	return useListPageQuery<Site>(
+		queryKeys.sites.all,
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/sites', { params: { query }, querySerializer }),
+		params
+	);
+}
 /**
  * Mutation hook for creating a site
  */
@@ -49,6 +59,7 @@ export function useCreateSiteMutation() {
 			return unwrapData(await apiClient.POST('/api/v1/sites', { body: site }));
 		},
 		onSuccess: (newSite: Site) => {
+			invalidateListPages(queryClient, queryKeys.sites.all);
 			queryClient.setQueryData<Site[]>(queryKeys.sites.all, (old) =>
 				old ? [...old, newSite] : [newSite]
 			);
@@ -74,6 +85,7 @@ export function useUpdateSiteMutation() {
 			);
 		},
 		onSuccess: (updatedSite: Site) => {
+			invalidateListPages(queryClient, queryKeys.sites.all);
 			queryClient.setQueryData<Site[]>(
 				queryKeys.sites.all,
 				(old) => old?.map((n) => (n.id === updatedSite.id ? updatedSite : n)) ?? []
@@ -100,6 +112,7 @@ export function useDeleteSiteMutation() {
 			return id;
 		},
 		onSuccess: (id: string) => {
+			invalidateListPages(queryClient, queryKeys.sites.all);
 			queryClient.setQueryData<Site[]>(
 				queryKeys.sites.all,
 				(old) => old?.filter((n) => n.id !== id) ?? []
@@ -120,6 +133,7 @@ export function useBulkDeleteSitesMutation() {
 			return ids;
 		},
 		onSuccess: (ids: string[]) => {
+			invalidateListPages(queryClient, queryKeys.sites.all);
 			queryClient.setQueryData<Site[]>(
 				queryKeys.sites.all,
 				(old) => old?.filter((n) => !ids.includes(n.id)) ?? []

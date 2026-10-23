@@ -34,6 +34,7 @@ use crate::server::subnets::r#impl::base::{Subnet, SubnetBase, SubnetCidr, Subne
 use crate::server::subnets::r#impl::types::SubnetType;
 
 use super::{organization, test_services};
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 
 const LAN_IP: &str = "192.168.4.58";
 
@@ -84,13 +85,13 @@ impl<'a> Lab<'a> {
             .subnet_service
             .create(
                 Subnet::new(SubnetBase {
-                    name: cidr.to_string(),
+                    name: SubnetName::unattributed(cidr.to_string()),
                     site_id,
                     cidr: SubnetCidr::new(
                         SubnetCidrValue(cidr.parse().unwrap()),
                         AttributeSource::DaemonSelfReport,
                     ),
-                    subnet_type,
+                    subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
                     source: EntitySource::Discovery,
                     ..Default::default()
                 }),
@@ -167,6 +168,7 @@ impl<'a> Lab<'a> {
         container.base.virtualization_service_id = Some(runtime.id);
         container.base.virtualization_metadata =
             Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
                 container_name: Some(name.to_string()),
                 container_id: Some(format!("{name}-id")),
                 compose_project: None,
@@ -192,6 +194,7 @@ impl<'a> Lab<'a> {
                 vec![],
                 false,
                 InterfaceDataComplete::none(),
+                &crate::server::ports::r#impl::coverage::PortCoverage::default(),
                 None,
                 AuthenticatedEntity::System,
                 None,

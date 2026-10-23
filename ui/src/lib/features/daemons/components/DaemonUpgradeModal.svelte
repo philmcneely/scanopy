@@ -1,4 +1,5 @@
 <script lang="ts">
+	import daemonVersionGates from '$lib/data/daemon-version-gates.json';
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import CodeContainer from '$lib/shared/components/data/CodeContainer.svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
@@ -8,6 +9,7 @@
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import { entities } from '$lib/shared/stores/metadata';
 	import { ArrowBigUpDash } from 'lucide-svelte';
 	import type { Daemon, UpgradeStep } from '../types/base';
@@ -96,9 +98,13 @@
 	}
 
 	let colorHelper = entities.getColorHelper('Daemon');
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'cancel', label: common_close(), onClick: onClose }
+	]);
 </script>
 
-<GenericModal {isOpen} title={daemons_upgradeDaemon()} size="xl" {onClose}>
+<GenericModal {isOpen} title={daemons_upgradeDaemon()} size="xl" {onClose} {actions}>
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={ArrowBigUpDash} color={colorHelper.color} />
 	{/snippet}
@@ -135,7 +141,9 @@
 				{#if isPreUnifiedDaemon(daemon)}
 					<InlineWarning
 						title=""
-						body={discovery_upgradeConsolidationWarning()}
+						body={discovery_upgradeConsolidationWarning({
+							version: daemonVersionGates.last_without_unified_discovery
+						})}
 						dismissableKey="unified-discovery-migration"
 					/>
 				{/if}
@@ -218,7 +226,12 @@
 							{/each}
 
 							{#if artifacts.legacy_service_name}
-								<InlineInfo title="" body={daemons_upgradeLegacyServiceName()} />
+								<InlineInfo
+									title=""
+									body={daemons_upgradeLegacyServiceName({
+										version: daemonVersionGates.last_without_install_engine
+									})}
+								/>
 							{/if}
 
 							{#if selectedOS !== 'linux'}
@@ -232,13 +245,6 @@
 						<Loading />
 					{/if}
 				</OsSelector>
-			</div>
-		</div>
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex items-center justify-end">
-				<button type="button" class="btn-secondary" onclick={onClose}>{common_close()}</button>
 			</div>
 		</div>
 	</div>

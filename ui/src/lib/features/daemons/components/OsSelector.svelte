@@ -76,6 +76,7 @@
 						class="btn-secondary flex items-center gap-1.5 {selectedOS === option.id
 							? 'ring-primary ring-2'
 							: ''}"
+						aria-pressed={selectedOS === option.id}
 						disabled={osDisabled}
 						onclick={() => onOsSelect(option.id)}
 					>
@@ -125,6 +126,7 @@
 			<button
 				type="button"
 				class="btn-secondary btn-sm flex-1 {linuxMethod === option.id ? 'ring-primary ring-2' : ''}"
+				aria-pressed={linuxMethod === option.id}
 				onclick={() => onLinuxMethodChange?.(option.id)}
 			>
 				{option.label}
@@ -141,6 +143,7 @@
 				class="btn-secondary btn-sm flex-1 {windowsMethod === option.id
 					? 'ring-primary ring-2'
 					: ''}"
+				aria-pressed={windowsMethod === option.id}
 				onclick={() => onWindowsMethodChange?.(option.id)}
 			>
 				{option.label}

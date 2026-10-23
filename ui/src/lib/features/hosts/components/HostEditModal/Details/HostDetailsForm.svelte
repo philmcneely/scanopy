@@ -4,10 +4,11 @@
 	import { max } from '$lib/shared/components/forms/validators';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import SelectSite from '$lib/features/sites/components/SelectSite.svelte';
-	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
+	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import IdentitySection from './IdentitySection.svelte';
 	import DeviceFactsSection from './DeviceFactsSection.svelte';
 	import {
+		common_tags,
 		common_description,
 		hosts_details_descriptionPlaceholder
 	} from '$lib/paraglide/messages';
@@ -58,7 +59,12 @@
 			{/snippet}
 		</form.Field>
 
-		<TagPicker entityType="Host" bind:selectedTagIds={formData.tags} />
+		<TagPickerInline
+			entityType="Host"
+			label={common_tags()}
+			selectedTagIds={formData.tags}
+			onChange={(tags) => (formData.tags = tags)}
+		/>
 	</div>
 
 	{#if isEditing}

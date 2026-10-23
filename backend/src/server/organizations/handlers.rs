@@ -6,6 +6,7 @@ use crate::server::organizations::demo_seed::seed_demo_data;
 use crate::server::organizations::demo_status::DemoPopulateStatus;
 use crate::server::organizations::r#impl::base::Organization;
 use crate::server::shared::events::traits::{Event, OrgScope};
+use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 use crate::server::shared::events::types::{OnboardingOperation, OnboardingOperationDiscriminants};
 use crate::server::shared::handlers::traits::CrudHandlers;
 use crate::server::shared::services::traits::CrudService;
@@ -113,7 +114,9 @@ pub async fn update_org_name(
         || CrudHandlers::validate(&locked.org),
         Organization::entity_name(),
     )?;
-    let updated = locked.save(auth.into_entity()).await?;
+    let updated = locked
+        .save(auth.into_entity(), UpdateReason::EntityRequested)
+        .await?;
 
     Ok(Json(ApiResponse::success(updated)))
 }
@@ -164,10 +167,7 @@ async fn update_profile(
             },
             authentication,
         ))
-        .await
-        .map_err(|e| {
-            ApiError::internal_error(&format!("Failed to publish profile event: {}", e))
-        })?;
+        .await;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -240,10 +240,7 @@ async fn submit_referral_source(
             },
             authentication,
         ))
-        .await
-        .map_err(|e| {
-            ApiError::internal_error(&format!("Failed to publish referral source event: {}", e))
-        })?;
+        .await;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -311,10 +308,7 @@ async fn daemon_prompt_response(
             operation,
             authentication,
         ))
-        .await
-        .map_err(|e| {
-            ApiError::internal_error(&format!("Failed to publish daemon prompt event: {}", e))
-        })?;
+        .await;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -467,7 +461,7 @@ pub async fn delete_organization(
     state
         .services
         .organization_service
-        .delete(&org.id, entity)
+        .delete(&org.id, entity, DeletionReason::EntityRequested)
         .await
         .map_err(|e| ApiError::internal_error(&format!("Failed to delete organization: {}", e)))?;
 
@@ -616,9 +610,14 @@ async fn run_populate_demo(
     state
         .services
         .organization_service
-        .modify(id, entity.clone(), |org| {
-            org.base.onboarding = OnboardingOperationDiscriminants::iter().collect();
-        })
+        .modify(
+            id,
+            entity.clone(),
+            UpdateReason::OrganizationDemoPopulated,
+            |org| {
+                org.base.onboarding = OnboardingOperationDiscriminants::iter().collect();
+            },
+        )
         .await?;
 
     seed_demo_data(&state.services, id, user_id, org.base.use_case, entity).await

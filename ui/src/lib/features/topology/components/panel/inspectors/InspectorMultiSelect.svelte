@@ -625,7 +625,7 @@
 		bindings: {}
 	});
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			const v = form.state.values as DepFormValues;
 			formValues = {
 				name: v.name ?? '',
@@ -635,6 +635,7 @@
 				bindings: { ...(v.bindings ?? {}) }
 			};
 		});
+		return unsubscribe;
 	});
 
 	let resolvedServices = $derived<ResolvedService[]>(

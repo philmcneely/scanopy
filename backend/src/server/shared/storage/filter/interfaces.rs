@@ -26,4 +26,28 @@ impl StorableFilter<Interface> {
         ));
         self
     }
+
+    /// Interfaces whose forwarding database learned any of `macs`. An empty selection matches
+    /// nothing.
+    ///
+    /// `fdb_macs` holds each MAC as its source wrote it, so both cases are bound.
+    pub fn learned_any_mac(mut self, macs: &[MacAddress]) -> Self {
+        if macs.is_empty() {
+            self.conditions.push("FALSE".to_string());
+            return self;
+        }
+        let col = self.qualify_column("fdb_macs");
+        self.conditions
+            .push(format!("{col} ?| ${}", self.values.len() + 1));
+        self.values.push(SqlValue::StringArray(
+            macs.iter()
+                .flat_map(|mac| {
+                    let upper = mac.to_string();
+                    let lower = upper.to_lowercase();
+                    [upper, lower]
+                })
+                .collect(),
+        ));
+        self
+    }
 }

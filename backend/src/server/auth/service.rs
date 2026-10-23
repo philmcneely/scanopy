@@ -1,5 +1,6 @@
 use crate::server::auth::r#impl::base::ProvisionOrg;
 use crate::server::billing::types::base::BillingPlan;
+use crate::server::config::DeploymentType;
 use crate::server::license::service::{LicenseService, self_hosted_plan};
 use crate::server::shared::events::types::{
     EmailAndToken, OnboardingOperation, OnboardingOperationDiscriminants,
@@ -22,7 +23,7 @@ use crate::server::{
         events::{
             bus::EventBus,
             traits::{AuthScope, Event, OrgScope},
-            types::{AuthMethod, AuthOperation},
+            types::{AuthMethod, AuthOperation, UpdateReason},
         },
         services::traits::CrudService,
         storage::{filter::StorableFilter, traits::Storable},
@@ -153,7 +154,7 @@ impl AuthService {
         &self,
         request: RegisterRequest,
         params: LoginRegisterParams,
-        billing_enabled: bool,
+        deployment_type: DeploymentType,
     ) -> Result<User> {
         let LoginRegisterParams {
             provision_org,
@@ -200,7 +201,7 @@ impl AuthService {
                 permissions,
                 site_ids,
                 terms_accepted_at,
-                billing_enabled,
+                deployment_type,
             })
             .await?;
 
@@ -235,7 +236,7 @@ impl AuthService {
                 },
                 authentication,
             ))
-            .await?;
+            .await;
 
         Ok(user)
     }
@@ -243,7 +244,7 @@ impl AuthService {
     /// Core user provisioning logic - handles both password and OIDC registration
     /// If pending_setup is provided, uses setup.org_name, marks OrgCreated and
     /// OnboardingModalCompleted, and creates the org's tag groups and requested site
-    /// If billing_enabled is false (self-hosted), sets default billing plan
+    /// On a self-hosted server the new org gets the license plan
     pub async fn provision_user(&self, params: ProvisionUserParams) -> Result<User> {
         let ProvisionUserParams {
             email,
@@ -255,7 +256,7 @@ impl AuthService {
             permissions,
             site_ids,
             terms_accepted_at,
-            billing_enabled,
+            deployment_type,
         } = params;
 
         // Plan at org creation time — surfaced on the OrgCreated onboarding
@@ -272,12 +273,14 @@ impl AuthService {
                 // Self-hosted org count is capped by the licensed plan's
                 // `included_orgs` (Community/Standard/Plus = 1,
                 // Commercial/Enterprise = unlimited). `None` = unlimited = no
-                // cap. Cloud (billing_enabled) stays multi-tenant regardless.
+                // cap. Cloud stays multi-tenant regardless.
                 // Gates creation only — instances already above the cap keep
                 // their orgs. Invited users take the `Existing` arm and are
-                // unaffected. `billing_enabled == false` ⇔ self-hosted.
+                // unaffected.
                 let license_plan = self_hosted_plan(self.license_service.as_deref()).await;
-                if !billing_enabled && let Some(max_orgs) = license_plan.config().included_orgs {
+                if deployment_type.caps_orgs_by_license()
+                    && let Some(max_orgs) = license_plan.config().included_orgs
+                {
                     let org_count = self
                         .organization_service
                         .get_all(StorableFilter::<Organization>::new())
@@ -298,13 +301,8 @@ impl AuthService {
                 ];
 
                 // Cloud: no plan until user selects one via billing modal → Stripe checkout → webhook
-                // Self-hosted: assign the license-resolved plan and emit a
-                // CheckoutCompleted event below so the ledger reflects it immediately.
-                let self_hosted_plan = if billing_enabled {
-                    None
-                } else {
-                    Some(license_plan)
-                };
+                // Self-hosted: assign the license-resolved plan, which `OrgCreated` below carries.
+                let self_hosted_plan = deployment_type.is_self_hosted().then_some(license_plan);
                 new_org_plan = self_hosted_plan;
 
                 // Create new organization for this user
@@ -393,7 +391,6 @@ impl AuthService {
         }) = provision_org
         {
             let authentication: AuthenticatedEntity = user.clone().into();
-            let plan = new_org_plan.unwrap_or_default();
 
             // Every new org gets the system tag groups, cloud or self-hosted. A requested site
             // means a cloud signup: registration provisions the integrated daemon on it next, so
@@ -413,19 +410,21 @@ impl AuthService {
                     OrgScope { organization_id },
                     OnboardingOperation::OrgCreated {
                         org_name,
-                        plan,
+                        plan: new_org_plan,
                         use_case,
                         site,
                     },
                     authentication,
                 ))
-                .await?;
+                .await;
         }
 
         Ok(user)
     }
 
-    /// Login with username and password
+    /// Login with username and password. A failure publishes `LoginFailed`; the
+    /// handler publishes the success, with [`Self::publish_login_success`], once
+    /// the session is saved.
     pub async fn login(
         &self,
         request: LoginRequest,
@@ -447,24 +446,6 @@ impl AuthService {
             Ok(user) => {
                 // Success - clear attempts
                 self.login_attempts.write().await.remove(&request.email);
-
-                let authentication: AuthenticatedEntity = user.clone().into();
-                self.event_bus
-                    .publish(Event::new(
-                        AuthScope {
-                            user_id: Some(user.id),
-                            organization_id: Some(user.base.organization_id),
-                            ip_address: ip,
-                            user_agent,
-                        },
-                        AuthOperation::LoginSuccess {
-                            method: AuthMethod::Password,
-                            via_register_flow: false,
-                        },
-                        authentication,
-                    ))
-                    .await?;
-
                 Ok(user)
             }
             Err(e) => {
@@ -480,11 +461,12 @@ impl AuthService {
                         },
                         AuthOperation::LoginFailed {
                             method: AuthMethod::Password,
-                            attempted_email: request.email.clone(),
+                            attempted_email: Some(request.email.clone()),
+                            reason: e.to_string(),
                         },
                         AuthenticatedEntity::Anonymous,
                     ))
-                    .await?;
+                    .await;
 
                 let mut attempts = self.login_attempts.write().await;
                 let entry = attempts
@@ -495,6 +477,25 @@ impl AuthService {
                 Err(e)
             }
         }
+    }
+
+    /// Publish `LoginSuccess` for a password login whose session is saved.
+    pub async fn publish_login_success(&self, user: &User, ip: IpAddr, user_agent: Option<String>) {
+        self.event_bus
+            .publish(Event::new(
+                AuthScope {
+                    user_id: Some(user.id),
+                    organization_id: Some(user.base.organization_id),
+                    ip_address: ip,
+                    user_agent,
+                },
+                AuthOperation::LoginSuccess {
+                    method: AuthMethod::Password,
+                    via_register_flow: false,
+                },
+                user.clone().into(),
+            ))
+            .await
     }
 
     /// Check if user is locked out due to too many login attempts
@@ -591,9 +592,11 @@ impl AuthService {
                 },
                 authentication.clone(),
             ))
-            .await?;
+            .await;
 
-        self.user_service.update(&mut user, authentication).await
+        self.user_service
+            .update(&mut user, authentication, UpdateReason::UserPasswordChanged)
+            .await
     }
 
     /// Initiate password reset process - generates a token stored in database
@@ -623,7 +626,11 @@ impl AuthService {
         user.base.password_reset_token = Some(token.clone());
         user.base.password_reset_expires = Some(expires);
         self.user_service
-            .update(&mut user, AuthenticatedEntity::System)
+            .update(
+                &mut user,
+                AuthenticatedEntity::System,
+                UpdateReason::UserPasswordResetRequested,
+            )
             .await?;
 
         self.event_bus
@@ -642,7 +649,7 @@ impl AuthService {
                 },
                 AuthenticatedEntity::Anonymous,
             ))
-            .await?;
+            .await;
 
         Ok(())
     }
@@ -670,7 +677,11 @@ impl AuthService {
                 user.base.password_reset_token = None;
                 user.base.password_reset_expires = None;
                 self.user_service
-                    .update(&mut user, AuthenticatedEntity::System)
+                    .update(
+                        &mut user,
+                        AuthenticatedEntity::System,
+                        UpdateReason::UserPasswordResetExpired,
+                    )
                     .await?;
                 return Err(anyhow!("Password reset token has expired"));
             }
@@ -690,7 +701,7 @@ impl AuthService {
                 AuthOperation::PasswordResetCompleted,
                 authentication,
             ))
-            .await?;
+            .await;
 
         // Update password and clear token
         let hashed_password = hash_password(new_password)?;
@@ -711,7 +722,11 @@ impl AuthService {
         // session with the new epoch.
         user.base.session_epoch += 1;
         self.user_service
-            .update(&mut user, AuthenticatedEntity::System)
+            .update(
+                &mut user,
+                AuthenticatedEntity::System,
+                UpdateReason::UserPasswordReset,
+            )
             .await?;
 
         Ok(user.clone())
@@ -736,7 +751,7 @@ impl AuthService {
                     AuthOperation::LoggedOut,
                     authentication,
                 ))
-                .await?;
+                .await;
         }
 
         Ok(())
@@ -755,7 +770,11 @@ impl AuthService {
         user.base.email_verification_token = Some(token.clone());
         user.base.email_verification_expires = Some(expiry);
         self.user_service
-            .update(user, AuthenticatedEntity::System)
+            .update(
+                user,
+                AuthenticatedEntity::System,
+                UpdateReason::UserVerificationRequested,
+            )
             .await?;
 
         Ok(EmailAndToken {
@@ -835,7 +854,7 @@ impl AuthService {
                 },
                 authentication,
             ))
-            .await?;
+            .await;
 
         Ok(())
     }
@@ -904,7 +923,11 @@ impl AuthService {
             user.base.email_verification_expires = None;
 
             self.user_service
-                .update(&mut user, AuthenticatedEntity::System)
+                .update(
+                    &mut user,
+                    AuthenticatedEntity::System,
+                    UpdateReason::UserEmailChanged,
+                )
                 .await?;
 
             let new_email = user.base.email.clone();
@@ -923,7 +946,7 @@ impl AuthService {
                     },
                     user.clone().into(),
                 ))
-                .await?;
+                .await;
         } else {
             // Standard initial verification flow
             user.base.email_verified = true;
@@ -931,7 +954,11 @@ impl AuthService {
             user.base.email_verification_expires = None;
 
             self.user_service
-                .update(&mut user, AuthenticatedEntity::System)
+                .update(
+                    &mut user,
+                    AuthenticatedEntity::System,
+                    UpdateReason::UserEmailVerified,
+                )
                 .await?;
 
             self.event_bus
@@ -945,7 +972,7 @@ impl AuthService {
                     AuthOperation::EmailVerified,
                     user.clone().into(),
                 ))
-                .await?;
+                .await;
         }
 
         Ok(user)
@@ -986,7 +1013,7 @@ impl AuthService {
                 AuthOperation::EmailVerificationRequested { email_and_token },
                 authentication,
             ))
-            .await?;
+            .await;
 
         Ok(())
     }

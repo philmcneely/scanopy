@@ -85,6 +85,8 @@ export const COVERED_FIXTURES = [
 	{ file: 'entity-sources.json', key: 'entity_sources', kind: 'typeMetadata' },
 	// The parts of the product entities belong to: the sidebar's section names.
 	{ file: 'entity-categories.json', key: 'entity_categories', kind: 'typeMetadata' },
+	// Headings a field is listed under in the column menu, keyed by `EntityField.group`.
+	{ file: 'field-groups.json', key: 'field_groups', kind: 'typeMetadata' },
 	// How confidently discovery matched a service to its definition, keyed by `MatchConfidence`.
 	{ file: 'match-confidences.json', key: 'match_confidences', kind: 'typeMetadata' },
 	// The hypervisor platform a guest runs on, keyed by `virtualization_metadata.type`.
@@ -97,6 +99,9 @@ export const COVERED_FIXTURES = [
 	{ file: 'proxmox-guest-types.json', key: 'proxmox_guest_types', kind: 'typeMetadata' },
 	// A container host's LAN network driver (macvlan or ipvlan), keyed by `ContainerNetworkType`.
 	{ file: 'container-network-types.json', key: 'container_network_types', kind: 'typeMetadata' },
+	// A container's or VM's run state at the last scan, keyed by `GuestState`.
+	{ file: 'guest-states.json', key: 'guest_states', kind: 'typeMetadata' },
+	{ file: 'device-types.json', key: 'device_types', kind: 'typeMetadata' },
 	// Scan warnings. Descriptions here are templates with `{named}` slots, unlike every other
 	// entry above: the values are copied through verbatim, paraglide compiles them into functions
 	// that take an inputs object, and `metaDescriptionWith` in src/lib/i18n/metadata.ts is what
@@ -106,6 +111,7 @@ export const COVERED_FIXTURES = [
 	// The rung each code's `category` names. Heading and sub-line for a section of the list.
 	{ file: 'warning-remedies.json', key: 'warning_remedies', kind: 'typeMetadata' },
 	{ file: 'snmp-walk-groups.json', key: 'snmp_walk_groups', kind: 'typeMetadata' },
+	{ file: 'snmp-walk-causes.json', key: 'snmp_walk_causes', kind: 'typeMetadata' },
 	{ file: 'claim-sources.json', key: 'claim_sources', kind: 'typeMetadata' },
 	// Keyed by the credential-query discriminant a warning carries, which credential-types.json
 	// cannot resolve — it is keyed by CredentialType.
@@ -245,7 +251,13 @@ function main() {
 		sorted[key] = merged[key];
 	}
 
-	writeFileSync(MESSAGES_FILE, JSON.stringify(sorted, null, '\t') + '\n');
+	// Write only on a change, so an unchanged en.json keeps its mtime and doesn't trigger a reload.
+	const output = JSON.stringify(sorted, null, '\t') + '\n';
+	if (existsSync(MESSAGES_FILE) && readFileSync(MESSAGES_FILE, 'utf-8') === output) {
+		console.log(`en.json unchanged (${Object.keys(sorted).length} total messages)`);
+		return;
+	}
+	writeFileSync(MESSAGES_FILE, output);
 	console.log(`Wrote ${Object.keys(sorted).length} total messages to en.json`);
 	console.log(`  - ${Object.keys(manualMessages).length} manual messages`);
 	console.log(`  - ${Object.keys(metaMessages).length} meta messages`);

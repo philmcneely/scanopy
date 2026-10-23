@@ -1,21 +1,24 @@
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::auth::middleware::permissions::{Admin, Authorized, Member, Viewer};
 use crate::server::shared::entities::{Entity as EntityEnum, EntityDiscriminants};
-use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event, OrgScope};
+use crate::server::shared::events::log::EventLog;
+use crate::server::shared::events::traits::{EntityScope, Event, OrgScope};
 use crate::server::shared::events::types::{
-    EntityOperation, OnboardingOperation, OnboardingOperationDiscriminants,
+    EntityOperation, OnboardingOperation, OnboardingOperationDiscriminants, UpdateReason,
 };
 use crate::server::shared::extractors::Query;
+use crate::server::shared::handlers::list::list_page;
 use crate::server::shared::handlers::ordering::OrderField;
 use crate::server::shared::handlers::query::{
     FilterQueryExtractor, OrderDirection, PaginationParams,
 };
-use crate::server::shared::handlers::traits::create_handler;
+use crate::server::shared::handlers::traits::{ListScope, create_handler};
 use crate::server::shared::services::traits::{CrudService, EventBusService};
 use crate::server::shared::storage::filter::StorableFilter;
-use crate::server::shared::storage::traits::{Entity, Storable, Storage};
+use crate::server::shared::storage::traits::{Entity, Storable};
 use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::api::{ApiError, ApiErrorResponse, PaginatedApiResponse};
+use crate::server::tags::groups::handlers::SYSTEM_SQL;
 use crate::server::tags::r#impl::base::Tag;
 use crate::server::{
     config::AppState,
@@ -32,6 +35,19 @@ use uuid::Uuid;
 // Tag Ordering
 // ============================================================================
 
+/// The key a tag's group sorts and groups under, in the order the tag groups list uses: system
+/// groups first, then by type and lowercased name, then the group's id so two groups never share
+/// a key. `<0 or 1>:<type>:<name>:<id>`; NULL for a tag in no group. The UI builds the same key to
+/// find a group's total in `group_counts`.
+static TAG_GROUP_KEY_SQL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    format!(
+        "(CASE WHEN tag_groups.id IS NULL THEN NULL ELSE \
+         (CASE WHEN {system} THEN '0' ELSE '1' END) || ':' || tag_groups.group_type || ':' \
+         || lower(tag_groups.name) || ':' || tag_groups.id::text END)",
+        system = SYSTEM_SQL.as_str(),
+    )
+});
+
 /// Fields that tags can be ordered/grouped by.
 #[derive(
     Serialize, Deserialize, Debug, Clone, Copy, Default, utoipa::ToSchema, strum::EnumIter,
@@ -43,8 +59,10 @@ pub enum TagOrderField {
     Name,
     Color,
     UpdatedAt,
-    /// The name of the tag's group.
+    /// The tag's group, in the order the tag groups list uses. Tags in no group sort last.
     TagGroup,
+    /// The tag's icon. Tags with none sort last.
+    Icon,
 }
 
 impl OrderField for TagOrderField {
@@ -54,14 +72,32 @@ impl OrderField for TagOrderField {
             Self::Name => "tags.name",
             Self::Color => "tags.color",
             Self::UpdatedAt => "tags.updated_at",
-            Self::TagGroup => "tag_groups.name",
+            Self::TagGroup => TAG_GROUP_KEY_SQL.as_str(),
+            Self::Icon => "tags.icon",
         }
     }
 
     fn join_sql(&self) -> Option<&'static str> {
         match self {
             Self::TagGroup => Some("LEFT JOIN tag_groups ON tag_groups.id = tags.tag_group_id"),
-            Self::CreatedAt | Self::Name | Self::Color | Self::UpdatedAt => None,
+            Self::CreatedAt | Self::Name | Self::Color | Self::UpdatedAt | Self::Icon => None,
+        }
+    }
+
+    fn nulls_last(&self) -> bool {
+        matches!(self, Self::TagGroup | Self::Icon)
+    }
+
+    /// Sorted by tag group, tags follow their groups and then each group's own order: placed
+    /// tags by place, then the rest by name.
+    fn order_term(&self, dir: &str) -> String {
+        match self {
+            Self::TagGroup => format!(
+                "{} {dir} NULLS LAST, tags.position ASC NULLS LAST, tags.name ASC",
+                self.to_sql()
+            ),
+            _ if self.nulls_last() => format!("{} {dir} NULLS LAST", self.to_sql()),
+            _ => format!("{} {dir}", self.to_sql()),
         }
     }
 }
@@ -73,6 +109,14 @@ impl OrderField for TagOrderField {
 /// Query parameters for filtering and ordering tags.
 #[derive(Deserialize, Default, Debug, Clone, IntoParams)]
 pub struct TagFilterQuery {
+    /// Only tags of one of these colours. Repeat for several.
+    pub colors: Option<Vec<String>>,
+    /// Only tags in one of these groups. Repeat for several.
+    pub tag_group_ids: Option<Vec<Uuid>>,
+    /// Only tags with one of these icons. Repeat for several.
+    pub icons: Option<Vec<String>>,
+    /// Free-text search. Case-insensitive substring match against the name and description.
+    pub search: Option<String>,
     /// Primary ordering field (used for grouping). Always sorts ASC to keep groups together.
     pub group_by: Option<TagOrderField>,
     /// Secondary ordering field (sorting within groups or standalone sort).
@@ -90,19 +134,6 @@ pub struct TagFilterQuery {
     pub at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-impl TagFilterQuery {
-    /// Build the ORDER BY clause.
-    pub fn apply_ordering(&self, filter: StorableFilter<Tag>) -> (StorableFilter<Tag>, String) {
-        crate::server::shared::handlers::ordering::apply_ordering(
-            self.group_by,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "tags.created_at ASC",
-        )
-    }
-}
-
 impl FilterQueryExtractor for TagFilterQuery {
     fn apply_to_filter<T: Storable>(
         &self,
@@ -110,7 +141,21 @@ impl FilterQueryExtractor for TagFilterQuery {
         _user_site_ids: &[Uuid],
         _user_organization_id: Uuid,
     ) -> StorableFilter<T> {
-        filter
+        let filter = match &self.colors {
+            Some(colors) if !colors.is_empty() => filter.text_column_in("color", colors),
+            _ => filter,
+        };
+        let filter = match &self.tag_group_ids {
+            Some(ids) if !ids.is_empty() => filter.expr_text_in(
+                &format!("{}.tag_group_id", T::table_name()),
+                &ids.iter().map(Uuid::to_string).collect::<Vec<_>>(),
+            ),
+            _ => filter,
+        };
+        match &self.icons {
+            Some(icons) if !icons.is_empty() => filter.text_column_in("icon", icons),
+            _ => filter,
+        }
     }
 
     fn pagination(&self) -> PaginationParams {
@@ -118,6 +163,10 @@ impl FilterQueryExtractor for TagFilterQuery {
             limit: self.limit,
             offset: self.offset,
         }
+    }
+
+    fn at(&self) -> Option<chrono::DateTime<chrono::Utc>> {
+        self.at
     }
 }
 
@@ -129,6 +178,7 @@ mod generated {
     crate::crud_delete_handler!(Tag);
     crate::crud_bulk_delete_handler!(Tag);
     crate::crud_export_csv_handler!(Tag);
+    crate::crud_get_field_values_handler!(Tag);
 }
 
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
@@ -141,6 +191,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         ))
         .routes(routes!(generated::bulk_delete))
         .routes(routes!(generated::export_csv))
+        .routes(routes!(generated::get_field_values))
         // Entity tag assignment routes
         .routes(routes!(bulk_add_tag))
         .routes(routes!(bulk_remove_tag))
@@ -167,39 +218,9 @@ async fn get_all_tags(
     auth: Authorized<Viewer>,
     Query(query): Query<TagFilterQuery>,
 ) -> ApiResult<Json<PaginatedApiResponse<Tag>>> {
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(|| ApiError::forbidden("Organization context required"))?;
-
-    // SCD2 read path: live by default, or as-of the snapshot timestamp when set.
-    // Hides close-and-clone's closed historical tag copies from the tag list.
-    let base_filter =
-        StorableFilter::<Tag>::new_from_org_id(&organization_id).live_or_as_of(query.at);
-
-    // Apply pagination
-    let pagination = query.pagination();
-    let filter = pagination.apply_to_filter(base_filter);
-
-    // Apply ordering
-    let (filter, order_by) = query.apply_ordering(filter);
-
-    let result = state
-        .services
-        .tag_service
-        .storage()
-        .get_paginated(filter, &order_by)
-        .await?;
-
-    // Get effective pagination values for response metadata
-    let limit = pagination.effective_limit().unwrap_or(0);
-    let offset = pagination.effective_offset();
-
-    Ok(Json(PaginatedApiResponse::success(
-        result.items,
-        result.total_count,
-        limit,
-        offset,
-    )))
+    // Tags are the organization's: `StorableFilter::new_for_access` scopes them to it.
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Tag>(&state, &scope, &query).await?))
 }
 
 /// Create a new tag
@@ -269,7 +290,7 @@ pub async fn create_tag(
                     OnboardingOperation::FirstTagCreated,
                     entity.clone(),
                 ))
-                .await?;
+                .await;
         }
 
         let application_group_id = state
@@ -294,7 +315,7 @@ pub async fn create_tag(
                     OnboardingOperation::FirstApplicationTagCreated,
                     entity,
                 ))
-                .await?;
+                .await;
         }
     }
 
@@ -428,16 +449,20 @@ async fn emit_tag_change_events(
             site_id,
             organization_id.or(auth.organization_id()),
         ) {
-            let _ = state
+            state
                 .services
                 .event_bus
+                // A refresh signal that carries a default entity in place of the real one, so
+                // it has nothing to log.
                 .publish(
-                    Event::new(scope, EntityOperation::Updated, auth.clone()).with_flags(
-                        EntityEventFlags {
-                            suppress_logs: true,
-                            ..Default::default()
+                    Event::new(
+                        scope,
+                        EntityOperation::Updated {
+                            reason: UpdateReason::EntityTagsChanged,
                         },
-                    ),
+                        auth.clone(),
+                    )
+                    .with_log(EventLog::hidden()),
                 )
                 .await;
         }

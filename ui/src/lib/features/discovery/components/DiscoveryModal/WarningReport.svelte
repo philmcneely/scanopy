@@ -26,15 +26,19 @@
 -->
 <script lang="ts">
 	import { ChevronRight } from 'lucide-svelte';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import InlineDanger from '$lib/shared/components/feedback/InlineDanger.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
+	import CodeContainer from '$lib/shared/components/data/CodeContainer.svelte';
 	import CollapsibleCard from '$lib/shared/components/data/CollapsibleCard.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
+	import SegmentedControl from '$lib/shared/components/forms/SegmentedControl.svelte';
+	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
+	import { SimpleOptionDisplay } from '$lib/shared/components/forms/selection/display/SimpleOptionDisplay';
 	import { entityRef } from '$lib/shared/components/data/types';
 	import { useHostsByIds } from '$lib/features/hosts/queries';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
@@ -55,6 +59,10 @@
 		discovery_noWarningsBeforeStop,
 		discovery_noWarningsSubtitle,
 		discovery_scanSettings,
+		discovery_snmpCheckFor,
+		discovery_warningAffectsAddresses,
+		discovery_warningAffectsHosts,
+		discovery_warningAffectsSubnets,
 		subnets_resolveRange
 	} from '$lib/paraglide/messages';
 	import type { EntityDiscriminants } from '$lib/api/entities';
@@ -64,7 +72,7 @@
 		buildWarningReport,
 		credentialIdsOf,
 		isCredentialWarning,
-		subjectKey,
+		type WarningAffects,
 		type WarningEntry,
 		type WarningSubject
 	} from '../../utils/warnings';
@@ -131,6 +139,8 @@
 	 */
 	const credentialsQuery = useCredentialsQuery();
 	let credentialsData = $derived(credentialsQuery.data ?? []);
+	/** The stored credential a warning names, for the options in its check commands. */
+	let credentialOf = $derived((id: string) => credentialsData.find((c) => c.id === id));
 
 	/**
 	 * Whether an unresolved host id means "gone" rather than "not fetched yet".
@@ -161,13 +171,40 @@
 		return loaded ?? { id: entity.id, name: label };
 	}
 
-	let sections = $derived(buildWarningReport(warnings, nameOfEntity));
+	let sections = $derived(buildWarningReport(warnings, nameOfEntity, null, credentialOf));
 
 	/** Which rows are showing their explanation, by `WarningEntry.key`. */
 	const openRows = new SvelteSet<string>();
 
 	function toggleRow(key: string) {
 		if (!openRows.delete(key)) openRows.add(key);
+	}
+
+	/** A row's header line: the one address, host or subnet it concerns, or how many. */
+	function affectsLabel(affects: WarningAffects): string {
+		if (affects.only) return affects.only;
+		const count = affects.count;
+		switch (affects.type) {
+			case 'address':
+				return discovery_warningAffectsAddresses({ count });
+			case 'host':
+				return discovery_warningAffectsHosts({ count });
+			case 'subnet':
+				return discovery_warningAffectsSubnets({ count });
+		}
+	}
+
+	/** Past this many devices the selector is a dropdown; a segmented control would overflow. */
+	const DEVICE_SEGMENTS = 6;
+
+	/** Which device a row's command box shows, by `WarningEntry.key`. Unset means the default. */
+	const selectedDevices = new SvelteMap<string, string>();
+
+	/** The credential a device was read with, as a chip that opens it. */
+	function credentialChipOf(credentialId: string | null): WarningSubject | null {
+		if (!credentialId) return null;
+		const label = nameOfEntity('Credential', credentialId);
+		return label ? { label, entity: { type: 'Credential', id: credentialId } } : null;
 	}
 
 	/** The codes whose answer is a scan setting rather than a credential. */
@@ -200,7 +237,7 @@
 		entry: WarningEntry
 	): { label: string; icon: IconComponent; run: () => void } | null {
 		// A credential withheld for the daemon's version is fixed the same way: upgrade that daemon.
-		if (entry.code === 'OutdatedDaemonFormat' || entry.code === 'CredentialDaemonTooOld') {
+		if (entry.code === 'OutdatedDaemonFormat' || entry.code === 'CredentialNeedsNewerDaemon') {
 			return {
 				label: daemons_upgradeDaemon(),
 				icon: createIconComponent('circle-arrow-up'),
@@ -380,13 +417,11 @@
 									<span class="text-primary min-w-0 truncate text-sm">{entry.title}</span>
 								</button>
 
-								<!-- The first few subjects, on the header line; the rest are counted. Hidden
-								     while the row is open, which lists them all. -->
-								<div class="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
-									{#if !isOpen}
-										{#each entry.preview as subject (subjectKey(subject))}
-											{@render entityChip(subject)}
-										{/each}
+								<!-- Who the row concerns, as a count: the open row says the rest. -->
+								<div class="flex min-w-0 flex-1 items-center overflow-hidden">
+									{#if entry.affects}
+										<span class="text-tertiary truncate text-xs">{affectsLabel(entry.affects)}</span
+										>
 									{/if}
 								</div>
 
@@ -406,38 +441,79 @@
 
 							{#if isOpen}
 								<div class="space-y-2 pb-1 pl-12 pt-1">
-									{#each entry.details as statement, i (i)}
-										<div class="space-y-1">
-											<p class="text-tertiary text-sm">{statement.sentence}</p>
-											{#if statement.examples.length > 0}
-												<ul class="space-y-0.5">
-													{#each statement.examples as example, j (j)}
-														<li class="text-tertiary flex flex-wrap items-center gap-1 text-xs">
-															{#if example.near}
-																{@render entityChip(example.near)}
-															{/if}
-															{#if example.nearText}<span>{example.nearText}</span>{/if}
-															<!-- The arrow is only drawn with something on both sides: a
+									<!-- A row with commands takes one device at a time: its own result and its
+									     command. Any other row lists its statements, naming every device. -->
+									{#if entry.devices.length === 0}
+										{#each entry.details as statement, i (i)}
+											<div class="space-y-1">
+												<p class="text-tertiary text-sm">{statement.sentence}</p>
+												{#if statement.examples.length > 0}
+													<ul class="space-y-0.5">
+														{#each statement.examples as example, j (j)}
+															<li class="text-tertiary flex flex-wrap items-center gap-1 text-xs">
+																{#if example.near}
+																	{@render entityChip(example.near)}
+																{/if}
+																{#if example.nearText}<span>{example.nearText}</span>{/if}
+																<!-- The arrow is only drawn with something on both sides: a
 															     far end nothing matched, or a host deleted since the scan,
 															     would otherwise leave it pointing at nothing. -->
-															{#if (example.near || example.nearText) && (example.far || example.farText)}
-																<span class="text-tertiary/60" aria-hidden="true">→</span>
-															{/if}
-															{#if example.far}
-																{@render entityChip(example.far)}
-															{/if}
-															{#if example.farText}<span>{example.farText}</span>{/if}
-														</li>
-													{/each}
-												</ul>
+																{#if (example.near || example.nearText) && (example.far || example.farText)}
+																	<span class="text-tertiary/60" aria-hidden="true">→</span>
+																{/if}
+																{#if example.far}
+																	{@render entityChip(example.far)}
+																{/if}
+																{#if example.farText}<span>{example.farText}</span>{/if}
+															</li>
+														{/each}
+													</ul>
+												{/if}
+											</div>
+										{/each}
+									{:else}
+										{@const selected =
+											entry.devices.find((c) => c.address === selectedDevices.get(entry.key)) ??
+											entry.devices.find((c) => 'commands' in c.outcome) ??
+											entry.devices[0]}
+										{@const options = entry.devices.map((c) => ({
+											value: c.address,
+											label: c.address
+										}))}
+										<div class="space-y-2 pt-1">
+											{#if entry.devices.length > DEVICE_SEGMENTS}
+												<div class="max-w-xs">
+													<RichSelect
+														selectedValue={selected.address}
+														{options}
+														onSelect={(address) => selectedDevices.set(entry.key, address)}
+														displayComponent={SimpleOptionDisplay}
+													/>
+												</div>
+											{:else if entry.devices.length > 1}
+												<SegmentedControl
+													{options}
+													selected={selected.address}
+													onchange={(address) => selectedDevices.set(entry.key, address)}
+												/>
 											{/if}
-										</div>
-									{/each}
-									{#if entry.subjects.length > 0}
-										<div class="flex flex-wrap items-center gap-1">
-											{#each entry.subjects as subject (subjectKey(subject))}
-												{@render entityChip(subject)}
-											{/each}
+											<p class="text-tertiary text-sm">{selected.sentence}</p>
+											{#if 'commands' in selected.outcome}
+												{@const credential = credentialChipOf(selected.credentialId)}
+												<div class="space-y-1">
+													<p class="text-secondary flex flex-wrap items-center gap-1 text-xs">
+														<span>{discovery_snmpCheckFor({ address: selected.address })}</span>
+														{#if credential}{@render entityChip(credential)}{/if}
+													</p>
+													<CodeContainer
+														code={selected.outcome.commands.join('\n')}
+														language="bash"
+														expandable={false}
+													/>
+												</div>
+											{:else}
+												<p class="text-tertiary text-xs">{selected.outcome.reason}</p>
+											{/if}
 										</div>
 									{/if}
 								</div>

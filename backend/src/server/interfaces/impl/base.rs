@@ -560,6 +560,8 @@ pub struct Interface {
     pub base: InterfaceBase,
 }
 
+impl crate::server::shared::events::log::EntityLog for Interface {}
+
 impl ChangeTriggersTopologyStaleness<Interface> for Interface {
     fn triggers_staleness(&self, other: Option<Interface>) -> bool {
         if let Some(other_entry) = other {

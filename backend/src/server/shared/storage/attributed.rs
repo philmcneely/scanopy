@@ -123,6 +123,27 @@ impl_string_attribute_column!(
     HostSoftwareRevisionValue,
 );
 
+use crate::server::subnets::r#impl::base::{SubnetNameValue, SubnetTypeValue};
+use crate::server::vlans::r#impl::base::VlanNameValue;
+
+impl_string_attribute_column!(VlanNameValue, SubnetNameValue);
+
+impl AttributeColumn for SubnetTypeValue {
+    /// `subnet_type` is `TEXT NOT NULL` holding the type's id (`"Lan"`), as it always has.
+    fn value_param(value: Option<&Self>) -> SqlValue {
+        use crate::server::shared::types::metadata::HasId;
+        SqlValue::String(value.map(|v| v.0).unwrap_or_default().id().to_string())
+    }
+
+    fn read_value(row: &PgRow) -> Result<Option<Self>> {
+        use std::str::FromStr;
+        let raw: String = row.try_get(Self::VALUE_KEY)?;
+        Ok(Some(Self(
+            crate::server::subnets::r#impl::types::SubnetType::from_str(&raw)?,
+        )))
+    }
+}
+
 use crate::server::hosts::r#impl::name::HostNameValue;
 
 impl AttributeColumn for HostNameValue {

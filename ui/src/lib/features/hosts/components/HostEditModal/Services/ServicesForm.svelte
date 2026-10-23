@@ -8,12 +8,15 @@
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
 	import { pushError } from '$lib/shared/stores/feedback';
+	import { virtualizedSummary } from '$lib/features/services/virtualized-count';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
-	import ServiceConfigPanel from './ServiceConfigPanel.svelte';
+	import ServiceConfigPanel, { validateServiceName } from './ServiceConfigPanel.svelte';
+	import type { AnyFieldApi } from '@tanstack/svelte-form';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
 	import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
 	import { ArrowRightLeft } from 'lucide-svelte';
 	import {
+		common_confirmDeleteNameWithGuests,
 		common_noEntitySelected,
 		common_service,
 		common_services,
@@ -21,6 +24,7 @@
 		hosts_services_helpText,
 		hosts_services_invalidIndex,
 		hosts_services_placeholder,
+		hosts_services_portRequired,
 		hosts_services_selectToConfig,
 		hosts_services_transferBindingsTitle,
 		hosts_services_transferPorts
@@ -86,8 +90,19 @@
 		formData.services = [...formData.services, newService];
 	}
 
-	function handleRemoveService(index: number) {
-		formData.services = formData.services.filter((_, i) => i !== index);
+	async function handleRemoveService(index: number) {
+		const removed = formData.services[index];
+		if (!removed) return;
+		// Saving deletes what a runtime or hypervisor runs, so removing one asks first. A service
+		// added in this session runs nothing yet.
+		const guests = await virtualizedSummary([removed]);
+		if (guests && !confirm(common_confirmDeleteNameWithGuests({ name: removed.name, guests }))) {
+			return;
+		}
+		// Its containers on this host go with it on save, so they leave the form too.
+		formData.services = formData.services.filter(
+			(s) => s.id !== removed.id && s.virtualization_service_id !== removed.id
+		);
 	}
 
 	function handleServiceChange(service: Service, index: number) {
@@ -185,9 +200,10 @@
 		</svelte:fragment>
 
 		<svelte:fragment slot="config" let:selectedItem let:selectedIndex>
-			<!-- Render all service config panels to register form fields, but only show the selected one -->
-			{#each formData.services as service, index (`${service.id}-${index}`)}
-				<div class:hidden={selectedIndex !== index}>
+			<!-- Only the selected service mounts its panel. Every service keeps its fields registered,
+			     so saving validates them all. -->
+			{#each formData.services as service, index (service.id)}
+				{#if selectedIndex === index}
 					<ServiceConfigPanel
 						host={formData}
 						{index}
@@ -197,7 +213,31 @@
 						bind:selectedPortBindings
 						currentServices={formData.services}
 					/>
-				</div>
+				{:else}
+					<form.Field
+						name={`services[${index}].name`}
+						validators={{ onBlur: validateServiceName, onChange: validateServiceName }}
+					>
+						{#snippet children(field: AnyFieldApi)}
+							<input type="hidden" value={field.state.value} />
+						{/snippet}
+					</form.Field>
+				{/if}
+				{#each service.bindings as binding, bindingIndex (binding.id)}
+					{#if binding.type === 'Port'}
+						<form.Field
+							name={`services[${index}].bindings[${bindingIndex}].port_id`}
+							validators={{
+								onChange: () => (!binding.port_id ? hosts_services_portRequired() : undefined),
+								onBlur: () => (!binding.port_id ? hosts_services_portRequired() : undefined)
+							}}
+						>
+							{#snippet children(field: AnyFieldApi)}
+								<input type="hidden" value={field.state.value} />
+							{/snippet}
+						</form.Field>
+					{/if}
+				{/each}
 			{/each}
 
 			{#if !selectedItem}

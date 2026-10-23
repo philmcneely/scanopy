@@ -27,7 +27,6 @@ use std::sync::{Arc, Mutex};
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use rustls::{DigitallySignedStruct, Error as TlsError, SignatureScheme};
-use tokio::net::TcpStream;
 use tokio_rustls::TlsConnector;
 use x509_cert::Certificate;
 use x509_cert::der::Decode;
@@ -141,14 +140,8 @@ pub(crate) async fn capture_certificate(ctx: &ProbeContext, port: PortType) -> T
     // there is nothing for SNI or ALPN to negotiate.
     config.enable_sni = false;
 
-    let addr = std::net::SocketAddr::new(ctx.ip, port.number());
-    let stream = match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
-        Ok(Ok(stream)) => stream,
-        Ok(Err(e)) => {
-            ctx.note_connect_error(&e);
-            return TlsHandshake::NotTls;
-        }
-        Err(_) => return TlsHandshake::NotTls,
+    let Some(stream) = ctx.connect(port.number()).await else {
+        return TlsHandshake::NotTls;
     };
 
     // A name is required by the API and is never sent, because SNI is off above.
@@ -214,6 +207,9 @@ mod tests {
             is_gateway: false,
             cancel: tokio_util::sync::CancellationToken::new(),
             scan_controller: ScanConcurrencyController::new(4),
+            probe_raw_socket_ports: true,
+            port_map: Default::default(),
+            tunnel: None,
         };
         let handshake = capture_certificate(&ctx, PortType::new_tcp(port)).await;
         let subject = handshake

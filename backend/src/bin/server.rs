@@ -46,20 +46,6 @@ async fn main() -> anyhow::Result<()> {
 
     // Load configuration using figment
     let config = ServerConfig::load(cli)?;
-    let oidc_domains: HashSet<String> = config
-        .oidc_providers
-        .clone()
-        .unwrap_or_default()
-        .iter()
-        .filter_map(|o| {
-            o.logo.as_ref().and_then(|u| {
-                let url = url::Url::parse(u).ok()?;
-                let host = url.host_str()?;
-
-                Some(format!("{}://{}", url.scheme(), host))
-            })
-        })
-        .collect();
     let listen_addr = format!("0.0.0.0:{}", &config.server_port);
     let web_external_path = config.web_external_path.clone();
     let client_ip_source = config.client_ip_source.clone();
@@ -104,6 +90,25 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState::new(config).await?;
     tracing::info!(target: LOG_TARGET, "  Database connected, migrations applied");
     tracing::info!(target: LOG_TARGET, "  Services initialized");
+
+    // Remote OIDC logos load from their own hosts, which the CSP must allow. Read from the
+    // service so a logo it dropped as invalid opens nothing; paths on this server need no entry.
+    let oidc_domains: HashSet<String> = state
+        .services
+        .oidc_service
+        .as_ref()
+        .map(|o| o.list_providers())
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|p| {
+            p.logo.as_ref().and_then(|u| {
+                let url = url::Url::parse(u).ok()?;
+                let host = url.host_str()?;
+
+                Some(format!("{}://{}", url.scheme(), host))
+            })
+        })
+        .collect();
 
     let discovery_service = state.services.discovery_service.clone();
     let billing_service = state.services.billing_service.clone();
@@ -422,7 +427,7 @@ async fn main() -> anyhow::Result<()> {
         "default-src 'self'; \
         script-src 'self' 'unsafe-inline' https://ph.scanopy.net https://js.stripe.com; \
         style-src 'self' 'unsafe-inline'; \
-        img-src 'self' data: blob: {oidc_logo_sources}; \
+        img-src 'self' data: blob: https://scanopy.net {oidc_logo_sources}; \
         font-src 'self'; \
         connect-src 'self' https://ph.scanopy.net https://api.stripe.com; \
         frame-src 'self' https://demo.scanopy.net https://js.stripe.com https://hooks.stripe.com; \
@@ -697,7 +702,7 @@ async fn main() -> anyhow::Result<()> {
     if state.config.integrated_daemon_url.is_some() {
         tracing::info!(target: LOG_TARGET, "  Integrated daemon: {}", state.config.integrated_daemon_url.as_ref().unwrap());
     }
-    if state.config.stripe_secret.is_some() {
+    if deployment_type == DeploymentType::Cloud {
         tracing::info!(target: LOG_TARGET, "  Billing:         enabled");
     }
     if state.services.oidc_service.is_some() {

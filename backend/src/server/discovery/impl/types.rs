@@ -65,8 +65,9 @@ pub enum DiscoveryType {
         #[schema(required)]
         host_naming_fallback: HostNamingFallback,
     },
-    /// A one-shot verification of a single host: re-check the addresses and
-    /// ports already recorded for it, rather than sweeping a subnet.
+    /// A one-shot verification of known hosts: re-check the addresses and ports
+    /// already recorded for them, rather than sweeping a subnet. One rescan
+    /// covers every requested host that the same daemon last found.
     ///
     /// Created by the server only (never via the API) and deleted once its
     /// session reaches a terminal phase, so it is not a discovery configuration
@@ -74,16 +75,22 @@ pub enum DiscoveryType {
     #[schema(title = "Rescan")]
     Rescan {
         /// ID of the host that the daemon is running on — same meaning as every
-        /// other variant. The host being rescanned is `target_host_id`.
+        /// other variant. The hosts being rescanned are `target_host_ids`.
         host_id: Uuid,
-        /// The host being rescanned.
-        target_host_id: Uuid,
-        /// Addresses to scan on that host.
+        /// The hosts being rescanned. Reads the single `target_host_id` that
+        /// rescans stored before multi-host rescans carry, and that older
+        /// daemons echo back, as a list of one.
+        #[serde(
+            alias = "target_host_id",
+            deserialize_with = "deserialize_target_host_ids"
+        )]
+        target_host_ids: Vec<Uuid>,
+        /// Addresses to scan on those hosts.
         #[schema(value_type = Vec<String>)]
         ips: Vec<IpAddr>,
-        /// Ports already known on that host, re-checked to confirm they are
-        /// still open. Scanned in addition to the standard discovery set, so a
-        /// rescan also surfaces newly-opened services.
+        /// Ports already known on those hosts, re-checked on every address to
+        /// confirm they are still open. Scanned in addition to the standard
+        /// discovery set, so a rescan also surfaces newly-opened services.
         #[serde(default)]
         ports: Vec<PortType>,
         #[serde(default)]
@@ -126,15 +133,28 @@ impl DiscoveryType {
         )
     }
 
-    /// The host a one-shot rescan is verifying. `None` for every other type,
+    /// The hosts a one-shot rescan is verifying. `None` for every other type,
     /// so `Some` also answers "is this a rescan".
-    pub fn rescan_target_host_id(&self) -> Option<Uuid> {
+    pub fn rescan_target_host_ids(&self) -> Option<&[Uuid]> {
         match self {
-            DiscoveryType::Rescan { target_host_id, .. } => Some(*target_host_id),
+            DiscoveryType::Rescan {
+                target_host_ids, ..
+            } => Some(target_host_ids),
             DiscoveryType::SelfReport { .. }
             | DiscoveryType::Network { .. }
             | DiscoveryType::Docker { .. }
             | DiscoveryType::Unified { .. } => None,
+        }
+    }
+
+    /// The host the daemon runs on. `None` for the legacy `Network` type, which never carried it.
+    pub fn daemon_host_id(&self) -> Option<Uuid> {
+        match self {
+            DiscoveryType::SelfReport { host_id }
+            | DiscoveryType::Docker { host_id, .. }
+            | DiscoveryType::Rescan { host_id, .. }
+            | DiscoveryType::Unified { host_id, .. } => Some(*host_id),
+            DiscoveryType::Network { .. } => None,
         }
     }
 
@@ -313,6 +333,32 @@ impl RunType {
     }
 }
 
+/// Reads `Rescan.target_host_ids` from either a list or the single id rescans
+/// carried before they could cover several hosts. A rescan always targets at
+/// least one host, so an empty list is refused.
+fn deserialize_target_host_ids<'de, D>(deserializer: D) -> Result<Vec<Uuid>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum OneOrMany {
+        One(Uuid),
+        Many(Vec<Uuid>),
+    }
+
+    let ids = match OneOrMany::deserialize(deserializer)? {
+        OneOrMany::One(id) => vec![id],
+        OneOrMany::Many(ids) => ids,
+    };
+    if ids.is_empty() {
+        return Err(serde::de::Error::custom(
+            "a rescan targets at least one host",
+        ));
+    }
+    Ok(ids)
+}
+
 impl HasId for DiscoveryType {
     fn id(&self) -> &'static str {
         self.into()
@@ -344,7 +390,7 @@ impl TypeMetadataProvider for DiscoveryType {
             DiscoveryType::SelfReport { .. } => {
                 "The daemon reports its own host configuration and network details"
             }
-            DiscoveryType::Rescan { .. } => "Re-check a single host's known addresses and ports",
+            DiscoveryType::Rescan { .. } => "Re-check known hosts' addresses and ports",
             DiscoveryType::Unified { .. } => {
                 "Unified discovery combining self-report, network scanning, and integrations"
             }
@@ -358,5 +404,44 @@ impl TypeMetadataProvider for DiscoveryType {
             // new, not legacy, and a hardcoded `!= Unified` check said otherwise.
             "is_legacy": self.is_legacy(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rescan_json(targets: serde_json::Value, key: &str) -> serde_json::Value {
+        let mut json = serde_json::json!({
+            "type": "Rescan",
+            "host_id": Uuid::nil(),
+            "ips": ["10.0.0.1"],
+        });
+        json[key] = targets;
+        json
+    }
+
+    #[test]
+    fn a_rescan_reads_a_stored_single_target_as_a_list_of_one() {
+        let id = Uuid::new_v4();
+        let parsed: DiscoveryType =
+            serde_json::from_value(rescan_json(serde_json::json!(id), "target_host_id")).unwrap();
+        assert_eq!(parsed.rescan_target_host_ids(), Some(&[id][..]));
+    }
+
+    #[test]
+    fn a_rescan_round_trips_several_targets() {
+        let ids = vec![Uuid::new_v4(), Uuid::new_v4()];
+        let parsed: DiscoveryType =
+            serde_json::from_value(rescan_json(serde_json::json!(ids), "target_host_ids")).unwrap();
+        let reparsed: DiscoveryType =
+            serde_json::from_value(serde_json::to_value(&parsed).unwrap()).unwrap();
+        assert_eq!(reparsed.rescan_target_host_ids(), Some(&ids[..]));
+    }
+
+    #[test]
+    fn a_rescan_with_no_targets_is_refused() {
+        let empty = rescan_json(serde_json::json!([]), "target_host_ids");
+        assert!(serde_json::from_value::<DiscoveryType>(empty).is_err());
     }
 }

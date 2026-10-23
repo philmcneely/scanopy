@@ -33,6 +33,32 @@ fn subnet_vlan_records_are_derived_and_reference_valid_entities() {
     }
 }
 
+/// DC Storage's nodes are read over SNMP by nothing, so the demo's only link from that subnet to
+/// a VLAN is the switch's access ports having learned their MACs. A demo without it would show
+/// no example of that link.
+#[test]
+fn a_subnet_is_linked_to_a_vlan_through_the_macs_its_access_ports_learned() {
+    let demo = DemoData::generate(Uuid::new_v4(), Uuid::new_v4(), UseCase::default());
+    let storage = demo
+        .subnets
+        .iter()
+        .find(|s| s.base.name() == "DC Storage")
+        .expect("the DC Storage subnet");
+    let servers: HashSet<Uuid> = demo
+        .vlans
+        .iter()
+        .filter(|v| v.base.vlan_number == 20 && v.base.site_id == storage.base.site_id)
+        .map(|v| v.id)
+        .collect();
+
+    assert!(
+        demo.subnet_vlan_records
+            .iter()
+            .any(|r| r.base.subnet_id == storage.id && servers.contains(&r.base.vlan_id)),
+        "DC Storage should be linked to the Servers VLAN"
+    );
+}
+
 #[test]
 fn a_subnet_carries_a_provisional_cidr_source() {
     use crate::server::shared::attribution::AttributeMethod;
@@ -347,7 +373,7 @@ fn daemons_report_the_subnets_their_host_has_addresses_on() {
         assert!(
             subnet_ids
                 .iter()
-                .any(|id| subnets_by_id[id].base.subnet_type.is_container_bridge()),
+                .any(|id| subnets_by_id[id].base.subnet_type().is_container_bridge()),
             "{} reports no container bridge subnet",
             daemon.base.name
         );
@@ -383,6 +409,64 @@ fn no_demo_entity_holds_two_tags_of_one_tag_group() {
                 seen.insert(group),
                 "entity {id} holds two tags of the {group} group: {:?}",
                 tags.iter().filter_map(name_of).collect::<Vec<_>>()
+            );
+        }
+    }
+}
+
+/// The Application view draws a dependency between the application groups its members sit in.
+/// A member with no Application tag lands in Ungrouped, and its edge runs into that box. Members
+/// that name no service (the retired Zabbix in Monitoring Stack) draw nothing and are skipped.
+#[test]
+fn every_dependency_member_sits_in_an_application() {
+    use crate::server::tags::groups::base::TagGroupType;
+    use crate::server::topology::service::application_builder::ApplicationBuilder;
+
+    let demo = DemoData::generate(Uuid::new_v4(), Uuid::new_v4(), UseCase::default());
+    let application_group = demo
+        .tag_groups
+        .iter()
+        .find(|g| g.base.group_type == TagGroupType::Application)
+        .map(|g| g.id);
+    let app_tags: HashMap<Uuid, &Tag> = demo
+        .tags
+        .iter()
+        .filter(|t| t.in_group(application_group))
+        .map(|t| (t.id, t))
+        .collect();
+    let hosts: Vec<Host> = demo
+        .hosts_with_services
+        .iter()
+        .map(|h| h.host.clone())
+        .collect();
+    let services: Vec<&Service> = demo
+        .hosts_with_services
+        .iter()
+        .flat_map(|h| &h.services)
+        .collect();
+
+    for dependency in &demo.dependencies {
+        let members: Vec<&Service> = match &dependency.base.members {
+            DependencyMembers::Services { service_ids } => service_ids
+                .iter()
+                .filter_map(|id| services.iter().copied().find(|s| s.id == *id))
+                .collect(),
+            DependencyMembers::Bindings { binding_ids } => binding_ids
+                .iter()
+                .filter_map(|id| {
+                    services
+                        .iter()
+                        .copied()
+                        .find(|s| s.base.bindings.iter().any(|b| b.id == *id))
+                })
+                .collect(),
+        };
+        for service in members {
+            assert!(
+                ApplicationBuilder::find_app_tag(service, &hosts, &app_tags).is_some(),
+                "dependency {} has member {}, which is in no application",
+                dependency.base.name,
+                service.base.name
             );
         }
     }

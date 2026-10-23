@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -15,10 +16,13 @@ impl ServiceDefinition for InstantOnSwitch {
         "Instant On Switch"
     }
     fn description(&self) -> &'static str {
-        "HPE Networking Instant On switch"
+        "HPE Networking (formerly Aruba) Instant On switch"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkAccess
+    }
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::Switch)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {

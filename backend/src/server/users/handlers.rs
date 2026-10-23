@@ -2,6 +2,7 @@ use crate::server::auth::middleware::permissions::{
     Admin, Authorized, IsUser, Member, RequireVerified,
 };
 use crate::server::openapi::tags as api_tags;
+use crate::server::shared::events::types::UpdateReason;
 use crate::server::shared::extractors::Query;
 use crate::server::shared::handlers::query::{FilterQueryExtractor, NoFilterQuery};
 use crate::server::shared::handlers::traits::{BulkDeleteResponse, CrudHandlers, delete_handler};
@@ -36,6 +37,7 @@ mod generated {
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
     OpenApiRouter::new()
         .routes(routes!(get_all_users))
+        .routes(routes!(crate::server::users::members::list_members))
         .routes(routes!(get_user_by_id, update_user, delete_user))
         .routes(routes!(admin_update_user))
         .routes(routes!(bulk_delete_users))
@@ -172,7 +174,7 @@ pub async fn get_all_users(
     responses(
         (status = 200, description = "User deleted", body = EmptyApiResponse),
         (status = 404, description = "User not found", body = ApiErrorResponse),
-        (status = 403, description = "Cannot delete user with higher permissions", body = ApiErrorResponse),
+        (status = 403, description = "Cannot delete yourself, or a user whose role you could not grant", body = ApiErrorResponse),
         (status = 409, description = "Cannot delete the only owner", body = ApiErrorResponse),
     ),
      security(("user_api_key" = []), ("session" = []))
@@ -204,11 +206,12 @@ pub async fn delete_user(
         .await?
         .ok_or_else(|| anyhow!("User {} does not exist", id.0))?;
 
-    if permissions < user_to_be_deleted.base.permissions {
-        return Err(ApiError::unauthorized(
-            "You can only delete users with lower permissions than you".to_string(),
-        ));
-    }
+    refuse_user_delete(
+        auth.user_id(),
+        permissions,
+        user_to_be_deleted.id,
+        user_to_be_deleted.base.permissions,
+    )?;
 
     let count_owners = state
         .services
@@ -282,7 +285,11 @@ pub async fn update_user(
     }
 
     let updated = service
-        .update(&mut request, auth.into_entity())
+        .update(
+            &mut request,
+            auth.into_entity(),
+            UpdateReason::EntityRequested,
+        )
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 
@@ -373,7 +380,11 @@ async fn admin_update_user(
     let site_ids = request.base.site_ids.clone();
 
     let updated = service
-        .update(&mut request, auth.into_entity())
+        .update(
+            &mut request,
+            auth.into_entity(),
+            UpdateReason::EntityRequested,
+        )
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 
@@ -396,7 +407,7 @@ async fn admin_update_user(
     request_body(content = Vec<Uuid>, description = "Array of User IDs to delete"),
     responses(
         (status = 200, description = "Users deleted successfully", body = ApiResponse<BulkDeleteResponse>),
-        (status = 403, description = "Cannot delete users with higher permissions", body = ApiErrorResponse),
+        (status = 403, description = "Cannot delete yourself, or a user whose role you could not grant", body = ApiErrorResponse),
     ),
      security(("user_api_key" = []), ("session" = []))
 )]
@@ -425,10 +436,8 @@ pub async fn bulk_delete_users(
     let user_filter = StorableFilter::<User>::new_from_entity_ids(&ids);
     let users = state.services.user_service.get_all(user_filter).await?;
 
-    if users.iter().any(|u| u.base.permissions > permissions) {
-        return Err(ApiError::unauthorized(
-            "You can only delete users with lower permissions than you".to_string(),
-        ));
+    for user in &users {
+        refuse_user_delete(auth.user_id(), permissions, user.id, user.base.permissions)?;
     }
 
     let owners = state
@@ -449,4 +458,62 @@ pub async fn bulk_delete_users(
         ApiJson(ids),
     )
     .await
+}
+
+/// Refuses deleting yourself, or a user whose role you could not have granted. The users list
+/// offers Delete for exactly the users this lets through.
+fn refuse_user_delete(
+    caller_id: Option<Uuid>,
+    caller_permissions: UserOrgPermissions,
+    target_id: Uuid,
+    target_permissions: UserOrgPermissions,
+) -> Result<(), ApiError> {
+    if caller_id == Some(target_id) {
+        return Err(ApiError::forbidden("You can't delete your own user"));
+    }
+    if !caller_permissions.can_grant_user_permission(&target_permissions) {
+        return Err(ApiError::unauthorized(
+            "You can only delete users whose role you could grant".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_user_cannot_delete_themselves() {
+        let me = Uuid::new_v4();
+        assert!(
+            refuse_user_delete(
+                Some(me),
+                UserOrgPermissions::Owner,
+                me,
+                UserOrgPermissions::Owner
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn deleting_follows_who_you_could_grant() {
+        let caller = Some(Uuid::new_v4());
+        let refused = |caller_role, target_role| {
+            refuse_user_delete(caller, caller_role, Uuid::new_v4(), target_role).is_err()
+        };
+        assert!(refused(
+            UserOrgPermissions::Admin,
+            UserOrgPermissions::Admin
+        ));
+        assert!(!refused(
+            UserOrgPermissions::Admin,
+            UserOrgPermissions::Member
+        ));
+        assert!(!refused(
+            UserOrgPermissions::Owner,
+            UserOrgPermissions::Admin
+        ));
+    }
 }

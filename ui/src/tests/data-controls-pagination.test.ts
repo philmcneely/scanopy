@@ -1,17 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { groupPageSlice } from '$lib/shared/components/data/types';
-import { paginationView, pageSlice } from '$lib/shared/components/data/controls/pagination';
+import { paginationView } from '$lib/shared/components/data/controls/pagination';
 
 /**
  * Tests for DataControls pagination logic.
  *
- * These tests verify the count calculation and display logic for:
- * 1. Server-side pagination - where items come pre-paginated from the server
- * 2. Client-side pagination - where all items are loaded and paginated client-side
- *
- * The key difference is in how "showing X of Y" is calculated:
- * - Server-side: count = totalCount (from server), total = totalCount
- * - Client-side: count = processedItems.length (after filters), total = items.length (all items)
+ * These tests verify the count calculation and display logic for server-side pagination, where
+ * items come pre-paginated from the server: "showing X of Y" counts from the server's total.
  */
 
 describe('DataControls pagination count display', () => {
@@ -138,92 +133,6 @@ describe('DataControls pagination count display', () => {
 		});
 	});
 
-	describe('server-side pagination with client-side search', () => {
-		it('should show filtered count when search reduces items', () => {
-			// Scenario: Server says 23 items total, but client-side search for "nfs" matches only 3
-			const serverPagination = {
-				total_count: 23,
-				offset: 0,
-				has_more: false
-			};
-			const processedItemsLength = 3; // After client-side search filtering
-			const searchQuery = 'nfs';
-
-			const hasClientSideSearch = searchQuery.trim() !== '';
-			expect(hasClientSideSearch).toBe(true);
-
-			// When client-side search is active, use filtered count instead of server total
-			const totalCount = hasClientSideSearch ? processedItemsLength : serverPagination.total_count;
-			const showingStart = hasClientSideSearch
-				? Math.min(1, processedItemsLength)
-				: Math.min(serverPagination.offset + 1, serverPagination.total_count);
-			const showingEnd = hasClientSideSearch
-				? processedItemsLength
-				: Math.min(serverPagination.offset + processedItemsLength, serverPagination.total_count);
-
-			// Should show "Showing 3 of 3" not "Showing 23 of 23"
-			expect(totalCount).toBe(3);
-			expect(showingStart).toBe(1);
-			expect(showingEnd).toBe(3);
-		});
-
-		it('should show zero when search matches nothing', () => {
-			const serverPagination = {
-				total_count: 23,
-				offset: 0,
-				has_more: false
-			};
-			const processedItemsLength = 0;
-			const searchQuery = 'nonexistent';
-
-			const hasClientSideSearch = searchQuery.trim() !== '';
-			const totalCount = hasClientSideSearch ? processedItemsLength : serverPagination.total_count;
-			const showingStart = hasClientSideSearch
-				? Math.min(1, processedItemsLength)
-				: Math.min(serverPagination.offset + 1, serverPagination.total_count);
-
-			expect(totalCount).toBe(0);
-			expect(showingStart).toBe(0);
-		});
-
-		it('should show server total when search is empty', () => {
-			const serverPagination = {
-				total_count: 23,
-				offset: 0,
-				has_more: false
-			};
-			const processedItemsLength = 20;
-			const searchQuery = '';
-
-			const hasClientSideSearch = searchQuery.trim() !== '';
-			expect(hasClientSideSearch).toBe(false);
-
-			// No search active — use server total as before
-			const totalCount = hasClientSideSearch ? processedItemsLength : serverPagination.total_count;
-
-			expect(totalCount).toBe(23);
-		});
-	});
-
-	describe('client-side pagination', () => {
-		it('should show filtered count vs total items for single page', () => {
-			const items = Array(50).fill({ id: 'test' }); // 50 total items
-			const processedItems = Array(30).fill({ id: 'test' }); // 30 after filtering
-			const pageSize = 50;
-
-			const totalPages = Math.ceil(processedItems.length / pageSize);
-			expect(totalPages).toBe(1);
-
-			// For client-side single page: "Showing 30 of 50 items"
-			// (30 items shown after filters, out of 50 total)
-			const countToDisplay = processedItems.length;
-			const totalToDisplay = items.length;
-
-			expect(countToDisplay).toBe(30);
-			expect(totalToDisplay).toBe(50);
-		});
-	});
-
 	describe('page size persistence', () => {
 		it('should validate page size against allowed options', () => {
 			const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
@@ -331,70 +240,45 @@ describe('paginationView', () => {
 		// The bug this whole area exists to prevent: a filtered list showing the
 		// unfiltered total. The server counts what it filtered; the 20 rows it
 		// sent say nothing about how many matched.
-		const view = paginationView(server(0, 62, true), 1, 20, 20);
+		const view = paginationView(server(0, 62, true), 20, 20);
 
 		expect(view.totalCount).toBe(62);
 		expect(view.totalPages).toBe(4);
 	});
 
 	it('derives the current page from the server offset', () => {
-		expect(paginationView(server(40, 62, true), 999, 20, 20).currentPage).toBe(3);
+		expect(paginationView(server(40, 62, true), 20, 20).currentPage).toBe(3);
 	});
 
 	it('trusts has_more rather than re-deriving it from the total', () => {
 		// A server that knows there is another page is more authoritative than
 		// arithmetic over a total it also supplied.
-		expect(paginationView(server(40, 62, true), 3, 20, 20).canGoNext).toBe(true);
-		expect(paginationView(server(60, 62, false), 4, 20, 2).canGoNext).toBe(false);
+		expect(paginationView(server(40, 62, true), 20, 20).canGoNext).toBe(true);
+		expect(paginationView(server(60, 62, false), 20, 2).canGoNext).toBe(false);
 	});
 
 	it('never shows a range running past the total', () => {
 		// The last page is short, so an unclamped end would read "showing 61-80
 		// of 62".
-		const view = paginationView(server(60, 62, false), 4, 20, 2);
+		const view = paginationView(server(60, 62, false), 20, 2);
 
 		expect(view.showingStart).toBe(61);
 		expect(view.showingEnd).toBe(62);
 	});
 
 	it('reports an empty result as a zero range rather than "1 of 0"', () => {
-		const view = paginationView(server(0, 0, false), 1, 20, 0);
+		const view = paginationView(server(0, 0, false), 20, 0);
 
 		expect(view.showingStart).toBe(0);
 		expect(view.showingEnd).toBe(0);
 		expect(view.totalCount).toBe(0);
 	});
 
-	it('counts what the client holds when the client paginates', () => {
-		const view = paginationView(null, 2, 20, 45);
+	it('reads as an empty list until the first page arrives', () => {
+		const view = paginationView(null, 20, 0);
 
-		expect(view.totalCount).toBe(45);
-		expect(view.totalPages).toBe(3);
-		expect(view.currentPage).toBe(2);
-		expect(view.canGoPrev).toBe(true);
-		expect(view.canGoNext).toBe(true);
-		expect(view.showingStart).toBe(21);
-		expect(view.showingEnd).toBe(40);
-	});
-
-	it('cannot page past the end in either mode', () => {
-		expect(paginationView(null, 3, 20, 45).canGoNext).toBe(false);
-		expect(paginationView(null, 1, 20, 45).canGoPrev).toBe(false);
-	});
-});
-
-describe('pageSlice', () => {
-	const rows = Array.from({ length: 45 }, (_, i) => i);
-
-	it('leaves a server-paginated response alone', () => {
-		// The server already chose these rows; slicing again would drop the ones
-		// it deliberately sent.
-		expect(pageSlice(rows.slice(20, 40), 2, 20, true)).toHaveLength(20);
-		expect(pageSlice(rows.slice(40), 3, 20, true)).toEqual([40, 41, 42, 43, 44]);
-	});
-
-	it('slices the page the client is on', () => {
-		expect(pageSlice(rows, 2, 20, false)).toEqual(rows.slice(20, 40));
-		expect(pageSlice(rows, 3, 20, false)).toEqual([40, 41, 42, 43, 44]);
+		expect(view.totalCount).toBe(0);
+		expect(view.canGoPrev).toBe(false);
+		expect(view.canGoNext).toBe(false);
 	});
 });

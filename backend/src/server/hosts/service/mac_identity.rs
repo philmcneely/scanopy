@@ -160,10 +160,6 @@ pub(crate) fn select_matching_host_by_mac(
         );
         return None;
     }
-    tracing::debug!(
-        existing_host_id = %first,
-        "Found matching host via MAC identity"
-    );
     Some(first)
 }
 

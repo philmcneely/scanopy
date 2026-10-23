@@ -38,6 +38,7 @@ use crate::server::subnets::r#impl::types::SubnetType;
 
 use super::{organization, test_services};
 use crate::server::hosts::r#impl::name::{HostName, HostNameSources};
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 
 const BRIDGE_CIDR: &str = "172.28.0.0/16";
 const LAN_CIDR: &str = "192.168.1.0/24";
@@ -72,13 +73,13 @@ impl Submission {
         });
 
         let lan = Subnet::new(SubnetBase {
-            name: "lan".to_string(),
+            name: SubnetName::unattributed("lan".to_string()),
             site_id,
             cidr: SubnetCidr::new(
                 SubnetCidrValue(LAN_CIDR.parse().unwrap()),
                 AttributeSource::DaemonSelfReport,
             ),
-            subnet_type: SubnetType::Lan,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
             source: EntitySource::Discovery,
             ..Default::default()
         });
@@ -96,13 +97,13 @@ impl Submission {
         // The bridge names the runtime service that owns it. On a first scan that id exists
         // only in daemon memory.
         let bridge = Subnet::new(SubnetBase {
-            name: "sct-net-a".to_string(),
+            name: SubnetName::unattributed("sct-net-a".to_string()),
             site_id,
             cidr: SubnetCidr::new(
                 SubnetCidrValue(BRIDGE_CIDR.parse().unwrap()),
                 AttributeSource::DaemonSelfReport,
             ),
-            subnet_type: SubnetType::DockerBridge,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::DockerBridge),
             virtualization_service_id: Some(runtime.id),
             source: EntitySource::Discovery,
             ..Default::default()
@@ -224,6 +225,7 @@ async fn submit(services: &ServiceFactory, s: Submission) -> anyhow::Result<Host
             s.subnets,
             true,
             InterfaceDataComplete::default(),
+            &crate::server::ports::r#impl::coverage::PortCoverage::default(),
             None,
             AuthenticatedEntity::System,
             None,
@@ -293,6 +295,7 @@ async fn host_processing_reports_the_bridge_it_stored() {
             submission.subnets,
             true,
             InterfaceDataComplete::default(),
+            &crate::server::ports::r#impl::coverage::PortCoverage::default(),
             None,
             AuthenticatedEntity::System,
             None,
@@ -334,7 +337,7 @@ async fn second_scan_reuses_the_one_bridge_subnet() {
         .unwrap();
     let lan_id = persisted
         .iter()
-        .find(|s| s.base.subnet_type == SubnetType::Lan)
+        .find(|s| s.base.subnet_type() == SubnetType::Lan)
         .expect("lan subnet persisted")
         .id;
     let bridge_id = persisted
@@ -468,7 +471,7 @@ async fn container_service_owner_survives_a_rescan() {
         .unwrap();
     let lan_id = persisted
         .iter()
-        .find(|s| s.base.subnet_type == SubnetType::Lan)
+        .find(|s| s.base.subnet_type() == SubnetType::Lan)
         .expect("lan persisted")
         .id;
     let bridge_id = persisted
@@ -704,12 +707,12 @@ async fn lan_address_after_two_scans(
         .unwrap();
     let lan_id = persisted
         .iter()
-        .find(|s| s.base.subnet_type == SubnetType::Lan)
+        .find(|s| s.base.subnet_type() == SubnetType::Lan)
         .expect("lan subnet persisted")
         .id;
     let bridge_id = persisted
         .iter()
-        .find(|s| s.base.subnet_type == SubnetType::DockerBridge)
+        .find(|s| s.base.subnet_type() == SubnetType::DockerBridge)
         .expect("bridge subnet persisted")
         .id;
 
@@ -843,7 +846,7 @@ async fn a_controller_client_the_sweep_found_lands_on_the_same_host() {
         .await
         .unwrap()
         .into_iter()
-        .find(|s| s.base.subnet_type == SubnetType::Lan)
+        .find(|s| s.base.subnet_type() == SubnetType::Lan)
         .expect("lan subnet persisted")
         .id;
     assert_eq!(
@@ -961,7 +964,7 @@ async fn a_host_is_never_owned_by_its_own_service() {
                 virtualization_service_id: Some(runtime_id),
                 virtualization_metadata: Some(
                     crate::server::hosts::r#impl::virtualization::HostVirtualization::Docker(
-                        crate::server::hosts::r#impl::virtualization::ContainerHostVirtualization {
+                        crate::server::hosts::r#impl::virtualization::ContainerHostVirtualization { state: Default::default(),
                             container_name: Some("ipvlan-test".to_string()),
                             container_id: Some("aec2a3e9".to_string()),
                             compose_project: None,
@@ -979,6 +982,7 @@ async fn a_host_is_never_owned_by_its_own_service() {
             vec![],
             false,
             InterfaceDataComplete::default(),
+            &crate::server::ports::r#impl::coverage::PortCoverage::default(),
             None,
             AuthenticatedEntity::System,
             None,

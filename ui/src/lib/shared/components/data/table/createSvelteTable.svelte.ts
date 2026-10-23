@@ -1,31 +1,43 @@
 import {
-	createTable,
+	columnResizingFeature,
+	columnSizingFeature,
+	constructTable,
+	rowSortingFeature,
+	tableFeatures,
 	type RowData,
 	type Table,
-	type TableOptions,
-	type TableOptionsResolved,
-	type TableState
+	type TableOptions
 } from '@tanstack/table-core';
+import { storeReactivityBindings } from '@tanstack/table-core/store-reactivity-bindings';
 
 /**
- * Fill in the state slices the caller did not supply.
- *
- * `table.getState()` returns `options.state` verbatim — it does not merge
- * anything underneath. So a partial `state` leaves every other slice
- * `undefined`, and the first feature to read one (column pinning reads
- * `.left`) throws while building the header groups. `table.initialState`
- * carries a default for every registered feature, so it is the floor.
+ * The table-core features entity tables use. Sorting is registered only so
+ * columns report `getCanSort()` and the controlled `sorting` slice exists; rows
+ * arrive sorted, and no sorted row model is registered.
  */
-export function withDefaultState<T extends RowData>(
-	options: TableOptions<T>,
-	initialState: TableState
-): TableOptionsResolved<T> {
-	return {
-		...options,
-		state: { ...initialState, ...(options.state ?? {}) },
-		onStateChange: options.onStateChange ?? (() => {}),
-		renderFallbackValue: null
-	};
+export const entityTableFeatures = tableFeatures({
+	coreReactivityFeature: storeReactivityBindings(),
+	rowSortingFeature,
+	columnSizingFeature,
+	columnResizingFeature
+});
+
+export type EntityTableFeatures = typeof entityTableFeatures;
+export type EntityTableOptions<T extends RowData> = Omit<
+	TableOptions<EntityTableFeatures, T>,
+	'features'
+>;
+
+/**
+ * Build a table-core instance with the entity table features.
+ *
+ * A slice the caller leaves out of `state` falls back to the feature default:
+ * table-core v9 resolves each slice on its own, so a partial `state` is safe.
+ */
+export function constructEntityTable<T extends RowData>(
+	options: EntityTableOptions<T>
+): Table<EntityTableFeatures, T> {
+	return constructTable({ ...options, features: entityTableFeatures });
 }
 
 /**
@@ -38,25 +50,22 @@ export function withDefaultState<T extends RowData>(
  * row, and no second source of truth to drift from the first.
  *
  * `getOptions` is re-read inside a `$derived`, so every rune it touches
- * invalidates the snapshot. Re-applying options inside the derived rather than
+ * invalidates the snapshot. `state` is spread there so its getters are read
+ * inside the derived too. Re-applying options inside the derived rather than
  * an effect is what makes the first render correct: an effect runs after the
  * template has already read stale header groups.
  */
-export function createSvelteTable<T extends RowData>(getOptions: () => TableOptions<T>) {
-	// Seeded with an empty state purely so the instance exists; `initialState`
-	// is derived from the registered features, not from what is passed here.
-	const table: Table<T> = createTable({
-		...getOptions(),
-		state: {},
-		onStateChange: () => {},
-		renderFallbackValue: null
-	});
-
-	const initialState = table.initialState;
-	table.setOptions(() => withDefaultState(getOptions(), initialState));
+export function createSvelteTable<T extends RowData>(getOptions: () => EntityTableOptions<T>) {
+	const table = constructEntityTable(getOptions());
 
 	const snapshot = $derived.by(() => {
-		table.setOptions(() => withDefaultState(getOptions(), initialState));
+		const options = getOptions();
+		table.setOptions((old) => ({
+			...old,
+			...options,
+			state: { ...(options.state ?? {}) },
+			features: entityTableFeatures
+		}));
 		return {
 			headers: table.getHeaderGroups()[0]?.headers ?? [],
 			rows: table.getRowModel().rows

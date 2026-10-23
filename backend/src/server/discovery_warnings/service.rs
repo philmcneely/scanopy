@@ -1,7 +1,7 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use anyhow::Result;
-use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{
@@ -13,14 +13,12 @@ use crate::{
 };
 
 pub struct DiscoveryWarningService {
-    storage: GenericChildStorage<DiscoveryWarningRecord>,
+    storage: Arc<GenericChildStorage<DiscoveryWarningRecord>>,
 }
 
 impl DiscoveryWarningService {
-    pub fn new(pool: PgPool) -> Self {
-        Self {
-            storage: GenericChildStorage::new(pool),
-        }
+    pub fn new(storage: Arc<GenericChildStorage<DiscoveryWarningRecord>>) -> Self {
+        Self { storage }
     }
 
     /// Store a finished run's warnings, one row each.

@@ -27,6 +27,7 @@ use crate::server::interfaces::r#impl::base::{Interface, InterfaceDataComplete};
 use crate::server::ip_addresses::r#impl::base::{ALL_IP_ADDRESSES_IP, IPAddress};
 use crate::server::ports::r#impl::base::Port;
 use crate::server::ports::r#impl::base::PortType;
+use crate::server::ports::r#impl::coverage::PortCoverage;
 use crate::server::services::definitions::scanopy_daemon::ScanopyDaemon;
 use crate::server::services::r#impl::base::{Service, ServiceBase};
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -140,6 +141,7 @@ impl DiscoveryRunner {
                 lldp: lldp_collected,
                 ..InterfaceDataComplete::none()
             },
+            PortCoverage::default(),
             cancel,
         )
         .await?;
@@ -344,6 +346,7 @@ impl DiscoveryRunner {
                 lldp: lldp_collected,
                 ..InterfaceDataComplete::none()
             },
+            PortCoverage::default(),
             cancel,
         )
         .await?;

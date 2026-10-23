@@ -888,7 +888,7 @@ async fn a_walk_survives_reading_one_stale_answer() {
     .unwrap();
 
     assert!(
-        !matches!(stop, WalkStop::Transport),
+        !matches!(stop, WalkStop::Failed(_)),
         "one stale answer should not end the walk as a transport failure, got {stop:?}"
     );
     // The exact count is an artefact of this agent repeating one OID until the

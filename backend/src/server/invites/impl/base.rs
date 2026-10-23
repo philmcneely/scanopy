@@ -69,6 +69,14 @@ impl Display for Invite {
 }
 
 impl Invite {
+    /// Whether an admin with `viewer_permissions` sees this invite: one they created, one for a
+    /// role below theirs, or any when they own the organization.
+    pub fn is_listed_for(&self, viewer_permissions: UserOrgPermissions, viewer_id: Uuid) -> bool {
+        self.base.created_by == viewer_id
+            || self.base.permissions < viewer_permissions
+            || viewer_permissions == UserOrgPermissions::Owner
+    }
+
     /// Create a new invite with the specified expiration
     pub fn with_expiration(
         organization_id: Uuid,
@@ -100,6 +108,8 @@ impl Invite {
         Utc::now() < self.base.expires_at
     }
 }
+
+impl crate::server::shared::events::log::EntityLog for Invite {}
 
 impl ChangeTriggersTopologyStaleness<Invite> for Invite {
     fn triggers_staleness(&self, _other: Option<Invite>) -> bool {

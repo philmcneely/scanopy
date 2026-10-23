@@ -19,7 +19,7 @@ use crate::server::{
         events::{
             bus::EventBus,
             traits::{AuthScope, Event},
-            types::AuthOperation,
+            types::{AuthOperation, UpdateReason},
         },
         services::traits::{CrudService, EventBusService},
         storage::{
@@ -230,7 +230,11 @@ pub trait ApiKeyService: CrudService<Self::Key> + EventBusService<Self::Key> {
         // would present the old (now invalid) key after a rotation.
         api_key.refresh_stored_plaintext(&plaintext);
 
-        // Publish auth event for audit trail
+        // Update the key in storage
+        self.update(&mut api_key, entity.clone(), UpdateReason::EntityKeyRotated)
+            .await?;
+
+        // Publish auth event for audit trail, once the new key is what authenticates
         self.api_key_event_bus()
             .publish(Event::new(
                 AuthScope {
@@ -243,12 +247,9 @@ pub trait ApiKeyService: CrudService<Self::Key> + EventBusService<Self::Key> {
                     api_key_id,
                     key_type: Self::Key::KEY_TYPE,
                 },
-                entity.clone(),
+                entity,
             ))
-            .await?;
-
-        // Update the key in storage
-        self.update(&mut api_key, entity).await?;
+            .await;
 
         lock_guard.release().await?;
         Ok(plaintext)

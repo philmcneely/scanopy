@@ -1,6 +1,7 @@
 use crate::server::hosts::r#impl::name::{HostName, HostNameSources};
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 use crate::server::{
     config::{AppState, ServerConfig},
     daemons::r#impl::base::{Daemon, DaemonBase, DaemonMode},
@@ -43,10 +44,15 @@ use uuid::Uuid;
 pub mod billing_emails_zero_amount;
 pub mod cloud_setup;
 pub mod default_credentials;
+pub mod deletion_reasons;
 pub mod demo_data_seeding;
 pub mod dependencies;
+pub mod dependency_member_events;
 pub mod discovery_finish;
 pub mod discovery_port_ownership;
+pub mod discovery_removed_children;
+pub mod discovery_stale_port_guards;
+pub mod discovery_stale_port_holders;
 pub mod discovery_warnings;
 pub mod email_unsubscribe;
 pub mod email_verification;
@@ -60,19 +66,26 @@ pub mod host_mac_ordering;
 pub mod host_merge_on_discovery;
 pub mod host_naming;
 pub mod interface_neighbor_candidates;
+pub mod junction_writes;
+pub mod list_pages;
 pub mod lldp_resolution;
 pub mod onboarding_milestones;
+pub mod org_provisioning;
 pub mod organization_writes;
 pub mod self_hosted_license_emails;
 pub mod self_hosted_licensing;
+pub mod snapshot_close_and_clone;
 pub mod snmp_sim_resolution;
 pub mod stripe_webhook_retries;
 pub mod stripe_webhooks;
 pub mod subnet_placement;
+pub mod subnet_vlan_inference;
 pub mod tag_scope;
 pub mod terms_gate;
 pub mod terms_notices;
 pub mod virtualization_tree;
+pub mod virtualizer_cascade;
+pub mod vlan_last_seen;
 
 pub const DAEMON_CONFIG_FIXTURE: &str = "src/tests/daemon_config.json";
 pub const SERVER_DB_FIXTURE: &str = "src/tests/scanopy.sql";
@@ -184,7 +197,8 @@ pub fn port(site_id: &Uuid, host_id: &Uuid) -> Port {
 
 pub fn subnet(site_id: &Uuid) -> Subnet {
     Subnet::new(SubnetBase {
-        name: "Test Subnet".to_string(),
+        vlan_ids: Vec::new(),
+        name: SubnetName::unattributed("Test Subnet".to_string()),
         description: None,
         site_id: *site_id,
         cidr: SubnetCidr::new(
@@ -193,7 +207,7 @@ pub fn subnet(site_id: &Uuid) -> Subnet {
             )),
             AttributeSource::DaemonSelfReport,
         ),
-        subnet_type: SubnetType::Lan,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
         virtualization_service_id: None,
         source: EntitySource::System,
         tags: Vec::new(),
@@ -258,6 +272,22 @@ pub async fn test_services() -> (StorageFactory, ServiceFactory, ContainerAsync<
         .unwrap();
     (storage, services, _container)
 }
+/// [`test_services`] wrapped in an [`AppState`], for code that reads services through the state the
+/// handlers get, such as a list page.
+pub async fn test_state() -> (StorageFactory, AppState, ContainerAsync<GenericImage>) {
+    let (storage, services, _container) = test_services().await;
+    let state = AppState {
+        config: ServerConfig::default(),
+        services,
+        session_store: storage.sessions.clone(),
+        license_service: None,
+        license_issuer: None,
+        pool: storage.pool().clone(),
+        shutdown: tokio_util::sync::CancellationToken::new(),
+    };
+    (storage, state, _container)
+}
+
 pub async fn setup_test_app() -> Router<Arc<AppState>> {
     let config = ServerConfig::default();
 
@@ -265,4 +295,17 @@ pub async fn setup_test_app() -> Router<Arc<AppState>> {
 
     let (router, _openapi) = crate::server::shared::handlers::factory::create_router(state.clone());
     router.with_state(state)
+}
+
+/// The scope of a caller who sees `site_ids` in `organization_id`, with no user behind it.
+pub fn list_scope(
+    site_ids: &[Uuid],
+    organization_id: Uuid,
+) -> crate::server::shared::handlers::traits::ListScope {
+    crate::server::shared::handlers::traits::ListScope {
+        site_ids: site_ids.to_vec(),
+        organization_id,
+        user_id: None,
+        permissions: None,
+    }
 }

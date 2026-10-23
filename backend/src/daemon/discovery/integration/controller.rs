@@ -14,6 +14,8 @@
 
 use std::net::IpAddr;
 
+use futures::stream::{self, StreamExt};
+
 use uuid::Uuid;
 
 use crate::daemon::discovery::integration::IntegrationContext;
@@ -244,43 +246,53 @@ pub async fn create_client_hosts(
         return 0;
     };
 
-    let mut created = 0usize;
-    for client in clients {
-        if ctx.cancel.is_cancelled() {
-            break;
-        }
-        let MappedClient {
-            identity,
-            ip_address,
-            ip: _,
-        } = client;
+    stream::iter(clients)
+        .map(|client| async move {
+            if ctx.cancel.is_cancelled() {
+                return false;
+            }
+            let MappedClient {
+                identity,
+                ip_address,
+                ip: _,
+            } = client;
 
-        let result = ctx
-            .ops
-            .create_integration_host(
-                ctx.integration,
-                identity.into_host(site_id),
-                vec![ip_address],
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-                // A controller sees a client's address and name, never its interfaces. Claiming
-                // an authoritative empty ifTable here would tear down interfaces an SNMP walk of
-                // the same host collected.
-                false,
-                InterfaceDataComplete::default(),
-                ctx.cancel,
-            )
-            .await;
-
-        match result {
-            Ok(_) => created += 1,
-            Err(e) => tracing::debug!(error = %e, "Failed to create controller-reported client"),
-        }
-    }
-    created
+            let result = ctx
+                .ops
+                .create_integration_host(
+                    ctx.integration,
+                    identity.into_host(site_id),
+                    vec![ip_address],
+                    vec![],
+                    vec![],
+                    vec![],
+                    vec![],
+                    // A controller sees a client's address and name, never its interfaces.
+                    // Claiming an authoritative empty ifTable here would tear down interfaces an
+                    // SNMP walk of the same host collected.
+                    false,
+                    InterfaceDataComplete::default(),
+                    ctx.cancel,
+                )
+                .await;
+            if let Err(e) = &result {
+                tracing::debug!(error = %e, "Failed to create controller-reported client");
+            }
+            result.is_ok()
+        })
+        .buffer_unordered(CONCURRENT_HOST_SUBMISSIONS)
+        .filter(|created| std::future::ready(*created))
+        .count()
+        .await
 }
+
+/// How many hosts a controller integration submits at once.
+///
+/// Under ServerPoll each submission waits for the server's next poll (about 30 s) to be confirmed,
+/// so submitting one at a time cost a poll round per device or client: three UniFi devices behind
+/// five networks ran the integration past its 180 s timeout. DaemonPoll submissions are spaced by
+/// `MIN_HOST_SUBMIT_INTERVAL` whatever the concurrency, so the bound only caps in-flight requests.
+pub const CONCURRENT_HOST_SUBMISSIONS: usize = 15;
 
 #[cfg(test)]
 mod tests {

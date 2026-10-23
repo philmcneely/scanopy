@@ -6,11 +6,7 @@
 	} from '$lib/shared/stores/metadata';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import type { Service } from '$lib/features/services/types/base';
-	import {
-		hosts_virtualization_identityCount,
-		hosts_virtualization_vmCount,
-		topology_containerCount
-	} from '$lib/paraglide/messages';
+	import { guestCountLabel } from '$lib/features/services/virtualized-count';
 
 	// Context for virtualization manager display - needs access to hosts and services for counts
 	export interface VirtualizationManagerContext {
@@ -33,14 +29,14 @@
 			const serviceCount = (context?.services ?? []).filter(
 				(s) => s.virtualization_service_id == service.id
 			).length;
-			switch (serviceDefinitions.getMetadata(service.service_definition).manages_virtualization) {
-				case 'containers':
-					return topology_containerCount({ count: serviceCount + hostCount });
-				case 'identities':
-					return hosts_virtualization_identityCount({ count: hostCount });
-				default:
-					return hosts_virtualization_vmCount({ count: hostCount });
-			}
+			// Only a runtime runs services; a hypervisor's VMs and a host's identities are hosts.
+			const runsServices =
+				serviceDefinitions.getMetadata(service.service_definition).manages_virtualization ===
+				'containers';
+			return guestCountLabel(
+				service.service_definition,
+				runsServices ? serviceCount + hostCount : hostCount
+			);
 		},
 		getIcon: (service: Service) => serviceDefinitions.getIconComponent(service.service_definition),
 		getIconColor: (service: Service) =>

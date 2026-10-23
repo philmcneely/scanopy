@@ -291,7 +291,7 @@ impl TypeMetadataProvider for Feature {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::server::billing::types::base::BillingPlan;
+    use crate::server::billing::plans::get_community_plan;
     use std::collections::HashSet;
     use strum::IntoEnumIterator;
 
@@ -301,7 +301,7 @@ mod tests {
         let feature_ids: HashSet<&str> = Feature::iter().map(|f| f.id()).collect();
 
         // Get all keys from BillingPlanFeatures by serializing an instance
-        let features = BillingPlan::default().features();
+        let features = get_community_plan().features();
         let features_json = serde_json::to_value(&features).expect("Failed to serialize features");
         let features_map = features_json
             .as_object()

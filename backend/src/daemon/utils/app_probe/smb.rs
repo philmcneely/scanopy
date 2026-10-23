@@ -14,9 +14,10 @@ use anyhow::Error;
 use async_trait::async_trait;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 
-use crate::daemon::utils::app_probe::{AppProbe, AppProbeOutcome, DeviceIdentity, ProbeContext};
+use crate::daemon::utils::app_probe::{
+    AppProbe, AppProbeOutcome, DeviceIdentity, ProbeContext, ProbeStream,
+};
 use crate::daemon::utils::scanner::SCAN_TIMEOUT;
 use crate::server::hosts::r#impl::attributes::HostOsValue;
 use crate::server::hosts::r#impl::os::{HostOs, HostOsFamily};
@@ -74,14 +75,8 @@ impl AppProbe for SmbProbe {
     }
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let addr = std::net::SocketAddr::new(ctx.ip, self.port().number());
-        let mut stream = match tokio::time::timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
-            Ok(Ok(stream)) => stream,
-            Ok(Err(e)) => {
-                ctx.note_connect_error(&e);
-                return Ok(AppProbeOutcome::NoAnswer);
-            }
-            Err(_) => return Ok(AppProbeOutcome::NoAnswer),
+        let Some(mut stream) = ctx.connect(self.port().number()).await else {
+            return Ok(AppProbeOutcome::NoAnswer);
         };
 
         let negotiated = exchange(&mut stream, &negotiate_request()).await;
@@ -130,7 +125,7 @@ const MAX_REPLY_LEN: usize = 16 * 1024;
 
 /// Send one NetBIOS-framed message and read one framed reply, within [`SCAN_TIMEOUT`] overall. An
 /// empty result means nothing usable arrived.
-async fn exchange(stream: &mut TcpStream, request: &[u8]) -> Vec<u8> {
+async fn exchange(stream: &mut Box<dyn ProbeStream>, request: &[u8]) -> Vec<u8> {
     let io = async {
         stream.write_all(request).await.ok()?;
         let mut header = [0u8; NETBIOS_HEADER_LEN];

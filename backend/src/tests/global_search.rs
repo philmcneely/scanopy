@@ -12,14 +12,17 @@ use crate::server::search::{
     service::global_search,
     types::{GlobalSearchResponse, SearchHit},
 };
+use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::entities::{Entity, EntityDiscriminants};
 use crate::server::shared::storage::traits::{Storable, Storage};
+use crate::server::tags::entity_tags::{EntityTag, EntityTagBase};
 use crate::server::tags::r#impl::base::{Tag, TagBase};
 use crate::server::user_api_keys::r#impl::base::{UserApiKey, UserApiKeyBase};
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
-use crate::server::vlans::r#impl::base::{Vlan, VlanBase};
+use crate::server::vlans::r#impl::base::{Vlan, VlanBase, VlanName, VlanNameValue};
 
 use super::{host, organization, service, site, subnet, test_services, user};
+use crate::server::subnets::r#impl::base::SubnetName;
 
 fn scope(
     org_id: Uuid,
@@ -91,10 +94,13 @@ async fn returns_matches_of_several_types_within_the_callers_sites_and_org() {
         h.base.name = HostName::manual("lisbon-core".to_string());
         storage.hosts.create(&h).await.unwrap();
         let mut sn = subnet(&site_id);
-        sn.base.name = "Lisbon LAN".to_string();
+        sn.base.name = SubnetName::unattributed("Lisbon LAN".to_string());
         storage.subnets.create(&sn).await.unwrap();
         let vlan = Vlan::new(VlanBase {
-            name: "Lisbon voice".to_string(),
+            name: VlanName::new(
+                VlanNameValue("Lisbon voice".to_string()),
+                AttributeSource::Manual,
+            ),
             site_id,
             organization_id: org_id,
             ..Default::default()
@@ -174,7 +180,12 @@ async fn tags_narrow_every_type_to_entities_carrying_all_of_them() {
         async move {
             storage
                 .entity_tags
-                .add(entity_id, entity_type, tag_id)
+                .inner()
+                .create(&EntityTag::new(EntityTagBase::new(
+                    entity_id,
+                    entity_type,
+                    tag_id,
+                )))
                 .await
                 .unwrap();
         }
@@ -323,7 +334,7 @@ async fn a_type_pages_past_its_first_page_without_overlap() {
     let mut created = HashSet::new();
     for n in 0..7 {
         let mut sn = subnet(&net.id);
-        sn.base.name = format!("Lisbon floor {n}");
+        sn.base.name = SubnetName::unattributed(format!("Lisbon floor {n}"));
         storage.subnets.create(&sn).await.unwrap();
         created.insert(sn.id);
     }
@@ -376,4 +387,39 @@ async fn a_type_pages_past_its_first_page_without_overlap() {
         created,
         "together the pages return every match"
     );
+}
+
+/// Daemon API keys are searched from their own list only: the palette never offers one, even
+/// when its name matches.
+#[tokio::test]
+async fn daemon_api_keys_are_not_offered() {
+    use crate::server::daemon_api_keys::r#impl::base::{DaemonApiKey, DaemonApiKeyBase};
+
+    let (storage, services, _container) = test_services().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let net = site(&org.id);
+    storage.sites.create(&net).await.unwrap();
+    let member = user(&org.id);
+    storage.users.create(&member).await.unwrap();
+    storage
+        .daemon_api_keys
+        .create(&DaemonApiKey::new(DaemonApiKeyBase {
+            name: "lisbon daemon".to_string(),
+            site_id: net.id,
+            key: Uuid::new_v4().to_string(),
+            ..Default::default()
+        }))
+        .await
+        .unwrap();
+
+    let found = global_search(
+        &services,
+        &scope(org.id, vec![net.id], member.id, UserOrgPermissions::Admin),
+        &query("lisbon", vec![]),
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(ids_of(&found, EntityDiscriminants::DaemonApiKey).is_empty());
 }

@@ -33,6 +33,7 @@
 		discovery_portsVerified,
 		common_duration,
 		common_host,
+		common_hosts,
 		common_ipAddresses,
 		common_unknownEntity,
 		common_finished,
@@ -51,10 +52,10 @@
 	// TanStack Query for subnets
 	const subnetsQuery = useSubnetsQuery();
 	let subnetsData = $derived(subnetsQuery.data ?? []);
-	// A rescan names its target host by id. The warnings used to be resolved here too; they have
+	// A rescan names its target hosts by id. The warnings used to be resolved here too; they have
 	// their own tab now, and it holds the query for the devices they name.
 	let neededHostIds = $derived(
-		payload.discovery_type.type === 'Rescan' ? [payload.discovery_type.target_host_id] : []
+		payload.discovery_type.type === 'Rescan' ? payload.discovery_type.target_host_ids : []
 	);
 	const hostsQuery = useHostsByIds(() => neededHostIds);
 	let hostsData = $derived(hostsQuery.data ?? []);
@@ -103,11 +104,12 @@
 	// Hoisted: narrowing on `payload.discovery_type` doesn't survive into the
 	// nested callback, and `ports` is optional in the generated type.
 	let rescan = $derived(payload.discovery_type.type === 'Rescan' ? payload.discovery_type : null);
-	let rescanHostName = $derived.by(() => {
-		if (!rescan) return null;
-		const host = hostsData.find((h) => h.id === rescan.target_host_id);
-		return host ? hostDisplayName(host) : null;
-	});
+	let rescanHostNames = $derived(
+		(rescan?.target_host_ids ?? []).map((id) => {
+			const host = hostsData.find((h) => h.id === id);
+			return host ? hostDisplayName(host) : common_unknownEntity({ entity: common_host() });
+		})
+	);
 
 	let hostNamingLabel = $derived(
 		payload.discovery_type.type === 'Unified'
@@ -169,8 +171,8 @@
 	<!-- A rescan names its target directly, so there are no subnets to resolve -->
 	{#if rescan}
 		<InfoCard title={discovery_rescanDetails()}>
-			<InfoRow label={common_host()}>
-				{rescanHostName ?? common_unknownEntity({ entity: common_host() })}
+			<InfoRow label={rescanHostNames.length > 1 ? common_hosts() : common_host()}>
+				{rescanHostNames.join(', ')}
 			</InfoRow>
 			<InfoRow label={common_ipAddresses()}>{rescan.ips.join(', ')}</InfoRow>
 			<InfoRow label={discovery_portsVerified()}>{(rescan.ports ?? []).length}</InfoRow>

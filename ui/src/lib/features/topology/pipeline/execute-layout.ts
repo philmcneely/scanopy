@@ -178,62 +178,6 @@ export async function executeLayout(
 	return { visibleNodes };
 }
 
-/**
- * Handle port expansion: re-measure affected nodes without full ELK re-layout.
- * @returns true if ports changed and layout was updated.
- */
-export async function handlePortExpansion(
-	state: LayoutState,
-	currentExpandedPorts: Set<string>,
-	containerElement: HTMLDivElement,
-	buildMeasureNodes: () => import('@xyflow/svelte').Node[],
-	setNodes: (nodes: import('@xyflow/svelte').Node[]) => void,
-	isStale: () => boolean,
-	needsElk: boolean,
-	viewCacheKey: string
-): Promise<boolean> {
-	const portsChanged =
-		currentExpandedPorts.size !== state.prevExpandedPortIds.size ||
-		[...currentExpandedPorts].some((id) => !state.prevExpandedPortIds.has(id)) ||
-		[...state.prevExpandedPortIds].some((id) => !currentExpandedPorts.has(id));
-
-	if (portsChanged && !needsElk && state.layoutGraph) {
-		// Render with current positions to let DOM update port content
-		setNodes(buildMeasureNodes());
-		const { tick } = await import('svelte');
-		await tick();
-		await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-		if (isStale()) return false;
-
-		// Re-measure affected nodes and update graph
-		if (containerElement) {
-			const changedIds = new Set([...currentExpandedPorts, ...state.prevExpandedPortIds]);
-			const viewCache = state.viewSizeCache.get(viewCacheKey);
-			for (const nodeId of changedIds) {
-				const el = containerElement.querySelector(`[data-id="${nodeId}"]`) as HTMLElement;
-				if (el) {
-					const size = { x: el.offsetWidth || 250, y: el.offsetHeight || 100 };
-					state.layoutGraph.updateElementSize(nodeId, size);
-					viewCache?.set(nodeId, size);
-				} else {
-					// Not mounted, so not measurable — it is off screen and culled. Drop its cached
-					// size rather than leaving the pre-toggle height in place: without a cached size
-					// the node is built without a size seed, which makes SvelteFlow render it once
-					// and measure it for real the next time it comes into view. Keeping the stale
-					// height would leave a card-sized gap in the layout that nothing corrects.
-					viewCache?.delete(nodeId);
-				}
-			}
-		}
-		state.prevExpandedPortIds = new Set(currentExpandedPorts);
-		return true;
-	} else if (needsElk) {
-		state.prevExpandedPortIds = new Set(currentExpandedPorts);
-	}
-
-	return false;
-}
-
 function executeForceLayout(
 	state: LayoutState,
 	rootContainerNodes: TopologyNode[],

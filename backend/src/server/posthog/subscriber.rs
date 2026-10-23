@@ -29,7 +29,7 @@ use crate::{
                     OnboardingOperation, OnboardingOperationDiscriminants,
                 },
             },
-            types::metadata::TypeMetadataProvider,
+            types::metadata::HasId,
         },
     },
 };
@@ -45,7 +45,8 @@ const DEMO_ORG_ID: Uuid = uuid::uuid!("0380451f-a50b-41cd-ae76-6ce47214d8ff");
 /// Person properties an event sets when it settles the org's plan.
 #[derive(Serialize)]
 struct PersonProperties<'a> {
-    plan_type: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    plan_type: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     organization_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,7 +56,8 @@ struct PersonProperties<'a> {
 /// Organization group properties an event sets when it settles the org's plan.
 #[derive(Serialize)]
 struct OrgGroupProperties<'a> {
-    plan_type: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    plan_type: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -129,8 +131,7 @@ impl Subscriber<EntityOperation> for PosthogService {
         entity_filter()
     }
 
-    async fn handle(&self, mut events: Vec<Event<EntityOperation>>) -> Result<(), Error> {
-        events.retain(|e| !e.flags.suppress_logs);
+    async fn handle(&self, events: Vec<Event<EntityOperation>>) -> Result<(), Error> {
         failures_to_result(self.capture_all(&events).await)
     }
 
@@ -146,8 +147,7 @@ impl Subscriber<AuthOperation> for PosthogService {
         EventFilter::ops(vec![AuthOperationDiscriminants::LoginSuccess])
     }
 
-    async fn handle(&self, mut events: Vec<Event<AuthOperation>>) -> Result<(), Error> {
-        events.retain(|e| !e.flags.suppress_logs);
+    async fn handle(&self, events: Vec<Event<AuthOperation>>) -> Result<(), Error> {
         failures_to_result(self.capture_all(&events).await)
     }
 
@@ -171,9 +171,6 @@ impl Subscriber<BillingOperation> for PosthogService {
     async fn handle(&self, events: Vec<Event<BillingOperation>>) -> Result<(), Error> {
         let mut failures = Vec::new();
         for event in events {
-            if event.flags.suppress_logs {
-                continue;
-            }
             if event.operation.is_zero_dollar_notice() {
                 tracing::debug!(
                     operation = %event.operation,
@@ -192,16 +189,16 @@ impl Subscriber<BillingOperation> for PosthogService {
             // on. Events that carry no plan (payment method, invoice, discount
             // events and the like) leave `plan_type` as it is rather than
             // nulling it.
-            let Some(plan_type) = event.operation.resulting_plan_name() else {
+            let Some(plan_type) = event.operation.resulting_plan_id() else {
                 continue;
             };
             let person = PersonProperties {
-                plan_type,
+                plan_type: Some(plan_type),
                 organization_id: None,
                 use_case: None,
             };
             let group = OrgGroupProperties {
-                plan_type,
+                plan_type: Some(plan_type),
                 name: None,
                 use_case: None,
                 created_at: None,
@@ -260,9 +257,6 @@ impl Subscriber<OnboardingOperation> for PosthogService {
     async fn handle(&self, events: Vec<Event<OnboardingOperation>>) -> Result<(), Error> {
         let mut failures = Vec::new();
         for event in events {
-            if event.flags.suppress_logs {
-                continue;
-            }
             let Some((distinct_id, result)) = self.capture_event(&event).await else {
                 continue;
             };
@@ -277,14 +271,14 @@ impl Subscriber<OnboardingOperation> for PosthogService {
             {
                 let org_id = event.scope.organization_id;
                 let person = PersonProperties {
-                    plan_type: plan.name(),
+                    plan_type: plan.as_ref().map(|plan| plan.id()),
                     organization_id: Some(org_id),
                     use_case: Some(use_case),
                 };
                 failures.extend(self.identify(&distinct_id, &person).await.err());
 
                 let group = OrgGroupProperties {
-                    plan_type: plan.name(),
+                    plan_type: plan.as_ref().map(|plan| plan.id()),
                     name: Some(org_name),
                     use_case: Some(use_case),
                     created_at: Some(event.timestamp.to_rfc3339()),
@@ -320,7 +314,7 @@ impl Subscriber<AnalyticsOperation> for PosthogService {
 
     async fn handle(&self, mut events: Vec<Event<AnalyticsOperation>>) -> Result<(), Error> {
         // Skip the demo org's share views and emails to avoid skewing metrics
-        events.retain(|e| !e.flags.suppress_logs && e.scope.organization_id != DEMO_ORG_ID);
+        events.retain(|e| e.scope.organization_id != DEMO_ORG_ID);
         failures_to_result(self.capture_all(&events).await)
     }
 
@@ -344,8 +338,7 @@ impl Subscriber<DiscoveryPhase> for PosthogService {
         ])
     }
 
-    async fn handle(&self, mut events: Vec<Event<DiscoveryPhase>>) -> Result<(), Error> {
-        events.retain(|e| !e.flags.suppress_logs);
+    async fn handle(&self, events: Vec<Event<DiscoveryPhase>>) -> Result<(), Error> {
         failures_to_result(self.capture_all(&events).await)
     }
 
@@ -381,9 +374,6 @@ impl Subscriber<DiscoveryWarningCode> for PosthogService {
         let mut grouped: BTreeMap<(Uuid, DiscoveryWarningCode, Option<String>), Grouped> =
             BTreeMap::new();
         for event in events {
-            if event.flags.suppress_logs {
-                continue;
-            }
             let integration = event.scope.integration.map(|i| i.to_string());
             grouped
                 .entry((event.scope.session_id, event.operation, integration))
@@ -434,7 +424,10 @@ mod tests {
     use crate::server::{
         auth::middleware::auth::AuthenticatedEntity,
         posthog::service::{distinct_id, to_posthog_event},
-        shared::events::{operations::tests::samples, traits::OrgScope},
+        shared::events::{
+            operations::tests::{Sample, samples},
+            traits::OrgScope,
+        },
     };
     use serde_json::{Value, json};
 
@@ -473,6 +466,288 @@ mod tests {
         }
     }
 
+    /// Each step of an org's trial and onboarding, sent by the actor that sends it in production,
+    /// with whether the event carries a plan.
+    fn onboarding_steps(organization_id: Uuid) -> Vec<(Sample, bool)> {
+        use crate::{
+            daemon::discovery::types::base::DiscoveryPhase,
+            server::{
+                billing::plans::{get_commercial_self_hosted_plan, get_enterprise_plan},
+                discovery::r#impl::types::DiscoveryType,
+                shared::{
+                    events::{
+                        operations::tests::sample,
+                        traits::{AuthScope, DiscoveryScope},
+                        types::AuthMethod,
+                    },
+                    types::examples,
+                },
+            },
+        };
+
+        let mut user = examples::user();
+        user.base.organization_id = organization_id;
+        let owner: AuthenticatedEntity = user.clone().into();
+        fn on<Op: crate::server::shared::events::Operation<Scope = OrgScope>>(
+            organization_id: Uuid,
+            authentication: &AuthenticatedEntity,
+            op: Op,
+        ) -> Event<Op> {
+            Event::new(OrgScope { organization_id }, op, authentication.clone())
+        }
+        let system = AuthenticatedEntity::System;
+        let trial_end = chrono::Utc::now();
+
+        vec![
+            (
+                sample(
+                    on(
+                        organization_id,
+                        &owner,
+                        OnboardingOperation::OrgCreated {
+                            org_name: "Acme".to_string(),
+                            plan: Some(get_commercial_self_hosted_plan()),
+                            use_case: UseCase::InternalIt,
+                            site: None,
+                        },
+                    ),
+                    organization_id,
+                ),
+                true,
+            ),
+            (
+                sample(
+                    on(
+                        organization_id,
+                        &owner,
+                        OnboardingOperation::PlanSelected {
+                            plan: get_enterprise_plan(),
+                        },
+                    ),
+                    organization_id,
+                ),
+                true,
+            ),
+            (
+                sample(
+                    on(
+                        organization_id,
+                        &owner,
+                        BillingOperation::TrialStarted {
+                            plan: get_enterprise_plan(),
+                            trial_end,
+                            trial_days: 14,
+                        },
+                    ),
+                    organization_id,
+                ),
+                true,
+            ),
+            (
+                sample(
+                    on(
+                        organization_id,
+                        &owner,
+                        BillingOperation::CheckoutCompleted {
+                            plan: get_enterprise_plan(),
+                            included_sites: None,
+                            included_seats: None,
+                            mrr_amount_cents: 4900,
+                            is_trialing: true,
+                            next_renewal_at: None,
+                        },
+                    ),
+                    organization_id,
+                ),
+                true,
+            ),
+            (
+                sample(
+                    on(
+                        organization_id,
+                        &owner,
+                        BillingOperation::LicenseKeyIssued {
+                            plan: Some(get_commercial_self_hosted_plan()),
+                            key_version: 1,
+                        },
+                    ),
+                    organization_id,
+                ),
+                true,
+            ),
+            (
+                sample(
+                    on(
+                        organization_id,
+                        &system,
+                        BillingOperation::LicenseActivated {
+                            plan: Some(get_commercial_self_hosted_plan()),
+                            server_version: None,
+                        },
+                    ),
+                    organization_id,
+                ),
+                true,
+            ),
+            (
+                sample(
+                    on(
+                        organization_id,
+                        &system,
+                        OnboardingOperation::FirstDaemonRegistered {
+                            daemon_id: Uuid::new_v4(),
+                            daemon_name: "edge".to_string(),
+                            site_name: "HQ".to_string(),
+                        },
+                    ),
+                    organization_id,
+                ),
+                false,
+            ),
+            (
+                sample(
+                    on(
+                        organization_id,
+                        &system,
+                        OnboardingOperation::FirstHostDiscovered,
+                    ),
+                    organization_id,
+                ),
+                false,
+            ),
+            (
+                sample(
+                    on(
+                        organization_id,
+                        &system,
+                        OnboardingOperation::FirstDiscoveryCompleted {
+                            discovery_type: DiscoveryType::default(),
+                        },
+                    ),
+                    organization_id,
+                ),
+                false,
+            ),
+            (
+                sample(
+                    Event::new(
+                        DiscoveryScope {
+                            site_id: Uuid::new_v4(),
+                            session_id: Uuid::new_v4(),
+                            daemon_id: Uuid::new_v4(),
+                            discovery_type: DiscoveryType::default(),
+                            error_reason: None,
+                            reason: None,
+                            last_update_at: None,
+                            previous_phase: None,
+                        },
+                        DiscoveryPhase::Complete,
+                        AuthenticatedEntity::System,
+                    ),
+                    organization_id,
+                ),
+                false,
+            ),
+            (
+                sample(
+                    Event::new(
+                        AuthScope {
+                            user_id: Some(user.id),
+                            organization_id: Some(organization_id),
+                            ip_address: "192.0.2.2".parse().expect("address"),
+                            user_agent: None,
+                        },
+                        AuthOperation::LoginSuccess {
+                            method: AuthMethod::Password,
+                            via_register_flow: false,
+                        },
+                        AuthenticatedEntity::Anonymous,
+                    ),
+                    organization_id,
+                ),
+                false,
+            ),
+        ]
+    }
+
+    /// One query keyed on the org reads every onboarding step: each carries `organization_id` and
+    /// the `organization` group, the plan's id at `metadata.plan.type` where it has a plan, and
+    /// the email where a user acted.
+    #[test]
+    fn every_onboarding_step_carries_the_core_fields() {
+        let organization_id = Uuid::new_v4();
+        for (sample, has_plan) in onboarding_steps(organization_id) {
+            let sent = wire(&sample.name, &sample.properties);
+            let properties = &sent["properties"];
+            assert_eq!(
+                properties["organization_id"],
+                json!(organization_id.to_string()),
+                "{}",
+                sample.name
+            );
+            assert_eq!(
+                sent["groups"]["organization"],
+                json!(organization_id.to_string()),
+                "{}",
+                sample.name
+            );
+            assert_eq!(
+                properties["metadata"]["plan"]["type"].is_string(),
+                has_plan,
+                "{} plan id",
+                sample.name
+            );
+            assert_eq!(
+                properties["email"].is_string(),
+                properties["auth_type"] == json!("user"),
+                "{} email",
+                sample.name
+            );
+        }
+    }
+
+    /// The person and group `plan_type` a billing event sets is the id the event itself sends,
+    /// so one value filters both.
+    #[test]
+    fn plan_type_is_the_plan_id_the_event_sends() {
+        use crate::server::billing::plans::get_commercial_self_hosted_plan;
+
+        let operation = BillingOperation::LicenseKeyIssued {
+            plan: Some(get_commercial_self_hosted_plan()),
+            key_version: 1,
+        };
+        let metadata = serde_json::to_value(&operation).expect("serializes");
+        assert_eq!(
+            operation.resulting_plan_id().map(|id| json!(id)),
+            Some(metadata["plan"]["type"].clone())
+        );
+    }
+
+    /// The owner who opens the License tab is who a first key issue lands on, with their email.
+    #[test]
+    fn a_license_key_issue_lands_on_the_owner_who_asked() {
+        use crate::server::shared::types::examples;
+
+        let organization_id = Uuid::new_v4();
+        let mut user = examples::user();
+        user.base.organization_id = organization_id;
+        let event = Event::new(
+            OrgScope { organization_id },
+            BillingOperation::LicenseKeyIssued {
+                plan: None,
+                key_version: 1,
+            },
+            user.clone().into(),
+        );
+
+        let properties = event.properties(None);
+        assert_eq!(
+            distinct_id(event.attribution(), &properties.actor),
+            Some(user.id.to_string())
+        );
+        assert_eq!(properties.actor.email, Some(user.base.email));
+    }
+
     #[test]
     fn an_event_with_no_organization_joins_no_group() {
         let organization_id = Uuid::new_v4();
@@ -495,7 +770,9 @@ mod tests {
             Event::new(scope, op, AuthenticatedEntity::System)
         };
 
-        assert!(entity_filter().matches(&event(EntityOperation::Deleted)));
+        assert!(entity_filter().matches(&event(EntityOperation::Deleted {
+            reason: crate::server::shared::events::types::DeletionReason::EntityRequested,
+        })));
         // Creation is `org_created` from onboarding; forwarding it too would double-count.
         assert!(!entity_filter().matches(&event(EntityOperation::Created)));
     }

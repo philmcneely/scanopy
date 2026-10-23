@@ -2,6 +2,7 @@
 //! type, a new site gets the site-wide ones, and a default can be renamed and unassigned but not
 //! deleted, changed or copied.
 
+use crate::server::shared::events::types::UpdateReason;
 use secrecy::SecretString;
 use strum::IntoEnumIterator;
 use uuid::Uuid;
@@ -164,7 +165,11 @@ async fn a_second_copy_of_a_default_is_refused_on_create_and_update() {
     ordinary.base.credential_type = community("public");
     let turned_into_copy = services
         .credential_service
-        .update(&mut ordinary, AuthenticatedEntity::System)
+        .update(
+            &mut ordinary,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await;
     assert!(matches!(
         error_code(turned_into_copy),
@@ -189,7 +194,11 @@ async fn a_default_can_be_renamed_and_unassigned_but_not_changed_or_deleted() {
     renamed.base.credential_type = community(REDACTED_SECRET_SENTINEL);
     let renamed = services
         .credential_service
-        .update(&mut renamed, AuthenticatedEntity::System)
+        .update(
+            &mut renamed,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
     assert!(renamed.is_default);
@@ -198,7 +207,11 @@ async fn a_default_can_be_renamed_and_unassigned_but_not_changed_or_deleted() {
     changed.base.credential_type = community("private");
     let changed = services
         .credential_service
-        .update(&mut changed, AuthenticatedEntity::System)
+        .update(
+            &mut changed,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await;
     assert!(matches!(
         error_code(changed),
@@ -207,7 +220,11 @@ async fn a_default_can_be_renamed_and_unassigned_but_not_changed_or_deleted() {
 
     let deleted = services
         .credential_service
-        .delete(&default.id, AuthenticatedEntity::System)
+        .delete(
+            &default.id,
+            AuthenticatedEntity::System,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
+        )
         .await;
     assert!(matches!(
         error_code(deleted),
@@ -225,7 +242,11 @@ async fn a_default_can_be_renamed_and_unassigned_but_not_changed_or_deleted() {
         .unwrap();
     let batch = services
         .credential_service
-        .delete_many(&[ordinary.id, default.id], AuthenticatedEntity::System)
+        .delete_many(
+            &[ordinary.id, default.id],
+            AuthenticatedEntity::System,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
+        )
         .await;
     assert!(matches!(
         error_code(batch),

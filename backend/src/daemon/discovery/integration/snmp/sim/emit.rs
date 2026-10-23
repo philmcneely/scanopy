@@ -239,10 +239,28 @@ pub fn shim_args(device: &SimDevice) -> Option<String> {
                 .map(|oid| format!("--silence {}", dotted(oid))),
         )
         .collect();
+    // One `--error-status` serves both `--reject-above` and `--reject`, so a device may use one.
+    let rejected = device.rejected();
+    assert!(
+        rejected.is_empty() || device.rejects_getbulk.is_none(),
+        "{} sets both rejects_getbulk and faults.reject, which share one --error-status",
+        device.name
+    );
     if let Some(rejection) = device.rejects_getbulk {
         args.push(format!(
             "--reject-above {} --error-status {}",
             rejection.above_repetitions, rejection.error_status
+        ));
+    }
+    if !rejected.is_empty() {
+        args.extend(
+            rejected
+                .iter()
+                .map(|oid| format!("--reject {}", dotted(oid))),
+        );
+        args.push(format!(
+            "--error-status {}",
+            device.tables.faults.error_status
         ));
     }
     (!args.is_empty()).then(|| args.join(" "))
@@ -415,19 +433,21 @@ pub fn lab_env(devices: &[SimDevice]) -> String {
             format!("\"{}\"", addrs.join(","))
         })
     ));
-    // Whether a device deliberately serves no `ipAddrTable` at all — only `switch-mute-01`.
-    // Without this the leakage check cannot tell "mute by design" from "the pass registration was
+    // Whether a device deliberately serves no `ipAddrTable` at all: `switch-mute-01`, and the
+    // devices whose shim silences or rejects every table read. Without this the leakage check cannot tell "mute by design" from "the pass registration was
     // lost": both walk back nothing, and `snmpwalk -Ovq` prints "No Such Instance currently
     // exists at this OID" on stdout, which the check would otherwise compare against the allowed
     // addresses and report as a leak. Emitting the fact lets it assert the right thing in both
     // directions — silence required here, an own address required everywhere else.
     out.push_str(&format!(
         "SUPPRESSES_IPADDR=({})\n",
-        field(&|d| if d.suppresses_ip_addr_table() {
-            "1".to_string()
-        } else {
-            "0".to_string()
-        })
+        field(
+            &|d| if d.suppresses_ip_addr_table() || d.hides_ip_addr_table() {
+                "1".to_string()
+            } else {
+                "0".to_string()
+            }
+        )
     ));
     out
 }

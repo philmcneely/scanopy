@@ -620,9 +620,9 @@ impl CredentialType {
 
     /// Minimum daemon version that can safely receive this credential type over the
     /// wire. Delegates to the discriminant's exhaustive declaration
-    /// ([`CredentialTypeDiscriminants::minimum_daemon_version`]).
-    pub fn minimum_daemon_version(&self) -> semver::Version {
-        CredentialTypeDiscriminants::from(self).minimum_daemon_version()
+    /// ([`CredentialTypeDiscriminants::last_unsupported_daemon_version`]).
+    pub fn last_unsupported_daemon_version(&self) -> semver::Version {
+        CredentialTypeDiscriminants::from(self).last_unsupported_daemon_version()
     }
 
     /// Whether this integration is a single service instance per host, so its

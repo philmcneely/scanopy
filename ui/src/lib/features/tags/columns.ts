@@ -24,7 +24,7 @@ export function tagItems(
 			label: tag.name,
 			color: tag.color,
 			icon: tagIcon(tag, application) ?? undefined,
-			title: tagTooltip(tag, groups) || undefined
+			title: tagTooltip(tag, groups) ?? undefined
 		}));
 }
 

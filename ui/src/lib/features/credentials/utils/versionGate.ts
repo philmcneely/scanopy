@@ -1,24 +1,25 @@
-import { coerce, lt } from 'semver';
+import { coerce, gt } from 'semver';
 import osFamilies from '$lib/data/os-families.json';
 import { credentials_daemonOsMismatch } from '$lib/paraglide/messages';
 import type { Credential } from '../types/base';
 import { osFamilyOf, osLabel, type DaemonOS } from '$lib/features/daemons/utils';
 
 /**
- * Whether a daemon at `daemonVersion` is too old to receive a credential type
- * whose minimum-daemon-version floor is `minVersion`.
+ * Whether a daemon at `daemonVersion` is too old to receive a credential type whose
+ * `last_unsupported_daemon_version` is `lastUnsupported`: it is at or below that release.
  *
  * `coerce` tolerates partial/odd version strings; a missing daemon version or a
- * missing floor means there is nothing to gate on (returns false). Used by the
- * discovery credential picker and wizard to disable too-new credential types.
+ * missing gate means there is nothing to gate on (returns false). Used by the
+ * discovery credential picker and wizard to disable too-new credential types; the server's
+ * dispatch filter is what actually withholds them.
  */
 export function daemonTooOldForCredential(
-	minVersion: string | undefined | null,
+	lastUnsupported: string | undefined | null,
 	daemonVersion: string | undefined | null
 ): boolean {
-	if (!minVersion || !daemonVersion) return false;
+	if (!lastUnsupported || !daemonVersion) return false;
 	const dv = coerce(daemonVersion);
-	return dv ? lt(dv, minVersion) : false;
+	return dv ? !gt(dv, lastUnsupported) : false;
 }
 
 /**

@@ -36,10 +36,10 @@ impl ViewBuilder for L3Builder {
         let mut subnet_nodes = subnet_builder.create_subnet_nodes(ctx, &subnet_ids);
 
         // Set icon and color on container nodes from subnet metadata
-        let subnet_map: HashMap<Uuid, &crate::server::subnets::r#impl::types::SubnetType> = ctx
+        let subnet_map: HashMap<Uuid, crate::server::subnets::r#impl::types::SubnetType> = ctx
             .subnets
             .iter()
-            .map(|s| (s.id, &s.base.subnet_type))
+            .map(|s| (s.id, s.base.subnet_type()))
             .collect();
         for node in &mut subnet_nodes {
             if let NodeType::Container {
@@ -73,6 +73,7 @@ mod tests {
     use crate::server::shared::types::Color;
     use crate::server::subnets::r#impl::base::{Subnet, SubnetBase};
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::tags::r#impl::base::{Tag, TagBase};
     use crate::server::topology::service::context::TopologyContext;
     use crate::server::topology::service::view::ViewBuilder;
@@ -136,7 +137,7 @@ mod tests {
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id,
-                name: "test-subnet".to_string(),
+                name: SubnetName::unattributed("test-subnet".to_string()),
                 ..Default::default()
             },
             ..Default::default()
@@ -265,8 +266,8 @@ mod tests {
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id,
-                name: name.to_string(),
-                subnet_type: st,
+                name: SubnetName::unattributed(name.to_string()),
+                subnet_type: SubnetTypeAttributed::unattributed(st),
                 ..Default::default()
             },
             ..Default::default()
@@ -399,8 +400,8 @@ mod tests {
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id,
-                name: format!("subnet-{third}"),
-                subnet_type,
+                name: SubnetName::unattributed(format!("subnet-{third}")),
+                subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
                 ..Default::default()
             },
             ..Default::default()

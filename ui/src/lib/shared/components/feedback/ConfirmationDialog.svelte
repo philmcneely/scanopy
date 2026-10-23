@@ -12,6 +12,7 @@
 	import InlineWarning from './InlineWarning.svelte';
 	import InlineDanger from './InlineDanger.svelte';
 	import InlineInfo from './InlineInfo.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 
 	interface Props {
 		isOpen?: boolean;
@@ -61,14 +62,28 @@
 	let resolvedCancelLabel = $derived(cancelLabel ?? common_cancel());
 	let detailsBody = $derived(details.length > 0 ? details.join(', ') : null);
 
-	const confirmButtonClasses = {
-		danger: 'btn-danger',
-		warning: 'btn-primary',
-		info: 'btn-primary'
-	};
+	// The typed text, mirrored from the form: $derived can't track TanStack form state.
+	let typed = $state('');
+	$effect(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
+			typed = form.state.values.typed;
+		});
+		return unsubscribe;
+	});
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'cancel', label: resolvedCancelLabel, onClick: onCancel },
+		{
+			role: 'primary',
+			label: resolvedConfirmLabel,
+			tone: variant === 'danger' ? 'danger' : undefined,
+			onClick: onConfirm,
+			disabled: confirmText != null && typed !== confirmText
+		}
+	]);
 </script>
 
-<GenericModal {isOpen} title={resolvedTitle} {onClose} size="sm">
+<GenericModal {isOpen} title={resolvedTitle} {onClose} size="sm" {actions}>
 	<div class="space-y-4 p-6">
 		{#if variant === 'danger'}
 			<InlineDanger title={resolvedMessage} body={detailsBody} />
@@ -91,26 +106,4 @@
 			</form.Field>
 		{/if}
 	</div>
-
-	{#snippet footer()}
-		<div class="modal-footer">
-			<div class="flex justify-end gap-3">
-				<button type="button" class="btn-secondary" onclick={onCancel}>
-					{resolvedCancelLabel}
-				</button>
-				<form.Subscribe selector={(state) => state.values.typed}>
-					{#snippet children(typed)}
-						<button
-							type="button"
-							class={confirmButtonClasses[variant]}
-							onclick={onConfirm}
-							disabled={confirmText != null && typed !== confirmText}
-						>
-							{resolvedConfirmLabel}
-						</button>
-					{/snippet}
-				</form.Subscribe>
-			</div>
-		</div>
-	{/snippet}
 </GenericModal>

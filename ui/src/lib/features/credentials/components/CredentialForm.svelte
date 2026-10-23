@@ -901,7 +901,6 @@
 						<EntityTag
 							entityRef={entityRef('Host', host.id, host)}
 							label={hostDisplayName(host)}
-							icon={entities.getIconComponent('Host')}
 							color={entities.getColorHelper('Host').color}
 						/>
 					{/each}
@@ -1048,9 +1047,6 @@
 		{/if}
 
 		{@render fieldCardList()}
-
-		<!-- Hidden submit button for Enter-to-submit -->
-		<button type="submit" class="hidden" aria-hidden="true" tabindex={-1}></button>
 	</form>
 {/if}
 

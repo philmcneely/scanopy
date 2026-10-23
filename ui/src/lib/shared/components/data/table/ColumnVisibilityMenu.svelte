@@ -7,6 +7,9 @@
 		movableIds,
 		moveColumn,
 		moveColumnTo,
+		movableGroups,
+		moveGroup,
+		moveGroupTo,
 		type EntityColumn
 	} from './columns';
 	import {
@@ -19,47 +22,33 @@
 	} from '$lib/paraglide/messages';
 	import { isShiftShortcut, shiftShortcutLabel } from '$lib/shared/utils/shortcuts';
 	import { isFreeKeydown, useListShortcuts } from '../controls/listShortcuts';
+	import Popover from '../Popover.svelte';
 
 	let {
 		columns,
 		order,
+		groupOrder,
 		visibility,
 		onToggle,
 		onReorder,
+		onReorderGroups,
 		onReset
 	}: {
 		columns: EntityColumn<T>[];
 		/** The full column order, pinned columns included. */
 		order: string[];
+		/** The headings in the user's order; columns sort by heading first. */
+		groupOrder: string[];
 		visibility: Record<string, boolean>;
 		onToggle: (id: string) => void;
 		onReorder: (order: string[]) => void;
+		onReorderGroups: (groupOrder: string[]) => void;
 		onReset: () => void;
 	} = $props();
 
 	let open = $state(false);
+	let trigger = $state<HTMLButtonElement | undefined>();
 	let panelElement = $state<HTMLDivElement | undefined>();
-	/** The panel reaches down to the bottom of the screen, less this gap, and scrolls past that. */
-	const BOTTOM_GAP_PX = 16;
-	let panelMaxHeight = $state<number | null>(null);
-
-	function fitPanel() {
-		if (!panelElement) return;
-		const top = panelElement.getBoundingClientRect().top;
-		panelMaxHeight = Math.max(window.innerHeight - top - BOTTOM_GAP_PX, 160);
-	}
-
-	$effect(() => {
-		if (!open || !panelElement) return;
-		fitPanel();
-		window.addEventListener('resize', fitPanel);
-		window.addEventListener('scroll', fitPanel, true);
-		return () => {
-			window.removeEventListener('resize', fitPanel);
-			window.removeEventListener('scroll', fitPanel, true);
-		};
-	});
-	let menuElement = $state<HTMLDivElement | undefined>();
 
 	/**
 	 * The primary column stays put: it carries the row's identity and its
@@ -83,63 +72,35 @@
 	let draggingId = $state<string | null>(null);
 	let dropTarget = $state<{ id: string; position: 'before' | 'after' } | null>(null);
 
-	/**
-	 * Set while a move re-sorts the rows. Moving a focused row in the DOM blurs
-	 * it with no `relatedTarget`, which would otherwise read as focus leaving the
-	 * menu and close it under the keyboard user.
-	 */
-	let reordering = false;
-
 	// Shift+C (columns) opens the panel while this list is on screen; Shift+F already clears filters.
 	const COLUMNS_KEY = 'C';
 	const columnsShortcut = shiftShortcutLabel(COLUMNS_KEY);
 	const listShortcuts = useListShortcuts();
 
-	async function openFromKeyboard() {
-		open = true;
-		await tick();
-		// Focus inside the menu, so a click or Tab away closes it through `handleFocusOut`.
-		panelElement?.focus();
-	}
-
+	// Escape, focus leaving the panel and a click outside close it through `Popover`, which also
+	// moves focus into the panel when it opens.
 	function handleKeydown(event: KeyboardEvent) {
 		if (!listShortcuts?.isActive()) return;
-		if (open && event.key === 'Escape' && menuElement?.contains(event.target as Node)) {
-			event.preventDefault();
-			open = false;
-			menuElement.querySelector<HTMLButtonElement>('button')?.focus();
-			return;
-		}
 		if (!isShiftShortcut(event, COLUMNS_KEY) || !isFreeKeydown(event)) return;
 		event.preventDefault();
-		if (open) open = false;
-		else openFromKeyboard();
-	}
-
-	function handleFocusOut(event: FocusEvent) {
-		if (reordering) return;
-		const next = event.relatedTarget as Node | null;
-		if (next && menuElement?.contains(next)) return;
-		open = false;
+		open = !open;
 	}
 
 	async function step(id: string, delta: -1 | 1) {
 		const next = moveColumn(order, peersOf(id), id, delta);
 		if (next === order) return;
 
-		reordering = true;
 		onReorder(next);
 		await tick();
-		reordering = false;
 
 		// Keep focus on the control that was pressed, or on its twin once the
 		// column reaches an end and that control disables.
 		const direction = delta < 0 ? 'up' : 'down';
 		const opposite = delta < 0 ? 'down' : 'up';
-		const pressed = menuElement?.querySelector<HTMLButtonElement>(
+		const pressed = panelElement?.querySelector<HTMLButtonElement>(
 			`[data-move="${direction}"][data-column="${id}"]`
 		);
-		const fallback = menuElement?.querySelector<HTMLButtonElement>(
+		const fallback = panelElement?.querySelector<HTMLButtonElement>(
 			`[data-move="${opposite}"][data-column="${id}"]`
 		);
 		(pressed && !pressed.disabled ? pressed : fallback)?.focus();
@@ -164,6 +125,8 @@
 	}
 
 	function handleDrop(event: DragEvent) {
+		// A dragged heading drops on the block around this row instead (`handleSectionDrop`).
+		if (!draggingId) return;
 		event.preventDefault();
 		if (draggingId && dropTarget) {
 			const next = moveColumnTo(
@@ -181,62 +144,176 @@
 	function clearDrag() {
 		draggingId = null;
 		dropTarget = null;
+		draggingSection = null;
+		sectionDropTarget = null;
+	}
+
+	/** Headings whose columns move as a block, in menu order. */
+	let movableSections = $derived(movableGroups(groupOrder, toggleable));
+
+	let draggingSection = $state<string | null>(null);
+	let sectionDropTarget = $state<{ key: string; position: 'before' | 'after' } | null>(null);
+
+	async function stepSection(key: string, delta: -1 | 1) {
+		const next = moveGroup(groupOrder, movableSections, key, delta);
+		if (next === groupOrder) return;
+
+		onReorderGroups(next);
+		await tick();
+
+		// Same focus handling as `step`, keyed by the heading.
+		const direction = delta < 0 ? 'up' : 'down';
+		const opposite = delta < 0 ? 'down' : 'up';
+		const pressed = panelElement?.querySelector<HTMLButtonElement>(
+			`[data-move="${direction}"][data-section="${key}"]`
+		);
+		const fallback = panelElement?.querySelector<HTMLButtonElement>(
+			`[data-move="${opposite}"][data-section="${key}"]`
+		);
+		(pressed && !pressed.disabled ? pressed : fallback)?.focus();
+	}
+
+	function handleSectionDragStart(event: DragEvent, key: string) {
+		draggingSection = key;
+		if (event.dataTransfer) {
+			event.dataTransfer.effectAllowed = 'move';
+			event.dataTransfer.setData('text/plain', key);
+		}
+	}
+
+	/** A heading drops before or after a whole heading's block, never inside it. */
+	function handleSectionDragOver(event: DragEvent, key: string | null) {
+		if (!draggingSection || key === null || !movableSections.includes(key)) return;
+		event.preventDefault();
+		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+
+		const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		const position = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+		sectionDropTarget = { key, position };
+	}
+
+	function handleSectionDrop(event: DragEvent) {
+		if (!draggingSection) return;
+		event.preventDefault();
+		if (sectionDropTarget) {
+			const next = moveGroupTo(
+				groupOrder,
+				draggingSection,
+				sectionDropTarget.key,
+				sectionDropTarget.position
+			);
+			if (next !== groupOrder) onReorderGroups(next);
+		}
+		clearDrag();
 	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div bind:this={menuElement} class="relative" onfocusout={handleFocusOut} role="presentation">
-	<button
-		type="button"
-		onclick={() => (open = !open)}
-		class="btn-secondary summary-control"
-		aria-expanded={open}
-		aria-haspopup="true"
-	>
-		<Columns3Cog class="h-3.5 w-3.5" />
-		{common_columns()}
-		{#if listShortcuts}
-			{@const paused = listShortcuts.isPaused()}
-			<!-- Same key hint as the other controls in the summary row (`PaginationBar`). -->
-			<span
-				class="text-tertiary font-normal transition-opacity {paused ? 'opacity-40' : ''}"
-				title={paused ? common_shortcutsPausedInSearch() : undefined}>({columnsShortcut})</span
-			>
-		{/if}
-	</button>
-
-	{#if open}
-		<!--
-			Focusable but out of the tab order, so a mousedown on something that is not
-			focusable — a drag grip, row padding — moves focus here instead of nowhere.
-			Nowhere reads to `handleFocusOut` as leaving the menu, and closed it before
-			a drag could start.
-		-->
-		<div
-			bind:this={panelElement}
-			tabindex="-1"
-			class="card absolute left-0 z-30 mt-1 w-72 overflow-y-auto !rounded-lg !p-3 shadow-lg outline-none"
-			style:max-height={panelMaxHeight === null ? undefined : `${panelMaxHeight}px`}
+<button
+	type="button"
+	bind:this={trigger}
+	onclick={() => (open = !open)}
+	class="btn-secondary summary-control"
+	aria-expanded={open}
+	aria-haspopup="dialog"
+>
+	<Columns3Cog class="h-3.5 w-3.5" />
+	{common_columns()}
+	{#if listShortcuts}
+		{@const paused = listShortcuts.isPaused()}
+		<!-- Same key hint as the other controls in the summary row (`PaginationBar`). -->
+		<span
+			class="text-tertiary font-normal transition-opacity {paused ? 'opacity-40' : ''}"
+			title={paused ? common_shortcutsPausedInSearch() : undefined}>({columnsShortcut})</span
 		>
-			<div class="mb-2 flex items-center justify-between">
-				<span class="text-primary text-sm font-semibold">{common_columns()}</span>
-				<button
-					type="button"
-					onclick={onReset}
-					class="text-tertiary hover:text-secondary text-xs transition-colors"
-				>
-					{common_resetColumns()}
-				</button>
-			</div>
-			{#each sections as { section, columns: sectionColumns } (section)}
-				{@const movable = movableIds(order, sectionColumns)}
-				{#if section}
-					<div class="text-tertiary mb-1 mt-3 px-1 text-xs font-semibold uppercase tracking-wide">
-						{section}
+	{/if}
+</button>
+
+<Popover
+	triggerElement={trigger ?? null}
+	isOpen={open}
+	role="dialog"
+	ariaLabel={common_columns()}
+	align="start"
+	onClose={() => (open = false)}
+>
+	<div bind:this={panelElement} class="w-[17rem]">
+		<div class="mb-2 flex items-center justify-between">
+			<span class="text-primary text-sm font-semibold">{common_columns()}</span>
+			<button
+				type="button"
+				onclick={onReset}
+				class="text-tertiary hover:text-secondary text-xs transition-colors"
+			>
+				{common_resetColumns()}
+			</button>
+		</div>
+		{#each sections as { key, heading, columns: sectionColumns } (key)}
+			{@const movable = movableIds(order, sectionColumns)}
+			{@const sectionIndex = key === null ? -1 : movableSections.indexOf(key)}
+			{@const isSectionTarget =
+				key !== null && sectionDropTarget?.key === key && draggingSection !== key}
+			<div
+				class="rounded border-y-2 border-transparent {draggingSection !== null &&
+				draggingSection === key
+					? 'opacity-50'
+					: ''} {isSectionTarget && sectionDropTarget?.position === 'before'
+					? '!border-t-blue-500'
+					: ''} {isSectionTarget && sectionDropTarget?.position === 'after'
+					? '!border-b-blue-500'
+					: ''}"
+				role="presentation"
+				ondragover={(event) => handleSectionDragOver(event, key)}
+				ondrop={handleSectionDrop}
+			>
+				{#if key !== null && heading}
+					<!-- Flush left, with its columns indented beneath it. Dragging the heading, or its
+							arrows, moves every column under it. -->
+					<div
+						class="text-tertiary mt-2 flex items-center gap-1 pr-1 text-xs font-semibold uppercase tracking-wide"
+						draggable={sectionIndex !== -1}
+						ondragstart={(event) => handleSectionDragStart(event, key)}
+						ondragend={clearDrag}
+						role="presentation"
+					>
+						{#if sectionIndex !== -1}
+							<span
+								class="cursor-grab"
+								title={common_dragToReorderColumn({ column: heading })}
+								aria-hidden="true"
+							>
+								<GripVertical class="h-4 w-4" />
+							</span>
+						{/if}
+						<span class="min-w-0 flex-1 truncate">{heading}</span>
+						{#if sectionIndex !== -1}
+							<button
+								type="button"
+								data-move="up"
+								data-section={key}
+								onclick={() => stepSection(key, -1)}
+								disabled={sectionIndex <= 0}
+								aria-label={common_moveColumnUp({ column: heading })}
+								class="hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
+							>
+								<ChevronUp class="h-4 w-4" />
+							</button>
+							<button
+								type="button"
+								data-move="down"
+								data-section={key}
+								onclick={() => stepSection(key, 1)}
+								disabled={sectionIndex === movableSections.length - 1}
+								aria-label={common_moveColumnDown({ column: heading })}
+								class="hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
+							>
+								<ChevronDown class="h-4 w-4" />
+							</button>
+						{/if}
 					</div>
 				{/if}
-				<ul class="space-y-0.5">
+				<ul class="space-y-0.5 {key !== null ? 'pl-3' : ''}">
 					{#each sectionColumns as column (column.id)}
 						{@const canMove = isMovableColumn(column)}
 						{@const index = movable.indexOf(column.id)}
@@ -303,7 +380,7 @@
 						</li>
 					{/each}
 				</ul>
-			{/each}
-		</div>
-	{/if}
-</div>
+			</div>
+		{/each}
+	</div>
+</Popover>

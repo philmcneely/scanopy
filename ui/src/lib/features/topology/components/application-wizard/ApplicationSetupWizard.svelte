@@ -3,6 +3,7 @@
 	import DefineGroupsStep from './steps/DefineGroupsStep.svelte';
 	import AssignEntitiesStep from './steps/AssignEntitiesStep.svelte';
 	import type { Tag } from '$lib/features/tags/types/base';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		appWizard_title,
 		appWizard_complete,
@@ -21,9 +22,30 @@
 	} = $props();
 
 	let activeTab = $state<'define' | 'assign'>('define');
+
+	let actions = $derived<ModalAction[]>(
+		activeTab === 'define'
+			? [
+					{
+						role: 'primary',
+						label: common_next(),
+						onClick: () => (activeTab = 'assign'),
+						disabled: appTags.length === 0
+					}
+				]
+			: [
+					{
+						role: 'secondary',
+						label: common_back(),
+						onClick: () => (activeTab = 'define'),
+						align: 'start'
+					},
+					{ role: 'primary', label: appWizard_complete(), onClick: onComplete }
+				]
+	);
 </script>
 
-<TopologyOverlay title={appWizard_title()} size="xl" fixedHeight={true}>
+<TopologyOverlay title={appWizard_title()} size="xl" fixedHeight={true} {actions}>
 	<div class="flex min-h-0 flex-1 flex-col p-6">
 		{#if activeTab === 'define'}
 			<div class="overflow-y-auto">
@@ -33,32 +55,4 @@
 			<AssignEntitiesStep {appTags} {siteId} />
 		{/if}
 	</div>
-
-	{#snippet footer()}
-		<div class="modal-footer flex items-center justify-between">
-			<div>
-				{#if activeTab === 'assign'}
-					<button type="button" class="btn-secondary" onclick={() => (activeTab = 'define')}>
-						{common_back()}
-					</button>
-				{/if}
-			</div>
-			<div>
-				{#if activeTab === 'define'}
-					<button
-						type="button"
-						class="btn-primary"
-						disabled={appTags.length === 0}
-						onclick={() => (activeTab = 'assign')}
-					>
-						{common_next()}
-					</button>
-				{:else}
-					<button type="button" class="btn-primary" onclick={onComplete}>
-						{appWizard_complete()}
-					</button>
-				{/if}
-			</div>
-		</div>
-	{/snippet}
 </TopologyOverlay>

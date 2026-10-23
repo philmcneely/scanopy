@@ -63,7 +63,8 @@ fn format_uptime(duration: Duration) -> String {
 
 pub struct DaemonRuntimeService {
     pub config: Arc<ConfigStore>,
-    pub api_client: Arc<DaemonApiClient>,
+    /// `None` on a ServerPoll daemon, which the server collects from.
+    pub api_client: Option<Arc<DaemonApiClient>>,
     pub utils: PlatformDaemonUtils,
     pub discovery_manager: Arc<DaemonDiscoverySessionManager>,
 }
@@ -71,14 +72,22 @@ pub struct DaemonRuntimeService {
 impl DaemonRuntimeService {
     pub fn new(
         config_store: Arc<ConfigStore>,
+        api_client: Option<Arc<DaemonApiClient>>,
         discovery_manager: Arc<DaemonDiscoverySessionManager>,
     ) -> Self {
         Self {
-            config: config_store.clone(),
-            api_client: Arc::new(DaemonApiClient::new(config_store)),
+            config: config_store,
+            api_client,
             utils: create_system_utils(),
             discovery_manager,
         }
+    }
+
+    /// The client for a call only a DaemonPoll daemon makes.
+    fn server_client(&self) -> Result<&DaemonApiClient> {
+        self.api_client.as_deref().ok_or_else(|| {
+            anyhow::anyhow!("A ServerPoll daemon has no server URL; the server polls it instead")
+        })
     }
 
     /// Check if an error indicates the API key is no longer valid (rotated/revoked).
@@ -162,6 +171,9 @@ impl DaemonRuntimeService {
         running: Uuid,
         age: Duration,
     ) {
+        let Some(api_client) = &self.api_client else {
+            return;
+        };
         let (daemon_id, site_id) =
             match (self.config.get_id().await, self.config.get_site_id().await) {
                 (Ok(daemon_id), Ok(Some(site_id))) => (daemon_id, site_id),
@@ -186,8 +198,7 @@ impl DaemonRuntimeService {
         payload.reason = Some(DiscoveryTerminalReason::DaemonBusy);
 
         let path = format!("/api/v1/discovery/{}/update", request.session_id);
-        if let Err(e) = self
-            .api_client
+        if let Err(e) = api_client
             .post_no_data(
                 &path,
                 &payload,
@@ -205,6 +216,7 @@ impl DaemonRuntimeService {
     }
 
     pub async fn request_work(&self) -> Result<()> {
+        let api_client = self.server_client()?;
         let interval_secs = self.config.get_heartbeat_interval().await?;
         let interval = Duration::from_secs(interval_secs);
 
@@ -260,7 +272,7 @@ impl DaemonRuntimeService {
 
             // Use backon for retry with exponential backoff
             let result = (|| async {
-                self.api_client
+                api_client
                     .post::<_, (Option<DaemonDiscoveryRequest>, bool)>(
                         &path,
                         &status_payload,
@@ -417,6 +429,16 @@ impl DaemonRuntimeService {
         self.config.set_site_id(site_id).await?;
         self.config.set_api_key(api_key).await?;
 
+        // ServerPoll daemons don't announce or self-register: they're provisioned via the server
+        // UI and wait for the server to poll them.
+        if self.api_client.is_none() {
+            tracing::info!(
+                target: LOG_TARGET,
+                "  Status:          ServerPoll mode - skipping registration (daemon must be provisioned via server)"
+            );
+            return Ok(StartupOutcome::Ok);
+        }
+
         let mut daemon_id = self.config.get_id().await?;
 
         match self.announce_startup(daemon_id).await {
@@ -470,17 +492,6 @@ impl DaemonRuntimeService {
             }
         }
 
-        // ServerPoll daemons don't self-register - they're provisioned via the server UI
-        // and wait for the server to poll them
-        let mode = self.config.get_mode().await?;
-        if mode == crate::server::daemons::r#impl::base::DaemonMode::ServerPoll {
-            tracing::info!(
-                target: LOG_TARGET,
-                "  Status:          ServerPoll mode - skipping registration (daemon must be provisioned via server)"
-            );
-            return Ok(StartupOutcome::Ok);
-        }
-
         match self.register_with_server(daemon_id, site_id).await {
             Ok(()) => Ok(StartupOutcome::Ok),
             // Version rejection is terminal and gets its own outcome so the process
@@ -516,7 +527,8 @@ impl DaemonRuntimeService {
 
     /// Maximum number of registration retries (about 5 minutes with backoff)
     pub async fn register_with_server(&self, daemon_id: Uuid, site_id: Uuid) -> Result<()> {
-        let config = self.api_client.config();
+        let api_client = self.server_client()?;
+        let config = &self.config;
         let mode = config.get_mode().await?;
         let name = config.get_name().await?;
         let version = env!("CARGO_PKG_VERSION");
@@ -547,8 +559,7 @@ impl DaemonRuntimeService {
         tracing::info!(target: LOG_TARGET, "  Site ID:         {}", site_id);
         tracing::info!(target: LOG_TARGET, "  Version:         {}", version);
 
-        let result = self
-            .api_client
+        let result = api_client
             .post::<_, DaemonRegistrationResponse>(
                 "/api/daemons/register",
                 &registration_request,
@@ -561,7 +572,9 @@ impl DaemonRuntimeService {
                 tracing::info!(target: LOG_TARGET, "Registration successful");
                 if let Some(caps) = response.server_capabilities {
                     tracing::info!(target: LOG_TARGET, "  Server version:  {}", caps.server_version);
-                    tracing::info!(target: LOG_TARGET, "  Min daemon ver:  {}", caps.minimum_daemon_version);
+                    if let Some(v) = &caps.last_unsupported_daemon_version {
+                        tracing::info!(target: LOG_TARGET, "  Rejects daemons up to: {}", v);
+                    }
                     // Surface any deprecation/sunset warnings on the register path
                     // too — previously only the startup-announce path logged them,
                     // so a first-time-registering deprecated daemon saw nothing.
@@ -694,14 +707,16 @@ impl DaemonRuntimeService {
         };
 
         let result: Result<ServerCapabilities, _> = self
-            .api_client
+            .server_client()?
             .post(&path, &request, "Startup announcement failed")
             .await;
 
         match result {
             Ok(capabilities) => {
                 tracing::info!(target: LOG_TARGET, "  Server version:  {}", capabilities.server_version);
-                tracing::info!(target: LOG_TARGET, "  Min daemon ver:  {}", capabilities.minimum_daemon_version);
+                if let Some(v) = &capabilities.last_unsupported_daemon_version {
+                    tracing::info!(target: LOG_TARGET, "  Rejects daemons up to: {}", v);
+                }
 
                 // Log any deprecation warnings from the server
                 capabilities.log_warnings();

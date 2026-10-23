@@ -3,7 +3,9 @@ use std::net::{IpAddr, Ipv4Addr};
 use uuid::Uuid;
 
 use crate::server::shared::attribution::AttributeSource;
-use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+use crate::server::subnets::r#impl::base::{
+    SubnetCidr, SubnetCidrValue, SubnetName, SubnetTypeAttributed,
+};
 use crate::server::{
     bindings::r#impl::base::Binding,
     hosts::r#impl::{
@@ -42,7 +44,8 @@ pub fn create_site(organization_id: Uuid) -> Site {
 
 pub fn create_wan_subnet(site_id: Uuid) -> Subnet {
     let base = SubnetBase {
-        name: "Internet".to_string(),
+        vlan_ids: Vec::new(),
+        name: SubnetName::unattributed("Internet".to_string()),
         site_id,
         tags: Vec::new(),
         // Seeded by Scanopy on purpose, so it must never read as a guess to confirm.
@@ -58,7 +61,7 @@ cloud providers, or SaaS applications, that your site depends on but wouldn't \
 be found by scanning. Create ip_addresses on this subnet to include them in your topology."
                 .to_string(),
         ),
-        subnet_type: SubnetType::Internet,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Internet),
         virtualization_service_id: None,
         source: EntitySource::System,
     };
@@ -246,7 +249,8 @@ pub fn create_starter_tags(organization_id: Uuid, groups: &[TagGroup]) -> Vec<Ta
 
 pub fn create_remote_subnet(site_id: Uuid) -> Subnet {
     let base = SubnetBase {
-        name: "Remote Network".to_string(),
+        vlan_ids: Vec::new(),
+        name: SubnetName::unattributed("Remote Network".to_string()),
         site_id,
         tags: Vec::new(),
         // Seeded by Scanopy on purpose, so it must never read as a guess to confirm.
@@ -262,7 +266,7 @@ branch offices, VPN endpoints, or remote infrastructure. Create ip_addresses on 
 subnet to include them in your topology."
                 .to_string(),
         ),
-        subnet_type: SubnetType::Remote,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Remote),
         virtualization_service_id: None,
         source: EntitySource::System,
     };

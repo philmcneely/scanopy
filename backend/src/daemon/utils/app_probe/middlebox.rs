@@ -33,6 +33,9 @@ fn context_for(addr: SocketAddr) -> ProbeContext {
         is_gateway: false,
         cancel: CancellationToken::new(),
         scan_controller: ScanConcurrencyController::new(16),
+        probe_raw_socket_ports: true,
+        port_map: Default::default(),
+        tunnel: None,
     }
 }
 

@@ -3,6 +3,7 @@
 //! Unclaimed Open Ports holds the ports a scan found open with no service to give them to. A
 //! service that later claims one of them takes it, whether the service is new to the host or was
 //! stored by an earlier scan, so the placeholder never outranks a real owner (GH #784).
+use super::stale_ports::{overlaps, taken_claims};
 use super::*;
 
 /// A port binding as the (port, address) claim the conflict checks compare.
@@ -36,48 +37,45 @@ impl HostService {
         &self,
         claims: &[(Uuid, Option<Uuid>)],
         services: &mut [Service],
-        claimant: &str,
+        claimant: &Service,
         authentication: AuthenticatedEntity,
     ) {
-        let claimed = |b: &Binding| {
-            b.port_id().is_some_and(|port_id| {
-                let bind_iface = b.ip_address_id();
-                claims
-                    .iter()
-                    .any(|(cp, ci)| *cp == port_id && bindings_overlap(ci, &bind_iface))
-            })
+        let reason = DeletionReason::ServiceOpenPortsReclaimed {
+            to_service_id: claimant.id,
+            by: claimant.base.service_definition.clone(),
         };
-
         let Some(open_ports) = services
             .iter_mut()
             .find(|s| ServiceDefinitionExt::is_open_ports(&s.base.service_definition))
         else {
             return;
         };
+        let reclaimed = taken_claims(open_ports, claims);
+        if reclaimed.is_empty() {
+            return;
+        }
         let open_ports_id = open_ports.id;
-        open_ports.base.bindings.retain(|b| !claimed(b));
+        open_ports
+            .base
+            .bindings
+            .retain(|b| !claims.iter().any(|claim| overlaps(b, claim)));
         let remaining_bindings = open_ports.base.bindings.len();
 
+        // The taken bindings go first, so deleting the emptied service below reports none of them
+        // as deleted with it.
+        let _ = self
+            .service_service
+            .remove_port_bindings(
+                &open_ports_id,
+                &reclaimed,
+                authentication.clone(),
+                reason.clone(),
+            )
+            .await;
         if remaining_bindings == 0 {
-            tracing::info!(
-                service_name = %claimant,
-                reclaimed_ports = ?claims,
-                "Deleting Unclaimed Open Ports service after all ports reclaimed"
-            );
             let _ = self
                 .service_service
-                .delete(&open_ports_id, authentication)
-                .await;
-        } else {
-            tracing::info!(
-                service_name = %claimant,
-                reclaimed_ports = ?claims,
-                remaining_bindings,
-                "Reclaiming ports from Unclaimed Open Ports service"
-            );
-            let _ = self
-                .service_service
-                .remove_port_bindings(&open_ports_id, claims, authentication)
+                .delete(&open_ports_id, authentication, reason)
                 .await;
         }
     }

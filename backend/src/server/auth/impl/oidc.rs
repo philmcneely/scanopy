@@ -30,7 +30,6 @@ pub struct OidcPendingAuth {
 pub struct OidcRegisterParams<'a> {
     pub terms_accepted_at: Option<DateTime<Utc>>,
     pub deployment_type: DeploymentType,
-    pub billing_enabled: bool,
     pub provider_slug: &'a str,
     pub code: &'a str,
 }
@@ -96,6 +95,93 @@ impl OidcProviderConfig {
             name: self.name.clone(),
             slug: self.slug.clone(),
             logo: self.logo.clone(),
+        }
+    }
+
+    /// The configured logo, when it is an https URL or a path on this server such as
+    /// `/logos/identity-providers/authentik.svg`. Any other value is dropped with a warning
+    /// naming the provider, and its button renders without a logo.
+    pub fn servable_logo(&self) -> Option<String> {
+        let logo = self.logo.as_deref().filter(|l| !l.is_empty())?;
+        if is_servable_logo(logo) {
+            return Some(logo.to_string());
+        }
+        tracing::warn!(
+            provider = %self.slug,
+            logo = %logo,
+            "OIDC provider `{}` has logo `{logo}`, which is neither an https URL nor a path on \
+             this server such as /logos/identity-providers/authentik.svg. Showing its button \
+             without a logo.",
+            self.slug,
+        );
+        None
+    }
+}
+
+fn is_servable_logo(logo: &str) -> bool {
+    if logo.starts_with('/') {
+        // `//host/x` and `/\host/x` are protocol-relative: browsers fetch them from another host.
+        return !logo.starts_with("//") && !logo.contains('\\');
+    }
+    url::Url::parse(logo).is_ok_and(|url| url.scheme() == "https" && url.host_str().is_some())
+}
+
+/// Where Dashboard Icons serves its colored icons. Apache-2.0; its license ships with the server
+/// (`assets/dashboard-icons/LICENSE`).
+const DASHBOARD_ICONS: &str = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/";
+
+/// Identity provider logos bundled with the UI, so `oidc.toml` can point a provider's `logo` at
+/// `/logos/identity-providers/<id>.<ext>` and load it from this server. `generate-fixtures`
+/// downloads them beside the service logos.
+#[derive(Debug, Clone, Copy, strum::EnumIter, strum::IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
+pub enum IdentityProviderLogo {
+    Authelia,
+    Authentik,
+    Github,
+    Gitlab,
+    Google,
+    Kanidm,
+    Keycloak,
+    MicrosoftEntraId,
+    Okta,
+    PocketId,
+    Zitadel,
+}
+
+impl IdentityProviderLogo {
+    /// The provider's product name, for the docs' list of bundled logos.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Authelia => "Authelia",
+            Self::Authentik => "Authentik",
+            Self::Github => "GitHub",
+            Self::Gitlab => "GitLab",
+            Self::Google => "Google",
+            Self::Kanidm => "Kanidm",
+            Self::Keycloak => "Keycloak",
+            Self::MicrosoftEntraId => "Microsoft Entra ID",
+            Self::Okta => "Okta",
+            Self::PocketId => "Pocket ID",
+            Self::Zitadel => "Zitadel",
+        }
+    }
+
+    pub fn logo_url(&self) -> &'static str {
+        use const_format::concatcp;
+        match self {
+            Self::Authelia => concatcp!(DASHBOARD_ICONS, "svg/authelia.svg"),
+            Self::Authentik => concatcp!(DASHBOARD_ICONS, "svg/authentik.svg"),
+            Self::Github => concatcp!(DASHBOARD_ICONS, "svg/github.svg"),
+            Self::Gitlab => concatcp!(DASHBOARD_ICONS, "svg/gitlab.svg"),
+            Self::Google => concatcp!(DASHBOARD_ICONS, "svg/google.svg"),
+            Self::Kanidm => concatcp!(DASHBOARD_ICONS, "svg/kanidm.svg"),
+            Self::Keycloak => concatcp!(DASHBOARD_ICONS, "svg/keycloak.svg"),
+            Self::MicrosoftEntraId => concatcp!(DASHBOARD_ICONS, "svg/entra-id.svg"),
+            Self::Okta => concatcp!(DASHBOARD_ICONS, "svg/okta.svg"),
+            Self::PocketId => concatcp!(DASHBOARD_ICONS, "svg/pocket-id.svg"),
+            // jsDelivr refuses the SVG; the PNG is the same icon.
+            Self::Zitadel => concatcp!(DASHBOARD_ICONS, "png/zitadel.png"),
         }
     }
 }
@@ -581,6 +667,48 @@ mod tests {
                 providers[0].trusted_audiences,
                 vec!["project-1".to_string()]
             );
+        }
+    }
+
+    fn servable_logo(logo: &str) -> Option<String> {
+        let toml = format!(
+            r#"
+            [[oidc_providers]]
+            name = "Authentik"
+            slug = "authentik"
+            logo = '{logo}'
+            issuer_url = "https://auth.example.com"
+            client_id = "id"
+            client_secret = "secret"
+        "#
+        );
+        parse_toml(&toml)[0].servable_logo()
+    }
+
+    #[test]
+    fn https_urls_and_paths_on_this_server_are_kept() {
+        for logo in [
+            "https://cdn.example.com/authentik.svg",
+            "/logos/identity-providers/authentik.svg",
+            "/logos/custom/acme logo.png",
+        ] {
+            assert_eq!(servable_logo(logo).as_deref(), Some(logo));
+        }
+    }
+
+    #[test]
+    fn logos_from_other_hosts_or_schemes_are_dropped() {
+        for logo in [
+            "http://cdn.example.com/authentik.svg",
+            "//cdn.example.com/authentik.svg",
+            "/\\cdn.example.com/authentik.svg",
+            "javascript:alert(1)",
+            "data:image/svg+xml;base64,PHN2Zy8+",
+            "logos/authentik.svg",
+            "ftp://cdn.example.com/authentik.svg",
+            "",
+        ] {
+            assert_eq!(servable_logo(logo), None, "{logo}");
         }
     }
 }

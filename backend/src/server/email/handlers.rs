@@ -14,6 +14,7 @@ use super::feedback::FeedbackError;
 use super::messages::{EmailCategory, links};
 use crate::server::config::AppState;
 use crate::server::openapi::tags as api_tags;
+use crate::server::shared::events::types::UpdateReason;
 use crate::server::shared::types::ErrorCode;
 use crate::server::shared::types::api::{
     ApiError, ApiErrorResponse, ApiResponse, ApiResult, EmptyApiResponse,
@@ -67,18 +68,15 @@ pub(crate) async fn unsubscribe(
 
     let user_service = &state.services.user_service;
     if let Some(user) = user_service.get_by_unsubscribe_token(&token).await? {
-        let user_id = user.id;
-        let changed = user_service
-            .update_email_settings(user, |settings| {
-                settings.set(category, false).unwrap_or(false)
-            })
+        user_service
+            .update_email_settings(
+                user,
+                UpdateReason::UserUnsubscribed {
+                    category: category.id().to_string(),
+                },
+                |settings| settings.set(category, false).unwrap_or(false),
+            )
             .await?;
-        tracing::info!(
-            %user_id,
-            category = category.id(),
-            changed,
-            "One-click unsubscribe"
-        );
     }
     Ok(Json(ApiResponse::success(())))
 }

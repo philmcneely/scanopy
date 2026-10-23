@@ -11,6 +11,7 @@ use crate::server::{
     discovery::r#impl::types::DiscoveryType,
     shared::{
         events::{
+            log::EventLog,
             registry::to_snake_case,
             traits::{
                 Attribution, AuthScope, DiscoveryScope, EntityEventFilter, EntityEventFlags,
@@ -31,12 +32,25 @@ impl Operation for BillingOperation {
     type Scope = OrgScope;
     type Flags = EventFlags;
     type Filter = EventFilter<BillingOperation>;
+    /// `Error` for an invoice Stripe could not finalize: nothing was sent, and the customer gets
+    /// no licence period until someone fixes the billing details.
     fn log_level(&self) -> EventLogLevel {
-        EventLogLevel::Info
+        match self {
+            BillingOperation::InvoiceFinalizationFailed { .. } => EventLogLevel::Error,
+            _ => EventLogLevel::Info,
+        }
     }
 
     fn event_name(&self, _scope: &OrgScope) -> Cow<'static, str> {
         self.to_string().into()
+    }
+
+    /// The Stripe ids kept out of PostHog, on a line at the event's level.
+    fn log(&self, _scope: &OrgScope) -> EventLog {
+        match self.describe_log_only_fields() {
+            Some(detail) => EventLog::default().with_line(self.log_level(), detail),
+            None => EventLog::default(),
+        }
     }
 }
 
@@ -101,6 +115,16 @@ impl Operation for AuthOperation {
     fn attribution(&self, scope: &AuthScope) -> Attribution {
         scope.user_id.map_or(Attribution::Actor, Attribution::User)
     }
+
+    /// A failed login says why on a line of its own, at the event's level.
+    fn log(&self, _scope: &AuthScope) -> EventLog {
+        match self {
+            AuthOperation::LoginFailed { reason, .. } if !reason.is_empty() => {
+                EventLog::default().with_line(self.log_level(), format!("Login failed: {reason}"))
+            }
+            _ => EventLog::default(),
+        }
+    }
 }
 
 /// Entity events send the entity's id, never the entity.
@@ -132,9 +156,27 @@ impl Operation for EntityOperation {
     fn log_color(&self) -> LabelColor {
         match self {
             EntityOperation::Created => LabelColor::Green,
-            EntityOperation::Updated => LabelColor::Blue,
-            EntityOperation::Deleted => LabelColor::Red,
+            EntityOperation::Updated { .. } => LabelColor::Blue,
+            EntityOperation::Deleted { .. } => LabelColor::Red,
             EntityOperation::Get | EntityOperation::GetAll => LabelColor::Neutral,
+        }
+    }
+
+    /// The whole entity; a delete adds a line saying what went and why. An update's log is the
+    /// entity's [`EntityLog`](super::log::EntityLog), set by the CRUD layer, which has both
+    /// versions.
+    fn log(&self, scope: &EntityScope) -> EventLog {
+        match self {
+            EntityOperation::Deleted { reason } => EventLog::default().with_line(
+                reason.log_level(),
+                format!(
+                    "{} {} deleted: {}",
+                    scope.entity_discriminant(),
+                    scope.entity_id(),
+                    reason.describe()
+                ),
+            ),
+            _ => EventLog::default(),
         }
     }
 
@@ -209,6 +251,7 @@ pub type EntityDiscriminant = EntityOperationDiscriminants;
 pub(crate) mod tests {
     use super::*;
     use crate::daemon::discovery::types::warnings::DiscoveryWarning;
+    use crate::server::billing::plans::get_commercial_self_hosted_plan;
     use crate::server::{
         auth::middleware::auth::AuthenticatedEntity,
         digest::payload::{DiscoveryDigestOperation, DiscoveryDigestPayload, DiscoveryDigestScope},
@@ -234,7 +277,7 @@ pub(crate) mod tests {
         pub properties: EventProperties<Value>,
     }
 
-    fn sample<Op: Operation>(event: Event<Op>, organization_id: Uuid) -> Sample {
+    pub(crate) fn sample<Op: Operation>(event: Event<Op>, organization_id: Uuid) -> Sample {
         Sample {
             name: event.name().into_owned(),
             attribution: event.attribution(),
@@ -252,6 +295,7 @@ pub(crate) mod tests {
         let daemon_id = Uuid::new_v4();
         let system = || AuthenticatedEntity::System;
         let warning = DiscoveryWarning::InterfaceSetCutShort {
+            credential_id: None,
             address: "192.0.2.1".parse().expect("address"),
             collected: 3,
         };
@@ -265,7 +309,10 @@ pub(crate) mod tests {
                         entity_id: organization_id,
                         entity_type: examples::organization().into(),
                     },
-                    EntityOperation::Deleted,
+                    EntityOperation::Deleted {
+                        reason:
+                            crate::server::shared::events::types::DeletionReason::EntityRequested,
+                    },
                     system(),
                 ),
                 organization_id,
@@ -302,7 +349,8 @@ pub(crate) mod tests {
                 Event::new(
                     OrgScope { organization_id },
                     BillingOperation::LicenseActivated {
-                        server_version: Some("0.17.20".to_string()),
+                        plan: Some(get_commercial_self_hosted_plan()),
+                        server_version: Some(semver::Version::new(0, 17, 20)),
                     },
                     system(),
                 ),
@@ -336,6 +384,8 @@ pub(crate) mod tests {
                         discovery_type: DiscoveryType::default(),
                         error_reason: None,
                         reason: None,
+                        last_update_at: None,
+                        previous_phase: None,
                     },
                     DiscoveryPhase::Complete,
                     system(),
@@ -455,6 +505,8 @@ pub(crate) mod tests {
             discovery_type: DiscoveryType::default(),
             error_reason: None,
             reason: None,
+            last_update_at: None,
+            previous_phase: None,
         };
         let names: std::collections::HashSet<_> = DiscoveryPhase::iter()
             .map(|phase| phase.event_name(&scope))

@@ -1,6 +1,7 @@
 //! Subnets
 
 use super::*;
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 
 pub(super) fn generate_subnets(
     sites: &[Site],
@@ -27,6 +28,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 1, 0), 24).unwrap(),
@@ -34,9 +36,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: hq.id,
-                name: "HQ Management".to_string(),
+                name: SubnetName::unattributed("HQ Management".to_string()),
                 description: Some("Network management and monitoring".to_string()),
-                subnet_type: SubnetType::Management,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Management),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -53,6 +55,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 10, 0), 24).unwrap(),
@@ -60,9 +63,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: hq.id,
-                name: "HQ Office LAN".to_string(),
+                name: SubnetName::unattributed("HQ Office LAN".to_string()),
                 description: Some("Office workstations".to_string()),
-                subnet_type: SubnetType::Lan,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -79,6 +82,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 20, 0), 24).unwrap(),
@@ -86,9 +90,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: hq.id,
-                name: "HQ Servers".to_string(),
+                name: SubnetName::unattributed("HQ Servers".to_string()),
                 description: Some("On-premises servers and hypervisors".to_string()),
-                subnet_type: SubnetType::Lan,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -105,6 +109,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 40, 0), 24).unwrap(),
@@ -112,9 +117,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: hq.id,
-                name: "HQ Storage".to_string(),
+                name: SubnetName::unattributed("HQ Storage".to_string()),
                 description: Some("Storage area network".to_string()),
-                subnet_type: SubnetType::Storage,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Storage),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -131,6 +136,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 30, 0), 24).unwrap(),
@@ -138,9 +144,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: hq.id,
-                name: "HQ IoT".to_string(),
+                name: SubnetName::unattributed("HQ IoT".to_string()),
                 description: Some("Smart office devices".to_string()),
-                subnet_type: SubnetType::IoT,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::IoT),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -157,6 +163,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 17, 0, 0), 16).unwrap(),
@@ -164,9 +171,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: hq.id,
-                name: "HQ Docker Bridge".to_string(),
+                name: SubnetName::unattributed("HQ Docker Bridge".to_string()),
                 description: Some("Docker container network".to_string()),
-                subnet_type: SubnetType::DockerBridge,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::DockerBridge),
                 virtualization_service_id: Some(docker_hq_svc_id),
                 source: EntitySource::Discovery,
                 tags: vec![],
@@ -183,6 +190,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 100, 0), 24).unwrap(),
@@ -190,9 +198,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: hq.id,
-                name: "HQ Guest WiFi".to_string(),
+                name: SubnetName::unattributed("HQ Guest WiFi".to_string()),
                 description: Some("Guest wireless network".to_string()),
-                subnet_type: SubnetType::Guest,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Guest),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -214,6 +222,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 50, 0), 24).unwrap(),
@@ -221,11 +230,11 @@ pub(super) fn generate_subnets(
                     AttributeSource::LldpNeighbourAddress,
                 ),
                 site_id: hq.id,
-                name: "HQ Annex".to_string(),
+                name: SubnetName::unattributed("HQ Annex".to_string()),
                 description: Some(
                     "Recently added office annex, not yet scanned directly".to_string(),
                 ),
-                subnet_type: SubnetType::Lan,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
                 virtualization_service_id: None,
                 source: EntitySource::Inferred,
                 tags: vec![],
@@ -244,6 +253,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 0, 0), 16).unwrap(),
@@ -251,9 +261,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::Manual,
                 ),
                 site_id: hq.id,
-                name: "HQ Address Space".to_string(),
+                name: SubnetName::unattributed("HQ Address Space".to_string()),
                 description: Some("Block allocated to headquarters".to_string()),
-                subnet_type: SubnetType::Lan,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -271,6 +281,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 16, 0, 0), 24).unwrap(),
@@ -278,9 +289,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: dc.id,
-                name: "DC Management".to_string(),
+                name: SubnetName::unattributed("DC Management".to_string()),
                 description: Some("Data center management network".to_string()),
-                subnet_type: SubnetType::Management,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Management),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -297,6 +308,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 16, 10, 0), 24).unwrap(),
@@ -304,9 +316,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: dc.id,
-                name: "DC Compute".to_string(),
+                name: SubnetName::unattributed("DC Compute".to_string()),
                 description: Some("Compute and hypervisor hosts".to_string()),
-                subnet_type: SubnetType::Lan,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -323,6 +335,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 16, 20, 0), 24).unwrap(),
@@ -330,9 +343,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: dc.id,
-                name: "DC Storage".to_string(),
+                name: SubnetName::unattributed("DC Storage".to_string()),
                 description: Some("Storage network".to_string()),
-                subnet_type: SubnetType::Storage,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Storage),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -349,6 +362,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 16, 30, 0), 24).unwrap(),
@@ -356,9 +370,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: dc.id,
-                name: "DC DMZ".to_string(),
+                name: SubnetName::unattributed("DC DMZ".to_string()),
                 description: Some("Demilitarized zone for public-facing services".to_string()),
-                subnet_type: SubnetType::Dmz,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Dmz),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -375,6 +389,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(172, 18, 0, 0), 16).unwrap(),
@@ -382,9 +397,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: dc.id,
-                name: "DC Docker Bridge".to_string(),
+                name: SubnetName::unattributed("DC Docker Bridge".to_string()),
                 description: Some("Docker container network".to_string()),
-                subnet_type: SubnetType::DockerBridge,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::DockerBridge),
                 virtualization_service_id: Some(docker_dc_svc_id),
                 source: EntitySource::Discovery,
                 tags: vec![],
@@ -401,6 +416,7 @@ pub(super) fn generate_subnets(
             created_at: now,
             updated_at: now,
             base: SubnetBase {
+                vlan_ids: Vec::new(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 8, 0, 0), 24).unwrap(),
@@ -408,9 +424,9 @@ pub(super) fn generate_subnets(
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id: dc.id,
-                name: "DC VPN Tunnel".to_string(),
+                name: SubnetName::unattributed("DC VPN Tunnel".to_string()),
                 description: Some("VPN tunnel to headquarters".to_string()),
-                subnet_type: SubnetType::VpnTunnel,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::VpnTunnel),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],

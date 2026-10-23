@@ -362,6 +362,49 @@ impl EntityDiscriminants {
             | EntityDiscriminants::Snapshot => None,
         }
     }
+
+    /// What the topology draws as this entity's glyph, and so its shape: a device is a square tile
+    /// in its host's device-role colour, software a round frame around its logo, a port a one-line
+    /// row. `None` keeps the entity's plain icon. One rule for every view.
+    pub fn glyph(&self) -> Option<EntityGlyph> {
+        match self {
+            // An address stands for a place on its host's machine, so it wears that machine's role.
+            EntityDiscriminants::Host | EntityDiscriminants::IPAddress => Some(EntityGlyph::Device),
+            EntityDiscriminants::Service => Some(EntityGlyph::Software),
+            // A switch port is one of many on its device, so it draws as a row in the device's box.
+            EntityDiscriminants::Interface => Some(EntityGlyph::Port),
+            EntityDiscriminants::Port
+            | EntityDiscriminants::Binding
+            | EntityDiscriminants::Organization
+            | EntityDiscriminants::Site
+            | EntityDiscriminants::User
+            | EntityDiscriminants::Invite
+            | EntityDiscriminants::Share
+            | EntityDiscriminants::Tag
+            | EntityDiscriminants::TagGroup
+            | EntityDiscriminants::DaemonApiKey
+            | EntityDiscriminants::UserApiKey
+            | EntityDiscriminants::Daemon
+            | EntityDiscriminants::Discovery
+            | EntityDiscriminants::Credential
+            | EntityDiscriminants::Subnet
+            | EntityDiscriminants::Vlan
+            | EntityDiscriminants::Dependency
+            | EntityDiscriminants::Topology
+            | EntityDiscriminants::Snapshot => None,
+        }
+    }
+}
+
+/// The kind of glyph an entity is drawn with in the topology. See [`EntityDiscriminants::glyph`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub enum EntityGlyph {
+    /// A machine: its host's device type.
+    Device,
+    /// Software: its service definition's logo.
+    Software,
+    /// A network port: a one-line row of its icon, name and status.
+    Port,
 }
 
 impl EntityMetadataProvider for EntityDiscriminants {
@@ -459,6 +502,9 @@ impl TypeMetadataProvider for EntityDiscriminants {
             "drawn_in_topology".to_string(),
             serde_json::json!(self.drawn_in_topology()),
         );
+        if let Some(glyph) = self.glyph() {
+            m.insert("glyph".to_string(), serde_json::json!(glyph));
+        }
         m.insert(
             "entity_name_singular".to_string(),
             serde_json::json!(self.entity_name_singular()),
@@ -468,6 +514,10 @@ impl TypeMetadataProvider for EntityDiscriminants {
             serde_json::json!(self.entity_name_plural()),
         );
         m.insert("fields".to_string(), serde_json::json!(self.fields()));
+        m.insert(
+            "table_columns".to_string(),
+            serde_json::json!(self.table_columns()),
+        );
         m.insert(
             "display_fields".to_string(),
             serde_json::json!(self.display_fields()),

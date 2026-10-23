@@ -70,6 +70,46 @@ pub struct Tables {
     /// A second bridge table served in a named SNMP context, through a proxied back-end agent.
     /// Only `switch-cisco-01`, which is what GH #686 is about.
     pub context_bridge: Option<mibs::BridgeTable>,
+    /// How the shim in front of the agent treats whole subtrees of these tables, for devices
+    /// whose fault is not confined to one table.
+    pub faults: AgentFaults,
+}
+
+/// Requests `snmp-bulk-refuser.py` drops or refuses in front of a device, by subtree.
+///
+/// The per-table faults live with their table (`LldpTable::neighbours_refuse_getbulk`,
+/// `LldpTable::column_goes_silent`). These are the device-wide ones: an agent, or a firewall on
+/// the path to it, that treats every table the same way while the system group still answers.
+#[derive(Debug, Clone, Default)]
+pub struct AgentFaults {
+    /// GETBULK under these is dropped; GETNEXT and GET answer (`--refuse`).
+    pub refuse_getbulk: Vec<&'static str>,
+    /// Every request under these is dropped (`--silence`).
+    pub silence: Vec<&'static str>,
+    /// Every request under these is answered with `error_status` and its varbinds echoed
+    /// (`--reject`).
+    pub reject: Vec<&'static str>,
+    pub error_status: u32,
+}
+
+impl AgentFaults {
+    /// Every table subtree the daemon reads, leaving the system group answering. The shape of a
+    /// device that answers the probe's `sysDescr` and nothing after it.
+    pub fn every_table() -> Vec<&'static str> {
+        vec![
+            lldp_oids::LLDP_MIB,
+            crate::daemon::discovery::integration::snmp::oids::lldp_v2::LLDP_V2_MIB,
+            if_mib::IF_TABLE,
+            if_mib::IF_NUMBER_OBJECT,
+            if_mib::if_x_table::IF_X_TABLE,
+            ip_mib::IP_ADDR_TABLE,
+            arp::IP_NET_TO_MEDIA_TABLE,
+            bridge::BRIDGE_MIB,
+            entity::ENTITY_MIB,
+            cdp::CDP_MIB,
+            crate::daemon::discovery::integration::snmp::oids::vlan::cisco_vtp::VTP_VLAN_NAME,
+        ]
+    }
 }
 
 /// A simulated device: everything the deployment and the tests need, in one value.
@@ -142,6 +182,16 @@ impl SimDevice {
             .contains(&ip_mib::ip_addr_entry::IP_AD_ENT_ADDR)
     }
 
+    /// Whether the shim in front of this device keeps every `ipAddrTable` read from reaching the
+    /// agent, so the table it serves never arrives.
+    fn hides_ip_addr_table(&self) -> bool {
+        let table = oid_parts(ip_mib::IP_ADDR_TABLE);
+        self.silenced()
+            .iter()
+            .chain(self.rejected().iter())
+            .any(|prefix| table.starts_with(prefix))
+    }
+
     /// Subtrees this device refuses a GETBULK for, as `snmp-bulk-refuser.py` is configured.
     ///
     /// Empty for every device but the one that needs it, and empty means no shim: the agent binds
@@ -151,8 +201,16 @@ impl SimDevice {
             .lldp
             .as_ref()
             .filter(|table| table.neighbours_refuse_getbulk)
-            .map(|table| vec![oid_parts(table.mib.remote_root)])
-            .unwrap_or_default()
+            .map(|table| oid_parts(table.mib.remote_root))
+            .into_iter()
+            .chain(
+                self.tables
+                    .faults
+                    .refuse_getbulk
+                    .iter()
+                    .map(|o| oid_parts(o)),
+            )
+            .collect()
     }
 
     /// Subtrees this device answers nothing for, as `snmp-bulk-refuser.py --silence` is configured.
@@ -161,8 +219,21 @@ impl SimDevice {
             .lldp
             .as_ref()
             .and_then(|table| table.silent_column.map(|column| column(&table.mib.remote)))
-            .map(|oid| vec![oid_parts(oid)])
-            .unwrap_or_default()
+            .map(oid_parts)
+            .into_iter()
+            .chain(self.tables.faults.silence.iter().map(|o| oid_parts(o)))
+            .collect()
+    }
+
+    /// Subtrees this device answers with an error status, as `snmp-bulk-refuser.py --reject` is
+    /// configured.
+    pub fn rejected(&self) -> Vec<Vec<u64>> {
+        self.tables
+            .faults
+            .reject
+            .iter()
+            .map(|o| oid_parts(o))
+            .collect()
     }
 
     /// The `pass` data files this device serves, in a fixed order that the registrations index
@@ -471,7 +542,8 @@ impl SimDevice {
         let agent = SimAgent::new(&self.data_files(), self.registrations())
             .refusing_getbulk(self.refuses_getbulk())
             .silent_on(self.silenced())
-            .rejecting_getbulk_above(self.rejects_getbulk);
+            .rejecting_getbulk_above(self.rejects_getbulk)
+            .erroring_on(self.rejected(), self.tables.faults.error_status);
         match self.credential {
             CredentialType::SnmpV1 { .. } => agent.without_getbulk(),
             _ => agent,
@@ -603,7 +675,7 @@ mod tests {
                     device.name
                 );
             }
-            if device.suppresses_ip_addr_table() {
+            if device.suppresses_ip_addr_table() || device.hides_ip_addr_table() {
                 assert!(
                     scan.ip_addr_table.is_empty(),
                     "{} deliberately suppresses ipAddrTable but still reported one",

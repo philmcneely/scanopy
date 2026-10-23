@@ -49,6 +49,12 @@ pub struct MappedDevice {
     /// Management IP, kept separately because the caller matches it against the scanned IP to
     /// decide which device *is* the controller host.
     pub ip: IpAddr,
+    /// A gateway's addresses on the networks it routes, beyond its management address. Filled
+    /// after mapping, from the controller's networks (`networks::gateway_interfaces`).
+    pub gateway_addresses: Vec<IPAddress>,
+    /// Whether every port's VLAN membership was read from the controller's port configuration.
+    /// Set after mapping (`ports::apply`).
+    pub vlan_membership_complete: bool,
 }
 
 /// Translate a `stat/device` payload.
@@ -129,6 +135,8 @@ fn map_device(
         interfaces: map_interfaces(device, site_id, device_mac.as_deref(), by_mac),
         device_type: device.device_type.clone().filter(|t| !t.trim().is_empty()),
         ip,
+        gateway_addresses: Vec::new(),
+        vlan_membership_complete: false,
     })
 }
 
@@ -407,6 +415,7 @@ mod tests {
     use crate::server::shared::types::entities::EntitySource;
     use crate::server::subnets::r#impl::base::SubnetBase;
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::subnets::r#impl::types::SubnetType;
 
     // ------------------------------------------------------------------------------------
@@ -439,13 +448,13 @@ mod tests {
     fn test_subnets(site_id: Uuid) -> Vec<Subnet> {
         vec![Subnet {
             base: SubnetBase {
-                name: "Test".to_string(),
+                name: SubnetName::unattributed("Test".to_string()),
                 site_id,
                 cidr: SubnetCidr::new(
                     SubnetCidrValue("192.168.20.0/24".parse().expect("valid CIDR")),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type: SubnetType::Lan,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
                 source: EntitySource::System,
                 ..Default::default()
             },
@@ -462,13 +471,13 @@ mod tests {
     fn subnets_with_catch_alls(site_id: Uuid) -> Vec<Subnet> {
         let catch_all = |name: &str| Subnet {
             base: SubnetBase {
-                name: name.to_string(),
+                name: SubnetName::unattributed(name.to_string()),
                 site_id,
                 cidr: SubnetCidr::new(
                     SubnetCidrValue("0.0.0.0/0".parse().expect("valid CIDR")),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type: SubnetType::Internet,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Internet),
                 source: EntitySource::System,
                 ..Default::default()
             },

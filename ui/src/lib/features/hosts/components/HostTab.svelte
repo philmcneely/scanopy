@@ -15,7 +15,7 @@
 	import HostExportModal from './HostExportModal.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { hostColumns } from './HostTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import { Trash2, RefreshCw, Replace, Edit } from 'lucide-svelte';
@@ -25,18 +25,22 @@
 	import type { TabProps } from '$lib/shared/types';
 	import {
 		common_confirmDeleteName,
+		common_confirmDeleteNameWithGuests,
 		common_consolidate,
 		common_create,
 		common_delete,
 		common_edit,
 		common_hosts,
 		common_confirmBulkDelete,
+		common_confirmBulkDeleteWithGuests,
 		common_noEntityYet,
 		common_rescan,
-		daemons_installPromptHosts
+		daemons_installPromptHosts,
+		hosts_rescanNoAddresses,
+		hosts_rescanNoAddressesBulk
 	} from '$lib/paraglide/messages';
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 	import { missingRootIds } from '../virtualization-tree';
 	import {
 		useHostsQuery,
@@ -46,10 +50,12 @@
 		useDeleteHostMutation,
 		useBulkDeleteHostsMutation,
 		useConsolidateHostsMutation,
+		useBulkRescanHostsMutation,
 		useRescanHostMutation,
 		type HostQueryOptions
 	} from '../queries';
 	import { useServicesByIds, useServicesCacheQuery } from '$lib/features/services/queries';
+	import { virtualizedSummaryOnHosts } from '$lib/features/services/virtualized-count';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { useIPAddressesQuery } from '$lib/features/ip-addresses/queries';
 	import { usePortsQuery } from '$lib/features/ports/queries';
@@ -122,15 +128,55 @@
 	// loaded page would only offer the values on it, and the fixtures and caches would offer values
 	// no host holds. None of these takes the tab's active filters, so the options do not shrink as
 	// the user filters.
-	const siteValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'site_id');
-	const virtualizedByValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'virtualized_by');
-	const sourceValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'source');
-	const osFamilyValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'os_family');
-	const manufacturerValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'manufacturer');
-	const modelValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'model');
-	const sysLocationValuesQuery = useFieldValuesQuery(HOST_FIELD_VALUES, 'sys_location');
+	const siteValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'site_id',
+		undefined,
+		() => isActive
+	);
+	const virtualizedByValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'virtualized_by',
+		undefined,
+		() => isActive
+	);
+	const sourceValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'source',
+		undefined,
+		() => isActive
+	);
+	const osFamilyValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'os_family',
+		undefined,
+		() => isActive
+	);
+	const manufacturerValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'manufacturer',
+		undefined,
+		() => isActive
+	);
+	const modelValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'model',
+		undefined,
+		() => isActive
+	);
+	const sysLocationValuesQuery = useFieldValuesQuery(
+		HOST_FIELD_VALUES,
+		'sys_location',
+		undefined,
+		() => isActive
+	);
 	// Every service belongs to a host, so the services' names are the names some host runs.
-	const serviceNameValuesQuery = useFieldValuesQuery(SERVICE_FIELD_VALUES, 'name');
+	const serviceNameValuesQuery = useFieldValuesQuery(
+		SERVICE_FIELD_VALUES,
+		'name',
+		undefined,
+		() => isActive
+	);
 
 	// Selective service lookup - only fetches services needed for virtualization display
 	// Extract service IDs from visible hosts for "Virtualized By" field
@@ -165,6 +211,7 @@
 	const bulkDeleteHostsMutation = useBulkDeleteHostsMutation();
 	const consolidateHostsMutation = useConsolidateHostsMutation();
 	const rescanHostMutation = useRescanHostMutation();
+	const bulkRescanHostsMutation = useBulkRescanHostsMutation();
 
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
@@ -300,19 +347,27 @@
 		if (isReadOnly) return [];
 
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEditHost(host) },
-			// A rescan targets the host's known addresses, so a host with none has nothing to
-			// scan and the endpoint answers 400. Offering the action anyway meant the only way to
-			// find that out was to trigger it and read the error toast. Devices identified purely
-			// by a MAC are the reason such a host exists at all.
-			...(hostIPAddresses(host).length > 0
-				? [{ label: common_rescan(), icon: RefreshCw, onClick: () => handleRescanHost(host) }]
-				: []),
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditHost(host) },
+			// A rescan targets the host's known addresses, so a host with none (a device identified
+			// purely by a MAC) has nothing to scan, and the endpoint answers 400.
+			{
+				label: common_rescan(),
+				icon: RefreshCw,
+				onClick: () => handleRescanHost(host),
+				onBulk: handleBulkRescan,
+				unavailable: disabledWhen(
+					hostIPAddresses(host).length === 0,
+					hosts_rescanNoAddresses(),
+					hosts_rescanNoAddressesBulk()
+				)
+			},
 			{ label: common_consolidate(), icon: Replace, onClick: () => handleStartConsolidate(host) },
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteHost(host)
 			}
 		];
@@ -332,8 +387,18 @@
 		rescanHostMutation.mutate({ id: host.id, name: hostDisplayName(host) });
 	}
 
-	function handleDeleteHost(host: Host) {
-		if (confirm(common_confirmDeleteName({ name: hostDisplayName(host) }))) {
+	async function handleBulkRescan(ids: string[]) {
+		await bulkRescanHostsMutation.mutateAsync(ids);
+	}
+
+	async function handleDeleteHost(host: Host) {
+		// Deleting a hypervisor's or runtime's host deletes what it runs, so the question says how much.
+		const guests = await virtualizedSummaryOnHosts([host.id]);
+		const name = hostDisplayName(host);
+		const question = guests
+			? common_confirmDeleteNameWithGuests({ name, guests })
+			: common_confirmDeleteName({ name });
+		if (confirm(question)) {
 			deleteHostMutation.mutate(host.id);
 		}
 	}
@@ -373,7 +438,11 @@
 	}
 
 	async function handleBulkDelete(ids: string[]) {
-		if (confirm(common_confirmBulkDelete({ count: ids.length, entity: common_hosts() }))) {
+		const guests = await virtualizedSummaryOnHosts(ids);
+		const question = guests
+			? common_confirmBulkDeleteWithGuests({ count: ids.length, entity: common_hosts(), guests })
+			: common_confirmBulkDelete({ count: ids.length, entity: common_hosts() });
+		if (confirm(question)) {
 			await bulkDeleteHostsMutation.mutateAsync(ids);
 		}
 	}
@@ -447,7 +516,6 @@
 			fields={hostFields}
 			storageKey="scanopy-hosts-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			entityType="Host"
 			canEditTags={!isReadOnly}
 			getItemTags={getHostTags}

@@ -45,20 +45,11 @@ impl DaemonService {
             .into_iter()
             .map(|daemon| {
                 let sem = self.poll_semaphore.clone();
-                let daemon_id = daemon.id;
-                let daemon_name = daemon.base.name.clone();
                 async move {
                     let _permit = sem.acquire().await.expect("Semaphore closed");
-                    // poll_daemon handles retries internally via backon
-                    // Errors are logged inside poll_daemon, but log unexpected ones here too
-                    if let Err(e) = self.poll_daemon(&daemon, email_service).await {
-                        tracing::debug!(
-                            daemon_id = %daemon_id,
-                            daemon_name = %daemon_name,
-                            error = %e,
-                            "Poll cycle failed for daemon"
-                        );
-                    }
+                    // poll_daemon handles retries internally via backon, and every failure it
+                    // returns is already logged or on the daemon's unreachable event.
+                    let _ = self.poll_daemon(&daemon, email_service).await;
                 }
             })
             .collect();
@@ -78,11 +69,14 @@ impl DaemonService {
         Ok(reachable_server_poll_daemons)
     }
 
-    /// Mark a daemon as unreachable in the database and send notification
+    /// Mark a daemon as unreachable in the database and send notification. `error` is why the
+    /// poll gave up; `rejected_by_daemon` when the daemon answered with a client error.
     async fn mark_daemon_unreachable(
         &self,
         daemon_id: Uuid,
         email_service: Option<&EmailService>,
+        error: &anyhow::Error,
+        rejected_by_daemon: bool,
     ) -> Result<()> {
         let mut daemon = self
             .get_by_id(&daemon_id)
@@ -94,8 +88,15 @@ impl DaemonService {
 
         daemon.base.is_unreachable = true;
 
-        self.update(&mut daemon, AuthenticatedEntity::System)
-            .await?;
+        self.update(
+            &mut daemon,
+            AuthenticatedEntity::System,
+            UpdateReason::DaemonPollFailed {
+                error: error.to_string(),
+                rejected_by_daemon,
+            },
+        )
+        .await?;
 
         if should_notify
             && let Some(email_service) = email_service
@@ -170,14 +171,6 @@ impl DaemonService {
             return Ok(());
         }
 
-        tracing::debug!(
-            daemon_id = %daemon.id,
-            daemon_name = %daemon.base.name,
-            daemon_url = %daemon.base.url,
-            api_key_id = ?daemon.base.api_key_id,
-            "Starting poll for daemon"
-        );
-
         // Get the API key for this daemon
         let api_key = match self.get_daemon_api_key(daemon).await {
             Ok(key) => key,
@@ -199,35 +192,23 @@ impl DaemonService {
 
         // Get status - either via first contact (which assigns daemon ID) or regular poll
         let status = if is_first_contact {
-            tracing::info!(
-                daemon_id = %daemon.id,
-                daemon_name = %daemon.base.name,
-                "First contact with ServerPoll daemon - assigning ID"
-            );
-
             // Send first contact to assign daemon its server-side ID
             // This must succeed before we can proceed - without the correct ID,
             // discovery updates from the daemon won't be recognized by the server
             match self.send_first_contact(daemon, &api_key).await {
                 Ok(status) => status,
                 Err(e) => {
-                    // First contact failed - abort poll entirely
-                    // No point continuing since discovery updates won't work without correct ID
-                    tracing::warn!(
-                        daemon_id = %daemon.id,
-                        daemon_name = %daemon.base.name,
-                        error = %e,
-                        "First contact failed - aborting poll (will retry next cycle)"
-                    );
-                    // Mark unreachable after threshold failures
-                    tracing::warn!(
-                        daemon_id = %daemon.id,
-                        daemon_name = %daemon.base.name,
-                        "Marking daemon unreachable after {} failures",
-                        UNREACHABLE_THRESHOLD
-                    );
-                    if let Err(mark_err) =
-                        self.mark_daemon_unreachable(daemon.id, email_service).await
+                    // First contact failed - abort poll entirely; the unreachable event's WARN
+                    // line carries the error. Retried next cycle.
+                    if let Err(mark_err) = self
+                        .mark_daemon_unreachable(
+                            daemon.id,
+                            email_service,
+                            &e,
+                            e.downcast_ref::<super::http::DaemonHttpError>()
+                                .is_some_and(|h| h.status.is_client_error()),
+                        )
+                        .await
                     {
                         tracing::error!(
                             daemon_id = %daemon.id,
@@ -244,30 +225,15 @@ impl DaemonService {
                 Ok(status) => status,
                 Err(e) => {
                     // A 4xx (e.g. 401 key mismatch) is a definitive misconfiguration, not a
-                    // transient network failure — say so, instead of the generic "unreachable
-                    // after N failures". Either way we mark the daemon unreachable to stop the
-                    // poll loop from hammering a daemon that can't currently be polled.
+                    // transient network failure; `DaemonPollFailed` says so on the unreachable
+                    // WARN line, with the fix. Either way we mark the daemon unreachable to stop
+                    // the poll loop from hammering a daemon that can't currently be polled.
                     let is_auth_failure = e
                         .downcast_ref::<super::http::DaemonHttpError>()
                         .is_some_and(|h| h.status.is_client_error());
-                    if is_auth_failure {
-                        tracing::warn!(
-                            daemon_id = %daemon.id,
-                            daemon_name = %daemon.base.name,
-                            "Daemon rejected the poll ({e}) — likely an API key mismatch. \
-                             Re-provision/re-install the daemon so its key matches the server. \
-                             Pausing polling of this daemon."
-                        );
-                    } else {
-                        tracing::warn!(
-                            daemon_id = %daemon.id,
-                            daemon_name = %daemon.base.name,
-                            "Marking daemon unreachable after {} failures",
-                            UNREACHABLE_THRESHOLD
-                        );
-                    }
-                    if let Err(mark_err) =
-                        self.mark_daemon_unreachable(daemon.id, email_service).await
+                    if let Err(mark_err) = self
+                        .mark_daemon_unreachable(daemon.id, email_service, &e, is_auth_failure)
+                        .await
                     {
                         tracing::error!(
                             daemon_id = %daemon.id,
@@ -281,14 +247,6 @@ impl DaemonService {
         };
 
         let auth = AuthenticatedEntity::System;
-
-        tracing::debug!(
-            daemon_id = %daemon.id,
-            daemon_name = %daemon.base.name,
-            ready_for_work = status.ready_for_work,
-            interfaced_subnet_count = status.interfaced_subnets.len(),
-            "ServerPoll status received"
-        );
 
         // Process status data
         if let Err(e) = self
@@ -326,12 +284,6 @@ impl DaemonService {
 
         // First contact - create default discovery jobs and emit telemetry
         if is_first_contact {
-            tracing::info!(
-                daemon_id = %daemon.id,
-                daemon_name = %daemon.base.name,
-                "First contact with ServerPoll daemon"
-            );
-
             // Determine if org is on Free plan for discovery defaults
             let is_free_plan =
                 if let Ok(Some(site)) = self.site_service.get_by_id(&daemon.base.site_id).await {
@@ -382,8 +334,23 @@ impl DaemonService {
 
         // Poll discovery data
         let poll_ok = match self.poll_discovery(daemon, &api_key).await {
-            Ok(poll_response) => {
+            Ok(mut poll_response) => {
                 let auth = AuthenticatedEntity::System;
+
+                // Processing runs as `System`, so the daemon's site scope is enforced here: the
+                // DaemonPoll endpoint refuses VLANs for a site the daemon is not assigned to, and
+                // the same submission arriving by poll must not get further.
+                poll_response.entities.vlans.retain(|batch| {
+                    let allowed = batch.request.site_id == daemon.base.site_id;
+                    if !allowed {
+                        tracing::warn!(
+                            daemon_id = %daemon.id,
+                            site_id = %batch.request.site_id,
+                            "Dropping VLAN batch for a site the daemon is not assigned to"
+                        );
+                    }
+                    allowed
+                });
 
                 // Entities before progress. A poll response can carry both the
                 // session's terminal update and the last hosts of that session,
@@ -420,14 +387,8 @@ impl DaemonService {
                 }
 
                 // Process progress update if available
-                if let Some(progress) = poll_response.progress
-                    && let Err(e) = self.process_discovery_progress(progress).await
-                {
-                    tracing::warn!(
-                        daemon_id = %daemon.id,
-                        error = ?e,
-                        "Failed to process discovery progress"
-                    );
+                if let Some(progress) = poll_response.progress {
+                    self.process_discovery_progress(progress).await;
                 }
                 true
             }
@@ -477,18 +438,9 @@ impl DaemonService {
                     &integration_targets,
                     daemon.base.version.as_ref(),
                     self.site_subnets(work.site_id).await,
+                    self.subnets_scanned_elsewhere(&work).await,
                 )
-                .await
-                .unwrap_or_else(|e| {
-                    tracing::error!("Failed to build daemon request: {}", e);
-                    DaemonDiscoveryRequest {
-                        session_id: work.session_id,
-                        discovery_id: work.discovery_id.unwrap_or_default(),
-                        discovery_type: work.discovery_type,
-                        credential_mappings: vec![],
-                        subnets: vec![],
-                    }
-                });
+                .await;
             let session_id = request.session_id;
             match self
                 .send_discovery_request_to_daemon(daemon, Some(&api_key), request)
@@ -511,13 +463,17 @@ impl DaemonService {
                         )
                         .await;
                 }
+                // Any other failure leaves nothing to start it either: a Starting session counts
+                // as active, so `get_pending_work` hands this daemon nothing until it ends. End it
+                // now, with the error, rather than at the stall sweep.
                 Err(e) => {
-                    tracing::warn!(
-                        daemon_id = %daemon.id,
-                        session_id = %session_id,
-                        error = %e,
-                        "Failed to initiate discovery"
-                    );
+                    self.discovery_service
+                        .fail_session(
+                            session_id,
+                            DiscoveryTerminalReason::DaemonUnreachable,
+                            e.to_string(),
+                        )
+                        .await;
                 }
             }
         }
@@ -546,6 +502,76 @@ impl DaemonService {
             .map(|s| s.expose_secret().to_string())
             .ok_or_else(|| anyhow::anyhow!("API key {} has no stored plaintext", api_key_id))
     }
+
+    /// The subnets another discovery on `session`'s site scans and `session`'s does not, for
+    /// [`DaemonPlacement::subnets_scanned_elsewhere`]. Empty for a rescan, which keeps every
+    /// assignment it was sent before, and on a read failure, which costs only the warnings this
+    /// set removes.
+    ///
+    /// [`DaemonPlacement::subnets_scanned_elsewhere`]: crate::server::credentials::service::DaemonPlacement::subnets_scanned_elsewhere
+    pub(crate) async fn subnets_scanned_elsewhere(
+        &self,
+        session: &DiscoveryUpdatePayload,
+    ) -> std::collections::HashSet<Uuid> {
+        if !matches!(session.discovery_type, DiscoveryType::Unified { .. }) {
+            return Default::default();
+        }
+        let filter =
+            StorableFilter::<Discovery>::new_from_site_ids(&[session.site_id]).live_configs();
+        let discoveries = match self.discovery_service.get_all(filter).await {
+            Ok(discoveries) => discoveries,
+            Err(e) => {
+                tracing::warn!(
+                    site_id = %session.site_id,
+                    error = ?e,
+                    "Could not read the site's discoveries for a discovery dispatch"
+                );
+                return Default::default();
+            }
+        };
+        let mut daemon_ids: Vec<Uuid> = discoveries.iter().map(|d| d.base.daemon_id).collect();
+        daemon_ids.push(session.daemon_id);
+        let interfaced = self.get_interfaced_subnet_ids_batch(&daemon_ids).await;
+        subnets_scanned_elsewhere(session, &discoveries, &interfaced)
+    }
+}
+
+/// The subnets a credentialed scan sweeps: the ones it names, or its daemon's interfaced subnets
+/// when it names none. `None` for a type that is sent no credentials, or a rescan, which visits
+/// addresses rather than subnets.
+fn unified_scan_subnets(
+    discovery_type: &DiscoveryType,
+    daemon_id: Uuid,
+    interfaced: &std::collections::HashMap<Uuid, Vec<Uuid>>,
+) -> Option<std::collections::HashSet<Uuid>> {
+    let DiscoveryType::Unified { subnet_ids, .. } = discovery_type else {
+        return None;
+    };
+    let ids = subnet_ids
+        .as_ref()
+        .or_else(|| interfaced.get(&daemon_id))
+        .cloned()
+        .unwrap_or_default();
+    Some(ids.into_iter().collect())
+}
+
+/// See [`DaemonService::subnets_scanned_elsewhere`].
+fn subnets_scanned_elsewhere(
+    session: &DiscoveryUpdatePayload,
+    discoveries: &[Discovery],
+    interfaced: &std::collections::HashMap<Uuid, Vec<Uuid>>,
+) -> std::collections::HashSet<Uuid> {
+    let Some(own) = unified_scan_subnets(&session.discovery_type, session.daemon_id, interfaced)
+    else {
+        return Default::default();
+    };
+    discoveries
+        .iter()
+        .filter(|d| Some(d.id) != session.discovery_id)
+        .filter_map(|d| unified_scan_subnets(&d.base.discovery_type, d.base.daemon_id, interfaced))
+        .flatten()
+        .filter(|subnet| !own.contains(subnet))
+        .collect()
 }
 
 /// Sessions a daemon has lost to a restart: the ones it is running as far as the server knows,
@@ -596,6 +622,82 @@ mod tests {
         );
         s.phase = phase;
         s
+    }
+
+    fn unified(subnet_ids: Option<Vec<Uuid>>) -> DiscoveryType {
+        DiscoveryType::Unified {
+            host_id: Uuid::new_v4(),
+            subnet_ids,
+            host_naming_fallback: Default::default(),
+            scan_settings: Default::default(),
+        }
+    }
+
+    fn discovery(daemon_id: Uuid, discovery_type: DiscoveryType) -> Discovery {
+        Discovery {
+            id: Uuid::new_v4(),
+            base: DiscoveryBase {
+                daemon_id,
+                discovery_type,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    /// Two daemons on one site, each sweeping its own interfaced subnets, and sharing one. Only
+    /// the other daemon's subnet is left to it; the shared one, and a subnet a scan names, are
+    /// both this scan's own when it sweeps them.
+    #[test]
+    fn a_subnet_only_another_discovery_scans_is_scanned_elsewhere() {
+        let (here, there) = (Uuid::new_v4(), Uuid::new_v4());
+        let (own_lan, shared, other_lan, named) = (
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        );
+        let interfaced = std::collections::HashMap::from([
+            (here, vec![own_lan, shared]),
+            (there, vec![other_lan, shared]),
+        ]);
+        let own = discovery(here, unified(None));
+        let discoveries = vec![
+            own.clone(),
+            discovery(there, unified(None)),
+            discovery(there, unified(Some(vec![named]))),
+        ];
+        let session = DiscoveryUpdatePayload::new(
+            Uuid::new_v4(),
+            here,
+            Uuid::new_v4(),
+            own.base.discovery_type.clone(),
+            Some(own.id),
+        );
+
+        assert_eq!(
+            subnets_scanned_elsewhere(&session, &discoveries, &interfaced),
+            std::collections::HashSet::from([other_lan, named])
+        );
+
+        // Naming the other daemon's subnet makes it this scan's own too.
+        let mut naming = session.clone();
+        naming.discovery_type = unified(Some(vec![own_lan, other_lan]));
+        assert_eq!(
+            subnets_scanned_elsewhere(&naming, &discoveries, &interfaced),
+            std::collections::HashSet::from([shared, named])
+        );
+
+        // A rescan keeps every assignment.
+        let mut rescan = session.clone();
+        rescan.discovery_type = DiscoveryType::Rescan {
+            host_id: Uuid::new_v4(),
+            target_host_ids: vec![],
+            ips: vec![],
+            ports: vec![],
+            settings: Default::default(),
+        };
+        assert!(subnets_scanned_elsewhere(&rescan, &discoveries, &interfaced).is_empty());
     }
 
     #[test]

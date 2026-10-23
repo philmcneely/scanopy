@@ -9,13 +9,10 @@ use scanopy::server::invites::r#impl::base::Invite;
 use scanopy::server::ip_addresses::r#impl::base::IPAddress;
 use scanopy::server::organizations::r#impl::base::Organization;
 use scanopy::server::ports::r#impl::base::Port;
-use scanopy::server::services::definitions::ServiceDefinitionRegistry;
 use scanopy::server::services::r#impl::base::Service;
-use scanopy::server::services::r#impl::definitions::{ServiceDefinition, ServiceDefinitionExt};
 use scanopy::server::shared::entity_metadata::EntityCategory;
 use scanopy::server::shared::fixtures::generate_ui_data_fixtures;
 use scanopy::server::shared::storage::traits::{Entity, Storable};
-use scanopy::server::shared::types::metadata::EntityMetadataProvider;
 use scanopy::server::shares::r#impl::base::Share;
 use scanopy::server::sites::r#impl::Site;
 use scanopy::server::subnets::r#impl::base::Subnet;
@@ -35,10 +32,6 @@ pub async fn generate_fixtures() {
         .await
         .expect("Failed to generate daemon config fixture");
 
-    generate_services_json()
-        .await
-        .expect("Failed to generate services json");
-
     // Generate all UI data fixtures (billing plans, features, credential types, etc.)
     // Run in spawn_blocking because generate_ui_data_fixtures uses reqwest::blocking::Client
     // internally (for logo downloads), which creates its own tokio runtime. Dropping that
@@ -48,7 +41,7 @@ pub async fn generate_fixtures() {
         .expect("Failed to get parent directory")
         .join("ui/src/lib/data");
     tokio::task::spawn_blocking(move || {
-        generate_ui_data_fixtures(&ui_data_dir);
+        generate_ui_data_fixtures(&ui_data_dir, false);
     })
     .await
     .expect("Failed to generate UI data fixtures");
@@ -269,34 +262,6 @@ async fn generate_daemon_config_fixture() -> Result<(), Box<dyn std::error::Erro
     std::fs::write(&fixture_path, output.stdout)?;
 
     println!("✅ Generated daemon_config.json from test daemon");
-    Ok(())
-}
-
-async fn generate_services_json() -> Result<(), Box<dyn std::error::Error>> {
-    let services: Vec<serde_json::Value> = ServiceDefinitionRegistry::all_service_definitions()
-        .iter()
-        .filter_map(|s| {
-            if s.can_be_manually_added() {
-                Some(serde_json::json!({
-                    "logo_url": s.logo_url(),
-                    "name": s.name(),
-                    "description": s.description(),
-                    "discovery_pattern": s.discovery_pattern().to_string(),
-                    "category": s.category(),
-                    "color": s.color(),
-                    "icon": s.icon(),
-                    "logo_needs_white_background": s.logo_needs_white_background()
-                }))
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let json_string = serde_json::to_string_pretty(&services)?;
-    let json_path = std::path::Path::new("../ui/static/services.json");
-    tokio::fs::write(json_path, json_string).await?;
-
     Ok(())
 }
 

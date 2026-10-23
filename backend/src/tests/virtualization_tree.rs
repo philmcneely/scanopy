@@ -1,19 +1,27 @@
-//! The virtualization tree is computed twice: in SQL, to group and order a paginated host list,
-//! and in Rust, for the root and depth each response carries. The UI matches a row to its group
-//! by the Rust root against the SQL group key, so the two must agree on every host.
+//! The host list grouped by virtualization tree, through the generic tree path: each tree parent
+//! leads its subtree, siblings follow the sort, and each group's count covers every page. The UI
+//! matches a row to its group by the root each response carries against the `group_counts` key,
+//! so the two must agree on every host.
 
 use crate::server::hosts::handlers::{HostFilterQuery, HostOrderField};
 use crate::server::hosts::r#impl::name::{HostName, HostNameSources};
-use crate::server::shared::handlers::ordering::OrderField;
-use crate::server::shared::services::traits::CrudService;
-use crate::server::shared::storage::filter::StorableFilter;
+use crate::server::shared::handlers::list::list_page;
+use crate::server::shared::handlers::query::OrderDirection;
 use crate::server::shared::storage::traits::Storage;
+use crate::server::shared::types::api::GroupCount;
 
-use super::{host, organization, service, site, test_services};
+use super::{host, list_scope, organization, service, site, test_state};
+
+fn counts(groups: &[GroupCount]) -> Vec<(String, u64)> {
+    groups
+        .iter()
+        .map(|g| (g.value.clone().unwrap_or_default(), g.count))
+        .collect()
+}
 
 #[tokio::test]
-async fn sql_and_rust_place_every_host_in_the_same_tree() {
-    let (storage, services, _container) = test_services().await;
+async fn a_tree_grouping_places_every_host_under_its_root() {
+    let (storage, state, _container) = test_state().await;
 
     let org = organization();
     storage.organizations.create(&org).await.unwrap();
@@ -50,62 +58,58 @@ async fn sql_and_rust_place_every_host_in_the_same_tree() {
 
     let query = HostFilterQuery {
         group_by: Some(HostOrderField::VirtualizedBy),
+        include_children: Some(false),
         ..Default::default()
     };
-    let (filter, order_by) =
-        query.apply_ordering(StorableFilter::new_from_site_ids(&[net.id]).live());
+    let page = list_page::<crate::server::hosts::r#impl::base::Host>(
+        &state,
+        &list_scope(&[net.id], org.id),
+        &query,
+    )
+    .await
+    .unwrap();
 
-    let page = services
-        .host_service
-        .get_all_host_responses_paginated(filter.clone(), &order_by, None, false)
-        .await
-        .unwrap();
-
-    let names: Vec<&str> = page.items.iter().map(|h| h.name.as_str()).collect();
+    let names: Vec<&str> = page.data.iter().map(|h| h.name.as_str()).collect();
     assert_eq!(
         names,
         vec!["printer", "pve-01", "app-vm", "docker-vm", "pihole"],
-        "no tree first, then the tree parent first with each subtree under its parent"
+        "no tree first, then the tree parent first with each subtree under its parent, siblings by name"
     );
 
-    let depths: Vec<u32> = page.items.iter().map(|h| h.virtualization_depth).collect();
+    let depths: Vec<u32> = page.data.iter().map(|h| h.virtualization_depth).collect();
     assert_eq!(depths, vec![0, 0, 1, 1, 2]);
 
-    // The groups the Rust roots imply, in page order, against the SQL's own groups.
-    let mut rust_groups: Vec<(String, u64)> = Vec::new();
-    for h in &page.items {
+    // The groups the responses' roots imply, in page order, against `group_counts`.
+    let mut response_groups: Vec<(String, u64)> = Vec::new();
+    for h in &page.data {
         let key = h
             .virtualization_root_host_id
             .map(|id| id.to_string())
             .unwrap_or_default();
-        match rust_groups.last_mut() {
+        match response_groups.last_mut() {
             Some((last, count)) if *last == key => *count += 1,
-            _ => rust_groups.push((key, 1)),
+            _ => response_groups.push((key, 1)),
         }
     }
-    let sql_groups: Vec<(String, u64)> = services
-        .host_service
-        .count_by_group(filter, HostOrderField::VirtualizedBy.group_sql())
-        .await
-        .unwrap()
-        .into_iter()
-        .map(|g| (g.value.unwrap_or_default(), g.count))
-        .collect();
-    assert_eq!(rust_groups, sql_groups);
+    let group_counts = counts(
+        page.meta
+            .pagination
+            .group_counts
+            .as_deref()
+            .expect("a grouped list counts its groups"),
+    );
+    assert_eq!(response_groups, group_counts);
     assert_eq!(
-        rust_groups,
+        group_counts,
         vec![(String::new(), 1), (node.id.to_string(), 4)]
     );
 }
 
 /// Sorted inside a tree grouping, each parent still leads its subtree and every set of siblings
-/// follows the sort, across the database's keys and the Rust walk.
+/// follows the sort. A page cut through a tree keeps every group's full count.
 #[tokio::test]
 async fn a_sort_orders_siblings_inside_each_tree() {
-    use crate::server::hosts::r#impl::virtualization_tree::VIRTUALIZATION_TREE_JOIN;
-    use crate::server::shared::handlers::query::OrderDirection;
-
-    let (storage, services, _container) = test_services().await;
+    let (storage, state, _container) = test_state().await;
 
     let org = organization();
     storage.organizations.create(&org).await.unwrap();
@@ -135,23 +139,25 @@ async fn a_sort_orders_siblings_inside_each_tree() {
         group_by: Some(HostOrderField::VirtualizedBy),
         order_by: Some(HostOrderField::Name),
         order_direction: Some(OrderDirection::Desc),
+        limit: Some(3),
+        offset: Some(1),
+        include_children: Some(false),
         ..Default::default()
     };
-    assert!(query.sorts_inside_virtualization_trees());
-    let (filter, order_by) = query.apply_sort_only(
-        StorableFilter::new_from_site_ids(&[net.id])
-            .live()
-            .join(&VIRTUALIZATION_TREE_JOIN),
-    );
+    let page = list_page::<crate::server::hosts::r#impl::base::Host>(
+        &state,
+        &list_scope(&[net.id], org.id),
+        &query,
+    )
+    .await
+    .unwrap();
 
-    let page = services
-        .host_service
-        .get_all_host_responses_tree_ordered(filter, &order_by, Some(3), 1, None, false)
-        .await
-        .unwrap();
-
-    assert_eq!(page.total_count, 5);
-    let names: Vec<&str> = page.items.iter().map(|h| h.name.as_str()).collect();
+    assert_eq!(page.meta.pagination.total_count, 5);
+    let names: Vec<&str> = page.data.iter().map(|h| h.name.as_str()).collect();
     // Whole order: printer, camera | pve-01, docker-vm, app-vm. The page skips one, takes three.
     assert_eq!(names, vec!["camera", "pve-01", "docker-vm"]);
+    assert_eq!(
+        counts(page.meta.pagination.group_counts.as_deref().unwrap()),
+        vec![(String::new(), 2), (node.id.to_string(), 3)]
+    );
 }

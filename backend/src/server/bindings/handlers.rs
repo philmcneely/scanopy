@@ -1,3 +1,4 @@
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::shared::types::api::ApiJson;
 use axum::Json;
 use axum::extract::{Path, State};
@@ -182,15 +183,14 @@ async fn create_binding(
                 && existing_port_id == port_id
             {
                 // Delete the specific-interface binding that's being superseded
-                tracing::info!(
-                    binding_id = %existing_binding.id,
-                    port_id = %existing_port_id,
-                    "Removing specific-ip_address binding superseded by all-ip_addresses binding"
-                );
                 state
                     .services
                     .binding_service
-                    .delete(&existing_binding.id, auth.entity.clone())
+                    .delete(
+                        &existing_binding.id,
+                        auth.entity.clone(),
+                        DeletionReason::EntitySuperseded,
+                    )
                     .await?;
             }
         }

@@ -54,7 +54,11 @@ pub(super) fn generate_vlans(
                 first_discovery_id: None,
                 base: VlanBase {
                     vlan_number,
-                    name: name.to_string(),
+                    // As an SNMP scan records it: a name set on the switch, read back over SNMP.
+                    name: VlanName::new(
+                        VlanNameValue(name.to_string()),
+                        AttributeSource::Authored(ClientProbe::Snmp),
+                    ),
                     description: Some(description.to_string()),
                     site_id: site.id,
                     organization_id,
@@ -71,16 +75,22 @@ pub(super) fn generate_vlans(
 }
 
 /// Derive subnet↔VLAN junction rows the same way the server's
-/// `reconcile_subnet_vlans_for_host` does at discovery time: a VLAN links to a
-/// subnet when an interface whose `native_vlan_id` is that VLAN is attached
-/// (via `ip_address_id`) to an IP address on that subnet. Only `native_vlan_id`
-/// counts — tagged/trunk `vlan_ids` do not create subnet links. Deduped on
-/// `(subnet_id, vlan_id)`.
+/// `reconcile_subnet_vlans_for_host` does at discovery time, from its two kinds of evidence:
+///
+/// - an interface whose `native_vlan_id` is that VLAN, attached (via `ip_address_id`) to an IP
+///   address on that subnet. Only `native_vlan_id` counts — tagged/trunk `vlan_ids` do not;
+/// - an access port in that VLAN that learned the MAC of an address on that subnet, by
+///   `access_port_vlans`, the function the reconciler itself calls.
+///
+/// Deduped on `(subnet_id, vlan_id)`.
 pub(super) fn generate_subnet_vlan_records(
     interfaces: &[Interface],
     hosts_with_services: &[HostWithServices],
     now: DateTime<Utc>,
 ) -> Vec<SubnetVlanRecord> {
+    use crate::server::hosts::service::subnet_vlans::access_port_vlans;
+    use crate::server::ip_addresses::r#impl::base::mac_of;
+    use mac_address::MacAddress;
     use std::collections::{HashMap, HashSet};
 
     // ip_address_id → subnet_id, from every host's IP addresses.
@@ -90,22 +100,47 @@ pub(super) fn generate_subnet_vlan_records(
         .map(|ip| (ip.id, ip.base.subnet_id))
         .collect();
 
-    let mut seen: HashSet<(Uuid, Uuid)> = HashSet::new();
-    let mut records = Vec::new();
-    for iface in interfaces {
-        if let (Some(vlan_id), Some(ip_id)) = (iface.base.native_vlan_id, iface.base.ip_address_id)
-            && let Some(&subnet_id) = ip_to_subnet.get(&ip_id)
-            && seen.insert((subnet_id, vlan_id))
-        {
-            records.push(SubnetVlanRecord {
-                id: Uuid::new_v4(),
-                created_at: now,
-                valid_from: now,
-                valid_to: None,
-                lineage_id: None,
-                base: SubnetVlanRecordBase::new(subnet_id, vlan_id),
-            });
+    let ip_addresses: Vec<&IPAddress> = hosts_with_services
+        .iter()
+        .flat_map(|h| h.ip_addresses.iter())
+        .collect();
+    let mut subnets_by_mac: HashMap<MacAddress, HashSet<Uuid>> = HashMap::new();
+    let mut ips_by_subnet: HashMap<Uuid, Vec<IPAddress>> = HashMap::new();
+    for ip in &ip_addresses {
+        if let Some(mac) = mac_of(&ip.base.mac_address) {
+            subnets_by_mac
+                .entry(mac)
+                .or_default()
+                .insert(ip.base.subnet_id);
         }
+        ips_by_subnet
+            .entry(ip.base.subnet_id)
+            .or_default()
+            .push((*ip).clone());
     }
-    records
+
+    let direct = interfaces.iter().filter_map(|iface| {
+        let vlan_id = iface.base.native_vlan_id?;
+        let subnet_id = *ip_to_subnet.get(&iface.base.ip_address_id?)?;
+        Some((subnet_id, vlan_id))
+    });
+    let learned = ips_by_subnet.iter().flat_map(|(&subnet_id, subnet_ips)| {
+        access_port_vlans(subnet_id, subnet_ips, &subnets_by_mac, interfaces)
+            .into_iter()
+            .map(move |vlan_id| (subnet_id, vlan_id))
+    });
+
+    let mut seen: HashSet<(Uuid, Uuid)> = HashSet::new();
+    direct
+        .chain(learned)
+        .filter(|pair| seen.insert(*pair))
+        .map(|(subnet_id, vlan_id)| SubnetVlanRecord {
+            id: Uuid::new_v4(),
+            created_at: now,
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            base: SubnetVlanRecordBase::new(subnet_id, vlan_id),
+        })
+        .collect()
 }

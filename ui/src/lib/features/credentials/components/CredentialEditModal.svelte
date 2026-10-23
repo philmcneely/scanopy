@@ -2,6 +2,7 @@
 	import { createForm } from '@tanstack/svelte-form';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import type { ModalTab } from '$lib/shared/components/layout/GenericModal.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import type { components } from '$lib/api/schema';
@@ -68,6 +69,9 @@
 		initialSiteIds?: string[];
 	} = $props();
 
+	// Declared before the queries below, whose options TanStack reads as each query is created.
+	let isEditing = $derived(credential !== null);
+
 	// The transports a pre-filled create flow offers: those that can apply where it comes assigned,
 	// falling back to all of the integration's when none can.
 	let typeChoices = $derived.by(() => {
@@ -108,7 +112,6 @@
 	const daemonsQuery = useDaemonsQuery();
 	let daemonHostIds = $derived(daemonsQuery.data?.map((d) => d.host_id));
 
-	let isEditing = $derived(credential !== null);
 	let title = $derived(
 		isEditing ? common_editName({ name: credential?.name ?? '' }) : credentials_createCredential()
 	);
@@ -278,6 +281,31 @@
 			loading = false;
 		}
 	}
+
+	let isStepNext = $derived(!isEditing && !isLastStep);
+
+	let actions = $derived<ModalAction[]>([
+		...(isEditing && onDelete && credential
+			? [
+					{
+						role: 'danger' as const,
+						label: deleting ? common_deleting() : common_delete(),
+						onClick: handleDelete,
+						disabled: deleting || loading
+					}
+				]
+			: []),
+		...(!isEditing && stepIndex > 0
+			? [{ role: 'secondary' as const, label: common_back(), onClick: handleBack }]
+			: []),
+		{
+			role: 'primary',
+			label: loading ? common_saving() : saveLabel,
+			onClick: handlePrimary,
+			disabled: loading || deleting,
+			...(isStepNext ? { icon: ArrowRight, iconAfter: true } : {})
+		}
+	]);
 </script>
 
 <GenericModal
@@ -294,6 +322,7 @@
 	{activeTab}
 	tabStyle={isEditing ? 'tabs' : 'stepper'}
 	onTabChange={(id) => (activeTab = id as Step)}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={entities.getIconComponent('Credential')} color={colorHelper.color} />
@@ -338,41 +367,4 @@
 	{#if isEditing && credential}
 		<EntityMetadataSection entities={[credential]} />
 	{/if}
-
-	{#snippet footer()}
-		<div class="modal-footer">
-			<div class="flex items-center justify-between">
-				<div>
-					{#if isEditing && onDelete && credential}
-						<button
-							type="button"
-							disabled={deleting || loading}
-							onclick={handleDelete}
-							class="btn-danger"
-						>
-							{deleting ? common_deleting() : common_delete()}
-						</button>
-					{/if}
-				</div>
-				<div class="flex items-center gap-3">
-					{#if !isEditing && stepIndex > 0}
-						<button type="button" class="btn-secondary" onclick={handleBack}>
-							{common_back()}
-						</button>
-					{/if}
-					<button
-						type="button"
-						disabled={loading || deleting}
-						class="btn-primary flex items-center gap-1"
-						onclick={handlePrimary}
-					>
-						<span>{loading ? common_saving() : saveLabel}</span>
-						{#if !isEditing && !isLastStep}
-							<ArrowRight class="h-4 w-4" />
-						{/if}
-					</button>
-				</div>
-			</div>
-		</div>
-	{/snippet}
 </GenericModal>

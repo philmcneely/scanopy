@@ -26,6 +26,7 @@ use super::online::{
     reported_server_version,
 };
 use super::types::LicenseKeyType;
+use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::auth::middleware::permissions::{Authorized, Owner};
 use crate::server::config::AppState;
 use crate::server::openapi::tags as api_tags;
@@ -268,7 +269,14 @@ pub async fn create_license_key(
     // Refuse an offline key before switching to it, so a refusal (unpaid
     // invoice, no payment) leaves the org's current key in service.
     if request.key_type == LicenseKeyType::Offline {
-        mint_key(&state, issuer, &organization, LicenseKeyType::Offline).await?;
+        mint_key(
+            &state,
+            &auth.entity,
+            issuer,
+            &organization,
+            LicenseKeyType::Offline,
+        )
+        .await?;
     }
     // Asking for the type already issued is a re-read and changes nothing, so
     // copying the key twice returns the same string. A real switch retires the
@@ -297,7 +305,14 @@ pub async fn create_license_key(
         .await
         .map_err(switch_error)?;
 
-    let key = mint_key(&state, issuer, &organization, request.key_type).await?;
+    let key = mint_key(
+        &state,
+        &auth.entity,
+        issuer,
+        &organization,
+        request.key_type,
+    )
+    .await?;
 
     Ok(Json(ApiResponse::success(LicenseKeyResponse {
         key,
@@ -351,14 +366,21 @@ pub async fn get_current_license_key(
             .organization_service
             .revert_license_key_type_to_online(organization_id)
             .await?;
-        let key = mint_key(&state, issuer, &repaired, LicenseKeyType::Online).await?;
+        let key = mint_key(
+            &state,
+            &auth.entity,
+            issuer,
+            &repaired,
+            LicenseKeyType::Online,
+        )
+        .await?;
         return Ok(Json(ApiResponse::success(LicenseKeyResponse {
             key,
             key_type: LicenseKeyType::Online,
         })));
     }
 
-    let key = mint_key(&state, issuer, &organization, key_type).await?;
+    let key = mint_key(&state, &auth.entity, issuer, &organization, key_type).await?;
 
     Ok(Json(ApiResponse::success(LicenseKeyResponse {
         key,
@@ -366,8 +388,11 @@ pub async fn get_current_license_key(
     })))
 }
 
+/// `authentication` is the owner asking, whom the org's first issue is
+/// attributed to.
 async fn mint_key(
     state: &AppState,
+    authentication: &AuthenticatedEntity,
     issuer: &LicenseIssuer,
     organization: &Organization,
     key_type: LicenseKeyType,
@@ -379,7 +404,7 @@ async fn mint_key(
             let issued_at = state
                 .services
                 .organization_service
-                .license_key_issued_at(organization.id)
+                .license_key_issued_at(organization.id, authentication.clone())
                 .await?;
             issuer.mint_online_key(organization, issued_at)
         }

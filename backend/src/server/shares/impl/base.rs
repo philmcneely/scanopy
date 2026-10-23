@@ -214,6 +214,8 @@ impl std::hash::Hash for Share {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Share {}
+
 impl ChangeTriggersTopologyStaleness<Share> for Share {
     fn triggers_staleness(&self, _other: Option<Share>) -> bool {
         false

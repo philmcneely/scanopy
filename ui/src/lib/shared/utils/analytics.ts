@@ -56,11 +56,21 @@ export function isDemo(): boolean {
 /**
  * Track an analytics event via PostHog.
  * PostHog is already initialized in +layout.svelte, this is just a helper.
- * In demo mode, events are tracked with a demo=true flag.
+ * Once the current organization is loaded, every event carries its
+ * `organization_id` and joins its `organization` group, as backend events do,
+ * whether or not `identifyUser` has run yet.
  *
  * Events focused on understanding friction.
  */
 export function trackEvent(event: string, properties?: Record<string, unknown>) {
+	const org = queryClient.getQueryData<Organization | null>(queryKeys.organizations.current());
+	if (org?.id) {
+		properties = {
+			...properties,
+			organization_id: org.id,
+			$groups: { organization: org.id }
+		};
+	}
 	if (posthog.__loaded) {
 		posthog.capture(event, properties);
 	} else {

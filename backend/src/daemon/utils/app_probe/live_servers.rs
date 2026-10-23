@@ -36,10 +36,15 @@ fn context() -> ProbeContext {
         is_gateway: false,
         cancel: CancellationToken::new(),
         scan_controller: ScanConcurrencyController::new(16),
+        probe_raw_socket_ports: true,
+        port_map: Default::default(),
+        tunnel: None,
     }
 }
 
 /// Whether anything is accepting connections on this port.
+// Checks a reference server is up before probing it; not itself a probe.
+#[allow(clippy::disallowed_methods)]
 async fn is_listening(port: u16) -> bool {
     let addr = SocketAddr::from((LOOPBACK, port));
     tokio::time::timeout(

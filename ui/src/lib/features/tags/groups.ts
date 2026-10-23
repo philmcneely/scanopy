@@ -6,8 +6,10 @@ import {
 	common_application,
 	common_status,
 	common_visibility,
+	tags_tagGroup,
 	tags_tagGroupTooltip
 } from '$lib/paraglide/messages';
+import type { TooltipContent, TooltipSection } from '$lib/shared/actions/tooltip';
 import type { Tag, TagGroup, TagGroupType } from './types/base';
 
 export type { TagGroup };
@@ -132,24 +134,51 @@ export function compareTagsByGroup(groups: TagGroup[]) {
 	};
 }
 
+/**
+ * The key a server-paged tags list groups a tag under by its tag group: `0` for a system group or
+ * `1`, the group's type, its lowercased name, then its id. It matches the server's
+ * `TAG_GROUP_KEY_SQL`, which orders groups the way the tag groups list does, so a group finds its
+ * total in `group_counts`.
+ */
+export function tagGroupServerKey(group: TagGroup | null | undefined): string | null {
+	if (!group) return null;
+	return `${isSystemGroup(group) ? 0 : 1}:${group.group_type}:${group.name.toLowerCase()}:${group.id}`;
+}
+
 /** A group's tags, in its order. */
 export function tagsInGroup(tags: Tag[], groupId: string): Tag[] {
 	return tags.filter((tag) => tag.tag_group_id === groupId).sort(compareTagOrder);
 }
 
 /**
- * A tag chip's hover text: its tag group, then its description, one per line. Empty when the tag
+ * A tag chip's tooltip: its tag group as a labelled row, then its description. Null when the tag
  * has neither, so the chip shows no tooltip.
  */
 export function tagTooltip(
+	tag: Pick<Tag, 'tag_group_id' | 'description'> | null | undefined,
+	groups: TagGroup[]
+): TooltipContent | null {
+	const group = tagGroupLabel(groupOf(tag, groups));
+	const description = tag?.description?.trim();
+	const sections: TooltipSection[] = [];
+	if (group) sections.push({ rows: [{ label: tags_tagGroup(), value: group }] });
+	if (description) sections.push({ text: description });
+	return sections.length > 0 ? { sections } : null;
+}
+
+/**
+ * A tag's tag group and description as one line of text, for a select option's description.
+ * Empty when the tag has neither.
+ */
+export function tagDescription(
 	tag: Pick<Tag, 'tag_group_id' | 'description'> | null | undefined,
 	groups: TagGroup[]
 ): string {
 	const group = tagGroupLabel(groupOf(tag, groups));
 	const description = tag?.description?.trim();
 	return [group ? tags_tagGroupTooltip({ group }) : null, description || null]
-		.filter((line): line is string => line !== null)
-		.join('\n');
+		.filter((part): part is string => part !== null)
+		.join(' · ');
 }
 
 /**

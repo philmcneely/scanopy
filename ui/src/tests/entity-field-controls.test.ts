@@ -1,11 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import {
-	isGroupableField,
-	isSortableField,
-	serverOrderViolations
-} from '$lib/shared/components/data/controls/sorting';
+import { isGroupableField, isSortableField } from '$lib/shared/components/data/controls/sorting';
 import { serverFilterViolations } from '$lib/shared/components/data/controls/filtering';
 import { columnControls } from '$lib/shared/components/data/controls/headerControls';
 import { getFieldKey, type FieldConfig } from '$lib/shared/components/data/types';
@@ -13,7 +9,6 @@ import {
 	FEATURES,
 	OPENAPI,
 	columnKeys,
-	dataControlsProps,
 	dataControlsServerQuery,
 	dataControlsTabs,
 	tabColumns,
@@ -65,19 +60,12 @@ const FREE_TEXT = 'Free text; search covers it';
 const SCAN_MODE =
 	"Read from the run's stored scan settings, which the server can't sort or filter on";
 
-/** Sorted, grouped and filtered on the client. */
-const YES: ColumnDecision = { sort: true, group: true, filter: true };
 /** The row's name: sorts, but every row would be its own group. */
 const IDENTITY: ColumnDecision = { sort: true, group: UNIQUE, filter: SEARCH };
 const DATE: ColumnDecision = { sort: true, group: 'Near-unique timestamp', filter: NO_DATE_RANGE };
 const LAST_SEEN: ColumnDecision = {
 	...DATE,
 	filter: 'No date-range control; Stale covers last seen'
-};
-const BOOLEAN: ColumnDecision = {
-	sort: 'Two values; group and filter cover it',
-	group: true,
-	filter: true
 };
 const TEXT: ColumnDecision = { sort: 'Free text', group: 'Free text', filter: FREE_TEXT };
 /** An array whose members are shared across rows, so filtering by one narrows the list. */
@@ -94,6 +82,13 @@ const none = (reason: string): ColumnDecision => ({ sort: reason, group: reason,
 const server = (param: string): ColumnDecision => ({ sort: true, group: true, filter: { param } });
 /** Sorted by the server's order field only. */
 const serverIdentity = (group: string): ColumnDecision => ({ sort: true, group, filter: SEARCH });
+
+/** A guest's run state: four values, filtered by the server; it has no order field to sort or group on. */
+const GUEST_STATE: ColumnDecision = {
+	sort: 'Four states with no order field on the server',
+	group: 'No order field on the server; the filter narrows by state',
+	filter: { param: 'guest_states' }
+};
 
 /** The run that first or last found an entity: one chip, and Created and Last seen already say when. */
 const FOUND_BY = none('A scan run; Created and Last seen order by when');
@@ -117,6 +112,7 @@ const DECISIONS: Record<string, TabDecisions> = {
 			model: server('models'),
 			sys_location: server('sys_locations'),
 			os_family: server('os_families'),
+			device_type: none('Computed from services and OS when read; not a stored column to query'),
 			description: TEXT,
 			serial_number: none('Identifier, unique per device; search finds one'),
 			asset_tag: none('Identifier, unique per device; search finds one'),
@@ -157,6 +153,14 @@ const DECISIONS: Record<string, TabDecisions> = {
 			host: server('host_ids'),
 			site_id: server('site_ids'),
 			service_definition: server('service_definitions'),
+			guest_state: GUEST_STATE,
+			container_name: none('Unique per container; Containerized by groups and filters containers'),
+			container_id: none(
+				'Identifier, unique per container; Containerized by groups and filters containers'
+			),
+			compose_project: none(
+				'Read from the container metadata, which the server does not order or filter on'
+			),
 			position: { sort: true, group: 'Per-host ordinal', filter: 'Per-host ordinal' },
 			created_at: DATE,
 			updated_at: DATE,
@@ -201,138 +205,150 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'discovery/components/tabs/DiscoveryScheduledTab.svelte': {
+		listPath: '/api/v1/discovery',
 		columns: {
 			name: IDENTITY,
 			created_at: DATE,
 			updated_at: DATE,
-			daemon_id: YES,
-			site_id: YES,
-			discovery_type: YES,
+			daemon_id: server('daemon_ids'),
+			site_id: server('site_ids'),
+			discovery_type: server('discovery_types'),
 			scan_count: { sort: true, group: COUNT, filter: COUNT },
-			force_full_scan: BOOLEAN,
-			legacy: YES,
-			run_type: YES,
+			force_full_scan: server('force_full_scan'),
+			legacy: server('legacy'),
+			run_type: server('run_types'),
 			schedule: none('Cron text'),
 			last_run: DATE,
 			progress: none('Live state of a running scan'),
-			tags: SHARED_ARRAY
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } }
 		}
 	},
 	'daemons/components/DaemonTab.svelte': {
+		listPath: '/api/v1/daemons',
 		columns: {
 			name: IDENTITY,
-			site_id: YES,
+			site_id: server('site_ids'),
 			last_seen: DATE,
 			created_at: DATE,
 			updated_at: DATE,
-			host_id: { sort: 'Near-unique', group: 'One daemon per host', filter: SEARCH },
-			status: YES,
-			os: YES,
-			mode: YES,
-			version: YES,
-			maintainer: YES,
+			host_id: none('One daemon per host'),
+			status: server('statuses'),
+			os: server('os'),
+			mode: server('modes'),
+			version: server('versions'),
+			maintainer: server('maintainer_ids'),
 			url: none('Unique per daemon'),
-			interfaced_subnet_ids: SHARED_ARRAY,
-			tags: SHARED_ARRAY
+			interfaced_subnet_ids: { ...SHARED_ARRAY, filter: { param: 'interfaced_subnet_ids' } },
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } }
 		}
 	},
 	'daemon_api_keys/components/ApiKeyTab.svelte': {
+		listPath: '/api/v1/auth/daemon',
 		columns: {
 			name: IDENTITY,
-			site_id: YES,
-			is_enabled: BOOLEAN,
+			site_id: server('site_ids'),
+			is_enabled: server('is_enabled'),
 			last_used: DATE,
 			expires_at: DATE,
 			created_at: DATE,
 			updated_at: DATE,
-			tags: SHARED_ARRAY
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } }
 		}
 	},
 	'tags/components/TagTab.svelte': {
+		listPath: '/api/v1/tags',
 		columns: {
 			name: IDENTITY,
-			color: YES,
+			color: server('colors'),
 			// One group per tag: Application or a named group.
-			tag_group: YES,
+			tag_group: server('tag_group_ids'),
 			created_at: DATE,
 			updated_at: DATE,
 			description: TEXT,
-			icon: { sort: 'An icon name has no useful order', group: true, filter: true }
+			icon: server('icons')
 		}
 	},
 	'tags/components/TagGroupTab.svelte': {
+		listPath: '/api/v1/tag-groups',
 		columns: {
 			name: IDENTITY,
 			description: TEXT,
-			group_type: YES,
-			entity_types: SHARED_ARRAY,
-			ordered: YES,
+			group_type: server('system'),
+			entity_types: { ...SHARED_ARRAY, filter: { param: 'entity_types' } },
+			ordered: server('ordered'),
 			// Each tag is in one group, so filtering by one finds its group.
-			tags: SHARED_ARRAY,
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } },
 			created_at: DATE,
 			updated_at: DATE
 		}
 	},
 	'sites/components/SitesTab.svelte': {
+		listPath: '/api/v1/sites',
 		columns: {
 			name: IDENTITY,
 			vlans: ownedArray('Each belongs to one site'),
 			daemons: ownedArray('Each belongs to one site'),
 			subnets: ownedArray('Each belongs to one site'),
 			// Credentials are shared across sites.
-			credentials: SHARED_ARRAY,
-			tags: SHARED_ARRAY,
+			credentials: { ...SHARED_ARRAY, filter: { param: 'credential_ids' } },
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } },
 			created_at: DATE,
 			updated_at: DATE,
-			effective_stale_after_hours: YES
+			effective_stale_after_hours: server('effective_stale_after_hours')
 		}
 	},
 	'users/components/UserTab.svelte': {
+		listPath: '/api/v1/users/members',
 		columns: {
 			email: IDENTITY,
-			invite_status: YES,
-			permissions: YES,
-			site_ids: SHARED_ARRAY,
-			oidc_provider: YES,
-			invited_by: YES,
+			invite_status: server('statuses'),
+			permissions: server('permissions'),
+			site_ids: { ...SHARED_ARRAY, filter: { param: 'site_ids' } },
+			oidc_provider: server('auth_methods'),
+			invited_by: server('invited_by'),
 			invite_url: none('Unique per invite'),
 			created_at: DATE,
 			expires_at: DATE,
 			updated_at: DATE,
 			oidc_linked_at: DATE,
-			terms_accepted_at: DATE,
-			email_verified: BOOLEAN
+			email_verified: server('email_verified')
 		}
 	},
 	'user_api_keys/components/UserApiKeyTab.svelte': {
+		listPath: '/api/v1/auth/keys',
 		columns: {
 			name: IDENTITY,
-			permissions: YES,
-			site_ids: SHARED_ARRAY,
-			is_enabled: BOOLEAN,
+			permissions: server('permissions'),
+			site_ids: { ...SHARED_ARRAY, filter: { param: 'site_ids' } },
+			is_enabled: server('is_enabled'),
 			last_used: DATE,
 			expires_at: DATE,
 			created_at: DATE,
 			updated_at: DATE,
-			tags: SHARED_ARRAY
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } }
 		}
 	},
 	'subnets/components/SubnetTab.svelte': {
+		listPath: '/api/v1/subnets',
 		columns: {
 			name: IDENTITY,
 			// Groups each range with the ranges nested inside it, not one group per CIDR.
 			cidr: { sort: true, group: true, filter: SEARCH },
-			subnet_type: YES,
-			site_id: YES,
+			subnet_type: server('subnet_types'),
+			site_id: server('site_ids'),
 			created_at: DATE,
 			updated_at: DATE,
 			last_seen_at: DATE,
 			description: TEXT,
-			source: YES,
-			managed_by: YES,
+			source: server('sources'),
+			managed_by: server('managed_by'),
+			vlan_ids: {
+				...SHARED_ARRAY,
+				filter: 'The subnets list is paged on the server, which has no VLAN filter'
+			},
 			first_found_by: FOUND_BY,
 			last_found_by: FOUND_BY,
-			tags: SHARED_ARRAY,
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } },
 			utilization: {
 				sort: true,
 				group: 'A percentage; every value would be its own group',
@@ -341,23 +357,25 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'credentials/components/CredentialsTab.svelte': {
+		listPath: '/api/v1/credentials',
 		columns: {
 			name: IDENTITY,
 			created_at: DATE,
 			updated_at: DATE,
-			daemon_os: YES,
-			credential_type: YES,
-			integration: YES,
-			beta: BOOLEAN,
-			unofficial_api: BOOLEAN,
+			daemon_os: server('daemon_os'),
+			credential_type: server('type'),
+			integration: server('integrations'),
+			beta: server('beta'),
+			unofficial_api: server('unofficial_api'),
 			description: TEXT,
-			assigned_sites: SHARED_ARRAY,
+			assigned_sites: { ...SHARED_ARRAY, filter: { param: 'site_ids' } },
 			assigned_hosts: ownedArray(SEARCH),
-			target: SHARED_ARRAY,
-			tags: SHARED_ARRAY
+			target: { ...SHARED_ARRAY, filter: { param: 'targets' } },
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } }
 		}
 	},
 	'vlans/components/VlanTab.svelte': {
+		listPath: '/api/v1/vlans',
 		columns: {
 			vlan_number: { sort: true, group: 'Unique per site', filter: SEARCH },
 			name: IDENTITY,
@@ -365,11 +383,14 @@ const DECISIONS: Record<string, TabDecisions> = {
 			updated_at: DATE,
 			last_seen_at: DATE,
 			description: TEXT,
-			source: YES,
-			site_id: YES,
-			subnet_ids: SHARED_ARRAY,
-			interface_ids: SHARED_ARRAY,
-			tags: SHARED_ARRAY,
+			source: server('sources'),
+			site_id: server('site_ids'),
+			subnet_ids: { ...SHARED_ARRAY, filter: { param: 'subnet_ids' } },
+			interface_ids: {
+				...SHARED_ARRAY,
+				filter: 'Every interface in the organization would be an option'
+			},
+			tags: { ...SHARED_ARRAY, filter: { param: 'tag_ids' } },
 			first_found_by: FOUND_BY,
 			last_found_by: FOUND_BY
 		}
@@ -420,8 +441,6 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 	const { fields: configs, problems: duplicates } = tabFields(tab);
 	if (duplicates.length > 0) return duplicates.map((problem) => `${tab}: ${problem}.`);
 
-	const props = dataControlsProps(tab);
-	const serverPaginated = props.has('serverPagination');
 	const server = dataControlsServerQuery(tab);
 	// The tab's order fields: the columns the server can sort and group by.
 	const variants = new Set(
@@ -429,14 +448,11 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 	);
 	const columns = columnKeys(tab);
 
-	if (serverPaginated && !decided.listPath) {
+	if (!decided.listPath) {
 		problems.push(
-			`${tab}: the tab is server-paginated but DECISIONS["${tab}"] has no listPath. Set it to ` +
+			`${tab}: DECISIONS["${tab}"] has no listPath. Set it to ` +
 				`the path of the GET operation that lists these rows.`
 		);
-	}
-	if (!serverPaginated && decided.listPath) {
-		problems.push(`${tab}: listPath is set but the tab is not server-paginated. Remove listPath.`);
 	}
 	const params = decided.listPath ? listQueryParams(decided.listPath) : undefined;
 	if (decided.listPath && !params) {
@@ -452,27 +468,15 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 		}
 	}
 
-	if (serverPaginated) {
-		for (const column of serverOrderViolations([...configs.values()], true)) {
-			problems.push(
-				`${tab}: display field "${column}" sets sortable or groupable on a server-paginated ` +
-					`list, which would order only the loaded page. Drop the flag, or add an ` +
-					`order field for it.`
-			);
-		}
-		for (const column of serverFilterViolations([...configs.values()], true, {
-			tags: server.tags,
-			fields: server.fields
-		})) {
-			const fix =
-				column === 'tags'
-					? 'Pass onQueryChange to DataControls and send its query, which carries tag_ids'
-					: "Mark it serverFiltered and give it the endpoint's queryParam";
-			problems.push(
-				`${tab}: "${column}" is filterable on a server-paginated list but not filtered by the ` +
-					`server, so it would narrow only the loaded page. ${fix}, or drop filterable.`
-			);
-		}
+	for (const column of serverFilterViolations([...configs.values()], { tags: server.tags })) {
+		const fix =
+			column === 'tags'
+				? 'Pass onQueryChange to DataControls and send its query, which carries tag_ids'
+				: "Mark it serverFiltered and give it the endpoint's queryParam";
+		problems.push(
+			`${tab}: "${column}" is filterable but not filtered by the server, so it would narrow ` +
+				`nothing. ${fix}, or drop filterable.`
+		);
 	}
 
 	for (const [column, decision] of Object.entries(decided.columns)) {
@@ -484,8 +488,8 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 		}
 		const config = configs.get(column);
 		const offered: Record<Capability, boolean> = {
-			sort: config ? isSortableField(config, serverPaginated) : false,
-			group: config ? isGroupableField(config, serverPaginated) : false,
+			sort: config ? isSortableField(config) : false,
+			group: config ? isGroupableField(config) : false,
 			filter: config?.filterable === true
 		};
 
@@ -506,10 +510,10 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 			}
 			const yes = choice === true || typeof choice === 'object';
 
-			if (serverPaginated && yes && capability !== 'filter' && !variants.has(column)) {
+			if (yes && capability !== 'filter' && !variants.has(column)) {
 				problems.push(
 					`${where} is true, but "${column}" is not an order field of the tab and a ` +
-						`server-paginated list ${VERB[capability]} only by order fields. Add the variant to ` +
+						`list ${VERB[capability]} only by order fields. Add the variant to ` +
 						`the backend order-field enum, or record the reason it does not ${capability}.`
 				);
 			} else if (yes && !offered[capability]) {
@@ -525,18 +529,14 @@ function decisionProblems(tab: string, decided: TabDecisions): string[] {
 			}
 
 			if (capability !== 'filter' || !yes) continue;
-			if (serverPaginated && choice === true) {
+			if (choice === true) {
 				problems.push(
-					`${where} is true on a server-paginated tab. Name the query parameter that applies ` +
+					`${where} is true. Name the query parameter that applies ` +
 						`it: { param: '…' } from GET ${decided.listPath}.`
 				);
 			}
 			if (typeof choice === 'object') {
-				if (!serverPaginated) {
-					problems.push(
-						`${where} names param "${choice.param}", but the tab filters client-side. Set it to true.`
-					);
-				} else if (params && !params.has(choice.param)) {
+				if (params && !params.has(choice.param)) {
 					problems.push(
 						`${where} names param "${choice.param}", which is not a query parameter of GET ` +
 							`${decided.listPath}. Use one of: ${[...params].join(', ')}.`
@@ -556,15 +556,13 @@ function headerControlProblems(tab: string): string[] {
 	const { fields, problems: duplicates } = tabFields(tab);
 	if (duplicates.length > 0) return duplicates.map((problem) => `${tab}: ${problem}.`);
 
-	const props = dataControlsProps(tab);
-	const serverPaginated = props.has('serverPagination');
 	const staleWired = dataControlsServerQuery(tab).stale;
 	const configs = [...fields.values()];
 	const problems: string[] = [];
 
 	for (const [column, config] of fields) {
 		const filters = config.filterable === true;
-		const groups = isGroupableField(config, serverPaginated);
+		const groups = isGroupableField(config);
 		if (!filters && !groups) continue;
 
 		if (config.display?.hidden === true) {
@@ -574,7 +572,7 @@ function headerControlProblems(tab: string): string[] {
 			);
 			continue;
 		}
-		const control = columnControls(column, configs, serverPaginated, staleWired);
+		const control = columnControls(column, configs, staleWired);
 		if (control?.filter !== filters || control?.group !== groups) {
 			problems.push(`${tab}: column "${column}" gets no header control for its flags.`);
 		}

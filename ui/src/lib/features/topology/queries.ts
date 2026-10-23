@@ -586,6 +586,24 @@ export function updateHiddenEdgeTypes(
 }
 
 /**
+ * The entity types the viewer hid in `view` with the filter panel's eye toggle, limited to those
+ * the view still draws, as an element or inline on one. Saved options can name a type the view
+ * has stopped drawing (L3's ports); that hide has nothing left to act on.
+ */
+export function hiddenEntityTypesIn(options: TopologyOptions, view: string): string[] {
+	const hidden = ((options.request.hide_entities ?? {}) as Record<string, string[]>)[view] ?? [];
+	const drawn = new Set(
+		viewsJson
+			.find((v) => v.id === view)
+			?.metadata.element_config.element_entities.flatMap((e) => [
+				e.entity_type,
+				...e.inline_entities
+			]) ?? []
+	);
+	return hidden.filter((type) => drawn.has(type));
+}
+
+/**
  * Clear every control that can hide a node in `view`: the metadata hide-set, the entity-type
  * hides, and the tag filter.
  *

@@ -14,6 +14,7 @@
 	import { metadata, entities } from '$lib/shared/stores/metadata';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		common_access,
 		common_close,
@@ -89,10 +90,11 @@
 	let permissionsValue = $state<UserOrgPermissions>('Viewer');
 	let emailValue = $state('');
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			permissionsValue = form.state.values.permissions;
 			emailValue = form.state.values.email;
 		});
+		return unsubscribe;
 	});
 	let emailValid = $derived(!emailValue || !email(emailValue));
 
@@ -170,6 +172,10 @@
 			copied = false;
 		}
 	});
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'cancel', label: common_close(), onClick: handleClose }
+	]);
 </script>
 
 <GenericModal
@@ -180,6 +186,7 @@
 	onClose={handleClose}
 	onOpen={handleOpen}
 	showCloseButton={true}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={UserPlus} color={entities.getColorHelper('User').color} />
@@ -278,15 +285,6 @@
 						</div>
 					</InfoCard>
 				{/if}
-			</div>
-		</div>
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex items-center justify-end gap-3">
-				<button type="button" onclick={handleClose} class="btn-secondary">
-					{common_close()}
-				</button>
 			</div>
 		</div>
 	</div>

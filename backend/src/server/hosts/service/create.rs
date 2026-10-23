@@ -1,5 +1,6 @@
 //! Host creation from API requests and the create-with-children path.
 use super::open_ports::{held_by_open_ports, port_claim};
+use super::stale_ports::{overlaps, stored_container};
 use super::*;
 use crate::server::shared::attribution::AttributeSource;
 
@@ -334,6 +335,7 @@ impl HostService {
             true,
             // ...and carries no SNMP-derived neighbour data, so there is nothing to preserve.
             InterfaceDataComplete::default(),
+            &crate::server::ports::r#impl::coverage::PortCoverage::default(),
         )
         .await
         .map(|created| created.host)
@@ -345,10 +347,14 @@ impl HostService {
     /// - `create_with_children`, which holds the same lock across the wider
     ///   IP/MAC-match → create → IP-insertion window (re-acquiring here on a
     ///   second connection would self-deadlock).
+    ///
+    /// `matched_by` is how `create_with_children` matched an existing host before aligning the
+    /// id; `None` when the caller sent an id that is already the host's.
     pub(crate) async fn create_unlocked(
         &self,
         host: Host,
         authentication: AuthenticatedEntity,
+        matched_by: Option<HostMatchedBy>,
     ) -> Result<Host> {
         let host = if host.id == Uuid::nil() {
             Host::new(host.base.clone())
@@ -373,28 +379,14 @@ impl HostService {
                         == EntitySourceDiscriminants::Discovery)
                     || host.id == existing_host.id =>
             {
-                if host.id != existing_host.id {
-                    tracing::warn!(
-                        incoming_host_id = %host.id,
-                        matched_host_id = %existing_host.id,
-                        matched_host_name = %existing_host.base.name,
-                        "Host matched via MAC/IP address but discovery reported a different host ID. \
-                         This may indicate a daemon is using a stale configuration. \
-                         To fix, update the daemon's config file with: host_id = \"{}\"",
-                        existing_host.id
-                    );
-                }
-
-                tracing::debug!(
-                    "Duplicate host for {}: {} found, {}: {} - upserting discovery data...",
-                    host.base.name,
-                    host.id,
-                    existing_host.base.name,
-                    existing_host.id
-                );
-
-                self.upsert_host(existing_host, host, authentication)
-                    .await?
+                let matched_by = matched_by.unwrap_or(HostMatchedBy::DaemonReportedId);
+                self.upsert_host(
+                    existing_host,
+                    host,
+                    authentication,
+                    UpdateReason::HostRediscovered { matched_by },
+                )
+                .await?
             }
             _ => {
                 if let Some(existing_host) = self.get_by_id(&host.id).await? {
@@ -435,7 +427,7 @@ impl HostService {
                                 },
                             ),
                         )
-                        .await?;
+                        .await;
                 }
 
                 host
@@ -484,6 +476,9 @@ impl HostService {
         // interfaces and their resolved L2 neighbors (GH #649).
         interfaces_complete: bool,
         interface_data_complete: InterfaceDataComplete,
+        // What this scan probed and got an answer from. A stored port binding changes hands only
+        // where it was covered; empty coverage (an API create, an older daemon) moves nothing.
+        port_coverage: &crate::server::ports::r#impl::coverage::PortCoverage,
     ) -> Result<DiscoveredHost> {
         // For advancing `last_seen_at` on matched-existing child rows (see the upsert
         // branches below); mirrors how upsert_host refreshes the host's freshness signal.
@@ -527,10 +522,6 @@ impl HostService {
                     &ip_addresses,
                 ) {
                     Some(rows) => {
-                        tracing::debug!(
-                            matched_host_id = %m.host.id,
-                            "Container report matched a host holding another device's addresses"
-                        );
                         detach_from = Some((m.host, rows));
                         None
                     }
@@ -542,9 +533,11 @@ impl HostService {
 
         let is_new_host = matching_result.is_none();
         let mut same_device: Vec<SameDevice> = Vec::new();
+        let mut host_matched_by: Option<HostMatchedBy> = None;
 
         if let Some(HostMatch {
             host: existing_host,
+            matched_by,
             same_device: proven,
             ..
         }) = matching_result
@@ -563,15 +556,8 @@ impl HostService {
                     // For discovery: align the incoming host ID with the existing host
                     // This ensures create() will match via Host::eq (which compares IDs)
                     // and trigger upsert_host() to merge discovery metadata
-                    if host.id != existing_host.id {
-                        tracing::debug!(
-                            incoming_host_id = %host.id,
-                            matched_host_id = %existing_host.id,
-                            matched_host_name = %existing_host.base.name,
-                            "Setting host ID to match existing host found via IP-address comparison"
-                        );
-                        host.id = existing_host.id;
-                    }
+                    host.id = existing_host.id;
+                    host_matched_by = Some(matched_by);
                     same_device = proven;
                 }
             }
@@ -617,7 +603,9 @@ impl HostService {
         // Stage 2: Create or upsert host via ID matching
         // If host.id was set to an existing host's ID above, this will trigger upsert_host()
         // Unlocked variant: this task already holds the HostDedup lock.
-        let mut created_host = self.create_unlocked(host, authentication.clone()).await?;
+        let mut created_host = self
+            .create_unlocked(host, authentication.clone(), host_matched_by)
+            .await?;
 
         // Before the address loop, so the moved rows are found on this host and refreshed in place.
         if let Some((from, rows)) = &detach_from {
@@ -733,13 +721,21 @@ impl HostService {
         // virtualization.service_id before creating subnets.
         let mut service_id_remap: std::collections::HashMap<Uuid, Uuid> =
             std::collections::HashMap::new();
+        // Stored services this submission found again. They answered, so they keep their ports
+        // whatever else claims them (see `stale_ports`).
+        let mut rediscovered: HashSet<Uuid> = HashSet::new();
         for svc in &services {
             let mut probe = svc.clone();
             probe.base.host_id = created_host.id;
-            if let Some(existing) = existing_services_for_match.iter().find(|e| **e == probe)
-                && existing.id != svc.id
+            if let Some(existing) = existing_services_for_match
+                .iter()
+                .find(|e| **e == probe)
+                .or_else(|| stored_container(&existing_services_for_match, &probe))
             {
-                service_id_remap.insert(svc.id, existing.id);
+                rediscovered.insert(existing.id);
+                if existing.id != svc.id {
+                    service_id_remap.insert(svc.id, existing.id);
+                }
             }
         }
 
@@ -890,6 +886,8 @@ impl HostService {
         // Matched-existing ip_addresses are pushed unchanged below; collect them to
         // advance last_seen_at (see the ports loop for rationale) and persist in one write.
         let mut ip_addresses_to_refresh: Vec<IPAddress> = Vec::new();
+        // Rows that moved to a new address: a real change, written with an event per row.
+        let mut ip_addresses_rehomed: Vec<IPAddress> = Vec::new();
         for mut ip_address in ip_addresses {
             ip_address.base.host_id = created_host.id;
             // Force onto the host's site (see subnet loop above): the payload
@@ -1054,17 +1052,11 @@ impl HostService {
                                 "Same MAC at another address in range; recording it as its own row"
                             );
                         } else {
-                            tracing::info!(
-                                host_id = %ip_address.base.host_id,
-                                from = %existing_iface.base.ip_address,
-                                to = %ip_address.base.ip_address,
-                                "Re-homed an interface that changed address"
-                            );
                             existing_iface.base.ip_address = ip_address.base.ip_address;
                             existing_iface.base.subnet_id = ip_address.base.subnet_id;
                             existing_iface.base.merge_discovered(&ip_address.base);
                             existing_iface.set_last_seen_at(ip_address.last_seen_at);
-                            ip_addresses_to_refresh.push(existing_iface.clone());
+                            ip_addresses_rehomed.push(existing_iface.clone());
                             created_ip_addresses.push(existing_iface);
                             continue;
                         }
@@ -1090,6 +1082,14 @@ impl HostService {
                 .update_many(&ip_addresses_to_refresh)
                 .await?;
         }
+        // Re-homed rows: their updates log the old and new address.
+        self.ip_address_service
+            .update_many_base(
+                &ip_addresses_rehomed,
+                authentication.clone(),
+                UpdateReason::IpAddressRehomed,
+            )
+            .await?;
 
         // Build scanner→DB ip_address ID mapping using positional correspondence.
         // original_ip_addresses and created_ip_addresses are 1:1 in order (the ip_address
@@ -1107,6 +1107,9 @@ impl HostService {
         // Collect orphaned bindings from dropped services to assign to OpenPorts
         let mut orphaned_bindings: Vec<Binding> = Vec::new();
         let mut created_services = Vec::new();
+        let mut turnover = self
+            .port_turnover(&created_host.id, port_coverage, rediscovered)
+            .await?;
 
         for service in services {
             let mut reassigned = self
@@ -1128,6 +1131,7 @@ impl HostService {
             if let Some(existing) = existing_services_for_match
                 .iter()
                 .find(|e| **e == reassigned)
+                .or_else(|| stored_container(&existing_services_for_match, &reassigned))
             {
                 reassigned.id = existing.id;
             }
@@ -1145,6 +1149,17 @@ impl HostService {
                 &service_id_remap,
                 &live_service_ids,
             );
+
+            // A container now identified takes over the generic placeholder stored for it, before
+            // the placeholder's bindings count as conflicts.
+            let absorbed = self
+                .absorb_container_placeholders(
+                    &turnover,
+                    &mut reassigned,
+                    &mut existing_services_for_match,
+                    authentication.clone(),
+                )
+                .await?;
 
             // Check for binding conflicts with other services (DB + batch)
             let (valid_bindings, conflicting_bindings) = self
@@ -1202,9 +1217,42 @@ impl HostService {
                     .collect();
 
                 if matches_existing_service {
-                    // Conflicts with Unclaimed Open Ports are taken back; conflicts with any other
-                    // service leave the port with its owner.
-                    let (reclaimed, dropped): (Vec<Binding>, Vec<Binding>) =
+                    // Conflicts with Unclaimed Open Ports are taken back, and so are covered ports
+                    // whose holders are no longer there (`stale_ports`). Any other conflict leaves
+                    // the port with its owner.
+                    let (handed_over, conflicting_bindings): (Vec<Binding>, Vec<Binding>) =
+                        conflicting_bindings.into_iter().partition(|b| {
+                            port_claim(b).is_some_and(|claim| {
+                                !held_by_open_ports(&claim, &existing_services_for_match)
+                                    && turnover
+                                        .holders_handing_over(
+                                            &[claim],
+                                            &existing_services_for_match,
+                                            &reassigned,
+                                        )
+                                        .is_some_and(|holders| !holders.is_empty())
+                            })
+                        });
+                    let handed_over_claims: Vec<(Uuid, Option<Uuid>)> =
+                        handed_over.iter().filter_map(port_claim).collect();
+                    if let Some(holders) = turnover.holders_handing_over(
+                        &handed_over_claims,
+                        &existing_services_for_match,
+                        &reassigned,
+                    ) && !holders.is_empty()
+                    {
+                        self.take_ports(
+                            &holders,
+                            &handed_over_claims,
+                            &mut existing_services_for_match,
+                            handed_over_to(&reassigned),
+                            authentication.clone(),
+                        )
+                        .await?;
+                    }
+                    let mut valid_bindings = valid_bindings;
+                    valid_bindings.extend(handed_over);
+                    let (reclaimed, _dropped): (Vec<Binding>, Vec<Binding>) =
                         if ServiceDefinitionExt::is_open_ports(&reassigned.base.service_definition)
                         {
                             (vec![], conflicting_bindings)
@@ -1221,19 +1269,11 @@ impl HostService {
                         self.reclaim_from_open_ports(
                             &claims,
                             &mut existing_services_for_match,
-                            reassigned.base.service_definition.name(),
+                            &reassigned,
                             authentication.clone(),
                         )
                         .await;
                     }
-                    tracing::debug!(
-                        service_name = %reassigned.base.name,
-                        service_definition = %reassigned.base.service_definition.name(),
-                        reclaimed_count = reclaimed.len(),
-                        dropped_count = dropped.len(),
-                        valid_count = valid_bindings.len(),
-                        "Re-discovered service has partial binding conflicts - proceeding with valid and reclaimed bindings for upsert"
-                    );
                     reassigned.base.bindings = valid_bindings;
                     reassigned.base.bindings.extend(reclaimed);
                 } else if reassigned.base.virtualization_metadata.is_some()
@@ -1258,14 +1298,6 @@ impl HostService {
                     // them below (GH #784).
                     let takes_other_bindings = enrichable_services.len() == 1;
                     for mut updated in enrichable_services {
-                        tracing::info!(
-                            service_name = %updated.base.name,
-                            service_definition = %updated.base.service_definition.name(),
-                            container_service = %reassigned.base.name,
-                            moved_binding_count =
-                                if takes_other_bindings { valid_bindings.len() } else { 0 },
-                            "Setting Docker virtualization on existing service from conflicting Docker Container"
-                        );
                         updated.base.virtualization_metadata =
                             reassigned.base.virtualization_metadata.clone();
                         updated.base.virtualization_service_id =
@@ -1276,7 +1308,11 @@ impl HostService {
                         // Mirror the stored result so later services in the payload see it.
                         if let Ok(saved) = self
                             .service_service
-                            .update(&mut updated, authentication.clone())
+                            .update(
+                                &mut updated,
+                                authentication.clone(),
+                                UpdateReason::ServiceContainerAdopted,
+                            )
                             .await
                             && let Some(stored) = existing_services_for_match
                                 .iter_mut()
@@ -1285,11 +1321,6 @@ impl HostService {
                             *stored = saved;
                         }
                     }
-
-                    tracing::debug!(
-                        container_service = %reassigned.base.name,
-                        "Dropping generic Docker Container after setting its virtualization on the services holding its ports"
-                    );
                     continue;
                 } else if let Some(owner_id) = reassigned.base.virtualization_service_id
                     && let Some(owner) = existing_services_for_match
@@ -1319,14 +1350,13 @@ impl HostService {
                             BindingType::IPAddress { .. } => None,
                         })
                         .collect();
-                    tracing::info!(
-                        container_service = %reassigned.base.name,
-                        runtime_service_id = %owner_id,
-                        ports = ?claims,
-                        "Container takes the ports its runtime is reached through"
-                    );
                     self.service_service
-                        .remove_port_bindings(&owner_id, &claims, authentication.clone())
+                        .remove_port_bindings(
+                            &owner_id,
+                            &claims,
+                            authentication.clone(),
+                            handed_over_to(&reassigned),
+                        )
                         .await?;
                     if let Some(owner) = existing_services_for_match
                         .iter_mut()
@@ -1353,22 +1383,57 @@ impl HostService {
                     let conflicting_claims: Vec<(Uuid, Option<Uuid>)> =
                         conflicting_bindings.iter().filter_map(port_claim).collect();
 
-                    let all_conflicts_from_open_ports = !conflicting_claims.is_empty()
-                        && conflicting_claims
-                            .iter()
-                            .all(|claim| held_by_open_ports(claim, &existing_services_for_match));
+                    // Each conflict is held by Unclaimed Open Ports, by services that hand the
+                    // port over on a covered scan (`stale_ports`), or both. Anything else keeps
+                    // the port and the new service is dropped.
+                    let handing_over = turnover
+                        .holders_handing_over(
+                            &conflicting_claims,
+                            &existing_services_for_match,
+                            &reassigned,
+                        )
+                        .filter(|holders| {
+                            !conflicting_claims.is_empty()
+                                && conflicting_claims.iter().all(|claim| {
+                                    held_by_open_ports(claim, &existing_services_for_match)
+                                        || existing_services_for_match.iter().any(|s| {
+                                            holders.contains(&s.id)
+                                                && s.base
+                                                    .bindings
+                                                    .iter()
+                                                    .any(|b| overlaps(b, claim))
+                                        })
+                                })
+                        });
 
-                    if all_conflicts_from_open_ports {
+                    if let Some(holders) = handing_over {
                         // The daemon's OpenPorts upsert later in the batch sets the
                         // authoritative final state — this just clears DB conflicts
                         // so the new service can be created.
-                        self.reclaim_from_open_ports(
-                            &conflicting_claims,
-                            &mut existing_services_for_match,
-                            reassigned.base.service_definition.name(),
-                            authentication.clone(),
-                        )
-                        .await;
+                        let open_ports_claims: Vec<(Uuid, Option<Uuid>)> = conflicting_claims
+                            .iter()
+                            .filter(|claim| held_by_open_ports(claim, &existing_services_for_match))
+                            .copied()
+                            .collect();
+                        if !open_ports_claims.is_empty() {
+                            self.reclaim_from_open_ports(
+                                &open_ports_claims,
+                                &mut existing_services_for_match,
+                                &reassigned,
+                                authentication.clone(),
+                            )
+                            .await;
+                        }
+                        if !holders.is_empty() {
+                            self.take_ports(
+                                &holders,
+                                &conflicting_claims,
+                                &mut existing_services_for_match,
+                                handed_over_to(&reassigned),
+                                authentication.clone(),
+                            )
+                            .await?;
+                        }
 
                         // Restore full bindings on the incoming service
                         let mut full_bindings = valid_bindings;
@@ -1459,19 +1524,27 @@ impl HostService {
             // Add to existing_services_for_match so subsequent services in this batch
             // can find it for ID alignment and Docker Container → specific service reconciliation
             existing_services_for_match.push(created.clone());
+            turnover.mark_present(created.id);
+            self.finish_absorbing(absorbed, &created, authentication.clone())
+                .await?;
             created_services.push(created);
         }
+
+        // Covered ports nothing answered on, once stale, leave their holders (`stale_ports`).
+        let answered: HashSet<Uuid> = created_ports.iter().map(|p| p.id).collect();
+        self.release_silent_ports(
+            &turnover,
+            &created_host.base.site_id,
+            &answered,
+            &mut existing_services_for_match,
+            authentication.clone(),
+        )
+        .await?;
 
         // If we have orphaned bindings, assign them to OpenPorts service
         if !orphaned_bindings.is_empty() {
             use crate::server::services::definitions::open_ports::OpenPorts as OpenPortsDef;
             use crate::server::services::r#impl::base::ServiceBase;
-
-            tracing::info!(
-                host_id = %created_host.id,
-                orphaned_binding_count = orphaned_bindings.len(),
-                "Assigning orphaned bindings to OpenPorts service"
-            );
 
             let open_ports_service = Service::new(ServiceBase {
                 host_id: created_host.id,
@@ -1511,7 +1584,11 @@ impl HostService {
                 let mut updated = svc.clone();
                 updated.base.virtualization_service_id = resolved;
                 self.service_service
-                    .update(&mut updated, authentication.clone())
+                    .update(
+                        &mut updated,
+                        authentication.clone(),
+                        UpdateReason::EntityMaintained,
+                    )
                     .await?;
             }
         }
@@ -1578,21 +1655,16 @@ impl HostService {
                         }
                         let _ = self
                             .service_service
-                            .update(&mut updated, authentication.clone())
+                            .update(
+                                &mut updated,
+                                authentication.clone(),
+                                UpdateReason::EntityMaintained,
+                            )
                             .await;
                     }
                 }
             }
         }
-
-        tracing::info!(
-            host_id = %created_host.id,
-            host_name = %created_host.base.name,
-            interface_count = %created_ip_addresses.len(),
-            port_count = %created_ports.len(),
-            service_count = %created_services.len(),
-            "Created host with children"
-        );
 
         if let Some(org_id) = authentication.organization_id() {
             self.entity_tag_service
@@ -1625,6 +1697,17 @@ impl HostService {
         for mut entry in interfaces {
             entry.base.host_id = created_host.id;
             entry.base.site_id = created_host.base.site_id;
+            // A daemon that knows which of its submitted addresses an interface carries names it by
+            // the id it submitted: a gateway's per-network interfaces share one MAC, so MAC
+            // matching (`link_interfaces_to_ip_addresses`) cannot pair them. Point the link at the
+            // row the address landed on, and drop one that names no address of this host.
+            entry.base.ip_address_id = entry.base.ip_address_id.and_then(|id| {
+                let id = ip_address_id_remap.get(&id).copied().unwrap_or(id);
+                created_ip_addresses
+                    .iter()
+                    .any(|ip| ip.id == id)
+                    .then_some(id)
+            });
             let if_index = entry.base.if_index;
 
             match self
@@ -1676,33 +1759,24 @@ impl HostService {
                 .interface_service
                 .get_for_host(&created_host.id)
                 .await?;
-            let existing_count = existing.len();
-            let mut pruned = 0usize;
             for iface in existing {
-                if !kept_ids.contains(&iface.id) {
-                    match self
+                if !kept_ids.contains(&iface.id)
+                    && let Err(e) = self
                         .interface_service
-                        .delete(&iface.id, authentication.clone())
+                        .delete(
+                            &iface.id,
+                            authentication.clone(),
+                            DeletionReason::EntityNoLongerReported,
+                        )
                         .await
-                    {
-                        Ok(_) => pruned += 1,
-                        Err(e) => tracing::warn!(
-                            host_id = %created_host.id,
-                            interface_id = %iface.id,
-                            error = %e,
-                            "Failed to prune orphan interface"
-                        ),
-                    }
+                {
+                    tracing::warn!(
+                        host_id = %created_host.id,
+                        interface_id = %iface.id,
+                        error = %e,
+                        "Failed to prune orphan interface"
+                    );
                 }
-            }
-            if pruned > 0 {
-                tracing::debug!(
-                    host_id = %created_host.id,
-                    incoming = created_interfaces.len(),
-                    existing = existing_count,
-                    pruned = pruned,
-                    "Pruned interfaces no longer reported by a complete ifTable scan"
-                );
             }
         } else if !created_interfaces.is_empty() {
             // Non-empty incoming set that we chose NOT to prune against ⇒ the set isn't
@@ -1799,14 +1873,11 @@ impl HostService {
             .get_by_id(&proven.host_id)
             .await?
             .ok_or_else(|| anyhow!("host {} is no longer live", proven.host_id))?;
-        tracing::info!(
-            host_id = %destination.id,
-            other_host_id = %other.id,
-            other_host_name = %other.base.name,
-            addresses = ?proven.addresses,
-            "Merging a host this payload proves is the same device"
-        );
-        self.consolidate_hosts(destination, other, authentication.clone())
+        let reason = DeletionReason::HostMergedInto {
+            host_id: destination.id,
+            proven_by: proven.addresses.clone(),
+        };
+        self.consolidate_hosts(destination, other, authentication.clone(), reason)
             .await
     }
 }
@@ -1892,6 +1963,14 @@ pub(crate) fn remap_assignment_ip_ids(
         return;
     }
     assignment.ip_address_ids = Some(remapped);
+}
+
+/// Why a holder gives up the ports `claimant` takes.
+fn handed_over_to(claimant: &Service) -> DeletionReason {
+    DeletionReason::ServicePortsHandedOver {
+        to_service_id: claimant.id,
+        to: claimant.base.service_definition.clone(),
+    }
 }
 
 #[cfg(test)]

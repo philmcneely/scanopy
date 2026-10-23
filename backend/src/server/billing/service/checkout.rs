@@ -101,13 +101,6 @@ impl BillingService {
             .await
             .map_err(|e| anyhow!(e.to_string()))?;
 
-        tracing::info!(
-            organization_id = %organization_id,
-            plan = %plan.name(),
-            session_id = %session.id,
-            "Checkout session created successfully"
-        );
-
         // Publish checkout_started event for email automation
         self.event_bus
             .publish(Event::new(
@@ -115,10 +108,12 @@ impl BillingService {
                 BillingOperation::CheckoutStarted {
                     plan,
                     has_trial: plan.config().trial_days > 0,
+                    stripe_id: session.id.to_string(),
+                    subscription_status: None,
                 },
                 auth_for_event,
             ))
-            .await?;
+            .await;
 
         Ok(session)
     }
@@ -163,12 +158,6 @@ impl BillingService {
         self.organization_service
             .commit_billing(locked, Some(milestone), vec![checkout])
             .await?;
-
-        tracing::info!(
-            organization_id = %organization_id,
-            plan = %plan.name(),
-            "Free plan activated directly (no Stripe)"
-        );
 
         Ok("Free plan activated!".to_string())
     }
@@ -232,14 +221,6 @@ impl BillingService {
             .await
             .map_err(|e| anyhow!(e.to_string()))?;
 
-        tracing::info!(
-            organization_id = %organization_id,
-            plan = %plan.name(),
-            subscription_id = %subscription.id,
-            trial_days = plan.config().trial_days,
-            "Trial subscription created directly (skipped checkout)"
-        );
-
         // Publish checkout_started event for email automation
         self.event_bus
             .publish(Event::new(
@@ -247,10 +228,12 @@ impl BillingService {
                 BillingOperation::CheckoutStarted {
                     plan,
                     has_trial: true,
+                    stripe_id: subscription.id.to_string(),
+                    subscription_status: Some(subscription.status),
                 },
                 auth_for_event,
             ))
-            .await?;
+            .await;
 
         Ok(format!("Your {} trial has started!", plan.name()))
     }
@@ -293,24 +276,18 @@ impl BillingService {
             .await
             .map_err(|e| anyhow!(e.to_string()))?;
 
-        tracing::info!(
-            organization_id = %organization_id,
-            plan = %plan.name(),
-            subscription_id = %subscription.id,
-            subscription_status = %subscription.status,
-            "Paid subscription created in-app with the card on file"
-        );
-
         self.event_bus
             .publish(Event::new(
                 OrgScope { organization_id },
                 BillingOperation::CheckoutStarted {
                     plan,
                     has_trial: false,
+                    stripe_id: subscription.id.to_string(),
+                    subscription_status: Some(subscription.status),
                 },
                 auth_for_event,
             ))
-            .await?;
+            .await;
 
         Ok(format!("You're on the {} plan.", plan.name()))
     }
@@ -497,15 +474,8 @@ impl BillingService {
             return Ok(CustomerId::from(customer_id.to_owned()));
         }
 
-        let customer_id = match self.find_org_customer(organization_id).await? {
-            Some(customer_id) => {
-                tracing::info!(
-                    organization_id = %organization_id,
-                    customer_id = %customer_id,
-                    "Adopted existing Stripe customer found by org metadata"
-                );
-                customer_id
-            }
+        let (customer_id, adopted) = match self.find_org_customer(organization_id).await? {
+            Some(customer_id) => (customer_id, true),
             None => {
                 let organization_owners = self
                     .user_service
@@ -527,14 +497,7 @@ impl BillingService {
                     .request_strategy(RequestStrategy::Idempotent(idempotency_key))
                     .send(&self.stripe)
                     .await?;
-
-                tracing::info!(
-                    organization_id = %organization_id,
-                    customer_id = %customer.id,
-                    customer_email = %first_owner.base.email,
-                    "Created new Stripe customer"
-                );
-                customer.id
+                (customer.id, false)
             }
         };
 
@@ -545,6 +508,7 @@ impl BillingService {
                     OrgScope { organization_id },
                     BillingOperation::StripeCustomerCreated {
                         customer_id: customer_id.to_string(),
+                        adopted,
                     },
                     AuthenticatedEntity::System,
                 )],

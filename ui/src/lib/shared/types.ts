@@ -24,7 +24,6 @@ export function matchReasonLabel(reason: MatchReason): string {
 	if (reason.type === 'reason') {
 		return reason.data;
 	} else {
-		// Container type: [name, children] - data is typed as unknown[] in schema
-		return reason.data[0] as string;
+		return reason.data[0];
 	}
 }

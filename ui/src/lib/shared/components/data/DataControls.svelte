@@ -1,10 +1,10 @@
-<script lang="ts" generics="T">
+<script lang="ts" generics="T extends RowData">
+	import type { RowData } from '@tanstack/table-core';
 	import type { Snippet } from 'svelte';
 	import {
 		type FieldConfig,
 		getFieldKey,
 		groupPageSlice,
-		type GroupPosition,
 		type GroupSlice,
 		type PageSizeOption,
 		type CardAction,
@@ -12,30 +12,27 @@
 	} from './types';
 	import { filterOptionsOf } from './controls/fieldValues';
 	import {
-		sortItems,
 		nextSortState,
-		treeSiblingCompare,
 		sortableFields as sortableFieldsOf,
 		groupableFields as groupableFieldsOf,
 		type SortState
 	} from './controls/sorting';
 	import {
-		matchesSearch,
-		matchesFilters,
 		blankFilterState,
 		hasActiveFilters as hasActiveFiltersOf,
 		activeFilterCount as activeFilterCountOf,
 		type FilterState
 	} from './controls/filtering';
 	import { createFilterActions } from './controls/filterActions';
-	import { guardServerPaginatedConfig, guardTableDefaults } from './controls/devGuards.svelte';
+	import { guardServerFilters, guardTableDefaults } from './controls/devGuards.svelte';
 	import { columnControls, renderedFields, dropHiddenColumnState } from './controls/headerControls';
-	import { paginationView, pageSlice } from './controls/pagination';
+	import { paginationView } from './controls/pagination';
 	import { createChangeTracker } from './controls/changeTracker';
 	import {
 		groupItems as groupItemsBy,
 		buildTreeSections,
 		mergeRootedTrees,
+		rootedTreesPosition,
 		flattenTreeEntries,
 		computeGroupOffsets,
 		serverGroupKey as serverGroupKeyOf,
@@ -60,7 +57,6 @@
 		type OrderingChoice
 	} from './controls/dataControlsStorage';
 	import {
-		CLIENT_QUERY,
 		decodeFilters,
 		decodeListParams,
 		hasListParams,
@@ -95,7 +91,8 @@
 		common_ungrouped,
 		common_tableCaption,
 		common_tags,
-		common_delete,
+		common_notAvailableForAllSelected,
+		common_oneRowAtATime,
 		common_noCommonTags,
 		common_commonTags,
 		tags_hotkeyEdit,
@@ -121,6 +118,7 @@
 	import { isOnVisiblePage, registerEntityList } from '$lib/shared/stores/modal-registry';
 	import { isShiftShortcut, keyLabel, shiftShortcutLabel } from '$lib/shared/utils/shortcuts';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
+	import { tooltip } from '$lib/shared/actions/tooltip';
 	import {
 		isFreeKeydown,
 		isPlainKey,
@@ -129,8 +127,10 @@
 	} from './controls/listShortcuts';
 	import {
 		assignActionKeys,
-		isDangerAction,
 		matchesActionKey,
+		resolveTooltip,
+		selectionActions,
+		toolbarButtonClass,
 		type KeyedAction
 	} from './controls/actionShortcuts';
 	import type { components } from '$lib/api/schema';
@@ -144,19 +144,16 @@
 		items = $bindable([]),
 		fields: tabFields = $bindable([]),
 		storageKey = null,
-		onBulkDelete = null,
-		allowBulkDelete = true,
-		canDeleteItem = null,
 		entityType = null,
 		canEditTags = true,
 		getItemTags = null,
 		getItemId,
-		// Server-side pagination (optional)
-		serverPagination = null,
-		onPageChange = null,
-		// Server-side query (optional): the request the parent sends its endpoint, in the endpoint's
-		// own param names. Called once the view is restored and on every change after.
-		onQueryChange = null,
+		// The page the server returned, and how the parent fetches another.
+		serverPagination,
+		onPageChange,
+		// The request the parent sends its endpoint, in the endpoint's own param names. Called once
+		// the view is restored and on every change after.
+		onQueryChange,
 		// Which parts of the view the server applies from that query. Absent: every part.
 		serverQuery = null,
 		// CSV export callback (optional, default behavior)
@@ -180,28 +177,22 @@
 		items: T[];
 		fields: FieldConfig<T>[];
 		storageKey?: string | null;
-		onBulkDelete?: ((ids: string[]) => Promise<void>) | null;
-		allowBulkDelete?: boolean;
-		// Whether one row may be deleted. Bulk delete is offered only while every selected row may
-		// be; the selection stays available for tagging. Absent: every row may be deleted.
-		canDeleteItem?: ((item: T) => boolean) | null;
 		entityType?: EntityDiscriminants | null;
 		// Whether the user may add and remove tags here. `entityType` names what the rows are; this
 		// gates editing them.
 		canEditTags?: boolean;
 		getItemTags?: ((item: T) => string[]) | null;
 		getItemId: (item: T) => string;
-		// Server-side pagination: when provided, pagination is server-controlled
-		// Callback receives both page and pageSize so parent can use in query
-		serverPagination?: PaginationMeta | null;
-		onPageChange?: ((page: number, pageSize: number) => void) | null;
+		// The server's pagination for the page in `items`; null until the first page arrives.
+		// `onPageChange` receives both page and pageSize so the parent can use them in its query.
+		serverPagination: PaginationMeta | null;
+		onPageChange: (page: number, pageSize: number) => void;
 		// Server-side query: search, tags, staleness, ordering and `serverFiltered` fields, as the
 		// endpoint takes them. The same params, plus `page` and `selected`, are the list's URL, so a
 		// link and an API call with this query return the same rows. Server-side because the client
 		// would only ever narrow the page it holds. Search is throttled.
-		onQueryChange?: ((query: URLSearchParams) => void) | null;
-		// The parts of the view the server applies. A list held whole that sends only staleness to
-		// its endpoint passes the rest as false.
+		onQueryChange: (query: URLSearchParams) => void;
+		// The parts of the view the server applies, where an endpoint takes no staleness or tags.
 		serverQuery?: Partial<ServerQuery> | null;
 		// CSV export: default behavior when user clicks export button
 		onCsvExport?: (() => void | Promise<void>) | null;
@@ -223,9 +214,6 @@
 	const tagGroupsQuery = useTagGroupsQuery();
 	let tagGroups = $derived(tagGroupsQuery.data ?? []);
 
-	// Check if using server-side pagination
-	let useServerPagination = $derived(serverPagination !== null && onPageChange !== null);
-
 	/**
 	 * The tab's fields, then one per tag group that applies to the rows, built here so every
 	 * taggable table gets them: hidden until shown, and sorted, filtered and grouped like any other
@@ -239,18 +227,13 @@
 					tags: allTags,
 					entityType,
 					getItemTags,
-					serverPaginated: useServerPagination,
 					cell: canEditTags ? tagGroupCell : undefined
 				})
 			: [])
 	]);
 
-	/** What the server applies from the query. A list without `onQueryChange` applies everything here. */
-	let server = $derived<ServerQuery>(
-		onQueryChange
-			? { search: true, tags: true, stale: true, order: true, fields: true, ...serverQuery }
-			: CLIENT_QUERY
-	);
+	/** What the server applies from the query. */
+	let server = $derived<ServerQuery>({ tags: true, stale: true, ...serverQuery });
 
 	// Bulk tag mutations
 	const bulkAddTagMutation = useBulkAddTagMutation();
@@ -282,13 +265,15 @@
 	// and handed to table-core as controlled state rather than kept in parallel.
 	let columnVisibility = $state<Record<string, boolean>>({});
 	let columnOrder = $state<string[]>([]);
+	let columnGroupOrder = $state<string[]>([]);
 	let columnSizing = $state<Record<string, number>>({});
 
-	// Pagination state
+	// Pagination state. `currentPage` is the page restored from storage or a link, handed to the
+	// parent on mount; after that the server's offset says which page is showing.
 	let currentPage = $state(1);
 	let pageSize = $state<PageSizeOption>(20);
 
-	// Bulk selection state (always enabled when onBulkDelete is provided)
+	// Bulk selection state
 	let selectedIds = new SvelteSet<string>();
 
 	// Load state from localStorage
@@ -306,6 +291,7 @@
 
 		if (state.columnVisibility) columnVisibility = state.columnVisibility;
 		if (state.columnOrder) columnOrder = state.columnOrder;
+		if (state.columnGroupOrder) columnGroupOrder = state.columnGroupOrder;
 		if (state.columnSizing) columnSizing = state.columnSizing;
 
 		if (state.pageSize) {
@@ -381,10 +367,11 @@
 					filterState: toStoredFilterState(filterState),
 					sortState: ordering.sort,
 					selectedGroupField: ordering.group,
-					currentPage,
+					currentPage: effectiveCurrentPage,
 					pageSize,
 					columnVisibility,
 					columnOrder,
+					columnGroupOrder,
 					columnSizing
 				})
 			);
@@ -417,12 +404,13 @@
 		sentSearch = searchQuery;
 
 		// The parent's query has to use the restored page and page size.
-		if (onPageChange && (restoredPageSize || currentPage !== 1)) {
+		if (restoredPageSize || currentPage !== 1) {
 			onPageChange(currentPage, pageSize);
 		}
 
 		// Set up reactive save (debounced)
 		let saveTimeout: ReturnType<typeof setTimeout>;
+		let savePending = false;
 
 		const unsubscribe = $effect.root(() => {
 			$effect(() => {
@@ -431,21 +419,28 @@
 					void searchQuery;
 					void filterState;
 					void ordering;
-					void currentPage;
+					void effectiveCurrentPage;
 					void pageSize;
 					void columnVisibility;
 					void columnOrder;
+					void columnGroupOrder;
 					void columnSizing;
 
 					// Debounce saves
 					clearTimeout(saveTimeout);
-					saveTimeout = setTimeout(saveState, 100);
+					savePending = true;
+					saveTimeout = setTimeout(() => {
+						savePending = false;
+						saveState();
+					}, 100);
 				}
 			});
 		});
 
 		return () => {
 			clearTimeout(saveTimeout);
+			// Save a change still in its debounce, or a remount would restore the view before it.
+			if (savePending) saveState();
 			unsubscribe();
 		};
 	});
@@ -457,7 +452,7 @@
 
 	// ---- Table columns -------------------------------------------------------
 
-	let allColumns = $derived(fieldsToColumns(fields, useServerPagination));
+	let allColumns = $derived(fieldsToColumns(fields));
 	/**
 	 * Tags are appended by the list itself rather than declared per tab.
 	 *
@@ -473,7 +468,12 @@
 	let columnState = $derived(
 		reconcileColumnState(
 			allColumns,
-			{ visibility: columnVisibility, order: columnOrder, sizing: columnSizing },
+			{
+				visibility: columnVisibility,
+				order: columnOrder,
+				groupOrder: columnGroupOrder,
+				sizing: columnSizing
+			},
 			tagColumn ? [tagColumn] : []
 		)
 	);
@@ -484,12 +484,10 @@
 	let columnFields = $derived(renderedFields(fields, renderedColumnIds));
 	let staleAvailable = $derived(server.stale);
 
-	// Under server pagination only server-orderable fields are offered: the
-	// client holds one page, so sorting or grouping it here would describe that
-	// page alone while the pager walks the server's order. Only fields whose
-	// column renders are offered: hiding a column takes its controls too.
-	let groupableFields = $derived(groupableFieldsOf(columnFields, useServerPagination));
-	let sortableFields = $derived(sortableFieldsOf(columnFields, useServerPagination));
+	// Only server-orderable fields whose column renders are offered: the client holds one page, and
+	// hiding a column takes its controls too.
+	let groupableFields = $derived(groupableFieldsOf(columnFields));
+	let sortableFields = $derived(sortableFieldsOf(columnFields));
 
 	// The group and sort actually in force. A choice restored from storage can
 	// name a field this list no longer offers, which then applies nothing rather
@@ -503,54 +501,22 @@
 			: { field: null, direction: sortState.direction }
 	);
 
-	// Apply all filters, sorting, and grouping
-	let processedItems = $derived.by(() => {
-		const serverMode = { tags: server.tags, fields: server.fields };
-
-		const result = items.filter((item) => {
-			// Search is skipped when the parent searches server-side — the rows that
-			// arrived are already the matches.
-			if (!server.search && !matchesSearch(item, fields, searchQuery)) return false;
-			return matchesFilters(item, fields, filterState, serverMode, getItemTags);
-		});
-
-		return sortItems(result, fields, activeSort, server.order, useServerPagination);
-	});
-
 	// Per-group totals across every page, when the server supplied them.
 	let serverGroupCounts = $derived(serverPagination?.group_counts ?? null);
 
-	const groupLabels = () => ({
-		ungrouped: common_ungrouped(),
-		yes: common_yes(),
-		no: common_no()
-	});
-
-	// Every loaded row by the selected field. A server-paginated page arrives in the server's group
-	// order, which the cumulative offsets from `serverGroupCounts` are indexed by, so its buckets
-	// keep that order.
-	let allGroups = $derived.by(() => {
-		if (!activeGroupField) {
-			return new SvelteMap([[common_all(), processedItems]]);
-		}
-		return groupItemsBy(
-			processedItems,
-			fields,
-			activeGroupField,
-			groupLabels(),
-			serverGroupCounts !== null || useServerPagination
-		);
-	});
-
-	/** The rows in the order pages are cut from: group by group while grouped, as a server page is. */
-	let rowsInPageOrder = $derived(
-		activeGroupField ? [...allGroups.values()].flat() : processedItems
-	);
-
-	// The current page's rows by the selected field, in the order `allGroups` put them.
+	// Group items by selected field
 	let groupedItems = $derived.by(() => {
-		if (!activeGroupField || useServerPagination) return allGroups;
-		return groupItemsBy(paginatedItems, fields, activeGroupField, groupLabels(), true);
+		if (!activeGroupField) {
+			return new SvelteMap([[common_all(), items]]);
+		}
+
+		// The page arrives in the server's group order, which the cumulative offsets from
+		// `serverGroupCounts` are indexed by, so its buckets keep that order.
+		return groupItemsBy(items, fields, activeGroupField, {
+			ungrouped: common_ungrouped(),
+			yes: common_yes(),
+			no: common_no()
+		});
 	});
 
 	/**
@@ -559,10 +525,10 @@
 	 */
 	let treeEntries = $derived.by(() => {
 		if (!activeTree) return null;
-		const { tree, compare } = activeTree;
+		const tree = activeTree;
 		const entries = new SvelteMap<string, TreeEntry<T>[]>();
 		for (const [name, rows] of groupedItems) {
-			entries.set(name, buildTreeSections(rows, tree, useServerPagination, name, compare));
+			entries.set(name, buildTreeSections(rows, tree, name));
 		}
 		return entries;
 	});
@@ -570,10 +536,7 @@
 	/** The active group field, when its groups are trees. */
 	let activeTree = $derived.by(() => {
 		const field = fields.find((f) => getFieldKey(f) === activeGroupField);
-		// Siblings follow the active sort; with none, the grouped field's own order.
-		return field?.tree
-			? { tree: field.tree, compare: treeSiblingCompare(fields, activeSort, field.compare) }
-			: null;
+		return field?.tree ?? null;
 	});
 
 	/**
@@ -589,34 +552,21 @@
 
 	let groupOffsets = $derived(computeGroupOffsets(serverGroupCounts));
 
-	/** Where each group sits among every loaded row, for a list this component paginates. */
-	let clientGroupOffsets = $derived.by(() => {
-		const offsets = new SvelteMap<string, GroupPosition>();
-		let cursor = 0;
-		for (const [name, rows] of allGroups) {
-			offsets.set(name, { start: cursor, count: rows.length });
-			cursor += rows.length;
-		}
-		return offsets;
-	});
-
 	function serverGroupKey(rows: T[]): string {
 		return serverGroupKeyOf(rows, fields, activeGroupField);
 	}
 
 	/**
-	 * How much of a group this page is showing, and how big the group really is. Null when a
-	 * server-paginated list came without totals, or when the page shows the whole group.
+	 * How much of a group this page is showing, and how big the group really
+	 * is. Null when the server didn't supply totals.
 	 */
-	function groupRange(name: string, groupItems: T[]): GroupSlice | null {
-		if (useServerPagination && serverPagination) {
-			const group = groupOffsets.get(serverGroupKey(groupItems));
-			return group ? groupPageSlice(group, serverPagination.offset, items.length) : null;
-		}
+	function groupRange(groupItems: T[]): GroupSlice | null {
+		if (!serverPagination) return null;
 
-		const group = clientGroupOffsets.get(name);
-		const pageOffset = (effectiveCurrentPage - 1) * pageSize;
-		return group ? groupPageSlice(group, pageOffset, paginatedItems.length) : null;
+		const group = groupOffsets.get(serverGroupKey(groupItems));
+		if (!group) return null;
+
+		return groupPageSlice(group, serverPagination.offset, items.length);
 	}
 
 	/** The groups as the table renders them. */
@@ -627,12 +577,19 @@
 				key: name,
 				name,
 				items: entries ? flattenTreeEntries(entries) : groupItems,
-				range: groupRange(name, groupItems),
+				range: groupRange(groupItems),
 				entries,
 				rootRanges: null
 			};
 		});
-		return activeTree ? mergeRootedTrees(groups, activeTree.tree) : groups;
+		if (!activeTree) return groups;
+		// The trees together, across every page: the merged header's range.
+		const trees = rootedTreesPosition(serverGroupCounts);
+		const range =
+			trees && serverPagination
+				? groupPageSlice(trees, serverPagination.offset, items.length)
+				: null;
+		return mergeRootedTrees(groups, activeTree, range);
 	});
 
 	function toggleSort(fieldKey: string) {
@@ -662,9 +619,6 @@
 		},
 		set staleOnly(next) {
 			staleOnly = next;
-		},
-		get serverFields() {
-			return server.fields;
 		}
 	});
 
@@ -722,17 +676,16 @@
 		selectedIds.clear();
 	}
 
-	// Handle bulk delete
-	async function handleBulkDelete() {
-		const deleted = await runBulkAction(
-			'Bulk delete',
-			selectedIds,
-			Boolean(allowBulkDelete && onBulkDelete),
-			(ids) => onBulkDelete!(ids)
-		);
-		// Only on success: a failed delete leaves the rows, so clearing here
-		// would drop the selection the user still needs to retry.
-		if (deleted) selectedIds.clear();
+	/** Runs a row action's `onBulk` on the selection. */
+	function runOnSelection(action: CardAction) {
+		return async () => {
+			const done = await runBulkAction(action.label, selectedIds, Boolean(action.onBulk), (ids) =>
+				Promise.resolve(action.onBulk!(ids))
+			);
+			// A delete clears the selection, its rows being gone. Only on success: a failed delete
+			// leaves the rows, and the user still needs the selection to retry.
+			if (done && action.isDelete) selectedIds.clear();
+		};
 	}
 
 	function bulkTagAction(description: string, mutate: typeof bulkAddTagMutation) {
@@ -763,38 +716,24 @@
 	let hasActiveSearch = $derived(searchQuery.trim().length > 0);
 	let hasActiveGrouping = $derived(activeGroupField !== null);
 
-	guardServerPaginatedConfig(() => ({
+	guardServerFilters(() => ({
 		fields,
-		serverPaginated: useServerPagination,
-		server: { tags: server.tags, fields: server.fields }
+		server: { tags: server.tags }
 	}));
-	guardTableDefaults(() => ({ fields, defaults, serverPaginated: useServerPagination }));
+	guardTableDefaults(() => ({ fields, defaults }));
 
-	// Every pagination number comes from one resolution of "who is paginating",
-	// so the count and the rows beneath it cannot fall out of step. The server's
-	// total already accounts for search and filters, so there is no
-	// filtered-vs-unfiltered discrepancy left to paper over here.
-	let page = $derived(
-		paginationView(
-			useServerPagination ? serverPagination : null,
-			currentPage,
-			pageSize,
-			processedItems.length
-		)
-	);
+	// Every pagination number comes from the server's metadata, whose total already accounts for
+	// search and filters, so the count and the rows beneath it cannot fall out of step.
+	let page = $derived(paginationView(serverPagination, pageSize, items.length));
 	let effectiveCurrentPage = $derived(page.currentPage);
 	let totalPages = $derived(page.totalPages);
 	let totalCount = $derived(page.totalCount);
 	/** The filters and search match nothing, so the table gives way to an empty state with Clear. */
 	let matchesNothing = $derived(totalCount === 0 && (hasActiveFilters || hasActiveSearch));
 
-	let paginatedItems = $derived(
-		pageSlice(rowsInPageOrder, effectiveCurrentPage, pageSize, useServerPagination)
-	);
-
 	/** Every row in the order the table renders it: the current page, or each group's rows in turn. */
 	let orderedItems = $derived(
-		hasActiveGrouping ? groupList.flatMap((group) => group.items) : paginatedItems
+		hasActiveGrouping ? groupList.flatMap((group) => group.items) : items
 	);
 
 	// Lets an open entity modal step to the previous or next row with the arrow keys.
@@ -867,12 +806,11 @@
 		}
 	}
 
-	let showSelection = $derived(Boolean(onBulkDelete) || hasBulkTagging);
-	// Bulk delete is offered only while the selection holds no row that can't be deleted.
-	let selectionDeletable = $derived(
-		!canDeleteItem ||
-			items.filter((item) => selectedIds.has(getItemId(item))).every((item) => canDeleteItem(item))
+	// Rows are selectable when the selection has something to act on: tags, or a bulk row action.
+	let hasBulkActions = $derived(
+		items.some((item) => getActions?.(item).some((action) => action.onBulk) ?? false)
 	);
+	let showSelection = $derived(hasBulkActions || hasBulkTagging);
 
 	let tableCaptionText = $derived(
 		common_tableCaption({
@@ -891,6 +829,10 @@
 		columnOrder = order;
 	}
 
+	function reorderColumnGroups(groupOrder: string[]) {
+		columnGroupOrder = groupOrder;
+	}
+
 	function resizeColumns(sizing: Record<string, number>) {
 		columnSizing = sizing;
 	}
@@ -898,6 +840,7 @@
 	function resetColumns() {
 		columnVisibility = {};
 		columnOrder = [];
+		columnGroupOrder = [];
 		columnSizing = {};
 		dropHiddenColumns();
 	}
@@ -935,7 +878,6 @@
 				search: sentSearch
 			},
 			fields,
-			defaults,
 			server
 		)
 	);
@@ -948,17 +890,13 @@
 		if (changed) resetToFirstPage();
 		if (changed || !queryNotified) {
 			queryNotified = true;
-			onQueryChange?.(viewParams.request);
+			onQueryChange(viewParams.request);
 		}
 	});
 
-	/** Move to a page, through the parent when it paginates. */
+	/** Move to a page: the parent fetches it. */
 	function goToPage(target: number, size: PageSizeOption = pageSize) {
-		if (useServerPagination && onPageChange) {
-			onPageChange(target, size);
-		} else {
-			currentPage = target;
-		}
+		onPageChange(target, size);
 	}
 
 	function handlePageSizeChange(newSize: PageSizeOption) {
@@ -1056,18 +994,22 @@
 		selection: keyLabel('Escape')
 	};
 
-	let canBulkDelete = $derived(
-		Boolean(allowBulkDelete && onBulkDelete) && selectedIds.size > 0 && selectionDeletable
-	);
-
-	// With exactly one row selected, its own actions (Edit, Rescan, ...) also show in the toolbar,
-	// each with a key. Its delete action is left out while Delete Selected already covers it.
-	let singleRowActions = $derived.by((): KeyedAction[] => {
-		if (!getActions || selectedIds.size !== 1) return [];
-		const item = items.find((i) => selectedIds.has(getItemId(i)));
-		if (!item) return [];
-		const actions = getActions(item).filter((a) => !(canBulkDelete && isDangerAction(a)));
-		return assignActionKeys(actions);
+	// The selection's actions in the toolbar, each with a key, built from the selected rows' own
+	// actions: one row's actions as its row shows them, or the bulk actions for several.
+	let selectionToolbarActions = $derived.by((): KeyedAction[] => {
+		if (!getActions || selectedIds.size === 0) return [];
+		const rows = items.filter((item) => selectedIds.has(getItemId(item)));
+		if (rows.length === 0) return [];
+		return assignActionKeys(
+			selectionActions(
+				rows.map((item) => getActions(item)),
+				runOnSelection,
+				{
+					missing: common_notAvailableForAllSelected(),
+					oneRowAtATime: common_oneRowAtATime()
+				}
+			)
+		);
 	});
 
 	// Toolbar controls (CreateButton) take their own keys through this.
@@ -1076,8 +1018,12 @@
 		isPaused: () => searchFocused
 	});
 
-	function singleRowActionFor(event: KeyboardEvent): KeyedAction | undefined {
-		return singleRowActions.find(({ key }) => key !== null && matchesActionKey(event, key));
+	/** The toolbar action a key press runs: the first matching one available, else the first match. */
+	function selectionActionFor(event: KeyboardEvent): KeyedAction | undefined {
+		const matches = selectionToolbarActions.filter(
+			({ key }) => key !== null && matchesActionKey(event, key)
+		);
+		return matches.find(({ action }) => !action.unavailable) ?? matches[0];
 	}
 
 	function handleListShortcut(event: KeyboardEvent) {
@@ -1093,25 +1039,17 @@
 			// Cmd/Ctrl+A selects every row on the page instead of the page's text.
 			event.preventDefault();
 			visibleIds(orderedItems, getItemId).forEach((id) => selectedIds.add(id));
-		} else if (singleRowActionFor(event)) {
-			const keyed = singleRowActionFor(event)!;
+		} else if (selectionActionFor(event)) {
+			// The delete asks for confirmation, as its button does.
+			const keyed = selectionActionFor(event)!;
 			event.preventDefault();
-			if (!keyed.action.disabled) keyed.action.onClick();
+			if (!keyed.action.unavailable) keyed.action.onClick();
 		} else if (showTagIsland && isPlainKey(event, TAG_SHORTCUT)) {
 			event.preventDefault();
 			bulkTagPicker?.focusInput();
 		} else if (showSelection && selectedIds.size > 0 && plain && event.key === 'Escape') {
 			event.preventDefault();
 			selectNone();
-		} else if (
-			canBulkDelete &&
-			plain &&
-			!event.shiftKey &&
-			(event.key === 'Delete' || event.key === 'Backspace')
-		) {
-			// The page's delete asks for confirmation, as the button does.
-			event.preventDefault();
-			handleBulkDelete();
 		} else if (matchesNothing && isPlainKey(event, CLEAR_ALL_KEY)) {
 			event.preventDefault();
 			clearAllNarrowing();
@@ -1172,18 +1110,17 @@
 
 <svelte:window onkeydown={handleListShortcut} onclick={handleClickOutside} />
 
-<!-- With rows selected: the one selected row's own actions, then Delete for the selection. -->
+<!-- With rows selected: the selection's actions, as their rows show them. -->
 {#snippet selectionToolbar()}
-	{#each singleRowActions as { action, key } (action.label)}
-		{@const tip =
-			typeof action.tooltip === 'function' ? action.tooltip(!!action.disabled) : action.tooltip}
+	{#each selectionToolbarActions as { action, key } (action.label)}
 		<button
 			onclick={action.onClick}
-			disabled={action.disabled}
-			title={tip ?? undefined}
-			class="{isDangerAction(action)
-				? 'btn-danger'
-				: 'btn-secondary'} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+			disabled={!!action.unavailable}
+			use:tooltip
+			data-tooltip={resolveTooltip(action)}
+			class="{toolbarButtonClass(
+				action.tone
+			)} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{action.label}
 			{#if key}
@@ -1196,17 +1133,6 @@
 			{/if}
 		</button>
 	{/each}
-	{#if canBulkDelete}
-		<button onclick={handleBulkDelete} class="btn-danger toolbar-control flex items-center gap-2">
-			{common_delete()}
-			<span
-				class="inline-flex transition-opacity {searchFocused ? 'opacity-40' : ''}"
-				title={searchFocused ? common_shortcutsPausedInSearch() : undefined}
-			>
-				<KbdKey key={keyLabel('Delete')} size="xs" tone="inherit" />
-			</span>
-		</button>
-	{/if}
 {/snippet}
 
 <div bind:this={rootRef} class="space-y-4">
@@ -1225,8 +1151,8 @@
 			onSearchFocusChange={(focused) => (searchFocused = focused)}
 			onClearSearch={clearSearch}
 			{entityLabel}
-			actions={toolbarActions}
-			selectionActions={canBulkDelete || singleRowActions.length > 0 ? selectionToolbar : undefined}
+			actions={selectedIds.size > 0 ? undefined : toolbarActions}
+			selectionActions={selectionToolbarActions.length > 0 ? selectionToolbar : undefined}
 			{title}
 			{subtitle}
 		/>
@@ -1240,7 +1166,7 @@
 				showingEnd={page.showingEnd}
 				canGoPrev={page.canGoPrev}
 				canGoNext={page.canGoNext}
-				groupCount={hasActiveGrouping ? allGroups.size : null}
+				groupCount={hasActiveGrouping ? groupedItems.size : null}
 				filterCount={activeFilterCount}
 				onClearFilters={filters.clearAll}
 				onClearGrouping={() => (ordering = { ...ordering, group: null })}
@@ -1248,22 +1174,21 @@
 				onClearSelection={selectNone}
 				{clearShortcuts}
 				shortcutsPaused={searchFocused}
-				{useServerPagination}
-				processedCount={processedItems.length}
-				itemCount={items.length}
 				onPrevPage={() => page.canGoPrev && goToPage(effectiveCurrentPage - 1)}
 				onNextPage={() => page.canGoNext && goToPage(effectiveCurrentPage + 1)}
 				onPageSizeChange={handlePageSizeChange}
 				onExport={onExportClick ?? onCsvExport}
-				pageShortcuts={{ prev: '←', next: '→' }}
+				pageShortcuts={{ prev: keyLabel(PREV_PAGE_KEY), next: keyLabel(NEXT_PAGE_KEY) }}
 			>
 				{#snippet columnMenu()}
 					<ColumnVisibilityMenu
 						columns={allColumns}
 						order={columnState.order}
+						groupOrder={columnState.groupOrder}
 						visibility={columnState.visibility}
 						onToggle={toggleColumn}
 						onReorder={reorderColumns}
+						onReorderGroups={reorderColumnGroups}
 						onReset={resetColumns}
 					/>
 				{/snippet}
@@ -1305,7 +1230,7 @@
 			comparing — which is the whole reason to use a table.
 		-->
 		{@render tableFor(
-			hasActiveGrouping ? null : paginatedItems,
+			hasActiveGrouping ? null : items,
 			hasActiveGrouping ? null : tableCaptionText
 		)}
 	{/if}
@@ -1415,7 +1340,7 @@
 {/snippet}
 
 {#snippet headerControl(column: EntityColumn<T>)}
-	{@const control = columnControls(column.id, fields, useServerPagination, staleAvailable)}
+	{@const control = columnControls(column.id, fields, staleAvailable)}
 	{#if control}
 		<ColumnControlsMenu
 			{control}

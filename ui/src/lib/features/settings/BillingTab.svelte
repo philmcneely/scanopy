@@ -7,7 +7,7 @@
 	import { hasLicensedPlan, isPlanLapsed } from '$lib/features/organizations/types';
 	import { billingPlans, features, planStatuses } from '$lib/shared/stores/metadata';
 	import { canPay, isMissingPaymentMethod } from '$lib/shared/utils/trial';
-	import { useConfigQuery } from '$lib/shared/stores/config-query';
+	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
 	import { trackEvent, trackOncePerSession } from '$lib/shared/utils/analytics';
 	import {
 		useCustomerPortalMutation,
@@ -33,7 +33,6 @@
 		common_atLimit,
 		common_billingExtra,
 		common_billingUsage,
-		common_close,
 		common_hosts,
 		common_included,
 		common_sites,
@@ -42,6 +41,7 @@
 		common_usage,
 		settings_billing_billingQuestions,
 		billing_continueOnPlan,
+		billing_lapsedBannerCta,
 		settings_billing_contactUs,
 		settings_billing_currentPlan,
 		settings_billing_discount_active,
@@ -92,12 +92,10 @@
 
 	let {
 		isOpen = false,
-		onClose,
-		dismissible = true
+		onClose
 	}: {
 		isOpen?: boolean;
 		onClose: () => void;
-		dismissible?: boolean;
 	} = $props();
 
 	// TanStack Query for organization
@@ -108,16 +106,16 @@
 	let isLapsed = $derived(org != null && isPlanLapsed(org));
 	const checkoutMutation = useCheckoutMutation();
 	// Licensed self-hosted plans get license keys here instead of usage: the
-	// dashboard route is locked for them server-side.
+	// dashboard route is locked for them server-side, as it is for an org with no plan.
 	let isLicensedPlan = $derived(org != null && hasLicensedPlan(org));
 
 	// Dashboard summary aggregates host/site/seat counts into one query —
 	// reuse it here instead of re-counting users/sites/hosts independently.
-	const dashboardQuery = useDashboardQuery({ enabled: () => org != null && !isLicensedPlan });
+	const dashboardQuery = useDashboardQuery({ enabled: () => org?.plan != null && !isLicensedPlan });
 	let planUsage = $derived(dashboardQuery.data?.plan_usage);
 
 	const configQuery = useConfigQuery();
-	let billingEnabled = $derived(configQuery.data?.billing_enabled ?? false);
+	let isCloudDeployment = $derived(configQuery.data ? isCloud(configQuery.data) : false);
 
 	// PO number, an open quote, and the link to an unpaid invoice. Self-hosted
 	// only: the endpoint refuses other plans, and a cloud org would pay for a
@@ -249,7 +247,7 @@
 	// "Can this org pay?", so an invoice buyer sees no card warning.
 	let hasPaymentMethod = $derived(canPay(org));
 	// Stripe-managed plan that needs a card on file but has none.
-	let missingCard = $derived(isMissingPaymentMethod(org, billingEnabled));
+	let missingCard = $derived(isMissingPaymentMethod(org, isCloudDeployment));
 	let trialEndDate = $derived(org?.trial_end_date ? new Date(org.trial_end_date) : null);
 
 	// Renewal / subscription-ends label for the current plan; null when not
@@ -346,6 +344,9 @@
 		// Change plan button whose only outcome is a 409 toast.
 		if (airGappedPlanLocked)
 			return { label: settings_billing_cancelSubscription(), onclick: openCancelModal };
+		// A new sign-up that closed the plan picker reopens it from here.
+		if (org != null && org.plan == null)
+			return { label: billing_lapsedBannerCta(), onclick: openPlanPicker };
 		return {
 			label: hasManageableSubscription
 				? settings_billing_changePlan()
@@ -820,15 +821,6 @@
 			</div>
 		{/if}
 	</div>
-
-	<!-- Footer -->
-	{#if dismissible}
-		<div class="modal-footer">
-			<div class="flex justify-end">
-				<button type="button" onclick={onClose} class="btn-secondary">{common_close()}</button>
-			</div>
-		</div>
-	{/if}
 </div>
 
 <CancelSubscriptionModal

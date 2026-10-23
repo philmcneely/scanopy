@@ -9,7 +9,7 @@ impl ServiceService {
     pub async fn reassign_service_interface_bindings(
         &self,
         service: Service,
-        original_host: &Host,
+        _original_host: &Host,
         original_interfaces: &[IPAddress],
         original_ports: &[Port],
         updated_host: &Host,
@@ -37,13 +37,6 @@ impl ServiceService {
                 None
             }
         };
-
-        tracing::trace!(
-            "Preparing service {:?} for transfer from host {:?} to host {:?}",
-            service,
-            original_host,
-            updated_host
-        );
 
         let mut mutable_service = service.clone();
 
@@ -175,13 +168,6 @@ impl ServiceService {
 
         mutable_service.base.site_id = updated_host.base.site_id;
 
-        tracing::trace!(
-            "Reassigned service {:?} bindings for from host {:?} to host {:?}",
-            mutable_service,
-            original_host,
-            updated_host
-        );
-
         mutable_service
     }
 }
@@ -215,7 +201,12 @@ impl ServiceService {
             .await?;
         for mut container in containers {
             container.base.virtualization_service_id = Some(new.id);
-            self.update(&mut container, authentication.clone()).await?;
+            self.update(
+                &mut container,
+                authentication.clone(),
+                UpdateReason::EntityVirtualizerRepointed,
+            )
+            .await?;
         }
 
         // Same lock `update_dependency_members` takes, held across the read-modify-write.
@@ -258,7 +249,11 @@ impl ServiceService {
             };
             if changed {
                 self.dependency_service
-                    .update(&mut dependency, authentication.clone())
+                    .update(
+                        &mut dependency,
+                        authentication.clone(),
+                        UpdateReason::DependencyMembersChanged,
+                    )
                     .await?;
             }
         }

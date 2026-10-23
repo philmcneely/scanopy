@@ -87,7 +87,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add backend/Cargo.toml backend/Cargo.lock ui/package.json ui/package-lock.json
-          git add backend/src/tests/scanopy.sql backend/src/tests/daemon_config.json ui/static/services.json ui/static/schema.mermaid ui/static/schema-er.mermaid ui/static/entity-metadata.json
+          git add backend/src/tests/scanopy.sql backend/src/tests/daemon_config.json ui/static/schema.mermaid ui/static/schema-er.mermaid ui/static/entity-metadata.json
           git add backend/tests/integration/compat/fixtures/
           git add backend/assets/oui.csv
 
@@ -115,7 +115,11 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ui-logos
-          path: ui/static/logos/services/
+          # Several paths upload relative to their common parent, ui/static/logos/.
+          path: |
+            ui/static/logos/services/
+            ui/static/logos/os-families/
+            ui/static/logos/identity-providers/
           retention-days: 1
 
   migration-branch-test:
@@ -338,7 +342,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: ui-logos
-          path: ui/static/logos/services/
+          path: ui/static/logos/
 
       - uses: actions/setup-node@v7
         with:

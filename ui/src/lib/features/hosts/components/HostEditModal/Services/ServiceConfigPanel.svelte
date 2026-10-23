@@ -1,10 +1,17 @@
+<script lang="ts" module>
+	import { required, max } from '$lib/shared/components/forms/validators';
+
+	/** A service name's rule, for its field here and for the hidden one an unselected service keeps. */
+	export const validateServiceName = ({ value }: { value: string }) =>
+		required(value) || max(100)(value);
+</script>
+
 <script lang="ts">
 	import type { IPAddressBinding, PortBinding, Service } from '$lib/features/services/types/base';
 	import { serviceCategories, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { pushWarning } from '$lib/shared/stores/feedback';
-	import { required, max } from '$lib/shared/components/forms/validators';
 	import { v4 as uuidv4 } from 'uuid';
 	import { useServicesCacheQuery } from '$lib/features/services/queries';
 	import { PortBindingDisplay } from '$lib/shared/components/forms/selection/display/PortBindingDisplay.svelte';
@@ -13,14 +20,22 @@
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
 	import type { HostFormData } from '$lib/features/hosts/types/base';
-	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
+	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import { usePortsQuery } from '$lib/features/ports/queries';
 	import { useSubnetsQuery, isContainerSubnet } from '$lib/features/subnets/queries';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
+	import CopyableValue from '$lib/shared/components/data/CopyableValue.svelte';
+	import GuestStateTag from '$lib/shared/components/virtualization/GuestStateTag.svelte';
 	import {
+		common_tags,
 		common_bindings,
+		common_status,
+		hosts_deviceFacts_composeProject,
+		hosts_deviceFacts_containerId,
+		hosts_deviceFacts_containerName,
+		common_container,
 		common_details,
 		common_ipAddressBindings,
 		common_name,
@@ -38,7 +53,6 @@
 		hosts_services_noInterfaces,
 		hosts_services_noPorts,
 		hosts_services_portBindingsHelp,
-		hosts_services_portRequired,
 		hosts_services_selectBinding,
 		hosts_services_unclaimedPortsHint,
 		hosts_services_unclaimedPortsLearnMore
@@ -108,11 +122,6 @@
 
 	// Port Bindings Logic
 	let portBindings = $derived(service.bindings.filter((b) => b.type === 'Port') as PortBinding[]);
-
-	// Get the actual index of a binding in service.bindings array (for form field naming)
-	function getBindingIndex(bindingId: string): number {
-		return service.bindings.findIndex((b) => b.id === bindingId);
-	}
 
 	// Interface Bindings Logic
 	let ipAddressBindings = $derived(
@@ -376,8 +385,8 @@
 			<form.Field
 				name={nameFieldName}
 				validators={{
-					onBlur: ({ value }: { value: string }) => required(value) || max(100)(value),
-					onChange: ({ value }: { value: string }) => required(value) || max(100)(value)
+					onBlur: validateServiceName,
+					onChange: validateServiceName
 				}}
 				listeners={{
 					onChange: ({ value }: { value: string }) => handleNameChange(value)
@@ -394,13 +403,43 @@
 				{/snippet}
 			</form.Field>
 
-			<!-- service prop comes via slot, so use callback pattern instead of bind: -->
-			<TagPicker
+			<TagPickerInline
 				entityType="Service"
+				label={common_tags()}
 				selectedTagIds={service.tags}
 				onChange={(tags) => onChange({ ...service, tags })}
 			/>
 		</InfoCard>
+
+		{#if service.virtualization_metadata}
+			{@const container = service.virtualization_metadata.details}
+			<InfoCard title={common_container()}>
+				<dl class="space-y-2 text-sm">
+					{#each [{ label: hosts_deviceFacts_containerName(), value: container.container_name }, { label: hosts_deviceFacts_composeProject(), value: container.compose_project }] as fact (fact.label)}
+						{#if fact.value}
+							<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+								<dt class="text-secondary w-40 shrink-0">{fact.label}</dt>
+								<dd class="text-primary min-w-0 flex-1 break-words">{fact.value}</dd>
+							</div>
+						{/if}
+					{/each}
+					{#if container.container_id}
+						<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+							<dt class="text-secondary w-40 shrink-0">{hosts_deviceFacts_containerId()}</dt>
+							<dd class="min-w-0 flex-1">
+								<CopyableValue value={container.container_id} variant="inline" />
+							</dd>
+						</div>
+					{/if}
+					{#if container.state}
+						<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+							<dt class="text-secondary w-40 shrink-0">{common_status()}</dt>
+							<dd class="min-w-0 flex-1"><GuestStateTag state={container.state} /></dd>
+						</div>
+					{/if}
+				</dl>
+			</InfoCard>
+		{/if}
 
 		<InfoCard title={common_bindings()}>
 			<p class="text-muted text-xs">
@@ -442,22 +481,6 @@
 					bind:selectedItems={selectedPortBindings}
 				/>
 			{/key}
-
-			<!-- Hidden form fields for port binding validation -->
-			{#each portBindings as binding (binding.id)}
-				{@const bindingIndex = getBindingIndex(binding.id)}
-				<form.Field
-					name={`services[${index}].bindings[${bindingIndex}].port_id`}
-					validators={{
-						onChange: () => (!binding.port_id ? hosts_services_portRequired() : undefined),
-						onBlur: () => (!binding.port_id ? hosts_services_portRequired() : undefined)
-					}}
-				>
-					{#snippet children(field: AnyFieldApi)}
-						<input type="hidden" value={field.state.value} />
-					{/snippet}
-				</form.Field>
-			{/each}
 
 			<!-- Interface Bindings -->
 			{#key service.id}

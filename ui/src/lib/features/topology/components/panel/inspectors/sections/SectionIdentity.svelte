@@ -9,9 +9,13 @@
 	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
 	import { SubnetDisplay } from '$lib/shared/components/forms/selection/display/SubnetDisplay.svelte';
-	import type { RenderableTopology } from '$lib/features/topology/types/base';
+	import type { RenderableTopology, TopologyNode } from '$lib/features/topology/types/base';
+	import { entityGlyph } from '$lib/features/topology/entity-glyph';
+	import DeviceGlyph from '$lib/features/hosts/components/DeviceGlyph.svelte';
+	import SoftwareGlyph from '$lib/features/topology/components/visualization/SoftwareGlyph.svelte';
 	import type { TopologyEditState } from '$lib/features/topology/state';
 	import {
+		nodeEntity,
 		interfaceRelations,
 		type ElementRenderContext,
 		type ContainerRenderContext
@@ -21,7 +25,7 @@
 		inspector_thisEntity,
 		topology_focusNode
 	} from '$lib/paraglide/messages';
-	import { containerTypes, entities, views } from '$lib/shared/stores/metadata';
+	import { containerTypes, entities, inspectorSections, views } from '$lib/shared/stores/metadata';
 	import { activeView } from '$lib/features/topology/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { useUpdateHostDescriptionMutation } from '$lib/features/hosts/queries';
@@ -70,6 +74,19 @@
 		}
 		return '';
 	});
+
+	// The selection's own glyph heads the section. A device tile belongs to the host it names: an
+	// entity that sits on a host (an address) keeps its own entity icon here, and the host's device type
+	// shows beside the host itself, in its card below.
+	let selectionGlyph = $derived.by(() => {
+		const subject = nodeEntity(node.data as TopologyNode, topology);
+		if (!subject) return null;
+		const glyph = entityGlyph(subject.entityType, subject.entity, topology);
+		return glyph?.type === 'device' && 'host_id' in subject.entity ? null : glyph;
+	});
+	let selectionEntityType = $derived(
+		nodeEntity(node.data as TopologyNode, topology)?.entityType ?? null
+	);
 
 	let sections = $derived.by(() => {
 		const config = getInspectorConfig($activeView);
@@ -162,7 +179,7 @@
 	// Nesting and utilization are derived server-side across the whole site, so they come from the
 	// live subnet list rather than the topology payload. Not in a read-only view: a shared link has
 	// no session to fetch with, and a snapshot's past state would be paired with today's counts.
-	const subnetsQuery = useSubnetsQuery(undefined, undefined, () => !!thisSubnet && !isReadonly);
+	const subnetsQuery = useSubnetsQuery(undefined, () => !!thisSubnet && !isReadonly);
 	let subnetsData = $derived(subnetsQuery.data ?? []);
 	let listedSubnet = $derived(
 		thisSubnet && !isReadonly ? (subnetsData.find((s) => s.id === thisSubnet!.id) ?? null) : null
@@ -188,6 +205,22 @@
 
 {#if hasBody}
 	<InspectorSection id="Identity" section="Identity" title={sectionLabel}>
+		{#snippet glyph()}
+			{#if selectionGlyph?.type === 'device'}
+				<DeviceGlyph deviceType={selectionGlyph.deviceType} />
+			{:else if selectionGlyph?.type === 'software'}
+				<SoftwareGlyph definition={selectionGlyph.definition} />
+			{:else}
+				{@const SelectionIcon = selectionEntityType
+					? entities.getIconComponent(selectionEntityType)
+					: inspectorSections.getIconComponent('Identity')}
+				<SelectionIcon
+					class="h-4 w-4 flex-shrink-0 {selectionEntityType
+						? entities.getColorHelper(selectionEntityType).icon
+						: inspectorSections.getColorHelper('Identity').icon}"
+				/>
+			{/if}
+		{/snippet}
 		{#snippet actions()}
 			<button
 				class="btn-icon p-0.5"

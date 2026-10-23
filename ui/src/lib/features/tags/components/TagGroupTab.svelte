@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { collectionLookup } from '$lib/shared/entity-fields';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import {
 		useTagsQuery,
 		useTagGroupsQuery,
+		useTagGroupsListQuery,
 		useCreateTagGroupMutation,
 		useUpdateTagGroupMutation,
 		useDeleteTagGroupMutation,
@@ -13,7 +15,8 @@
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import type { TagGroup } from '../types/base';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
-	import type { CardAction, FieldConfig } from '$lib/shared/components/data/types';
+	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 	import { Trash2, Edit } from 'lucide-svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
@@ -28,10 +31,12 @@
 		common_delete,
 		common_edit,
 		tags_tagGroups,
-		tags_tagGroupsSubtitle
+		tags_tagGroupsSubtitle,
+		tags_systemGroupFixed,
+		tags_systemGroupFixedBulk
 	} from '$lib/paraglide/messages';
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	let showEditor = $state(false);
 	let editingGroup: TagGroup | null = $state(null);
@@ -62,7 +67,10 @@
 	);
 
 	const tagsQuery = useTagsQuery();
+	// Every group, for the tag chips' group labels and deep links; the table reads its own page.
 	const tagGroupsQuery = useTagGroupsQuery();
+	const page = listPageState(() => isActive);
+	const groupsPageQuery = useTagGroupsListQuery(() => page.params());
 	const createMutation = useCreateTagGroupMutation();
 	const updateMutation = useUpdateTagGroupMutation();
 	const deleteMutation = useDeleteTagGroupMutation();
@@ -71,7 +79,9 @@
 
 	let tags = $derived(tagsQuery.data ?? []);
 	let groups = $derived(tagGroupsQuery.data ?? []);
-	let isLoading = $derived(tagGroupsQuery.isLoading);
+	let pageGroups = $derived(groupsPageQuery.data?.items ?? []);
+	let groupsPagination = $derived(groupsPageQuery.data?.pagination ?? null);
+	let isLoading = $derived(groupsPageQuery.isPending && !groupsPageQuery.data);
 
 	let canManage = $derived(
 		!isReadOnly &&
@@ -104,15 +114,20 @@
 
 	function actions(group: TagGroup): CardAction[] {
 		if (!canManage) return [];
-		const edit = { label: common_edit(), icon: Edit, onClick: () => handleEdit(group) };
-		if (isSystemGroup(group)) return [edit];
 		return [
-			edit,
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEdit(group) },
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
-				onClick: () => handleDelete(group)
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
+				onClick: () => handleDelete(group),
+				unavailable: disabledWhen(
+					isSystemGroup(group),
+					tags_systemGroupFixed(),
+					tags_systemGroupFixedBulk()
+				)
 			}
 		];
 	}
@@ -134,8 +149,12 @@
 		}
 	}
 
-	let fields = $derived<FieldConfig<TagGroup>[]>(
+	// The registry's tag group fields reach no related entity.
+	const lookup = collectionLookup({});
+
+	let fields = $derived(
 		tagGroupColumns({
+			lookup: () => lookup,
 			tags: () => tags,
 			groups: () => groups
 		})
@@ -156,12 +175,14 @@
 			title={tags_tagGroups()}
 			subtitle={tags_tagGroupsSubtitle()}
 			{toolbarActions}
-			items={groups}
+			items={pageGroups}
 			{fields}
-			allowBulkDelete={canManage}
 			storageKey="scanopy-tag-groups-table-state"
-			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}
+			serverPagination={groupsPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			getActions={actions}
 			entityLabel={tags_tagGroups()}
 		></DataControls>

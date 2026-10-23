@@ -200,10 +200,10 @@ pub enum ErrorCode {
     DaemonStandby,
     /// Daemon record not found — deleted or database was reset
     DaemonNotRegistered,
-    /// Daemon version is older than the server version
+    /// Daemon version is at or below the last version this server rejects
     DaemonVersionTooOld {
         daemon_version: String,
-        server_version: String,
+        last_unsupported_version: String,
     },
     /// Daemon runs on a different OS from the one it was created for
     DaemonOsMismatch { expected: String, actual: String },
@@ -237,6 +237,9 @@ pub enum ErrorCode {
     /// The org's subscription ended and it has not chosen a paid plan since,
     /// so the app is read-only for it
     BillingPlanLapsed,
+    /// A cloud org has not chosen a plan yet, so only the Settings routes
+    /// are open to it
+    BillingPlanRequired,
     /// Cannot leave an air-gapped key until the current licence period ends
     BillingAirGappedKeyStillCurrent,
     /// Cannot change plan while an air-gapped key is still current. The key
@@ -401,7 +404,7 @@ impl ErrorCode {
                 "Daemon not found on server. It may have been deleted or the database was reset. Reinstall or reconfigure the daemon."
             }
             Self::DaemonVersionTooOld { .. } => {
-                "Daemon version {daemon_version} is older than server version {server_version}. Update the daemon to match the server version."
+                "Daemon version {daemon_version} is no longer supported. This server accepts daemons newer than {last_unsupported_version}. Update the daemon."
             }
             Self::DaemonOsMismatch { .. } => {
                 "This daemon was created for {expected} but is running on {actual}. Create a new daemon for this OS, or install this one on the OS it was created for."
@@ -435,6 +438,7 @@ impl ErrorCode {
             Self::BillingPlanLapsed => {
                 "Your plan has lapsed. Choose a paid plan in Settings to make changes again."
             }
+            Self::BillingPlanRequired => "Choose a plan in Settings to use Scanopy.",
             Self::BillingAirGappedKeyStillCurrent => {
                 "Your air-gapped key is still valid. You can switch back to an online key once the current license period ends."
             }
@@ -505,6 +509,7 @@ impl ErrorCode {
             | Self::BillingWebhookSignatureInvalid
             | Self::BillingSelfHostedPlanLocked
             | Self::BillingPlanLapsed
+            | Self::BillingPlanRequired
             | Self::BillingAirGappedKeyStillCurrent
             | Self::RateLimitExceeded
             | Self::DatabaseError => None,
@@ -565,9 +570,9 @@ impl ErrorCode {
             }
             Self::DaemonVersionTooOld {
                 daemon_version,
-                server_version,
+                last_unsupported_version,
             } => Some(
-                json_map! { "daemon_version" => daemon_version, "server_version" => server_version },
+                json_map! { "daemon_version" => daemon_version, "last_unsupported_version" => last_unsupported_version },
             ),
             Self::DaemonOsMismatch { expected, actual } => {
                 Some(json_map! { "expected" => expected, "actual" => actual })

@@ -16,9 +16,10 @@ import type {
 	OrderableFieldConfig,
 	OrderableFieldEntry
 } from '$lib/shared/components/data/types';
-import { entityRef } from '$lib/shared/components/data/types';
+import { entityRef, getFieldKey } from '$lib/shared/components/data/types';
 import { entities } from '$lib/shared/stores/metadata';
 import {
+	columnGroup,
 	entityDisplayText,
 	entityFieldLabel,
 	entityFields,
@@ -47,19 +48,21 @@ export function columnType(field: EntityField): BaseFieldConfig<unknown>['type']
 export function registryColumn<T extends object>(
 	entityType: EntityType,
 	field: EntityField,
-	lookup: () => EntityLookup
+	lookup: () => EntityLookup,
+	/** The entity object a row's values are read from; the row itself unless a tab says otherwise. */
+	root: (item: T) => object = (item) => item
 ): BaseFieldConfig<T> {
 	const type = columnType(field);
 	const targetType = fieldEntityType(field);
 	const texts = (item: T) =>
-		resolveField(field, item, lookup())
+		resolveField(field, root(item), lookup())
 			.map((value) => formatFieldValue(field, value))
 			.filter(Boolean);
 
 	const getItems =
 		field.format.type === 'Entity' && targetType
 			? (item: T): CardFieldItem[] =>
-					resolveField(field, item, lookup()).flatMap((related) => {
+					resolveField(field, root(item), lookup()).flatMap((related) => {
 						const entity = related as { id?: string };
 						if (!entity?.id) return [];
 						return [
@@ -78,7 +81,7 @@ export function registryColumn<T extends object>(
 	const filterById =
 		(field.format.type === 'Entity' && targetType) || field.format.type === 'Metadata';
 	const rawValues = (item: T): string[] =>
-		resolveField(field, item, lookup())
+		resolveField(field, root(item), lookup())
 			.map((value) =>
 				value && typeof value === 'object' ? (value as { id?: string }).id : String(value)
 			)
@@ -101,8 +104,8 @@ export function registryColumn<T extends object>(
 			filterLabel
 		}),
 		getValue: (item: T) => {
-			if (type === 'boolean') return Boolean(resolveField(field, item, lookup())[0]);
-			if (type === 'date') return (resolveField(field, item, lookup())[0] as string) ?? null;
+			if (type === 'boolean') return Boolean(resolveField(field, root(item), lookup())[0]);
+			if (type === 'date') return (resolveField(field, root(item), lookup())[0] as string) ?? null;
 			const values = texts(item);
 			if (type === 'array') return values;
 			return values.length ? values.join(', ') : null;
@@ -111,7 +114,7 @@ export function registryColumn<T extends object>(
 			hiddenByDefault: !field.summary,
 			getItems,
 			wrap: field.format.type === 'Prose',
-			getSource: field.source_field ? (item: T) => fieldSource(field, item) : undefined
+			getSource: field.source_field ? (item: T) => fieldSource(field, root(item)) : undefined
 		}
 	};
 }
@@ -134,23 +137,34 @@ function merge<T, Q extends string>(
 	} as OrderableFieldEntry<T, Q>;
 }
 
+/** How a tab's rows meet the registry. */
+export interface RegistryOptions<T> {
+	/** Registry fields this table leaves out, so the omission is on record. */
+	omit?: readonly string[];
+	/**
+	 * The entity object each row's values are read from, for a list whose rows wrap the entity
+	 * (the members list's `item.data`). The row itself when unset.
+	 */
+	root?: (item: T) => object;
+}
+
 /**
  * `defineFields` with the registry underneath: every orderable column and display column whose
  * id is a registry field starts from the registry's column, and the tab's settings win. Registry
- * fields the tab doesn't list are appended, hidden by default.
+ * fields the tab doesn't list are appended, hidden by default. Every column takes its group from
+ * the backend: its field's, or the entity's declared table column's.
  */
 export function defineRegistryFields<T extends object, O extends string, Q extends string = string>(
 	entityType: EntityType,
 	lookup: () => EntityLookup,
 	orderable: { [K in O]: ColumnOverride<T, Q> },
 	display: (Partial<DisplayFieldConfig<T, Q>> & { key: string })[] = [],
-	/** Registry fields this table leaves out, so the omission is on record. */
-	omit: readonly string[] = []
+	{ omit = [], root }: RegistryOptions<T> = {}
 ): FieldConfig<T, O, Q>[] {
 	const registry = new Map(
 		entityFields(entityType).map((field) => [
 			field.id,
-			registryColumn<T>(entityType, field, lookup)
+			registryColumn<T>(entityType, field, lookup, root)
 		])
 	);
 	const listed = new Set<string>(omit);
@@ -171,7 +185,10 @@ export function defineRegistryFields<T extends object, O extends string, Q exten
 		.filter(([id]) => !listed.has(id))
 		.map(([id, column]) => ({ ...column, key: id }) as DisplayFieldConfig<T, Q>);
 
-	const columns = [...orderableColumns, ...displayColumns, ...unlisted];
+	const columns = [...orderableColumns, ...displayColumns, ...unlisted].map((column) => ({
+		...column,
+		display: { ...column.display, group: columnGroup(entityType, getFieldKey(column)) }
+	}));
 	if (import.meta.env.DEV) {
 		for (const column of columns) {
 			if (!column.label || !column.type) {

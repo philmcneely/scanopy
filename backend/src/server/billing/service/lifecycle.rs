@@ -105,7 +105,7 @@ impl BillingService {
             ..Default::default()
         };
 
-        let updated = UpdateSubscription::new(&sub.id)
+        UpdateSubscription::new(&sub.id)
             .pause_collection(UpdateSubscriptionPauseCollection {
                 behavior: UpdateSubscriptionPauseCollectionBehavior::KeepAsDraft,
                 resumes_at: Some(resumes_at.timestamp()),
@@ -124,15 +124,6 @@ impl BillingService {
                 );
                 anyhow!("Stripe rejected the pause request: {e}")
             })?;
-
-        tracing::info!(
-            organization_id = %organization_id,
-            subscription_id = %updated.id,
-            subscription_status = %updated.status,
-            pause_collection_set = updated.pause_collection.is_some(),
-            pause_collection_resumes_at = ?updated.pause_collection.as_ref().and_then(|p| p.resumes_at),
-            "Stripe accepted pause_collection"
-        );
 
         Ok(format!(
             "Subscription paused until {}.",
@@ -250,12 +241,6 @@ impl BillingService {
         .send(&self.stripe)
         .await
         .map_err(|e| anyhow!("Stripe rejected pause-credit balance transaction: {e}"))?;
-
-        tracing::info!(
-            subscription_id = %sub.id,
-            credit_cents,
-            "Applied pause credit to customer balance"
-        );
 
         Ok(Some(credit_cents))
     }
@@ -425,14 +410,6 @@ impl BillingService {
                 anyhow!("Stripe rejected the cancel request: {e}")
             })?;
 
-        tracing::info!(
-            organization_id = %organization_id,
-            subscription_id = %updated.id,
-            cancel_at_period_end = updated.cancel_at_period_end,
-            cancel_at = ?updated.cancel_at,
-            "Stripe accepted cancel_at_period_end"
-        );
-
         // Period end: read back the cancel_at Stripe just set. Fall back to
         // the first item's current_period_end in the unlikely event the API
         // response omits cancel_at.
@@ -475,7 +452,7 @@ impl BillingService {
         // only SDK-supported path. Stripe interprets it as "clear all
         // scheduled cancellation state" regardless of how cancel_at was
         // originally set.
-        let updated = UpdateSubscription::new(&sub.id)
+        UpdateSubscription::new(&sub.id)
             .cancel_at_period_end(false)
             .send(&self.stripe)
             .await
@@ -489,13 +466,6 @@ impl BillingService {
                 );
                 anyhow!("Stripe rejected the reactivate request: {e}")
             })?;
-
-        tracing::info!(
-            organization_id = %organization_id,
-            subscription_id = %updated.id,
-            cancel_at_period_end = updated.cancel_at_period_end,
-            "Stripe accepted reactivate"
-        );
 
         Ok("Subscription reactivated.".to_string())
     }
@@ -665,14 +635,6 @@ impl BillingService {
                 anyhow!("Stripe rejected the discount: {e}")
             })?;
 
-        tracing::info!(
-            organization_id = %organization_id,
-            subscription_id = %updated.id,
-            discounts_count = updated.discounts.len(),
-            first_discount_id = ?updated.discounts.first().map(|d| d.id()),
-            "Stripe accepted discount apply"
-        );
-
         // Look up the coupon to read percent_off + duration_in_months so the
         // DiscountApplied event carries the live values. This lets the
         // BillingTab chip render the actual percent (not a hard-coded one)
@@ -701,6 +663,12 @@ impl BillingService {
                     BillingOperation::DiscountApplied {
                         percent_off,
                         expires_at,
+                        subscription_id: updated.id.to_string(),
+                        discount_ids: updated
+                            .discounts
+                            .iter()
+                            .map(|d| d.id().to_string())
+                            .collect(),
                     },
                     authentication,
                 )],
@@ -785,6 +753,7 @@ impl BillingService {
             plan,
             resumed_through,
             subscription,
+            invoice_id,
         }) = resume
         {
             events.push(Event::new(
@@ -795,6 +764,8 @@ impl BillingService {
                     plan,
                     resumed_through,
                     next_renewal_at: next_renewal_from_subscription(&subscription),
+                    subscription_id: subscription.id.to_string(),
+                    invoice_id,
                 },
                 AuthenticatedEntity::System,
             ));
@@ -864,6 +835,7 @@ impl BillingService {
                     plan,
                     resumed_through,
                     subscription: existing,
+                    invoice_id: snapshot.stripe_invoice_id.to_string(),
                 }));
             }
             tracing::debug!(
@@ -880,17 +852,11 @@ impl BillingService {
             .resume_license_subscription(organization, plan, resumed_through, idempotency_key)
             .await?;
 
-        tracing::info!(
-            organization_id = %organization.id,
-            invoice_id = %snapshot.stripe_invoice_id,
-            subscription_id = %subscription.id,
-            resumed_through = %resumed_through,
-            "Resumed a lapsed licence: the written-off invoice was settled"
-        );
         Ok(Some(LicenseResume {
             plan,
             resumed_through,
             subscription,
+            invoice_id: snapshot.stripe_invoice_id.to_string(),
         }))
     }
 }
@@ -900,4 +866,6 @@ struct LicenseResume {
     plan: BillingPlan,
     resumed_through: DateTime<Utc>,
     subscription: Subscription,
+    /// The written-off invoice that was settled.
+    invoice_id: String,
 }

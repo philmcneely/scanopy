@@ -1,8 +1,21 @@
+use std::collections::HashMap;
+
 use crate::server::{
     config::AppState,
-    hosts::{handlers::HostFilterQuery, r#impl::base::Host, service::HostService},
+    hosts::{
+        handlers::{HostFilterQuery, HostOrderField},
+        r#impl::{api::HostResponse, base::Host},
+        service::HostService,
+    },
     shared::{
-        handlers::traits::CrudHandlers, storage::filter::StorableFilter, types::api::ApiResult,
+        handlers::{
+            list::{ListOrdering, PaginatedList},
+            ordering::TagGroupOrdering,
+            traits::{CrudHandlers, ListScope},
+            tree::TreePosition,
+        },
+        storage::filter::StorableFilter,
+        types::api::ApiResult,
     },
 };
 use async_trait::async_trait;
@@ -27,19 +40,78 @@ impl CrudHandlers for Host {
     async fn list_filter(
         state: &AppState,
         query: &HostFilterQuery,
-        site_ids: &[Uuid],
-        organization_id: Uuid,
+        scope: &ListScope,
     ) -> ApiResult<StorableFilter<Host>> {
-        let filter = query.narrow(site_ids, organization_id)?;
+        let filter = query.narrow(&scope.site_ids, scope.organization_id)?;
 
         // Staleness is per-site, so resolve each accessible site's cutoff and
         // let the filter compare every row against its own.
         Ok(match query.stale {
             Some(stale) => {
-                let cutoffs = state.services.site_service.stale_cutoffs(site_ids).await?;
+                let cutoffs = state
+                    .services
+                    .site_service
+                    .stale_cutoffs(&scope.site_ids)
+                    .await?;
                 filter.stale_by_site(&cutoffs, stale)
             }
             None => filter,
         })
+    }
+}
+
+#[async_trait]
+impl PaginatedList for Host {
+    type Item = HostResponse;
+
+    fn ordering(query: &HostFilterQuery) -> ListOrdering<HostOrderField> {
+        ListOrdering {
+            group_by: query.group_by,
+            order_by: query.order_by,
+            direction: query.order_direction,
+            tag_group: TagGroupOrdering {
+                group_by: query.group_by_tag_group,
+                order_by: query.order_by_tag_group,
+            },
+        }
+    }
+
+    /// Each host with its children, tags, tree placement and credential assignments.
+    async fn items(
+        state: &AppState,
+        rows: Vec<Host>,
+        query: &HostFilterQuery,
+    ) -> ApiResult<Vec<HostResponse>> {
+        let mut items = state
+            .services
+            .host_service
+            .host_responses(rows, query.at, query.include_children.unwrap_or(true))
+            .await?;
+
+        let host_ids: Vec<Uuid> = items.iter().map(|h| h.id).collect();
+        let cred_map = state
+            .services
+            .credential_service
+            .get_credential_assignments_for_hosts(&host_ids)
+            .await?;
+        for host in &mut items {
+            if let Some(assignments) = cred_map.get(&host.id) {
+                host.credential_assignments = assignments.clone();
+            }
+        }
+        Ok(items)
+    }
+
+    /// "Virtualized By" groups each host under the top of its virtualization chain, while sorting
+    /// and filter options stay on the immediate service's name.
+    fn groups_as_tree(field: &HostOrderField) -> bool {
+        matches!(field, HostOrderField::VirtualizedBy)
+    }
+
+    async fn tree_positions(
+        state: &AppState,
+        ids: &[Uuid],
+    ) -> ApiResult<HashMap<Uuid, TreePosition>> {
+        Ok(state.services.host_service.tree_positions_of(ids).await?)
     }
 }

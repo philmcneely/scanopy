@@ -311,6 +311,8 @@ impl ReleaseNotesService {
         };
 
         let (mut processed, mut failed) = (0usize, 0usize);
+        // Each send is an `email_sent` event and each failure has its own line, so the run
+        // writes no summary.
         for user in &recipients {
             self.bulk_limiter.until_ready().await;
             match email_service
@@ -333,8 +335,6 @@ impl ReleaseNotesService {
                 }
             }
         }
-        tracing::info!(processed, failed, recipients = recipients.len(), version = %self.running, "Release email done");
-
         row.base.email_sent_at = Some(Utc::now());
         row.updated_at = Utc::now();
         self.storage.update(&mut row).await?;

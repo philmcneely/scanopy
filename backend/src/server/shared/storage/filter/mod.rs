@@ -37,9 +37,12 @@ mod filters;
 mod hosts;
 mod inclusion;
 mod interfaces;
+mod links;
 mod lldp;
 mod organization;
 mod subnets;
+
+pub use links::Junction;
 
 #[cfg(test)]
 mod tests {

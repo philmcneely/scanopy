@@ -89,6 +89,21 @@
 		<img src="/logos/scanopy-logo.png" alt={auth_scanopyLogo()} class="h-8 w-8" />
 	{/snippet}
 
+	{#snippet footerNote()}
+		{#if onSwitchToLogin}
+			<p class="text-secondary text-center text-sm">
+				{onboarding_alreadyHaveAccount()}
+				<button
+					type="button"
+					onclick={onSwitchToLogin}
+					class="font-medium text-blue-400 hover:text-blue-300"
+				>
+					{onboarding_logInHere()}
+				</button>
+			</p>
+		{/if}
+	{/snippet}
+
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="flex-1 overflow-y-auto p-6">
 			<div class="space-y-6">
@@ -131,23 +146,6 @@
 					<button type="button" class="btn-primary mt-4" onclick={handleLicenseAcknowledge}>
 						{onboarding_understandContinue()}
 					</button>
-				{/if}
-			</div>
-		</div>
-
-		<div class="modal-footer">
-			<div class="flex w-full flex-col gap-4">
-				{#if onSwitchToLogin}
-					<p class="text-secondary text-center text-sm">
-						{onboarding_alreadyHaveAccount()}
-						<button
-							type="button"
-							onclick={onSwitchToLogin}
-							class="font-medium text-blue-400 hover:text-blue-300"
-						>
-							{onboarding_logInHere()}
-						</button>
-					</p>
 				{/if}
 			</div>
 		</div>

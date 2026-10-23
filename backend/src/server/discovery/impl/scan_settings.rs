@@ -176,20 +176,6 @@ impl ScanSettings {
         ]
     }
 
-    /// Log scan settings with tracing (convenience wrapper around formatted_lines).
-    pub fn log_settings(&self) {
-        tracing::info!("  ───────────────────────────────────────────────────────────");
-        tracing::info!("  Scan Settings:");
-        for (label, value, is_override) in self.formatted_lines() {
-            let source = if is_override {
-                "(override)"
-            } else {
-                "(default)"
-            };
-            tracing::info!("    {:<20}{} {}", label, value, source);
-        }
-    }
-
     pub fn field_definitions() -> Vec<FieldDefinition> {
         // Destructure to enforce completeness — compiler errors if a field is added
         // to ScanSettings but not represented here.
@@ -311,7 +297,10 @@ impl ScanSettings {
                 placeholder_by: None,
                 secret: false,
                 optional: false,
-                help_text: Some("Scan ports 9100-9107. May cause ghost printing on some printers."),
+                help_text: Some(
+                    "Send application and HTTP probes to ports 9100-9107. Printers print what \
+                     they receive on these ports, so some print a stray page on every scan.",
+                ),
                 options: None,
                 default_value: Some("false"),
                 inline_format: None,

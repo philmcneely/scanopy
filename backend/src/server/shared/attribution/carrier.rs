@@ -65,6 +65,10 @@ pub trait AttributeValue:
     fn refines(&self, _other: &Self) -> bool {
         false
     }
+
+    /// Components the value's schema refers to by `$ref`, registered alongside the carrier's. Most
+    /// values inline their schema and register nothing.
+    fn value_schemas(_schemas: &mut Vec<(String, RefOr<Schema>)>) {}
 }
 
 /// The schema most provenanced values want: a described string.
@@ -241,8 +245,16 @@ impl<T: AttributeValue> Attributed<T> {
     /// for the sibling flattened fields; `deserialize_struct` gets a `FlatStructAccess` that takes
     /// entries and nulls them out. With twelve carriers flattened into one struct, that one word
     /// would silently let the first eat every other carrier's keys.
-    fn read<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Self>, D::Error> {
-        struct CarrierVisitor<T>(PhantomData<T>);
+    ///
+    /// `keep_blank` is for a field that is always present: a blank value there (a subnet typed
+    /// `Unknown`, a subnet with no name) is still that field's value, and dropping it would turn a
+    /// legitimate payload into a missing-field error. The appliers already keep a blank value from
+    /// displacing a real one.
+    fn read<'de, D: Deserializer<'de>>(
+        deserializer: D,
+        keep_blank: bool,
+    ) -> Result<Option<Self>, D::Error> {
+        struct CarrierVisitor<T>(PhantomData<T>, bool);
 
         impl<'de, T: AttributeValue> Visitor<'de> for CarrierVisitor<T> {
             type Value = Option<Attributed<T>>;
@@ -277,7 +289,7 @@ impl<T: AttributeValue> Attributed<T> {
                 }
 
                 Ok(match value {
-                    Some(value) if value.is_blank() => None,
+                    Some(value) if value.is_blank() && !self.1 => None,
                     // A payload predating provenance. The value is real but unattributable, so it
                     // enters at the bottom and cannot displace anything we know the source of.
                     Some(value) => Some(Attributed::new(
@@ -289,7 +301,7 @@ impl<T: AttributeValue> Attributed<T> {
             }
         }
 
-        deserializer.deserialize_map(CarrierVisitor::<T>(PhantomData))
+        deserializer.deserialize_map(CarrierVisitor::<T>(PhantomData, keep_blank))
     }
 }
 
@@ -303,16 +315,17 @@ where
     D: Deserializer<'de>,
     T: AttributeValue,
 {
-    Attributed::<T>::read(deserializer)
+    Attributed::<T>::read(deserializer, false)
 }
 
-/// For a field with no empty state, such as a subnet's CIDR: absent is an error.
+/// For a field that is always present, such as a subnet's CIDR: absent is an error, and a blank
+/// value is kept as the field's value.
 pub fn required<'de, D, T>(deserializer: D) -> Result<Attributed<T>, D::Error>
 where
     D: Deserializer<'de>,
     T: AttributeValue,
 {
-    Attributed::<T>::read(deserializer)?.ok_or_else(|| de::Error::missing_field(T::VALUE_KEY))
+    Attributed::<T>::read(deserializer, true)?.ok_or_else(|| de::Error::missing_field(T::VALUE_KEY))
 }
 
 impl<T: AttributeValue> PartialSchema for Attributed<T> {
@@ -354,6 +367,7 @@ impl<T: AttributeValue> ToSchema for Attributed<T> {
             <AttributeSource as ToSchema>::name().into_owned(),
             <AttributeSource as PartialSchema>::schema(),
         ));
+        T::value_schemas(schemas);
     }
 }
 
@@ -391,6 +405,27 @@ mod tests {
         assert_eq!(
             carrier.mac_address.unwrap().value,
             MacEvidenceValue("a4:bb:6d:12:34:56".parse().unwrap())
+        );
+    }
+
+    /// A daemon types most subnets it reads from an interface name as `Unknown`, which is blank.
+    /// For an always-present field that blank value is the field's value: reading it as absent
+    /// failed the whole subnet as a missing field.
+    #[test]
+    fn a_required_field_keeps_a_blank_value() {
+        use crate::server::subnets::r#impl::base::{SubnetTypeAttributed, SubnetTypeValue};
+        use crate::server::subnets::r#impl::types::SubnetType;
+
+        #[derive(Deserialize)]
+        struct Typed {
+            #[serde(flatten, deserialize_with = "required")]
+            subnet_type: SubnetTypeAttributed,
+        }
+
+        let typed: Typed = serde_json::from_str(r#"{"subnet_type": "Unknown"}"#).unwrap();
+        assert_eq!(
+            *typed.subnet_type.value(),
+            SubnetTypeValue(SubnetType::Unknown)
         );
     }
 

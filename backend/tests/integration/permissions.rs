@@ -12,7 +12,9 @@ use scanopy::server::shared::attribution::AttributeSource;
 use scanopy::server::shared::storage::traits::Storable;
 use scanopy::server::shared::types::entities::EntitySource;
 use scanopy::server::sites::r#impl::{Site, SiteBase};
-use scanopy::server::subnets::r#impl::base::{Subnet, SubnetBase};
+use scanopy::server::subnets::r#impl::base::{
+    Subnet, SubnetBase, SubnetName, SubnetTypeAttributed,
+};
 use scanopy::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
 use scanopy::server::subnets::r#impl::types::SubnetType;
 use std::net::Ipv4Addr;
@@ -170,7 +172,8 @@ async fn test_cannot_create_subnet_on_other_site(
     println!("Testing: Cannot create subnet on inaccessible site...");
 
     let subnet = Subnet::new(SubnetBase {
-        name: "Unauthorized Subnet".to_string(),
+        vlan_ids: Vec::new(),
+        name: SubnetName::unattributed("Unauthorized Subnet".to_string()),
         description: None,
         site_id: other_site_id, // Site user doesn't have access to
         cidr: SubnetCidr::new(
@@ -179,7 +182,7 @@ async fn test_cannot_create_subnet_on_other_site(
             )),
             AttributeSource::DaemonSelfReport,
         ),
-        subnet_type: SubnetType::Lan,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
         source: EntitySource::System,
         tags: Vec::new(),
         virtualization_service_id: None,

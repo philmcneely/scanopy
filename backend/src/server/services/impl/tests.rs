@@ -1225,3 +1225,46 @@ fn every_definition_can_be_matched() {
          Write a probe for the port, or change the pattern to something the scan does collect."
     );
 }
+
+/// Which service may replace a container's stored placeholder. The scanner stores a container it
+/// cannot identify as "Docker Container" or "Podman Container"; anything that later identifies the
+/// same container replaces it, a generic protocol such as SSH included. A placeholder never
+/// replaces another service, and nothing replaces a service that already identifies the container.
+#[test]
+fn only_a_container_placeholder_is_replaced_and_anything_specific_replaces_it() {
+    use crate::server::services::definitions::{
+        docker_container::DockerContainer, open_ports::OpenPorts, postgresql::PostgreSQL, ssh::Ssh,
+    };
+    use crate::server::services::r#impl::definitions::ServiceDefinition;
+    use crate::server::services::r#impl::virtualization::{
+        DockerVirtualization, ServiceVirtualization,
+    };
+
+    let runtime = uuid::Uuid::new_v4();
+    let in_container = |definition: Box<dyn ServiceDefinition>, container_id: &str| {
+        let mut service = crate::server::services::r#impl::base::Service {
+            id: uuid::Uuid::new_v4(),
+            ..Default::default()
+        };
+        service.base.service_definition = definition;
+        service.base.virtualization_service_id = Some(runtime);
+        service.base.virtualization_metadata =
+            Some(ServiceVirtualization::Docker(DockerVirtualization {
+                container_name: None,
+                container_id: Some(container_id.to_string()),
+                compose_project: None,
+                state: Default::default(),
+            }));
+        service
+    };
+
+    let placeholder = in_container(Box::new(DockerContainer), "c1");
+    assert!(placeholder.is_placeholder_for(&in_container(Box::new(Ssh), "c1")));
+    assert!(!placeholder.is_placeholder_for(&in_container(Box::new(Ssh), "c2")));
+    assert!(!placeholder.is_placeholder_for(&in_container(Box::new(DockerContainer), "c1")));
+    assert!(!placeholder.is_placeholder_for(&in_container(Box::new(OpenPorts), "c1")));
+    assert!(
+        !in_container(Box::new(PostgreSQL), "c1")
+            .is_placeholder_for(&in_container(Box::new(Ssh), "c1"))
+    );
+}

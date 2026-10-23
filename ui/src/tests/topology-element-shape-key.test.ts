@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
 	elementShapeKey,
-	type ElementRenderResult
+	type ElementIconCard,
+	type ElementRenderResult,
+	type IconCardGroup
 } from '$lib/features/topology/element-render-data';
 
 /**
@@ -15,137 +17,126 @@ import {
  */
 
 const FLAGS = {
-	inlineEntities: ['Service', 'Port'],
+	inlineEntities: ['Service'],
 	inlinesService: true,
-	inlinesPort: true,
-	serviceInlineHidden: false,
-	portInlineHidden: false
+	serviceInlineHidden: false
 };
 
-function service(id: string, name: string, portBindings = 0) {
+const STALE = { staleTag: { label: 'Stale' } } as Partial<ElementRenderResult>;
+
+function iconCard(overrides: Partial<ElementIconCard> = {}): ElementIconCard {
 	return {
-		id,
-		name,
-		bindings: Array.from({ length: portBindings }, () => ({ type: 'Port' }))
+		glyph: { type: 'device', deviceType: 'Server' },
+		badgeDefinitions: [],
+		label: 'web-01',
+		tooltip: { title: 'web-01', sections: [] },
+		groups: [],
+		...overrides
 	};
 }
 
-function result(overrides: Record<string, unknown> = {}, extra: Partial<ElementRenderResult> = {}) {
+function result(
+	card: ElementIconCard | null,
+	elementType = 'Host',
+	extra: Partial<ElementRenderResult> = {}
+): ElementRenderResult {
 	return {
 		flags: FLAGS,
 		staleTag: null,
+		marks: {},
+		glyph: card?.glyph ?? null,
+		iconCard: card,
 		data: {
-			elementType: 'Host',
+			elementType,
 			headerText: 'web-01',
-			subtitleText: null,
-			bodyText: null,
-			footerText: null,
-			showServices: true,
+			bodyText: card ? null : 'Unknown Service',
+			showServices: false,
 			services: [],
-			hiddenOpenPorts: [],
 			ip_address_id: '',
-			inlineGroups: [],
-			...overrides
+			inlineGroups: []
 		},
 		...extra
-	} as unknown as ElementRenderResult;
+	} as ElementRenderResult;
 }
 
+function group(collapsed: boolean, members: number): IconCardGroup {
+	return {
+		groupId: 'docker',
+		headerDefinition: 'Docker',
+		headerName: 'Docker',
+		collapsed,
+		members: Array.from({ length: members }, (_, i) => ({
+			id: `c-${i}`,
+			glyph: { type: 'software', definition: 'Nginx' },
+			label: `container-${i}`,
+			status: undefined,
+			tooltip: { title: `container-${i}`, sections: [] }
+		}))
+	};
+}
+
+const port = (label: string) => iconCard({ glyph: { type: 'port' }, label });
+
 describe('elementShapeKey', () => {
-	it('matches cards that render identically but describe different entities', () => {
-		// The whole point: two hosts with the same card structure must share a key
-		// even though their names and ids differ.
-		expect(elementShapeKey(result({ headerText: 'web-01' }))).toBe(
-			elementShapeKey(result({ headerText: 'web-02' }))
+	it('matches icon cards that render identically but describe different entities', () => {
+		expect(elementShapeKey(result(iconCard({ label: 'web-01' })))).toBe(
+			elementShapeKey(result(iconCard({ label: 'web-02' })))
 		);
 	});
 
-	it('separates cards with different service counts', () => {
-		expect(elementShapeKey(result({ services: [service('a', 'nginx')] }))).not.toBe(
-			elementShapeKey(result({ services: [service('a', 'nginx'), service('b', 'redis')] }))
-		);
-	});
-
-	it('separates cards whose inline group holds a different number of member hosts', () => {
-		const member = (id: string) => ({
-			host: { id, display_name: id },
-			services: [service(`${id}-snmp`, 'SNMP')]
-		});
-		const group = (hosts: string[]) => ({
-			groupId: 'identities',
-			collapsed: false,
-			header: service('identities', 'Site Identities'),
-			services: [],
-			hosts: hosts.map(member)
-		});
-		expect(elementShapeKey(result({ inlineGroups: [group(['mv-1'])] }))).not.toBe(
-			elementShapeKey(result({ inlineGroups: [group(['mv-1', 'mv-2'])] }))
-		);
-	});
-
-	it('separates a collapsed manager box from the same box expanded, and ignores members when collapsed', () => {
-		const box = (collapsed: boolean, hosts: number) => ({
-			groupId: 'identities',
-			collapsed,
-			header: service('identities', 'Site Identities'),
-			services: [],
-			hosts: Array.from({ length: hosts }, (_, i) => ({
-				host: { id: `mv-${i}`, display_name: `mv-${i}` },
-				services: []
-			}))
-		});
-		const key = (collapsed: boolean, hosts: number) =>
-			elementShapeKey(result({ inlineGroups: [box(collapsed, hosts)] }));
-
-		expect(key(true, 3)).not.toBe(key(false, 3));
-		// Collapsed, only the header row renders: member count no longer changes the height.
-		expect(key(true, 3)).toBe(key(true, 45));
-	});
-
-	it('separates a service row carrying port lines from one without', () => {
-		expect(elementShapeKey(result({ services: [service('a', 'nginx', 0)] }))).not.toBe(
-			elementShapeKey(result({ services: [service('a', 'nginx', 3)] }))
+	it('separates a label long enough to wrap from one that fits', () => {
+		expect(elementShapeKey(result(iconCard({ label: 'web-01' })))).not.toBe(
+			elementShapeKey(result(iconCard({ label: 'a-hostname-long-enough-to-wrap' })))
 		);
 	});
 
 	it('separates a card with a staleness pill from one without', () => {
-		// The pill renders in flow, so it adds a row.
-		expect(elementShapeKey(result())).not.toBe(
-			elementShapeKey(result({}, { staleTag: { label: 'Stale' } } as Partial<ElementRenderResult>))
+		// The pill renders in flow, so it adds a row: on an icon card and on a port row alike.
+		expect(elementShapeKey(result(iconCard()))).not.toBe(
+			elementShapeKey(result(iconCard(), 'Host', STALE))
+		);
+		expect(elementShapeKey(result(port('Gi1/0/1'), 'Interface'))).not.toBe(
+			elementShapeKey(result(port('Gi1/0/1'), 'Interface', STALE))
 		);
 	});
 
-	it('separates a header long enough to wrap from one that fits', () => {
-		expect(elementShapeKey(result({ headerText: 'web-01' }))).not.toBe(
-			elementShapeKey(
-				result({ headerText: 'a-very-long-hostname-that-will-certainly-wrap-onto-more-lines' })
-			)
+	it('gives every port row one key whatever its name, since the row truncates', () => {
+		expect(elementShapeKey(result(port('Gi1/0/1'), 'Interface'))).toBe(
+			elementShapeKey(result(port('TenGigabitEthernet1/1/48 uplink to core'), 'Interface'))
 		);
+	});
+
+	it('separates a port row from an icon card', () => {
+		expect(elementShapeKey(result(port('eth0'), 'Interface'))).not.toBe(
+			elementShapeKey(result(iconCard({ label: 'eth0' }), 'Interface'))
+		);
+	});
+
+	it('separates manager boxes holding a different number of open members', () => {
+		expect(elementShapeKey(result(iconCard({ groups: [group(false, 1)] })))).not.toBe(
+			elementShapeKey(result(iconCard({ groups: [group(false, 2)] })))
+		);
+	});
+
+	it('separates a collapsed manager box from the same box open, and ignores members when collapsed', () => {
+		const key = (collapsed: boolean, members: number) =>
+			elementShapeKey(result(iconCard({ groups: [group(collapsed, members)] })));
+
+		expect(key(true, 3)).not.toBe(key(false, 3));
+		// Collapsed, only the heading renders: the member count no longer changes the height.
+		expect(key(true, 3)).toBe(key(true, 45));
 	});
 
 	it('separates element types', () => {
-		expect(elementShapeKey(result({ elementType: 'Host' }))).not.toBe(
-			elementShapeKey(result({ elementType: 'Interface' }))
+		expect(elementShapeKey(result(iconCard(), 'Host'))).not.toBe(
+			elementShapeKey(result(iconCard(), 'IPAddress'))
 		);
 	});
 
-	it('separates cards whose inline blocks are hidden by the user', () => {
-		// Hiding service rows collapses content, so the heights differ.
-		const shown = result({ services: [service('a', 'nginx')] });
-		const hidden = result(
-			{ services: [service('a', 'nginx')] },
-			{ flags: { ...FLAGS, serviceInlineHidden: true, portInlineHidden: true } }
-		);
-		expect(elementShapeKey(shown)).not.toBe(elementShapeKey(hidden));
-	});
-
-	it('separates a port-status block from its absence', () => {
-		expect(elementShapeKey(result({ elementType: 'Interface' }))).not.toBe(
+	it('separates the text fallback from an icon card', () => {
+		expect(elementShapeKey(result(null, 'Service'))).not.toBe(
 			elementShapeKey(
-				result({
-					elementType: 'Interface',
-					portStatus: { operStatus: 1, speed: '1G', macAddress: null }
-				})
+				result(iconCard({ glyph: { type: 'software', definition: 'Nginx' } }), 'Service')
 			)
 		);
 	});

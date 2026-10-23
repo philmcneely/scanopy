@@ -12,11 +12,12 @@
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import type { ModalTab } from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	import { UserDisplay } from '$lib/shared/components/forms/selection/display/UserDisplay.svelte';
-	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
+	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import { entities } from '$lib/shared/stores/metadata';
 	import { Info, KeyRound } from 'lucide-svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
@@ -224,6 +225,29 @@
 	let canSave = $derived(activeTab === 'details' || daemonKey != null);
 
 	let colorHelper = $derived(entities.getColorHelper('Daemon'));
+
+	let actions = $derived<ModalAction[]>(
+		daemon
+			? [
+					{
+						role: 'cancel',
+						label: canSave ? common_cancel() : common_close(),
+						onClick: onClose,
+						disabled: loading
+					},
+					...(canSave
+						? [
+								{
+									role: 'primary' as const,
+									label: loading ? common_saving() : common_save(),
+									onClick: handleSubmit,
+									disabled: loading
+								}
+							]
+						: [])
+				]
+			: []
+	);
 </script>
 
 <GenericModal
@@ -240,6 +264,7 @@
 	{tabs}
 	{activeTab}
 	onTabChange={(id) => (activeTab = id)}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={entities.getIconComponent('Daemon')} color={colorHelper.color} />
@@ -337,7 +362,7 @@
 
 						<detailsForm.Field name="tags">
 							{#snippet children(field)}
-								<TagPicker
+								<TagPickerInline
 									entityType="Daemon"
 									label={common_tags()}
 									selectedTagIds={field.state.value || []}
@@ -412,19 +437,6 @@
 			</div>
 
 			<EntityMetadataSection entities={[daemon]} />
-
-			<div class="modal-footer">
-				<div class="flex items-center justify-end gap-3">
-					<button type="button" disabled={loading} onclick={onClose} class="btn-secondary">
-						{canSave ? common_cancel() : common_close()}
-					</button>
-					{#if canSave}
-						<button type="submit" disabled={loading} class="btn-primary">
-							{loading ? common_saving() : common_save()}
-						</button>
-					{/if}
-				</div>
-			</div>
 		</form>
 	{/if}
 </GenericModal>

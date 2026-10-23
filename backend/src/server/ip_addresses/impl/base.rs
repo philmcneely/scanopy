@@ -158,7 +158,7 @@ impl IPAddressBase {
             subnet_id: subnet.id,
             ip_address,
             mac_address: None,
-            name: Some(subnet.base.name.clone()),
+            name: Some(subnet.base.name().to_string()),
             position: 0,
             // A placeholder Scanopy seeds, not an address anything found.
             ip_address_source: AttributeSource::Unspecified,
@@ -295,6 +295,8 @@ impl IPAddress {
         }
     }
 }
+
+impl crate::server::shared::events::log::EntityLog for IPAddress {}
 
 impl ChangeTriggersTopologyStaleness<IPAddress> for IPAddress {
     fn triggers_staleness(&self, other: Option<IPAddress>) -> bool {

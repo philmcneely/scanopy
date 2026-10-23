@@ -1,14 +1,19 @@
 use crate::server::auth::middleware::permissions::{Authorized, IsDaemon, Member, Viewer};
+use crate::server::services::r#impl::patterns::ClientProbe;
+use crate::server::shared::attribution::AttributeSource;
+use crate::server::shared::handlers::list::list_page;
 use crate::server::shared::handlers::ordering::OrderField;
 use crate::server::shared::handlers::query::{
-    FilterQueryExtractor, OrderDirection, PaginationParams,
+    FilterQueryExtractor, OrderDirection, PaginationParams, on_requested_sites,
 };
+use crate::server::shared::handlers::traits::ListScope;
 use crate::server::shared::handlers::traits::create_handler;
 use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::storage::filter::StorableFilter;
 use crate::server::shared::storage::traits::{Entity, Storable};
 use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::api::{ApiError, ApiErrorResponse, PaginatedApiResponse};
+use crate::server::shared::types::entities::EntitySourceDiscriminants;
 use crate::server::vlans::r#impl::base::Vlan;
 use crate::server::{
     config::AppState,
@@ -35,6 +40,11 @@ pub enum VlanOrderField {
     Name,
     VlanNumber,
     UpdatedAt,
+    SiteId,
+    /// Sort by how the VLAN came to exist (`source.type`).
+    Source,
+    /// Sort by when discovery last observed the VLAN.
+    LastSeenAt,
 }
 
 impl OrderField for VlanOrderField {
@@ -44,6 +54,9 @@ impl OrderField for VlanOrderField {
             Self::Name => "vlans.name",
             Self::VlanNumber => "vlans.vlan_number",
             Self::UpdatedAt => "vlans.updated_at",
+            Self::SiteId => "vlans.site_id",
+            Self::Source => "vlans.source->>'type'",
+            Self::LastSeenAt => "vlans.last_seen_at",
         }
     }
 }
@@ -66,8 +79,23 @@ pub struct VlanFilterQuery {
     /// Number of results to skip. Default: 0.
     #[param(minimum = 0)]
     pub offset: Option<u32>,
-    /// Filter by site ID
-    pub site_id: Option<Uuid>,
+    /// Filter by site ID. Repeat the parameter to pass several.
+    #[serde(alias = "site_id")]
+    pub site_ids: Option<Vec<Uuid>>,
+    /// Filter by how the VLAN came to exist (`source.type`). Repeat for several.
+    pub sources: Option<Vec<EntitySourceDiscriminants>>,
+    /// Filter to VLANs linked to one of these subnets. Repeat for several.
+    pub subnet_ids: Option<Vec<Uuid>>,
+    /// Filter by tag IDs (returns VLANs that have ANY of the specified tags)
+    pub tag_ids: Option<Vec<Uuid>>,
+    /// Tag sets the VLAN must hold one tag from each of. Each entry is a comma-separated list
+    /// of tag ids. One entry per tag group the list is filtered by.
+    pub tag_sets: Option<Vec<String>>,
+    /// Group by the tag each row holds from this tag group. Takes the place of `group_by`.
+    pub group_by_tag_group: Option<Uuid>,
+    /// Sort by the position of the tag each row holds from this tag group. Takes the place of
+    /// `order_by`.
+    pub order_by_tag_group: Option<Uuid>,
     /// As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
     /// instant (snapshot view) instead of live state.
     pub at: Option<chrono::DateTime<chrono::Utc>>,
@@ -76,38 +104,16 @@ pub struct VlanFilterQuery {
     pub search: Option<String>,
 }
 
-impl VlanFilterQuery {
-    pub fn apply_ordering(&self, filter: StorableFilter<Vlan>) -> (StorableFilter<Vlan>, String) {
-        crate::server::shared::handlers::ordering::apply_ordering(
-            self.group_by,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "vlans.vlan_number ASC",
-        )
-    }
-}
-
 impl FilterQueryExtractor for VlanFilterQuery {
     fn apply_to_filter<T: Storable>(
         &self,
-        mut filter: StorableFilter<T>,
+        filter: StorableFilter<T>,
         user_site_ids: &[Uuid],
         _user_organization_id: Uuid,
     ) -> StorableFilter<T> {
-        // If a specific site is requested, filter to it (must be in user's accessible sites)
-        if let Some(site_id) = self.site_id {
-            if user_site_ids.contains(&site_id) {
-                filter = filter.uuid_column("site_id", &site_id);
-            } else {
-                // User doesn't have access to this site — return empty
-                filter = filter.uuid_column("site_id", &Uuid::nil());
-            }
-        }
-        // Here rather than in the list handler so the CSV export, which shares
-        // this extractor, exports exactly the rows the search found.
-        match self.search.as_deref() {
-            Some(search) if !search.trim().is_empty() => filter.text_search(search),
+        let filter = on_requested_sites(filter, self.site_ids.as_deref(), user_site_ids);
+        match &self.sources {
+            Some(sources) if !sources.is_empty() => filter.source_type_in(sources),
             _ => filter,
         }
     }
@@ -117,6 +123,10 @@ impl FilterQueryExtractor for VlanFilterQuery {
             limit: self.limit,
             offset: self.offset,
         }
+    }
+
+    fn at(&self) -> Option<chrono::DateTime<chrono::Utc>> {
+        self.at
     }
 }
 
@@ -128,6 +138,7 @@ mod generated {
     crate::crud_delete_handler!(Vlan);
     crate::crud_bulk_delete_handler!(Vlan);
     crate::crud_export_csv_handler!(Vlan);
+    crate::crud_get_field_values_handler!(Vlan);
 }
 
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
@@ -140,6 +151,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         ))
         .routes(routes!(generated::bulk_delete))
         .routes(routes!(generated::export_csv))
+        .routes(routes!(generated::get_field_values))
         .routes(routes!(discovery_upsert_vlans))
 }
 
@@ -163,35 +175,10 @@ async fn get_all_vlans(
         VlanFilterQuery,
     >,
 ) -> ApiResult<Json<PaginatedApiResponse<Vlan>>> {
-    let site_ids = auth.site_ids();
-
-    let base_filter = StorableFilter::<Vlan>::new_from_site_ids(&site_ids);
-    let filter = query
-        .apply_to_filter(base_filter, &site_ids, Uuid::nil())
-        .live_or_as_of(query.at);
-
-    let pagination = query.pagination();
-    let filter = pagination.apply_to_filter(filter);
-
-    let (filter, order_by) = query.apply_ordering(filter);
-
-    // Through the service, not `storage()`, so each VLAN's `subnet_ids` are
-    // hydrated from the `subnet_vlans` junction.
-    let result = state
-        .services
-        .vlan_service
-        .get_paginated_ordered(filter, &order_by)
-        .await?;
-
-    let limit = pagination.effective_limit().unwrap_or(0);
-    let offset = pagination.effective_offset();
-
-    Ok(Json(PaginatedApiResponse::success(
-        result.items,
-        result.total_count,
-        limit,
-        offset,
-    )))
+    let scope = ListScope::of(&auth.entity)?;
+    // Rows come through the service, which hydrates each VLAN's `subnet_ids` and
+    // `interface_ids`.
+    Ok(Json(list_page::<Vlan>(&state, &scope, &query).await?))
 }
 
 /// Create a new VLAN
@@ -241,7 +228,7 @@ pub async fn create_vlan(
 // ============================================================================
 
 /// Request body for daemon VLAN discovery upsert
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VlanDiscoveryRequest {
     /// The site this entity belongs to.
     pub site_id: Uuid,
@@ -265,22 +252,30 @@ impl VlanDiscoveryRequest {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct VlanDiscoveryItem {
     /// 802.1Q VLAN ID.
     pub vlan_number: u16,
     /// VLAN name as configured on the device.
     pub name: String,
+    /// Where the daemon read the name. Defaults to an SNMP read: daemons that predate this field
+    /// sent VLANs from SNMP alone.
+    #[serde(default = "snmp_vlan_name_source")]
+    pub name_source: AttributeSource,
+}
+
+fn snmp_vlan_name_source() -> AttributeSource {
+    AttributeSource::Authored(ClientProbe::Snmp)
 }
 
 /// Response for discovery upsert
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VlanDiscoveryResponse {
     /// Mapping of vlan_number → VLAN entity UUID
     pub vlans: Vec<VlanDiscoveryResponseItem>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VlanDiscoveryResponseItem {
     /// 802.1Q VLAN ID.
     pub vlan_number: u16,
@@ -333,31 +328,19 @@ pub async fn discovery_upsert_vlans(
         crate::server::shared::services::scan_context::ScanContext::new(daemon_id)
     });
 
-    let mut response_items = Vec::new();
+    let response = state
+        .services
+        .vlan_service
+        .upsert_discovery_batch(
+            request.site_id,
+            organization_id,
+            request.vlans,
+            scan_ctx.as_ref(),
+        )
+        .await
+        .map_err(|e| ApiError::internal_error(&format!("Failed to upsert VLAN: {}", e)))?;
 
-    for item in request.vlans {
-        let vlan = state
-            .services
-            .vlan_service
-            .upsert_from_discovery(
-                request.site_id,
-                organization_id,
-                item.vlan_number,
-                item.name,
-                scan_ctx.as_ref(),
-            )
-            .await
-            .map_err(|e| ApiError::internal_error(&format!("Failed to upsert VLAN: {}", e)))?;
-
-        response_items.push(VlanDiscoveryResponseItem {
-            vlan_number: vlan.base.vlan_number,
-            id: vlan.id,
-        });
-    }
-
-    Ok(Json(ApiResponse::success(VlanDiscoveryResponse {
-        vlans: response_items,
-    })))
+    Ok(Json(ApiResponse::success(response)))
 }
 
 #[cfg(test)]
@@ -372,6 +355,7 @@ mod tests {
                 .map(|i| VlanDiscoveryItem {
                     vlan_number: (i % MAX_VLANS_PER_DISCOVERY) as u16 + 1,
                     name: String::new(),
+                    name_source: snmp_vlan_name_source(),
                 })
                 .collect(),
         }
@@ -388,5 +372,17 @@ mod tests {
             .validate()
             .unwrap_err();
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    }
+
+    /// Daemons older than `name_source` POST `{vlan_number, name}`. Their names came from SNMP,
+    /// and must keep the rung that lets the same switch rename them later.
+    #[test]
+    fn a_request_without_a_name_source_reads_as_an_snmp_name() {
+        let item: VlanDiscoveryItem =
+            serde_json::from_str(r#"{"vlan_number": 20, "name": "Servers"}"#).unwrap();
+        assert_eq!(
+            item.name_source,
+            AttributeSource::Authored(ClientProbe::Snmp)
+        );
     }
 }

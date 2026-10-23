@@ -28,7 +28,7 @@ use crate::server::{
     shared::{
         events::{
             traits::Event,
-            types::{BillingOperation, OnboardingOperation},
+            types::{BillingOperation, OnboardingOperation, UpdateReason},
         },
         services::traits::EventBusService,
     },
@@ -63,16 +63,21 @@ impl OrganizationService {
             changed |= event.operation.apply(&mut locked.org, event.timestamp);
         }
         if changed {
-            locked.save(AuthenticatedEntity::System).await?;
+            locked
+                .save(
+                    AuthenticatedEntity::System,
+                    UpdateReason::OrganizationBillingSynced,
+                )
+                .await?;
         } else {
             locked.release().await?;
         }
 
         if let Some(milestone) = milestone {
-            self.event_bus().publish(milestone).await?;
+            self.event_bus().publish(milestone).await;
         }
         for event in events {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event).await;
         }
         Ok(())
     }
@@ -263,6 +268,7 @@ impl BillingOperation {
                 plan,
                 resumed_through,
                 next_renewal_at,
+                ..
             } => {
                 // Settling the written-off invoice puts the org back on
                 // its plan with the service it was still owed. Set the
@@ -363,6 +369,7 @@ impl BillingOperation {
             BillingOperation::DiscountApplied {
                 percent_off,
                 expires_at,
+                ..
             } => {
                 organization.base.last_discount_at = Some(at);
                 organization.base.discount_save_offer_percent_off = Some(*percent_off);
@@ -388,7 +395,7 @@ impl BillingOperation {
                     changed = true;
                 }
             }
-            BillingOperation::StripeCustomerCreated { customer_id } => {
+            BillingOperation::StripeCustomerCreated { customer_id, .. } => {
                 if organization.base.stripe_customer_id.as_deref() != Some(customer_id.as_str()) {
                     organization.base.stripe_customer_id = Some(customer_id.clone());
                     changed = true;

@@ -1,7 +1,8 @@
+use crate::server::shared::events::types::{DeletionReason, EntityOperation, UpdateReason};
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use uuid::Uuid;
 
 use crate::server::{
@@ -19,22 +20,23 @@ use crate::server::{
         types::api::ValidationError,
     },
     tags::{
-        entity_tags::{EntityTag, EntityTagStorage},
+        entity_tags::EntityTag,
         groups::base::{TagGroup, TagGroupBase, TagGroupType},
         r#impl::base::Tag,
+        service::TagService,
     },
 };
 
 /// Tag groups: the system groups every organization has, the groups it names, each group's tag
 /// order, and the entity types a group's tags may be applied to.
 ///
-/// Reads and writes `tags` and `entity_tags` directly: they belong to the same module, and a
-/// group's rules are rules about its tags and their assignments.
+/// A group's rules are rules about its tags and their assignments, which it reads and writes
+/// through `TagService`.
 pub struct TagGroupService {
     storage: Arc<GenericPostgresStorage<TagGroup>>,
-    tags: Arc<GenericPostgresStorage<Tag>>,
-    entity_tags: Arc<EntityTagStorage>,
     event_bus: Arc<EventBus>,
+    /// Set after construction: `TagService` is built from this service.
+    tag_service: OnceLock<Arc<TagService>>,
 }
 
 impl EventBusService<TagGroup> for TagGroupService {
@@ -80,6 +82,7 @@ impl CrudService<TagGroup> for TagGroupService {
         &self,
         entity: &mut TagGroup,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<TagGroup> {
         let current = self
             .get_by_id(&entity.id)
@@ -114,12 +117,18 @@ impl CrudService<TagGroup> for TagGroupService {
         if updated.base.ordered != current.base.ordered {
             self.renumber_tags(&updated).await?;
         }
-        self.publish_change(&updated, authentication, false).await?;
+        self.publish_updated(&current, &updated, authentication, reason)
+            .await;
         Ok(updated)
     }
 
     /// Deleting a group leaves its tags in no group. System groups can't be deleted.
-    async fn delete(&self, id: &Uuid, authentication: AuthenticatedEntity) -> Result<()> {
+    async fn delete(
+        &self,
+        id: &Uuid,
+        authentication: AuthenticatedEntity,
+        reason: DeletionReason,
+    ) -> Result<()> {
         let group = self
             .get_by_id(id)
             .await?
@@ -127,7 +136,8 @@ impl CrudService<TagGroup> for TagGroupService {
         self.refuse_system_delete(&group)?;
         self.ungroup_tags(&group).await?;
         self.storage.delete(id).await?;
-        self.publish_change(&group, authentication, true).await?;
+        self.publish_change(&group, authentication, EntityOperation::Deleted { reason })
+            .await?;
         Ok(())
     }
 
@@ -135,6 +145,7 @@ impl CrudService<TagGroup> for TagGroupService {
         &self,
         ids: &[Uuid],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize> {
         let groups = self
             .get_all(StorableFilter::<TagGroup>::new_from_entity_ids(ids))
@@ -143,48 +154,49 @@ impl CrudService<TagGroup> for TagGroupService {
             self.refuse_system_delete(group)?;
         }
         for group in &groups {
-            self.delete(&group.id, authentication.clone()).await?;
+            self.delete(&group.id, authentication.clone(), reason.clone())
+                .await?;
         }
         Ok(groups.len())
     }
 }
 
 impl TagGroupService {
-    pub fn new(
-        storage: Arc<GenericPostgresStorage<TagGroup>>,
-        tags: Arc<GenericPostgresStorage<Tag>>,
-        entity_tags: Arc<EntityTagStorage>,
-        event_bus: Arc<EventBus>,
-    ) -> Self {
+    pub fn new(storage: Arc<GenericPostgresStorage<TagGroup>>, event_bus: Arc<EventBus>) -> Self {
         Self {
             storage,
-            tags,
-            entity_tags,
             event_bus,
+            tag_service: OnceLock::new(),
         }
+    }
+
+    /// Set the tag service dependency after construction (breaks circular dep).
+    pub fn set_tag_service(&self, service: Arc<TagService>) -> Result<(), Arc<TagService>> {
+        self.tag_service.set(service)
+    }
+
+    fn tag_service(&self) -> Result<&Arc<TagService>> {
+        self.tag_service
+            .get()
+            .ok_or_else(|| anyhow!("TagService not initialized"))
     }
 
     async fn publish_change(
         &self,
         group: &TagGroup,
         authentication: AuthenticatedEntity,
-        deleted: bool,
+        operation: EntityOperation,
     ) -> Result<()> {
-        use crate::server::shared::events::{traits::EntityScope, types::EntityOperation};
+        use crate::server::shared::events::traits::EntityScope;
         if let Some(scope) = EntityScope::from_ids(
             group.id,
             group.clone().into(),
             None,
             Some(group.base.organization_id),
         ) {
-            let operation = if deleted {
-                EntityOperation::Deleted
-            } else {
-                EntityOperation::Updated
-            };
             self.event_bus
                 .publish(Event::new(scope, operation, authentication))
-                .await?;
+                .await;
         }
         Ok(())
     }
@@ -231,12 +243,10 @@ impl TagGroupService {
         custom: &[&str],
         authentication: AuthenticatedEntity,
     ) -> Result<Vec<TagGroup>> {
-        let lock = crate::server::shared::storage::lock::session_lock(
-            self.storage.pool(),
-            LockKey::TagGroups { organization_id },
-            DEFAULT_LOCK_TIMEOUT,
-        )
-        .await?;
+        let lock = self
+            .storage
+            .session_lock(LockKey::TagGroups { organization_id }, DEFAULT_LOCK_TIMEOUT)
+            .await?;
 
         let existing = self.get_for_org(&organization_id).await?;
         let mut missing: Vec<TagGroupBase> = TagGroupType::system()
@@ -264,8 +274,8 @@ impl TagGroupService {
                 .await?;
             // A new Visibility group starts with the tag that hides a host.
             if group.base.group_type == TagGroupType::Visibility {
-                self.tags
-                    .create(&crate::server::shared::storage::seed_data::hidden_tag(
+                self.tag_service()?
+                    .store_seed_tag(&crate::server::shared::storage::seed_data::hidden_tag(
                         organization_id,
                         group.id,
                     ))
@@ -300,16 +310,11 @@ impl TagGroupService {
         for (index, tag) in tags.iter_mut().enumerate() {
             tag.base.position = group.base.ordered.then_some(index as i32 + 1);
         }
-        if !tags.is_empty() {
-            self.tags.update_many(&tags).await?;
-        }
-        Ok(())
+        self.tag_service()?.store_group_changes(&tags).await
     }
 
     async fn live_tags_in(&self, group_id: Uuid) -> Result<Vec<Tag>> {
-        self.tags
-            .get_all(StorableFilter::<Tag>::new_from_uuid_column("tag_group_id", &group_id).live())
-            .await
+        self.tag_service()?.live_tags_in_group(group_id).await
     }
 
     /// Set the order of a group's tags. `tag_ids` must name every live tag of the group, once.
@@ -321,40 +326,7 @@ impl TagGroupService {
             ))
             .into());
         }
-        let mut tx = self.tags.begin_transaction().await?;
-        tx.lock(
-            LockKey::TagGroups {
-                organization_id: group.base.organization_id,
-            },
-            DEFAULT_LOCK_TIMEOUT,
-        )
-        .await?;
-
-        let mut tags = tx
-            .get_all(StorableFilter::<Tag>::new_from_uuid_column("tag_group_id", &group.id).live())
-            .await?;
-        if !is_permutation(tag_ids, &tags.iter().map(|t| t.id).collect::<Vec<_>>()) {
-            return Err(ValidationError::new(format!(
-                "Name every tag in the \"{}\" group exactly once",
-                group.base.name
-            ))
-            .into());
-        }
-
-        for tag in tags.iter_mut() {
-            let position = tag_ids
-                .iter()
-                .position(|id| *id == tag.id)
-                .map(|p| p as i32 + 1);
-            if tag.base.position != position {
-                tag.base.position = position;
-                tx.update(tag).await?;
-            }
-        }
-        tx.commit().await?;
-
-        tags.sort_by_key(|t| t.base.position);
-        Ok(tags)
+        self.tag_service()?.reorder_in_group(group, tag_ids).await
     }
 
     /// Refuse to apply `tags` to `entity_type` when one of their groups doesn't allow it.
@@ -389,7 +361,7 @@ impl TagGroupService {
     /// Refuse to move `tag` into `group` while it is applied to an entity type the group doesn't
     /// allow.
     pub async fn refuse_tag_out_of_scope(&self, tag: &Tag, group: &TagGroup) -> Result<()> {
-        let rows = self.entity_tags.get_live_for_tags(&[tag.id]).await?;
+        let rows = self.tag_service()?.live_assignments(&[tag.id]).await?;
         let removed: Vec<EntityDiscriminants> = rows
             .iter()
             .map(|r| r.base.entity_type)
@@ -416,7 +388,7 @@ impl TagGroupService {
             .iter()
             .map(|t| t.id)
             .collect();
-        let rows = self.entity_tags.get_live_for_tags(&tag_ids).await?;
+        let rows = self.tag_service()?.live_assignments(&tag_ids).await?;
         match counts_by_type(&rows, &removed) {
             None => Ok(()),
             Some(counts) => Err(ValidationError::new(format!(
@@ -462,15 +434,12 @@ impl TagGroupService {
             tag.base.tag_group_id = None;
             tag.base.position = None;
         }
-        if !tags.is_empty() {
-            self.tags.update_many(&tags).await?;
-        }
-        Ok(())
+        self.tag_service()?.store_group_changes(&tags).await
     }
 }
 
 /// Whether `ids` holds exactly the members of `expected`, each once.
-fn is_permutation(ids: &[Uuid], expected: &[Uuid]) -> bool {
+pub(crate) fn is_permutation(ids: &[Uuid], expected: &[Uuid]) -> bool {
     let mut a = ids.to_vec();
     let mut b = expected.to_vec();
     a.sort();

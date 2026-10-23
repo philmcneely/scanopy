@@ -81,8 +81,8 @@
 		 *  same integration can't also target it. */
 		claimedDaemonHostIntegrations?: string[];
 		/** Version + name of the daemon this credential set targets. A credential type
-		 *  is disabled in the add-credential dropdown when the daemon is older than the
-		 *  type's `minimum_daemon_version`. Absent/null ⇒ no version gate. */
+		 *  is disabled in the add-credential dropdown when the daemon is at or below the
+		 *  type's `last_unsupported_daemon_version`. Absent/null ⇒ no version gate. */
 		daemonVersion?: string | null;
 		daemonName?: string | null;
 		/** The daemon's OS when known (create-daemon flow, or a daemon created with one). New
@@ -215,9 +215,9 @@
 	// pending credential (e.g. a daemon-host proxy). Version takes precedence — a
 	// too-old daemon can't run the type at all.
 	function dropdownDisabledReason(type: TypedTypeMetadata<CredentialTypeMetadata>): string | null {
-		if (daemonTooOldForCredential(type.metadata?.minimum_daemon_version, daemonVersion)) {
+		if (daemonTooOldForCredential(type.metadata?.last_unsupported_daemon_version, daemonVersion)) {
 			return credentials_requiresDaemonVersion({
-				version: type.metadata?.minimum_daemon_version ?? '',
+				version: type.metadata?.last_unsupported_daemon_version ?? '',
 				name: daemonName ?? ''
 			});
 		}

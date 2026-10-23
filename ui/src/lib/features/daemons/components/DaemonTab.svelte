@@ -9,7 +9,12 @@
 	import OsTag from '$lib/features/hosts/components/OsTag.svelte';
 	import { hostOsOfDaemonOs } from '$lib/features/hosts/host-os';
 	import CreateDaemonModal from './CreateDaemonModal/CreateDaemonModal.svelte';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import {
+		disabledWhen,
+		hiddenWhen,
+		type ActionTone,
+		type CardAction
+	} from '$lib/shared/components/data/types';
 	import { daemonColumns } from './DaemonTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
@@ -20,8 +25,10 @@
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import {
 		useDaemonsQuery,
+		useDaemonsListQuery,
 		useDeleteDaemonMutation,
 		useBulkDeleteDaemonsMutation,
+		useBulkRetryDaemonConnectionMutation,
 		useRetryDaemonConnectionMutation
 	} from '$lib/features/daemons/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
@@ -38,6 +45,8 @@
 	import type { TabProps } from '$lib/shared/types';
 	import type { components } from '$lib/api/schema';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import { fieldValueOptions, useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import {
 		common_create,
 		common_confirmBulkDelete,
@@ -46,19 +55,57 @@
 		common_delete,
 		common_edit,
 		common_noEntityYet,
-		common_update,
+		common_upgrade,
 		daemons_retryConnection,
+		daemons_retryingConnection,
+		daemons_notServerPolled,
+		daemons_notServerPolledBulk,
+		daemons_reachable,
+		daemons_reachableBulk,
+		daemons_upToDate,
+		daemons_upgradeUnreachable,
 		daemons_sunsetBannerTitle,
 		daemons_sunsetBannerBody
 	} from '$lib/paraglide/messages';
 
 	type DaemonOrderField = components['schemas']['DaemonOrderField'];
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	// Queries
 	const tagsQuery = useTagsQuery();
+	// Every daemon, for the sunset banner, the empty state and deep links, which concern the whole
+	// organization rather than the page on screen.
 	const daemonsQuery = useDaemonsQuery();
+	// The page the table shows, paged, filtered and ordered on the server.
+	const page = listPageState(() => isActive);
+	const daemonsPageQuery = useDaemonsListQuery(() => page.params());
+	// Filter options: the values the caller's daemons hold, counted by the server.
+	const DAEMON_FIELD_VALUES = '/api/v1/daemons/field-values/{field}';
+	const siteValuesQuery = useFieldValuesQuery(
+		DAEMON_FIELD_VALUES,
+		'site_id',
+		undefined,
+		() => isActive
+	);
+	const modeValuesQuery = useFieldValuesQuery(
+		DAEMON_FIELD_VALUES,
+		'mode',
+		undefined,
+		() => isActive
+	);
+	const maintainerValuesQuery = useFieldValuesQuery(
+		DAEMON_FIELD_VALUES,
+		'maintainer',
+		undefined,
+		() => isActive
+	);
+	const versionValuesQuery = useFieldValuesQuery(
+		DAEMON_FIELD_VALUES,
+		'version',
+		undefined,
+		() => isActive
+	);
 	const sitesQuery = useSitesQuery();
 	// Shared subnets cache, to resolve each daemon's interfaced subnet ids.
 	const subnetsQuery = useSubnetsQuery();
@@ -70,6 +117,8 @@
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
 	let daemonsData = $derived(daemonsQuery.data ?? []);
+	let pageDaemons = $derived(daemonsPageQuery.data?.items ?? []);
+	let daemonsPagination = $derived(daemonsPageQuery.data?.pagination ?? null);
 
 	// Only the hosts the daemons actually run on. This was an unpaginated
 	// org-wide hosts query (~1.9MB on a few hundred hosts) issued to resolve one
@@ -77,15 +126,19 @@
 	// with every other consumer, so it loaded on pages that never showed a
 	// daemon. Scoped to the ids in hand and read by the host column.
 	let daemonHostIds = $derived([
-		...new Set(daemonsData.map((d) => d.host_id).filter((id): id is string => !!id))
+		...new Set(pageDaemons.map((d) => d.host_id).filter((id): id is string => !!id))
 	]);
 	const daemonHostsQuery = useHostsByIds(() => daemonHostIds);
 	let daemonHosts = $derived(daemonHostsQuery.data ?? []);
 
-	// The users who maintain the daemons, by id: the users list needs Admin, and a daemon's
-	// maintainer is often an admin or the owner, whom it leaves out.
+	// The users who maintain the daemons on the page and the ones the maintainer filter offers, by
+	// id: the users list needs Admin, and a daemon's maintainer is often an admin or the owner,
+	// whom it leaves out.
 	const maintainersQuery = useUsersByIds(() => [
-		...new Set(daemonsData.map((d) => d.user_id).filter((id): id is string => !!id))
+		...new Set([
+			...pageDaemons.map((d) => d.user_id).filter((id): id is string => !!id),
+			...fieldValueOptions(maintainerValuesQuery.data)
+		])
 	]);
 	let maintainers = $derived(maintainersQuery.data ?? []);
 
@@ -102,7 +155,11 @@
 	});
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let subnetsData = $derived((subnetsQuery.data ?? []).filter(isUserManagedSubnet));
-	let isLoading = $derived(daemonsQuery.isPending || sitesQuery.isPending);
+	let isLoading = $derived(
+		(daemonsPageQuery.isPending && !daemonsPageQuery.data) ||
+			daemonsQuery.isPending ||
+			sitesQuery.isPending
+	);
 
 	let showCreateDaemonModal = $state(false);
 	let showDaemonEditor = $state(false);
@@ -140,21 +197,22 @@
 	});
 
 	const retryConnectionMutation = useRetryDaemonConnectionMutation();
+	const bulkRetryConnectionMutation = useBulkRetryDaemonConnectionMutation();
 
 	/**
 	 * Escalate the upgrade affordance by lifecycle stage: a scheduled or active
 	 * sunset is a warning/danger action, a plain newer release is neutral-info.
 	 */
-	function upgradeButtonClass(daemon: Daemon): string {
+	function upgradeTone(daemon: Daemon): ActionTone | undefined {
 		switch (daemon.version_status.status) {
 			case 'Unsupported':
-				return 'btn-icon-danger';
+				return 'danger';
 			case 'Deprecated':
-				return 'btn-icon-warning';
+				return 'warning';
 			case 'Outdated':
-				return 'btn-icon-info';
+				return 'info';
 			default:
-				return 'btn-icon';
+				return undefined;
 		}
 	}
 
@@ -168,7 +226,10 @@
 		closeModal();
 	}
 
-	/** Row actions. Upgrade and retry appear only when the daemon's state calls for them. */
+	/**
+	 * Row actions: Retry Connection and Upgrade (each only when the daemon's state calls for it,
+	 * the rarer leftmost), then Edit and Delete on every row.
+	 */
 	function daemonActions(daemon: Daemon): CardAction[] {
 		if (isReadOnly) return [];
 
@@ -178,43 +239,55 @@
 			daemon.version_status.status === 'Unsupported';
 		// The scheduled sunset date is server-published — the UI never computes it.
 		const sunsetDate = daemon.version_status.sunset_date ?? null;
+		const serverPolled = daemon.mode === 'server_poll';
 
-		const actions: CardAction[] = [
+		return [
+			// An unreachable ServerPoll daemon is the one case the server can be asked to try
+			// again on demand.
+			{
+				label: daemons_retryConnection(),
+				icon: RefreshCw,
+				tone: 'info',
+				onClick: () => retryConnectionMutation.mutate(daemon.id),
+				onBulk: (ids) => bulkRetryConnectionMutation.mutateAsync(ids),
+				unavailable:
+					hiddenWhen(!serverPolled, daemons_notServerPolled(), daemons_notServerPolledBulk()) ??
+					hiddenWhen(
+						daemon.is_unreachable !== true,
+						daemons_reachable(),
+						daemons_reachableBulk()
+					) ??
+					disabledWhen(
+						retryConnectionMutation.isPending || bulkRetryConnectionMutation.isPending,
+						daemons_retryingConnection()
+					)
+			},
+			{
+				label: common_upgrade(),
+				icon: ArrowBigUp,
+				tone: upgradeTone(daemon),
+				onClick: () => handleOpenUpgrade(daemon),
+				unavailable:
+					hiddenWhen(!hasUpdateAvailable, daemons_upToDate()) ??
+					// Without a sunset to warn about, an unreachable daemon has nothing to upgrade
+					// from here.
+					disabledWhen(
+						daemon.is_unreachable === true && sunsetDate === null,
+						daemons_upgradeUnreachable()
+					)
+			},
+			// It opens the daemon management modal, which is also where the daemon's 1:1 key is
+			// managed — and where a legacy daemon can be given one.
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditDaemon(daemon) },
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteDaemon(daemon)
 			}
 		];
-
-		if (hasUpdateAvailable && (daemon.is_unreachable !== true || sunsetDate !== null)) {
-			actions.push({
-				label: common_update(),
-				icon: ArrowBigUp,
-				class: upgradeButtonClass(daemon),
-				onClick: () => handleOpenUpgrade(daemon)
-			});
-		}
-
-		// An unreachable ServerPoll daemon is the one case the server can be asked
-		// to try again on demand.
-		if (daemon.is_unreachable === true && daemon.mode === 'server_poll') {
-			actions.push({
-				label: daemons_retryConnection(),
-				icon: RefreshCw,
-				class: 'btn-icon-info',
-				onClick: () => retryConnectionMutation.mutate(daemon.id),
-				disabled: retryConnectionMutation.isPending
-			});
-		}
-
-		// Edit sits last (rightmost) per the convention shared by every other entity.
-		// It opens the daemon management modal, which is also where the daemon's 1:1
-		// key is managed — and where a legacy daemon can be given one.
-		actions.push({ label: common_edit(), icon: Edit, onClick: () => handleEditDaemon(daemon) });
-
-		return actions;
 	}
 
 	function handleEditDaemon(daemon: Daemon) {
@@ -266,7 +339,7 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('Daemon', {});
+		await downloadCsv('Daemon', page.listQuery);
 	}
 
 	const tableDefaults: TableDefaults<DaemonOrderField> = {
@@ -287,7 +360,11 @@
 			maintainers: () => maintainers,
 			interfacedSubnets,
 			subnets: () => subnetsData,
-			osCell: () => osCell
+			osCell: () => osCell,
+			siteValues: () => siteValuesQuery.data,
+			modeValues: () => modeValuesQuery.data,
+			maintainerValues: () => maintainerValuesQuery.data,
+			versionValues: () => versionValuesQuery.data
 		})
 	);
 </script>
@@ -332,15 +409,18 @@
 		<DataControls
 			title={common_daemons()}
 			{toolbarActions}
-			items={daemonsData}
+			items={pageDaemons}
 			fields={daemonFields}
 			storageKey="scanopy-daemons-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			entityType="Daemon"
 			canEditTags={!isReadOnly}
 			getItemTags={getDaemonTags}
 			getItemId={(item) => item.id}
+			serverPagination={daemonsPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			onCsvExport={handleCsvExport}
 			getActions={daemonActions}
 			entityLabel={common_daemons()}

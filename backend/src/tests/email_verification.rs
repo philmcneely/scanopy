@@ -2,6 +2,7 @@
 //! lifted on a server with no email transport. Also covers how a new account starts
 //! (verified or not) and the verify, resend, reset and email-change paths.
 
+use crate::server::shared::events::types::UpdateReason;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -20,7 +21,7 @@ use crate::server::auth::r#impl::api::RegisterRequest;
 use crate::server::auth::r#impl::base::{LoginRegisterParams, ProvisionOrg};
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::auth::middleware::permissions::{Authorized, Member, RequireVerified};
-use crate::server::config::{AppState, ServerConfig};
+use crate::server::config::{AppState, DeploymentType, ServerConfig};
 use crate::server::daemons::r#impl::api::ProvisionDaemonRequest;
 use crate::server::daemons::r#impl::base::{DaemonMode, DaemonOs};
 use crate::server::organizations::r#impl::base::Organization;
@@ -302,7 +303,7 @@ async fn register_invited(
                 site_ids: vec![],
                 invited_as: invited_as.map(EmailAddress::new_unchecked),
             },
-            false,
+            DeploymentType::Community,
         )
         .await
         .unwrap()
@@ -388,7 +389,11 @@ async fn an_unknown_or_expired_verification_token_gets_a_coded_400() {
     state
         .services
         .user_service
-        .update(&mut expired, AuthenticatedEntity::System)
+        .update(
+            &mut expired,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
     let err = auth
@@ -485,7 +490,11 @@ async fn completing_a_password_reset_verifies_the_address() {
     state
         .services
         .user_service
-        .update(&mut pending, AuthenticatedEntity::System)
+        .update(
+            &mut pending,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
 
@@ -521,7 +530,7 @@ async fn email_change_requests_are_limited_per_new_address() {
                 site_ids: vec![],
                 invited_as: None,
             },
-            false,
+            DeploymentType::Community,
         )
         .await
         .unwrap();

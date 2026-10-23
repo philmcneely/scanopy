@@ -148,12 +148,6 @@ impl BillingService {
                         .await?;
                 }
 
-                tracing::info!(
-                    organization_id = %organization_id,
-                    subscription_id = %subscription.id,
-                    plan = %plan.name(),
-                    "Subscription switched to invoice billing"
-                );
                 Ok(
                     "Invoice sent. You can keep using your license key while it is paid."
                         .to_string(),
@@ -471,12 +465,6 @@ impl BillingService {
             return Ok(());
         };
 
-        tracing::error!(
-            organization_id = %organization.id,
-            invoice_id = %snapshot.stripe_invoice_id,
-            reason = %reason,
-            "A licence invoice could not be finalized, so nothing was sent"
-        );
         self.event_bus
             .publish(Event::new(
                 OrgScope {
@@ -488,7 +476,7 @@ impl BillingService {
                 },
                 AuthenticatedEntity::System,
             ))
-            .await?;
+            .await;
         Ok(())
     }
 
@@ -533,12 +521,6 @@ impl BillingService {
             );
             return Ok(());
         }
-
-        tracing::info!(
-            organization_id = %organization.id,
-            invoice_id = %invoice.stripe_invoice_id,
-            "Sent licence invoice is overdue"
-        );
         let event = Event::new(
             OrgScope { organization_id },
             BillingOperation::InvoiceOverdue { invoice },
@@ -769,7 +751,6 @@ impl BillingService {
             .send(&self.stripe)
             .await
         else {
-            tracing::info!(invoice_id = %id, "Finalized a sent licence invoice");
             return Ok(());
         };
 
@@ -779,17 +760,8 @@ impl BillingService {
         // A draft that is no longer a draft was finalized by whoever won, and
         // this also covers Stripe auto-advancing it out from under us.
         match RetrieveInvoice::new(id.clone()).send(&self.stripe).await {
-            Ok(invoice) if invoice.status != Some(InvoiceStatus::Draft) => {
-                // Deliberately without the Stripe error: this is the success
-                // path, the invoice is out, and dumping a rejection here read
-                // as a failure to anyone watching the log.
-                tracing::debug!(
-                    invoice_id = %id,
-                    status = ?invoice.status,
-                    "Invoice was already finalized; treating as sent"
-                );
-                Ok(())
-            }
+            // Already finalized: the invoice is out, and `invoice_issued` reports it.
+            Ok(invoice) if invoice.status != Some(InvoiceStatus::Draft) => Ok(()),
             Ok(_) => Err(finalize_error.into()),
             Err(retrieve_error) => Err(anyhow!(
                 "Invoice {id} could not be finalized ({finalize_error}) \
@@ -956,7 +928,6 @@ pub(crate) async fn license_invoices(
 /// so comparing against `Utc::now()` reads a different calendar.
 pub(crate) async fn write_off_unpaid_license_invoices(
     stripe: &RateLimitedStripe,
-    organization_id: Uuid,
     customer_id: &CustomerId,
     as_of: DateTime<Utc>,
 ) -> Result<usize, Error> {
@@ -971,11 +942,6 @@ pub(crate) async fn write_off_unpaid_license_invoices(
         MarkUncollectibleInvoice::new(id.clone())
             .send(stripe)
             .await?;
-        tracing::info!(
-            organization_id = %organization_id,
-            invoice_id = %id,
-            "Wrote off the license invoice this customer defaulted on"
-        );
     }
     Ok(defaulted.len())
 }

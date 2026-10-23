@@ -1,5 +1,6 @@
 //! OIDC providers, authorize/callback, link/login/register flows, and unlink.
 use super::*;
+use crate::server::auth::oidc::OidcLoginRefused;
 use crate::server::metrics::dependency::DependencyError;
 use crate::server::openapi::tags as api_tags;
 use crate::server::shared::types::api::MetricErrorCode;
@@ -73,7 +74,7 @@ pub(crate) async fn oidc_authorize(
     session: Session,
     Query(params): Query<OidcAuthorizeParams>,
 ) -> ApiResult<Redirect> {
-    let billing_enabled = state.config.stripe_secret.is_some();
+    let deployment_type = get_deployment_type(&state.config);
 
     let oidc_service = state
         .services
@@ -106,7 +107,7 @@ pub(crate) async fn oidc_authorize(
 
             let terms_accepted = params.terms_accepted.unwrap_or(false);
 
-            if billing_enabled && !terms_accepted {
+            if deployment_type.requires_terms_acceptance() && !terms_accepted {
                 return Err(ApiError::bad_request(
                     "Please accept terms and conditions to proceed",
                 ));
@@ -423,7 +424,7 @@ async fn handle_login_flow(
 
     // Login user
     match oidc_service
-        .login(slug, code, pending_auth, ip, user_agent)
+        .login(slug, code, pending_auth, ip, user_agent.clone())
         .await
     {
         Ok(user) => {
@@ -490,13 +491,23 @@ async fn handle_login_flow(
                 )));
             }
 
+            if let Err(e) = oidc_service
+                .publish_login_success(&user, slug, false, ip, user_agent)
+                .await
+            {
+                tracing::error!(error = %e, "Could not record the OIDC login");
+            }
+
             Ok(Redirect::to(&format!(
                 "{}?login_method=oidc:{}",
                 return_url, slug
             )))
         }
         Err(e) => {
-            tracing::error!("Failed to login via OIDC: {}", e);
+            // A refused login (no matching account) is already `login_failed`, with its reason.
+            if e.downcast_ref::<OidcLoginRefused>().is_none() {
+                tracing::error!("Failed to login via OIDC: {}", e);
+            }
             Err(ErrorRedirect::to(&format!(
                 "{}?error={}",
                 return_url,
@@ -565,8 +576,6 @@ async fn handle_register_flow(
         )));
     };
 
-    let billing_enabled = state.config.stripe_secret.is_some();
-
     // Register user
     match oidc_service
         .register(
@@ -575,13 +584,12 @@ async fn handle_register_flow(
                 provision_org: provision_org.clone(),
                 permissions,
                 ip,
-                user_agent,
+                user_agent: user_agent.clone(),
                 site_ids,
                 invited_as,
             },
             OidcRegisterParams {
                 terms_accepted_at,
-                billing_enabled,
                 provider_slug: slug,
                 code,
                 deployment_type: get_deployment_type(&state.config),
@@ -590,9 +598,9 @@ async fn handle_register_flow(
         .await
     {
         Ok(result) => {
-            let user = match result {
-                OidcRegisterResult::NewUser(user) => user,
-                OidcRegisterResult::ExistingUser(user) => user,
+            let (user, signed_in_existing) = match result {
+                OidcRegisterResult::NewUser(user) => (user, false),
+                OidcRegisterResult::ExistingUser(user) => (user, true),
                 OidcRegisterResult::EmailAlreadyExists => {
                     return Err(ErrorRedirect::to(&format!(
                         "{}?error={}&error_code=user_email_in_use",
@@ -626,6 +634,14 @@ async fn handle_register_flow(
                     return_url,
                     urlencoding::encode(&format!("Failed to create session: {}", e))
                 )));
+            }
+
+            if signed_in_existing
+                && let Err(e) = oidc_service
+                    .publish_login_success(&user, slug, true, ip, user_agent)
+                    .await
+            {
+                tracing::error!(error = %e, "Could not record the OIDC login");
             }
 
             // If this is a new org, provision the integrated daemon on the site

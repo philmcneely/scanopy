@@ -108,72 +108,60 @@ impl DaemonService {
 #[async_trait]
 impl Subscriber<DiscoveryPhase> for DaemonService {
     fn filter(&self) -> EventFilter<DiscoveryPhase> {
-        EventFilter::ops(vec![
-            DiscoveryPhaseDiscriminants::Started,
-            DiscoveryPhaseDiscriminants::Cancelled,
-        ])
+        EventFilter::ops(vec![DiscoveryPhaseDiscriminants::Cancelled])
     }
 
     async fn handle(&self, events: Vec<Event<DiscoveryPhase>>) -> Result<(), anyhow::Error> {
         for event in events {
+            // A cancel request carries no reason yet; the session ends when the daemon reports
+            // it. A Cancelled that carries one has already ended (a queued session removed before
+            // dispatch, or the daemon's own report), so there is nothing to deliver.
+            if event.scope.reason.is_some() {
+                continue;
+            }
             let daemon_id = event.scope.daemon_id;
             let session_id = event.scope.session_id;
 
-            match event.operation {
-                DiscoveryPhase::Started => {
-                    tracing::debug!(
+            if !matches!(event.operation, DiscoveryPhase::Cancelled) {
+                continue;
+            }
+            let delivery = self.deliver_cancellation(daemon_id, session_id).await;
+            match &delivery {
+                // `NotRunning` is usually a daemon that finished the session a moment
+                // before the cancel landed. Its own outcome arrives on the next poll, and
+                // if the daemon instead restarted, the restart check fails the session
+                // then. Failing it here would overwrite a real completion.
+                CancelDelivery::Delivered
+                | CancelDelivery::PulledByDaemon
+                | CancelDelivery::NotRunning => {
+                    tracing::info!(
                         daemon_id = %daemon_id,
                         session_id = %session_id,
-                        "Discovery session queued — will dispatch when daemon reports ready"
+                        delivery = delivery.outcome(),
+                        "Cancellation passed to the daemon"
                     );
                 }
-                DiscoveryPhase::Cancelled => {
-                    let delivery = self.deliver_cancellation(daemon_id, session_id).await;
-                    match &delivery {
-                        // `NotRunning` is usually a daemon that finished the session a moment
-                        // before the cancel landed. Its own outcome arrives on the next poll, and
-                        // if the daemon instead restarted, the restart check fails the session
-                        // then. Failing it here would overwrite a real completion.
-                        CancelDelivery::Delivered
-                        | CancelDelivery::PulledByDaemon
-                        | CancelDelivery::NotRunning => {
-                            tracing::info!(
-                                daemon_id = %daemon_id,
-                                session_id = %session_id,
-                                delivery = delivery.outcome(),
-                                "Cancellation passed to the daemon"
-                            );
-                        }
-                        // Nothing will ever end this session from the daemon's side, so the
-                        // server does. Otherwise it sits until the stall sweep, and the next scan
-                        // of the same discovery is refused as already running.
-                        //
-                        // A request that failed at the transport counts: a server that cannot
-                        // reach the daemon to cancel cannot poll it either, so no outcome was
-                        // coming. Should the daemon turn out to be alive and report one later,
-                        // the session's tombstone ignores it.
-                        CancelDelivery::Undeliverable(_) | CancelDelivery::Failed(_) => {
-                            tracing::warn!(
-                                daemon_id = %daemon_id,
-                                session_id = %session_id,
-                                delivery = delivery.outcome(),
-                                detail = delivery.detail(),
-                                "Cancellation could not be passed to the daemon; failing the session"
-                            );
-                            self.discovery_service
-                                .fail_session(
-                                    session_id,
-                                    DiscoveryTerminalReason::DaemonUnreachable,
-                                    format!(
-                                        "Cancellation could not reach the daemon: {}",
-                                        delivery.detail().unwrap_or_default()
-                                    ),
-                                )
-                                .await;
-                        }
-                    }
+                // Nothing will ever end this session from the daemon's side, so the
+                // server does. Otherwise it sits until the stall sweep, and the next scan
+                // of the same discovery is refused as already running.
+                //
+                // A request that failed at the transport counts: a server that cannot
+                // reach the daemon to cancel cannot poll it either, so no outcome was
+                // coming. Should the daemon turn out to be alive and report one later,
+                // the session's tombstone ignores it.
+                CancelDelivery::Undeliverable(_) | CancelDelivery::Failed(_) => {
+                    self.discovery_service
+                        .fail_session(
+                            session_id,
+                            DiscoveryTerminalReason::DaemonUnreachable,
+                            format!(
+                                "Cancellation could not reach the daemon ({}): {}",
+                                delivery.outcome(),
+                                delivery.detail().unwrap_or_default()
+                            ),
+                        )
+                        .await;
                 }
-                _ => {}
             }
         }
         Ok(())

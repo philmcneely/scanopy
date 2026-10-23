@@ -505,6 +505,12 @@ impl ApiError {
         Self::coded(StatusCode::PAYMENT_REQUIRED, ErrorCode::BillingPlanLapsed)
     }
 
+    /// Forbidden (403) - a cloud org has not chosen a plan yet, so only the
+    /// Settings routes are open to it
+    pub fn billing_plan_required() -> Self {
+        Self::coded(StatusCode::FORBIDDEN, ErrorCode::BillingPlanRequired)
+    }
+
     /// Conflict (409) - cannot leave an air-gapped key while it is still valid.
     /// The request is well formed and the caller is entitled to make it; the
     /// organization is in a state that forbids the transition.
@@ -729,12 +735,12 @@ impl ApiError {
     }
 
     /// Bad request (400) - daemon version is older than server version
-    pub fn daemon_version_too_old(daemon_version: &str, server_version: &str) -> Self {
+    pub fn daemon_version_too_old(daemon_version: &str, last_unsupported_version: &str) -> Self {
         Self::coded(
             StatusCode::BAD_REQUEST,
             ErrorCode::DaemonVersionTooOld {
                 daemon_version: daemon_version.to_string(),
-                server_version: server_version.to_string(),
+                last_unsupported_version: last_unsupported_version.to_string(),
             },
         )
     }

@@ -73,15 +73,14 @@ pub struct OrgNotifications {
     pub hosts: LimitNotificationLevel,
     pub sites: LimitNotificationLevel,
     pub seats: LimitNotificationLevel,
-    /// The **highest** announced daemon-sunset floor this org has already been
-    /// emailed about (e.g. "0.17.5"); every cutover at or below it counts as
-    /// communicated. Because floors are totally ordered, a higher floor always
-    /// supersedes a lower one, so this single value ratchets monotonically even
-    /// when several announced cutovers affect one org at once — the boot-time
-    /// sweep emails each org at most once per floor and never oscillates.
-    /// `None` until the first sunset email is sent.
+    /// The **highest** announced daemon-sunset ceiling (last unsupported version) this org has
+    /// already been emailed about (e.g. "0.17.4"); every cutover at or below it counts as
+    /// communicated. Because ceilings are totally ordered, a higher one always supersedes a lower
+    /// one, so this single value ratchets monotonically even when several announced cutovers
+    /// affect one org at once — the boot-time sweep emails each org at most once per ceiling and
+    /// never oscillates. `None` until the first sunset email is sent.
     #[serde(default)]
-    pub sunset_notified_floor: Option<Version>,
+    pub sunset_notified_last_unsupported: Option<Version>,
     /// The `license_paid_through` an air-gapped organization has already been
     /// warned about. The warning goes out once per licence period; a renewal
     /// moves the date, so the next period's warning sends. `None` until the
@@ -338,7 +337,8 @@ impl Organization {
         };
         if activated {
             events.push(BillingOperation::LicenseActivated {
-                server_version: server_version.as_ref().map(Version::to_string),
+                plan: self.base.plan,
+                server_version: server_version.clone(),
             });
         }
 
@@ -351,10 +351,7 @@ impl Organization {
         {
             let from = self.base.license_server_version.replace(version.clone());
             if from.is_some() || !activated {
-                events.push(BillingOperation::LicenseServerUpgraded {
-                    from: from.map(|v| v.to_string()),
-                    to: version.to_string(),
-                });
+                events.push(BillingOperation::LicenseServerUpgraded { from, to: version });
             }
         }
 
@@ -394,11 +391,7 @@ impl Organization {
         self.base.notifications.license_silence_reported_for = Some(last_check_in_at);
         Some(BillingOperation::LicenseCheckInsStopped {
             last_check_in_at,
-            server_version: self
-                .base
-                .license_server_version
-                .as_ref()
-                .map(Version::to_string),
+            server_version: self.base.license_server_version.clone(),
         })
     }
 }
@@ -446,6 +439,8 @@ impl Display for Organization {
         write!(f, "{:?}: {:?}", self.base.name, self.id)
     }
 }
+
+impl crate::server::shared::events::log::EntityLog for Organization {}
 
 impl ChangeTriggersTopologyStaleness<Organization> for Organization {
     fn triggers_staleness(&self, _other: Option<Organization>) -> bool {
@@ -542,13 +537,15 @@ mod tests {
     #[test]
     fn a_key_activates_on_its_first_check_in_and_again_after_rotation() {
         let mut org = issued();
+        org.base.plan = Some(crate::server::billing::plans::get_commercial_self_hosted_plan());
         let v = Version::new(0, 17, 20);
 
         let first = org.record_license_check_in(at(1), Some(v.clone()));
         assert_eq!(
             first,
             vec![BillingOperation::LicenseActivated {
-                server_version: Some("0.17.20".to_string())
+                plan: org.base.plan,
+                server_version: Some(Version::new(0, 17, 20))
             }],
             "the activation carries the version, so no separate upgrade"
         );
@@ -576,8 +573,8 @@ mod tests {
         assert_eq!(
             org.record_license_check_in(at(2), Some(Version::new(0, 17, 21))),
             vec![BillingOperation::LicenseServerUpgraded {
-                from: Some("0.17.20".to_string()),
-                to: "0.17.21".to_string(),
+                from: Some(Version::new(0, 17, 20)),
+                to: Version::new(0, 17, 21),
             }]
         );
 
@@ -606,7 +603,7 @@ mod tests {
             org.record_license_check_in(at(2), Some(Version::new(0, 17, 21))),
             vec![BillingOperation::LicenseServerUpgraded {
                 from: None,
-                to: "0.17.21".to_string(),
+                to: Version::new(0, 17, 21),
             }]
         );
     }
@@ -637,7 +634,7 @@ mod tests {
             org.report_license_silence(at(8)),
             Some(BillingOperation::LicenseCheckInsStopped {
                 last_check_in_at: at(1),
-                server_version: Some("0.17.20".to_string()),
+                server_version: Some(Version::new(0, 17, 20)),
             })
         );
         assert_eq!(org.report_license_silence(at(9)), None, "already reported");

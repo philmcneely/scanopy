@@ -1,0 +1,52 @@
+{
+  "meta": { "rc": "ok" },
+  "data": [
+    {
+      "_id": "hand-authored-switch-1",
+      "mac": "aa:bb:cc:00:00:01",
+      "ip": "10.20.0.2",
+      "name": "Rack Switch",
+      "model": "USL8LP",
+      "type": "usw",
+      "version": "7.1.26",
+      "port_table": [
+        { "port_idx": 1, "name": "Port 1", "up": true, "enable": true, "speed": 1000 },
+        { "port_idx": 2, "name": "Port 2", "up": true, "enable": true, "speed": 1000 },
+        { "port_idx": 3, "name": "Port 3", "up": true, "enable": true, "speed": 1000 },
+        { "port_idx": 4, "name": "Port 4", "up": true, "enable": true, "speed": 1000, "portconf_id": "6ad8cae0dea9b77c91595a2c" },
+        { "port_idx": 5, "name": "Port 5", "up": true, "enable": true, "speed": 1000, "portconf_id": "6ad8cae0dea9b77c91595a2f" },
+        { "port_idx": 6, "name": "Port 6", "up": false, "enable": false, "speed": 0 }
+      ],
+      "port_overrides": [
+        { "port_idx": 2, "portconf_id": "6ad8cae0dea9b77c91595a29" },
+        { "port_idx": 3, "portconf_id": "6ad8cae0dea9b77c91595a2c" },
+        { "port_idx": 4, "native_networkconf_id": "6ad8cac9dea9b77c91595a14", "tagged_vlan_mgmt": "block_all" },
+        { "port_idx": 6, "forward": "disabled" }
+      ]
+    },
+    {
+      "_id": "hand-authored-switch-2",
+      "mac": "aa:bb:cc:00:00:02",
+      "ip": "10.20.0.3",
+      "name": "Desk Switch",
+      "model": "USMINI",
+      "type": "usw",
+      "port_table": [
+        { "port_idx": 1, "name": "Port 1", "up": true, "enable": true, "speed": 1000 },
+        { "port_idx": 2, "name": "Port 2", "up": true, "enable": true, "speed": 1000 }
+      ],
+      "port_overrides": [
+        { "port_idx": 1, "portconf_id": "000000000000000000000bad" }
+      ]
+    },
+    {
+      "_id": "hand-authored-ap-1",
+      "mac": "aa:bb:cc:00:00:03",
+      "ip": "10.20.0.4",
+      "name": "Lobby AP",
+      "model": "U6-Lite",
+      "type": "uap",
+      "uplink": { "name": "eth0", "mac": "aa:bb:cc:00:00:13", "uplink_mac": "aa:bb:cc:00:00:01", "uplink_remote_port": 3 }
+    }
+  ]
+}

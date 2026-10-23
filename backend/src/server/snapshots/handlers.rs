@@ -10,6 +10,7 @@
 //! `GET /snapshots?site_id=X` and `DELETE /snapshots/{id}` use the standard
 //! generic CRUD handlers; the cascade FKs on closed entity rows + topology rows
 //! reap everything tied to the deleted snapshots automatically.
+use crate::server::shared::events::types::DeletionReason;
 
 use std::sync::Arc;
 
@@ -132,25 +133,25 @@ async fn create_snapshot(
             .run_close_and_clone(created.base.site_id, created.base.taken_at, created.id)
             .await
         {
-            // The response carries the message, but a failure here rolls the
-            // clone transaction back and leaves nothing behind to diagnose from
-            // — GH #687 was reported with no server-side record of it at all.
-            tracing::error!(
-                snapshot_id = %created.id,
-                site_id = %created.base.site_id,
-                error = ?e,
-                "Snapshot close-and-clone failed; no rows were captured",
-            );
-
             // The snapshots row is INSERTed before close-and-clone and is not
             // part of its transaction, so a failed clone otherwise leaves a
             // snapshot that captured nothing — selectable in the picker and
             // rendering an empty topology, which reads as "the site was
             // empty at that time" rather than as the failure it was.
+            //
+            // The delete names the failure, and its log line is at ERROR: the clone
+            // transaction rolled back, so this is the server-side record of it (GH #687 was
+            // reported with none).
             if let Err(cleanup) = state
                 .services
                 .snapshot_service
-                .delete(&created.id, auth.entity.clone())
+                .delete(
+                    &created.id,
+                    auth.entity.clone(),
+                    DeletionReason::SnapshotCaptureFailed {
+                        error: format!("{e:#}"),
+                    },
+                )
                 .await
             {
                 tracing::error!(
@@ -185,7 +186,7 @@ async fn create_snapshot(
             )
             .await
     {
-        let _ = state
+        state
             .services
             .event_bus
             .publish(Event::new(

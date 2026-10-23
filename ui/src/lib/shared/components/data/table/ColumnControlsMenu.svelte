@@ -84,7 +84,7 @@
 	ariaLabel={name}
 	onClose={() => (isOpen = false)}
 >
-	<div class="w-64 space-y-3 p-1 text-left font-normal">
+	<div class="flex min-h-0 w-64 flex-col gap-3 p-1 text-left font-normal">
 		{#if filtersHere}
 			<FieldFilter
 				field={control.field}

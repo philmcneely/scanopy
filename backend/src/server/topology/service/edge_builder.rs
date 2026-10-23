@@ -110,7 +110,7 @@ impl EdgeBuilder {
                         let subnet = ctx.get_subnet_by_id(i.base.subnet_id)?;
                         subnet
                             .base
-                            .subnet_type
+                            .subnet_type()
                             .is_container_bridge()
                             .then_some((i.id, (subnet.id, i.base.ip_address)))
                     })
@@ -276,7 +276,7 @@ impl EdgeBuilder {
                         let subnet = ctx.get_subnet_by_id(ip_address.base.subnet_id)?;
                         subnet
                             .base
-                            .subnet_type
+                            .subnet_type()
                             .is_container_bridge()
                             .then_some((ip_address.base.ip_address, ip_address_id))
                     })
@@ -494,13 +494,13 @@ impl EdgeBuilder {
                             let target_subnet = ctx.get_subnet_by_id(ip_address.base.subnet_id);
 
                             if let Some(source_subnet) = source_subnet
-                                && source_subnet.base.subnet_type.is_container_bridge()
+                                && source_subnet.base.subnet_type().is_container_bridge()
                             {
                                 return None;
                             }
 
                             if let Some(target_subnet) = target_subnet
-                                && target_subnet.base.subnet_type.is_container_bridge()
+                                && target_subnet.base.subnet_type().is_container_bridge()
                             {
                                 return None;
                             }
@@ -831,6 +831,7 @@ mod tests {
     use crate::server::shared::attribution::AttributeSource;
     use crate::server::subnets::r#impl::base::{Subnet, SubnetBase};
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::subnets::r#impl::types::SubnetType;
     use crate::server::topology::service::context::TopologyContext;
     use crate::server::topology::types::base::TopologyOptions;
@@ -908,8 +909,8 @@ mod tests {
                     AttributeSource::DaemonSelfReport,
                 ),
                 site_id,
-                name: name.to_string(),
-                subnet_type,
+                name: SubnetName::unattributed(name.to_string()),
+                subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
                 ..Default::default()
             },
             ..Default::default()
@@ -976,6 +977,7 @@ mod tests {
                 name: "multi-attached".to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some("multi-attached".to_string()),
                         container_id: Some("abc123".to_string()),
                         compose_project: None,
@@ -1079,6 +1081,7 @@ mod tests {
                 name: "multi-attached".to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some("multi-attached".to_string()),
                         container_id: Some("abc123".to_string()),
                         compose_project: None,
@@ -1167,6 +1170,7 @@ mod tests {
                 name: "single".to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some("single".to_string()),
                         container_id: Some("def456".to_string()),
                         compose_project: None,
@@ -1245,6 +1249,7 @@ mod tests {
                 name: name.to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some(name.to_string()),
                         container_id: Some(name.to_string()),
                         compose_project: None,
@@ -1342,6 +1347,7 @@ mod tests {
                 name: name.to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_id: Some(name.to_string()),
                         container_name: Some(name.to_string()),
                         compose_project: None,
@@ -1442,6 +1448,7 @@ mod tests {
                 name: name.to_string(),
                 virtualization_metadata: Some(ServiceVirtualization::Docker(
                     DockerVirtualization {
+                        state: Default::default(),
                         container_name: Some(name.to_string()),
                         container_id: Some(name.to_string()),
                         compose_project: None,
@@ -1563,6 +1570,7 @@ mod tests {
         vm.base.virtualization_service_id = Some(proxmox.id);
         vm.base.virtualization_metadata =
             Some(HostVirtualization::Proxmox(ProxmoxVirtualization {
+                state: Default::default(),
                 vm_name: Some("gitlab".to_string()),
                 vm_id: Some("100".to_string()),
                 guest_type: Some(ProxmoxGuestType::Qemu),
@@ -1573,6 +1581,7 @@ mod tests {
         pihole.base.virtualization_service_id = Some(docker.id);
         pihole.base.virtualization_metadata =
             Some(HostVirtualization::Docker(ContainerHostVirtualization {
+                state: Default::default(),
                 container_name: Some("pihole".to_string()),
                 container_id: Some("4f1c2a".to_string()),
                 compose_project: None,

@@ -14,8 +14,8 @@
 
 <script lang="ts">
 	import { ChevronDown } from 'lucide-svelte';
-	import { tick, onMount } from 'svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
+	import Popover from '$lib/shared/components/data/Popover.svelte';
 	import { common_selectOption, common_noOptionsAvailable } from '$lib/paraglide/messages';
 
 	let {
@@ -36,71 +36,21 @@
 
 	let isOpen = $state(false);
 	let triggerEl: HTMLButtonElement | undefined = $state();
-	let dropdownEl: HTMLDivElement | undefined = $state();
-	let portalContainer: HTMLDivElement | null = $state(null);
-	let dropdownPosition = $state({ top: 0, left: 0, width: 0 });
-	let openUpward = $state(false);
-
-	onMount(() => {
-		portalContainer = document.createElement('div');
-		portalContainer.style.position = 'absolute';
-		portalContainer.style.top = '0';
-		portalContainer.style.left = '0';
-		portalContainer.style.width = '0';
-		portalContainer.style.height = '0';
-		document.body.appendChild(portalContainer);
-		return () => {
-			portalContainer?.remove();
-		};
-	});
 
 	let selected = $derived(options.find((o) => o.id === selectedValue));
 
-	function portal(node: HTMLElement) {
-		if (portalContainer) portalContainer.appendChild(node);
-		return { destroy() {} };
-	}
-
-	async function toggle(e: MouseEvent) {
+	function toggle(e: MouseEvent) {
 		e.preventDefault();
 		e.stopPropagation();
 		if (disabled || options.length === 0) return;
-		if (!isOpen) {
-			isOpen = true;
-			await tick();
-			if (triggerEl) {
-				const rect = triggerEl.getBoundingClientRect();
-				const spaceBelow = window.innerHeight - rect.bottom - 4;
-				openUpward = spaceBelow < 280 && rect.top > spaceBelow;
-				dropdownPosition = {
-					top: openUpward ? rect.top - 4 : rect.bottom + 4,
-					left: rect.left,
-					width: rect.width
-				};
-			}
-		} else {
-			isOpen = false;
-		}
+		isOpen = !isOpen;
 	}
 
 	function handleSelect(id: string) {
 		onSelect(id);
 		isOpen = false;
 	}
-
-	function handleOutside(e: MouseEvent) {
-		if (
-			dropdownEl &&
-			!dropdownEl.contains(e.target as Node) &&
-			triggerEl &&
-			!triggerEl.contains(e.target as Node)
-		) {
-			isOpen = false;
-		}
-	}
 </script>
-
-<svelte:window onclick={handleOutside} />
 
 <div class="relative">
 	<button
@@ -137,34 +87,33 @@
 	{/if}
 </div>
 
-{#if isOpen && portalContainer}
-	<div
-		bind:this={dropdownEl}
-		use:portal
-		class="select-dropdown fixed z-[9999] max-h-72 overflow-y-auto rounded-md shadow-lg"
-		style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px; min-width: {dropdownPosition.width}px;
-           {openUpward ? 'transform: translateY(-100%);' : ''}"
-	>
-		<div class="flex flex-col items-start gap-1 p-2">
-			{#each options as option (option.id)}
-				<button
-					type="button"
-					onclick={() => handleSelect(option.id)}
-					class="flex w-full rounded p-1 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 {option.id ===
-					selectedValue
-						? 'ring-1 ring-blue-500'
-						: ''}"
-				>
-					<EntityTag
-						entityRef={option.entityRef}
-						label={option.label}
-						icon={option.icon ?? null}
-						color={option.color ?? 'Gray'}
-						disableNavigate={true}
-						disablePopover={true}
-					/>
-				</button>
-			{/each}
-		</div>
+<Popover
+	triggerElement={triggerEl ?? null}
+	{isOpen}
+	role="presentation"
+	align="start"
+	matchTriggerWidth
+	onClose={() => (isOpen = false)}
+>
+	<div class="flex flex-col items-start gap-1">
+		{#each options as option (option.id)}
+			<button
+				type="button"
+				onclick={() => handleSelect(option.id)}
+				class="flex w-full rounded p-1 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 {option.id ===
+				selectedValue
+					? 'ring-1 ring-blue-500'
+					: ''}"
+			>
+				<EntityTag
+					entityRef={option.entityRef}
+					label={option.label}
+					icon={option.icon ?? null}
+					color={option.color ?? 'Gray'}
+					disableNavigate={true}
+					disablePopover={true}
+				/>
+			</button>
+		{/each}
 	</div>
-{/if}
+</Popover>

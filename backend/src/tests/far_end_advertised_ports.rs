@@ -186,6 +186,7 @@ impl Lab {
                 vec![],
                 complete,
                 InterfaceDataComplete::default(),
+                &crate::server::ports::r#impl::coverage::PortCoverage::default(),
                 None,
                 AuthenticatedEntity::System,
                 None,

@@ -5,6 +5,7 @@
 //! - Processing logic for daemon data (formerly in processor.rs)
 //! - Polling loop for ServerPoll mode (formerly in poller.rs)
 //! - HTTP client for daemon communication
+use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -26,7 +27,6 @@ use crate::daemon::runtime::types::InitializeDaemonRequest;
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::billing::types::base::{LimitSource, LimitType};
 use crate::server::credentials::r#impl::mapping::IntegrationTarget;
-use crate::server::credentials::r#impl::types::CredentialTypeDiscriminants;
 use crate::server::credentials::service::CredentialService;
 use crate::server::daemon_api_keys::r#impl::base::{DaemonApiKey, DaemonApiKeyBase};
 use crate::server::daemon_api_keys::service::DaemonApiKeyService;
@@ -38,7 +38,7 @@ use crate::server::daemons::r#impl::api::{
 use crate::server::daemons::r#impl::base::{
     Daemon, DaemonBase, DaemonMode, DaemonOs, ReportedOsOutcome,
 };
-use crate::server::daemons::r#impl::interfaced_subnets::DaemonInterfacedSubnetStorage;
+use crate::server::daemons::r#impl::interfaced_subnets::DaemonInterfacedSubnet;
 use crate::server::daemons::r#impl::version::{
     DaemonVersionPolicy, pre_interface_to_ip_address_rename, supports_server_provisioned_identity,
     supports_unified_discovery,
@@ -54,7 +54,7 @@ use crate::server::hosts::r#impl::name::HostNameSources;
 use crate::server::hosts::service::{HostLimitContext, HostService};
 use crate::server::organizations::service::OrganizationService;
 use crate::server::shared::api_key_common::{ApiKeyType, generate_api_key_for_storage};
-use crate::server::shared::entities::ChangeTriggersTopologyStaleness;
+use crate::server::shared::entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants};
 use crate::server::shared::events::bus::EventBus;
 use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event, OrgScope};
 use crate::server::shared::events::types::{
@@ -62,6 +62,7 @@ use crate::server::shared::events::types::{
 };
 use crate::server::shared::legacy::rewrite_response_for_legacy_daemon;
 use crate::server::shared::services::traits::{CrudService, EventBusService};
+use crate::server::shared::storage::child::{GenericChildStorage, ParentRef};
 use crate::server::shared::storage::filter::StorableFilter;
 use crate::server::shared::storage::generic::GenericPostgresStorage;
 use crate::server::shared::storage::traits::{Entity, Storable, Storage};
@@ -74,6 +75,7 @@ use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::subnets::service::SubnetService;
 use crate::server::tags::entity_tags::EntityTagService;
 use crate::server::users::service::UserService;
+use crate::server::vlans::service::VlanService;
 
 /// Weekly Sunday midnight cron schedule for default discovery jobs
 const WEEKLY_SUNDAY_MIDNIGHT_CRON: &str = "0 0 0 * * 0";
@@ -107,7 +109,7 @@ pub(crate) fn is_within_standby_grace(
 pub struct DaemonService {
     // Storage and core dependencies
     daemon_storage: Arc<GenericPostgresStorage<Daemon>>,
-    interfaced_subnet_storage: DaemonInterfacedSubnetStorage,
+    interfaced_subnet_storage: Arc<GenericChildStorage<DaemonInterfacedSubnet>>,
     client: reqwest::Client,
     event_bus: Arc<EventBus>,
     entity_tag_service: Arc<EntityTagService>,
@@ -116,6 +118,7 @@ pub struct DaemonService {
     pub(super) discovery_service: Arc<DiscoveryService>,
     credential_service: Arc<CredentialService>,
     subnet_service: Arc<SubnetService>,
+    vlan_service: Arc<VlanService>,
     site_service: Arc<SiteService>,
     organization_service: Arc<OrganizationService>,
     user_service: Arc<UserService>,
@@ -147,13 +150,6 @@ impl EventBusService<Daemon> for DaemonService {
     fn get_organization_id(&self, _entity: &Daemon) -> Option<Uuid> {
         None
     }
-
-    fn suppress_logs(&self, current: Option<&Daemon>, updated: Option<&Daemon>) -> bool {
-        match (current, updated) {
-            (Some(current), Some(updated)) => updated.suppress_logs(current),
-            _ => false,
-        }
-    }
 }
 
 #[async_trait]
@@ -170,6 +166,7 @@ impl CrudService<Daemon> for DaemonService {
         &self,
         id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<(), anyhow::Error> {
         // Clean up in-memory discovery session state (queued/pending/terminal)
         // to prevent stale references after deletion.
@@ -184,7 +181,6 @@ impl CrudService<Daemon> for DaemonService {
         self.storage().delete(id).await?;
 
         let trigger_stale = entity.triggers_staleness(None);
-        let suppress_logs = self.suppress_logs(Some(&entity), None);
 
         if let Some(entity_tag_service) = self.entity_tag_service() {
             entity_tag_service
@@ -200,15 +196,13 @@ impl CrudService<Daemon> for DaemonService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Deleted, authentication).with_flags(
-                        EntityEventFlags {
+                    Event::new(scope, EntityOperation::Deleted { reason }, authentication)
+                        .with_flags(EntityEventFlags {
                             trigger_stale,
-                            suppress_logs,
                             ..Default::default()
-                        },
-                    ),
+                        }),
                 )
-                .await?;
+                .await;
         }
 
         Ok(())

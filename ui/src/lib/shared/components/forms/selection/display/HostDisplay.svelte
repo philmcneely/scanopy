@@ -1,9 +1,11 @@
 <script lang="ts" context="module">
 	import type { Host, Interface, IPAddress, Port, Service } from '$lib/features/hosts/types/base';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+	import { hostIcon, hostTile } from '$lib/features/hosts/host-icon';
 	import {
 		containerNetworkTypes,
 		entities,
+		guestStates,
 		hostVirtualizations,
 		proxmoxGuestTypes,
 		serviceDefinitions
@@ -51,17 +53,20 @@
 	 */
 	function virtualizationTags(host: Host, context?: HostDisplayContext): TagProps[] {
 		const virtualization = host.virtualization_metadata;
+		// A stopped or paused guest says so; a running one, the usual case, adds nothing.
+		const stateTags = (state: string | undefined): TagProps[] =>
+			state && state !== 'Running'
+				? [{ ...guestStates.getTag(state), role: 'guest' satisfies HostTagRole }]
+				: [];
 		switch (virtualization?.type) {
 			case 'Proxmox': {
 				const guestType = virtualization.details.guest_type;
-				return guestType
-					? [
-							{
-								...proxmoxGuestTypes.getTag(guestType),
-								role: 'guest' satisfies HostTagRole
-							}
-						]
-					: [];
+				return [
+					...(guestType
+						? [{ ...proxmoxGuestTypes.getTag(guestType), role: 'guest' satisfies HostTagRole }]
+						: []),
+					...stateTags(virtualization.details.state)
+				];
 			}
 			case 'Docker':
 			case 'Podman': {
@@ -70,7 +75,8 @@
 					{
 						...containerNetworkTypes.getTag(networkType),
 						role: 'guest' satisfies HostTagRole
-					}
+					},
+					...stateTags(virtualization.details.state)
 				];
 			}
 			case 'NetworkIdentity': {
@@ -130,16 +136,10 @@
 				.filter((value): value is string => !!value && value !== label)
 				.join(', ');
 		},
-		getIcon: (host, context) => {
-			const services = context?.services?.filter((s) => s.host_id == host.id) ?? [];
-			const firstService = services.length > 0 ? services[0] : null;
-			if (firstService) {
-				return serviceDefinitions.getIconComponent(firstService.service_definition);
-			} else {
-				return entities.getIconComponent('Host');
-			}
-		},
+		// The host's device type, as on every other surface, not its first service's logo.
+		getIcon: (host) => hostTile(host),
 		getIconColor: () => entities.getColorHelper('Host').icon,
+		getChipIcon: (host) => hostIcon(host),
 		// What kind of guest the host is (VM, LXC, macvlan container, network identity) is part of
 		// what the host is, so it shows even in compact rows; its services only in full ones. A view
 		// whose own heading already names the guest type hides `guest` too.

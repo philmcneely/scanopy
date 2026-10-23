@@ -2,8 +2,9 @@
 //!
 //! `Event<Op>` is parameterized over an `Operation` impl. Each operation type
 //! carries per-domain `Scope` (identity dimensions: org_id / site_id / etc.),
-//! `Flags` (cross-cutting emission hints like `suppress_logs`), and `Filter`
-//! (the shape of selection predicates a subscriber declares).
+//! `Flags` (cross-cutting hints like topology staleness), and `Filter`
+//! (the shape of selection predicates a subscriber declares). How an event is
+//! logged travels on the event itself, as an [`EventLog`].
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -18,7 +19,10 @@ use crate::server::{
     discovery::r#impl::types::DiscoveryType,
     shared::{
         entities::{Entity, EntityDiscriminants},
-        events::types::{EntityOperation, EntityOperationDiscriminants, EventLogLevel, LabelColor},
+        events::{
+            log::EventLog,
+            types::{EntityOperation, EntityOperationDiscriminants, EventLogLevel, LabelColor},
+        },
     },
 };
 
@@ -32,7 +36,7 @@ use crate::server::{
 ///
 /// Each operation type carries:
 /// - `Scope`: identity dimensions (org_id / site_id / entity / etc.)
-/// - `Flags`: cross-cutting emission hints (`suppress_logs`, etc.)
+/// - `Flags`: cross-cutting hints (topology staleness)
 /// - `Filter`: the filter shape a `Subscriber<Self>` declares
 ///
 /// All discriminant trait-bound repetition is consolidated here via an
@@ -92,6 +96,14 @@ pub trait Operation:
     /// `EntityOperation`).
     fn log_color(&self) -> LabelColor {
         LabelColor::Neutral
+    }
+
+    /// How the logging subscriber writes this event: the whole event by default, with a readable
+    /// line for what the JSON doesn't say plainly or leaves out (ids kept from PostHog). Entity
+    /// events are decided by the entity instead, which sees both versions (see
+    /// [`EntityLog`](crate::server::shared::events::log::EntityLog)).
+    fn log(&self, _scope: &Self::Scope) -> EventLog {
+        EventLog::default()
     }
 }
 
@@ -260,6 +272,13 @@ pub struct DiscoveryScope {
     pub error_reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<DiscoveryTerminalReason>,
+    /// When the server last heard about the run, set at terminal: for a stall, how long it was
+    /// silent. Stays out of the PostHog metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_update_at: Option<DateTime<Utc>>,
+    /// The phase a reaped run was in when it stalled. Stays out of the PostHog metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_phase: Option<crate::daemon::discovery::types::base::DiscoveryPhase>,
 }
 
 // ===========================================================================
@@ -267,20 +286,17 @@ pub struct DiscoveryScope {
 // ===========================================================================
 
 /// Cross-cutting hint flags for entity events. `trigger_stale` and `clear_stale`
-/// control topology-rebuild gating; `suppress_logs` keeps noisy emissions out
-/// of logs and analytics.
+/// control topology-rebuild gating.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct EntityEventFlags {
-    pub suppress_logs: bool,
     pub trigger_stale: bool,
     pub clear_stale: bool,
 }
 
-/// Cross-cutting hints for non-entity events. Currently only `suppress_logs`.
+/// Cross-cutting hints for non-entity events. None today; the type stays so each operation
+/// declares its `Flags` the same way.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct EventFlags {
-    pub suppress_logs: bool,
-}
+pub struct EventFlags {}
 
 // ===========================================================================
 // Generic typed event
@@ -298,10 +314,15 @@ pub struct Event<Op: Operation> {
     pub flags: Op::Flags,
     pub timestamp: DateTime<Utc>,
     pub authentication: AuthenticatedEntity,
+    /// How the logging subscriber writes it. Never serialized: it isn't part of the event a
+    /// consumer receives.
+    #[serde(skip)]
+    pub log: EventLog,
 }
 
 impl<Op: Operation> Event<Op> {
     pub fn new(scope: Op::Scope, operation: Op, authentication: AuthenticatedEntity) -> Self {
+        let log = operation.log(&scope);
         Self {
             id: Uuid::new_v4(),
             scope,
@@ -309,11 +330,17 @@ impl<Op: Operation> Event<Op> {
             flags: Op::Flags::default(),
             timestamp: Utc::now(),
             authentication,
+            log,
         }
     }
 
     pub fn with_flags(mut self, flags: Op::Flags) -> Self {
         self.flags = flags;
+        self
+    }
+
+    pub fn with_log(mut self, log: EventLog) -> Self {
+        self.log = log;
         self
     }
 
@@ -513,4 +540,7 @@ pub trait Subscriber<Op: Operation>: Send + Sync {
     }
 }
 
-pub use super::dispatch::{DispatchTracker, NonRetryable, SubscriberErrorOutcome, TypedChannel};
+pub use super::dispatch::{
+    DispatchTracker, NonRetryable, SubscriberErrorOutcome, SubscriberErrorReason,
+    SubscriberFailure, SubscriberFailureReporter, TypedChannel,
+};

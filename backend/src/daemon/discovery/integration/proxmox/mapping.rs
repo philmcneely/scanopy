@@ -22,6 +22,7 @@ use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::{AttributeSource, Attributed};
 use crate::server::shared::position::renumber_positions;
 use crate::server::shared::types::entities::EntitySource;
+use crate::server::shared::types::guest_state::GuestState;
 use crate::server::subnets::r#impl::base::Subnet;
 
 use super::types::{
@@ -113,7 +114,7 @@ pub struct GuestSummary {
     pub vmid: i64,
     pub name: Option<String>,
     pub guest_type: ProxmoxGuestType,
-    pub running: bool,
+    pub state: GuestState,
 }
 
 impl GuestSummary {
@@ -151,7 +152,7 @@ pub fn guests(resources: &[ClusterResource]) -> Vec<GuestSummary> {
                     .filter(|n| !n.is_empty())
                     .map(str::to_string),
                 guest_type,
-                running: r.status.as_deref() == Some("running"),
+                state: GuestState::from_proxmox_status(r.status.as_deref()),
             })
         })
         .collect();
@@ -574,6 +575,9 @@ pub struct GuestReading {
     pub reported: Vec<GuestAddress>,
     pub os: Option<HostOsAttributed>,
     pub hostname: Option<HostHostnameAttributed>,
+    /// Whether the running guest's own interfaces were read (QEMU agent, LXC interfaces), so
+    /// `reported` is every address it presents rather than nothing known.
+    pub interfaces_read: bool,
 }
 
 /// What a guest is submitted as: its host, its addresses, and, for a guest the API reports no
@@ -618,6 +622,7 @@ pub fn guest_host(
             vm_name: guest.name.clone(),
             vm_id: Some(guest.vmid.to_string()),
             guest_type: Some(guest.guest_type),
+            state: guest.state,
         })),
         virtualization_service_id: owner,
         os: os.clone(),
@@ -779,6 +784,26 @@ mod tests {
         assert_eq!(found.len(), listed - 1);
     }
 
+    /// A stopped guest is listed with the rest, and says it is stopped.
+    #[test]
+    fn a_stopped_guest_is_listed_as_stopped() {
+        let resources: Vec<ClusterResource> = serde_json::from_str(
+            r#"[
+                {"id": "qemu/110", "type": "qemu", "node": "pve", "vmid": 110, "name": "web", "status": "running"},
+                {"id": "qemu/111", "type": "qemu", "node": "pve", "vmid": 111, "name": "old", "status": "stopped"}
+            ]"#,
+        )
+        .unwrap();
+        let states: Vec<(i64, GuestState)> = guests(&resources)
+            .iter()
+            .map(|g| (g.vmid, g.state))
+            .collect();
+        assert_eq!(
+            states,
+            vec![(110, GuestState::Running), (111, GuestState::Stopped)]
+        );
+    }
+
     /// The Docker host's agent reports `docker0` (172.17.0.1, on every Docker host) and its
     /// bridges. Only `ens18`, the NIC its config declares, identifies the VM.
     #[test]
@@ -870,7 +895,7 @@ mod tests {
                 vmid: 110,
                 name: Some("scanopy-wol-target".to_string()),
                 guest_type: ProxmoxGuestType::Qemu,
-                running: true,
+                state: GuestState::Running,
             }]
         );
     }
@@ -940,6 +965,7 @@ mod tests {
         assert_eq!(
             host.base.virtualization_metadata,
             Some(HostVirtualization::Proxmox(ProxmoxVirtualization {
+                state: Default::default(),
                 vm_name: Some("scanopy-wol-target".to_string()),
                 vm_id: Some("110".to_string()),
                 guest_type: Some(ProxmoxGuestType::Qemu),
@@ -959,7 +985,7 @@ mod tests {
 
     fn guest(resources: &[ClusterResource], vmid: i64) -> GuestSummary {
         GuestSummary {
-            running: false,
+            state: GuestState::Stopped,
             ..guests(resources)
                 .into_iter()
                 .find(|g| g.vmid == vmid)

@@ -184,6 +184,7 @@ impl DaemonResponse for Subnet {
                     subnet_type: _,
                     virtualization_service_id: _,
                     source: _,
+                    vlan_ids: _,
                     tags: _,
                 },
         } = &instance;
@@ -216,6 +217,8 @@ impl DaemonResponse for HostResponse {
             // daemon that reads them, and the daemon never reads these.
             display_name_rung: _,
             name_ladder: _,
+            // An enum the daemon never reads; an unknown role reads as `Unidentified` (`serde(other)`).
+            device_type: _,
             name_source: _,
             site_id: _,
             hostname: _,
@@ -288,7 +291,8 @@ impl DaemonResponse for ServerCapabilities {
     fn skewed() -> Value {
         let instance = ServerCapabilities {
             server_version: Version::new(0, 0, 0),
-            minimum_daemon_version: Version::new(0, 0, 0),
+            minimum_daemon_version: Some(Version::new(0, 0, 0)),
+            last_unsupported_daemon_version: Some(Version::new(0, 0, 0)),
             // Non-empty so the nested `DeprecationSeverity` enum is actually
             // exercised — an empty Vec previously hid it from the harness.
             deprecation_warnings: vec![DeprecationWarning {
@@ -301,6 +305,7 @@ impl DaemonResponse for ServerCapabilities {
         let ServerCapabilities {
             server_version: _,
             minimum_daemon_version: _,
+            last_unsupported_daemon_version: _,
             deprecation_warnings: _,
         } = &instance;
         let mut v = serde_json::to_value(&instance).expect("ServerCapabilities serializes");

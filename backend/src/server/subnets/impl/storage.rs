@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::Row;
 use sqlx::postgres::PgRow;
-use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::server::{
@@ -14,11 +13,11 @@ use crate::server::{
             snapshot::{DiscoveryTracked, Snapshotable},
             traits::{Entity, SqlValue, Storable},
         },
-        types::{entities::EntitySource, metadata::HasId},
+        types::entities::EntitySource,
     },
-    subnets::r#impl::{
-        base::{Subnet, SubnetBase, SubnetCidr, SubnetCidrValue},
-        types::SubnetType,
+    subnets::r#impl::base::{
+        Subnet, SubnetBase, SubnetCidr, SubnetCidrValue, SubnetName, SubnetNameValue,
+        SubnetTypeAttributed, SubnetTypeValue,
     },
 };
 
@@ -86,21 +85,27 @@ impl Storable for Subnet {
                     subnet_type,
                     description,
                     virtualization_service_id,
+                    // Hydrated from the `subnet_vlans` junction on read; not a column.
+                    vlan_ids: _,
                     tags: _, // Stored in entity_tags junction table
                 },
         } = self.clone();
 
         let [cidr_value, cidr_source] = attributed::present_params(&cidr);
+        let [name_value, name_source] = attributed::present_params(&name);
+        let [subnet_type_value, subnet_type_source] = attributed::present_params(&subnet_type);
 
         Ok((
             vec![
                 "id",
                 "name",
+                "name_source",
                 "description",
                 "cidr",
                 "cidr_source",
                 "source",
                 "subnet_type",
+                "subnet_type_source",
                 "virtualization_service_id",
                 "site_id",
                 "created_at",
@@ -114,12 +119,14 @@ impl Storable for Subnet {
             ],
             vec![
                 SqlValue::Uuid(id),
-                SqlValue::String(name),
+                name_value,
+                name_source,
                 SqlValue::OptionalString(description),
                 cidr_value,
                 cidr_source,
                 SqlValue::EntitySource(source),
-                SqlValue::String(subnet_type.id().to_string()),
+                subnet_type_value,
+                subnet_type_source,
                 SqlValue::OptionalUuid(virtualization_service_id),
                 SqlValue::Uuid(site_id),
                 SqlValue::Timestamp(created_at),
@@ -135,9 +142,8 @@ impl Storable for Subnet {
     }
 
     fn from_row(row: &PgRow) -> Result<Self, anyhow::Error> {
-        // Parse fields safely
-        let subnet_type = SubnetType::from_str(&row.get::<String, _>("subnet_type"))
-            .map_err(|e| anyhow::anyhow!("Failed to parse subnet_type: {}", e))?;
+        let subnet_type = attributed::read_required::<SubnetTypeValue>(row)?;
+        let name = attributed::read_required::<SubnetNameValue>(row)?;
         // A CIDR is required, so unlike an optional attribute an absent one is a real error.
         // The source half degrades to `Unspecified` inside `AttributeSource`'s own `Deserialize`,
         // which is what keeps a rung a newer binary wrote from failing the whole row.
@@ -157,14 +163,15 @@ impl Storable for Subnet {
             last_discovery_id: row.get("last_discovery_id"),
             first_discovery_id: row.get("first_discovery_id"),
             base: SubnetBase {
-                name: row.get("name"),
+                name,
                 description: row.get("description"),
                 site_id: row.get("site_id"),
                 source,
                 cidr,
                 subnet_type,
                 virtualization_service_id: row.get("virtualization_service_id"),
-                tags: Vec::new(), // Hydrated from entity_tags junction table
+                vlan_ids: Vec::new(), // Hydrated from the `subnet_vlans` junction
+                tags: Vec::new(),     // Hydrated from entity_tags junction table
             },
         })
     }
@@ -302,6 +309,11 @@ impl Entity for Subnet {
         if source == EntitySource::Manual {
             let asserted = SubnetCidr::new(self.base.cidr.value().clone(), AttributeSource::Manual);
             self.base.cidr.apply_in_place(asserted);
+            // The name and type a person gave the subnet they created are theirs too.
+            self.base.name =
+                SubnetName::new(self.base.name.value().clone(), AttributeSource::Manual);
+            self.base.subnet_type =
+                SubnetTypeAttributed::new(*self.base.subnet_type.value(), AttributeSource::Manual);
         }
         self.base.source = source;
     }
@@ -324,5 +336,44 @@ impl Entity for Subnet {
         let mut merged = existing.base.cidr.clone();
         merged.apply_in_place(self.base.cidr.clone());
         self.base.cidr = merged;
+
+        // The same for the name and the type: `update_subnet` stamps `Manual` on a value a person
+        // changed, and the applier keeps everything else at the stored rung.
+        let mut name = existing.base.name.clone();
+        name.apply_in_place(self.base.name.clone());
+        self.base.name = name;
+        let mut subnet_type = existing.base.subnet_type.clone();
+        subnet_type.apply_in_place(self.base.subnet_type.clone());
+        self.base.subnet_type = subnet_type;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::server::services::r#impl::patterns::ClientProbe;
+    use crate::server::subnets::r#impl::types::SubnetType;
+
+    /// The edit form sends the name and type back with every save, as plain values. Saving a
+    /// description must not drop the source a scan recorded, or the controller could no longer
+    /// update a name it set.
+    #[test]
+    fn saving_without_renaming_keeps_the_discovered_sources() {
+        let controller = AttributeSource::Authored(ClientProbe::UnifiController);
+        let existing = Subnet::new(SubnetBase {
+            name: SubnetName::new(SubnetNameValue("Servers".to_string()), controller),
+            subnet_type: SubnetTypeAttributed::new(SubnetTypeValue(SubnetType::Lan), controller),
+            ..Default::default()
+        });
+
+        let mut request = existing.clone();
+        request.base.name = SubnetName::unattributed("Servers");
+        request.base.subnet_type = SubnetTypeAttributed::unattributed(SubnetType::Lan);
+        request.base.description = Some("Rack A".to_string());
+
+        request.preserve_immutable_fields(&existing);
+
+        assert_eq!(request.base.name.source(), controller);
+        assert_eq!(request.base.subnet_type.source(), controller);
     }
 }

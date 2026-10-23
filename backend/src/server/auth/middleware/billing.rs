@@ -8,6 +8,9 @@
 //! - Community, Free, CommercialSelfHosted, and Demo plans
 //! - Self-hosted instances (no stripe_secret configured)
 //!
+//! An org that has not chosen a plan yet (a new cloud sign-up) only reaches
+//! the routes the Settings modal needs; everything else returns 403.
+//!
 //! Orgs on a self-hosted license plan (SelfHostedStandard / SelfHostedPlus)
 //! run Scanopy on their own servers, so on the cloud they only reach the
 //! routes the Settings modal needs; everything else returns 403.
@@ -42,10 +45,9 @@ pub async fn require_billing_for_users(
     request: Request<Body>,
     next: Next,
 ) -> Response {
-    // Check if billing is enabled:
-    // - Production: enabled when stripe_secret is configured
-    // - Testing: enabled when enforce_billing_for_testing is true
-    if !state.config.billing_enabled() {
+    // Plan limits apply on cloud, and on a self-hosted server that enforces
+    // them for testing.
+    if !state.config.enforces_plan_limits() {
         return next.run(request).await;
     }
 
@@ -94,13 +96,16 @@ pub async fn require_billing_for_users(
     // Reassemble request with cached entities in extensions
     let request = Request::from_parts(parts, body);
 
+    // A newly registered cloud org has no plan until it chooses one. It gets
+    // the Settings routes, so it can manage the account and pick a plan.
+    let Some(plan) = organization.base.plan else {
+        if settings_route(request.method(), request.uri().path()) {
+            return next.run(request).await;
+        }
+        return ApiError::billing_plan_required().into_response();
+    };
+
     // Check plan type - some plans are exempt from billing checks.
-    // `unwrap_or_default()` treats `plan = None` (newly-registered orgs that
-    // haven't selected a plan yet) as the build's default plan
-    // (Community / CommercialSelfHosted), which matches the exempt arm and
-    // lets `/api/v1/organizations` succeed. The frontend reads the resulting
-    // `plan = null` and opens BillingPlanModal to force plan selection.
-    let plan = organization.base.plan.unwrap_or_default();
     if plan.license_plan().is_some() {
         if settings_route(request.method(), request.uri().path()) {
             return next.run(request).await;
@@ -135,8 +140,9 @@ pub async fn require_billing_for_users(
     }
 }
 
-/// Billed routes the Settings modal calls, which stay open to an org on a
-/// self-hosted license plan, to a lapsed org, and to a self-hosted server
+/// Billed routes the Settings modal calls, which stay open to an org with no
+/// plan, to an org on a self-hosted license plan, to a lapsed org, and to a
+/// self-hosted server
 /// with a locked license: reading, renaming, and deleting the org, and
 /// editing the current user. Everything else Settings needs (auth, billing,
 /// licenses, config) sits outside this middleware already.

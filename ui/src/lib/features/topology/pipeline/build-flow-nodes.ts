@@ -3,6 +3,7 @@ import type { LayoutGraph } from '../layout/layout-graph';
 import type { RenderableTopology, TopologyNode } from '../types/base';
 import type { XY } from './types';
 import { getTopologyIndex } from '../entity-index';
+import { entities } from '$lib/shared/stores/metadata';
 
 export interface BuildFlowNodesParams {
 	visibleNodes: TopologyNode[];
@@ -44,8 +45,33 @@ export const ELEMENT_HANDLE_SIZE_PX = 8;
 /** Shared empty set for nodes no edge names, so each such node does not allocate its own. */
 const EMPTY_HANDLE_SET: ReadonlySet<string> = new Set<string>();
 
-/** Literal width every element card is built at, and the fallback for handle geometry. */
+/** Width of an element with no glyph, and the fallback for handle geometry. */
 export const ELEMENT_WIDTH_PX = 250;
+
+/** Width of an icon card. */
+export const ICON_ELEMENT_WIDTH_PX = 120;
+
+/**
+ * Width of a card made of rows: an icon card that lists a guest's containers, or a port's row. Each
+ * row holds a glyph, a name and a status dot, and at 120px a name kept six characters before
+ * truncating.
+ */
+export const ICON_GROUP_ELEMENT_WIDTH_PX = 168;
+
+/**
+ * The width an element card is built at, by its entity type's `glyph` metadata: a port is a row, a
+ * device or software an icon card, wider when it carries inline groups.
+ */
+export function elementWidthPx(node: TopologyNode): number {
+	const glyph =
+		node.node_type === 'Element'
+			? (entities.getMetadata(node.element_type) as { glyph?: string } | null)?.glyph
+			: null;
+	if (!glyph) return ELEMENT_WIDTH_PX;
+	if (glyph === 'Port') return ICON_GROUP_ELEMENT_WIDTH_PX;
+	const groups = (node as { inline_groups?: unknown[] }).inline_groups ?? [];
+	return groups.length > 0 ? ICON_GROUP_ELEMENT_WIDTH_PX : ICON_ELEMENT_WIDTH_PX;
+}
 
 /** Horizontal padding on an element card's text, mirroring `px-2` in `ElementNode.svelte`. */
 const ELEMENT_CARD_PADDING_X_PX = 8;
@@ -211,6 +237,7 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 		let measurementPlacement = false;
 
 		const isElement = node.node_type === 'Element';
+		const elementWidth = elementWidthPx(node);
 
 		// Container size from layout graph (collapsed = metadata size, expanded = ELK size)
 		const containerSize =
@@ -222,7 +249,7 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 			width = isNodeCollapsed
 				? (containerSize?.width ?? undefined)
 				: isElement
-					? ELEMENT_WIDTH_PX
+					? elementWidth
 					: (containerSize?.width ?? undefined);
 			height = isNodeCollapsed
 				? (containerSize?.height ?? undefined)
@@ -243,13 +270,13 @@ export function buildFlowNodes(params: BuildFlowNodesParams): Node[] {
 			// rendered as its borders with its contents outside. The graph knew the size the whole
 			// time: the capture that found this shows `containersZeroSizedAfter: 0` on the very run
 			// that produced fourteen zero-sized containers in the DOM.
-			width = isElement ? ELEMENT_WIDTH_PX : (containerSize?.width ?? curSize?.width ?? undefined);
+			width = isElement ? elementWidth : (containerSize?.width ?? curSize?.width ?? undefined);
 			height = isElement ? undefined : (containerSize?.height ?? curSize?.height ?? undefined);
 		} else {
 			// Measurement pass: place at origin, let content determine size
 			measurementPlacement = true;
 			position = { x: 0, y: 0 };
-			width = isElement ? ELEMENT_WIDTH_PX : undefined;
+			width = isElement ? elementWidth : undefined;
 			height = undefined;
 		}
 

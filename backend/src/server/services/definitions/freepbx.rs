@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
@@ -12,10 +13,13 @@ impl ServiceDefinition for FreePBX {
         "FreePBX"
     }
     fn description(&self) -> &'static str {
-        "PBX web ip_address"
+        "Web interface for managing an Asterisk phone system"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Telephony
+    }
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::Server)
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![

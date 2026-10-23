@@ -21,7 +21,7 @@ import { ApiError } from './client';
 import { translateError } from '$lib/i18n/errors';
 
 /** An openapi-fetch result, reduced to what these helpers read. */
-interface FetchResult<E> {
+export interface FetchResult<E> {
 	data?: E;
 	error?: unknown;
 	response: Response;

@@ -1117,6 +1117,7 @@ mod tests {
 
     fn docker_virt(project: Option<&str>) -> ServiceVirtualization {
         ServiceVirtualization::Docker(DockerVirtualization {
+            state: Default::default(),
             container_name: None,
             container_id: None,
             compose_project: project.map(String::from),
@@ -1125,6 +1126,7 @@ mod tests {
 
     fn podman_virt(project: Option<&str>) -> ServiceVirtualization {
         ServiceVirtualization::Podman(PodmanVirtualization {
+            state: Default::default(),
             container_name: None,
             container_id: None,
             compose_project: project.map(String::from),

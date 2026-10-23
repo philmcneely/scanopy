@@ -1,7 +1,9 @@
 //! UniFi Network Application (controller) discovery integration.
 //!
 //! Reads `GET /stat/device` from a UniFi controller and turns the controller's inventory into
-//! Scanopy hosts, interfaces, LLDP neighbors and bridge-FDB entries.
+//! Scanopy hosts, interfaces, LLDP neighbors and bridge-FDB entries. Reads `rest/networkconf` and
+//! `rest/portconf` first, so the controller's networks become the site's VLANs and subnets before
+//! any device is placed, and each switch port carries the VLANs it is configured for.
 //!
 //! # Why this exists
 //!
@@ -23,14 +25,21 @@
 
 pub mod client;
 pub mod mapping;
+pub mod networks;
+pub mod ports;
 pub mod types;
 
+use crate::server::lldp::canonical_mac;
 use crate::server::shared::attribution::AttributeSource;
+use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::subnets::r#impl::inference::placeable_subnet;
+use crate::server::vlans::handlers::VlanDiscoveryItem;
 use std::time::Duration;
 
 use anyhow::{Error, Result};
 use async_trait::async_trait;
+use futures::future::join_all;
+use futures::stream::{self, StreamExt};
 
 use crate::server::credentials::r#impl::mapping::{
     CredentialQueryPayload, CredentialQueryPayloadDiscriminants,
@@ -43,12 +52,14 @@ use crate::server::services::r#impl::patterns::{ClientProbe, ManagedDevice};
 use super::controller;
 use super::{
     Checkpoint, Completeness, DiscoveryIntegration, IntegrationContext, IntegrationFailure,
-    InterfaceSource, ProbeContext, ProbeFailure, ProbeSuccess,
+    InterfaceSource, ProbeContext, ProbeFailure, ProbeSuccess, ReportedRange, held_subnets,
+    place_reported_range,
 };
 use crate::daemon::discovery::service::ops::HostData;
 use crate::daemon::discovery::service::warnings::AttemptOutcome;
 use client::UnifiClient;
-use types::{UnifiDevice, UnifiStation};
+use networks::RecordedNetwork;
+use types::{UnifiDevice, UnifiNetwork, UnifiPortConf, UnifiStation};
 
 /// Connected client carried from `probe` to `execute`.
 struct UnifiProbeHandle {
@@ -128,11 +139,23 @@ impl DiscoveryIntegration for UnifiIntegration {
 
         let devices: Vec<UnifiDevice> = handle.client.get_site("stat/device").await?.data;
         tracing::info!(ip = %ctx.ip, devices = devices.len(), "Fetched UniFi device inventory");
+        ctx.ops.report_progress(30).await.ok();
+
+        // The controller's networks become the site's VLANs and subnets before any device is
+        // placed, so a device on a VLAN the daemon has no interface on still lands on a subnet.
+        let site_id = host_data.host.base.site_id;
+        let config = fetch_network_config(ctx, &handle.client).await;
+        let recorded = match &config {
+            Some(config) => record_networks(ctx, site_id, &config.networks).await,
+            None => Vec::new(),
+        };
         ctx.ops.report_progress(40).await.ok();
 
-        let site_id = host_data.host.base.site_id;
-        let subnets = collect_subnets(ctx, host_data);
-        let mapped = mapping::map_devices(&devices, site_id, &subnets);
+        let subnets = collect_subnets(ctx, host_data, &recorded);
+        let mut mapped = mapping::map_devices(&devices, site_id, &subnets);
+        if let Some(config) = &config {
+            apply_network_config(ctx, host_data, &devices, &mut mapped, config, &recorded);
+        }
 
         if mapped.len() < devices.len() {
             // Silent truncation would read as "the controller only manages these devices", and
@@ -169,27 +192,32 @@ impl DiscoveryIntegration for UnifiIntegration {
         // a device we already named from the inventory.
         let device_ips: Vec<std::net::IpAddr> = mapped.iter().map(|d| d.ip).collect();
 
-        let mut created = 0usize;
+        // A UDM / Cloud Key is itself a UniFi device, so when the controller we scanned appears in
+        // its own inventory it enriches the scanned host rather than becoming a second one.
+        let mut remote = Vec::with_capacity(mapped.len());
         for device in mapped {
-            if ctx.cancel.is_cancelled() {
-                return Err(IntegrationFailure::cancelled());
-            }
-
-            // A UDM / Cloud Key is itself a UniFi device, so when the controller we scanned
-            // appears in its own inventory it enriches the scanned host rather than becoming
-            // a second one.
             if device.ip == ctx.ip {
                 enrich_scanned_host(host_data, ctx.interface_source, &device);
-                continue;
-            }
-
-            match create_device_host(ctx, &subnets, device).await {
-                Ok(()) => created += 1,
-                Err(e) => {
-                    tracing::debug!(error = %e, "Failed to create UniFi-discovered host");
-                }
+            } else {
+                remote.push(device);
             }
         }
+        if ctx.cancel.is_cancelled() {
+            return Err(IntegrationFailure::cancelled());
+        }
+
+        // Concurrently, for the reason `controller::CONCURRENT_HOST_SUBMISSIONS` gives.
+        let created = stream::iter(remote)
+            .map(|device| create_device_host(ctx, &subnets, device))
+            .buffer_unordered(controller::CONCURRENT_HOST_SUBMISSIONS)
+            .filter(|result| {
+                if let Err(e) = result {
+                    tracing::debug!(error = %e, "Failed to create UniFi-discovered host");
+                }
+                std::future::ready(result.is_ok())
+            })
+            .count()
+            .await;
 
         tracing::info!(created, "UniFi device sync complete");
         ctx.ops.report_progress(70).await.ok();
@@ -240,12 +268,279 @@ impl DiscoveryIntegration for UnifiIntegration {
 /// `known_subnets` is the site's whole address space, not the scan's scope — which is what
 /// makes a rescan of the controller useful. The controller reports every switch it manages, and
 /// on a segmented network almost none of them sit in the subnet the rescan is sweeping; scoping
-/// this to the sweep dropped all of them.
+/// this to the sweep dropped all of them. The controller's own networks are added on top: a
+/// network created this run is in no list the daemon was handed.
 fn collect_subnets(
     ctx: &IntegrationContext<'_>,
     host_data: &HostData,
-) -> Vec<crate::server::subnets::r#impl::base::Subnet> {
-    merge_subnets(ctx.known_subnets, ctx.scanning_subnet, &host_data.subnets)
+    recorded: &[RecordedNetwork],
+) -> Vec<Subnet> {
+    let from_host: Vec<Subnet> = host_data
+        .subnets
+        .iter()
+        .cloned()
+        .chain(recorded.iter().filter_map(|r| r.subnet.clone()))
+        .collect();
+    merge_subnets(ctx.known_subnets, ctx.scanning_subnet, &from_host)
+}
+
+/// What the controller says about its networks and port profiles.
+struct NetworkConfig {
+    networks: Vec<UnifiNetwork>,
+    profiles: Vec<UnifiPortConf>,
+}
+
+/// Read `rest/networkconf` and `rest/portconf`. `None` when the networks cannot be read: the
+/// device sync then runs as it did before networks were read, against the subnets the site
+/// already holds, and the shortfall is reported rather than left to show up as skipped devices.
+async fn fetch_network_config(
+    ctx: &IntegrationContext<'_>,
+    client: &UnifiClient,
+) -> Option<NetworkConfig> {
+    let networks = match client.get_site::<UnifiNetwork>("rest/networkconf").await {
+        Ok(envelope) => envelope.data,
+        Err(e) => {
+            tracing::warn!(ip = %ctx.ip, error = %e, "Could not read UniFi networks");
+            ctx.ops
+                .record_attempt_failure(
+                    ctx.credential.into(),
+                    ctx.ip,
+                    AttemptOutcome::CollectionFailed,
+                    format!(
+                        "could not read the controller's networks, so its VLANs and subnets were \
+                         not recorded: {e}"
+                    ),
+                    true,
+                    ctx.credential_id,
+                )
+                .await;
+            return None;
+        }
+    };
+    // Without profiles a port that names one cannot be resolved, which leaves that device's VLAN
+    // membership unclaimed (`ports::VlanConfig::device_ports`) rather than wrong.
+    let profiles = match client.get_site::<UnifiPortConf>("rest/portconf").await {
+        Ok(envelope) => envelope.data,
+        Err(e) => {
+            tracing::warn!(ip = %ctx.ip, error = %e, "Could not read UniFi port profiles");
+            Vec::new()
+        }
+    };
+    tracing::info!(
+        ip = %ctx.ip,
+        networks = networks.len(),
+        profiles = profiles.len(),
+        "Fetched UniFi network configuration"
+    );
+    Some(NetworkConfig { networks, profiles })
+}
+
+/// Upsert a VLAN for each of the controller's site networks and make sure the site holds a subnet
+/// for each routed one.
+///
+/// A range is matched to a subnet the site already holds by the rule SNMP uses for a router's
+/// interfaces ([`place_reported_range`]): a range overlapping nothing is created, and one overlapping
+/// a held subnet without equalling it is not. A range the site already holds exactly is still
+/// submitted, so the server's CIDR match can merge the controller's name and type into the held row
+/// by source; a name a person typed keeps its rank and stays.
+async fn record_networks(
+    ctx: &IntegrationContext<'_>,
+    site_id: uuid::Uuid,
+    networks: &[UnifiNetwork],
+) -> Vec<RecordedNetwork> {
+    let site_networks = networks::site_networks(networks);
+
+    let items: Vec<VlanDiscoveryItem> = site_networks
+        .iter()
+        .map(|n| VlanDiscoveryItem {
+            vlan_number: n.vlan_number,
+            name: n.name.clone(),
+            // An administrator named the network in the controller.
+            name_source: AttributeSource::Authored(ClientProbe::UnifiController),
+        })
+        .collect();
+    let vlan_ids = if items.is_empty() {
+        std::collections::HashMap::new()
+    } else {
+        match ctx.ops.upsert_vlans(items, site_id, ctx.cancel).await {
+            Ok(ids) => ids,
+            Err(e) => {
+                tracing::warn!(ip = %ctx.ip, error = %e, "Failed to record UniFi VLANs");
+                ctx.ops.record_vlan_recording_failure(ctx.ip).await;
+                std::collections::HashMap::new()
+            }
+        }
+    };
+
+    // Decide every network's subnet first, in order, so each is checked against the ranges planned
+    // before it; then submit the creates together. Under ServerPoll each submission waits for the
+    // server's next poll, and awaiting them one at a time cost a poll round per network, which ran
+    // the integration out of time before it reached the devices.
+    let mut held = held_subnets(ctx.known_subnets, ctx.scanning_subnet);
+    let plans: Vec<SubnetPlan> = site_networks
+        .iter()
+        .map(|network| {
+            let Some(range) = &network.range else {
+                return SubnetPlan::Skip;
+            };
+            match place_reported_range(&range.cidr, range.gateway, &held) {
+                // The site holds this exact range. Submit the network anyway: the server matches it
+                // by CIDR and merges the controller's name and type into the held row by source,
+                // which is how a subnet the daemon named after its CIDR takes the network's name.
+                ReportedRange::Held(subnet) if *subnet.base.cidr == range.cidr => {
+                    match network.to_subnet(site_id) {
+                        Some(reported) => SubnetPlan::Submit {
+                            reported: Box::new(reported),
+                            fallback: Some(subnet.clone()),
+                        },
+                        None => SubnetPlan::Reuse(subnet.clone()),
+                    }
+                }
+                // A wider held subnet contains the network: place on it, submit nothing.
+                ReportedRange::Held(subnet) => SubnetPlan::Reuse(subnet.clone()),
+                ReportedRange::Unplaced => {
+                    tracing::debug!(
+                        network = %network.name,
+                        cidr = %range.cidr,
+                        "UniFi network overlaps a held subnet that does not contain its gateway; \
+                         recording no subnet for it"
+                    );
+                    SubnetPlan::Skip
+                }
+                ReportedRange::New => match network.to_subnet(site_id) {
+                    Some(reported) => {
+                        // Held from here on, so a later network overlapping it is not created too.
+                        held.push(reported.clone());
+                        SubnetPlan::Submit {
+                            reported: Box::new(reported),
+                            fallback: None,
+                        }
+                    }
+                    None => SubnetPlan::Skip,
+                },
+            }
+        })
+        .collect();
+
+    let subnets = join_all(
+        site_networks
+            .iter()
+            .zip(plans)
+            .map(|(network, plan)| async move {
+                match plan {
+                    SubnetPlan::Skip => None,
+                    SubnetPlan::Reuse(subnet) => Some(subnet),
+                    SubnetPlan::Submit { reported, fallback } => {
+                        match ctx.ops.create_subnet(&reported, ctx.cancel).await {
+                            Ok(created) => {
+                                tracing::info!(
+                                    network = %network.name,
+                                    cidr = %reported.base.cidr,
+                                    "Recorded UniFi network as a subnet"
+                                );
+                                Some(created)
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    network = %network.name,
+                                    cidr = %reported.base.cidr,
+                                    error = %e,
+                                    "Failed to submit subnet for UniFi network"
+                                );
+                                fallback
+                            }
+                        }
+                    }
+                }
+            }),
+    )
+    .await;
+
+    site_networks
+        .into_iter()
+        .zip(subnets)
+        .map(|(network, subnet)| RecordedNetwork {
+            vlan_id: vlan_ids.get(&network.vlan_number).copied(),
+            subnet,
+            network,
+        })
+        .collect()
+}
+
+/// What `record_networks` does with one network's range.
+enum SubnetPlan {
+    /// No subnet: the network is not routed, or its range collides with one the site holds.
+    Skip,
+    /// Place on a subnet the site already holds.
+    Reuse(Subnet),
+    /// Submit the controller's subnet. `fallback` is the held row to use if the submission fails.
+    Submit {
+        reported: Box<Subnet>,
+        fallback: Option<Subnet>,
+    },
+}
+
+/// Fill in what the controller's configuration adds to the mapped devices: each switch's port
+/// VLAN membership, and the gateway's addresses and interfaces on the networks it routes.
+fn apply_network_config(
+    ctx: &IntegrationContext<'_>,
+    host_data: &HostData,
+    devices: &[UnifiDevice],
+    mapped: &mut [mapping::MappedDevice],
+    config: &NetworkConfig,
+    recorded: &[RecordedNetwork],
+) {
+    let vlan_config = ports::VlanConfig::new(&config.networks, recorded, &config.profiles);
+    let by_mac: std::collections::HashMap<String, &UnifiDevice> = devices
+        .iter()
+        .filter_map(|d| Some((canonical_mac(d.mac.as_deref()?)?, d)))
+        .collect();
+    for device in mapped.iter_mut() {
+        let Some(raw) = device
+            .identity
+            .chassis_id
+            .as_deref()
+            .and_then(|mac| by_mac.get(mac))
+        else {
+            continue;
+        };
+        if let Some(port_vlans) = vlan_config.device_ports(raw) {
+            ports::apply(&mut device.interfaces, &port_vlans);
+            device.vlan_membership_complete = true;
+        }
+    }
+
+    let mut gateways = mapped
+        .iter_mut()
+        .filter(|d| networks::is_gateway(d.device_type.as_deref()));
+    let (Some(gateway), None) = (gateways.next(), gateways.next()) else {
+        // None: a third-party router. Several: which one routes a network is not in the payload.
+        // Either way subnet↔VLAN links come only from switch forwarding tables.
+        tracing::debug!(
+            ip = %ctx.ip,
+            "No single UniFi gateway in the inventory; not recording gateway network interfaces"
+        );
+        return;
+    };
+
+    // When the gateway is the scanned host its address row is the scan's, not the mapped one.
+    let management_id = if gateway.ip == ctx.ip {
+        host_data
+            .ip_addresses
+            .iter()
+            .find(|a| a.base.ip_address == ctx.ip)
+            .map(|a| a.id)
+            .unwrap_or(gateway.ip_address.id)
+    } else {
+        gateway.ip_address.id
+    };
+    let (addresses, interfaces) = networks::gateway_interfaces(
+        recorded,
+        gateway.ip_address.base.site_id,
+        (gateway.ip, management_id),
+    );
+    gateway.gateway_addresses = addresses;
+    gateway.interfaces.extend(interfaces);
 }
 
 // `merge_subnets` lives in `super` now: Instant On needs the identical union, and the rule is
@@ -265,12 +560,15 @@ fn enrich_scanned_host(
     device: &mapping::MappedDevice,
 ) {
     device.identity.enrich(host_data);
+    for address in &device.gateway_addresses {
+        host_data.add_ip_address(address.clone());
+    }
 
     host_data.contribute_interfaces(
         source,
         device.interfaces.clone(),
         interfaces_complete(),
-        interface_data_complete(),
+        interface_data_complete(device.vlan_membership_complete),
     );
 }
 
@@ -286,6 +584,8 @@ async fn create_device_host(
         interfaces,
         device_type,
         ip,
+        gateway_addresses,
+        vlan_membership_complete,
     } = device;
 
     let site_id = ctx.ops.site_id().await?;
@@ -325,17 +625,20 @@ async fn create_device_host(
         AttributeSource::Probe(ClientProbe::UnifiController),
     )?;
 
+    let mut ip_addresses = vec![ip_address];
+    ip_addresses.extend(gateway_addresses);
+
     ctx.ops
         .create_integration_host(
             ctx.integration,
             host,
-            vec![ip_address],
+            ip_addresses,
             ports,
             services,
             interfaces,
             vec![],
             interfaces_complete(),
-            interface_data_complete(),
+            interface_data_complete(vlan_membership_complete),
             ctx.cancel,
         )
         .await?;
@@ -353,14 +656,15 @@ fn interfaces_complete() -> bool {
     false
 }
 
-/// UniFi reports LLDP and the bridge FDB, but never CDP or VLAN membership. Saying so keeps
+/// UniFi reports LLDP and the bridge FDB, never CDP, and VLAN membership only for a device whose
+/// every port's configuration it could read (`ports::VlanConfig::device_ports`). Saying so keeps
 /// `preserve_uncollected_data` from nulling CDP/VLAN columns an SNMP poll populated.
-fn interface_data_complete() -> InterfaceDataComplete {
+fn interface_data_complete(vlan_membership: bool) -> InterfaceDataComplete {
     InterfaceDataComplete {
         lldp: true,
         cdp: false,
         fdb: true,
-        vlan_membership: false,
+        vlan_membership,
     }
 }
 
@@ -371,19 +675,20 @@ mod tests {
     use crate::server::shared::types::entities::EntitySource;
     use crate::server::subnets::r#impl::base::{Subnet, SubnetBase};
     use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
     use crate::server::subnets::r#impl::types::SubnetType;
     use uuid::Uuid;
 
     fn subnet(cidr: &str) -> Subnet {
         Subnet {
             base: SubnetBase {
-                name: cidr.to_string(),
+                name: SubnetName::unattributed(cidr.to_string()),
                 site_id: Uuid::nil(),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(cidr.parse().expect("valid CIDR")),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type: SubnetType::Lan,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
                 source: EntitySource::System,
                 ..Default::default()
             },
@@ -428,5 +733,161 @@ mod tests {
 
         let ids: Vec<Uuid> = merged.iter().map(|s| s.id).collect();
         assert_eq!(ids, vec![a.id, b.id]);
+    }
+
+    fn device_at(ip: &str, mac: &str) -> UnifiDevice {
+        UnifiDevice {
+            ip: Some(ip.to_string()),
+            mac: Some(mac.to_string()),
+            device_type: Some("usw".to_string()),
+            ..Default::default()
+        }
+    }
+
+    /// The failure this reads networks for: a switch on a VLAN the daemon has no interface on.
+    /// With the controller's network among the placement subnets it is kept; a device on no
+    /// network the site or the controller knows is still skipped, and so still reported.
+    #[test]
+    fn a_device_on_a_controller_network_is_placed_and_one_on_none_is_not() {
+        let daemon_lan = subnet("192.168.1.0/24");
+        let servers = networks::site_networks(&[UnifiNetwork {
+            name: Some("Servers".to_string()),
+            purpose: Some("corporate".to_string()),
+            vlan_enabled: Some(types::FlexBool(true)),
+            vlan: Some(types::FlexInt(20)),
+            ip_subnet: Some("10.20.0.1/24".to_string()),
+            ..Default::default()
+        }])[0]
+            .to_subnet(Uuid::nil())
+            .expect("a routed network has a subnet");
+
+        let placeable = merge_subnets(std::slice::from_ref(&daemon_lan), None, &[servers]);
+        let mapped = mapping::map_devices(
+            &[
+                device_at("10.20.0.2", "aa:bb:cc:00:00:01"),
+                device_at("172.31.0.5", "aa:bb:cc:00:00:02"),
+            ],
+            Uuid::nil(),
+            &placeable,
+        );
+
+        let ips: Vec<String> = mapped.iter().map(|d| d.ip.to_string()).collect();
+        assert_eq!(ips, vec!["10.20.0.2"]);
+    }
+}
+
+#[cfg(test)]
+mod lab_tests {
+    use super::*;
+    use crate::server::credentials::r#impl::mapping::ResolvableSecret;
+    use crate::server::credentials::r#impl::types::{UnifiAuth, UnifiQueryCredential};
+    use uuid::Uuid;
+
+    /// Reads a live controller's networks and port profiles through the client `execute` uses, and
+    /// resolves every profile against the networks. Uses the variables `tools/unifi/unifi-test-env.sh`
+    /// reads (`UNIFI_HOST`, `UNIFI_PORT`, `UNIFI_SITE`, and `UNIFI_API_KEY` or
+    /// `UNIFI_USERNAME`/`UNIFI_PASSWORD`).
+    ///
+    /// `cargo test --lib -- --ignored unifi::lab_tests --nocapture`
+    #[tokio::test]
+    #[ignore = "reads a live UniFi controller"]
+    async fn reads_the_controllers_networks() {
+        let var = |name: &str| std::env::var(name).ok().filter(|v| !v.is_empty());
+        let host = var("UNIFI_HOST").expect("UNIFI_HOST");
+        let auth = match var("UNIFI_API_KEY") {
+            Some(api_key) => UnifiAuth::ApiKey {
+                api_key: ResolvableSecret::Value { value: api_key },
+            },
+            None => UnifiAuth::LocalAdmin {
+                username: var("UNIFI_USERNAME").expect("UNIFI_USERNAME or UNIFI_API_KEY"),
+                password: ResolvableSecret::Value {
+                    value: var("UNIFI_PASSWORD").expect("UNIFI_PASSWORD"),
+                },
+            },
+        };
+        let credential = UnifiQueryCredential {
+            port: var("UNIFI_PORT").map_or(11443, |p| p.parse().expect("UNIFI_PORT")),
+            site: var("UNIFI_SITE").unwrap_or_else(|| "default".to_string()),
+            auth,
+        };
+
+        let client = UnifiClient::connect(&host, &credential, true, None)
+            .await
+            .expect("controller accepts the credential");
+        let networks: Vec<UnifiNetwork> = client
+            .get_site("rest/networkconf")
+            .await
+            .expect("rest/networkconf")
+            .data;
+        let profiles: Vec<UnifiPortConf> = client
+            .get_site("rest/portconf")
+            .await
+            .expect("rest/portconf")
+            .data;
+
+        let site_networks = networks::site_networks(&networks);
+        println!(
+            "{:?}: {} networks, {} site VLANs, {} profiles",
+            client.flavor(),
+            networks.len(),
+            site_networks.len(),
+            profiles.len()
+        );
+        assert!(
+            !site_networks.is_empty(),
+            "every controller has at least the default LAN"
+        );
+        for network in &site_networks {
+            println!(
+                "  VLAN {:>4} {:<20} {}",
+                network.vlan_number,
+                network.name,
+                network
+                    .range
+                    .as_ref()
+                    .map_or("-".to_string(), |r| format!("{} via {}", r.cidr, r.gateway))
+            );
+            if let Some(range) = &network.range {
+                assert!(
+                    range.cidr.contains(&range.gateway),
+                    "{}: gateway outside its range",
+                    network.name
+                );
+            }
+        }
+
+        // A switch with one port on each profile: every profile the controller returns must read.
+        let recorded: Vec<RecordedNetwork> = site_networks
+            .into_iter()
+            .map(|network| RecordedNetwork {
+                network,
+                vlan_id: Some(Uuid::new_v4()),
+                subnet: None,
+            })
+            .collect();
+        let switch = UnifiDevice {
+            port_table: (1..)
+                .zip(&profiles)
+                .map(|(idx, profile)| types::UnifiPort {
+                    port_idx: Some(types::FlexInt(idx)),
+                    portconf_id: profile.id.clone(),
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        };
+        if !switch.port_table.is_empty() {
+            let ports = ports::VlanConfig::new(&networks, &recorded, &profiles)
+                .device_ports(&switch)
+                .expect("every profile resolves against the controller's networks");
+            for (profile, idx) in profiles.iter().zip(1..) {
+                println!(
+                    "  profile {:<20} native {:?}, {} tagged",
+                    profile.name.as_deref().unwrap_or("?"),
+                    ports[&idx].native,
+                    ports[&idx].tagged.len()
+                );
+            }
+        }
     }
 }

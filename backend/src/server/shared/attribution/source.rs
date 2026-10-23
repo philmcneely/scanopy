@@ -167,6 +167,10 @@ pub enum AttributeSource {
     /// An operating system matched in the `model` an mDNS `_airplay._tcp` record carries, such as a
     /// Mac's `model=Mac17,2`. Macs that share nothing still advertise AirPlay.
     DnsSdAirPlayMatch,
+    /// A subnet type guessed from the name of the interface that holds the range: `wg0` for a VPN
+    /// tunnel, `br-guest` for a guest network. The name is the operating system's; the type is our
+    /// reading of it.
+    InterfaceNameMatch,
 
     // --- Claims that arrive on the link without a directed exchange. ---
     /// A DNS-SD instance label — the Chromecast `fn=Living Room TV`, typed by a person during
@@ -269,7 +273,8 @@ impl AttributeSource {
             | Self::SshBannerMatch
             | Self::HttpServerMatch
             | Self::DnsSdDeviceInfoMatch
-            | Self::DnsSdAirPlayMatch => M::Inferred,
+            | Self::DnsSdAirPlayMatch
+            | Self::InterfaceNameMatch => M::Inferred,
 
             Self::DnsSdInstanceName | Self::DnsSdHostname | Self::LldpChassisId | Self::Lldpd => {
                 M::Announced
@@ -318,6 +323,7 @@ impl AttributeSource {
             | Self::HttpServerMatch
             | Self::DnsSdDeviceInfoMatch
             | Self::DnsSdAirPlayMatch
+            | Self::InterfaceNameMatch
             | Self::DnsSdHostname
             | Self::LldpChassisId
             | Self::Lldpd
@@ -438,6 +444,7 @@ impl AttributeSource {
                     vec![Self::DnsSdDeviceInfoMatch]
                 }
                 AttributeSourceDiscriminants::DnsSdAirPlayMatch => vec![Self::DnsSdAirPlayMatch],
+                AttributeSourceDiscriminants::InterfaceNameMatch => vec![Self::InterfaceNameMatch],
                 AttributeSourceDiscriminants::DnsSdInstanceName => vec![Self::DnsSdInstanceName],
                 AttributeSourceDiscriminants::DnsSdHostname => vec![Self::DnsSdHostname],
                 AttributeSourceDiscriminants::LldpChassisId => vec![Self::LldpChassisId],
@@ -508,6 +515,7 @@ impl AttributeSource {
             AttributeSourceDiscriminants::HttpServerMatch => Self::HttpServerMatch,
             AttributeSourceDiscriminants::DnsSdDeviceInfoMatch => Self::DnsSdDeviceInfoMatch,
             AttributeSourceDiscriminants::DnsSdAirPlayMatch => Self::DnsSdAirPlayMatch,
+            AttributeSourceDiscriminants::InterfaceNameMatch => Self::InterfaceNameMatch,
             AttributeSourceDiscriminants::DnsSdInstanceName => Self::DnsSdInstanceName,
             AttributeSourceDiscriminants::DnsSdHostname => Self::DnsSdHostname,
             AttributeSourceDiscriminants::LldpChassisId => Self::LldpChassisId,
@@ -632,6 +640,7 @@ impl TypeMetadataProvider for AttributeSourceDiscriminants {
             Self::HttpServerMatch => "HTTP server header",
             Self::DnsSdDeviceInfoMatch => "mDNS device info",
             Self::DnsSdAirPlayMatch => "mDNS AirPlay",
+            Self::InterfaceNameMatch => "Interface name",
             Self::DnsSdInstanceName => "mDNS name",
             Self::DnsSdHostname => "mDNS",
             Self::LldpChassisId => "LLDP",
@@ -684,6 +693,9 @@ impl TypeMetadataProvider for AttributeSourceDiscriminants {
             }
             Self::DnsSdAirPlayMatch => {
                 "Scanopy inferred this from the model the host announced in its AirPlay record over mDNS. The host did not report it directly."
+            }
+            Self::InterfaceNameMatch => {
+                "Scanopy guessed this from the name of the interface that holds the range. Nothing reported it directly."
             }
             Self::DnsSdInstanceName => {
                 "The device announced this name over mDNS. A person usually sets it during setup."
@@ -764,6 +776,7 @@ impl TypeMetadataProvider for ClientProbe {
             Self::Telnet => "Telnet",
             Self::Rtsp => "RTSP",
             Self::Nut => "NUT",
+            Self::EpicsCa => "EPICS Channel Access",
             Self::ZabbixAgent => "Zabbix agent",
             Self::CheckMkAgent => "Checkmk agent",
             Self::Smb => "SMB",

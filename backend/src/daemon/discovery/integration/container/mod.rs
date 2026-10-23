@@ -10,6 +10,7 @@
 
 pub mod hosts;
 pub mod interfaces;
+pub mod probe_relay;
 pub mod scanner;
 
 use std::net::IpAddr;
@@ -33,7 +34,11 @@ use crate::server::services::r#impl::virtualization::{
 };
 use crate::server::shared::storage::traits::Storable;
 use crate::server::shared::types::entities::EntitySource;
-use crate::server::subnets::r#impl::base::{Subnet, SubnetBase, SubnetCidr, SubnetCidrValue};
+use crate::server::shared::types::guest_state::GuestState;
+use crate::server::subnets::r#impl::base::{
+    Subnet, SubnetBase, SubnetCidr, SubnetCidrValue, SubnetName, SubnetNameValue,
+    SubnetTypeAttributed, SubnetTypeValue,
+};
 use crate::server::subnets::r#impl::types::SubnetType;
 
 use super::{
@@ -77,6 +82,18 @@ impl ContainerRuntime {
         match self {
             Self::Docker => Box::new(crate::server::services::definitions::docker_daemon::Docker),
             Self::Podman => Box::new(crate::server::services::definitions::podman::Podman),
+        }
+    }
+
+    /// The generic definition for one of this runtime's containers.
+    pub fn container_def(&self) -> Box<dyn ServiceDefinition> {
+        match self {
+            Self::Docker => {
+                Box::new(crate::server::services::definitions::docker_container::DockerContainer)
+            }
+            Self::Podman => {
+                Box::new(crate::server::services::definitions::podman_container::PodmanContainer)
+            }
         }
     }
 
@@ -148,6 +165,7 @@ impl ContainerRuntime {
             (subnet_type == bridge_subnet_type).then_some(runtime_service_id);
 
         Some(Subnet::new(SubnetBase {
+            vlan_ids: Vec::new(),
             // The runtime's own IPAM config: it defined this bridge, but it is describing
             // something it manages rather than itself, which is what `Probe` means here.
             cidr: SubnetCidr::new(
@@ -157,8 +175,15 @@ impl ContainerRuntime {
             description: None,
             tags: Vec::new(),
             site_id,
-            name,
-            subnet_type,
+            // The runtime named the network and its driver decided the type.
+            name: SubnetName::new(
+                SubnetNameValue(name),
+                AttributeSource::Probe(self.client_probe()),
+            ),
+            subnet_type: SubnetTypeAttributed::new(
+                SubnetTypeValue(subnet_type),
+                AttributeSource::Probe(self.client_probe()),
+            ),
             virtualization_service_id,
             source: EntitySource::Discovery,
         }))
@@ -200,17 +225,20 @@ impl ContainerRuntime {
         container_name: Option<String>,
         container_id: Option<String>,
         compose_project: Option<String>,
+        state: GuestState,
     ) -> ServiceVirtualization {
         match self {
             Self::Docker => ServiceVirtualization::Docker(DockerVirtualization {
                 container_name,
                 container_id,
                 compose_project,
+                state,
             }),
             Self::Podman => ServiceVirtualization::Podman(PodmanVirtualization {
                 container_name,
                 container_id,
                 compose_project,
+                state,
             }),
         }
     }
@@ -253,6 +281,18 @@ pub struct ContainerProbeHandle {
 }
 
 pub type SslPaths = Option<(String, String, String)>;
+
+/// The run state the runtime reports for `container`. A runtime that reports none is taken as
+/// running, as every container was before stopped ones were listed.
+pub fn guest_state(container: &bollard::models::ContainerInspectResponse) -> GuestState {
+    container
+        .state
+        .as_ref()
+        .and_then(|s| s.status.as_ref())
+        .map_or_else(GuestState::default, |status| {
+            GuestState::from_container_state(status.as_ref())
+        })
+}
 
 /// Build a proxy URL from a container-runtime proxy credential and target IP.
 pub fn build_container_proxy_url(ip: IpAddr, cred: &ContainerProxyQueryCredential) -> String {
@@ -485,8 +525,15 @@ pub async fn execute(
     // A container with a macvlan/ipvlan endpoint is a host of its own under the runtime. Every
     // other container stays a service on the runtime's host, except the members of a LAN
     // container's network namespace, whose services go on its host.
-    let (lan_containers, containers_on_host) =
+    let (mut lan_containers, containers_on_host) =
         hosts::partition_lan_containers(containers, &lan_subnets);
+    // A stopped container with its own LAN address has no address to record it by, so it is not
+    // submitted. Its stored host stays, and the runtime's guests are not listed in full.
+    let stopped_lan_containers = lan_containers
+        .iter()
+        .filter(|c| guest_state(&c.container) == GuestState::Stopped)
+        .count();
+    lan_containers.retain(|c| guest_state(&c.container) != GuestState::Stopped);
     let lan_container_count = lan_containers.len();
     let bridge_count = containers_on_host.len();
 
@@ -575,6 +622,7 @@ pub async fn execute(
             AttributeSource::ContainerRuntimeInfo,
         ));
     }
+    let reported = scan.results.len();
     for result in scan.results {
         for service in result.services {
             host_data.add_service(service);
@@ -598,6 +646,20 @@ pub async fn execute(
         .any(|s| s.base.service_definition.id() == api_proxy_id);
     if proxy_found && let Some(api_port) = scanner.api_port {
         release_runtime_api_port(host_data, runtime_service_id, api_port);
+    }
+
+    // Every container the runtime has, stopped ones included, made it into this submission: a
+    // stored container on this runtime that the run doesn't report was removed. A container that
+    // was reached but yielded nothing (no interfaces, an inspect mismatch) would read as removed,
+    // so it holds the listing back too.
+    if reported == bridge_count
+        && container_hosts.recorded == lan_container_count
+        && stopped_lan_containers == 0
+        && let Some(credential_id) = ctx.credential_id
+    {
+        ctx.ops
+            .record_guests_listed(credential_id, ctx.credential.into(), host_data.host.id)
+            .await;
     }
 
     // A scan stopped by the soft deadline has a coherent subset — every container it did reach is
@@ -697,15 +759,15 @@ mod tests {
         };
 
         let docker = build(ContainerRuntime::Docker, "bridge").expect("bridge is a network");
-        assert_eq!(docker.base.subnet_type, SubnetType::DockerBridge);
+        assert_eq!(docker.base.subnet_type(), SubnetType::DockerBridge);
         assert_eq!(docker.base.virtualization_service_id, Some(id));
 
         let podman = build(ContainerRuntime::Podman, "overlay").expect("overlay is a network");
-        assert_eq!(podman.base.subnet_type, SubnetType::PodmanBridge);
+        assert_eq!(podman.base.subnet_type(), SubnetType::PodmanBridge);
         assert_eq!(podman.base.virtualization_service_id, Some(id));
 
         let macvlan = build(ContainerRuntime::Docker, "macvlan").expect("macvlan is a network");
-        assert_eq!(macvlan.base.subnet_type, SubnetType::MacVlan);
+        assert_eq!(macvlan.base.subnet_type(), SubnetType::MacVlan);
         assert!(macvlan.base.virtualization_service_id.is_none());
 
         // Drivers with no routable L3 network of their own.
@@ -756,6 +818,7 @@ mod tests {
             Some("web".into()),
             Some("abc".into()),
             Some("proj".into()),
+            GuestState::Running,
         );
         assert!(matches!(docker, ServiceVirtualization::Docker(_)));
         assert_eq!(docker.container_name(), Some("web"));
@@ -764,6 +827,7 @@ mod tests {
             Some("web".into()),
             Some("abc".into()),
             None,
+            GuestState::Running,
         );
         assert!(matches!(podman, ServiceVirtualization::Podman(_)));
     }

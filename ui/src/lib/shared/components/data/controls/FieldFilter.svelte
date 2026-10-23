@@ -67,7 +67,7 @@
 )}
 	<div
 		use:scrollFade
-		class="flex max-h-32 flex-wrap gap-1.5 overflow-y-scroll rounded-md bg-black/5 p-2 dark:bg-white/5"
+		class="flex min-h-0 flex-wrap gap-1.5 overflow-y-auto rounded-md bg-black/5 p-2 dark:bg-white/5"
 	>
 		{#if tags.length === 0}
 			<p class="text-tertiary text-xs">{common_noTagsAvailable()}</p>
@@ -92,12 +92,11 @@
 	</div>
 {/snippet}
 
-<div class="space-y-2">
+<div class="flex min-h-0 flex-col gap-2">
 	<div class="text-secondary text-sm font-medium">{field.label}</div>
 
 	{#if showStale}
-		<!-- Server-side: the list is server-paginated, so filtering
-		     client-side would only filter the loaded page. -->
+		<!-- Server-side: the list holds one page, so only the server can filter by staleness. -->
 		<label class="flex cursor-pointer items-center gap-2">
 			<input
 				type="checkbox"
@@ -151,7 +150,7 @@
 		{@const uniqueValues = getFilterOptions(field)}
 		<div
 			use:scrollFade
-			class="max-h-32 space-y-1.5 overflow-y-scroll rounded-md bg-black/5 p-2 dark:bg-white/5"
+			class="min-h-0 space-y-1.5 overflow-y-auto rounded-md bg-black/5 p-2 dark:bg-white/5"
 		>
 			{#if uniqueValues.length === 0}
 				<p class="text-tertiary text-xs">{common_noValuesAvailable()}</p>

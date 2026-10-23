@@ -22,7 +22,7 @@ use super::{
     AttemptOutcome, ContradictedClaim, CredentialIssue, CredentialIssueReason, DeviceClaim,
     EqualReachIntegrations, IncompleteInterfaceWalk, IncompleteSnmpWalk, LocalPortPlacementReason,
     MalformedNeighbourReason, MalformedNeighbours, ShortfallReason, SnmpCollectedNothing,
-    UnresolvedLldpPorts, VlanRecordingFailed,
+    SnmpWalkCause, UnresolvedLldpPorts, VlanRecordingFailed,
 };
 use crate::daemon::discovery::types::warnings::{
     CredentialAttempt, DiscoveryWarning, MalformedNeighbourConsequence,
@@ -47,53 +47,95 @@ pub fn warn_incomplete_interface_walks(
         .map(|record| {
             let address = record.ip;
             let collected = count(record.collected);
+            let credential_id = record.credential_id;
             if record.set_complete {
-                DiscoveryWarning::InterfaceDetailsCutShort { address, collected }
+                DiscoveryWarning::InterfaceDetailsCutShort {
+                    address,
+                    collected,
+                    credential_id,
+                }
             } else {
-                DiscoveryWarning::InterfaceSetCutShort { address, collected }
+                DiscoveryWarning::InterfaceSetCutShort {
+                    address,
+                    collected,
+                    credential_id,
+                }
             }
         })
         .collect()
 }
 
-/// The seven ways a walk can come up short.
+/// The ways a walk can come up short.
 ///
-/// Keyed exactly as the renderer this replaces was — on `(reason, returned_any, group)` — because
-/// that key *is* the distinction an operator cares about, and it is what makes the metric able to
-/// tell "the device does not implement this" from "the device stopped answering".
+/// Keyed on `(reason, returned_any, group)`, because that key *is* the distinction an operator
+/// cares about, and it is what makes the metric able to tell "the device does not implement this"
+/// from "the device's reads failed". A read that returned nothing carries how it ended as a slot
+/// value rather than a code per cause, so the metric stays one label per failure mode.
 pub fn warn_incomplete_snmp_walks(records: &[IncompleteSnmpWalk]) -> Vec<DiscoveryWarning> {
     records
         .iter()
         .map(|record| {
             let address = record.ip;
             let group = record.group;
+            let credential_id = record.credential_id;
             match record.reason {
                 Some(ShortfallReason::EntryCap { limit }) => DiscoveryWarning::SnmpWalkEntryCap {
                     address,
                     group,
                     limit: count(limit),
+                    credential_id,
                 },
-                Some(ShortfallReason::Unsupported) => {
-                    DiscoveryWarning::SnmpWalkUnsupported { address, group }
-                }
+                Some(ShortfallReason::Unsupported) => DiscoveryWarning::SnmpWalkUnsupported {
+                    address,
+                    group,
+                    credential_id,
+                },
                 // Ahead of the `returned_any` arms deliberately: a desynchronised agent is a
                 // statement about the agent, and it holds whether or not rows came back.
-                Some(ShortfallReason::Desynchronised) => {
-                    DiscoveryWarning::SnmpWalkDesynchronised { address, group }
-                }
-                None | Some(ShortfallReason::NoAnswer) => {
-                    if record.returned_any {
-                        if group.partial_read_is_discarded() {
-                            DiscoveryWarning::SnmpWalkPartialDiscarded { address, group }
-                        } else {
-                            DiscoveryWarning::SnmpWalkPartialRecorded { address, group }
+                Some(ShortfallReason::Desynchronised) => DiscoveryWarning::SnmpWalkDesynchronised {
+                    address,
+                    group,
+                    credential_id,
+                },
+                _ if record.returned_any => {
+                    if group.partial_read_is_discarded() {
+                        DiscoveryWarning::SnmpWalkPartialDiscarded {
+                            address,
+                            group,
+                            credential_id,
                         }
-                    } else if group.absence_means_unsupported() {
-                        DiscoveryWarning::SnmpWalkBridgeMibAbsent { address, group }
                     } else {
-                        DiscoveryWarning::SnmpWalkNoAnswer { address, group }
+                        DiscoveryWarning::SnmpWalkPartialRecorded {
+                            address,
+                            group,
+                            credential_id,
+                        }
                     }
                 }
+                // Silence on the bridge-MIB root is how the switches that do not implement it
+                // answer (the USW-Pro-Max), so it keeps its own line. Any other way of failing
+                // there is a failed read like any other.
+                Some(ShortfallReason::Failed(SnmpWalkCause::TimedOut))
+                    if group.absence_means_unsupported() =>
+                {
+                    DiscoveryWarning::SnmpWalkBridgeMibAbsent {
+                        address,
+                        group,
+                        credential_id,
+                    }
+                }
+                Some(ShortfallReason::Failed(cause)) => DiscoveryWarning::SnmpWalkFailed {
+                    address,
+                    group,
+                    cause,
+                    credential_id,
+                },
+                // Short with no rows and no cause: nothing was observed to name.
+                None => DiscoveryWarning::SnmpWalkNoAnswer {
+                    address,
+                    group,
+                    credential_id,
+                },
             }
         })
         .collect()
@@ -125,6 +167,7 @@ pub fn warn_contradicted_claims(records: &[ContradictedClaim]) -> Vec<DiscoveryW
                             source,
                             expected,
                             observed,
+                            credential_id: record.credential_id,
                         }
                     } else {
                         DiscoveryWarning::ClaimedCountUnderRead {
@@ -133,6 +176,7 @@ pub fn warn_contradicted_claims(records: &[ContradictedClaim]) -> Vec<DiscoveryW
                             source,
                             expected,
                             observed,
+                            credential_id: record.credential_id,
                         }
                     }
                 }
@@ -142,12 +186,14 @@ pub fn warn_contradicted_claims(records: &[ContradictedClaim]) -> Vec<DiscoveryW
                             address,
                             group,
                             source,
+                            credential_id: record.credential_id,
                         }
                     } else {
                         DiscoveryWarning::ClaimedCapabilityEmpty {
                             address,
                             group,
                             source,
+                            credential_id: record.credential_id,
                         }
                     }
                 }
@@ -176,12 +222,14 @@ pub fn warn_unresolved_lldp_ports(records: &[UnresolvedLldpPorts]) -> Vec<Discov
                     address,
                     dropped,
                     total,
+                    credential_id: record.credential_id,
                 },
                 LocalPortPlacementReason::ReadCutShort => {
                     DiscoveryWarning::LldpLocalPortDroppedReadCutShort {
                         address,
                         dropped,
                         total,
+                        credential_id: record.credential_id,
                     }
                 }
             });
@@ -191,6 +239,7 @@ pub fn warn_unresolved_lldp_ports(records: &[UnresolvedLldpPorts]) -> Vec<Discov
             warnings.push(DiscoveryWarning::LldpLocalPortMisplaced {
                 address: record.ip,
                 misplaced: count(misplaced),
+                credential_id: record.credential_id,
             });
         }
     }
@@ -212,6 +261,7 @@ pub fn warn_malformed_neighbours(records: &[MalformedNeighbours]) -> Vec<Discove
                 discarded: count(record.discarded),
                 kept: count(record.kept),
                 consequence: MalformedNeighbourConsequence::from_kept(record.kept),
+                credential_id: record.credential_id,
             };
             match record.reason {
                 MalformedNeighbourReason::WalkCutShort => {
@@ -237,7 +287,11 @@ pub fn warn_malformed_neighbours(records: &[MalformedNeighbours]) -> Vec<Discove
 pub fn warn_snmp_collected_nothing(records: &[SnmpCollectedNothing]) -> Vec<DiscoveryWarning> {
     records
         .iter()
-        .map(|record| DiscoveryWarning::SnmpCollectedNothing { address: record.ip })
+        .map(|record| DiscoveryWarning::SnmpCollectedNothing {
+            address: record.ip,
+            credential_id: record.credential_id,
+            failures: Some(record.failures.clone()),
+        })
         .collect()
 }
 
@@ -510,6 +564,7 @@ mod tests {
             group,
             returned_any,
             reason,
+            credential_id: None,
         }
     }
 
@@ -577,7 +632,7 @@ mod tests {
             "192.168.210.217",
             SnmpWalkGroup::BridgePortNumbering,
             false,
-            None,
+            Some(ShortfallReason::Failed(SnmpWalkCause::TimedOut)),
         )]);
 
         assert_eq!(
@@ -589,6 +644,44 @@ mod tests {
         assert_eq!(
             codes(&absent),
             vec![DiscoveryWarningCode::SnmpWalkBridgeMibAbsent]
+        );
+    }
+
+    /// A read that returned nothing carries what the daemon saw, and only silence on the
+    /// bridge-MIB root reads as "not implemented": the same root answered with genErr is a failed
+    /// read like any other, and saying the switch does not implement it would claim what nobody
+    /// observed.
+    #[test]
+    fn an_empty_read_carries_its_cause_and_only_silence_reads_as_absent() {
+        let failed = |group, cause| {
+            warn_incomplete_snmp_walks(&[walk(
+                "10.91.16.1",
+                group,
+                false,
+                Some(ShortfallReason::Failed(cause)),
+            )])
+        };
+
+        assert!(matches!(
+            failed(SnmpWalkGroup::ArpTable, SnmpWalkCause::GenErr).as_slice(),
+            [DiscoveryWarning::SnmpWalkFailed {
+                cause: SnmpWalkCause::GenErr,
+                ..
+            }]
+        ));
+        assert_eq!(
+            codes(&failed(
+                SnmpWalkGroup::BridgePortNumbering,
+                SnmpWalkCause::TimedOut
+            )),
+            vec![DiscoveryWarningCode::SnmpWalkBridgeMibAbsent]
+        );
+        assert_eq!(
+            codes(&failed(
+                SnmpWalkGroup::BridgePortNumbering,
+                SnmpWalkCause::GenErr
+            )),
+            vec![DiscoveryWarningCode::SnmpWalkFailed]
         );
     }
 
@@ -608,6 +701,7 @@ mod tests {
         assert_eq!(
             warnings,
             vec![DiscoveryWarning::SnmpWalkEntryCap {
+                credential_id: None,
                 address: ip("10.0.0.1"),
                 group: SnmpWalkGroup::BridgeForwarding,
                 limit: 10_000,
@@ -641,6 +735,7 @@ mod tests {
     #[test]
     fn a_device_reading_far_below_its_own_count_carries_both_figures() {
         let warnings = warn_contradicted_claims(&[ContradictedClaim {
+            credential_id: None,
             ip: ip("192.168.200.151"),
             group: SnmpWalkGroup::Interfaces,
             claim: DeviceClaim::Count {
@@ -654,6 +749,7 @@ mod tests {
         assert_eq!(
             warnings,
             vec![DiscoveryWarning::ClaimedCountUnderRead {
+                credential_id: None,
                 address: ip("192.168.200.151"),
                 group: SnmpWalkGroup::Interfaces,
                 source: ClaimSource::IfNumber,
@@ -673,6 +769,7 @@ mod tests {
     #[test]
     fn a_cut_short_read_is_a_different_code_from_a_completed_short_one() {
         let claim = |reason| ContradictedClaim {
+            credential_id: None,
             ip: ip("192.168.7.250"),
             group: SnmpWalkGroup::Interfaces,
             claim: DeviceClaim::Count {
@@ -685,7 +782,7 @@ mod tests {
 
         assert_eq!(
             codes(&warn_contradicted_claims(&[claim(Some(
-                ShortfallReason::NoAnswer
+                ShortfallReason::Failed(SnmpWalkCause::TimedOut)
             ))])),
             vec![DiscoveryWarningCode::ClaimedCountReadCutShort]
         );
@@ -700,6 +797,7 @@ mod tests {
     #[test]
     fn an_unsupported_table_is_not_treated_as_a_cut_short_read() {
         let warnings = warn_contradicted_claims(&[ContradictedClaim {
+            credential_id: None,
             ip: ip("10.0.0.1"),
             group: SnmpWalkGroup::BridgePortNumbering,
             claim: DeviceClaim::Implements {
@@ -723,6 +821,7 @@ mod tests {
     #[test]
     fn discarded_and_misplaced_neighbours_are_separate_outcomes() {
         let both = warn_unresolved_lldp_ports(&[UnresolvedLldpPorts {
+            credential_id: None,
             ip: ip("192.168.7.238"),
             unresolved: 3,
             dropped: 1,
@@ -733,11 +832,13 @@ mod tests {
             both,
             vec![
                 DiscoveryWarning::LldpLocalPortDropped {
+                    credential_id: None,
                     address: ip("192.168.7.238"),
                     dropped: 1,
                     total: 4,
                 },
                 DiscoveryWarning::LldpLocalPortMisplaced {
+                    credential_id: None,
                     address: ip("192.168.7.238"),
                     misplaced: 2,
                 },
@@ -745,6 +846,7 @@ mod tests {
         );
 
         let dropped_only = warn_unresolved_lldp_ports(&[UnresolvedLldpPorts {
+            credential_id: None,
             ip: ip("192.168.7.238"),
             unresolved: 3,
             dropped: 3,
@@ -769,6 +871,7 @@ mod tests {
     fn a_placement_lost_to_a_short_read_is_a_different_code_from_one_lost_to_numbering() {
         let dropped = |reason| {
             warn_unresolved_lldp_ports(&[UnresolvedLldpPorts {
+                credential_id: None,
                 ip: ip("192.168.7.253"),
                 unresolved: 0,
                 dropped: 2,
@@ -796,6 +899,7 @@ mod tests {
     #[test]
     fn a_device_that_dropped_nothing_still_reports_its_unconfirmed_ports() {
         let warnings = warn_unresolved_lldp_ports(&[UnresolvedLldpPorts {
+            credential_id: None,
             ip: ip("10.0.0.1"),
             unresolved: 2,
             dropped: 0,
@@ -806,6 +910,7 @@ mod tests {
         assert_eq!(
             warnings,
             vec![DiscoveryWarning::LldpLocalPortMisplaced {
+                credential_id: None,
                 address: ip("10.0.0.1"),
                 misplaced: 2,
             }]
@@ -816,6 +921,7 @@ mod tests {
     fn fully_resolved_lldp_ports_are_not_reported() {
         assert!(
             warn_unresolved_lldp_ports(&[UnresolvedLldpPorts {
+                credential_id: None,
                 ip: ip("10.0.0.1"),
                 unresolved: 0,
                 dropped: 0,
@@ -923,6 +1029,7 @@ mod tests {
     #[test]
     fn each_malformed_neighbour_cause_gets_its_own_code() {
         let record = |reason| MalformedNeighbours {
+            credential_id: None,
             ip: ip("192.168.7.244"),
             group: SnmpWalkGroup::Lldp,
             discarded: 14,
@@ -957,6 +1064,7 @@ mod tests {
     #[test]
     fn a_partial_loss_does_not_claim_the_device_has_no_links() {
         let partial = warn_malformed_neighbours(&[MalformedNeighbours {
+            credential_id: None,
             ip: ip("10.0.0.1"),
             group: SnmpWalkGroup::Lldp,
             discarded: 2,
@@ -964,6 +1072,7 @@ mod tests {
             reason: MalformedNeighbourReason::GhostRows,
         }]);
         let total = warn_malformed_neighbours(&[MalformedNeighbours {
+            credential_id: None,
             ip: ip("10.0.0.1"),
             group: SnmpWalkGroup::Lldp,
             discarded: 2,
@@ -989,6 +1098,7 @@ mod tests {
     fn discarding_nothing_is_not_reported() {
         assert!(
             warn_malformed_neighbours(&[MalformedNeighbours {
+                credential_id: None,
                 ip: ip("10.0.0.1"),
                 group: SnmpWalkGroup::Lldp,
                 discarded: 0,
@@ -1006,11 +1116,13 @@ mod tests {
     fn interface_walks_split_by_what_actually_fell_short() {
         let warnings = warn_incomplete_interface_walks(&[
             IncompleteInterfaceWalk {
+                credential_id: None,
                 ip: ip("192.168.7.233"),
                 collected: 3,
                 set_complete: true,
             },
             IncompleteInterfaceWalk {
+                credential_id: None,
                 ip: ip("192.168.7.242"),
                 collected: 17,
                 set_complete: false,
@@ -1021,10 +1133,12 @@ mod tests {
             warnings,
             vec![
                 DiscoveryWarning::InterfaceDetailsCutShort {
+                    credential_id: None,
                     address: ip("192.168.7.233"),
                     collected: 3,
                 },
                 DiscoveryWarning::InterfaceSetCutShort {
+                    credential_id: None,
                     address: ip("192.168.7.242"),
                     collected: 17,
                 },

@@ -8,6 +8,7 @@ import { queryKeys } from '$lib/api/query-client';
 import { apiClient } from '$lib/api/client';
 import { requireSuccess, unwrapData } from '$lib/api/query-helpers';
 import type { ApiKey } from './types/base';
+import { invalidateListPages, useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
 /**
@@ -25,6 +26,20 @@ export function useApiKeysQuery(options?: { enabled?: () => boolean }) {
 		},
 		enabled: options?.enabled?.() ?? true
 	}));
+}
+
+/** One page of the API keys page's list: the keys no daemon is bound to. Kept apart from the
+ * full list the sidebar and the daemon editor read. */
+export function useUnboundApiKeysListQuery(params: () => ListPageParams) {
+	return useListPageQuery<ApiKey>(
+		queryKeys.apiKeys.all,
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/auth/daemon', {
+				params: { query: { ...query, unbound: true } },
+				querySerializer
+			}),
+		params
+	);
 }
 
 /**
@@ -54,6 +69,7 @@ export function useCreateApiKeyMutation() {
 			queryClient.setQueryData<ApiKey[]>(queryKeys.apiKeys.all, (old) =>
 				old ? [...old, apiKey] : [apiKey]
 			);
+			invalidateListPages(queryClient, queryKeys.apiKeys.all);
 		}
 	}));
 }
@@ -78,6 +94,7 @@ export function useUpdateApiKeyMutation() {
 				queryKeys.apiKeys.all,
 				(old) => old?.map((k) => (k.id === updatedKey.id ? updatedKey : k)) ?? []
 			);
+			invalidateListPages(queryClient, queryKeys.apiKeys.all);
 		}
 	}));
 }
@@ -102,6 +119,7 @@ export function useDeleteApiKeyMutation() {
 				queryKeys.apiKeys.all,
 				(old) => old?.filter((k) => k.id !== id) ?? []
 			);
+			invalidateListPages(queryClient, queryKeys.apiKeys.all);
 		}
 	}));
 }
@@ -122,6 +140,7 @@ export function useBulkDeleteApiKeysMutation() {
 				queryKeys.apiKeys.all,
 				(old) => old?.filter((k) => !ids.includes(k.id)) ?? []
 			);
+			invalidateListPages(queryClient, queryKeys.apiKeys.all);
 		}
 	}));
 }

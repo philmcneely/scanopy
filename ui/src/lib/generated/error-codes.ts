@@ -85,7 +85,7 @@ export const ERROR_CODES = {
 	daemon_not_registered:
 		'Daemon not found on server. It may have been deleted or the database was reset. Reinstall or reconfigure the daemon.',
 	daemon_version_too_old:
-		'Daemon version {daemon_version} is older than server version {server_version}. Update the daemon to match the server version.',
+		'Daemon version {daemon_version} is no longer supported. This server accepts daemons newer than {last_unsupported_version}. Update the daemon.',
 	daemon_os_mismatch:
 		'This daemon was created for {expected} but is running on {actual}. Create a new daemon for this OS, or install this one on the OS it was created for.',
 	user_email_in_use: "Email '{email}' is already in use",
@@ -104,6 +104,7 @@ export const ERROR_CODES = {
 		'This organization is on a self-hosted plan. Manage its license in Settings, or switch to a cloud plan to use the app.',
 	billing_plan_lapsed:
 		'Your plan has lapsed. Choose a paid plan in Settings to make changes again.',
+	billing_plan_required: 'Choose a plan in Settings to use Scanopy.',
 	billing_air_gapped_key_still_current:
 		'Your air-gapped key is still valid. You can switch back to an online key once the current license period ends.',
 	billing_air_gapped_plan_change_blocked:
@@ -184,7 +185,10 @@ export interface ErrorParams {
 	daemon_identity_mismatch: Record<string, never>;
 	daemon_standby: Record<string, never>;
 	daemon_not_registered: Record<string, never>;
-	daemon_version_too_old: { daemon_version: string | number; server_version: string | number };
+	daemon_version_too_old: {
+		daemon_version: string | number;
+		last_unsupported_version: string | number;
+	};
 	daemon_os_mismatch: { expected: string | number; actual: string | number };
 	user_email_in_use: { email: string | number };
 	organization_has_active_subscription: Record<string, never>;
@@ -197,6 +201,7 @@ export interface ErrorParams {
 	billing_feature_not_available: { feature: string | number };
 	billing_self_hosted_plan_locked: Record<string, never>;
 	billing_plan_lapsed: Record<string, never>;
+	billing_plan_required: Record<string, never>;
 	billing_air_gapped_key_still_current: Record<string, never>;
 	billing_air_gapped_plan_change_blocked: { date: string | number };
 	rate_limit_exceeded: Record<string, never>;

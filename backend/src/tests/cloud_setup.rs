@@ -11,6 +11,7 @@ use crate::server::{
         middleware::auth::AuthenticatedEntity,
     },
     billing::types::base::BillingPlan,
+    config::DeploymentType,
     organizations::r#impl::base::UseCase,
     services::r#impl::categories::ServiceCategory,
     shared::{
@@ -50,7 +51,7 @@ async fn org_setup(services: &ServiceFactory, organization_id: Uuid) -> OrgSetup
         .await
         .unwrap()
         .into_iter()
-        .map(|s| (s.base.site_id, s.base.subnet_type))
+        .map(|s| (s.base.site_id, s.base.subnet_type()))
         .collect();
     let topologies = services
         .topology_service
@@ -98,8 +99,7 @@ async fn publish_billing(services: &ServiceFactory, organization_id: Uuid, op: B
             op,
             AuthenticatedEntity::System,
         ))
-        .await
-        .unwrap();
+        .await;
     services.event_bus.flush().await;
 }
 
@@ -121,7 +121,7 @@ async fn sign_up(services: &ServiceFactory, site: Option<PendingSiteSetup>) -> U
             site_ids: Vec::new(),
             terms_accepted_at: None,
             email_verified: true,
-            billing_enabled: true,
+            deployment_type: DeploymentType::Cloud,
         })
         .await
         .unwrap()

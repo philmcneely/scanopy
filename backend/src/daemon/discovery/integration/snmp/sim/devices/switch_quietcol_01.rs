@@ -126,7 +126,7 @@ mod tests {
 
     use crate::daemon::discovery::integration::snmp::sim::harness::scan;
     use crate::daemon::discovery::service::warnings::{
-        ShortfallReason, SnmpCollectionOutcome, SnmpGroupOutcome, SnmpWalkGroup,
+        ShortfallReason, SnmpCollectionOutcome, SnmpGroupOutcome, SnmpWalkCause, SnmpWalkGroup,
         snmp_walk_shortfalls, warn_incomplete_snmp_walks,
     };
     use crate::daemon::discovery::types::warnings::DiscoveryWarning;
@@ -142,7 +142,10 @@ mod tests {
             !neighbours.complete,
             "the description column never answered, so the walk did not finish"
         );
-        assert!(matches!(neighbours.reason, Some(ShortfallReason::NoAnswer)));
+        assert!(matches!(
+            neighbours.reason,
+            Some(ShortfallReason::Failed(SnmpWalkCause::TimedOut))
+        ));
         assert_eq!(
             neighbours.discarded, 0,
             "every row carries its chassis id; nothing here is malformed"

@@ -23,6 +23,7 @@ impl HostResponse {
             display_name: _,
             display_name_rung: _,
             name_ladder: _,
+            device_type: _,
             name_source,
             site_id,
             hostname,
@@ -160,6 +161,8 @@ impl HostResponse {
         // called.
         // The title, the rung it came from and the rungs it beat are read off one ladder, so the
         // editor's explanation of a title cannot disagree with the title.
+        // The same function the topology bundle uses, so a host wears one device type on every surface.
+        let device_type = host.device_type(&services);
         let name_ladder = host.name_ladder(ip_addresses.iter());
         let (display_name, display_name_rung) =
             match crate::server::hosts::r#impl::name_ladder::resolve_name_ladder(&name_ladder) {
@@ -237,6 +240,7 @@ impl HostResponse {
             display_name,
             display_name_rung,
             name_ladder: name_ladder.to_vec(),
+            device_type,
             name_source: name.source(),
             name: name.value().to_string(),
             site_id,

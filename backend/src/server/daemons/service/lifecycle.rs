@@ -5,11 +5,13 @@ impl DaemonService {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         daemon_storage: Arc<GenericPostgresStorage<Daemon>>,
+        interfaced_subnet_storage: Arc<GenericChildStorage<DaemonInterfacedSubnet>>,
         event_bus: Arc<EventBus>,
         entity_tag_service: Arc<EntityTagService>,
         discovery_service: Arc<DiscoveryService>,
         credential_service: Arc<CredentialService>,
         subnet_service: Arc<SubnetService>,
+        vlan_service: Arc<VlanService>,
         site_service: Arc<SiteService>,
         organization_service: Arc<OrganizationService>,
         user_service: Arc<UserService>,
@@ -18,8 +20,6 @@ impl DaemonService {
         trusted_ca: Option<&TrustedCaBundle>,
         has_email_service: bool,
     ) -> Self {
-        let interfaced_subnet_storage =
-            DaemonInterfacedSubnetStorage::new(daemon_storage.pool().clone());
         Self {
             daemon_storage,
             interfaced_subnet_storage,
@@ -34,6 +34,7 @@ impl DaemonService {
             discovery_service,
             credential_service,
             subnet_service,
+            vlan_service,
             site_service,
             organization_service,
             user_service,
@@ -49,9 +50,13 @@ impl DaemonService {
     /// `daemon_interfaced_subnets` junction. Errors degrade to an empty list — a
     /// junction read failure shouldn't fail a whole daemon fetch.
     pub async fn get_interfaced_subnet_ids(&self, daemon_id: &Uuid) -> Vec<Uuid> {
+        let filter =
+            StorableFilter::<DaemonInterfacedSubnet>::new_from_uuid_column("daemon_id", daemon_id);
         self.interfaced_subnet_storage
-            .get_subnet_ids_for_daemon(daemon_id)
+            .inner()
+            .get_all_ordered(filter, "subnet_id ASC")
             .await
+            .map(|records| records.into_iter().map(|r| r.subnet_id).collect())
             .unwrap_or_else(|e| {
                 tracing::warn!(error = ?e, "Failed to load interfaced subnet ids");
                 Vec::new()
@@ -64,9 +69,27 @@ impl DaemonService {
         &self,
         daemon_ids: &[Uuid],
     ) -> std::collections::HashMap<Uuid, Vec<Uuid>> {
+        if daemon_ids.is_empty() {
+            return std::collections::HashMap::new();
+        }
+        let filter = StorableFilter::<DaemonInterfacedSubnet>::new_from_uuids_column(
+            "daemon_id",
+            daemon_ids,
+        );
         self.interfaced_subnet_storage
-            .get_subnet_ids_for_daemons(daemon_ids)
+            .inner()
+            .get_all_ordered(filter, "daemon_id ASC")
             .await
+            .map(|records| {
+                let mut map: std::collections::HashMap<Uuid, Vec<Uuid>> =
+                    std::collections::HashMap::new();
+                for record in records {
+                    map.entry(record.daemon_id)
+                        .or_default()
+                        .push(record.subnet_id);
+                }
+                map
+            })
             .unwrap_or_else(|e| {
                 tracing::warn!(error = ?e, "Failed to batch-load interfaced subnet ids");
                 std::collections::HashMap::new()
@@ -80,9 +103,20 @@ impl DaemonService {
         daemon_id: &Uuid,
         subnet_ids: &[Uuid],
     ) -> Result<(), ApiError> {
+        let rows: Vec<DaemonInterfacedSubnet> = subnet_ids
+            .iter()
+            .map(|subnet_id| DaemonInterfacedSubnet {
+                daemon_id: *daemon_id,
+                subnet_id: *subnet_id,
+            })
+            .collect();
         self.interfaced_subnet_storage
-            .save_interfaced_subnets_for_daemon(daemon_id, subnet_ids)
+            .save_for_parent(
+                &ParentRef::new(EntityDiscriminants::Daemon, *daemon_id),
+                &rows,
+            )
             .await
+            .map(|_| ())
             .map_err(|e| {
                 ApiError::internal_error(&format!("Failed to save interfaced subnets: {e}"))
             })
@@ -166,5 +200,40 @@ impl DaemonService {
     /// and DaemonService needs HostService.
     pub fn set_host_service(&self, service: Arc<HostService>) -> Result<(), Arc<HostService>> {
         self.host_service.set(service)
+    }
+
+    /// Takes the daemon off standby, so it picks up the work just queued for it. Grants the same
+    /// grace window as the restart reactivation path, so the nightly inactivity check doesn't
+    /// put it back on standby before that work completes. A no-op for an active daemon.
+    pub async fn wake_from_standby(&self, daemon: &mut Daemon) -> Result<(), anyhow::Error> {
+        if !daemon.base.standby {
+            return Ok(());
+        }
+        daemon.base.standby = false;
+        daemon.base.standby_cleared_at = Some(Utc::now());
+        self.update(
+            daemon,
+            AuthenticatedEntity::System,
+            UpdateReason::DaemonStandbyChanged,
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Marks an unreachable ServerPoll daemon reachable again, so the poll loop tries it on its
+    /// next pass. A no-op for a daemon that is already reachable. The caller has checked that the
+    /// daemon polls in ServerPoll mode.
+    pub async fn retry_connection(
+        &self,
+        daemon: &mut Daemon,
+        authentication: AuthenticatedEntity,
+    ) -> Result<(), anyhow::Error> {
+        if !daemon.base.is_unreachable {
+            return Ok(());
+        }
+        daemon.base.is_unreachable = false;
+        self.update(daemon, authentication, UpdateReason::DaemonRetryRequested)
+            .await?;
+        Ok(())
     }
 }

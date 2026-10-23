@@ -129,6 +129,7 @@ impl From<SearchHit> for Entity {
                 base,
                 version_status: _,
                 interfaced_subnet_ids: _,
+                health: _,
             }) => Entity::Daemon(Daemon {
                 id,
                 created_at,

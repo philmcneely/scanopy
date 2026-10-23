@@ -1,17 +1,17 @@
 <script lang="ts">
+	import { collectionLookup } from '$lib/shared/entity-fields';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { userColumns } from './UserTab.columns';
 	import { Edit, UserX, Trash2 } from 'lucide-svelte';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import type { FieldConfig } from '$lib/shared/components/data/types';
 	import {
-		useInvitesQuery,
 		formatInviteUrl,
+		useBulkRevokeInvitesMutation,
 		useRevokeInviteMutation
 	} from '$lib/features/organizations/queries';
 	import { isUser, type User, type UserOrInvite } from '../types';
@@ -22,7 +22,16 @@
 	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import UserEditModal from './UserEditModal.svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
-	import { useUsersQuery, useBulkDeleteUsersMutation, useDeleteUserMutation } from '../queries';
+	import {
+		useMembersQuery,
+		useMembersListQuery,
+		useBulkDeleteUsersMutation,
+		useDeleteUserMutation
+	} from '../queries';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import type { components } from '$lib/api/schema';
+
+	type MemberOrderField = components['schemas']['MemberOrderField'];
 	import type { TabProps } from '$lib/shared/types';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
@@ -32,15 +41,22 @@
 		common_delete,
 		common_revoke,
 		common_users,
+		invites_confirmBulkRevoke,
 		invites_confirmRevoke,
 		users_confirmDeleteUser,
 		users_inviteUser,
 		users_noUsersFound,
 		users_noUsersSubtitle,
-		users_subtitle
+		users_subtitle,
+		invites_cantRevokeUngrantable,
+		invites_cantRevokeUngrantableBulk,
+		users_cantDeleteSelf,
+		users_cantDeleteSelfBulk,
+		users_cantDeleteUngrantable,
+		users_cantDeleteUngrantableBulk
 	} from '$lib/paraglide/messages';
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	// Query
 	const currentUserQuery = useCurrentUserQuery();
@@ -53,14 +69,21 @@
 		org?.plan?.seat_cents !== undefined && org?.plan?.seat_cents !== null
 	);
 
-	const usersQuery = useUsersQuery();
+	// Every member the caller may see, for the seat count, filter options and deep links; the table
+	// reads its own page.
+	const membersQuery = useMembersQuery();
+	const page = listPageState(() => isActive);
+	const membersPageQuery = useMembersListQuery(() => page.params());
 	const bulkDeleteUsersMutation = useBulkDeleteUsersMutation();
-	const invitesQuery = useInvitesQuery();
 
 	// Derived data
-	let usersData = $derived(usersQuery.data ?? []);
-	let invitesData = $derived(invitesQuery.data ?? []);
-	let isLoading = $derived(usersQuery.isPending);
+	let membersData = $derived(membersQuery.data ?? []);
+	let usersData = $derived(membersData.filter(isUser).map((member) => member.data));
+	let pageMembers = $derived(membersPageQuery.data?.items ?? []);
+	let membersPagination = $derived(membersPageQuery.data?.pagination ?? null);
+	let isLoading = $derived(
+		membersQuery.isPending || (membersPageQuery.isPending && !membersPageQuery.data)
+	);
 
 	// Force Svelte to track metadata reactivity
 	$effect(() => {
@@ -93,13 +116,7 @@
 		}
 	});
 
-	// Combine users and invites into single array
-	let combinedItems = $derived([
-		...usersData.map((user) => ({ type: 'user' as const, data: user, id: user.id })),
-		...invitesData.map((invite) => ({ type: 'invite' as const, data: invite, id: invite.id }))
-	] as UserOrInvite[]);
-
-	let userCount = $derived(combinedItems.filter(isUser).length);
+	let userCount = $derived(usersData.length);
 	let isAtSeatLimit = $derived(seatLimit !== null && userCount >= seatLimit && !canBuyMoreSeats);
 
 	async function handleCreateInvite() {
@@ -144,9 +161,14 @@
 	let sitesData = $derived(sitesQuery.data ?? []);
 
 	const revokeInviteMutation = useRevokeInviteMutation();
+	const bulkRevokeInvitesMutation = useBulkRevokeInvitesMutation();
 
-	/** Whether the current user is allowed to grant — and so revoke — this invite. */
+	/**
+	 * Whether the current user may revoke this invite: one they created, or one for a role they
+	 * could grant. The server applies the same rule.
+	 */
 	function canRevoke(invite: OrganizationInvite): boolean {
+		if (currentUser && invite.created_by === currentUser.id) return true;
 		return currentUser
 			? (permissions
 					.getMetadata(currentUser.permissions)
@@ -157,6 +179,12 @@
 	function handleRevokeInvite(invite: OrganizationInvite) {
 		if (confirm(invites_confirmRevoke())) {
 			revokeInviteMutation.mutate(invite.id);
+		}
+	}
+
+	async function handleBulkRevoke(ids: string[]) {
+		if (confirm(invites_confirmBulkRevoke({ count: ids.length }))) {
+			await bulkRevokeInvitesMutation.mutateAsync(ids);
 		}
 	}
 
@@ -177,43 +205,81 @@
 			: false;
 	}
 
+	/** Whether the current user can grant any role, and so manage users and invites at all. */
+	let managesUsers = $derived(
+		currentUser
+			? (permissions.getMetadata(currentUser.permissions)?.grantable_user_permissions?.length ??
+					0) > 0
+			: false
+	);
+
+	/** Why the current user can't delete this user, if they can't. The server applies the same rule. */
+	function deleteRefusal(user: User) {
+		return (
+			disabledWhen(
+				user.id === currentUser?.id,
+				users_cantDeleteSelf(),
+				users_cantDeleteSelfBulk()
+			) ??
+			disabledWhen(
+				!canManageUser(user),
+				users_cantDeleteUngrantable(),
+				users_cantDeleteUngrantableBulk()
+			)
+		);
+	}
+
 	/** Row actions. A user is edited or deleted; an invite is revoked. */
 	function userActions(item: UserOrInvite): CardAction[] {
 		if (isUser(item)) {
 			const actions: CardAction[] = [
-				{ label: common_edit(), icon: Edit, onClick: () => handleEditUser(item.data) }
+				{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditUser(item.data) }
 			];
-			// You cannot delete yourself, and you cannot delete someone whose role
-			// you could not have granted in the first place.
-			if (item.data.id !== currentUser?.id && canManageUser(item.data)) {
+			if (managesUsers) {
 				actions.push({
 					label: common_delete(),
 					icon: Trash2,
-					class: 'btn-icon-danger',
-					onClick: () => handleDeleteUser(item.data)
+					tone: 'danger',
+					isDelete: true,
+					onBulk: handleBulkDelete,
+					onClick: () => handleDeleteUser(item.data),
+					unavailable: deleteRefusal(item.data)
 				});
 			}
 			return actions;
 		}
-		if (!canRevoke(item.data)) return [];
+		if (!managesUsers) return [];
 		return [
 			{
 				label: common_revoke(),
 				icon: UserX,
-				class: 'btn-icon-danger',
-				onClick: () => handleRevokeInvite(item.data)
+				tone: 'danger',
+				onClick: () => handleRevokeInvite(item.data),
+				onBulk: handleBulkRevoke,
+				unavailable: disabledWhen(
+					!canRevoke(item.data),
+					invites_cantRevokeUngrantable(),
+					invites_cantRevokeUngrantableBulk()
+				)
 			}
 		];
 	}
 
-	const tableDefaults: TableDefaults<string> = { sort: { field: 'email', direction: 'asc' } };
+	const tableDefaults: TableDefaults<MemberOrderField> = {
+		sort: { field: 'email', direction: 'asc' }
+	};
 
-	const userFields: FieldConfig<UserOrInvite>[] = userColumns({
-		currentUser: () => currentUser,
-		users: () => usersData,
-		sites: () => sitesData,
-		inviteUrl: formatInviteUrl
-	});
+	// The registry's user fields reach no related entity.
+	const lookup = collectionLookup({});
+
+	let userFields = $derived(
+		userColumns({
+			lookup: () => lookup,
+			members: () => membersData,
+			sites: () => sitesData,
+			inviteUrl: formatInviteUrl
+		})
+	);
 </script>
 
 <!-- The page's own actions, last in the table toolbar beside the filter and columns. -->
@@ -238,7 +304,7 @@
 	<!-- Loading state -->
 	{#if isLoading}
 		<Loading />
-	{:else if combinedItems.length === 0}
+	{:else if page.isEmpty(membersPageQuery)}
 		<!-- Empty state -->
 		<EmptyState title={users_noUsersFound()} subtitle={users_noUsersSubtitle()} />
 	{:else}
@@ -246,12 +312,15 @@
 			title={common_users()}
 			subtitle={users_subtitle()}
 			{toolbarActions}
-			items={combinedItems}
+			items={pageMembers}
 			fields={userFields}
 			storageKey="scanopy-users-table-state"
 			defaults={tableDefaults}
-			onBulkDelete={handleBulkDelete}
 			getItemId={(item) => item.id}
+			serverPagination={membersPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false, tags: false }}
 			getActions={userActions}
 			onCsvExport={handleCsvExport}
 		></DataControls>

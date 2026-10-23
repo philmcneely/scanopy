@@ -540,6 +540,28 @@ mod tests {
         }
     }
 
+    /// A list-table column is either a field or a table column, so it has exactly one group.
+    #[test]
+    fn table_column_ids_are_unique_and_never_shadow_a_field() {
+        for entity in EntityDiscriminants::iter() {
+            let fields: std::collections::HashSet<_> =
+                entity.fields().iter().map(|f| f.id).collect();
+            let mut seen = std::collections::HashSet::new();
+            for column in entity.table_columns() {
+                assert!(
+                    seen.insert(column.id),
+                    "{entity}: duplicate table column `{}`",
+                    column.id
+                );
+                assert!(
+                    !fields.contains(column.id),
+                    "{entity}: table column `{}` is also a field",
+                    column.id
+                );
+            }
+        }
+    }
+
     #[tokio::test]
     async fn csv_rows_carry_own_parent_child_and_embedded_values() {
         let mut host = example(EntityDiscriminants::Host).unwrap();

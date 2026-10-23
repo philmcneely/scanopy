@@ -1,13 +1,15 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::Result;
-
 use crate::{
     daemon::discovery::types::{base::DiscoveryPhase, warnings::DiscoveryWarningCode},
     server::{
+        dependencies::r#impl::member_events::DependencyMemberChange,
         digest::payload::DiscoveryDigestOperation,
         shared::events::{
-            traits::{DispatchTracker, Event, Operation, Subscriber, TypedChannel},
+            traits::{
+                DispatchTracker, Event, Operation, Subscriber, SubscriberFailureReporter,
+                TypedChannel,
+            },
             types::{
                 AnalyticsOperation, AuthOperation, BillingOperation, EntityOperation,
                 OnboardingOperation,
@@ -32,6 +34,8 @@ pub struct EventBus {
     /// scan — a daemon's interfaced subnets arrive on status, not on a discovery submission — so it
     /// has neither a session nor a daemon to hang off the warning scope.
     pub subnet_correction_channel: TypedChannel<SubnetCorrection>,
+    /// One event per dependency member whose binding or service changed under it.
+    pub dependency_member_channel: TypedChannel<DependencyMemberChange>,
     /// Shared by every channel: what `flush` and `shutdown` wait on.
     tracker: Arc<DispatchTracker>,
 }
@@ -56,6 +60,7 @@ impl EventBus {
             discovery_digest_channel: TypedChannel::with_tracker(tracker.clone()),
             discovery_warning_channel: TypedChannel::with_tracker(tracker.clone()),
             subnet_correction_channel: TypedChannel::with_tracker(tracker.clone()),
+            dependency_member_channel: TypedChannel::with_tracker(tracker.clone()),
         }
     }
 
@@ -74,12 +79,18 @@ impl EventBus {
     /// Publish a typed event. Op is inferred from the event's type; the bus
     /// routes to the right channel via `BusChannel<Op>`. Returns once the
     /// event is queued; subscribers handle it in the background.
-    pub async fn publish<Op>(&self, event: Event<Op>) -> Result<()>
+    pub async fn publish<Op>(&self, event: Event<Op>)
     where
         Op: Operation,
         Self: BusChannel<Op>,
     {
         self.channel().publish(event).await
+    }
+
+    /// Send each subscriber failure on every channel to `reporter` as well as the log and the
+    /// counter.
+    pub fn set_failure_reporter(&self, reporter: Arc<dyn SubscriberFailureReporter>) {
+        self.tracker.set_failure_reporter(reporter)
     }
 
     /// Wait until every published event has been handled by every subscriber, including events
@@ -159,5 +170,11 @@ impl BusChannel<DiscoveryWarningCode> for EventBus {
 impl BusChannel<SubnetCorrection> for EventBus {
     fn channel(&self) -> &TypedChannel<SubnetCorrection> {
         &self.subnet_correction_channel
+    }
+}
+
+impl BusChannel<DependencyMemberChange> for EventBus {
+    fn channel(&self) -> &TypedChannel<DependencyMemberChange> {
+        &self.dependency_member_channel
     }
 }

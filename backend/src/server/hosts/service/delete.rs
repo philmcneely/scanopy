@@ -3,12 +3,17 @@ use super::*;
 
 impl HostService {
     /// Delete a host (children cascade via FK)
-    pub async fn delete_host(&self, id: &Uuid, authentication: AuthenticatedEntity) -> Result<()> {
+    pub async fn delete_host(
+        &self,
+        id: &Uuid,
+        authentication: AuthenticatedEntity,
+        reason: DeletionReason,
+    ) -> Result<()> {
         let lock_guard = self
             .storage()
             .session_lock(LockKey::Host(*id), DEFAULT_LOCK_TIMEOUT)
             .await?;
-        self.delete_host_inner(id, authentication).await?;
+        self.delete_host_inner(id, authentication, reason).await?;
         lock_guard.release().await?;
         Ok(())
     }
@@ -20,6 +25,7 @@ impl HostService {
         &self,
         id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<()> {
         // Can't delete host with daemon
         if self
@@ -45,7 +51,24 @@ impl HostService {
                 .await?;
         }
 
-        // Delete host - children cascade via ON DELETE CASCADE
+        // Its services go through their own delete first: each publishes `Deleted` and deletes
+        // what it virtualizes (a node's VMs, a runtime's containers). The FK cascade below would
+        // drop them with no event and leave their guests unlinked.
+        let services = self
+            .service_service
+            .get_all(StorableFilter::<Service>::new_from_host_ids(&[*id]).live())
+            .await?;
+        for service in services {
+            self.service_service
+                .delete(
+                    &service.id,
+                    authentication.clone(),
+                    DeletionReason::ServiceHostDeleted { host_id: *id },
+                )
+                .await?;
+        }
+
+        // Delete host - its remaining children cascade via ON DELETE CASCADE
         self.storage().delete(id).await?;
 
         let trigger_stale = host.triggers_staleness(None);
@@ -58,14 +81,13 @@ impl HostService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Deleted, authentication).with_flags(
-                        EntityEventFlags {
+                    Event::new(scope, EntityOperation::Deleted { reason }, authentication)
+                        .with_flags(EntityEventFlags {
                             trigger_stale,
                             ..Default::default()
-                        },
-                    ),
+                        }),
                 )
-                .await?;
+                .await;
         }
 
         Ok(())

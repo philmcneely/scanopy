@@ -17,7 +17,6 @@
 
 use anyhow::Error;
 use async_trait::async_trait;
-use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 use tokio::time::{Duration, timeout};
 
@@ -71,7 +70,7 @@ async fn exchange(ctx: &ProbeContext, port: u16, nat_traversal: bool) -> bool {
     let Ok(socket) = UdpSocket::bind("0.0.0.0:0").await else {
         return false;
     };
-    let target = SocketAddr::new(ctx.ip, port);
+    let target = ctx.target(port);
 
     let mut message = sa_init_request();
     if nat_traversal {

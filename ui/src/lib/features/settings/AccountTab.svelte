@@ -17,12 +17,14 @@
 		confirmPasswordMatch
 	} from '$lib/shared/components/forms/validators';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
+	import OidcProviderLogo from '$lib/features/auth/components/OidcProviderLogo.svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import Password from '$lib/shared/components/forms/input/Password.svelte';
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
+	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import {
 		common_back,
-		common_close,
 		common_currentPassword,
 		common_email,
 		common_emailAndPassword,
@@ -58,14 +60,10 @@
 
 	let {
 		subView = $bindable<'main' | 'credentials' | 'email-change' | 'cookies'>('main'),
-		onClose,
-		dismissible = true
+		onClose
 	}: {
 		subView?: 'main' | 'credentials' | 'email-change' | 'cookies';
 		onClose: () => void;
-		/** When false (hard-gated modal), the main-view Close button is hidden so
-		 * the gate can't be escaped from this tab. Sub-view Back/Save stay. */
-		dismissible?: boolean;
 	} = $props();
 
 	// TanStack Query for current user
@@ -178,14 +176,10 @@
 		}
 	}
 
-	function handleCancel() {
-		if (subView === 'credentials' || subView === 'email-change' || subView === 'cookies') {
-			subView = 'main';
-			form.reset({ currentPassword: '', password: '', confirmPassword: '' });
-			emailChangeForm.reset({ currentPassword: '', newEmail: '' });
-		} else {
-			onClose();
-		}
+	function handleBack() {
+		subView = 'main';
+		form.reset({ currentPassword: '', password: '', confirmPassword: '' });
+		emailChangeForm.reset({ currentPassword: '', newEmail: '' });
 	}
 
 	async function handleLogout() {
@@ -200,7 +194,27 @@
 
 	let hasLinkedOidc = $derived(!!user?.oidc_provider);
 	let showSave = $derived(subView === 'credentials' || subView === 'email-change');
-	let cancelLabel = $derived(subView === 'main' ? common_close() : common_back());
+	let isSaving = $derived(subView === 'email-change' ? emailChangeLoading : savingCredentials);
+
+	// Only the sub-views have a footer; the main view closes from the header.
+	let actions = $derived<ModalAction[]>(
+		subView !== 'main'
+			? [
+					{ role: 'secondary', label: common_back(), onClick: handleBack },
+					...(showSave
+						? [
+								{
+									role: 'primary' as const,
+									label: isSaving ? common_saving() : common_saveChanges(),
+									onClick: handleSubmit,
+									disabled: isSaving
+								}
+							]
+						: [])
+				]
+			: []
+	);
+	useModalActions(() => actions);
 </script>
 
 <form
@@ -268,11 +282,11 @@
 									{@const isDisabled = hasLinkedOidc && !isLinked}
 									<div class="flex items-center justify-between">
 										<div class="mr-2 flex items-center gap-4">
-											{#if provider.logo}
-												<img src={provider.logo} alt={provider.name} class="h-5 w-5" />
-											{:else}
-												<Link class="text-secondary h-5 w-5 flex-shrink-0" />
-											{/if}
+											<OidcProviderLogo {provider}>
+												{#snippet fallback()}
+													<Link class="text-secondary h-5 w-5 flex-shrink-0" />
+												{/snippet}
+											</OidcProviderLogo>
 											<div>
 												<p class="text-primary text-sm font-medium">{provider.name}</p>
 												{#if isLinked}
@@ -455,23 +469,4 @@
 			<CookieSettingsPanel onSave={() => (subView = 'main')} />
 		{/if}
 	</div>
-
-	<!-- Footer — hidden on the main view when the modal is hard-gated
-	     (dismissible=false), since the only button there is Close, which would
-	     let the user escape the gate. Sub-views keep their Back/Save footer. -->
-	{#if dismissible || subView !== 'main'}
-		<div class="modal-footer">
-			<div class="flex items-center justify-end gap-3">
-				<button type="button" onclick={handleCancel} class="btn-secondary">
-					{cancelLabel}
-				</button>
-				{#if showSave}
-					{@const isSaving = subView === 'email-change' ? emailChangeLoading : savingCredentials}
-					<button type="submit" disabled={isSaving} class="btn-primary">
-						{isSaving ? common_saving() : common_saveChanges()}
-					</button>
-				{/if}
-			</div>
-		</div>
-	{/if}
 </form>

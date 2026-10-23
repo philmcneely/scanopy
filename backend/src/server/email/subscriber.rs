@@ -627,7 +627,10 @@ impl Subscriber<EntityOperation> for EmailService {
 
             if let Some(org_id) = org_id
                 && let Err(e) = self
-                    .check_plan_limits(org_id, event.operation == EntityOperation::Deleted)
+                    .check_plan_limits(
+                        org_id,
+                        matches!(event.operation, EntityOperation::Deleted { .. }),
+                    )
                     .await
             {
                 plan_limit_failures
@@ -637,7 +640,7 @@ impl Subscriber<EntityOperation> for EmailService {
             // Org-deleted confirmation email to the initiator. Skipped for
             // non-User auth (System / Anonymous have no recipient).
             if matches!(event.scope.entity_type(), Entity::Organization(_))
-                && event.operation == EntityOperation::Deleted
+                && matches!(event.operation, EntityOperation::Deleted { .. })
                 && let AuthenticatedEntity::User { email, .. } = &event.authentication
                 && let Err(e) = self.send_organization_deleted_email(email.clone()).await
             {
@@ -672,6 +675,7 @@ impl Subscriber<OnboardingOperation> for EmailService {
             if let OnboardingOperation::FirstDaemonRegistered {
                 daemon_name,
                 site_name,
+                ..
             } = &event.operation
             {
                 self.send_discovery_guide_for_org(org_id, daemon_name, site_name)

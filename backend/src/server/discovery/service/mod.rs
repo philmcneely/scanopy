@@ -19,7 +19,7 @@ use crate::server::shared::entities::{ChangeTriggersTopologyStaleness, EntityDis
 use crate::server::shared::events::bus::EventBus;
 use crate::server::shared::events::traits::{EntityEventFlags, EntityScope, Event, OrgScope};
 use crate::server::shared::events::types::{
-    EntityOperation, OnboardingOperation, OnboardingOperationDiscriminants,
+    EntityOperation, OnboardingOperation, OnboardingOperationDiscriminants, UpdateReason,
 };
 use crate::server::shared::services::traits::{CrudService, EventBusService};
 use crate::server::shared::storage::filter::StorableFilter;
@@ -184,6 +184,7 @@ impl CrudService<Discovery> for DiscoveryService {
         &self,
         entity: &mut Discovery,
         authentication: AuthenticatedEntity,
+        mut reason: UpdateReason,
     ) -> Result<Discovery, anyhow::Error> {
         Self::validate_timezone(&entity.base.run_type)?;
 
@@ -222,12 +223,6 @@ impl CrudService<Discovery> for DiscoveryService {
         let needs_reschedule = schedule_changed || enabled_changed;
 
         let updated = if needs_reschedule && entity_is_scheduled {
-            tracing::debug!(
-                discovery_id = %entity.id,
-                "Rescheduling discovery (schedule_changed={}, enabled_changed={})",
-                schedule_changed, enabled_changed
-            );
-
             // Remove old schedule first
             self.remove_scheduled_job(&entity.id).await;
 
@@ -238,16 +233,14 @@ impl CrudService<Discovery> for DiscoveryService {
             if let Some(arc_self) = self.self_ref.upgrade()
                 && let Err(e) = Self::schedule_discovery(&arc_self, &updated).await
             {
-                // Only disable if we were trying to enable/reschedule (not if already disabling)
+                // Only disable if we were trying to enable/reschedule (not if already disabling).
+                // The event then names the failure, so its log says why it is disabled.
                 if updated.base.run_type.is_scheduled_enabled() {
                     updated.disable();
-                    let disabled_discovery = self.discovery_storage.update(&mut updated).await?;
-
-                    tracing::error!(
-                        "Failed to reschedule discovery {}. Discovery updated but disabled. Error: {}",
-                        disabled_discovery.id,
-                        e
-                    );
+                    updated = self.discovery_storage.update(&mut updated).await?;
+                    reason = UpdateReason::DiscoveryScheduleFailed {
+                        error: e.to_string(),
+                    };
                 }
             }
 
@@ -272,32 +265,14 @@ impl CrudService<Discovery> for DiscoveryService {
                 .await?;
         }
 
-        let trigger_stale = updated.triggers_staleness(Some(current));
-        let suppress_logs = self.suppress_logs(None, None);
-
-        if let Some(scope) = EntityScope::from_ids(
-            updated.id(),
-            updated.clone().into(),
-            self.get_site_id(&updated),
-            self.get_organization_id(&updated),
-        ) {
-            self.event_bus()
-                .publish(
-                    Event::new(scope, EntityOperation::Updated, authentication).with_flags(
-                        EntityEventFlags {
-                            trigger_stale,
-                            suppress_logs,
-                            ..Default::default()
-                        },
-                    ),
-                )
-                .await?;
-        }
+        self.publish_updated(&current, &updated, authentication, reason)
+            .await;
 
         Ok(updated)
     }
 }
 
+mod bulk;
 mod cleanup;
 mod discovery_crud;
 mod dispatch;
@@ -306,3 +281,4 @@ mod scheduling;
 mod sessions;
 mod state;
 mod warnings;
+pub use bulk::{StartRefusal, order_for_cancel, set_enabled_refusal, start_refusal};

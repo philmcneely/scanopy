@@ -15,6 +15,7 @@
 	import type { Site } from '$lib/features/sites/types';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		common_access,
 		common_account,
@@ -104,9 +105,10 @@
 	// Mirrored from the form store: form.state.values is not tracked by $derived.
 	let permissionsValue = $state<string>(getDefaultValues().permissions);
 	$effect(() => {
-		return form.store.subscribe(() => {
+		const { unsubscribe } = form.store.subscribe(() => {
 			permissionsValue = form.state.values.permissions;
 		});
+		return unsubscribe;
 	});
 
 	// Reset form when modal opens
@@ -143,6 +145,16 @@
 	}
 
 	let title = $derived(user ? users_editUser({ email: user.email }) : users_editUserTitle());
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'cancel', label: common_cancel(), onClick: handleClose, disabled: loading },
+		{
+			role: 'primary',
+			label: loading ? common_saving() : common_saveChanges(),
+			onClick: handleSubmit,
+			disabled: loading
+		}
+	]);
 </script>
 
 <GenericModal
@@ -155,6 +167,7 @@
 	onClose={handleClose}
 	onOpen={handleOpen}
 	showCloseButton={true}
+	{actions}
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon
@@ -230,18 +243,6 @@
 					</InfoCard>
 				</div>
 			{/if}
-		</div>
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex items-center justify-end gap-3">
-				<button type="button" disabled={loading} onclick={handleClose} class="btn-secondary">
-					{common_cancel()}
-				</button>
-				<button type="submit" disabled={loading} class="btn-primary">
-					{loading ? common_saving() : common_saveChanges()}
-				</button>
-			</div>
 		</div>
 	</form>
 </GenericModal>

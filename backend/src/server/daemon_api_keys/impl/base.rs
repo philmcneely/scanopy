@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::server::shared::api_key_common::{ApiKeyCommon, ApiKeyType};
 use crate::server::shared::entities::ChangeTriggersTopologyStaleness;
+use crate::server::shared::events::log::EntityLog;
 use crate::server::shared::types::api::serialize_sensitive_info;
 use chrono::{DateTime, Utc};
 use secrecy::SecretString;
@@ -99,14 +100,10 @@ pub struct DaemonApiKey {
     pub base: DaemonApiKeyBase,
 }
 
-impl DaemonApiKey {
-    pub fn suppress_logs(&self, other: &Self) -> bool {
-        self.base.key == other.base.key
-            && self.base.name == other.base.name
-            && self.base.expires_at == other.base.expires_at
-            && self.base.site_id == other.base.site_id
-            && self.base.is_enabled == other.base.is_enabled
-    }
+/// Every authenticated request moves `last_used`, so that alone logs nothing; `tags` live in
+/// their own junction.
+impl EntityLog for DaemonApiKey {
+    const LOG_IGNORED_PATHS: &'static [&'static str] = &["last_used", "tags"];
 }
 
 impl Display for DaemonApiKey {

@@ -11,7 +11,10 @@ use crate::server::{
     shared::types::api::{ApiError, GroupCount},
     shared::{
         entities::{ChangeTriggersTopologyStaleness, Entity as EntityEnum},
-        events::{bus::EventBus, types::EntityOperation},
+        events::{
+            bus::EventBus,
+            types::{DeletionReason, EntityOperation, UpdateReason},
+        },
         storage::{
             child::ChildStorableEntity,
             filter::StorableFilter,
@@ -28,17 +31,6 @@ pub trait EventBusService<T: Into<EntityEnum> + Default + Clone> {
 
     fn get_site_id(&self, entity: &T) -> Option<Uuid>;
     fn get_organization_id(&self, entity: &T) -> Option<Uuid>;
-
-    /// Whether to suppress activity logs for this operation.
-    /// Returns true if only non-significant fields changed (e.g., last_seen timestamps).
-    /// - Create: current is None, updated is Some
-    /// - Update: both are Some
-    /// - Delete: current is Some, updated is None
-    ///
-    /// Default implementation returns false (don't suppress).
-    fn suppress_logs(&self, _current: Option<&T>, _updated: Option<&T>) -> bool {
-        false
-    }
 }
 
 /// Build a typed entity event from the per-service identity helpers + entity.
@@ -346,8 +338,9 @@ where
         &self,
         id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<(), anyhow::Error> {
-        self.delete_base(id, authentication).await
+        self.delete_base(id, authentication, reason).await
     }
 
     /// Base delete implementation: storage, tag cleanup and the Deleted event.
@@ -355,12 +348,12 @@ where
         &self,
         id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<(), anyhow::Error> {
         if let Some(entity) = self.get_by_id(id).await? {
             self.storage().delete(id).await?;
 
             let trigger_stale = entity.triggers_staleness(None);
-            let suppress_logs = self.suppress_logs(Some(&entity), None);
 
             if let Some(entity_tag_service) = self.entity_tag_service() {
                 entity_tag_service
@@ -372,15 +365,16 @@ where
                 self,
                 entity,
                 *id,
-                EntityOperation::Deleted,
+                EntityOperation::Deleted {
+                    reason: reason.clone(),
+                },
                 EntityEventFlags {
                     trigger_stale,
-                    suppress_logs,
                     ..Default::default()
                 },
                 authentication,
             ) {
-                self.event_bus().publish(event).await?;
+                self.event_bus().publish(event).await;
             }
 
             Ok(())
@@ -400,11 +394,22 @@ where
         entity: T,
         authentication: AuthenticatedEntity,
     ) -> Result<T, anyhow::Error> {
+        let created = self.store_created(entity, &authentication).await?;
+        self.publish_created(&created, authentication).await;
+        Ok(created)
+    }
+
+    /// The storage half of [`Self::create_base`]: the row and its tags, no event. For a create
+    /// whose dependent writes (junction rows keyed by the new id) must land before
+    /// [`Self::publish_created`] announces it.
+    async fn store_created(
+        &self,
+        entity: T,
+        authentication: &AuthenticatedEntity,
+    ) -> Result<T, anyhow::Error> {
         let entity = ready_for_create(entity);
 
         let created = self.storage().create(&entity).await?;
-        let trigger_stale = created.triggers_staleness(None);
-        let suppress_logs = self.suppress_logs(None, Some(&created));
 
         if let Some(entity_tag_service) = self.entity_tag_service()
             && let Some(org_id) = authentication.organization_id()
@@ -415,22 +420,24 @@ where
                 .await?;
         }
 
+        Ok(created)
+    }
+
+    /// The Created event for an entity [`Self::store_created`] wrote.
+    async fn publish_created(&self, created: &T, authentication: AuthenticatedEntity) {
         if let Some(event) = build_entity_event(
             self,
             created.clone(),
             created.id(),
             EntityOperation::Created,
             EntityEventFlags {
-                trigger_stale,
-                suppress_logs,
+                trigger_stale: created.triggers_staleness(None),
                 ..Default::default()
             },
             authentication,
         ) {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event).await;
         }
-
-        Ok(created)
     }
 
     /// Create entity. Override this to add post-creation logic (e.g. onboarding
@@ -462,7 +469,7 @@ where
                 EntityEventFlags::default(),
                 authentication.clone(),
             ) {
-                let _ = self.event_bus().publish(event).await;
+                self.event_bus().publish(event).await;
             }
         }
 
@@ -475,24 +482,24 @@ where
         &self,
         entity: &mut T,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<T, anyhow::Error> {
-        self.update_base(entity, authentication).await
+        self.update_base(entity, authentication, reason).await
     }
 
-    /// Base update implementation: storage, tags and the Updated event.
+    /// Base update implementation: storage, tags and the Updated event, logged as the entity's
+    /// [`EntityLog`](crate::server::shared::events::log::EntityLog) says.
     async fn update_base(
         &self,
         entity: &mut T,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<T, anyhow::Error> {
         let current = self
             .get_by_id(&entity.id())
             .await?
             .ok_or_else(|| anyhow!("Could not find {}", entity))?;
         let updated = self.storage().update(entity).await?;
-
-        let trigger_stale = updated.triggers_staleness(Some(current.clone()));
-        let suppress_logs = self.suppress_logs(Some(&current), Some(&updated));
 
         if let Some(entity_tag_service) = self.entity_tag_service()
             && let Some(org_id) = authentication.organization_id()
@@ -503,21 +510,63 @@ where
                 .await?;
         }
 
+        self.publish_updated(&current, &updated, authentication, reason)
+            .await;
+
+        Ok(updated)
+    }
+
+    /// The Updated event for `before` becoming `after`, logged as the entity's [`EntityLog`](crate::server::shared::events::log::EntityLog)
+    /// says. For services whose own update or upsert writes storage directly.
+    async fn publish_updated(
+        &self,
+        before: &T,
+        after: &T,
+        authentication: AuthenticatedEntity,
+        reason: UpdateReason,
+    ) {
+        let log = after.update_log(before, after.id(), &reason);
         if let Some(event) = build_entity_event(
             self,
-            updated.clone(),
-            updated.id(),
-            EntityOperation::Updated,
+            after.clone(),
+            after.id(),
+            EntityOperation::Updated { reason },
             EntityEventFlags {
-                trigger_stale,
-                suppress_logs,
+                trigger_stale: after.triggers_staleness(Some(before.clone())),
                 ..Default::default()
             },
             authentication,
         ) {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event.with_log(log)).await;
         }
+    }
 
+    /// Bulk update entities: one storage write, then an Updated event per entity whose stored
+    /// version existed, each with its changes.
+    async fn update_many_base(
+        &self,
+        entities: &[T],
+        authentication: AuthenticatedEntity,
+        reason: UpdateReason,
+    ) -> Result<Vec<T>, anyhow::Error> {
+        if entities.is_empty() {
+            return Ok(Vec::new());
+        }
+        let ids: Vec<Uuid> = entities.iter().map(|e| e.id()).collect();
+        let current: HashMap<Uuid, T> = self
+            .storage()
+            .get_all(StorableFilter::<T>::new_from_entity_ids(&ids))
+            .await?
+            .into_iter()
+            .map(|e| (e.id(), e))
+            .collect();
+        let updated = self.storage().update_many(entities).await?;
+        for after in &updated {
+            if let Some(before) = current.get(&after.id()) {
+                self.publish_updated(before, after, authentication.clone(), reason.clone())
+                    .await;
+            }
+        }
         Ok(updated)
     }
 
@@ -527,8 +576,9 @@ where
         &self,
         ids: &[Uuid],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize, anyhow::Error> {
-        self.delete_many_base(ids, authentication).await
+        self.delete_many_base(ids, authentication, reason).await
     }
 
     /// Base bulk delete implementation: tag cleanup, a Deleted event per entity, then storage.
@@ -536,6 +586,7 @@ where
         &self,
         ids: &[Uuid],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize, anyhow::Error> {
         if ids.is_empty() {
             return Ok(0);
@@ -547,7 +598,6 @@ where
         for id in ids {
             if let Some(entity) = self.get_by_id(id).await? {
                 let trigger_stale = entity.triggers_staleness(None);
-                let suppress_logs = self.suppress_logs(Some(&entity), None);
 
                 if let Some(entity_tag_service) = self.entity_tag_service() {
                     entity_tag_service
@@ -559,10 +609,11 @@ where
                     self,
                     entity,
                     *id,
-                    EntityOperation::Deleted,
+                    EntityOperation::Deleted {
+                        reason: reason.clone(),
+                    },
                     EntityEventFlags {
                         trigger_stale,
-                        suppress_logs,
                         ..Default::default()
                     },
                     authentication.clone(),
@@ -573,7 +624,7 @@ where
         let deleted_count = self.storage().delete_many(ids).await?;
 
         for event in events {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event).await;
         }
 
         Ok(deleted_count)
@@ -586,6 +637,7 @@ where
         site_ids: &[Uuid],
         authentication: AuthenticatedEntity,
     ) -> Result<usize, anyhow::Error> {
+        let reason = DeletionReason::EntityOrganizationDeleted;
         let filter = if T::is_site_keyed() {
             StorableFilter::<T>::new_from_site_ids(site_ids)
         } else {
@@ -598,7 +650,6 @@ where
         let mut events = Vec::new();
         for entity in &entities {
             let trigger_stale = entity.triggers_staleness(None);
-            let suppress_logs = self.suppress_logs(Some(entity), None);
 
             if let Some(entity_tag_service) = self.entity_tag_service() {
                 entity_tag_service
@@ -610,10 +661,11 @@ where
                 self,
                 entity.clone(),
                 entity.id(),
-                EntityOperation::Deleted,
+                EntityOperation::Deleted {
+                    reason: reason.clone(),
+                },
                 EntityEventFlags {
                     trigger_stale,
-                    suppress_logs,
                     ..Default::default()
                 },
                 authentication.clone(),
@@ -623,7 +675,7 @@ where
         let deleted = self.storage().delete_by_filter(filter).await?;
 
         for event in events {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event).await;
         }
 
         Ok(deleted)
@@ -678,12 +730,15 @@ where
     /// Also preserves `created_at` timestamps for existing children and generates
     /// new UUIDs for children with nil IDs.
     ///
-    /// Returns the saved entities with their actual IDs (including generated ones).
+    /// Returns the saved entities with their actual IDs (including generated ones). `reason`
+    /// names why dropped children are deleted, `update_reason` why kept ones are rewritten.
     async fn save_for_parent(
         &self,
         parent_id: &Uuid,
         children: &[T],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
+        update_reason: UpdateReason,
     ) -> Result<Vec<T>, Error> {
         // Fetch full existing children to get their created_at timestamps
         let existing_children = self.get_for_parent(parent_id).await?;
@@ -703,7 +758,7 @@ where
         let ids_to_delete: Vec<Uuid> = current_ids.difference(&new_ids).cloned().collect();
 
         if !ids_to_delete.is_empty() {
-            self.delete_many(&ids_to_delete, authentication.clone())
+            self.delete_many(&ids_to_delete, authentication.clone(), reason)
                 .await?;
         }
 
@@ -719,8 +774,12 @@ where
             } else if let Some(existing) = existing_by_id.get(&child.id()) {
                 // Existing child - preserve created_at from database
                 child_clone.set_created_at(existing.created_at());
-                self.update(&mut child_clone, authentication.clone())
-                    .await?
+                self.update(
+                    &mut child_clone,
+                    authentication.clone(),
+                    update_reason.clone(),
+                )
+                .await?
             } else {
                 // New child with explicit ID
                 self.create(child_clone, authentication.clone()).await?
@@ -737,6 +796,7 @@ where
         &self,
         parent_id: &Uuid,
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize, anyhow::Error> {
         let filter = StorableFilter::<T>::new_from_uuid_column(T::parent_column(), parent_id);
 
@@ -746,7 +806,6 @@ where
         let mut events = Vec::new();
         for entity in entities {
             let trigger_stale = entity.triggers_staleness(None);
-            let suppress_logs = self.suppress_logs(Some(&entity), None);
 
             if let Some(entity_tag_service) = self.entity_tag_service() {
                 entity_tag_service
@@ -761,12 +820,17 @@ where
                 entity.organization_id(),
             ) {
                 events.push(
-                    TypedEvent::new(scope, EntityOperation::Deleted, authentication.clone())
-                        .with_flags(EntityEventFlags {
-                            trigger_stale,
-                            suppress_logs,
-                            ..Default::default()
-                        }),
+                    TypedEvent::new(
+                        scope,
+                        EntityOperation::Deleted {
+                            reason: reason.clone(),
+                        },
+                        authentication.clone(),
+                    )
+                    .with_flags(EntityEventFlags {
+                        trigger_stale,
+                        ..Default::default()
+                    }),
                 );
             }
         }
@@ -774,7 +838,7 @@ where
         let deleted = self.storage().delete_by_filter(filter).await?;
 
         for event in events {
-            self.event_bus().publish(event).await?;
+            self.event_bus().publish(event).await;
         }
 
         Ok(deleted)

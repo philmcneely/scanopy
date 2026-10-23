@@ -15,6 +15,7 @@ use strum_macros::{EnumIter, IntoStaticStr, VariantNames};
 use utoipa::ToSchema;
 
 use crate::server::daemons::r#impl::base::DaemonOs;
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::types::{
     Color, Icon,
@@ -44,6 +45,25 @@ pub struct HostOs {
 }
 
 impl HostOs {
+    /// The device type this reading implies on its own, for a host no service identifies.
+    ///
+    /// Windows is the one family that needs more than the family: a server edition or product
+    /// name makes it a server, anything else a workstation.
+    pub fn device_type(&self) -> Option<DeviceType> {
+        if self.family == HostOsFamily::Windows {
+            let names_server = [&self.name, &self.edition]
+                .into_iter()
+                .flatten()
+                .any(|s| s.to_ascii_lowercase().contains("server"));
+            return Some(if names_server {
+                DeviceType::Server
+            } else {
+                DeviceType::Workstation
+            });
+        }
+        self.family.device_type()
+    }
+
     /// Whether this reading is `other` in more detail: the same family and product, every field
     /// `other` sets equal here, and at least one more set. An LXC's config names only its
     /// distribution (`Debian`), and the SSH banner adds the release (`Debian 12.0`).
@@ -188,6 +208,33 @@ impl From<DaemonOs> for HostOsFamily {
             DaemonOs::MacOS => Self::MacOs,
             DaemonOs::Windows => Self::Windows,
             DaemonOs::FreeBsd => Self::FreeBsd,
+        }
+    }
+}
+
+impl HostOsFamily {
+    /// The device type a family implies, for families that only run on one class of device.
+    /// `None` for families found on many classes: Linux runs on routers, NAS boxes and cameras as
+    /// much as on servers, and IOS or Junos on routers and switches alike.
+    pub fn device_type(&self) -> Option<DeviceType> {
+        use HostOsFamily::*;
+        match self {
+            CiscoAsa | CiscoFtd | ScreenOs | PanOs | FortiOs | SonicOs | GaiaOs | Ipso => {
+                Some(DeviceType::Firewall)
+            }
+            CiscoIosXr | RouterOs | BayRs => Some(DeviceType::Router),
+            CiscoCatOs | CiscoNxOs | ProCurve | BrocadeNetworkOs => Some(DeviceType::Switch),
+            Esxi => Some(DeviceType::Hypervisor),
+            DataOntap => Some(DeviceType::Storage),
+            MacOs => Some(DeviceType::Workstation),
+            Ios | PalmOs => Some(DeviceType::Mobile),
+            TvOs | AudioOs => Some(DeviceType::IoT),
+            Solaris | Aix | HpUx | Irix | Tru64 | OpenVms | ZOs | IbmI | UnixWare | OpenServer
+            | NetWare => Some(DeviceType::Server),
+            // Decided from the edition in `HostOs::device_type`.
+            Windows => None,
+            Linux | FreeBsd | OpenBsd | NetBsd | Ecos | CiscoIos | CiscoIosXe | Junos | ArubaOs
+            | Comware | AristaEos | HuaweiVrp | IronWare => None,
         }
     }
 }

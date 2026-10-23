@@ -7,13 +7,15 @@ use crate::server::{
     discovery::r#impl::types::DiscoveryType,
     license::types::LicenseKeyType,
     organizations::r#impl::base::UseCase,
+    services::r#impl::definitions::ServiceDefinition,
     shared::api_key_common::ApiKeyType,
 };
 use chrono::{DateTime, Utc};
 use email_address::EmailAddress;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
-use stripe_billing::{CancellationDetailsFeedback, CancellationDetailsReason};
+use std::net::IpAddr;
+use stripe_billing::{CancellationDetailsFeedback, CancellationDetailsReason, SubscriptionStatus};
 use strum::EnumIter;
 use strum_macros::EnumDiscriminants;
 use uuid::Uuid;
@@ -108,7 +110,12 @@ pub enum AuthOperation {
     },
     LoginFailed {
         method: AuthMethod,
-        attempted_email: EmailAddress,
+        /// `None` when an OIDC provider failed before naming an address, or named none.
+        attempted_email: Option<EmailAddress>,
+        /// Why it failed, as the user was told. Log only: never serialized, so it reaches
+        /// neither the JSON line nor PostHog.
+        #[serde(skip)]
+        reason: String,
     },
     PasswordResetRequested {
         email_and_token: EmailAndToken,
@@ -168,8 +175,363 @@ pub enum EntityOperation {
     Get,
     GetAll,
     Created,
-    Updated,
-    Deleted,
+    /// Always says why: an update has to name its reason.
+    Updated {
+        reason: UpdateReason,
+    },
+    /// Always says why: a delete has to name its reason.
+    Deleted {
+        reason: DeletionReason,
+    },
+}
+
+/// Why an entity was deleted. Every Deleted event carries one, and every delete names it, so a subscriber can tell a person's delete from one discovery made
+/// and say what took a port or removed a guest.
+///
+/// A variant one entity type uses is named after it (`ServiceIdentifiedAs`); one several types
+/// use takes `Entity` (`EntityRequested`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(tag = "type")]
+pub enum DeletionReason {
+    /// A person or an API key asked for it.
+    EntityRequested,
+    /// Another service answered on its ports and took them.
+    ServicePortsHandedOver {
+        to_service_id: Uuid,
+        to: Box<dyn ServiceDefinition>,
+    },
+    /// Nothing answered on its ports past the site's stale window.
+    ServicePortsReleased,
+    /// A service claimed the ports Unclaimed Open Ports held.
+    ServiceOpenPortsReclaimed {
+        to_service_id: Uuid,
+        by: Box<dyn ServiceDefinition>,
+    },
+    /// A generic container placeholder, now identified as this service.
+    ServiceIdentifiedAs { service_id: Uuid },
+    /// Its runtime or hypervisor listed its guests in full and no longer has it: a container
+    /// service or a VM host.
+    EntityGuestNoLongerListed { parent_service_id: Uuid },
+    /// The runtime or hypervisor running it was deleted: a container service or a VM host.
+    EntityVirtualizerDeleted { virtualizer_service_id: Uuid },
+    /// The host it ran on was deleted.
+    ServiceHostDeleted { host_id: Uuid },
+    /// Merged into another host: discovery found the two to be the same device, or a person
+    /// merged them. `proven_by` holds the addresses discovery found both answering on, and is
+    /// empty for a person's merge.
+    HostMergedInto {
+        host_id: Uuid,
+        #[serde(default)]
+        proven_by: Vec<IpAddr>,
+    },
+    /// An assumed range found inside another range, and merged into it.
+    SubnetMergedInto { subnet_id: Uuid },
+    /// A complete reading of what it belonged to no longer has it: an interface a full ifTable
+    /// walk didn't return, a binding a broader one replaced.
+    EntityNoLongerReported,
+    /// A newer record replaced it: a binding, a discovery, a daemon's API key.
+    EntitySuperseded,
+    /// Someone followed it.
+    InviteConsumed,
+    /// It passed its expiry unused.
+    InviteExpired,
+    /// Its organization was deleted.
+    EntityOrganizationDeleted,
+    /// Capturing its rows failed, so the empty snapshot was removed.
+    SnapshotCaptureFailed { error: String },
+}
+
+impl DeletionReason {
+    /// The level of the delete's log line. `Error` for a delete that cleans up after a failure,
+    /// where the line is the only record of it.
+    pub fn log_level(&self) -> EventLogLevel {
+        match self {
+            Self::SnapshotCaptureFailed { .. } => EventLogLevel::Error,
+            _ => EventLogLevel::Info,
+        }
+    }
+
+    /// The reason as the end of a sentence about the deleted entity: "deleted: <this>".
+    pub fn describe(&self) -> String {
+        match self {
+            Self::EntityRequested => "requested".to_string(),
+            Self::ServicePortsHandedOver { to_service_id, to } => {
+                format!("its ports were taken by {} ({to_service_id})", to.name())
+            }
+            Self::ServicePortsReleased => {
+                "its ports went unanswered past the site's stale window".to_string()
+            }
+            Self::ServiceOpenPortsReclaimed { to_service_id, by } => {
+                format!("its ports were claimed by {} ({to_service_id})", by.name())
+            }
+            Self::ServiceIdentifiedAs { service_id } => {
+                format!("identified as service {service_id}")
+            }
+            Self::EntityGuestNoLongerListed { parent_service_id } => {
+                format!("service {parent_service_id} no longer runs it")
+            }
+            Self::EntityVirtualizerDeleted {
+                virtualizer_service_id,
+            } => format!("service {virtualizer_service_id}, which ran it, was deleted"),
+            Self::ServiceHostDeleted { host_id } => {
+                format!("host {host_id}, which it ran on, was deleted")
+            }
+            Self::HostMergedInto { host_id, proven_by } if proven_by.is_empty() => {
+                format!("merged into host {host_id}")
+            }
+            Self::HostMergedInto { host_id, proven_by } => format!(
+                "merged into host {host_id}, the same device at {}",
+                join(proven_by)
+            ),
+            Self::SubnetMergedInto { subnet_id } => format!("merged into subnet {subnet_id}"),
+            Self::EntityNoLongerReported => "no longer reported".to_string(),
+            Self::EntitySuperseded => "superseded by a newer record".to_string(),
+            Self::InviteConsumed => "it was used".to_string(),
+            Self::InviteExpired => "it expired unused".to_string(),
+            Self::EntityOrganizationDeleted => "its organization was deleted".to_string(),
+            Self::SnapshotCaptureFailed { error } => format!("capturing its rows failed: {error}"),
+        }
+    }
+}
+
+/// Why an entity was updated. Every Updated event carries one, and every update names it, so the
+/// log says what made the change and a subscriber can tell a person's edit from discovery's.
+/// Named like [`DeletionReason`]: after the one entity type that uses a variant, or `Entity` for
+/// several.
+///
+/// `error` fields hold the failure's text for the log line. Entity events send PostHog only ids
+/// ([`EntityMetadata`](super::operations)), so none of this leaves the server.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(tag = "type")]
+pub enum UpdateReason {
+    /// A person or an API key edited it.
+    EntityRequested,
+    /// Its tags changed. The tag service publishes this for every tagged entity.
+    EntityTagsChanged,
+    /// Discovery reported it again and its data was merged in.
+    EntityRediscovered,
+    /// Host `host_id` was merged into this one: the surviving host, or a row that moved over
+    /// from it.
+    EntityMergedFrom { host_id: Uuid },
+    /// The hypervisor or runtime it points at was merged into another, so it points at the
+    /// survivor.
+    EntityVirtualizerRepointed,
+    /// A daemon and its API key were bound to each other during provisioning.
+    EntityKeyBound,
+    /// The API key passed its expiry and was disabled.
+    EntityKeyExpired,
+    /// The API key authenticated a request, moving its last-used time.
+    EntityKeyUsed,
+    /// It belonged to another device sharing a host, and moved off `from_host_id`.
+    EntityAddressesDetached { from_host_id: Uuid },
+    /// Server-side bookkeeping no one asked for: a foreign key refreshed, a cached value
+    /// recomputed.
+    EntityMaintained,
+    /// The daemon checked in.
+    DaemonHeartbeat,
+    /// The daemon reported its status, version or capabilities.
+    DaemonStatusReported,
+    /// The daemon started and reported its version.
+    DaemonStarted,
+    /// The daemon registered again with the same identity.
+    DaemonReregistered,
+    /// The server could not poll the daemon and stopped. `rejected_by_daemon` when the daemon
+    /// answered with a client error (a key mismatch), not a network failure.
+    DaemonPollFailed {
+        error: String,
+        rejected_by_daemon: bool,
+    },
+    /// A person asked the server to try an unreachable daemon again.
+    DaemonRetryRequested,
+    /// The daemon went quiet and was put on standby, or came back from it.
+    DaemonStandbyChanged,
+    /// Discovery matched this host to an existing one, by `matched_by`.
+    HostRediscovered { matched_by: HostMatchedBy },
+    /// Container details that named the service as its own owner were dropped.
+    ServiceContainerDetailsRejected,
+    /// It took the container details of the generic container service discovery found on its
+    /// port.
+    ServiceContainerAdopted,
+    /// A neighbour advertised its OS over LLDP.
+    HostOsAdvertisedOverLldp,
+    /// A MAC address tied it to its IP address.
+    InterfaceLinkedByMac,
+    /// Its interface moved to a new address in the same range.
+    IpAddressRehomed,
+    /// Its subnet was merged into a range that contains it.
+    IpAddressSubnetMerged,
+    /// Its subnet was narrowed and no longer held it, so it moved to one that does.
+    IpAddressSubnetNarrowed,
+    /// A member service changed or went, so the members were updated.
+    DependencyMembersChanged,
+    /// Discovery read the range again: last seen refreshed, type corrected, or an owner adopted.
+    SubnetRediscovered,
+    /// Scheduling it failed, so it was disabled.
+    DiscoveryScheduleFailed { error: String },
+    /// Billing changed: Stripe reported a subscription, invoice or payment change.
+    OrganizationBillingSynced,
+    /// Its licence key was issued, rotated, or switched type.
+    OrganizationLicenseKeyChanged,
+    /// It reached an onboarding milestone.
+    OrganizationOnboardingMilestone,
+    /// Demo data was seeded into it.
+    OrganizationDemoPopulated,
+    /// A notification was sent, and recorded so it isn't sent again.
+    OrganizationNotificationRecorded,
+    /// It turned off one email category from an unsubscribe link. `category` is the category's
+    /// id, e.g. `discovery_digest`.
+    UserUnsubscribed { category: String },
+    /// SES reported a spam complaint from its address, so every pausable email was turned off.
+    UserEmailComplaintReceived,
+    /// It was given a token for one-click unsubscribe links.
+    UserUnsubscribeTokenIssued,
+    /// It linked an OIDC account.
+    UserOidcLinked,
+    /// It unlinked an OIDC account.
+    UserOidcUnlinked,
+    /// Its password was changed.
+    UserPasswordChanged,
+    /// A password reset was requested for it.
+    UserPasswordResetRequested,
+    /// Its password reset token expired and was cleared.
+    UserPasswordResetExpired,
+    /// Its password was reset with a reset token.
+    UserPasswordReset,
+    /// A verification email was requested for it.
+    UserVerificationRequested,
+    /// It confirmed a new email address.
+    UserEmailChanged,
+    /// It verified its email address.
+    UserEmailVerified,
+    /// It joined an organization by invite.
+    UserJoinedOrganization,
+    /// It has seen the release notes up to a version.
+    UserReleaseNotesSeen,
+    /// It accepted the terms.
+    UserTermsAccepted,
+    /// It was emailed notice of a terms update.
+    UserTermsNotified,
+    /// The API key was rotated.
+    EntityKeyRotated,
+}
+
+/// How discovery matched a reported host to an existing one.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(tag = "type")]
+pub enum HostMatchedBy {
+    Mac,
+    IpAddress {
+        ip: IpAddr,
+    },
+    VirtualRouterIp {
+        ip: IpAddr,
+    },
+    ChassisId {
+        chassis_id: String,
+    },
+    /// The daemon reported the host's id.
+    DaemonReportedId,
+}
+
+impl UpdateReason {
+    /// The reason as the end of a sentence about the updated entity: "updated: <this>".
+    pub fn describe(&self) -> String {
+        match self {
+            Self::EntityRequested => "requested".to_string(),
+            Self::EntityTagsChanged => "its tags changed".to_string(),
+            Self::EntityRediscovered => "discovery reported it again".to_string(),
+            Self::EntityMergedFrom { host_id } => format!("host {host_id} was merged in"),
+            Self::EntityVirtualizerRepointed => {
+                "its hypervisor or runtime was merged into another".to_string()
+            }
+            Self::EntityKeyBound => "a daemon and its API key were bound".to_string(),
+            Self::EntityKeyExpired => "the key expired and was disabled".to_string(),
+            Self::EntityKeyUsed => "the key was used".to_string(),
+            Self::EntityAddressesDetached { from_host_id } => {
+                format!("moved off host {from_host_id}, which another device shares")
+            }
+            Self::EntityMaintained => "server bookkeeping".to_string(),
+            Self::DaemonHeartbeat => "the daemon checked in".to_string(),
+            Self::DaemonStatusReported => "the daemon reported its status".to_string(),
+            Self::DaemonStarted => "the daemon started".to_string(),
+            Self::DaemonReregistered => "the daemon registered again".to_string(),
+            Self::DaemonPollFailed {
+                error,
+                rejected_by_daemon: true,
+            } => format!(
+                "the daemon rejected the poll ({error}), likely an API key mismatch. \
+                 Re-provision or reinstall the daemon so its key matches the server"
+            ),
+            Self::DaemonPollFailed { error, .. } => format!("polling failed: {error}"),
+            Self::DaemonRetryRequested => "a retry was requested".to_string(),
+            Self::DaemonStandbyChanged => "its standby state changed".to_string(),
+            Self::HostRediscovered { matched_by } => match matched_by {
+                HostMatchedBy::Mac => "rediscovered, matched by MAC address".to_string(),
+                HostMatchedBy::IpAddress { ip } => format!("rediscovered, matched by address {ip}"),
+                HostMatchedBy::VirtualRouterIp { ip } => {
+                    format!("rediscovered, matched by virtual router address {ip}")
+                }
+                HostMatchedBy::ChassisId { chassis_id } => {
+                    format!("rediscovered, matched by chassis id {chassis_id}")
+                }
+                HostMatchedBy::DaemonReportedId => {
+                    "rediscovered, matched by the id the daemon reported".to_string()
+                }
+            },
+            Self::ServiceContainerDetailsRejected => {
+                "container details naming it as its own owner were dropped".to_string()
+            }
+            Self::ServiceContainerAdopted => {
+                "it took the details of the generic container on its port".to_string()
+            }
+            Self::HostOsAdvertisedOverLldp => "a neighbour advertised its OS".to_string(),
+            Self::InterfaceLinkedByMac => "linked to its address by MAC".to_string(),
+            Self::IpAddressRehomed => "its interface changed address".to_string(),
+            Self::IpAddressSubnetMerged => "its subnet was merged into another".to_string(),
+            Self::IpAddressSubnetNarrowed => {
+                "its subnet was narrowed and no longer held it".to_string()
+            }
+            Self::DependencyMembersChanged => "a member service changed".to_string(),
+            Self::SubnetRediscovered => "discovery read the range again".to_string(),
+            Self::DiscoveryScheduleFailed { error } => {
+                format!("scheduling failed, so it was disabled: {error}")
+            }
+            Self::OrganizationBillingSynced => "billing changed".to_string(),
+            Self::OrganizationLicenseKeyChanged => "its licence key changed".to_string(),
+            Self::OrganizationOnboardingMilestone => "it reached a milestone".to_string(),
+            Self::OrganizationDemoPopulated => "demo data was seeded".to_string(),
+            Self::OrganizationNotificationRecorded => "a notification was recorded".to_string(),
+            Self::UserUnsubscribed { category } => {
+                format!("it unsubscribed from {category} emails")
+            }
+            Self::UserEmailComplaintReceived => {
+                "SES reported a complaint, so its pausable emails were turned off".to_string()
+            }
+            Self::UserUnsubscribeTokenIssued => "an unsubscribe token was issued".to_string(),
+            Self::UserOidcLinked => "an OIDC account was linked".to_string(),
+            Self::UserOidcUnlinked => "an OIDC account was unlinked".to_string(),
+            Self::UserPasswordChanged => "its password was changed".to_string(),
+            Self::UserPasswordResetRequested => "a password reset was requested".to_string(),
+            Self::UserPasswordResetExpired => "its reset token expired".to_string(),
+            Self::UserPasswordReset => "its password was reset".to_string(),
+            Self::UserVerificationRequested => "a verification email was requested".to_string(),
+            Self::UserEmailChanged => "it confirmed a new email address".to_string(),
+            Self::UserEmailVerified => "it verified its email address".to_string(),
+            Self::UserJoinedOrganization => "it joined an organization by invite".to_string(),
+            Self::UserReleaseNotesSeen => "it saw the release notes".to_string(),
+            Self::UserTermsAccepted => "it accepted the terms".to_string(),
+            Self::UserTermsNotified => "it was emailed a terms notice".to_string(),
+            Self::EntityKeyRotated => "the key was rotated".to_string(),
+        }
+    }
+}
+
+fn join(addresses: &[IpAddr]) -> String {
+    addresses
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display, EnumDiscriminants)]
@@ -187,6 +549,13 @@ pub enum BillingOperation {
     CheckoutStarted {
         plan: BillingPlan,
         has_trial: bool,
+        /// The checkout session, or the subscription when checkout was skipped. Log only.
+        #[serde(skip)]
+        stripe_id: String,
+        /// The subscription's status when checkout was skipped; `None` for a checkout session,
+        /// which has no subscription yet. Log only.
+        #[serde(skip)]
+        subscription_status: Option<SubscriptionStatus>,
     },
     CheckoutCompleted {
         plan: BillingPlan,
@@ -294,6 +663,12 @@ pub enum BillingOperation {
         plan: BillingPlan,
         resumed_through: DateTime<Utc>,
         next_renewal_at: Option<DateTime<Utc>>,
+        /// The replacement subscription. Log only.
+        #[serde(skip)]
+        subscription_id: String,
+        /// The written-off invoice the customer settled. Log only.
+        #[serde(skip)]
+        invoice_id: String,
     },
     /// Stripe could not finalize a draft licence invoice
     /// (`invoice.finalization_failed`), so it was never issued or emailed and
@@ -344,9 +719,19 @@ pub enum BillingOperation {
         plan: BillingPlan,
         duration_days: u32,
         resumes_at: DateTime<Utc>,
+        /// Log only.
+        #[serde(skip)]
+        subscription_id: String,
     },
     Resumed {
         was_early: bool,
+        /// Log only.
+        #[serde(skip)]
+        subscription_id: String,
+        /// The prorated credit posted to the customer's balance; `None` when none was due. Log
+        /// only.
+        #[serde(skip)]
+        pause_credit_cents: Option<i64>,
     },
     TrialExtended {
         days_added: u32,
@@ -364,6 +749,9 @@ pub enum BillingOperation {
         save_offer_shown: Vec<SaveOffer>,
         save_offer_redeemed: Option<SaveOffer>,
         planned_period_end: DateTime<Utc>,
+        /// Log only.
+        #[serde(skip)]
+        subscription_id: String,
     },
     /// User-provided cancellation reason/comment, captured on a follow-up
     /// Stripe webhook (Portal-with-reason flow) ~hundreds of ms after the
@@ -385,6 +773,9 @@ pub enum BillingOperation {
         trialing: bool,
         /// `sub.items.data[0].current_period_end` after the cancel was cleared.
         next_renewal_at: Option<DateTime<Utc>>,
+        /// Log only.
+        #[serde(skip)]
+        subscription_id: String,
     },
     /// Save-offer discount applied — applying it persists the
     /// percent + expiry so the eligibility gate (once per org) can read
@@ -393,6 +784,12 @@ pub enum BillingOperation {
     DiscountApplied {
         percent_off: i64,
         expires_at: DateTime<Utc>,
+        /// Log only.
+        #[serde(skip)]
+        subscription_id: String,
+        /// Every discount on the subscription after the apply. Log only.
+        #[serde(skip)]
+        discount_ids: Vec<String>,
     },
     PaymentMethodAdded,
     PaymentMethodRemoved,
@@ -402,6 +799,9 @@ pub enum BillingOperation {
     /// org. Telemetry-only with respect to plan_status.
     StripeCustomerCreated {
         customer_id: String,
+        /// An existing customer whose metadata named the org, rather than a new one. Log only.
+        #[serde(skip)]
+        adopted: bool,
     },
     /// A self-hosted org's plan was reconciled to the tier its license entitles,
     /// in either direction. Emitted at startup and each time an online key's
@@ -419,21 +819,31 @@ pub enum BillingOperation {
     /// the license tab. Fires once per org: rotations and type switches are
     /// tracked by the frontend. The first key is always online, since an org
     /// reaches air-gapped only by switching from it. Telemetry-only, never
-    /// persisted.
-    LicenseKeyIssued,
+    /// persisted. Published as the owner who opened the tab.
+    LicenseKeyIssued {
+        /// The org's plan when the key was issued.
+        #[serde(default)]
+        plan: Option<BillingPlan>,
+        /// Log only.
+        #[serde(skip)]
+        key_version: i64,
+    },
     /// The first successful entitlement check-in for the org's current online
     /// key: a customer server is running it. Fires once per key version, so a
     /// rotated key activates again when its replacement checks in.
     /// `server_version` is `None` for servers older than the version header.
     LicenseActivated {
-        server_version: Option<String>,
+        /// The org's plan at the check-in.
+        #[serde(default)]
+        plan: Option<BillingPlan>,
+        server_version: Option<semver::Version>,
     },
     /// A check-in reported a server version higher than any reported before
     /// for this org. Several servers can share one key, so only a new highest
     /// version counts; a mixed-version fleet never repeats the event.
     LicenseServerUpgraded {
-        from: Option<String>,
-        to: String,
+        from: Option<semver::Version>,
+        to: semver::Version,
     },
     /// An online key that used to check in has been silent for
     /// [`LICENSE_SILENCE_THRESHOLD_DAYS`](crate::server::organizations::r#impl::base::LICENSE_SILENCE_THRESHOLD_DAYS):
@@ -441,7 +851,7 @@ pub enum BillingOperation {
     /// silence by the daily sweep.
     LicenseCheckInsStopped {
         last_check_in_at: DateTime<Utc>,
-        server_version: Option<String>,
+        server_version: Option<semver::Version>,
     },
     /// A key reported by `LicenseCheckInsStopped` checked in again.
     LicenseCheckInsResumed {
@@ -457,6 +867,68 @@ pub enum BillingOperation {
 }
 
 impl BillingOperation {
+    /// The Stripe ids and amounts a variant carries only for the log, as a readable line. They
+    /// are `#[serde(skip)]`, so neither the JSON line nor PostHog sees them; this is where they
+    /// reach the log. `None` for a variant without any.
+    pub fn describe_log_only_fields(&self) -> Option<String> {
+        match self {
+            Self::CheckoutStarted {
+                stripe_id,
+                subscription_status,
+                ..
+            } => Some(match subscription_status {
+                Some(status) => format!("subscription {stripe_id} ({status})"),
+                None => format!("checkout session {stripe_id}"),
+            }),
+            Self::LicenseResumed {
+                subscription_id,
+                invoice_id,
+                ..
+            } => Some(format!(
+                "settled invoice {invoice_id}, subscription {subscription_id}"
+            )),
+            Self::Resumed {
+                subscription_id,
+                pause_credit_cents,
+                ..
+            } => Some(match pause_credit_cents {
+                Some(cents) => {
+                    format!("subscription {subscription_id}, pause credit {cents} cents")
+                }
+                None => format!("subscription {subscription_id}, no pause credit due"),
+            }),
+            Self::DiscountApplied {
+                subscription_id,
+                discount_ids,
+                ..
+            } => Some(format!(
+                "subscription {subscription_id}, discounts {}",
+                discount_ids.join(", ")
+            )),
+            Self::StripeCustomerCreated {
+                customer_id,
+                adopted,
+            } => Some(if *adopted {
+                format!("adopted existing customer {customer_id}")
+            } else {
+                format!("created customer {customer_id}")
+            }),
+            Self::LicenseKeyIssued { key_version, .. } => {
+                Some(format!("key version {key_version}"))
+            }
+            Self::Paused {
+                subscription_id, ..
+            }
+            | Self::CancellationInitiated {
+                subscription_id, ..
+            }
+            | Self::Reactivated {
+                subscription_id, ..
+            } => Some(format!("subscription {subscription_id}")),
+            _ => None,
+        }
+    }
+
     /// Plan carried by the event, where the variant has one. Used by analytics
     /// subscribers (PostHog person properties) that need the
     /// plan name without a per-call-site exhaustive match.
@@ -473,7 +945,9 @@ impl BillingOperation {
             | Self::PaymentFailed { plan, .. }
             | Self::PaymentRecovered { plan, .. } => Some(plan),
             Self::PlanChanged { to, .. } | Self::LicenseReconciled { to, .. } => Some(to),
-            Self::CancellationInitiated { plan, .. } => plan.as_ref(),
+            Self::CancellationInitiated { plan, .. }
+            | Self::LicenseKeyIssued { plan, .. }
+            | Self::LicenseActivated { plan, .. } => plan.as_ref(),
             _ => None,
         }
     }
@@ -498,13 +972,15 @@ impl BillingOperation {
         }
     }
 
-    /// Plan the org *lands on* after this event, for the PostHog person/group
-    /// `plan_type`. A `SubscriptionCancelled` leaves the org on the plan it carries (lapsed, read-only), so this is
-    /// `plan()` for every variant; it stays a separate accessor so the
-    /// analytics call site names the intent.
-    pub fn resulting_plan_name(&self) -> Option<&'static str> {
-        use crate::server::shared::types::metadata::TypeMetadataProvider;
-        self.plan().map(|p| p.name())
+    /// Id of the plan the org *lands on* after this event, for the PostHog
+    /// person/group `plan_type`: the same string as the event's
+    /// `metadata.plan.type` and the frontend's `plan_type`. A
+    /// `SubscriptionCancelled` leaves the org on the plan it carries (lapsed,
+    /// read-only), so this is `plan()` for every variant; it stays a separate
+    /// accessor so the analytics call site names the intent.
+    pub fn resulting_plan_id(&self) -> Option<&'static str> {
+        use crate::server::shared::types::metadata::HasId;
+        self.plan().map(|p| p.id())
     }
 
     /// Canonical mapping from a billing event to the `PlanStatus` it implies
@@ -569,7 +1045,7 @@ impl BillingOperation {
             Self::CheckoutStarted { .. }
             | Self::PlanChanged { .. }
             | Self::LicenseReconciled { .. }
-            | Self::LicenseKeyIssued
+            | Self::LicenseKeyIssued { .. }
             | Self::LicenseActivated { .. }
             | Self::LicenseServerUpgraded { .. }
             | Self::LicenseCheckInsStopped { .. }
@@ -616,7 +1092,10 @@ impl BillingOperation {
 pub enum OnboardingOperation {
     OrgCreated {
         org_name: String,
-        plan: BillingPlan,
+        /// The plan the org starts on: the license-resolved plan on a self-hosted server. `None` on
+        /// cloud, where an org has no plan until checkout.
+        #[serde(default)]
+        plan: Option<BillingPlan>,
         use_case: UseCase,
         /// The first site requested at signup. `None` for a self-hosted
         /// license buyer and on events recorded before this field existed.
@@ -630,6 +1109,7 @@ pub enum OnboardingOperation {
     DaemonPromptDismissed,
     DaemonPromptAccepted,
     FirstDaemonRegistered {
+        daemon_id: Uuid,
         daemon_name: String,
         site_name: String,
     },
@@ -725,20 +1205,41 @@ mod tests {
         });
     }
 
+    /// An activation recorded before it carried the plan reads back without one, its version
+    /// string parsed.
+    #[test]
+    fn license_activated_reads_rows_without_a_plan() {
+        use crate::server::billing::plans::get_commercial_self_hosted_plan;
+        round_trip(BillingOperation::LicenseActivated {
+            plan: Some(get_commercial_self_hosted_plan()),
+            server_version: Some(semver::Version::new(0, 17, 20)),
+        });
+        let old: BillingOperation =
+            serde_json::from_str(r#"{"type":"LicenseActivated","server_version":"0.17.20"}"#)
+                .expect("deserialize");
+        assert_eq!(
+            old,
+            BillingOperation::LicenseActivated {
+                plan: None,
+                server_version: Some(semver::Version::new(0, 17, 20)),
+            }
+        );
+    }
+
     #[test]
     fn license_reconciled_plan_reports_target() {
         use crate::server::billing::plans::{get_commercial_self_hosted_plan, get_community_plan};
-        use crate::server::shared::types::metadata::TypeMetadataProvider;
+        use crate::server::shared::types::metadata::HasId;
         let op = BillingOperation::LicenseReconciled {
             from: get_community_plan(),
             to: get_commercial_self_hosted_plan(),
         };
-        // PostHog labels `plan_type` off `resulting_plan_name()` → must be the
+        // PostHog labels `plan_type` off `resulting_plan_id()` → must be the
         // upgraded target, not null, so analytics don't clobber the plan.
         assert_eq!(op.plan(), Some(&get_commercial_self_hosted_plan()));
         assert_eq!(
-            op.resulting_plan_name(),
-            Some(get_commercial_self_hosted_plan().name())
+            op.resulting_plan_id(),
+            Some(get_commercial_self_hosted_plan().id())
         );
         // Plan swap, not a status transition.
         assert_eq!(op.implied_status(), None);
@@ -815,6 +1316,7 @@ mod tests {
             save_offer_shown: vec![],
             save_offer_redeemed: None,
             planned_period_end: DateTime::<Utc>::from_timestamp(1_700_000_000, 0).unwrap(),
+            subscription_id: String::new(),
         });
     }
 
@@ -829,6 +1331,7 @@ mod tests {
             save_offer_shown: vec![],
             save_offer_redeemed: None,
             planned_period_end: DateTime::<Utc>::from_timestamp(1_700_000_000, 0).unwrap(),
+            subscription_id: String::new(),
         });
     }
 
@@ -866,6 +1369,7 @@ mod tests {
     fn stripe_customer_created_round_trip() {
         round_trip(BillingOperation::StripeCustomerCreated {
             customer_id: "cus_abc123".to_string(),
+            adopted: false,
         });
     }
 
@@ -891,7 +1395,7 @@ mod tests {
             license_key_type: None,
             defaulted: false,
         };
-        assert_eq!(cancelled.resulting_plan_name(), Some("Enterprise"));
+        assert_eq!(cancelled.resulting_plan_id(), Some("Enterprise"));
         assert_eq!(cancelled.implied_status(), Some(PlanStatus::Cancelled));
 
         // A converted trial keeps the paid plan it carries, live.
@@ -899,7 +1403,7 @@ mod tests {
             plan: get_enterprise_plan(),
             next_renewal_at: DateTime::<Utc>::from_timestamp(1_800_000_000, 0),
         };
-        assert_eq!(trial_won.resulting_plan_name(), Some("Enterprise"));
+        assert_eq!(trial_won.resulting_plan_id(), Some("Enterprise"));
         assert_eq!(trial_won.implied_status(), Some(PlanStatus::Active));
 
         // Non-downgrade events return the plan they carry.
@@ -911,11 +1415,11 @@ mod tests {
             is_trialing: false,
             next_renewal_at: None,
         };
-        assert_eq!(checkout.resulting_plan_name(), Some("Enterprise"));
+        assert_eq!(checkout.resulting_plan_id(), Some("Enterprise"));
 
         // Events with no plan return None.
         assert_eq!(
-            BillingOperation::PaymentMethodAdded.resulting_plan_name(),
+            BillingOperation::PaymentMethodAdded.resulting_plan_id(),
             None
         );
     }
@@ -925,6 +1429,7 @@ mod tests {
         round_trip(BillingOperation::Reactivated {
             trialing: false,
             next_renewal_at: DateTime::<Utc>::from_timestamp(1_800_000_000, 0),
+            subscription_id: String::new(),
         });
     }
 
@@ -960,6 +1465,7 @@ mod tests {
                 save_offer_shown: vec![],
                 save_offer_redeemed: None,
                 planned_period_end: DateTime::<Utc>::from_timestamp(1_700_000_000, 0).unwrap(),
+                subscription_id: String::new(),
             },
         ] {
             let mut json = serde_json::to_value(&op).expect("serialize");
@@ -985,6 +1491,31 @@ mod tests {
             plan: get_free_plan(),
             next_renewal_at: DateTime::<Utc>::from_timestamp(1_800_000_000, 0),
         });
+    }
+
+    /// The Stripe ids carried for the log stay out of what PostHog receives.
+    #[test]
+    fn log_only_billing_fields_stay_out_of_event_properties() {
+        use crate::server::auth::middleware::auth::AuthenticatedEntity;
+        use crate::server::shared::events::traits::{Event, OrgScope};
+
+        let event = Event::new(
+            OrgScope {
+                organization_id: Uuid::new_v4(),
+            },
+            BillingOperation::DiscountApplied {
+                percent_off: 20,
+                expires_at: DateTime::<Utc>::from_timestamp(1_800_000_000, 0).unwrap(),
+                subscription_id: "sub_log_only".to_string(),
+                discount_ids: vec!["di_log_only".to_string()],
+            },
+            AuthenticatedEntity::System,
+        );
+
+        let properties = serde_json::to_string(&event.properties(None)).expect("serialize");
+        assert!(!properties.contains("sub_log_only"), "{properties}");
+        assert!(!properties.contains("di_log_only"), "{properties}");
+        assert!(properties.contains("percent_off"), "{properties}");
     }
 
     /// Events are logged as JSON via `Display`. A reset or verification token in that line

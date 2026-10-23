@@ -4,6 +4,7 @@ use crate::server::{
     hosts::r#impl::virtualization::HostVirtualizationState,
     interfaces::r#impl::base::{IfOperStatus, InterfaceLinkState},
     services::r#impl::categories::ServiceCategory,
+    shared::types::guest_state::GuestState,
     shared::{
         concepts::Concept,
         entities::EntityDiscriminants,
@@ -148,12 +149,12 @@ pub struct ViewElementConfig {
 /// Where on an element card a mark paints.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema, EnumIter)]
 pub enum MarkChannel {
-    /// The card's header text.
-    Title,
-    /// The dot beside a port's speed.
-    StatusDot,
     /// The whole card, when it draws as a bare box below the detail threshold.
     StateFill,
+    /// A dot on an icon card's tile, top-left corner, or in a row card's trailing slot, in the
+    /// value's colour; it expands to name the value on hover. Workloads uses it for a guest's run
+    /// state, L2 for a port's oper status.
+    Status,
 }
 
 /// A colour a view paints on its element cards, named by the filter value that decodes it.
@@ -333,6 +334,10 @@ pub enum MetadataFilterType {
     /// A port's ifOperStatus. Declared on Interface in L2, where it is what the card's status dot
     /// and zoomed-out fill show.
     OperStatus,
+    /// Whether a guest (a Proxmox guest or a container host) was running at the last scan.
+    /// Declared on Host and Service in Workloads, and on Service in Application, where it is the
+    /// status dot on an icon card.
+    GuestState,
 }
 
 impl HasId for MetadataFilterType {
@@ -807,13 +812,14 @@ impl TopologyView {
     /// The colours this view paints on element cards, in priority order per channel.
     ///
     /// Every view fills a zoomed-out card amber when its element is stale. L2 adds port status
-    /// (down above stale, up below it, so a dead link is never hidden behind a quiet one) and
-    /// colours each port's dot. Workloads colours a guest card's title by what kind of guest it
-    /// is. L3 and Application colour no titles: neither declares a Host filter to explain one.
+    /// (down above stale, up below it, so a dead link is never hidden behind a quiet one) and puts
+    /// a status dot on each port's row in its oper-status colour. Workloads and Application put a
+    /// status dot on a guest's or container's icon card in its run-state colour. L3 marks no run
+    /// state: it declares no guest state filter to explain one.
     fn element_marks(&self, config: &ViewElementConfig) -> Vec<ElementMark> {
-        use EntityDiscriminants::{Host, Interface};
+        use EntityDiscriminants::{Host, Interface, Service};
         use MarkChannel::*;
-        use MetadataFilterType::{OperStatus, Staleness, Virtualization};
+        use MetadataFilterType::{GuestState as GuestStateFilter, OperStatus, Staleness};
 
         let stale_fill: Vec<ElementMark> = config
             .element_entities
@@ -832,19 +838,27 @@ impl TopologyView {
             ]
             .into_iter()
             .chain(stale_fill)
-            .chain([
-                status(StateFill, IfOperStatus::Up),
-                status(StatusDot, IfOperStatus::Up),
-                status(StatusDot, IfOperStatus::Down),
-                status(StatusDot, IfOperStatus::LowerLayerDown),
-            ])
+            .chain([status(StateFill, IfOperStatus::Up)])
+            .chain(IfOperStatus::iter().map(|s| status(Status, s)))
             .collect(),
-            Self::Workloads => HostVirtualizationState::iter()
-                .filter(|s| *s != HostVirtualizationState::BareMetal)
-                .map(|s| ElementMark::new(Title, Host, Virtualization, &s))
+            // A guest's run state, as a status dot on its icon card: a container's own (a bridge
+            // container is a Service card), then a guest host's. Service first, so a container card
+            // shows its own state over its host's. Anything with no run state (bare metal, a vCenter or
+            // ESXi guest, a network identity, a service not in a container) is unmarked.
+            Self::Workloads => [Service, Host]
+                .into_iter()
+                .flat_map(|entity| {
+                    GuestState::iter()
+                        .map(move |g| ElementMark::new(Status, entity, GuestStateFilter, &g))
+                })
                 .chain(stale_fill)
                 .collect(),
-            Self::L3Logical | Self::Application => stale_fill,
+            // A containerized service's run state, as its card's status dot.
+            Self::Application => GuestState::iter()
+                .map(|g| ElementMark::new(Status, Service, GuestStateFilter, &g))
+                .chain(stale_fill)
+                .collect(),
+            Self::L3Logical => stale_fill,
         }
     }
 
@@ -892,11 +906,9 @@ impl TopologyView {
                 container_entity: Some(EntityDiscriminants::Subnet),
                 element_entities: vec![ViewElementEntityConfig {
                     entity_type: EntityDiscriminants::IPAddress,
-                    // Port first so it surfaces above Service in the filter
-                    // panel (Service's category chips push it below the fold
-                    // otherwise). Card rendering reads this list as a set,
-                    // so order is irrelevant there.
-                    inline_entities: vec![EntityDiscriminants::Port, EntityDiscriminants::Service],
+                    // An address's icon card draws its services as badges. Its ports have no
+                    // place on the card, and only show in the inspector.
+                    inline_entities: vec![EntityDiscriminants::Service],
                 }],
                 metadata_filters: vec![MetadataFilter {
                     filter_type: MetadataFilterType::Category,
@@ -971,6 +983,13 @@ impl TopologyView {
                         values: filter_values_from_enum::<HostVirtualizationState>(),
                         applies: FilterApplication::Client,
                     },
+                    MetadataFilter {
+                        filter_type: MetadataFilterType::GuestState,
+                        entities: vec![EntityDiscriminants::Host, EntityDiscriminants::Service],
+                        label: "By guest state".to_string(),
+                        values: filter_values_from_enum::<GuestState>(),
+                        applies: FilterApplication::Client,
+                    },
                 ],
                 // Populated by `element_config`, which is the only public constructor.
                 default_hidden_values: HashMap::new(),
@@ -983,13 +1002,23 @@ impl TopologyView {
                     entity_type: EntityDiscriminants::Service,
                     inline_entities: vec![],
                 }],
-                metadata_filters: vec![MetadataFilter {
-                    filter_type: MetadataFilterType::Category,
-                    entities: vec![EntityDiscriminants::Service],
-                    label: "By category".to_string(),
-                    values: filter_values_from_enum::<ServiceCategory>(),
-                    applies: FilterApplication::Client,
-                }],
+                metadata_filters: vec![
+                    MetadataFilter {
+                        filter_type: MetadataFilterType::Category,
+                        entities: vec![EntityDiscriminants::Service],
+                        label: "By category".to_string(),
+                        values: filter_values_from_enum::<ServiceCategory>(),
+                        applies: FilterApplication::Client,
+                    },
+                    // A containerized service's run state, which its card's status dot shows.
+                    MetadataFilter {
+                        filter_type: MetadataFilterType::GuestState,
+                        entities: vec![EntityDiscriminants::Service],
+                        label: "By guest state".to_string(),
+                        values: filter_values_from_enum::<GuestState>(),
+                        applies: FilterApplication::Client,
+                    },
+                ],
                 // Populated by `element_config`, which is the only public constructor.
                 default_hidden_values: HashMap::new(),
                 collective_noun: None,
@@ -1325,6 +1354,7 @@ mod tests {
         let host = Host::new(HostBase {
             virtualization_metadata: Some(HostVirtualization::Docker(
                 ContainerHostVirtualization {
+                    state: Default::default(),
                     container_name: None,
                     container_id: None,
                     compose_project: None,
@@ -1335,6 +1365,7 @@ mod tests {
         });
         let service = Service::new(ServiceBase {
             virtualization_metadata: Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
                 container_name: None,
                 container_id: None,
                 compose_project: None,

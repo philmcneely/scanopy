@@ -36,10 +36,7 @@ use crate::{
             types::CredentialAssignment,
             types::CredentialIntegration,
         },
-        daemons::r#impl::{
-            api::{DaemonDiscoveryRequest, DiscoveryUpdatePayload},
-            base::DaemonMode,
-        },
+        daemons::r#impl::api::{DaemonDiscoveryRequest, DiscoveryUpdatePayload},
         discovery::r#impl::{
             collection::{
                 CollectedData, Producer, present_in, report_undeclared_collection,
@@ -66,7 +63,10 @@ use crate::{
             service::match_existing_interface,
         },
         ip_addresses::r#impl::base::{IPAddress, MacEvidence, MacEvidenceValue},
-        ports::r#impl::base::{Port, PortType},
+        ports::r#impl::{
+            base::{Port, PortType},
+            coverage::PortCoverage,
+        },
         services::{
             definitions::{ServiceDefinitionRegistry, gateway::Gateway},
             r#impl::{
@@ -170,6 +170,46 @@ fn retain_submittable_addresses(ip_addresses: &mut Vec<IPAddress>, interfaces: &
             interface.base.ip_address_id = None;
         }
     }
+}
+
+/// The port bindings a container runtime reported for its containers, as coverage.
+///
+/// The runtime's inventory is authoritative for these tuples: a host port is published to one
+/// container at a time, so a container reported on one has it. It says nothing about any other
+/// port, which is why only reported tuples are covered and nothing is ever released by them.
+fn container_port_coverage(
+    ip_addresses: &[IPAddress],
+    ports: &[Port],
+    services: &[Service],
+) -> PortCoverage {
+    let mut coverage = PortCoverage::default();
+    let containers = services.iter().filter(|s| {
+        s.base
+            .virtualization_metadata
+            .as_ref()
+            .is_some_and(|v| v.container_id().is_some())
+    });
+    for binding in containers.flat_map(|s| s.base.bindings.iter()) {
+        let Some(port) = binding
+            .port_id()
+            .and_then(|id| ports.iter().find(|p| p.id == id))
+        else {
+            continue;
+        };
+        let addresses: Vec<IpAddr> = match binding.ip_address_id() {
+            Some(id) => ip_addresses
+                .iter()
+                .filter(|a| a.id == id)
+                .map(|a| a.base.ip_address)
+                .collect(),
+            None => ip_addresses.iter().map(|a| a.base.ip_address).collect(),
+        };
+        let port_type = port.base.port_type;
+        for address in addresses {
+            coverage.add(address, port_type.protocol(), [port_type.number()]);
+        }
+    }
+    coverage
 }
 
 /// Mutable host state passed to integration execute() methods.
@@ -718,7 +758,8 @@ impl HostData {
 /// without requiring `DiscoveryRunner`.
 pub struct DiscoveryOps {
     pub config_store: Arc<ConfigStore>,
-    pub api_client: Arc<DaemonApiClient>,
+    /// `None` on a ServerPoll daemon, which the server collects from.
+    pub api_client: Option<Arc<DaemonApiClient>>,
     pub entity_buffer: Arc<EntityBuffer>,
     pub discovery_type: DiscoveryType,
     session: Arc<tokio::sync::RwLock<Option<super::base::DiscoverySession>>>,
@@ -902,7 +943,7 @@ impl DiscoveryOps {
         }
 
         truncate_warnings(&mut warnings);
-        let credential_results = session
+        let mut credential_results = session
             .credential_results
             .lock()
             .map(|r| {
@@ -914,6 +955,23 @@ impl DiscoveryOps {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
+        // A listed host is named by the id it was submitted under. Resolve it to the server's, and
+        // drop one that was never created: nothing under a host the server didn't get is removed.
+        for result in &mut credential_results {
+            if let CredentialRunOutcome::Collected {
+                hosts_with_guests_listed,
+                ..
+            } = &mut result.outcome
+            {
+                let mut resolved = Vec::with_capacity(hosts_with_guests_listed.len());
+                for id in hosts_with_guests_listed.iter() {
+                    if let Some(server_id) = self.entity_buffer.created_host_id(id).await {
+                        resolved.push(server_id);
+                    }
+                }
+                *hosts_with_guests_listed = resolved;
+            }
+        }
 
         let warning_count = warnings.len();
         let terminal_update = terminal_update(
@@ -1033,14 +1091,18 @@ impl DiscoveryOps {
             payload.estimated_remaining_secs = Some(estimate);
         }
 
+        // A ServerPoll server collects updates by polling: the session atomics while it runs,
+        // then `terminal_payload`.
+        let Some(api_client) = &self.api_client else {
+            return Ok(());
+        };
+
         // The terminal report is the run's outcome: without it the server's stall sweep records
-        // the run as failed, so it is retried. ServerPoll servers also collect it from
-        // `terminal_payload`. Progress updates are best-effort; the next one supersedes a lost one.
-        let retry_terminal = payload.phase.is_terminal()
-            && self.config_store.get_mode().await? == DaemonMode::DaemonPoll;
-        if retry_terminal {
+        // the run as failed, so it is retried. Progress updates are best-effort; the next one
+        // supersedes a lost one.
+        if payload.phase.is_terminal() {
             if let Err(e) = send_terminal_report(
-                || self.post_session_update(&session, &payload),
+                || self.post_session_update(api_client, &session, &payload),
                 TERMINAL_REPORT_BACKOFF,
             )
             .await
@@ -1053,7 +1115,9 @@ impl DiscoveryOps {
                 );
             }
         } else {
-            let _ = self.post_session_update(&session, &payload).await;
+            let _ = self
+                .post_session_update(api_client, &session, &payload)
+                .await;
         }
 
         Ok(())
@@ -1161,8 +1225,30 @@ impl DiscoveryOps {
         integration: CredentialQueryPayloadDiscriminants,
     ) {
         self.with_credential_result(credential_id, integration, |o| {
-            if let CredentialRunOutcome::Collected { hosts } = o {
+            if let CredentialRunOutcome::Collected { hosts, .. } = o {
                 *hosts += 1;
+            }
+        })
+        .await;
+    }
+
+    /// A credential's collection listed every guest of `host_id`, stopped ones included. The id
+    /// may be the one the host was submitted under; the terminal update resolves it to the
+    /// server's.
+    pub async fn record_guests_listed(
+        &self,
+        credential_id: uuid::Uuid,
+        integration: CredentialQueryPayloadDiscriminants,
+        host_id: uuid::Uuid,
+    ) {
+        self.with_credential_result(credential_id, integration, |o| {
+            if let CredentialRunOutcome::Collected {
+                hosts_with_guests_listed,
+                ..
+            } = o
+                && !hosts_with_guests_listed.contains(&host_id)
+            {
+                hosts_with_guests_listed.push(host_id);
             }
         })
         .await;
@@ -1324,9 +1410,8 @@ impl DiscoveryOps {
 
         last_progress.store(percent, Ordering::Relaxed);
 
-        // Mode-aware: only POST in DaemonPoll mode
-        let mode = self.config_store.get_mode().await?;
-        if mode == DaemonMode::DaemonPoll {
+        // A ServerPoll server reads progress from the session atomics when it polls.
+        if let Some(api_client) = &self.api_client {
             let update = DiscoverySessionUpdate::scanning(percent);
             let mut payload = DiscoveryUpdatePayload::from_state_and_update(
                 self.discovery_type.clone(),
@@ -1343,7 +1428,9 @@ impl DiscoveryOps {
                 payload.estimated_remaining_secs = Some(estimate);
             }
 
-            let _ = self.post_session_update(&session, &payload).await;
+            let _ = self
+                .post_session_update(api_client, &session, &payload)
+                .await;
         }
 
         Ok(())
@@ -1353,14 +1440,14 @@ impl DiscoveryOps {
     /// with the server before the server gives up on the session.
     async fn post_session_update(
         &self,
+        api_client: &DaemonApiClient,
         session: &super::base::DiscoverySession,
         payload: &DiscoveryUpdatePayload,
     ) -> Result<(), Error> {
         use std::sync::atomic::Ordering;
 
         let path = format!("/api/v1/discovery/{}/update", session.info.session_id);
-        let result = self
-            .api_client
+        let result = api_client
             .post_no_data(&path, payload, "Failed to report discovery update")
             .await;
         match &result {
@@ -1480,6 +1567,7 @@ impl DiscoveryOps {
             subnets,
             interfaces_complete,
             interface_data_complete,
+            PortCoverage::default(),
             cancel,
         )
         .await
@@ -1501,12 +1589,13 @@ impl DiscoveryOps {
         subnets: Vec<Subnet>,
         interfaces_complete: bool,
         interface_data_complete: InterfaceDataComplete,
+        mut port_coverage: PortCoverage,
         cancel: &CancellationToken,
     ) -> Result<HostResponse, Error> {
-        let mode = self.config_store.get_mode().await?;
         let pending_id = host.id;
         let (mut ip_addresses, mut interfaces) = (ip_addresses, interfaces);
         retain_submittable_addresses(&mut ip_addresses, &mut interfaces);
+        port_coverage.merge(container_port_coverage(&ip_addresses, &ports, &services));
 
         let request = DiscoveryHostRequest {
             host,
@@ -1517,14 +1606,15 @@ impl DiscoveryOps {
             subnets,
             interfaces_complete,
             interface_data_complete,
+            port_coverage,
             // This daemon is this build; it submits the current shape by construction.
             superseded_wire_shape: false,
         };
 
         self.entity_buffer.push_host(request.clone()).await;
 
-        match mode {
-            DaemonMode::DaemonPoll => {
+        match &self.api_client {
+            Some(api_client) => {
                 // Stagger request starts so a burst of near-simultaneous deep-scan
                 // completions doesn't hammer the host-create endpoint (where they
                 // serialize on the server's per-site `HostDedup` lock).
@@ -1532,7 +1622,6 @@ impl DiscoveryOps {
                     reserve_submit_slot(&self.host_submit_gate, MIN_HOST_SUBMIT_INTERVAL).await;
                 tokio::time::sleep_until(scheduled).await;
 
-                let api_client = &self.api_client;
                 let response: HostResponse = (|| async {
                     api_client
                         .post("/api/v1/hosts/discovery", &request, "Failed to create host")
@@ -1557,7 +1646,7 @@ impl DiscoveryOps {
 
                 Ok(response)
             }
-            DaemonMode::ServerPoll => {
+            None => {
                 let confirmed = self
                     .entity_buffer
                     .await_host(&pending_id, SERVER_POLL_CONFIRMATION_TIMEOUT, cancel)
@@ -1590,14 +1679,12 @@ impl DiscoveryOps {
         subnet: &Subnet,
         cancel: &CancellationToken,
     ) -> Result<Subnet, Error> {
-        let mode = self.config_store.get_mode().await?;
         let pending_id = subnet.id;
 
         self.entity_buffer.push_subnet(subnet.clone()).await;
 
-        match mode {
-            DaemonMode::DaemonPoll => {
-                let api_client = &self.api_client;
+        match &self.api_client {
+            Some(api_client) => {
                 let actual: Subnet = (|| async {
                     api_client
                         .post("/api/v1/subnets", subnet, "Failed to create subnet")
@@ -1618,7 +1705,7 @@ impl DiscoveryOps {
 
                 Ok(actual)
             }
-            DaemonMode::ServerPoll => self
+            None => self
                 .entity_buffer
                 .await_subnet(&pending_id, SERVER_POLL_CONFIRMATION_TIMEOUT, cancel)
                 .await
@@ -1632,51 +1719,60 @@ impl DiscoveryOps {
         }
     }
 
-    /// Upsert VLANs discovered via SNMP. Returns mapping of vlan_number → entity UUID.
-    /// Posts to the server's VLAN discovery endpoint.
+    /// Upsert discovered VLANs. Returns mapping of vlan_number → entity UUID.
+    /// DaemonPoll: POSTs to the server's VLAN discovery endpoint. ServerPoll: buffers the
+    /// submission for the server's next poll and waits for its answer.
     pub async fn upsert_vlans(
         &self,
-        vlans: &[crate::daemon::discovery::integration::snmp::types::VlanInfo],
+        vlans: Vec<crate::server::vlans::handlers::VlanDiscoveryItem>,
         site_id: Uuid,
+        cancel: &CancellationToken,
     ) -> Result<std::collections::HashMap<u16, Uuid>, Error> {
-        use crate::server::vlans::handlers::{
-            VlanDiscoveryItem, VlanDiscoveryRequest, VlanDiscoveryResponse,
-        };
+        use crate::server::vlans::handlers::{VlanDiscoveryRequest, VlanDiscoveryResponse};
 
-        let request = VlanDiscoveryRequest {
-            site_id,
-            vlans: vlans
-                .iter()
-                .map(|v| VlanDiscoveryItem {
-                    vlan_number: v.vlan_id,
-                    name: v.name.clone(),
+        let request = VlanDiscoveryRequest { site_id, vlans };
+
+        let response: VlanDiscoveryResponse = match &self.api_client {
+            Some(api_client) => {
+                // `api_client.post` (→ `execute`) already strips the `ApiResponse` envelope and
+                // returns the inner payload, so the type here must be the bare
+                // `VlanDiscoveryResponse`, not `ApiResponse<VlanDiscoveryResponse>`. Wrapping it
+                // made the daemon try to parse a second envelope out of `{"vlans":[...]}`, failing
+                // with `missing field 'success'` and losing all VLAN resolution (GH #649).
+                (|| async {
+                    api_client
+                        .post(
+                            "/api/v1/vlans/discovery",
+                            &request,
+                            "Failed to upsert VLANs",
+                        )
+                        .await
                 })
-                .collect(),
-        };
-
-        let api_client = &self.api_client;
-        // `api_client.post` (→ `execute`) already strips the `ApiResponse` envelope and
-        // returns the inner payload, so the type here must be the bare
-        // `VlanDiscoveryResponse`, not `ApiResponse<VlanDiscoveryResponse>`. Wrapping it
-        // made the daemon try to parse a second envelope out of `{"vlans":[...]}`, failing
-        // with `missing field 'success'` and losing all VLAN resolution (GH #649).
-        let response: VlanDiscoveryResponse = (|| async {
-            api_client
-                .post(
-                    "/api/v1/vlans/discovery",
-                    &request,
-                    "Failed to upsert VLANs",
+                .retry(
+                    ExponentialBuilder::default()
+                        .with_min_delay(Duration::from_millis(500))
+                        .with_max_delay(Duration::from_secs(10))
+                        .with_max_times(3),
                 )
-                .await
-        })
-        .retry(
-            ExponentialBuilder::default()
-                .with_min_delay(Duration::from_millis(500))
-                .with_max_delay(Duration::from_secs(10))
-                .with_max_times(3),
-        )
-        .notify(|e, dur| tracing::warn!("Retrying VLAN upsert after {:?}: {}", dur, e))
-        .await?;
+                .notify(|e, dur| tracing::warn!("Retrying VLAN upsert after {:?}: {}", dur, e))
+                .await?
+            }
+            None => {
+                let pending_id = self.entity_buffer.push_vlan_batch(request).await;
+                self.entity_buffer
+                    .await_vlan_batch(&pending_id, SERVER_POLL_CONFIRMATION_TIMEOUT, cancel)
+                    .await
+                    .ok_or_else(|| {
+                        if cancel.is_cancelled() {
+                            anyhow!("Discovery cancelled while waiting for VLAN upsert")
+                        } else {
+                            // Also what a server predating ServerPoll VLAN recording produces: it
+                            // ignores the batch and never answers.
+                            anyhow!("Timeout waiting for VLAN upsert confirmation from server")
+                        }
+                    })?
+            }
+        };
 
         let mut mapping = std::collections::HashMap::new();
         for item in response.vlans {
@@ -2421,6 +2517,7 @@ mod tests {
     fn the_same_bridge_network_is_only_offered_once() {
         use crate::server::hosts::r#impl::base::{Host, HostBase};
         use crate::server::shared::storage::traits::Storable;
+        use crate::server::subnets::r#impl::base::SubnetTypeAttributed;
         use crate::server::subnets::r#impl::base::{Subnet, SubnetBase};
         use crate::server::subnets::r#impl::types::SubnetType;
 
@@ -2434,7 +2531,7 @@ mod tests {
         );
 
         let base = SubnetBase {
-            subnet_type: SubnetType::DockerBridge,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::DockerBridge),
             ..Default::default()
         };
         // Distinct rows, same CIDR and site — exactly what a second execute() produces, since

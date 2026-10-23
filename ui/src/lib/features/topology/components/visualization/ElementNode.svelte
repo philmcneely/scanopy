@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { type NodeProps, useInternalNode } from '@xyflow/svelte';
 	import NodeHandles from './NodeHandles.svelte';
-	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
+	import { entities } from '$lib/shared/stores/metadata';
+	import DeviceGlyph from '$lib/features/hosts/components/DeviceGlyph.svelte';
+	import SoftwareGlyph from './SoftwareGlyph.svelte';
+	import type { EntityGlyph } from '../../entity-glyph';
 	import {
 		selectedEdge as globalSelectedEdge,
 		selectedNode as globalSelectedNode,
@@ -18,31 +21,32 @@
 	import { buildElementRender } from '../../element-render-data';
 	import { getTopologyIndex } from '../../entity-index';
 	import type { Writable } from 'svelte/store';
-	import { formatPort } from '$lib/shared/utils/formatting';
 	import {
 		matchesHoveredMetadata,
 		inlineHostsMatching,
-		expandedPortNodeIds,
-		toggleExpandedPorts,
 		UNTAGGED_SENTINEL
 	} from '../../interactions';
 	import { toggleInlineGroup } from '../../collapse';
 	import * as sharedStores from '../../reactive-stores.svelte';
 	import { createColorHelper } from '$lib/shared/utils/styling';
 	import { getContext } from 'svelte';
-	import type { Port } from '$lib/features/hosts/types/base';
 	import type { Node, Edge } from '@xyflow/svelte';
-	import {
-		common_collapse,
-		common_containers,
-		common_expand,
-		topology_hideOpenPorts,
-		topology_openPortsSummary
-	} from '$lib/paraglide/messages';
-	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+	import { common_collapse, common_expand } from '$lib/paraglide/messages';
+	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { ChevronDown, ChevronRight } from 'lucide-svelte';
-	import { ELEMENT_HANDLE_SIZE_PX } from '../../pipeline/build-flow-nodes';
-	import { stateFill as markedStateFill, statusDot } from '../../element-marks';
+	import { ELEMENT_HANDLE_SIZE_PX, ICON_ELEMENT_WIDTH_PX } from '../../pipeline/build-flow-nodes';
+
+	// A service badge's size, and the icon card's width inside its px-2 padding: the badge fan
+	// spreads within it.
+	const BADGE_PX = 20;
+	// The large device tile. The top service badge is centred on its bottom-right corner.
+	const TILE_PX = 48;
+	const CARD_INNER_PX = ICON_ELEMENT_WIDTH_PX - 16;
+	import { stateFill as markedStateFill, type MarkValue } from '../../element-marks';
+
+	// A port's glyph: the Interface entity's own icon, in its colour.
+	const PortIcon = entities.getIconComponent('Interface');
+	const portIconColor = entities.getColorHelper('Interface').icon;
 
 	let { id, data, width }: NodeProps = $props();
 
@@ -112,9 +116,6 @@
 
 	let effectiveWidth = $derived(width ? width : 0);
 
-	// Per-card toggle for expanding hidden open ports (lifted to topology-level store for re-layout)
-	let expandedOpenPorts = $derived($expandedPortNodeIds.has(id));
-
 	// All card content — and therefore card height — is computed by one function
 	// in `element-render-data.ts`, shared with the render pipeline so it can reason
 	// about card shape without mounting the card. Do not recompute any of this
@@ -134,14 +135,12 @@
 			: null
 	);
 	let nodeRenderData: ElementRenderData | null = $derived(elementRender?.data ?? null);
-	let inlinesService = $derived(elementRender?.flags.inlinesService ?? false);
-	let inlinesPort = $derived(elementRender?.flags.inlinesPort ?? false);
-	let serviceInlineHidden = $derived(elementRender?.flags.serviceInlineHidden ?? false);
-	let portInlineHidden = $derived(elementRender?.flags.portInlineHidden ?? false);
 	let inlineForThisElement = $derived(elementRender?.flags.inlineEntities ?? []);
 	// Staleness pill — computed with the rest of the card content because it
 	// renders in flow and therefore affects card height.
 	let staleTag = $derived(elementRender?.staleTag ?? null);
+	// The icon card: a device or software glyph above a label, or a port's single row.
+	let iconCard = $derived(elementRender?.iconCard ?? null);
 	/**
 	 * The fill a reduced card paints itself, from the one state signal it has.
 	 *
@@ -150,16 +149,6 @@
 	 */
 	let marks = $derived(elementRender?.marks ?? {});
 	let stateFill = $derived(markedStateFill(marks));
-	let titleColorClass = $derived(
-		marks.Title ? createColorHelper(marks.Title).text : 'text-tertiary'
-	);
-
-	// Called once per service binding while rendering, so this must not scan
-	// `topology.ports` — on a large graph that is nodes x bindings x ports.
-	let portsById = $derived(topology ? getTopologyIndex(topology).portsById : null);
-	function getPortById(portId: string): Port | null {
-		return portsById?.get(portId) ?? null;
-	}
 
 	let isNewNode = $derived(nodeRenderData ? highlightedNewNodes.has(id) : false);
 
@@ -187,9 +176,6 @@
 
 	let nodeOpacity = $derived(shouldFadeOut ? 0.3 : 1);
 
-	// Marks a host inlined in a manager's box (a network identity, a macvlan container).
-	const hostColorHelper = entities.getColorHelper('Host');
-	const HostIcon = entities.getIconComponent('Host');
 	const discoveryColorHelper = entities.getColorHelper('Discovery');
 
 	// How does the hovered entity type relate to this card?
@@ -197,12 +183,11 @@
 	//     Workloads/Application; IPAddress element in L3; Host VM in
 	//     Workloads; Interface in L2).
 	//   'inline'  — the hovered entity type is declared inline on this card
-	//     (Service or Port on an L3 IPAddress; Service on a Workloads Host
-	//     VM element).
+	//     (Service on an L3 IPAddress or a Workloads Host VM element).
 	//   null      — no relationship; this card is unaffected by the hover.
-	// Element cards get a card-border treatment; inline cards get a
-	// card-glow / text-highlight treatment. This replaces the former
-	// Host-specific branch and makes hover behaviour view-agnostic.
+	// Element cards get a card-border treatment; inline cards get a card
+	// glow. This replaces the former Host-specific branch and makes hover
+	// behaviour view-agnostic.
 	let hoveredRelationship = $derived.by((): 'element' | 'inline' | null => {
 		if (!currentHoveredTag) return null;
 		const elType = nodeRenderData?.elementType;
@@ -224,18 +209,10 @@
 	let matchingInlineHosts = $derived(
 		inlineHostsMatching(nodeRenderData?.inlineGroups ?? [], currentHoveredMetadata, siteFor)
 	);
-	// Pulse colour for a matching member host row.
-	let inlineHostPulseStyle = $derived.by(() => {
-		if (!currentHoveredMetadata) return '';
-		const ch = createColorHelper(
-			currentHoveredMetadata.color as Parameters<typeof createColorHelper>[0]
-		);
-		return `color: ${ch.rgb}; --text-pulse-color: ${ch.rgb};`;
-	});
 
 	// Metadata hover context — mirrors `hoveredRelationship` + tag ring/pulse
 	// but driven by `hoveredMetadata`. Element-mode when this card's own
-	// entity carries the hovered value, inline-mode when an inline row matches.
+	// entity carries the hovered value, inline-mode when an inline entity matches.
 	// Host metadata also bubbles up to IPAddress/Interface cards (same
 	// fallback as cardEntityTags).
 	let metadataHoverContext = $derived.by(
@@ -292,31 +269,10 @@
 		return `box-shadow: 0 0 0 3px ${colorHelper.rgb};`;
 	});
 
-	// Generic pulse style for an inline row whose entity-type matches the
-	// active hover. Applied directly to the row's text span — works for any
-	// inline entity (service name row, port line row, future ones) as long
-	// as the caller passes the row's entity type and its tag list. Pass [] for
-	// entities that don't carry tags (ports today).
-	function inlineRowPulse(rowEntityType: string, rowTags: string[]): string {
-		if (hoveredRelationship !== 'inline' || !currentHoveredTag) return '';
-		if (currentHoveredTag.entityType !== rowEntityType) return '';
-		const { tagId, color } = currentHoveredTag;
-		// Entity-wide (tagId null): neutral gray pulse on every matching row.
-		if (tagId === null) {
-			return 'color: rgb(156, 163, 175); --text-pulse-color: rgb(156, 163, 175);';
-		}
-		// Tag-scoped: only rows whose entity carries the hovered tag.
-		if (!color) return '';
-		const hasTag = tagId === UNTAGGED_SENTINEL ? rowTags.length === 0 : rowTags.includes(tagId);
-		if (!hasTag) return '';
-		const ch = createColorHelper(color as Parameters<typeof createColorHelper>[0]);
-		return `color: ${ch.rgb}; --text-pulse-color: ${ch.rgb};`;
-	}
-
 	// Card glow for tag-scoped inline hover (and legacy category hover).
-	// Entity-wide inline hover uses per-row text pulses instead — every
-	// card that inlines the hovered entity would glow otherwise, which
-	// isn't useful discrimination.
+	// Entity-wide inline hover leaves the card alone: every card that inlines
+	// the hovered entity would glow otherwise, which isn't useful
+	// discrimination.
 	let serviceHoverShadowStyle = $derived.by(() => {
 		if (!nodeRenderData?.showServices) return '';
 		const services = nodeRenderData.services;
@@ -361,16 +317,30 @@
 	let cardClass = $derived(`card ${isNodeSelected ? 'card-selected' : ''}`);
 
 	// Handle styling lived here; `NodeHandles` now renders the geometry statically.
-
-	// A port card whose body is just the status line: no services, no body text, no MAC row. The
-	// wrapper that would centre a column of things has nothing to centre.
-	let onlyStatusLine = $derived(
-		Boolean(nodeRenderData?.portStatus) &&
-			!nodeRenderData?.showServices &&
-			!nodeRenderData?.bodyText &&
-			!nodeRenderData?.portStatus?.macAddress
-	);
 </script>
+
+<!-- One row's three cells, for a grid of a 20px glyph, the name and a trailing status dot (in the
+     colour of the view's Status mark, when it paints one): a member of a manager box, or a port. -->
+{#snippet rowCells(glyph: EntityGlyph, label: string, status: MarkValue | undefined)}
+	<span class="flex">
+		{#if glyph.type === 'device'}
+			<DeviceGlyph deviceType={glyph.deviceType} />
+		{:else if glyph.type === 'software'}
+			<SoftwareGlyph definition={glyph.definition} />
+		{:else}
+			<PortIcon class="h-4 w-4 flex-shrink-0 {portIconColor}" />
+		{/if}
+	</span>
+	<span class="text-secondary truncate text-[11px] font-medium leading-tight">
+		{label}
+	</span>
+	<span class="flex justify-center">
+		{#if status}
+			<span class="h-2 w-2 rounded-full" style="background: {createColorHelper(status.color).rgb};"
+			></span>
+		{/if}
+	</span>
+{/snippet}
 
 {#if nodeRenderData}
 	<div
@@ -383,18 +353,152 @@
 			unchanged; without that the empty card collapses and ELK's next input shifts, which
 			would make the graph reflow as you zoom.
 		-->
-		{#if !simplified}
-			<!-- Staleness tag: the same Tag component, label, colour and icon the
-		     inventory card badge uses (both come from `getFreshnessTag`), so one
-		     entity reads identically in the list, the map and the digest.
-		     Additive rather than an opacity change — opacity is already the
-		     filter/search dimming channel. -->
-
-			<!-- Topmost element of the card, centred: one placement that reads the
-		     same on every element type, rather than depending on which title row
-		     a given card happens to have. In flow so it stays inside the card
-		     bounds and never overlaps the title; node heights are DOM-measured
-		     (pipeline/measure.ts), so layout absorbs the row. -->
+		{#if !simplified && iconCard?.glyph.type === 'port'}
+			<!-- A port: one row, the same as a manager box's member, its status the view's Status mark.
+			     Each port is its own node, so a link's handle sits level with this row. -->
+			<div
+				class="flex flex-col gap-1 px-2 py-1.5"
+				use:tooltip={{ anchorClosest: '.svelte-flow__node', content: iconCard.tooltip }}
+			>
+				{#if staleTag}
+					<div class="flex scale-90 justify-center">
+						<Tag {...staleTag} pill />
+					</div>
+				{/if}
+				<div
+					data-entity-header
+					class="grid grid-cols-[1.25rem_minmax(0,1fr)_0.75rem] items-center gap-x-1.5"
+				>
+					{@render rowCells(iconCard.glyph, iconCard.label, marks.Status)}
+				</div>
+			</div>
+		{:else if !simplified && iconCard}
+			<!-- Icon card. The glyph comes first in DOM order: the diagram exports take each
+			     node's first icon as its shape icon. -->
+			<div class="group/icon-card flex flex-col items-center gap-1.5 px-2 py-2">
+				<!-- The card's tooltip sits on the tile and label only: a group member below carries its
+				     own, and nested tooltips would show both at once. It shows above the whole card, so
+				     it never covers the status indicator. -->
+				<div
+					class="flex w-full flex-col items-center gap-1.5"
+					use:tooltip={{ anchorClosest: '.svelte-flow__node', content: iconCard.tooltip }}
+				>
+					<!-- my-1: the service badges (bottom-right) and the status dot (top-left) are
+					     centred on the tile's corners and overhang it by half their size, more than the card's
+					     gap and padding. On every icon card, so heights match. -->
+					<div class="relative my-1">
+						{#if iconCard.glyph.type === 'device'}
+							<DeviceGlyph deviceType={iconCard.glyph.deviceType} size="lg" />
+						{:else if iconCard.glyph.type === 'software'}
+							<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
+						{/if}
+						{#if marks.Status}
+							<!-- A guest's run state, from the view's Status mark: a dot in the state's colour,
+							     centred on the tile's top-left corner. The tooltip's Status row names it. -->
+							<span
+								class="absolute -left-2 -top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
+								style="background: var(--color-topology-node-bg);"
+							>
+								<span
+									class="h-2.5 w-2.5 rounded-full"
+									style="background: {createColorHelper(marks.Status.color).rgb};"
+								></span>
+							</span>
+						{/if}
+						{#if iconCard.badgeDefinitions.length > 0}
+							<!-- Round like every software glyph: this device, running these. The top badge is
+							     centred on the tile's bottom-right corner; each one behind it steps up and left,
+							     two layers at most, so more than one service reads as a stack. Hovering the
+							     card fans them into a row centred under the tile, spaced to fit inside the
+							     card. Offsets are from the tile's centre to each badge's left edge. -->
+							{@const count = iconCard.badgeDefinitions.length}
+							{@const pileX = TILE_PX / 2 - BADGE_PX / 2}
+							<!-- A lone badge has nothing to fan out from: it stays on the corner on hover. -->
+							{@const fanStep =
+								count > 1 ? Math.min(BADGE_PX + 2, (CARD_INNER_PX - BADGE_PX) / (count - 1)) : 0}
+							<!-- Every badge is a flex box, off the text baseline: an <img> logo and an <svg> glyph sit on a
+							     baseline at different heights, which bent the fanned row into a descending curve. -->
+							<span class="absolute -bottom-2.5 left-1/2 flex h-5 w-0">
+								{#each iconCard.badgeDefinitions as definition, i (definition)}
+									{@const layer = Math.min(i, 2) * 3}
+									<span
+										class="absolute left-[var(--stack-x)] top-[var(--stack-y)] flex leading-none transition-[left,top] duration-150 group-hover/icon-card:left-[var(--fan-x)] group-hover/icon-card:top-0"
+										style="--stack-x: {pileX - layer}px; --stack-y: {-layer}px; --fan-x: {count > 1
+											? (i - (count - 1) / 2) * fanStep - BADGE_PX / 2
+											: pileX}px; z-index: {count - i};"
+									>
+										<SoftwareGlyph {definition} />
+									</span>
+								{/each}
+							</span>
+						{/if}
+					</div>
+					{#if staleTag}
+						<div class="scale-90">
+							<Tag {...staleTag} pill />
+						</div>
+					{/if}
+					<div
+						data-entity-header
+						class="text-primary line-clamp-2 w-full break-words text-center text-xs font-medium leading-tight"
+					>
+						{iconCard.label}
+					</div>
+				</div>
+				<!-- Manager groups inlined on a guest, each in a dashed box. The heading and every member
+				     row share three columns: a 20px glyph, the name, and a trailing slot that holds the
+				     heading's member count and each row's run-state dot, so glyphs, names and dots line
+				     up. The heading opens and closes the box; each row carries its own tooltip. -->
+				{#each iconCard.groups as group (group.groupId)}
+					<div
+						class="grid w-full grid-cols-[1.25rem_minmax(0,1fr)_0.75rem] items-center gap-x-1.5 gap-y-1.5 rounded-md border border-dashed border-gray-300 p-1.5 dark:border-gray-600"
+					>
+						<button
+							type="button"
+							class="nopan col-span-3 grid cursor-pointer grid-cols-subgrid items-center text-left"
+							aria-expanded={!group.collapsed}
+							aria-label={group.collapsed ? common_expand() : common_collapse()}
+							onclick={(e) => {
+								e.stopPropagation();
+								toggleInlineGroup(id, group.groupId);
+							}}
+						>
+							<span class="flex justify-center">
+								{#if group.headerDefinition}
+									<SoftwareGlyph definition={group.headerDefinition} framed={false} />
+								{/if}
+							</span>
+							<span
+								class="text-tertiary flex min-w-0 items-center gap-0.5 text-[11px] font-medium leading-tight"
+							>
+								{#if group.collapsed}
+									<ChevronRight class="h-3 w-3 flex-shrink-0" />
+								{:else}
+									<ChevronDown class="h-3 w-3 flex-shrink-0" />
+								{/if}
+								<span class="truncate">{group.headerName}</span>
+							</span>
+							<span class="text-tertiary text-center text-[10px] tabular-nums leading-none">
+								{group.members.length}
+							</span>
+						</button>
+						{#if !group.collapsed}
+							{#each group.members as member (member.id)}
+								<!-- A subgrid row, not `contents`: the tooltip places itself from the row's box. -->
+								<div
+									class="col-span-3 grid grid-cols-subgrid items-center"
+									use:tooltip={{ content: member.tooltip }}
+								>
+									{@render rowCells(member.glyph, member.label, member.status)}
+								</div>
+							{/each}
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{:else if !simplified}
+			<!-- An element that did not resolve to an icon card (a service whose record is gone): its
+			     staleness, header and a line naming what is missing. -->
 			{#if staleTag}
 				<div class="flex flex-shrink-0 justify-center px-2 pt-2">
 					<div class="scale-90">
@@ -402,336 +506,20 @@
 					</div>
 				</div>
 			{/if}
-
-			<!-- Rest of component stays the same -->
-			<!-- Header section with gradient transition to body -->
 			{#if nodeRenderData.headerText}
-				<!-- Padding and centring live on the text element itself; the wrapper that used to hold
-			     them contributed one element per card and nothing else. -->
 				<div
 					data-entity-header
-					class={`relative flex-shrink-0 truncate px-2 pt-2 text-center text-xs font-medium leading-none ${titleColorClass}`}
+					class="text-tertiary truncate px-2 pt-2 text-center text-xs font-medium leading-none"
 				>
 					{nodeRenderData.headerText}
 				</div>
 			{/if}
-
-			{#if nodeRenderData.subtitleText}
+			{#if nodeRenderData.bodyText}
 				<div
-					data-entity-header
-					class="text-primary truncate px-2 pt-2 text-center text-sm font-medium {!nodeRenderData.headerText &&
-					!nodeRenderData.showServices
-						? 'pb-2'
-						: ''}"
+					class="text-secondary truncate px-3 py-2 text-center text-xs leading-none"
+					title={nodeRenderData.bodyText}
 				>
-					{nodeRenderData.subtitleText}
-				</div>
-			{/if}
-
-			<!-- Body section -->
-			<!-- The body region. `contents` when it holds a single status line, so the line itself takes
-		     the region's box instead of sitting inside another flex container — one element per port
-		     card. Anything richer (services, body text, a MAC line) still needs the real column. -->
-			<div
-				class={onlyStatusLine
-					? 'contents'
-					: 'flex flex-1 flex-col items-center justify-center px-3 py-2'}
-			>
-				{#if nodeRenderData.showServices}
-					{#snippet serviceCard(service: (typeof nodeRenderData.services)[number])}
-						{@const ServiceIcon = serviceDefinitions.getIconComponent(service.service_definition)}
-						{@const serviceColorHelper = serviceDefinitions.getColorHelper(
-							service.service_definition
-						)}
-						{@const serviceTagHighlight = inlineRowPulse('Service', service.tags)}
-						{@const serviceMetadataHighlight = (() => {
-							if (metadataHoverContext?.mode !== 'inline') return '';
-							if (!currentHoveredMetadata) return '';
-							if (
-								!matchesHoveredMetadata(
-									service,
-									'Service',
-									currentHoveredMetadata,
-									siteFor(service)
-								)
-							)
-								return '';
-							const ch = createColorHelper(
-								currentHoveredMetadata.color as Parameters<typeof createColorHelper>[0]
-							);
-							return `color: ${ch.rgb}; --text-pulse-color: ${ch.rgb};`;
-						})()}
-						<div
-							class="flex flex-col items-center justify-center py-2"
-							style="min-width: 0; max-width: 100%; width: 100%;"
-						>
-							<!-- Render the service name when either: (a) this card IS
-						  a Service element (the row is the card's own identity,
-						  not inlined content — always show), or (b) the card
-						  inlines services and the user hasn't toggled them off. -->
-							{#if nodeRenderData.elementType === 'Service' || (inlinesService && !serviceInlineHidden)}
-								<div
-									class="flex items-center justify-center gap-1"
-									style="line-height: 1.3; width: 100%; min-width: 0; max-width: 100%;"
-									title={service.name}
-								>
-									<ServiceIcon class="h-5 w-5 flex-shrink-0 {serviceColorHelper.icon}" />
-									<span
-										class="text-m text-secondary truncate {serviceTagHighlight ||
-										serviceMetadataHighlight
-											? 'animate-text-pulse-highlight'
-											: ''}"
-										style="transition: color 0.15s; {serviceTagHighlight ||
-											serviceMetadataHighlight}"
-									>
-										{service.name}
-									</span>
-								</div>
-							{/if}
-							{#if inlinesPort && !portInlineHidden && service.bindings.filter((b) => b.type == 'Port').length > 0}
-								{@const portPulse = inlineRowPulse('Port', [])}
-								<span
-									class="text-tertiary mt-1 text-center text-xs {portPulse
-										? 'animate-text-pulse-highlight'
-										: ''}"
-									style="transition: color 0.15s; {portPulse}"
-									>{service.bindings
-										.map((b) => {
-											if (
-												(b.ip_address_id == nodeRenderData.ip_address_id ||
-													b.ip_address_id == null) &&
-												b.type == 'Port' &&
-												b.port_id
-											) {
-												const port = getPortById(b.port_id);
-												if (port) {
-													return formatPort(port);
-												}
-											}
-										})
-										.filter((p) => {
-											return p !== undefined;
-										})
-										.join(', ')}</span
-								>
-							{/if}
-						</div>
-					{/snippet}
-					<!-- Show services list -->
-					<div class="flex w-full flex-col items-center" style="min-width: 0; max-width: 100%;">
-						{#each nodeRenderData.services as service (service.id)}
-							{@render serviceCard(service)}
-						{/each}
-						<!-- Manager groups from inline_groups, each in a dashed box: a runtime with its
-						  containers, a guest's Network Identities with its identity hosts. -->
-						{#each nodeRenderData.inlineGroups as group (group.groupId)}
-							{@const HeaderIcon = group.header
-								? serviceDefinitions.getIconComponent(group.header.service_definition)
-								: null}
-							<div
-								class="mb-1 mt-1 w-full rounded-md border border-dashed border-gray-300 px-1 py-0.5 dark:border-gray-600"
-							>
-								<button
-									type="button"
-									class="nopan flex w-full cursor-pointer items-center gap-1 px-1 pt-1 {group.collapsed
-										? 'pb-1'
-										: 'pb-2'}"
-									aria-expanded={!group.collapsed}
-									aria-label={group.collapsed ? common_expand() : common_collapse()}
-									onclick={(e) => {
-										e.stopPropagation();
-										toggleInlineGroup(id, group.groupId);
-									}}
-								>
-									{#if group.collapsed}
-										<ChevronRight class="text-tertiary h-3.5 w-3.5 flex-shrink-0" />
-									{:else}
-										<ChevronDown class="text-tertiary h-3.5 w-3.5 flex-shrink-0" />
-									{/if}
-									{#if HeaderIcon}
-										<HeaderIcon class="h-5 w-5 flex-shrink-0" />
-									{/if}
-									<span class="text-secondary truncate text-xs font-medium">
-										{group.header?.name ?? common_containers()}
-									</span>
-									<span class="text-tertiary ml-auto flex-shrink-0 text-xs tabular-nums">
-										{group.services.length + group.hosts.length}
-									</span>
-								</button>
-								{#if !group.collapsed}
-									<!-- One rule between children, so each container or identity reads as its
-								  own entry even when it carries no services. -->
-									<div class="w-full divide-y divide-dashed divide-gray-200 dark:divide-gray-700">
-										{#each group.services as service (service.id)}
-											<div class="w-full">
-												{@render serviceCard(service)}
-											</div>
-										{/each}
-										{#each group.hosts as member (member.host.id)}
-											{@const hostPulse = matchingInlineHosts.has(member.host.id)
-												? inlineHostPulseStyle
-												: ''}
-											<div
-												class="flex w-full flex-col items-center py-1"
-												style="min-width: 0; max-width: 100%;"
-											>
-												<div
-													class="flex w-full items-center justify-center gap-1 pt-1"
-													style="min-width: 0;"
-													title={hostDisplayName(member.host)}
-												>
-													<HostIcon class="h-4 w-4 flex-shrink-0 {hostColorHelper.icon}" />
-													<span
-														class="text-secondary truncate text-xs font-medium {hostPulse
-															? 'animate-text-pulse-highlight'
-															: ''}"
-														style="transition: color 0.15s; {hostPulse}"
-													>
-														{hostDisplayName(member.host)}
-													</span>
-												</div>
-												{#each member.services as service (service.id)}
-													{@render serviceCard(service)}
-												{/each}
-											</div>
-										{/each}
-									</div>
-								{/if}
-							</div>
-						{/each}
-						{#if nodeRenderData.hiddenOpenPorts.length > 0 && nodeRenderData.elementType !== 'Host'}
-							{#if expandedOpenPorts}
-								{#each nodeRenderData.hiddenOpenPorts as service (service.id)}
-									{@const ServiceIcon = serviceDefinitions.getIconComponent(
-										service.service_definition
-									)}
-									{@const svcColor = serviceDefinitions.getColorHelper(service.service_definition)}
-									<div
-										class="flex flex-col items-center justify-center"
-										style="min-width: 0; max-width: 100%; width: 100%;"
-									>
-										{#if inlinesService && !serviceInlineHidden}
-											<div
-												class="flex items-center justify-center gap-1"
-												style="line-height: 1.3; width: 100%; min-width: 0; max-width: 100%;"
-												title={service.name}
-											>
-												<ServiceIcon class="h-5 w-5 flex-shrink-0 {svcColor.icon}" />
-												<span
-													class="text-m text-secondary truncate"
-													style="transition: color 0.15s;"
-												>
-													{service.name}
-												</span>
-											</div>
-										{/if}
-										{#if inlinesPort && !portInlineHidden && service.bindings.filter((b) => b.type == 'Port').length > 0}
-											{@const portPulseExp = inlineRowPulse('Port', [])}
-											<span
-												class="text-tertiary mt-1 text-center text-xs {portPulseExp
-													? 'animate-text-pulse-highlight'
-													: ''}"
-												style="transition: color 0.15s; {portPulseExp}"
-												>{service.bindings
-													.map((b) => {
-														if (
-															(b.ip_address_id == nodeRenderData.ip_address_id ||
-																b.ip_address_id == null) &&
-															b.type == 'Port' &&
-															b.port_id
-														) {
-															const port = getPortById(b.port_id);
-															if (port) {
-																return formatPort(port);
-															}
-														}
-													})
-													.filter((p) => p !== undefined)
-													.join(', ')}</span
-											>
-										{/if}
-									</div>
-								{/each}
-								<button
-									class="nopan text-tertiary hover:text-secondary mb-2 mt-1 cursor-pointer text-xs underline"
-									onclick={(e) => {
-										e.stopPropagation();
-										toggleExpandedPorts(id);
-									}}
-								>
-									{topology_hideOpenPorts()}
-								</button>
-							{:else}
-								<button
-									class="nopan bg-surface-secondary text-tertiary hover:text-secondary mb-2 mt-1 cursor-pointer rounded-full px-2 py-0.5 text-xs underline"
-									onclick={(e) => {
-										e.stopPropagation();
-										toggleExpandedPorts(id);
-									}}
-								>
-									{topology_openPortsSummary({
-										count:
-											nodeRenderData.hiddenOpenPorts.reduce(
-												(sum, s) =>
-													sum +
-													s.bindings.filter(
-														(b) =>
-															(b.ip_address_id == nodeRenderData.ip_address_id ||
-																b.ip_address_id == null) &&
-															b.type == 'Port'
-													).length,
-												0
-											) || nodeRenderData.hiddenOpenPorts.length
-									})}
-								</button>
-							{/if}
-						{/if}
-					</div>
-				{:else if nodeRenderData.bodyText}
-					<!-- Show host name as body text. Guarded like the footer below: `bodyText` is empty
-				     for whole element types (every Interface, for one), and rendering it anyway put a
-				     0x0 div on each of those cards — 992 of them on the seeded graph. -->
-					<div
-						class="text-secondary truncate text-center text-xs leading-none"
-						title={nodeRenderData.bodyText}
-					>
-						{nodeRenderData.bodyText}
-					</div>
-				{/if}
-				{#if nodeRenderData.portStatus}
-					{#snippet statusRow()}
-						<!-- One span, not a row div wrapping a dot span and a speed span: the dot is a
-					     `::before` on the speed text. Three elements per port card became one. -->
-						<span
-							class="status-line text-tertiary text-xs"
-							style="--status-dot-color: {statusDot(marks)}"
-							>{nodeRenderData.portStatus?.speed ?? ''}</span
-						>
-					{/snippet}
-
-					<!-- The stacking wrapper only earns its place when there is a second row to stack. On a
-				     port card without a MAC it was a sole-child wrapper, one per card. -->
-					{#if nodeRenderData.portStatus.macAddress}
-						<div class="flex flex-col items-center gap-0.5">
-							{@render statusRow()}
-							<span
-								class="text-tertiary truncate font-mono"
-								style="font-size: 0.55rem; opacity: 0.7"
-								>{nodeRenderData.portStatus.macAddress}</span
-							>
-						</div>
-					{:else}
-						{@render statusRow()}
-					{/if}
-				{/if}
-			</div>
-
-			<!-- Footer section -->
-			{#if nodeRenderData.footerText}
-				<div class="relative flex flex-shrink-0 items-center justify-center px-2 pb-2">
-					<div class="text-tertiary truncate text-xs font-medium leading-none">
-						{nodeRenderData.footerText}
-					</div>
+					{nodeRenderData.bodyText}
 				</div>
 			{/if}
 		{/if}
@@ -742,26 +530,3 @@
 {#if edgeHandles.get(id)}
 	<NodeHandles size={ELEMENT_HANDLE_SIZE_PX} used={edgeHandles.get(id)!} />
 {/if}
-
-<style>
-	/*
-	 * Port status is a coloured dot before the speed, drawn with `::before`, rather than a span for
-	 * the dot and a span for the speed inside a flex row. Blink accounts for every element's style
-	 * and layout objects whether or not anything reads them, and at a few thousand cards that row
-	 * was three of them.
-	 */
-	.status-line {
-		/* Fills the body region when that region is `contents`; harmless otherwise. */
-		flex: 1;
-		justify-content: center;
-		padding: 0.5rem 0.75rem;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		font-weight: 500;
-	}
-	.status-line::before {
-		content: '●';
-		color: var(--status-dot-color);
-	}
-</style>

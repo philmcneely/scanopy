@@ -15,7 +15,10 @@ use crate::server::{
     services::r#impl::{base::Service, patterns::MatchDetails},
     shared::{
         entities::ChangeTriggersTopologyStaleness,
-        events::{bus::EventBus, types::EntityOperation},
+        events::{
+            bus::EventBus,
+            types::{DeletionReason, EntityOperation, UpdateReason},
+        },
         position::next_position,
         services::traits::{ChildCrudService, CrudService, EventBusService},
         storage::{
@@ -26,6 +29,7 @@ use crate::server::{
         },
         types::{api::ValidationError, entities::EntitySource},
     },
+    subnets::service::SubnetService,
 };
 use anyhow::anyhow;
 use anyhow::{Error, Result};
@@ -40,6 +44,8 @@ pub struct ServiceService {
     dependency_service: Arc<DependencyService>,
     event_bus: Arc<EventBus>,
     entity_tag_service: Arc<EntityTagService>,
+    /// Deleting a service deletes the bridge subnets it owns.
+    subnet_service: Arc<SubnetService>,
 }
 
 impl EventBusService<Service> for ServiceService {
@@ -186,14 +192,6 @@ impl CrudService<Service> for ServiceService {
                     && existing_service.base.source.is_from_discovery())
                     || service.id == existing_service.id =>
             {
-                // Info, not warn: rediscovering a service that already exists is the normal
-                // outcome of every rescan, not a fault. At warn it fired once per known service
-                // per scan and drowned the lines that do need an operator.
-                tracing::info!(
-                    service = %service,
-                    existing_service = %existing_service,
-                    "Duplicate service found, upserting discovery data...",
-                );
                 self.upsert_service(existing_service, service, authentication)
                     .await?
             }
@@ -241,7 +239,13 @@ impl CrudService<Service> for ServiceService {
                     .collect();
                 let saved_bindings = self
                     .binding_service
-                    .save_for_parent(&created.id, &bindings_with_ids, authentication.clone())
+                    .save_for_parent(
+                        &created.id,
+                        &bindings_with_ids,
+                        authentication.clone(),
+                        DeletionReason::EntityRequested,
+                        UpdateReason::EntityRequested,
+                    )
                     .await?;
 
                 // Update service with the saved bindings (which have actual IDs)
@@ -279,7 +283,7 @@ impl CrudService<Service> for ServiceService {
                                 },
                             ),
                         )
-                        .await?;
+                        .await;
                 }
 
                 created
@@ -294,13 +298,12 @@ impl CrudService<Service> for ServiceService {
         &self,
         service: &mut Service,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<Service> {
         let lock_guard = self
             .storage
             .session_lock(LockKey::Service(service.id), DEFAULT_LOCK_TIMEOUT)
             .await?;
-
-        tracing::trace!("Updating service: {:?}", service);
 
         let current_service = self
             .get_by_id(&service.id)
@@ -341,7 +344,13 @@ impl CrudService<Service> for ServiceService {
             .collect();
         let saved_bindings = self
             .binding_service
-            .save_for_parent(&updated.id, &bindings_with_ids, authentication.clone())
+            .save_for_parent(
+                &updated.id,
+                &bindings_with_ids,
+                authentication.clone(),
+                DeletionReason::EntityRequested,
+                reason.clone(),
+            )
             .await?;
 
         // Update service with the saved bindings (which have actual IDs and preserved created_at)
@@ -362,31 +371,39 @@ impl CrudService<Service> for ServiceService {
             updated.base.tags = service.base.tags.clone();
         }
 
-        let trigger_stale = updated.triggers_staleness(Some(current_service));
-
-        if let Some(scope) = EntityScope::from_ids(
-            updated.id,
-            updated.clone().into(),
-            self.get_site_id(&updated),
-            self.get_organization_id(&updated),
-        ) {
-            self.event_bus()
-                .publish(
-                    Event::new(scope, EntityOperation::Updated, authentication.clone()).with_flags(
-                        EntityEventFlags {
-                            trigger_stale,
-                            ..Default::default()
-                        },
-                    ),
-                )
-                .await?;
-        }
+        self.publish_updated(&current_service, &updated, authentication, reason)
+            .await;
 
         lock_guard.release().await?;
         Ok(updated)
     }
 
-    async fn delete(&self, id: &Uuid, authentication: AuthenticatedEntity) -> Result<()> {
+    /// Each service through [`Self::delete`], so a bulk delete deletes what each one virtualizes
+    /// and publishes its own `Deleted`, the same as deleting them one at a time. One that an
+    /// earlier delete in the batch already took with it is skipped.
+    async fn delete_many(
+        &self,
+        ids: &[Uuid],
+        authentication: AuthenticatedEntity,
+        reason: DeletionReason,
+    ) -> Result<usize> {
+        let mut deleted = 0;
+        for id in ids {
+            if self.get_by_id(id).await?.is_some() {
+                self.delete(id, authentication.clone(), reason.clone())
+                    .await?;
+                deleted += 1;
+            }
+        }
+        Ok(deleted)
+    }
+
+    async fn delete(
+        &self,
+        id: &Uuid,
+        authentication: AuthenticatedEntity,
+        reason: DeletionReason,
+    ) -> Result<()> {
         let lock_guard = self
             .storage
             .session_lock(LockKey::Service(*id), DEFAULT_LOCK_TIMEOUT)
@@ -397,8 +414,12 @@ impl CrudService<Service> for ServiceService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Service {} not found", id))?;
 
-        self.update_dependency_members(&service, None, authentication.clone())
+        self.delete_virtualized(&service, authentication.clone())
             .await?;
+
+        // Its dependency memberships stay: the member names an id that no longer resolves, the
+        // dependency service's subscriber reports it (`DependencyMemberChange`), and the user
+        // decides what replaces it.
 
         // Remove tags from junction table
         if let Some(tag_service) = self.entity_tag_service() {
@@ -419,14 +440,19 @@ impl CrudService<Service> for ServiceService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Deleted, authentication).with_flags(
-                        EntityEventFlags {
-                            trigger_stale,
-                            ..Default::default()
+                    Event::new(
+                        scope,
+                        EntityOperation::Deleted {
+                            reason: reason.clone(),
                         },
-                    ),
+                        authentication,
+                    )
+                    .with_flags(EntityEventFlags {
+                        trigger_stale,
+                        ..Default::default()
+                    }),
                 )
-                .await?;
+                .await;
         }
 
         lock_guard.release().await?;
@@ -442,3 +468,4 @@ mod dependencies;
 mod lifecycle;
 mod transfer;
 mod upsert;
+mod virtualized;

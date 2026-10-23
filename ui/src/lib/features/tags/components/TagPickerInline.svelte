@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Plus } from 'lucide-svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
+	import Popover from '$lib/shared/components/data/Popover.svelte';
 	import TagCompletionGhost from './TagCompletionGhost.svelte';
 	import InputGhost from '$lib/shared/components/forms/input/InputGhost.svelte';
 	import { tagCompletion } from '$lib/features/tags/completion';
@@ -17,7 +18,7 @@
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { permissions, billingPlans } from '$lib/shared/stores/metadata';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import { onMount, tick, untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import {
 		common_creating,
@@ -38,16 +39,20 @@
 		tagAllowedOn,
 		tagGroupLabel,
 		tagIcon,
-		tagTooltip
+		tagTooltip,
+		withTagAdded
 	} from '$lib/features/tags/groups';
 
 	/**
 	 * Compact inline tag picker for use in cards and bulk actions.
 	 * Shows tags as pills with remove buttons, and a + button to add tags.
 	 *
-	 * Two modes of operation:
+	 * Three modes of operation:
 	 * 1. **Entity mode**: Provide `entityId` and `entityType` - mutations handled internally
 	 * 2. **Callback mode**: Provide `onAdd`/`onRemove` callbacks - for bulk operations or custom handling
+	 * 3. **Form mode**: Provide `onChange` - gets the whole new list, for a form that saves it later
+	 *
+	 * With `label`, the label sits above the picker, as above a modal's other fields.
 	 */
 	let {
 		selectedTagIds = [],
@@ -58,6 +63,10 @@
 		// Callback mode props - for bulk operations or custom handling
 		onAdd,
 		onRemove,
+		// Form mode prop - receives the full tag list after each change
+		onChange,
+		// Heading above the picker, for a form row
+		label,
 		// Optional pre-resolved tags (e.g. from topology snapshot on share pages)
 		availableTags: availableTagsProp,
 		// When true, tags created inline go in the Application group
@@ -76,6 +85,8 @@
 		entityType?: EntityDiscriminants;
 		onAdd?: (tagId: string) => void;
 		onRemove?: (tagId: string) => void;
+		onChange?: (tagIds: string[]) => void;
+		label?: string;
 		availableTags?: import('$lib/features/tags/types/base').Tag[];
 		createAsApplication?: boolean;
 		allowCreate?: boolean;
@@ -89,102 +100,13 @@
 
 	// Determine if entity mode is enabled
 	let isEntityMode = $derived(entityId !== undefined && entityType !== undefined);
+	// Whether any mode can change the tags at all
+	let canEdit = $derived(!disabled && (isEntityMode || !!onAdd || !!onChange));
 
 	let inputValue = $state('');
 	let inputElement: HTMLInputElement | undefined = $state();
 	let triggerElement: HTMLDivElement | undefined = $state();
-	let dropdownElement: HTMLDivElement | undefined = $state();
-	/**
-	 * Below the trigger, `top` is set; flipped above it, `bottom` is. Either way the list grows to
-	 * fit every tag, up to the screen edge less `EDGE_GAP_PX`, and scrolls past that.
-	 */
-	let dropdownPosition = $state<{
-		top: number | null;
-		bottom: number | null;
-		left: number;
-		maxHeight: number;
-	}>({ top: 0, bottom: null, left: 0, maxHeight: 192 });
-
-	/** Same gap the column config panel keeps from the bottom of the screen. */
-	const EDGE_GAP_PX = 16;
-	/** Below this much room under the trigger, the list opens above it when there's more room there. */
-	const MIN_DROPDOWN_PX = 160;
-	const TRIGGER_GAP_PX = 4;
-
-	// Portal container for escaping stacking contexts
-	let portalContainer: HTMLDivElement | null = $state(null);
-
-	onMount(() => {
-		portalContainer = document.createElement('div');
-		portalContainer.style.position = 'absolute';
-		portalContainer.style.top = '0';
-		portalContainer.style.left = '0';
-		portalContainer.style.width = '0';
-		portalContainer.style.height = '0';
-		document.body.appendChild(portalContainer);
-
-		return () => {
-			portalContainer?.remove();
-		};
-	});
-
-	// Portal action to move element to body
-	function portal(node: HTMLElement) {
-		if (portalContainer) {
-			portalContainer.appendChild(node);
-		}
-		return {
-			destroy() {}
-		};
-	}
-
-	function calculatePosition() {
-		if (!triggerElement) return;
-		const rect = triggerElement.getBoundingClientRect();
-		const viewportHeight = window.innerHeight;
-		const viewportWidth = window.innerWidth;
-
-		// Vertical: open below unless the list doesn't fit there and there's more room above.
-		const contentHeight = dropdownElement?.scrollHeight ?? MIN_DROPDOWN_PX;
-		const spaceBelow = viewportHeight - rect.bottom - TRIGGER_GAP_PX - EDGE_GAP_PX;
-		const spaceAbove = rect.top - TRIGGER_GAP_PX - EDGE_GAP_PX;
-		const below =
-			spaceBelow >= Math.min(contentHeight, MIN_DROPDOWN_PX) || spaceBelow >= spaceAbove;
-
-		// Horizontal: clamp to viewport edges
-		let left = rect.left;
-		left = Math.max(8, Math.min(left, viewportWidth - 160 - 8)); // min-w-40 = 160px
-
-		dropdownPosition = below
-			? { top: rect.bottom + TRIGGER_GAP_PX, bottom: null, left, maxHeight: spaceBelow }
-			: {
-					top: null,
-					bottom: viewportHeight - rect.top + TRIGGER_GAP_PX,
-					left,
-					maxHeight: spaceAbove
-				};
-	}
-
-	// Recalculate position once dropdown renders (so we measure real height for flip)
-	$effect(() => {
-		if (open && dropdownElement) {
-			calculatePosition();
-		}
-	});
-
-	// Reposition dropdown on scroll when open
-	$effect(() => {
-		if (!open) return;
-
-		const handleScroll = () => calculatePosition();
-		window.addEventListener('scroll', handleScroll, true);
-		window.addEventListener('resize', handleScroll);
-		return () => {
-			window.removeEventListener('scroll', handleScroll, true);
-			window.removeEventListener('resize', handleScroll);
-		};
-	});
-
+	const dropdownId = $props.id();
 	// Query and mutation
 	const tagsQuery = useTagsQuery();
 	const tagGroupsQuery = useTagGroupsQuery();
@@ -307,7 +229,7 @@
 
 	async function handleCreateTag() {
 		if (!organization || isCreating) return;
-		if (!isEntityMode && !onAdd) return;
+		if (!canEdit) return;
 
 		const name = inputValue.trim();
 		if (!name) return;
@@ -361,6 +283,10 @@
 					tag_id: tagId
 				})
 			);
+		} else if (onChange) {
+			const next = withTagAdded(shownTagIds, tagId, tags);
+			for (const heldId of shownTagIds) if (!next.includes(heldId)) pendingRemoves.add(heldId);
+			await settle(pendingAdds, tagId, () => onChange(next));
 		} else {
 			// The server replaces a held tag of the same tag group on assignment; in callback
 			// mode the caller holds the list, so drop the displaced tag here to match.
@@ -383,6 +309,9 @@
 					tag_id: tagId
 				})
 			);
+		} else if (onChange) {
+			const next = shownTagIds.filter((id) => id !== tagId);
+			await settle(pendingRemoves, tagId, () => onChange(next));
 		} else {
 			await settle(pendingRemoves, tagId, () => onRemove?.(tagId));
 		}
@@ -402,7 +331,10 @@
 	}
 
 	function removeTag(tagId: string) {
-		const index = removeButtons().indexOf(document.activeElement as HTMLElement);
+		// Only a keyboard removal moves focus on. A clicked button also takes focus, unringed, and
+		// handing that to the next tag's button would let Enter remove it instead of saving.
+		const active = document.activeElement as HTMLElement | null;
+		const index = active?.matches(':focus-visible') ? removeButtons().indexOf(active) : -1;
 		refocusIndex = index === -1 ? null : index;
 		handleRemoveTag(tagId);
 	}
@@ -445,7 +377,12 @@
 			} else if (availableTags.length > 0) {
 				handleAddTag((completion ?? availableTags[0]).id);
 			}
+		} else if (e.key === 'Backspace' && inputValue === '' && shownTagIds.length > 0) {
+			e.preventDefault();
+			handleRemoveTag(shownTagIds[shownTagIds.length - 1]);
 		} else if (e.key === 'Escape') {
+			// Handled here, so a modal around the picker stays open.
+			e.preventDefault();
 			inputValue = '';
 			open = false;
 			inputElement?.blur();
@@ -465,122 +402,134 @@
 	}
 
 	// When the dropdown opens (via button click or parent programmatically setting `open`),
-	// compute position and focus the input.
+	// focus the input.
 	$effect(() => {
 		if (open && !disabled) {
-			calculatePosition();
 			setTimeout(() => inputElement?.focus(), 0);
 		}
 	});
 </script>
 
-<div bind:this={rootElement} class="flex min-w-0 flex-wrap items-center gap-1">
-	<!-- Selected tags -->
-	{#each shownTagIds.filter((id) => getTag(id)) as tagId (tagId)}
-		{@const tag = getTag(tagId)}
-		<Tag
-			label={tag?.name}
-			color={tag?.color}
-			icon={tagIcon(tag, applicationGroup)}
-			title={tagTooltip(tag, tagGroups)}
-			isShiny={isApplicationTag(tag, applicationGroup)}
-			pill={!disabled}
-			removable={!disabled && !!(onRemove || isEntityMode)}
-			onRemove={() => removeTag(tagId)}
-		/>
-	{/each}
+{#snippet picker()}
+	<div bind:this={rootElement} class="flex min-w-0 flex-wrap items-center gap-1">
+		<!-- Selected tags -->
+		{#each shownTagIds.filter((id) => getTag(id)) as tagId (tagId)}
+			{@const tag = getTag(tagId)}
+			<Tag
+				label={tag?.name}
+				color={tag?.color}
+				icon={tagIcon(tag, applicationGroup)}
+				title={tagTooltip(tag, tagGroups)}
+				isShiny={isApplicationTag(tag, applicationGroup)}
+				pill={!disabled}
+				removable={canEdit && !!(onRemove || onChange || isEntityMode)}
+				onRemove={() => removeTag(tagId)}
+			/>
+		{/each}
 
-	<!-- Add button / dropdown (hide when no tags to add and creation disabled).
-	     `hideAddButton` hides only the "+" affordance — the input still renders while `open`. -->
-	{#if (onAdd || isEntityMode) && !disabled && (canCreateTags || tags.some((t) => !shownTagIds.includes(t.id)))}
-		<div bind:this={triggerElement} class="relative flex min-h-5 items-center">
-			{#if open}
-				<!-- Input for searching/creating tags. It widens while it shows a completion, so the
-				     ghosted tag fits inside it after the typed text, as in global search. -->
-				<div class="relative">
-					<input
-						bind:this={inputElement}
-						bind:value={inputValue}
-						type="text"
-						placeholder={ghostTag ? '' : tags_addTag()}
-						aria-label={tags_addTag()}
-						class="h-6 rounded-full px-2 text-xs transition-[width] focus:outline-none focus:ring-1 focus:ring-blue-500 {ghostTag
-							? 'w-56'
-							: 'w-24'}"
-						style="border: 1px solid var(--color-border-input); background: var(--color-bg-input); color: var(--color-text-primary)"
-						onfocus={() => (open = true)}
-						onblur={handleBlur}
-						onkeydown={handleKeydown}
-					/>
-					{#if ghostTag}
-						{@const tag = ghostTag}
-						<!-- px-[9px]: the input's px-2 plus its 1px border. -->
-						<InputGhost value={inputValue} class="px-[9px] text-xs">
-							<TagCompletionGhost
-								{tag}
-								{applicationGroup}
-								onAccept={() => handleAddTag(tag.id, true)}
-							/>
-						</InputGhost>
-					{/if}
-				</div>
-			{:else if !hideAddButton}
-				<!-- Add button -->
-				<button
-					type="button"
-					onclick={handleAddClick}
-					class="text-tertiary hover:text-secondary inline-flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-gray-400 transition-colors dark:border-gray-500"
-				>
-					<Plus class="h-3 w-3" />
-				</button>
-			{/if}
-		</div>
-	{/if}
-</div>
-
-<!-- Portal dropdown to body to escape stacking contexts -->
-{#if showDropdown && portalContainer}
-	<div
-		bind:this={dropdownElement}
-		use:portal
-		class="select-dropdown fixed z-[9999] min-w-40 overflow-y-auto rounded-md shadow-lg"
-		style:top={dropdownPosition.top === null ? undefined : `${dropdownPosition.top}px`}
-		style:bottom={dropdownPosition.bottom === null ? undefined : `${dropdownPosition.bottom}px`}
-		style:left="{dropdownPosition.left}px"
-		style:max-height="{dropdownPosition.maxHeight}px"
-	>
-		{#if unavailableNote}
-			<p class="text-tertiary border-b px-3 py-2 text-xs" style="border-color: var(--color-border)">
-				{unavailableNote}
-			</p>
+		<!-- Add button / dropdown (hide when no tags to add and creation disabled).
+		     `hideAddButton` hides only the "+" affordance — the input still renders while `open`. -->
+		{#if canEdit && (canCreateTags || tags.some((t) => !shownTagIds.includes(t.id)))}
+			<div bind:this={triggerElement} class="relative flex min-h-5 items-center">
+				{#if open}
+					<!-- Input for searching/creating tags. It widens while it shows a completion, so the
+					     ghosted tag fits inside it after the typed text, as in global search. -->
+					<div class="relative">
+						<input
+							bind:this={inputElement}
+							bind:value={inputValue}
+							type="text"
+							placeholder={ghostTag ? '' : tags_addTag()}
+							aria-label={tags_addTag()}
+							role="combobox"
+							aria-expanded={showDropdown}
+							aria-controls={dropdownId}
+							aria-autocomplete="list"
+							class="h-6 rounded-full px-2 text-xs transition-[width] focus:outline-none focus:ring-1 focus:ring-blue-500 {ghostTag
+								? 'w-56'
+								: 'w-24'}"
+							style="border: 1px solid var(--color-border-input); background: var(--color-bg-input); color: var(--color-text-primary)"
+							onfocus={() => (open = true)}
+							onblur={handleBlur}
+							onkeydown={handleKeydown}
+						/>
+						{#if ghostTag}
+							{@const tag = ghostTag}
+							<!-- px-[9px]: the input's px-2 plus its 1px border. -->
+							<InputGhost value={inputValue} class="px-[9px] text-xs">
+								<TagCompletionGhost
+									{tag}
+									{applicationGroup}
+									onAccept={() => handleAddTag(tag.id, true)}
+								/>
+							</InputGhost>
+						{/if}
+					</div>
+				{:else if !hideAddButton}
+					<!-- Add button -->
+					<button
+						type="button"
+						onclick={handleAddClick}
+						class="text-tertiary hover:text-secondary inline-flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-gray-400 transition-colors dark:border-gray-500"
+					>
+						<Plus class="h-3 w-3" />
+					</button>
+				{/if}
+			</div>
 		{/if}
-		<CreatableOptionList
-			options={availableTags.map((tag) => ({
-				id: tag.id,
-				label: tag.name,
-				group: tagGroupLabel(groupOf(tag, tagGroups))
-			}))}
-			onSelect={handleAddTag}
-			createLabel={showCreateOption
-				? isCreating
-					? common_creating()
-					: tags_createTagQuoted({ name: inputValue.trim() })
-				: null}
-			onCreate={handleCreateTag}
-			createOnEnter
-			{highlighted}
-			creating={isCreating}
-		>
-			{#snippet row(option)}
-				{@const tag = getTag(option.id)}
-				<Tag
-					label={tag?.name}
-					color={tag?.color}
-					icon={tagIcon(tag, applicationGroup)}
-					title={tagTooltip(tag, tagGroups)}
-					isShiny={isApplicationTag(tag, applicationGroup)}
-				/>
-			{/snippet}
-		</CreatableOptionList>
 	</div>
+{/snippet}
+
+{#if label}
+	<div class="space-y-2">
+		<div class="text-secondary block text-sm font-medium">{label}</div>
+		{@render picker()}
+	</div>
+{:else}
+	{@render picker()}
 {/if}
+
+<!-- Focus stays in the input, whose keydown drives the list. -->
+<Popover
+	triggerElement={triggerElement ?? null}
+	isOpen={showDropdown}
+	role="presentation"
+	id={dropdownId}
+	align="start"
+	minWidth="10rem"
+	onClose={() => (open = false)}
+>
+	{#if unavailableNote}
+		<p class="text-tertiary border-b px-3 py-2 text-xs" style="border-color: var(--color-border)">
+			{unavailableNote}
+		</p>
+	{/if}
+	<CreatableOptionList
+		options={availableTags.map((tag) => ({
+			id: tag.id,
+			label: tag.name,
+			group: tagGroupLabel(groupOf(tag, tagGroups))
+		}))}
+		onSelect={handleAddTag}
+		createLabel={showCreateOption
+			? isCreating
+				? common_creating()
+				: tags_createTagQuoted({ name: inputValue.trim() })
+			: null}
+		onCreate={handleCreateTag}
+		createOnEnter
+		{highlighted}
+		creating={isCreating}
+	>
+		{#snippet row(option)}
+			{@const tag = getTag(option.id)}
+			<Tag
+				label={tag?.name}
+				color={tag?.color}
+				icon={tagIcon(tag, applicationGroup)}
+				title={tagTooltip(tag, tagGroups)}
+				isShiny={isApplicationTag(tag, applicationGroup)}
+			/>
+		{/snippet}
+	</CreatableOptionList>
+</Popover>

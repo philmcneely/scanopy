@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-	CLIENT_QUERY,
 	decodeListParams,
 	hasListParams,
 	listParams,
@@ -58,11 +57,11 @@ const virtualizedBy: FieldConfig<Row> = {
 	filterCodec: valuesOrNoneCodec('virtualization_service_names', 'include_unvirtualized')
 };
 const tags: FieldConfig<Row> = { key: 'tags', label: 'Tags', type: 'array', filterable: true };
-const name: FieldConfig<Row> = { key: 'name', label: 'Name', type: 'string', sortable: true };
+const name: FieldConfig<Row> = { key: 'name', label: 'Name', type: 'string' };
 const FIELDS = [site, ports, enabled, virtualizedBy, tags, name];
 const FIELD_KEYS = new Set(FIELDS.map(getFieldKey));
 
-const SERVER: ServerQuery = { search: true, tags: true, stale: true, order: true, fields: true };
+const SERVER: ServerQuery = { tags: true, stale: true };
 const DEFAULTS: TableDefaults = { sort: { field: 'name', direction: 'asc' } };
 
 function state(overrides: Partial<ListQueryState> = {}): ListQueryState {
@@ -95,8 +94,8 @@ function reopened(url: URLSearchParams): ListQueryState {
 
 /** A link reopens to the same request: the property every shared URL relies on. */
 function expectRoundTrip(s: ListQueryState, server: ServerQuery = SERVER) {
-	const sent = listParams(s, FIELDS, DEFAULTS, server);
-	const again = listParams(reopened(sent.url), FIELDS, DEFAULTS, server);
+	const sent = listParams(s, FIELDS, server);
+	const again = listParams(reopened(sent.url), FIELDS, server);
 	expect(again.url.toString()).toBe(sent.url.toString());
 	expect(again.request.toString()).toBe(sent.request.toString());
 }
@@ -104,14 +103,13 @@ function expectRoundTrip(s: ListQueryState, server: ServerQuery = SERVER) {
 describe('listParams round trip', () => {
 	it('carries a sort and a grouping, including grouping explicitly off', () => {
 		expectRoundTrip(state({ sort: { field: 'name', direction: 'desc' }, group: 'site_id' }));
-		expectRoundTrip(state({ sort: { field: null, direction: 'asc' } }), CLIENT_QUERY);
+		expectRoundTrip(state({ sort: { field: null, direction: 'asc' } }));
 	});
 
 	it('carries a tag-group sort and grouping in the tag-group params', () => {
 		const sent = listParams(
 			state({ sort: { field: 'tag_group:g1', direction: 'desc' }, group: 'tag_group:g2' }),
 			FIELDS,
-			DEFAULTS,
 			SERVER
 		);
 		expect(sent.request.get('order_by_tag_group')).toBe('g1');
@@ -134,19 +132,6 @@ describe('listParams round trip', () => {
 		);
 	});
 
-	it('carries a client-side boolean with neither box checked', () => {
-		const neither = filters(
-			(s) => toggleBoolean(s, 'is_enabled', 'showFalse', false)?.state ?? null,
-			(s) => toggleBoolean(s, 'is_enabled', 'showTrue', false)?.state ?? null
-		);
-		expectRoundTrip(state({ filterState: neither }), CLIENT_QUERY);
-		const view = decodeListParams(
-			listParams(state({ filterState: neither }), FIELDS, DEFAULTS, CLIENT_QUERY).url,
-			FIELDS
-		);
-		expect(view.filterState.is_enabled).toMatchObject({ showTrue: false, showFalse: false });
-	});
-
 	it('splits a values-or-none filter across its two params', () => {
 		const s = state({
 			filterState: filters(
@@ -154,7 +139,7 @@ describe('listParams round trip', () => {
 				(f) => toggleValue(f, 'virtualized_by', NO_VALUE)
 			)
 		});
-		const { request } = listParams(s, FIELDS, DEFAULTS, SERVER);
+		const { request } = listParams(s, FIELDS, SERVER);
 		expect(request.getAll('virtualization_service_names')).toEqual(['Proxmox']);
 		expect(request.get('include_unvirtualized')).toBe('true');
 		expectRoundTrip(s);
@@ -176,29 +161,20 @@ describe('listParams round trip', () => {
 });
 
 describe('listParams defaults and the server split', () => {
-	it('writes nothing for a client list at its defaults', () => {
-		expect(listParams(state(), FIELDS, DEFAULTS, CLIENT_QUERY).url.toString()).toBe('');
-	});
-
 	it('always orders a server list, which does not know the tab default', () => {
-		const { request } = listParams(state(), FIELDS, DEFAULTS, SERVER);
+		const { request } = listParams(state(), FIELDS, SERVER);
 		expect(request.get('order_by')).toBe('name');
 		expect(request.get('order_direction')).toBe('asc');
 		expect(narrowsList(request)).toBe(false);
 	});
 
-	it('keeps client-side parts out of the request but in the URL', () => {
-		const s = state({
-			filterState: filters((f) => toggleValue(f, 'site_id', 'site-a')),
-			search: 'x'
+	it('keeps a part the endpoint does not take out of the request but in the URL', () => {
+		const { url, request } = listParams(state({ staleOnly: true }), FIELDS, {
+			...SERVER,
+			stale: false
 		});
-		const { url, request } = listParams(s, FIELDS, DEFAULTS, {
-			...CLIENT_QUERY,
-			stale: true
-		});
-		expect(url.getAll('site_ids')).toEqual(['site-a']);
-		expect(url.get('search')).toBe('x');
-		expect(request.toString()).toBe('');
+		expect(url.get('stale')).toBe('true');
+		expect(request.has('stale')).toBe(false);
 	});
 });
 
@@ -226,7 +202,7 @@ describe('decodeListParams with malformed or stale params', () => {
 	it("never reads a param for a filter the list doesn't have, and drops it on the next write", () => {
 		const url = new URLSearchParams('removed_field=x&site_ids=site-a');
 		expect(hasListParams(url, FIELDS)).toBe(true);
-		const again = listParams(reopened(url), FIELDS, DEFAULTS, CLIENT_QUERY).url;
+		const again = listParams(reopened(url), FIELDS, SERVER).url;
 		expect(again.has('removed_field')).toBe(false);
 		expect(again.getAll('site_ids')).toEqual(['site-a']);
 	});

@@ -147,8 +147,6 @@ impl ServiceFactory {
 
         let tag_group_service = Arc::new(TagGroupService::new(
             storage.tag_groups.clone(),
-            storage.tags.clone(),
-            storage.entity_tags.clone(),
             event_bus.clone(),
         ));
         let tag_service = Arc::new(TagService::new(
@@ -157,6 +155,7 @@ impl ServiceFactory {
             tag_group_service.clone(),
             event_bus.clone(),
         ));
+        let _ = tag_group_service.set_tag_service(tag_service.clone());
         let entity_tag_service = Arc::new(EntityTagService::new(
             storage.entity_tags.clone(),
             tag_service.clone(),
@@ -175,12 +174,6 @@ impl ServiceFactory {
             entity_tag_service.clone(),
         ));
 
-        let dependency_service = Arc::new(DependencyService::new(
-            storage.dependencies.clone(),
-            storage.dependency_members.clone(),
-            event_bus.clone(),
-            entity_tag_service.clone(),
-        ));
         let organization_service = Arc::new(OrganizationService::new(
             storage.organizations.clone(),
             event_bus.clone(),
@@ -225,16 +218,51 @@ impl ServiceFactory {
             event_bus.clone(),
         ));
 
+        let dependency_service = Arc::new(DependencyService::new(
+            storage.dependencies.clone(),
+            storage.dependency_members.clone(),
+            binding_service.clone(),
+            event_bus.clone(),
+            entity_tag_service.clone(),
+        ));
+
         let ip_address_service = Arc::new(IPAddressService::new(
             storage.ip_addresses.clone(),
             event_bus.clone(),
         ));
 
-        // No CrudService, so built straight from the pool (see discovery_warnings/mod.rs). Shared by
-        // DiscoveryService, which records and reads a run's warnings, and SubnetService, which reads
-        // where an assumed range came from.
-        let discovery_warning_service =
-            Arc::new(DiscoveryWarningService::new(storage.pool.clone()));
+        // Shared by DiscoveryService, which records and reads a run's warnings, and SubnetService,
+        // which reads where an assumed range came from.
+        let discovery_warning_service = Arc::new(DiscoveryWarningService::new(
+            storage.discovery_warnings.clone(),
+        ));
+
+        // Built before InterfaceService, which needs it to persist candidates on the discovery ingest
+        // path.
+        let interface_neighbor_service = Arc::new(InterfaceNeighborService::new(
+            storage.interface_neighbor_candidates.clone(),
+            storage.interface_neighbor_interfaces.clone(),
+            storage.interface_neighbor_hosts.clone(),
+        ));
+
+        // InterfaceService needs IPAddressService for validation and InterfaceNeighborService to
+        // persist candidate evidence on discovery ingest.
+        let interface_service = Arc::new(InterfaceService::new(
+            storage.interfaces.clone(),
+            event_bus.clone(),
+            ip_address_service.clone(),
+            interface_neighbor_service.clone(),
+        ));
+
+        // VlanService reads each VLAN's serving interfaces through InterfaceService. Built before
+        // SubnetService, which reads each subnet's VLANs through it.
+        let vlan_service = Arc::new(VlanService::new(
+            storage.vlans.clone(),
+            event_bus.clone(),
+            entity_tag_service.clone(),
+            storage.subnet_vlan.clone(),
+            interface_service.clone(),
+        ));
 
         let subnet_service = Arc::new(SubnetService::new(
             storage.subnets.clone(),
@@ -244,6 +272,7 @@ impl ServiceFactory {
             // depends on no service and is constructed above.
             ip_address_service.clone(),
             discovery_warning_service.clone(),
+            vlan_service.clone(),
         ));
 
         let site_service = Arc::new(SiteService::new(
@@ -265,30 +294,7 @@ impl ServiceFactory {
             dependency_service.clone(),
             event_bus.clone(),
             entity_tag_service.clone(),
-        ));
-
-        // GH #701 multi-neighbour tables: no CrudService, so constructed straight from the pool
-        // rather than a StorageFactory field (see interface_neighbors/service.rs). Built before
-        // InterfaceService, which needs it to persist candidates on the discovery ingest path.
-        let interface_neighbor_service =
-            Arc::new(InterfaceNeighborService::new(storage.pool.clone()));
-
-        // InterfaceService needs IPAddressService for validation and InterfaceNeighborService to
-        // persist candidate evidence on discovery ingest.
-        let interface_service = Arc::new(InterfaceService::new(
-            storage.interfaces.clone(),
-            event_bus.clone(),
-            ip_address_service.clone(),
-            interface_neighbor_service.clone(),
-        ));
-
-        // VlanService reads each VLAN's serving interfaces through InterfaceService.
-        let vlan_service = Arc::new(VlanService::new(
-            storage.vlans.clone(),
-            event_bus.clone(),
-            entity_tag_service.clone(),
-            storage.subnet_vlan.clone(),
-            interface_service.clone(),
+            subnet_service.clone(),
         ));
 
         let credential_service = Arc::new(CredentialService::new(
@@ -298,7 +304,8 @@ impl ServiceFactory {
             site_service.clone(),
             ip_address_service.clone(),
             organization_service.clone(),
-            storage.pool.clone(),
+            storage.site_credentials.clone(),
+            storage.host_credentials.clone(),
         ));
 
         // Already implements Arc internally due to scheduler + sessions
@@ -393,11 +400,13 @@ impl ServiceFactory {
         // Create DaemonService with most dependencies directly (not host_service - circular)
         let daemon_service = Arc::new(DaemonService::new(
             storage.daemons.clone(),
+            storage.daemon_interfaced_subnets.clone(),
             event_bus.clone(),
             entity_tag_service.clone(),
             discovery_service.clone(),
             credential_service.clone(),
             subnet_service.clone(),
+            vlan_service.clone(),
             site_service.clone(),
             organization_service.clone(),
             user_service.clone(),
@@ -453,7 +462,6 @@ impl ServiceFactory {
         ));
 
         let snapshot_service = SnapshotService::new(
-            Arc::new(storage.pool.clone()),
             storage.snapshots.clone(),
             event_bus.clone(),
             site_service.clone(),
@@ -559,6 +567,13 @@ impl ServiceFactory {
         } else {
             None
         };
+        // Per-occurrence subscriber failures go to PostHog from Scanopy Cloud only; a self-hosted
+        // server with a PostHog key sends nothing it didn't before.
+        if deployment_type == crate::server::config::DeploymentType::Cloud
+            && let Some(posthog) = &posthog_service
+        {
+            event_bus.set_failure_reporter(posthog.clone());
+        }
 
         let oidc_service = config
             .oidc_providers

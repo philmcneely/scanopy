@@ -1,4 +1,4 @@
-<script lang="ts" generics="T">
+<script lang="ts" generics="T extends RowData">
 	import {
 		ArrowUpDown,
 		ArrowUpNarrowWide,
@@ -6,15 +6,15 @@
 		ChevronDown,
 		ChevronRight
 	} from 'lucide-svelte';
-	import {
-		getCoreRowModel,
-		type ColumnDef,
-		type ColumnSizingInfoState,
-		type Header,
-		type Row,
-		type Updater
+	import type {
+		ColumnDef,
+		columnResizingState,
+		Header,
+		Row,
+		RowData,
+		Updater
 	} from '@tanstack/table-core';
-	import { createSvelteTable } from './createSvelteTable.svelte';
+	import { createSvelteTable, type EntityTableFeatures } from './createSvelteTable.svelte';
 	import type { Snippet } from 'svelte';
 	import {
 		clampColumnWidth,
@@ -30,7 +30,8 @@
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { shortcutLabel } from '$lib/shared/utils/shortcuts';
 	import { getFieldValue } from '../controls/fieldValues';
-	import type { RenderGroup, TreeCell, TreeEntry } from '../controls/grouping';
+	import { iconButtonClass, resolveTooltip, shownActions } from '../controls/actionShortcuts';
+	import type { RenderGroup, TreeCell, TreeContinuation, TreeEntry } from '../controls/grouping';
 	import type { SortState } from '../controls/sorting';
 	import type { CardAction, GroupSlice } from '../types';
 	import {
@@ -112,7 +113,7 @@
 	 * columns through a closure instead, so cells stay live regardless.
 	 */
 	let columnsKey = $derived(columns.map((c) => c.id).join('\0'));
-	let columnDefs = $derived.by<ColumnDef<T>[]>(() => {
+	let columnDefs = $derived.by<ColumnDef<EntityTableFeatures, T>[]>(() => {
 		void columnsKey;
 		return columns.map((column) => ({
 			id: column.id,
@@ -127,7 +128,7 @@
 	 * Drag progress table-core tracks while a column is being resized. Kept here
 	 * rather than by the caller: it is meaningless once the pointer is released.
 	 */
-	let columnSizingInfo = $state<ColumnSizingInfoState>({
+	let columnResizing = $state<columnResizingState>({
 		startOffset: null,
 		startSize: null,
 		deltaOffset: null,
@@ -186,19 +187,16 @@
 		get columns() {
 			return columnDefs;
 		},
-		getCoreRowModel: getCoreRowModel(),
 		// Rows arrive already filtered, sorted and paged. table-core is given no
 		// row model that could reorder or drop one, so its view cannot drift from
 		// what the controls produced.
 		manualSorting: true,
-		manualFiltering: true,
-		manualPagination: true,
 		getRowId: (row: T) => getItemId(row),
 		enableColumnResizing: true,
 		columnResizeMode: 'onChange',
 		onColumnSizingChange: (updater) => setSizing(resolve(updater, columnSizing)),
-		onColumnSizingInfoChange: (updater) => {
-			columnSizingInfo = resolve(updater, columnSizingInfo);
+		onColumnResizingChange: (updater) => {
+			columnResizing = resolve(updater, columnResizing);
 		},
 		state: {
 			get sorting() {
@@ -209,8 +207,8 @@
 			get columnSizing() {
 				return columnSizing;
 			},
-			get columnSizingInfo() {
-				return columnSizingInfo;
+			get columnResizing() {
+				return columnResizing;
 			}
 		}
 	}));
@@ -227,7 +225,7 @@
 	 * start where the edge is. Reading `view.headers` again re-applies the table
 	 * options, so the handler sees the seeded size.
 	 */
-	function startResize(event: MouseEvent | TouchEvent, header: Header<T, unknown>) {
+	function startResize(event: MouseEvent | TouchEvent, header: Header<EntityTableFeatures, T>) {
 		const th = (event.currentTarget as HTMLElement).closest('th');
 		if (!th) return;
 		event.preventDefault();
@@ -337,6 +335,21 @@
 		if (pin === 'right')
 			return { class: 'pin-right pin-edge-left', style: '--pin-right: var(--pin-actions-width)' };
 		return { class: 'relative', style: '' };
+	}
+
+	/**
+	 * Whether a column's right edge is a pinned column's divider: the pinned name's own edge, or
+	 * the edge beside the pinned tags. The divider line already shows there, so the resize grip
+	 * hides at rest and appears only on hover, focus or drag.
+	 */
+	function edgeIsDivider(columnId: string): boolean {
+		const at = view.headers.findIndex((h) => h.column.id === columnId);
+		const here = byId.get(columnId);
+		const next = byId.get(view.headers[at + 1]?.column.id ?? '');
+		return (
+			(here !== undefined && pinOf(here) === 'left') ||
+			(next !== undefined && pinOf(next) === 'right')
+		);
 	}
 
 	// The name pins beside the checkbox and tags beside the actions, so each needs its neighbour's
@@ -542,12 +555,18 @@
 <!-- `rootRanges` holds the merged group's roots' own page ranges; only the top level has any. -->
 {#snippet treeEntries(entries: TreeEntry<T>[], rootRanges: Map<string, GroupSlice> | null)}
 	{#each entries as entry (entryKey(entry))}
-		{@const row = rowById.get(getItemId(entry.item))}
-		{#if entry.type === 'row'}
+		{#if entry.type === 'continued'}
+			{@render continuationRow(entry)}
+			{#if !collapsed.has(entry.key)}
+				{@render treeEntries(entry.entries, null)}
+			{/if}
+		{:else if entry.type === 'row'}
+			{@const row = rowById.get(getItemId(entry.item))}
 			{#if row}
 				{@render bodyRow(row, entry.depth, { section: null, range: null })}
 			{/if}
 		{:else}
+			{@const row = rowById.get(getItemId(entry.item))}
 			{#if row}
 				{@render bodyRow(row, entry.depth, {
 					section: entry,
@@ -559,6 +578,43 @@
 			{/if}
 		{/if}
 	{/each}
+{/snippet}
+
+<!-- The head of a tree whose root row is on another page: the root's name, standing in for its
+     row so this page's rows of the tree nest under it. Not a row of the page, so it has no
+     checkbox or actions. -->
+{#snippet continuationRow(entry: TreeContinuation<T>)}
+	{@const isCollapsed = collapsed.has(entry.key)}
+	<tr class="border-t" style="border-color: var(--color-border)">
+		<th
+			scope="rowgroup"
+			colspan={spannedColumns}
+			class="px-[var(--cell-px)] py-[var(--cell-py)] text-left font-medium"
+		>
+			<button
+				type="button"
+				onclick={() => onToggleCollapse(entry.key)}
+				aria-expanded={!isCollapsed}
+				class="text-secondary pin-content flex w-max items-center gap-1.5 text-sm"
+			>
+				{#if isCollapsed}
+					<ChevronRight class="h-4 w-4" aria-hidden="true" />
+				{:else}
+					<ChevronDown class="h-4 w-4" aria-hidden="true" />
+				{/if}
+				<span>{entry.label}</span>
+				{#if entry.range}
+					<span class="text-tertiary text-xs font-normal">
+						{common_groupTotalShowing({
+							total: entry.range.total,
+							start: entry.range.start,
+							end: entry.range.end
+						})}
+					</span>
+				{/if}
+			</button>
+		</th>
+	</tr>
 {/snippet}
 
 <!-- A tree row's chevron, or the same width of space for a row with no children, so names line
@@ -601,25 +657,35 @@
 	{/if}
 {/snippet}
 
-{#snippet bodyRow(row: Row<T>, depth: number, tree: TreeCell<T> | null)}
+{#snippet bodyRow(row: Row<EntityTableFeatures, T>, depth: number, tree: TreeCell<T> | null)}
 	{@const item = row.original}
 	{@const itemId = getItemId(item)}
 	{@const isSelected = selectedIds.has(itemId)}
+	{@const rowActions = getActions ? getActions(item) : null}
+	{@const openAction = rowActions?.find((a) => a.isOpen && !a.unavailable)}
 	<!-- The checkbox is the keyboard path; the row click is a larger mouse target for the same. -->
 	<tr
 		data-keeps-selection
-		class="border-t bg-[var(--row-tint)] transition-colors {selectable
+		class="border-t bg-[var(--row-tint)] transition-colors {selectable || openAction
 			? 'cursor-pointer'
 			: ''} {isSelected
 			? '[--row-tint:rgb(0_0_0/0.05)] dark:[--row-tint:rgb(255_255_255/0.05)]'
 			: 'hover:[--row-tint:rgb(0_0_0/0.03)] dark:hover:[--row-tint:rgb(255_255_255/0.03)]'}"
 		style="border-color: var(--color-border)"
 		onmousedown={(e) => {
-			// Shift+click would otherwise select the text between the two rows.
-			if (selectable && e.shiftKey) e.preventDefault();
+			// Shift+click would otherwise select the text between the two rows, and a double-click
+			// the word under the pointer.
+			if ((selectable && e.shiftKey) || (openAction && e.detail > 1 && isRowSelectClick(e))) {
+				e.preventDefault();
+			}
 		}}
 		onclick={(e) => {
+			// The second click of a double-click opens the row; it doesn't undo the first's selection.
+			if (openAction && e.detail > 1) return;
 			if (selectable && isRowSelectClick(e)) onClickRow(itemId, e.shiftKey);
+		}}
+		ondblclick={(e) => {
+			if (openAction && isRowSelectClick(e)) openAction.onClick();
 		}}
 	>
 		{#if selectable}
@@ -683,15 +749,12 @@
 			{/if}
 		{/each}
 
-		{#if getActions}
-			{@const actions = getActions(item)}
+		{#if rowActions}
+			{@const actions = shownActions(rowActions)}
 			<td class="pin-right px-[var(--cell-px)] py-[var(--cell-py)] text-right align-middle">
 				<div class="flex items-center justify-end gap-1">
 					{#each actions as action (action.label)}
-						{@const tip =
-							typeof action.tooltip === 'function'
-								? action.tooltip(!!action.disabled)
-								: (action.tooltip ?? action.label)}
+						{@const tip = resolveTooltip(action) ?? action.label}
 						<!--
 									The label floats in a tooltip rather than growing inside the
 									button. An in-flow label has to span its neighbours to fit its
@@ -700,11 +763,11 @@
 						<button
 							type="button"
 							onclick={action.onClick}
-							disabled={action.disabled}
+							disabled={!!action.unavailable}
 							use:tooltip
 							data-tooltip={tip}
 							aria-label={action.label}
-							class="{action.class || 'btn-icon'} disabled:cursor-not-allowed disabled:opacity-50"
+							class="{iconButtonClass(action.tone)} disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							<action.icon size={16} class={action.animation || ''} />
 						</button>
@@ -750,7 +813,7 @@
 	{/if}
 {/snippet}
 
-{#snippet resizeHandle(header: Header<T, unknown>, column: EntityColumn<T>)}
+{#snippet resizeHandle(header: Header<EntityTableFeatures, T>, column: EntityColumn<T>)}
 	{@const width = columnSizing[column.id]}
 	<!--
 		A focusable separator is the ARIA pattern for a splitter, so arrow keys
@@ -778,10 +841,10 @@
 	>
 		<!-- A short grip at rest so the handle can be found; full height while in use. -->
 		<span
-			class="w-0.5 self-center rounded-full transition-all {columnSizingInfo.isResizingColumn ===
+			class="w-0.5 self-center rounded-full transition-all {columnResizing.isResizingColumn ===
 			column.id
 				? 'h-full bg-blue-500'
-				: 'h-1/2 bg-black/20 group-hover:h-full group-hover:bg-blue-500/60 group-focus-visible:h-full group-focus-visible:bg-blue-500 dark:bg-white/25'}"
+				: `h-1/2 group-hover:h-full group-hover:bg-blue-500/60 group-focus-visible:h-full group-focus-visible:bg-blue-500 ${edgeIsDivider(column.id) ? 'bg-transparent' : 'bg-black/20 dark:bg-white/25'}`}"
 		></span>
 	</div>
 {/snippet}

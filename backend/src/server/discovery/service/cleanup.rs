@@ -140,10 +140,10 @@ impl DiscoveryService {
         if reaped.is_empty() {
             return;
         }
-        let reaped_count = reaped.len();
 
-        // Storage writes run on their own task, for the same reason as `update_session`'s: the
-        // sessions have already left the maps, so an interrupted write would lose their record.
+        // Each reaped session publishes its own discovery_failed. Storage writes run on their own
+        // task, for the same reason as `update_session`'s: the sessions have already left the
+        // maps, so an interrupted write would lose their record.
         match self.self_ref.upgrade() {
             Some(this) => {
                 if let Err(e) =
@@ -154,8 +154,6 @@ impl DiscoveryService {
             }
             None => self.finish_reaped(reaped, now).await,
         }
-
-        tracing::info!(count = reaped_count, "Reaped stalled discovery sessions");
     }
 
     /// Ask each stalled session's daemon to stop, concurrently. Returns the sessions whose daemon
@@ -196,24 +194,22 @@ impl DiscoveryService {
 
     /// The storage and event work for reaped sessions. Runs with no session lock held.
     async fn finish_reaped(&self, reaped: Vec<state::ReapedSession>, now: chrono::DateTime<Utc>) {
-        for state::ReapedSession { session, promoted } in reaped {
+        for state::ReapedSession {
+            session,
+            promoted,
+            previous_phase,
+        } in reaped
+        {
             let daemon_id = session.daemon_id;
             let site_id = session.site_id;
             super::dispatch::record_session_duration(&session);
 
-            // The one event a stall produces: `Failed`, carrying why. Metrics and analytics used
-            // to see a stall as a user's cancel.
-            if let Err(e) = self
-                .event_bus()
-                .publish(session.into_discovery_event())
-                .await
-            {
-                tracing::error!(
-                    session_id = %session.session_id,
-                    error = %e,
-                    "Failed to publish the reaped session's terminal event"
-                );
-            }
+            // The one event a stall produces: `Failed`, carrying why, the phase it stalled in and
+            // when the daemon was last heard from. Metrics and analytics used to see a stall as a
+            // user's cancel.
+            let mut event = session.into_discovery_event();
+            event.scope.previous_phase = Some(previous_phase);
+            self.event_bus().publish(event).await;
 
             self.record_stalled_session(session, now).await;
             if let Some(promoted) = promoted {

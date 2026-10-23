@@ -136,7 +136,11 @@ impl HostService {
         }
 
         let updated = self
-            .update(&mut updated_host, authentication.clone())
+            .update(
+                &mut updated_host,
+                authentication.clone(),
+                UpdateReason::EntityRequested,
+            )
             .await?;
 
         // Sync ip_addresses only if provided (None means preserve existing)
@@ -203,7 +207,11 @@ impl HostService {
         let to_delete: Vec<Uuid> = existing_ids.difference(&input_ids).copied().collect();
         if !to_delete.is_empty() {
             self.ip_address_service
-                .delete_many(&to_delete, authentication.clone())
+                .delete_many(
+                    &to_delete,
+                    authentication.clone(),
+                    DeletionReason::EntityRequested,
+                )
                 .await?;
         }
 
@@ -219,7 +227,11 @@ impl HostService {
                 }
 
                 self.ip_address_service
-                    .update(&mut ip_address, authentication.clone())
+                    .update(
+                        &mut ip_address,
+                        authentication.clone(),
+                        UpdateReason::EntityRequested,
+                    )
                     .await?;
             } else {
                 // Create new interface with client-provided ID
@@ -254,7 +266,11 @@ impl HostService {
         let to_delete: Vec<Uuid> = existing_ids.difference(&input_ids).copied().collect();
         if !to_delete.is_empty() {
             self.port_service
-                .delete_many(&to_delete, authentication.clone())
+                .delete_many(
+                    &to_delete,
+                    authentication.clone(),
+                    DeletionReason::EntityRequested,
+                )
                 .await?;
         }
 
@@ -270,7 +286,11 @@ impl HostService {
                 }
 
                 self.port_service
-                    .update(&mut port, authentication.clone())
+                    .update(
+                        &mut port,
+                        authentication.clone(),
+                        UpdateReason::EntityRequested,
+                    )
                     .await?;
             } else {
                 // Create new port with client-provided ID
@@ -305,7 +325,11 @@ impl HostService {
         let to_delete: Vec<Uuid> = existing_ids.difference(&input_ids).copied().collect();
         if !to_delete.is_empty() {
             self.interface_service
-                .delete_many(&to_delete, authentication.clone())
+                .delete_many(
+                    &to_delete,
+                    authentication.clone(),
+                    DeletionReason::EntityRequested,
+                )
                 .await?;
         }
 
@@ -321,7 +345,11 @@ impl HostService {
                 }
 
                 self.interface_service
-                    .update(&mut interface, authentication.clone())
+                    .update(
+                        &mut interface,
+                        authentication.clone(),
+                        UpdateReason::EntityRequested,
+                    )
                     .await?;
             } else {
                 // Create new interface with client-provided ID
@@ -361,9 +389,28 @@ impl HostService {
         let to_delete: Vec<Uuid> = existing_ids.difference(&input_ids).copied().collect();
         if !to_delete.is_empty() {
             self.service_service
-                .delete_many(&to_delete, authentication.clone())
+                .delete_many(
+                    &to_delete,
+                    authentication.clone(),
+                    DeletionReason::EntityRequested,
+                )
                 .await?;
         }
+        // Deleting a runtime deletes its containers. One still in the form went with it, so it
+        // is neither updated nor recreated.
+        let existing_ids: HashSet<Uuid> = if to_delete.is_empty() {
+            existing_ids
+        } else {
+            let live: HashSet<Uuid> = self
+                .service_service
+                .get_for_parent(host_id)
+                .await?
+                .iter()
+                .map(|s| s.id)
+                .collect();
+            inputs.retain(|input| !existing_ids.contains(&input.id) || live.contains(&input.id));
+            live
+        };
 
         // Partition inputs: services losing port bindings must be processed first.
         // This ensures bindings are freed in DB before other services try to claim them,
@@ -424,7 +471,11 @@ impl HostService {
                 }
 
                 self.service_service
-                    .update(&mut service, authentication.clone())
+                    .update(
+                        &mut service,
+                        authentication.clone(),
+                        UpdateReason::EntityRequested,
+                    )
                     .await?;
             } else {
                 // Create new service with client-provided ID

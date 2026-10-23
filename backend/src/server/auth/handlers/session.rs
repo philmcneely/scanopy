@@ -36,7 +36,7 @@ pub(crate) async fn login(
     let user = state
         .services
         .auth_service
-        .login(request, ip, user_agent)
+        .login(request, ip, user_agent.clone())
         .await?;
 
     // Check if user is trying to log into demo account on non-demo and visa versa
@@ -74,6 +74,12 @@ pub(crate) async fn login(
         .insert("user_id", user.id)
         .await
         .map_err(|e| ApiError::internal_error(&format!("Failed to save session: {}", e)))?;
+
+    state
+        .services
+        .auth_service
+        .publish_login_success(&user, ip, user_agent)
+        .await;
 
     Ok(Json(ApiResponse::success(user)))
 }
@@ -184,8 +190,11 @@ async fn session_user(state: &AppState, session: &Session) -> ApiResult<User> {
 /// `user` as sent to themselves, with `terms_acceptance_required` set for an
 /// org on `plan`.
 fn with_terms_gate(state: &AppState, mut user: User, plan: Option<&BillingPlan>) -> User {
-    user.base.terms_acceptance_required =
-        terms_gate::acceptance_required(&state.config, plan, user.base.terms_accepted_at);
+    user.base.terms_acceptance_required = terms_gate::acceptance_required(
+        get_deployment_type(&state.config),
+        plan,
+        user.base.terms_accepted_at,
+    );
     user
 }
 

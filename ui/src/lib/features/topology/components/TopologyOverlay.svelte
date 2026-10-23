@@ -15,6 +15,7 @@
 	 */
 	import type { Snippet } from 'svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import { OPTIONS_PANEL_FITVIEW_PADDING_PX } from '../queries';
 
 	let {
@@ -23,7 +24,7 @@
 		fixedHeight = false,
 		offsetForPanel = false,
 		children,
-		footer
+		actions = []
 	}: {
 		title: string;
 		size?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'max';
@@ -31,7 +32,8 @@
 		/** Inset the modal to the right of the options panel so the panel stays reachable. */
 		offsetForPanel?: boolean;
 		children: Snippet;
-		footer?: Snippet;
+		/** The modal's footer actions. */
+		actions?: ModalAction[];
 	} = $props();
 
 	let leftOffset = $derived(offsetForPanel ? OPTIONS_PANEL_FITVIEW_PADDING_PX : 0);
@@ -47,7 +49,7 @@
 		{fixedHeight}
 		isOpen={true}
 		anchor="container"
-		{footer}
+		{actions}
 		showCloseButton={false}
 		preventCloseOnClickOutside={true}
 		showBackdrop={false}

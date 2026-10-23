@@ -28,6 +28,10 @@ export function keyLabel(key: string, platform = currentPlatform): string {
 		// Delete or Backspace, spelled out: the ⌫ glyph reads poorly at key-chip size.
 		case 'Delete':
 			return 'DEL';
+		case 'ArrowLeft':
+			return '←';
+		case 'ArrowRight':
+			return '→';
 		default:
 			return key;
 	}
@@ -60,11 +64,16 @@ export function isShiftShortcut(event: KeyboardEvent, key: string): boolean {
 }
 
 /**
- * Whether a keypress landed in something that edits text: an input, textarea, select or
- * contenteditable. Single-key shortcuts skip these so the key still types or moves the cursor.
+ * Whether a keypress landed in something that edits text: a text input, textarea, select or
+ * contenteditable. Single-key shortcuts skip these so the key still types or moves the cursor. A
+ * checkbox, radio or button input takes no typing, so a just-clicked row checkbox leaves the
+ * list's shortcuts working.
  */
 export function isEditableTarget(target: EventTarget | null): boolean {
 	const el = target as HTMLElement | null;
 	if (!el || typeof el.tagName !== 'string') return false;
-	return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+	if (el.tagName === 'INPUT') return !NON_TEXT_INPUTS.has((el as HTMLInputElement).type);
+	return el.isContentEditable || ['TEXTAREA', 'SELECT'].includes(el.tagName);
 }
+
+const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset']);

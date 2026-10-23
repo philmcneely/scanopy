@@ -6,6 +6,7 @@ import edgeTypesJson from '$lib/data/edge-types.json';
 import dependencyTypesJson from '$lib/data/dependency-types.json';
 import entitiesJson from '$lib/data/entities.json';
 import entityCategoriesJson from '$lib/data/entity-categories.json';
+import fieldGroupsJson from '$lib/data/field-groups.json';
 import entitySourcesJson from '$lib/data/entity-sources.json';
 import portsJson from '$lib/data/ports.json';
 import discoveryTypesJson from '$lib/data/discovery-types.json';
@@ -32,6 +33,8 @@ import discoveryProtocolsJson from '$lib/data/discovery-protocols.json';
 import proxmoxGuestTypesJson from '$lib/data/proxmox-guest-types.json';
 import containerNetworkTypesJson from '$lib/data/container-network-types.json';
 import ifOperStatusesJson from '$lib/data/if-oper-statuses.json';
+import guestStatesJson from '$lib/data/guest-states.json';
+import deviceTypesJson from '$lib/data/device-types.json';
 import {
 	createColorHelper,
 	createIconComponent,
@@ -86,10 +89,10 @@ export interface CredentialTypeMetadata {
 	/** Which fields depend on the daemon's and the scanned host's OS, computed by the backend; the
 	 *  form places each OS picker from it. */
 	os_fields?: components['schemas']['CredentialOsFields'];
-	/** Minimum daemon version (semver) that can receive this credential type. The
+	/** The last daemon version (semver) that cannot receive this credential type. The
 	 *  discovery credential picker compares the selected daemon's `version` against
 	 *  this to disable too-new types (and to build the requirement tooltip). */
-	minimum_daemon_version?: string;
+	last_unsupported_daemon_version?: string;
 	/** Release maturity of this type's integration. Beta types render a "Beta" tag in the
 	 *  picker but stay selectable. Union derived from the backend enum, never hand-written. */
 	stability?: components['schemas']['CredentialStability'];
@@ -113,6 +116,7 @@ export interface MetadataRegistry {
 	dependency_types: TypeMetadata[];
 	entities: TypeMetadata[];
 	entity_categories: TypeMetadata[];
+	field_groups: TypeMetadata[];
 	entity_sources: TypeMetadata[];
 	ports: TypeMetadata[];
 	discovery_types: TypeMetadata[];
@@ -139,6 +143,8 @@ export interface MetadataRegistry {
 	proxmox_guest_types: TypeMetadata[];
 	container_network_types: TypeMetadata[];
 	if_oper_statuses: TypeMetadata[];
+	guest_states: TypeMetadata[];
+	device_types: TypeMetadata[];
 }
 
 // Utility type to add proper typing to the metadata field
@@ -311,6 +317,7 @@ export const metadata = writable<MetadataRegistry>({
 	dependency_types: dependencyTypesJson,
 	entities: entitiesJson,
 	entity_categories: entityCategoriesJson,
+	field_groups: fieldGroupsJson,
 	entity_sources: entitySourcesJson,
 	ports: portsJson,
 	discovery_types: discoveryTypesJson,
@@ -336,7 +343,9 @@ export const metadata = writable<MetadataRegistry>({
 	discovery_protocols: discoveryProtocolsJson,
 	proxmox_guest_types: proxmoxGuestTypesJson,
 	container_network_types: containerNetworkTypesJson,
-	if_oper_statuses: ifOperStatusesJson
+	if_oper_statuses: ifOperStatusesJson,
+	guest_states: guestStatesJson,
+	device_types: deviceTypesJson
 } as unknown as MetadataRegistry);
 
 // Shared color helper functions that work for both TypeMetadata and EntityMetadata
@@ -522,6 +531,8 @@ export interface EntityTypeMetadata {
 	entity_name_plural?: string;
 	/** What this entity type is described by; see `shared/entity-fields`. */
 	fields: components['schemas']['EntityField'][];
+	/** List-table columns that aren't fields, with the group the column menu files them under. */
+	table_columns: components['schemas']['TableColumn'][];
 	/** Fields that name one entity in text, tried in order. */
 	display_fields: string[];
 }
@@ -530,6 +541,8 @@ export const entities = createTypeMetadataHelpers<'entities', EntityTypeMetadata
 export const entityCategories = createTypeMetadataHelpers<'entity_categories', object>(
 	'entity_categories'
 );
+/** Headings a field is listed under, in display order: the column menu's sections. */
+export const fieldGroups = createTypeMetadataHelpers<'field_groups', object>('field_groups');
 /** How an entity came to exist, keyed by `source.type`. */
 export const entitySources = createTypeMetadataHelpers<'entity_sources', object>('entity_sources');
 /**
@@ -581,6 +594,9 @@ export const containerNetworkTypes = createTypeMetadataHelpers<'container_networ
 export const ifOperStatuses = createTypeMetadataHelpers<'if_oper_statuses', object>(
 	'if_oper_statuses'
 );
+/** A container's or VM's run state at the last scan (label, colour, icon), keyed by `GuestState`. */
+export const guestStates = createTypeMetadataHelpers<'guest_states', object>('guest_states');
+export const deviceTypes = createTypeMetadataHelpers<'device_types', object>('device_types');
 export const discoveryTypes = createTypeMetadataHelpers<'discovery_types', DiscoveryTypeMetadata>(
 	'discovery_types'
 );

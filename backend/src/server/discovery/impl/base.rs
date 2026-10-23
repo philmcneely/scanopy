@@ -13,6 +13,10 @@ use crate::server::{
         types::{DiscoveryType, RunType},
     },
     shared::entities::ChangeTriggersTopologyStaleness,
+    shared::events::{
+        log::{EntityLog, EventLog, changes_log},
+        types::{EventLogLevel, UpdateReason},
+    },
 };
 
 #[derive(
@@ -159,6 +163,21 @@ impl Discovery {
 impl Display for Discovery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Discovery {}: {}", self.base.name, self.id)
+    }
+}
+
+/// A discovery that failed to schedule is disabled; that gets an ERROR line saying so, since
+/// it won't run again until someone re-enables it.
+impl EntityLog for Discovery {
+    fn update_log(&self, before: &Self, id: Uuid, reason: &UpdateReason) -> EventLog {
+        let log = changes_log(before, self, id, reason, Self::LOG_IGNORED_PATHS);
+        match reason {
+            UpdateReason::DiscoveryScheduleFailed { .. } => log.with_line(
+                EventLogLevel::Error,
+                format!("Discovery {} {}", self.base.name, reason.describe()),
+            ),
+            _ => log,
+        }
     }
 }
 

@@ -411,7 +411,7 @@ export function prepareTopologyData(
 	//
 	// Truly fresh session (no stored level, first pipeline run this tab):
 	// apply the default level's collapsed set so the initial view matches
-	// the intended default instead of being inferred as level 4 from an
+	// the intended default instead of being inferred as level 5 from an
 	// empty collapsed set.
 	//
 	// Otherwise: infer the level from the persisted collapsed set so any
@@ -446,11 +446,11 @@ export function prepareTopologyData(
 		// ...unless the view being entered is large enough to scale-collapse, in which case open
 		// it collapsed instead of carrying the level across.
 		//
-		// Views do not hold comparable numbers of nodes. L3 draws one element per IP address and
-		// inlines ports and services onto the card; L2 draws one per interface, so the same
-		// network can be ~1,200 nodes in one and ~17,000 in the other. Carrying level 4 across
-		// that boundary hands the whole of the larger view to the renderer fully expanded — which
-		// is how a customer reached an out-of-memory failure: level 4 in L3, then switch to L2.
+		// Views do not hold comparable numbers of nodes. L3 draws one element per IP address with
+		// its services as badges; L2 draws one per interface, so the same network can be ~1,200
+		// nodes in one and ~17,000 in the other. Carrying full expansion across that boundary hands
+		// the whole of the larger view to the renderer fully expanded — which is how a customer
+		// reached an out-of-memory failure: fully expanded L3, then switch to L2.
 		//
 		// Level 1 rather than a clamp to 2 or 3, because level 1 *is* the scale-collapsed state by
 		// construction (`computeCollapsedForLevel` case 1 returns exactly

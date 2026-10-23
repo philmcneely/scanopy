@@ -21,6 +21,13 @@ impl Storable for TagGroup {
         "tag_groups"
     }
 
+    fn search_predicates() -> &'static [&'static str] {
+        &[
+            "tag_groups.name ILIKE {}",
+            "tag_groups.description ILIKE {}",
+        ]
+    }
+
     fn new(base: Self::BaseData) -> Self {
         let now = chrono::Utc::now();
         Self {

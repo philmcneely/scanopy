@@ -6,6 +6,10 @@ use crate::server::credentials::r#impl::mapping::{
 use crate::server::shared::types::field_definition::{
     FieldSetValue, SelectOption, field_set_options,
 };
+use crate::server::shared::types::{
+    Color, Icon,
+    metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
+};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use utoipa::ToSchema;
@@ -75,6 +79,8 @@ impl std::str::FromStr for SnmpVersion {
     Hash,
     Default,
     strum::VariantNames,
+    strum::EnumIter,
+    strum::IntoStaticStr,
     ToSchema,
 )]
 pub enum SnmpV3AuthProtocol {
@@ -126,6 +132,8 @@ impl SnmpV3AuthProtocol {
     Hash,
     Default,
     strum::VariantNames,
+    strum::EnumIter,
+    strum::IntoStaticStr,
     ToSchema,
 )]
 pub enum SnmpV3PrivProtocol {
@@ -429,6 +437,74 @@ impl std::fmt::Debug for SnmpQueryCredential {
             .field("community", &"********")
             .field("v3", &self.v3)
             .finish()
+    }
+}
+
+// The protocols reach the UI as metadata so it can write the net-snmp options for a stored
+// credential: the check commands on an SNMP scan warning look the credential up by id and
+// render its version, user, level, protocols and context, with every secret a placeholder.
+
+impl HasId for SnmpV3AuthProtocol {
+    fn id(&self) -> &'static str {
+        self.into()
+    }
+}
+
+impl EntityMetadataProvider for SnmpV3AuthProtocol {
+    fn color(&self) -> Color {
+        Color::Gray
+    }
+
+    fn icon(&self) -> Icon {
+        Icon::Lock
+    }
+}
+
+impl TypeMetadataProvider for SnmpV3AuthProtocol {
+    fn name(&self) -> &'static str {
+        self.label()
+    }
+
+    /// The name net-snmp's `-a` takes for this protocol.
+    fn metadata(&self) -> serde_json::Value {
+        let net_snmp_name = match self {
+            Self::Md5 => "MD5",
+            Self::Sha1 => "SHA",
+            Self::Sha256 => "SHA-256",
+        };
+        serde_json::json!({ "net_snmp_name": net_snmp_name })
+    }
+}
+
+impl HasId for SnmpV3PrivProtocol {
+    fn id(&self) -> &'static str {
+        self.into()
+    }
+}
+
+impl EntityMetadataProvider for SnmpV3PrivProtocol {
+    fn color(&self) -> Color {
+        Color::Gray
+    }
+
+    fn icon(&self) -> Icon {
+        Icon::Lock
+    }
+}
+
+impl TypeMetadataProvider for SnmpV3PrivProtocol {
+    fn name(&self) -> &'static str {
+        self.label()
+    }
+
+    /// The name net-snmp's `-x` takes for this protocol. The daemon extends AES-256 keys the
+    /// Blumenthal way, which is what net-snmp's `AES-256` does (`AES-256C` is the Reeder way).
+    fn metadata(&self) -> serde_json::Value {
+        let net_snmp_name = match self {
+            Self::Aes128 => "AES",
+            Self::Aes256 => "AES-256",
+        };
+        serde_json::json!({ "net_snmp_name": net_snmp_name })
     }
 }
 

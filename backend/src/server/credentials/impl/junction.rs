@@ -1,25 +1,16 @@
-//! Credential junction table types and storage.
+//! Credential junction table types.
 //!
-//! Models the `site_credentials` and `host_credentials` junction tables
-//! using `Storable` + `GenericPostgresStorage` instead of raw SQL.
+//! Models the `site_credentials` and `host_credentials` junction tables as
+//! `ChildStorableEntity` rows, stored through `GenericChildStorage`.
 
 use anyhow::Result;
-use sqlx::{PgPool, Row, postgres::PgRow};
-use std::collections::HashMap;
+use sqlx::{Row, postgres::PgRow};
 use std::fmt::Display;
 use uuid::Uuid;
 
-use crate::server::{
-    credentials::r#impl::types::{CredentialAssignment, CredentialHostAssignment},
-    shared::{
-        entities::EntityDiscriminants,
-        storage::{
-            filter::StorableFilter,
-            generic::GenericPostgresStorage,
-            lock::{DEFAULT_LOCK_TIMEOUT, LockKey},
-            traits::{SqlValue, Storable, Storage},
-        },
-    },
+use crate::server::shared::storage::{
+    child::ChildStorableEntity,
+    traits::{SqlValue, Storable},
 };
 
 // =============================================================================
@@ -146,331 +137,26 @@ impl Storable for HostCredential {
     }
 }
 
-// =============================================================================
-// SiteCredentialStorage
-// =============================================================================
+// Both tables are written from either end: the site's (or host's) credentials, and a
+// credential's sites (or hosts). The declared parent is the site or host; the credential side
+// replaces its rows through `GenericChildStorage::replace_matching`.
 
-/// Storage operations for `site_credentials` junction table.
-pub struct SiteCredentialStorage {
-    storage: GenericPostgresStorage<SiteCredential>,
-}
-
-impl SiteCredentialStorage {
-    pub fn new(pool: PgPool) -> Self {
-        Self {
-            storage: GenericPostgresStorage::new(pool),
-        }
+impl ChildStorableEntity for SiteCredential {
+    fn parent_column() -> &'static str {
+        "site_id"
     }
 
-    /// Get credential IDs for a site.
-    pub async fn get_credential_ids_for_site(&self, site_id: &Uuid) -> Result<Vec<Uuid>> {
-        let filter = StorableFilter::<SiteCredential>::new_from_uuid_column("site_id", site_id);
-        let records = self
-            .storage
-            .get_all_ordered(filter, "credential_id ASC")
-            .await?;
-        Ok(records.into_iter().map(|r| r.credential_id).collect())
-    }
-
-    /// Get credential IDs for multiple sites (batch).
-    pub async fn get_credential_ids_for_sites(
-        &self,
-        site_ids: &[Uuid],
-    ) -> Result<HashMap<Uuid, Vec<Uuid>>> {
-        if site_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-        let filter = StorableFilter::<SiteCredential>::new_from_uuids_column("site_id", site_ids);
-        let records = self.storage.get_all_ordered(filter, "site_id ASC").await?;
-
-        let mut map: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
-        for record in records {
-            map.entry(record.site_id)
-                .or_default()
-                .push(record.credential_id);
-        }
-        Ok(map)
-    }
-
-    /// Replace all credentials for a site (atomic).
-    /// Bulk-insert site↔credential rows in a single INSERT, with no
-    /// per-site lock or delete-first pass. For seed paths (demo populate) on
-    /// a freshly reset org where there are no existing rows to replace.
-    pub async fn create_many(&self, records: &[SiteCredential]) -> Result<()> {
-        if records.is_empty() {
-            return Ok(());
-        }
-        self.storage.create_many(records).await?;
-        Ok(())
-    }
-
-    pub async fn save_for_site(&self, site_id: &Uuid, credential_ids: &[Uuid]) -> Result<()> {
-        let mut tx = self.storage.begin_transaction().await?;
-        // Serialize concurrent delete-all + re-insert syncs for one site.
-        tx.lock(
-            LockKey::JunctionSync {
-                parent: EntityDiscriminants::Site,
-                parent_id: *site_id,
-            },
-            DEFAULT_LOCK_TIMEOUT,
-        )
-        .await?;
-
-        let filter = StorableFilter::<SiteCredential>::new_from_uuid_column("site_id", site_id);
-        tx.delete_by_filter(filter).await?;
-
-        for cred_id in credential_ids {
-            let record = SiteCredential {
-                site_id: *site_id,
-                credential_id: *cred_id,
-            };
-            tx.create(&record).await?;
-        }
-
-        tx.commit().await?;
-        Ok(())
-    }
-
-    /// Get the site IDs a credential is assigned to (reverse lookup).
-    pub async fn get_site_ids_for_credential(&self, credential_id: &Uuid) -> Result<Vec<Uuid>> {
-        let filter =
-            StorableFilter::<SiteCredential>::new_from_uuid_column("credential_id", credential_id);
-        let records = self.storage.get_all_ordered(filter, "site_id ASC").await?;
-        Ok(records.into_iter().map(|r| r.site_id).collect())
-    }
-
-    /// Get the site IDs for multiple credentials (batch, reverse lookup).
-    pub async fn get_site_ids_for_credentials(
-        &self,
-        credential_ids: &[Uuid],
-    ) -> Result<HashMap<Uuid, Vec<Uuid>>> {
-        if credential_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-        let filter = StorableFilter::<SiteCredential>::new_from_uuids_column(
-            "credential_id",
-            credential_ids,
-        );
-        let records = self
-            .storage
-            .get_all_ordered(filter, "credential_id ASC")
-            .await?;
-
-        let mut map: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
-        for record in records {
-            map.entry(record.credential_id)
-                .or_default()
-                .push(record.site_id);
-        }
-        Ok(map)
-    }
-
-    /// Replace the full set of sites a credential is assigned to (atomic).
-    /// Only touches rows for this credential, so other credentials on the same
-    /// sites are left untouched.
-    pub async fn save_sites_for_credential(
-        &self,
-        credential_id: &Uuid,
-        site_ids: &[Uuid],
-    ) -> Result<()> {
-        let mut tx = self.storage.begin_transaction().await?;
-        // Serialize concurrent delete-all + re-insert syncs for one credential.
-        tx.lock(
-            LockKey::JunctionSync {
-                parent: EntityDiscriminants::Credential,
-                parent_id: *credential_id,
-            },
-            DEFAULT_LOCK_TIMEOUT,
-        )
-        .await?;
-
-        let filter =
-            StorableFilter::<SiteCredential>::new_from_uuid_column("credential_id", credential_id);
-        tx.delete_by_filter(filter).await?;
-
-        for site_id in site_ids {
-            let record = SiteCredential {
-                site_id: *site_id,
-                credential_id: *credential_id,
-            };
-            tx.create(&record).await?;
-        }
-
-        tx.commit().await?;
-        Ok(())
+    fn parent_id(&self) -> Uuid {
+        self.site_id
     }
 }
 
-// =============================================================================
-// HostCredentialStorage
-// =============================================================================
-
-/// Storage operations for `host_credentials` junction table.
-pub struct HostCredentialStorage {
-    storage: GenericPostgresStorage<HostCredential>,
-}
-
-impl HostCredentialStorage {
-    pub fn new(pool: PgPool) -> Self {
-        Self {
-            storage: GenericPostgresStorage::new(pool),
-        }
+impl ChildStorableEntity for HostCredential {
+    fn parent_column() -> &'static str {
+        "host_id"
     }
 
-    /// Get credential assignments for a host.
-    pub async fn get_assignments_for_host(
-        &self,
-        host_id: &Uuid,
-    ) -> Result<Vec<CredentialAssignment>> {
-        let filter = StorableFilter::<HostCredential>::new_from_uuid_column("host_id", host_id);
-        let records = self
-            .storage
-            .get_all_ordered(filter, "credential_id ASC")
-            .await?;
-        Ok(records
-            .into_iter()
-            .map(|r| CredentialAssignment {
-                credential_id: r.credential_id,
-                ip_address_ids: r.ip_address_ids,
-            })
-            .collect())
-    }
-
-    /// Get credential assignments for multiple hosts (batch).
-    pub async fn get_assignments_for_hosts(
-        &self,
-        host_ids: &[Uuid],
-    ) -> Result<HashMap<Uuid, Vec<CredentialAssignment>>> {
-        if host_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-        let filter = StorableFilter::<HostCredential>::new_from_uuids_column("host_id", host_ids);
-        let records = self.storage.get_all_ordered(filter, "host_id ASC").await?;
-
-        let mut map: HashMap<Uuid, Vec<CredentialAssignment>> = HashMap::new();
-        for record in records {
-            map.entry(record.host_id)
-                .or_default()
-                .push(CredentialAssignment {
-                    credential_id: record.credential_id,
-                    ip_address_ids: record.ip_address_ids,
-                });
-        }
-        Ok(map)
-    }
-
-    /// Replace all credential assignments for a host (atomic).
-    pub async fn save_for_host(
-        &self,
-        host_id: &Uuid,
-        assignments: &[CredentialAssignment],
-    ) -> Result<()> {
-        let mut tx = self.storage.begin_transaction().await?;
-        // Serialize concurrent delete-all + re-insert syncs for one host.
-        tx.lock(
-            LockKey::JunctionSync {
-                parent: EntityDiscriminants::Host,
-                parent_id: *host_id,
-            },
-            DEFAULT_LOCK_TIMEOUT,
-        )
-        .await?;
-
-        let filter = StorableFilter::<HostCredential>::new_from_uuid_column("host_id", host_id);
-        tx.delete_by_filter(filter).await?;
-
-        for assignment in assignments {
-            let record = HostCredential {
-                host_id: *host_id,
-                credential_id: assignment.credential_id,
-                ip_address_ids: assignment.ip_address_ids.clone(),
-            };
-            tx.create(&record).await?;
-        }
-
-        tx.commit().await?;
-        Ok(())
-    }
-
-    /// Get the host assignments for a credential (reverse lookup).
-    pub async fn get_host_assignments_for_credential(
-        &self,
-        credential_id: &Uuid,
-    ) -> Result<Vec<CredentialHostAssignment>> {
-        let filter =
-            StorableFilter::<HostCredential>::new_from_uuid_column("credential_id", credential_id);
-        let records = self.storage.get_all_ordered(filter, "host_id ASC").await?;
-        Ok(records
-            .into_iter()
-            .map(|r| CredentialHostAssignment {
-                host_id: r.host_id,
-                ip_address_ids: r.ip_address_ids,
-            })
-            .collect())
-    }
-
-    /// Get the host assignments for multiple credentials (batch, reverse lookup).
-    pub async fn get_host_assignments_for_credentials(
-        &self,
-        credential_ids: &[Uuid],
-    ) -> Result<HashMap<Uuid, Vec<CredentialHostAssignment>>> {
-        if credential_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-        let filter = StorableFilter::<HostCredential>::new_from_uuids_column(
-            "credential_id",
-            credential_ids,
-        );
-        let records = self
-            .storage
-            .get_all_ordered(filter, "credential_id ASC")
-            .await?;
-
-        let mut map: HashMap<Uuid, Vec<CredentialHostAssignment>> = HashMap::new();
-        for record in records {
-            map.entry(record.credential_id)
-                .or_default()
-                .push(CredentialHostAssignment {
-                    host_id: record.host_id,
-                    ip_address_ids: record.ip_address_ids,
-                });
-        }
-        Ok(map)
-    }
-
-    /// Replace the full set of host assignments for a credential (atomic).
-    /// Only touches rows for this credential, so other credentials on the same
-    /// hosts are left untouched.
-    pub async fn save_host_assignments_for_credential(
-        &self,
-        credential_id: &Uuid,
-        assignments: &[CredentialHostAssignment],
-    ) -> Result<()> {
-        let mut tx = self.storage.begin_transaction().await?;
-        // Serialize concurrent delete-all + re-insert syncs for one credential.
-        tx.lock(
-            LockKey::JunctionSync {
-                parent: EntityDiscriminants::Credential,
-                parent_id: *credential_id,
-            },
-            DEFAULT_LOCK_TIMEOUT,
-        )
-        .await?;
-
-        let filter =
-            StorableFilter::<HostCredential>::new_from_uuid_column("credential_id", credential_id);
-        tx.delete_by_filter(filter).await?;
-
-        for assignment in assignments {
-            let record = HostCredential {
-                host_id: assignment.host_id,
-                credential_id: *credential_id,
-                ip_address_ids: assignment.ip_address_ids.clone(),
-            };
-            tx.create(&record).await?;
-        }
-
-        tx.commit().await?;
-        Ok(())
+    fn parent_id(&self) -> Uuid {
+        self.host_id
     }
 }

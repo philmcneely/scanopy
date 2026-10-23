@@ -21,6 +21,8 @@
 	import billingPlansJson from '$lib/data/billing-plans.json';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import type { components } from '$lib/api/schema';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
+	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
 	import {
 		billing_cardLoadError,
 		billing_invoice_addressIncomplete,
@@ -217,6 +219,23 @@
 		submitMode = mode;
 		await submitForm(form);
 	}
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'cancel', label: common_cancel(), onClick: onCancel, disabled: busyMode != null },
+		{
+			role: 'secondary',
+			label: busyMode === 'quote' ? common_processing() : billing_invoice_getQuote(),
+			onClick: () => submitWith('quote'),
+			disabled: !ready || busyMode != null || missingPlan
+		},
+		{
+			role: 'primary',
+			label: busyMode === 'send_invoice' ? common_processing() : billing_invoice_sendNow(),
+			onClick: () => submitWith('send_invoice'),
+			disabled: !ready || busyMode != null || missingPlan
+		}
+	]);
+	useModalActions(() => actions);
 </script>
 
 <form
@@ -319,23 +338,6 @@
 			onclick={onPayByCard}
 		>
 			{billing_payByCard()}
-		</button>
-	</div>
-
-	<div class="modal-footer flex flex-wrap items-center justify-end gap-3">
-		<button type="button" class="btn-secondary" disabled={busyMode != null} onclick={onCancel}>
-			{common_cancel()}
-		</button>
-		<button
-			type="button"
-			class="btn-secondary"
-			disabled={!ready || busyMode != null || missingPlan}
-			onclick={() => submitWith('quote')}
-		>
-			{busyMode === 'quote' ? common_processing() : billing_invoice_getQuote()}
-		</button>
-		<button type="submit" class="btn-primary" disabled={!ready || busyMode != null || missingPlan}>
-			{busyMode === 'send_invoice' ? common_processing() : billing_invoice_sendNow()}
 		</button>
 	</div>
 </form>

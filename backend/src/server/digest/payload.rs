@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::server::credentials::r#impl::types::CredentialIntegration;
 use crate::server::shared::events::traits::{
-    EventFilter, EventScope, Operation, ScopeOrganization,
+    EventFilter, EventFlags, EventScope, Operation, ScopeOrganization,
 };
 use crate::server::shared::events::types::EventLogLevel;
 
@@ -278,11 +278,6 @@ pub struct DiscoveryDigestScope {
     pub site_id: Uuid,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct DiscoveryDigestFlags {
-    pub suppress_logs: bool,
-}
-
 impl EventScope for DiscoveryDigestScope {
     fn organization(&self) -> Option<ScopeOrganization> {
         Some(ScopeOrganization::Org(self.organization_id))
@@ -312,7 +307,7 @@ struct DiscoveryDigestMetadata {
 
 impl Operation for DiscoveryDigestOperation {
     type Scope = DiscoveryDigestScope;
-    type Flags = DiscoveryDigestFlags;
+    type Flags = EventFlags;
     type Filter = EventFilter<DiscoveryDigestOperation>;
 
     fn log_level(&self) -> EventLogLevel {

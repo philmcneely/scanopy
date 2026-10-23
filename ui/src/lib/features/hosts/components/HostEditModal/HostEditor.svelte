@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import { createForm } from '@tanstack/svelte-form';
 	import { validateForm, clearStaleFieldInfo } from '$lib/shared/components/forms/form-context';
 	import { Info, ArrowRight } from 'lucide-svelte';
@@ -21,6 +22,7 @@
 	import DetailsForm from './Details/HostDetailsForm.svelte';
 	import InferredHostNotice from '../InferredHostNotice.svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import IPAddressesForm from './IPAddresses/IPAddressesForm.svelte';
 	import ServicesForm from './Services/ServicesForm.svelte';
 	import { concepts, entities, serviceDefinitions } from '$lib/shared/stores/metadata';
@@ -476,6 +478,38 @@
 	);
 	let cancelLabel = $derived(isEditing ? common_cancel() : common_back());
 	let showCancel = $derived(isEditing ? true : currentEnabledIndex !== 0);
+	let isWizardNext = $derived(!isEditing && !isLastWizardStep);
+
+	let actions = $derived<ModalAction[]>([
+		...(isEditing && onDelete
+			? [
+					{
+						role: 'danger' as const,
+						label: deleting ? common_deleting() : common_delete(),
+						onClick: handleDelete,
+						disabled: deleting || loading
+					}
+				]
+			: []),
+		...(showCancel
+			? [
+					{
+						role: isEditing ? ('cancel' as const) : ('secondary' as const),
+						label: cancelLabel,
+						onClick: handleFormCancel,
+						disabled: loading || deleting
+					}
+				]
+			: []),
+		{
+			role: 'primary',
+			label: loading ? common_saving() : saveLabel,
+			onClick: handleFormSubmit,
+			disabled: loading || deleting,
+			large: isWizardNext,
+			...(isWizardNext ? { icon: ArrowRight, iconAfter: true } : {})
+		}
+	]);
 </script>
 
 <GenericModal
@@ -494,12 +528,10 @@
 	{activeTab}
 	tabStyle={isEditing ? 'tabs' : 'stepper'}
 	onTabChange={(tabId) => (activeTab = tabId)}
+	{actions}
 >
 	{#snippet headerIcon()}
-		<ModalHeaderIcon
-			Icon={entities.getIconComponent('Host')}
-			color={entities.getColorString('Host')}
-		/>
+		<ModalHeaderIcon Icon={hostIcon(host)} color={entities.getColorString('Host')} />
 	{/snippet}
 
 	<form
@@ -587,46 +619,6 @@
 					<InterfacesForm interfaces={hostInterfaces} bind:targetEntityId={pendingSubEntityId} />
 				</div>
 			{/if}
-		</div>
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex items-center justify-between">
-				<div>
-					{#if isEditing && onDelete}
-						<button
-							type="button"
-							disabled={deleting || loading}
-							onclick={handleDelete}
-							class="btn-danger"
-						>
-							{deleting ? common_deleting() : common_delete()}
-						</button>
-					{/if}
-				</div>
-				<div class="flex items-center gap-3">
-					{#if showCancel}
-						<button
-							type="button"
-							disabled={loading || deleting}
-							onclick={handleFormCancel}
-							class="btn-secondary"
-						>
-							{cancelLabel}
-						</button>
-					{/if}
-					<button
-						type="submit"
-						disabled={loading || deleting}
-						class="btn-primary {!isEditing && !isLastWizardStep ? 'btn-primary-lg' : ''}"
-					>
-						{loading ? common_saving() : saveLabel}
-						{#if !isEditing && !isLastWizardStep}
-							<ArrowRight class="h-4 w-4" />
-						{/if}
-					</button>
-				</div>
-			</div>
 		</div>
 	</form>
 </GenericModal>

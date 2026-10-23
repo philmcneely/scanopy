@@ -20,7 +20,7 @@ use serde_json::json;
 use strum::{EnumIter, IntoStaticStr, VariantNames};
 use utoipa::ToSchema;
 
-use super::DiscoveryWarningCode;
+use super::{DiscoveryWarningCode, SnmpCheck, SnmpWalkGroup};
 use crate::server::shared::types::{
     Color, Icon,
     metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
@@ -157,8 +157,12 @@ impl DiscoveryWarningCode {
         match self {
             Self::InterfaceSetCutShort
             | Self::InterfaceDetailsCutShort
-            | Self::SnmpCollectedNothing
             | Self::VlanRecordingFailed => &["addresses"],
+
+            // `failures` renders as one clause per cause, naming the groups that ended that way.
+            Self::SnmpCollectedNothing => &["addresses", "failures"],
+
+            Self::SnmpWalkFailed => &["addresses", "groups", "cause"],
 
             // Shaped like the credential family: the integrations identify the statement and the
             // addresses aggregate, so hosts read by the same pair in the same order share a
@@ -199,7 +203,9 @@ impl DiscoveryWarningCode {
             }
             Self::CredentialGateClosed => &["credential", "addresses", "ports"],
             Self::CredentialDaemonOsMismatch => &["credential", "declared", "daemon", "actual"],
-            Self::CredentialDaemonTooOld => &["credential", "required", "daemon", "version"],
+            Self::CredentialNeedsNewerDaemon => {
+                &["credential", "gap", "required", "daemon", "version"]
+            }
             Self::CredentialRejected
             | Self::CredentialMalformed
             | Self::CredentialTlsFailed
@@ -257,7 +263,7 @@ impl DiscoveryWarningCode {
             | Self::CredentialTargetNotResponding
             | Self::CredentialGateClosed
             | Self::CredentialDaemonOsMismatch
-            | Self::CredentialDaemonTooOld
+            | Self::CredentialNeedsNewerDaemon
             | Self::CredentialRejected
             | Self::CredentialMalformed
             | Self::CredentialTlsFailed
@@ -284,6 +290,7 @@ impl DiscoveryWarningCode {
             | Self::SnmpWalkDesynchronised
             | Self::SnmpWalkPartialRecorded
             | Self::SnmpWalkNoAnswer
+            | Self::SnmpWalkFailed
             | Self::ClaimedCountReadCutShort
             | Self::ClaimedCountUnderRead
             | Self::ClaimedCapabilityReadCutShort
@@ -337,7 +344,7 @@ impl DiscoveryWarningCode {
             | Self::CredentialTargetNotResponding
             | Self::CredentialGateClosed
             | Self::CredentialDaemonOsMismatch
-            | Self::CredentialDaemonTooOld
+            | Self::CredentialNeedsNewerDaemon
             | Self::CredentialRejected
             | Self::CredentialMalformed
             | Self::CredentialTlsFailed
@@ -372,6 +379,11 @@ impl DiscoveryWarningCode {
             Self::ClaimedCapabilityEmpty
             | Self::ClaimedCountUnderRead
             | Self::SnmpCollectedNothing => WarningRemedy::CheckTheDevice,
+
+            // Every request for the table failed the same way, with a cause the daemon saw: an
+            // error status the device returned, or silence on the path to it. A rescan repeats it
+            // until something on the device or the path changes.
+            Self::SnmpWalkFailed => WarningRemedy::CheckTheDevice,
 
             // A read that stopped early or a write that failed once. Their own sentences already
             // say the values held were kept.
@@ -448,7 +460,8 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
             Self::SnmpWalkPartialDiscarded => "Partial read discarded",
             Self::SnmpWalkPartialRecorded => "Partial read recorded",
             Self::SnmpWalkBridgeMibAbsent => "Bridge MIB not served",
-            Self::SnmpWalkNoAnswer => "No answer for a table",
+            Self::SnmpWalkNoAnswer => "Table read returned nothing",
+            Self::SnmpWalkFailed => "Table read failed",
             Self::ClaimedCountReadCutShort => "Claimed count, read cut short",
             Self::ClaimedCountUnderRead => "Fewer rows than the device claims",
             Self::ClaimedCapabilityReadCutShort => "Claimed capability, read cut short",
@@ -468,7 +481,7 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
             Self::CredentialTargetNotResponding => "Credential target did not respond",
             Self::CredentialGateClosed => "Credential port not open",
             Self::CredentialDaemonOsMismatch => "Credential set up for another OS",
-            Self::CredentialDaemonTooOld => "Daemon too old for credential",
+            Self::CredentialNeedsNewerDaemon => "Daemon too old for part of a credential",
             Self::CredentialRejected => "Credential refused",
             Self::CredentialMalformed => "Credential incomplete",
             Self::CredentialTlsFailed => "TLS negotiation failed",
@@ -503,10 +516,10 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
     fn description(&self) -> &'static str {
         match self {
             Self::InterfaceSetCutShort => {
-                "{addresses} stopped responding partway through the SNMP interface list, so some interfaces are missing."
+                "The SNMP interface list read from {addresses} stopped partway, so some interfaces are missing."
             }
             Self::InterfaceDetailsCutShort => {
-                "{addresses} returned every SNMP interface but stopped while reading their details, so some descriptions or speeds may be blank."
+                "{addresses} returned every SNMP interface, but the read of their details stopped partway, so some descriptions or speeds may be blank."
             }
             Self::SnmpWalkEntryCap => {
                 "{addresses} has more {groups} than one scan reads — collection stops at {limit} entries per table, so the rest were not read. The data recorded is correct as far as it goes."
@@ -527,7 +540,10 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
                 "{addresses} did not answer for {groups}, which these switches commonly do not implement. Their MAC-address-table and VLAN membership cannot be read over SNMP; a UniFi controller integration reports the same data where one manages the device."
             }
             Self::SnmpWalkNoAnswer => {
-                "{addresses} returned no {groups} data at all — the device stopped answering rather than reporting that it has none. Previously discovered values were kept rather than overwritten and refresh on the next complete scan."
+                "{addresses} returned no {groups} data, and the read did not record how it ended. Previously discovered values were kept rather than overwritten and refresh on the next complete scan."
+            }
+            Self::SnmpWalkFailed => {
+                "The read of {groups} from {addresses} returned nothing: its last request {cause} after retries. Previously discovered values were kept rather than overwritten."
             }
             Self::ClaimedCountReadCutShort => {
                 "{addresses} reported {source} as {expected}, and the read ended at {observed} without finishing. That is how much of the table is missing — the incomplete-walk line for each device says why it ended. What was read is recorded."
@@ -566,7 +582,7 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
                 "{addresses} reported neighbour records without the identifier needed to match the far end ({discarded} in total), so {consequence}. Their position in the neighbour table could not be read, so they could not be tied to a local port. Rescanning will not change this."
             }
             Self::SnmpCollectedNothing => {
-                "{addresses} answered SNMP but returned no interfaces, neighbours, addresses or forwarding data at all. The credential is working, so this is either a device that implements nothing beyond its system description, or one whose tables could not be read — the daemon log records which for each table."
+                "{addresses} answered the SNMP probe but returned no interfaces, neighbours, addresses or forwarding data at all. {failures}"
             }
             Self::VlanRecordingFailed => {
                 "The VLANs reported by {addresses} could not be saved, so VLAN membership is missing from their interfaces. The devices answered correctly — this is a failure recording the result, and the daemon log has the underlying error."
@@ -586,8 +602,8 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
             Self::CredentialDaemonOsMismatch => {
                 "The {credential} credential reads files on a {declared} daemon, and {daemon} runs {actual}, so it was not used. Set the credential's daemon OS to match, or scan with a {declared} daemon."
             }
-            Self::CredentialDaemonTooOld => {
-                "The {credential} credential needs daemon {required} or newer, and {daemon} runs {version}, so it was not sent. Upgrade the daemon to use it."
+            Self::CredentialNeedsNewerDaemon => {
+                "The {credential} credential {gap}. That needs a daemon newer than {required}, and {daemon} runs {version}. Upgrade the daemon to use it."
             }
             Self::CredentialRejected => {
                 "The {credential} credential for {addresses} was refused — check the username, password or community string. ({detail})"
@@ -678,7 +694,12 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
     }
 
     fn metadata(&self) -> serde_json::Value {
-        json!({ "slots": self.slots(), "concerns_credential": self.concerns_credential() })
+        json!({
+            "slots": self.slots(),
+            "concerns_credential": self.concerns_credential(),
+            "snmp_check": self.snmp_check(),
+            "snmp_check_group": self.snmp_check_group(),
+        })
     }
 }
 
@@ -694,7 +715,7 @@ impl DiscoveryWarningCode {
             | Self::CredentialTargetNotResponding
             | Self::CredentialGateClosed
             | Self::CredentialDaemonOsMismatch
-            | Self::CredentialDaemonTooOld
+            | Self::CredentialNeedsNewerDaemon
             | Self::CredentialRejected
             | Self::CredentialMalformed
             | Self::CredentialTlsFailed
@@ -741,6 +762,7 @@ impl DiscoveryWarningCode {
             | Self::SnmpWalkBridgeMibAbsent
             | Self::SnmpWalkDesynchronised
             | Self::SnmpWalkEntryCap
+            | Self::SnmpWalkFailed
             | Self::SnmpWalkNoAnswer
             | Self::SnmpWalkPartialDiscarded
             | Self::SnmpWalkPartialRecorded
@@ -748,6 +770,92 @@ impl DiscoveryWarningCode {
             | Self::Unknown
             | Self::VlanRecordingFailed
             | Self::WarningsTruncated => false,
+        }
+    }
+
+    /// The net-snmp check that tests this code against the device, for every code about what a
+    /// device returned to a read. `None` for the rest: matching against the inventory, saving,
+    /// credentials and the scan as a whole come from no single read a command could repeat.
+    ///
+    /// Exhaustive, so a new code has to say whether an operator can check it.
+    pub fn snmp_check(&self) -> Option<SnmpCheck> {
+        match self {
+            Self::SnmpWalkFailed
+            | Self::SnmpWalkBridgeMibAbsent
+            | Self::SnmpWalkNoAnswer
+            | Self::SnmpCollectedNothing => Some(SnmpCheck::Repeat),
+
+            Self::SnmpWalkPartialRecorded
+            | Self::SnmpWalkPartialDiscarded
+            | Self::SnmpWalkEntryCap
+            | Self::SnmpWalkUnsupported
+            | Self::InterfaceSetCutShort
+            | Self::InterfaceDetailsCutShort
+            | Self::LldpLocalPortDropped
+            | Self::LldpLocalPortDroppedReadCutShort => Some(SnmpCheck::Recount),
+
+            Self::ClaimedCountReadCutShort
+            | Self::ClaimedCountUnderRead
+            | Self::ClaimedCapabilityReadCutShort
+            | Self::ClaimedCapabilityEmpty => Some(SnmpCheck::Claim),
+
+            Self::SnmpWalkDesynchronised => Some(SnmpCheck::Unordered),
+
+            Self::MalformedNeighboursWalkCutShort
+            | Self::MalformedNeighboursGhostRows
+            | Self::MalformedNeighboursIncompleteRecords
+            | Self::MalformedNeighboursUnexpectedType
+            | Self::MalformedNeighboursUnreadableIndex
+            | Self::LldpLocalPortMisplaced => Some(SnmpCheck::Table),
+
+            Self::CredentialTargetNotScanned
+            | Self::CredentialTargetNotResponding
+            | Self::CredentialGateClosed
+            | Self::CredentialDaemonOsMismatch
+            | Self::CredentialNeedsNewerDaemon
+            | Self::CredentialRejected
+            | Self::CredentialMalformed
+            | Self::CredentialTlsFailed
+            | Self::CredentialNotThisService
+            | Self::CredentialCollectionFailed
+            | Self::CredentialCollectionTimedOut
+            | Self::CredentialUnreachable
+            | Self::CredentialTimedOut
+            | Self::ConnectionsWithoutProtocolResponse
+            | Self::DcpSweepTimedOut
+            | Self::EqualReachIntegrationsMerged
+            | Self::FdbResolutionIncomplete
+            | Self::IcmpSweepTimedOut
+            | Self::IntegrationWithoutCredential
+            | Self::LldpNeighbourAmbiguous
+            | Self::LldpNeighbourNotFound
+            | Self::LldpPortAmbiguous
+            | Self::LldpPortNoStrategy
+            | Self::LldpPortNotFound
+            | Self::NeighbourResolutionIncomplete
+            | Self::OutdatedDaemonFormat
+            | Self::ProvisionalSubnetInferred
+            | Self::ReverseDnsTimedOut
+            | Self::ScanTimeLimit
+            | Self::ScanTimeLimitWithEstimate
+            | Self::Unknown
+            | Self::VlanRecordingFailed
+            | Self::WarningsTruncated => None,
+        }
+    }
+
+    /// The group a checkable code is about when its warning carries none: the interface walk for
+    /// the interface codes, LLDP local port numbering for the local-port codes. Every other
+    /// checkable code names its group on the wire.
+    pub fn snmp_check_group(&self) -> Option<SnmpWalkGroup> {
+        match self {
+            Self::InterfaceSetCutShort | Self::InterfaceDetailsCutShort => {
+                Some(SnmpWalkGroup::Interfaces)
+            }
+            Self::LldpLocalPortDropped
+            | Self::LldpLocalPortDroppedReadCutShort
+            | Self::LldpLocalPortMisplaced => Some(SnmpWalkGroup::LldpLocalPorts),
+            _ => None,
         }
     }
 }

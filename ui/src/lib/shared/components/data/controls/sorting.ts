@@ -1,118 +1,10 @@
-import {
-	getFieldKey,
-	isDisplayField,
-	isOrderableField,
-	type FieldConfig,
-	type TableDefaults
-} from '../types';
-import { getFieldValue } from './fieldValues';
+import { getFieldKey, isOrderableField, type FieldConfig, type TableDefaults } from '../types';
 
 export type SortDirection = 'asc' | 'desc';
 
 export interface SortState {
 	field: string | null;
 	direction: SortDirection;
-}
-
-/**
- * Compare two items by one field, already signed for `direction`.
- *
- * Null and undefined always sort last, in *both* directions: the null branches
- * return before the direction is applied, so they are deliberately not negated
- * for a descending sort. A row with no value is missing data, not an extreme —
- * surfacing a page of blanks at the top of a descending sort would bury the
- * rows the user asked to see.
- */
-export function compareByField<T>(
-	a: T,
-	b: T,
-	field: FieldConfig<T>,
-	direction: SortDirection
-): number {
-	const aVal = getFieldValue(a, field);
-	const bVal = getFieldValue(b, field);
-
-	const aMissing = aVal === null || aVal === undefined;
-	const bMissing = bVal === null || bVal === undefined;
-	if (aMissing || bMissing) return aMissing === bMissing ? 0 : aMissing ? 1 : -1;
-
-	if (field.compare) {
-		const comparison = field.compare(a, b);
-		return direction === 'asc' ? comparison : -comparison;
-	}
-
-	let comparison: number;
-
-	if (field.type === 'date') {
-		const aDate = aVal instanceof Date ? aVal : new Date(String(aVal));
-		const bDate = bVal instanceof Date ? bVal : new Date(String(bVal));
-		comparison = aDate.getTime() - bDate.getTime();
-	} else if (field.type === 'boolean') {
-		comparison = (aVal ? 1 : 0) - (bVal ? 1 : 0);
-	} else if (field.type === 'array') {
-		// Arrays sort by length first, then by their first element.
-		const aArr = aVal as string[];
-		const bArr = bVal as string[];
-		comparison = aArr.length - bArr.length;
-		if (comparison === 0 && aArr.length > 0 && bArr.length > 0) {
-			comparison = aArr[0].localeCompare(bArr[0], undefined, {
-				sensitivity: 'base',
-				numeric: true
-			});
-		}
-	} else {
-		// `numeric` keeps host9 ahead of host10 rather than ordering by codepoint.
-		comparison = String(aVal).localeCompare(String(bVal), undefined, {
-			sensitivity: 'base',
-			numeric: true
-		});
-	}
-
-	return direction === 'asc' ? comparison : -comparison;
-}
-
-/**
- * Sort a copy of `items` by the field matching `sort.field`.
- *
- * With `serverOrdered`, an orderable field is left in arrival order: the server
- * already sorted every page by it, and this comparator can disagree (it reads a
- * MAC's leading `14` as a number, and knows nothing of the server's SQL). A
- * display field opted in with `sortable` still sorts here when the list holds
- * every row, since the server never saw it.
- *
- * With `serverPaginated`, nothing sorts here. The client holds one page, so
- * sorting it would reorder that page alone and present it as the order of the
- * whole list.
- */
-export function sortItems<T>(
-	items: T[],
-	fields: FieldConfig<T>[],
-	sort: SortState,
-	serverOrdered = false,
-	serverPaginated = false
-): T[] {
-	if (!sort.field || serverPaginated) return items;
-
-	const field = fields.find((f) => getFieldKey(f) === sort.field);
-	if (!field) return items;
-	if (serverOrdered && isOrderableField(field)) return items;
-
-	return [...items].sort((a, b) => compareByField(a, b, field, sort.direction));
-}
-
-/**
- * How the siblings of a tree grouping are ordered: by the active sort when there is one, else by
- * `fallback`, the grouped field's own order. Parents stay above their children either way; only
- * the order among rows under the same parent changes.
- */
-export function treeSiblingCompare<T>(
-	fields: FieldConfig<T>[],
-	sort: SortState,
-	fallback?: (a: T, b: T) => number
-): ((a: T, b: T) => number) | undefined {
-	const field = sort.field ? fields.find((f) => getFieldKey(f) === sort.field) : undefined;
-	if (!field) return fallback;
-	return (a, b) => compareByField(a, b, field, sort.direction);
 }
 
 /**
@@ -130,72 +22,34 @@ export function nextSortState(current: SortState, fieldKey: string): SortState {
 }
 
 /**
- * Whether the user can sort by this field: server-orderable, or a display field
- * opted in with `sortable` on a list that holds every row.
+ * Whether the user can sort by this field: the server orders it.
  *
  * The sort control and the table headers both read this, so a header can never
  * offer a sort the control doesn't, and vice versa.
  */
-export function isSortableField<T>(field: FieldConfig<T>, serverPaginated: boolean): boolean {
-	if (isOrderableField(field)) return true;
-	return !serverPaginated && field.sortable === true;
+export function isSortableField<T>(field: FieldConfig<T>): boolean {
+	return isOrderableField(field);
 }
 
 /**
  * Whether the user can group by this field.
  *
- * String and boolean orderable fields group by default, unless `groupable:
- * false`. A display field must opt in with `groupable: true`, and only on a list
- * that holds every row. An array field never groups: its value has no single
- * bucket, and stringifying it would bucket by the joined list.
+ * String and boolean orderable fields group, unless `groupable: false`. An array field never
+ * groups: its value has no single bucket.
  */
-export function isGroupableField<T>(field: FieldConfig<T>, serverPaginated: boolean): boolean {
-	if (field.type === 'array') return false;
-	if (isOrderableField(field)) {
-		return (field.type === 'string' || field.type === 'boolean') && field.groupable !== false;
-	}
-	return !serverPaginated && field.groupable === true;
+export function isGroupableField<T>(field: FieldConfig<T>): boolean {
+	if (field.type === 'array' || !isOrderableField(field)) return false;
+	return (field.type === 'string' || field.type === 'boolean') && field.groupable !== false;
 }
 
 /** Fields offered in the sort control. */
-export function sortableFields<T>(
-	fields: FieldConfig<T>[],
-	serverPaginated = false
-): FieldConfig<T>[] {
-	return fields.filter((f) => isSortableField(f, serverPaginated));
+export function sortableFields<T>(fields: FieldConfig<T>[]): FieldConfig<T>[] {
+	return fields.filter(isSortableField);
 }
 
 /** Fields offered in the group-by control. */
-export function groupableFields<T>(
-	fields: FieldConfig<T>[],
-	serverPaginated = false
-): FieldConfig<T>[] {
-	return fields.filter((f) => isGroupableField(f, serverPaginated));
-}
-
-/**
- * Display fields a server-paginated list would wrongly sort or group client-side.
- *
- * Under server pagination the client holds one page, so a client-side sort
- * reorders that page alone and a client-side group buckets it alone, while the
- * pager walks the server's order. Only an orderable field, which the server
- * sorts and groups across every page, is coherent there.
- *
- * Returns the offending field keys so a caller can name them; empty when the
- * list is not server-paginated, where client-side sorting and grouping are
- * correct.
- */
-export function serverOrderViolations<T>(
-	fields: FieldConfig<T>[],
-	serverPaginated: boolean
-): string[] {
-	if (!serverPaginated) return [];
-
-	return fields
-		.filter(
-			(field) => isDisplayField(field) && (field.sortable === true || field.groupable === true)
-		)
-		.map(getFieldKey);
+export function groupableFields<T>(fields: FieldConfig<T>[]): FieldConfig<T>[] {
+	return fields.filter(isGroupableField);
 }
 
 /**
@@ -207,8 +61,7 @@ export function serverOrderViolations<T>(
  */
 export function defaultOrderingViolations<T>(
 	fields: FieldConfig<T>[],
-	defaults: TableDefaults,
-	serverPaginated: boolean
+	defaults: TableDefaults
 ): string[] {
 	const rendersByDefault = (field: FieldConfig<T>) =>
 		!field.display?.hidden && !field.display?.hiddenByDefault;
@@ -217,13 +70,13 @@ export function defaultOrderingViolations<T>(
 	const offenders: string[] = [];
 	if (defaults.group) {
 		const field = fieldFor(defaults.group);
-		if (!field || !rendersByDefault(field) || !isGroupableField(field, serverPaginated)) {
+		if (!field || !rendersByDefault(field) || !isGroupableField(field)) {
 			offenders.push(`group "${defaults.group}"`);
 		}
 	}
 	if (defaults.sort) {
 		const field = fieldFor(defaults.sort.field);
-		if (!field || !rendersByDefault(field) || !isSortableField(field, serverPaginated)) {
+		if (!field || !rendersByDefault(field) || !isSortableField(field)) {
 			offenders.push(`sort "${defaults.sort.field}"`);
 		}
 	}

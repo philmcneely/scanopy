@@ -151,6 +151,8 @@ impl Tag {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Tag {}
+
 impl ChangeTriggersTopologyStaleness<Tag> for Tag {
     /// Always returns true — the actual determination of whether a Tag change
     /// should mark a topology stale lives downstream in the topology subscriber,

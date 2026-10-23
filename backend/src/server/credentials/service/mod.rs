@@ -1,10 +1,11 @@
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::shared::events::types::{DeletionReason, UpdateReason};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     credentials::r#impl::{
         base::Credential,
-        junction::{HostCredentialStorage, SiteCredential, SiteCredentialStorage},
+        junction::{HostCredential, SiteCredential},
         mapping::{
             CredentialMapping, CredentialQueryPayload, IntegrationTarget, IpOverride,
             SnmpCredentialMapping, SnmpQueryCredential,
@@ -18,13 +19,19 @@ use crate::server::{
     ip_addresses::{r#impl::base::IPAddress, service::IPAddressService},
     organizations::service::OrganizationService,
     shared::{
+        entities::EntityDiscriminants,
         events::{
             bus::EventBus,
             traits::{Event, OrgScope},
             types::{OnboardingOperation, OnboardingOperationDiscriminants},
         },
         services::traits::{CrudService, EventBusService},
-        storage::{filter::StorableFilter, generic::GenericPostgresStorage},
+        storage::{
+            child::{GenericChildStorage, ParentRef},
+            filter::StorableFilter,
+            generic::GenericPostgresStorage,
+            traits::Storage,
+        },
     },
     sites::service::SiteService,
     tags::entity_tags::EntityTagService,
@@ -38,9 +45,13 @@ use std::sync::{Arc, OnceLock};
 use strum::IntoDiscriminant;
 use uuid::Uuid;
 
+mod capability;
 mod coverage;
 mod defaults;
+mod junctions;
 
+pub use capability::DaemonPlacement;
+pub(crate) use capability::refusal_for_daemon;
 pub use coverage::{FoundIntegration, IntegrationCoverage, SiteTriedAt, find_uncovered};
 
 /// The set of things a credential targets, normalized across the site and host
@@ -128,8 +139,8 @@ pub struct CredentialService {
     ip_address_service: Arc<IPAddressService>,
     organization_service: Arc<OrganizationService>,
     host_service: OnceLock<Arc<HostService>>,
-    site_credential_storage: SiteCredentialStorage,
-    host_credential_storage: HostCredentialStorage,
+    site_credential_storage: Arc<GenericChildStorage<SiteCredential>>,
+    host_credential_storage: Arc<GenericChildStorage<HostCredential>>,
 }
 
 impl EventBusService<Credential> for CredentialService {
@@ -186,7 +197,7 @@ impl CrudService<Credential> for CredentialService {
                     OnboardingOperation::FirstCredentialCreated,
                     authentication.clone(),
                 ))
-                .await?;
+                .await;
         }
 
         // Clears the interface prompts on home and the L2 view; a container or Wake-on-LAN
@@ -211,7 +222,7 @@ impl CrudService<Credential> for CredentialService {
                     OnboardingOperation::FirstInterfaceCredentialCreated,
                     authentication,
                 ))
-                .await?;
+                .await;
         }
 
         Ok(created)
@@ -223,6 +234,7 @@ impl CrudService<Credential> for CredentialService {
         &self,
         entity: &mut Credential,
         authentication: AuthenticatedEntity,
+        reason: UpdateReason,
     ) -> Result<Credential, Error> {
         let current = self
             .get_by_id(&entity.id)
@@ -237,15 +249,20 @@ impl CrudService<Credential> for CredentialService {
         entity.refresh_is_default();
         defaults::refuse_default_settings_change(&current, entity)?;
         self.refuse_second_default(entity).await?;
-        self.update_base(entity, authentication).await
+        self.update_base(entity, authentication, reason).await
     }
 
     /// A default can't be deleted. Unassigning it from sites and hosts is the way to stop using it.
-    async fn delete(&self, id: &Uuid, authentication: AuthenticatedEntity) -> Result<(), Error> {
+    async fn delete(
+        &self,
+        id: &Uuid,
+        authentication: AuthenticatedEntity,
+        reason: DeletionReason,
+    ) -> Result<(), Error> {
         if let Some(credential) = self.get_by_id(id).await? {
             defaults::refuse_default_delete(std::slice::from_ref(&credential))?;
         }
-        self.delete_base(id, authentication).await
+        self.delete_base(id, authentication, reason).await
     }
 
     /// Refuses the whole batch when any of it is a default, before deleting anything.
@@ -253,12 +270,13 @@ impl CrudService<Credential> for CredentialService {
         &self,
         ids: &[Uuid],
         authentication: AuthenticatedEntity,
+        reason: DeletionReason,
     ) -> Result<usize, Error> {
         let credentials = self
             .get_all(StorableFilter::<Credential>::new_from_entity_ids(ids))
             .await?;
         defaults::refuse_default_delete(&credentials)?;
-        self.delete_many_base(ids, authentication).await
+        self.delete_many_base(ids, authentication, reason).await
     }
 }
 
@@ -271,7 +289,8 @@ impl CredentialService {
         site_service: Arc<SiteService>,
         ip_address_service: Arc<IPAddressService>,
         organization_service: Arc<OrganizationService>,
-        pool: sqlx::PgPool,
+        site_credential_storage: Arc<GenericChildStorage<SiteCredential>>,
+        host_credential_storage: Arc<GenericChildStorage<HostCredential>>,
     ) -> Self {
         Self {
             storage,
@@ -281,203 +300,14 @@ impl CredentialService {
             ip_address_service,
             organization_service,
             host_service: OnceLock::new(),
-            site_credential_storage: SiteCredentialStorage::new(pool.clone()),
-            host_credential_storage: HostCredentialStorage::new(pool),
+            site_credential_storage,
+            host_credential_storage,
         }
     }
 
     /// Set the host service dependency after construction (breaks circular dep).
     pub fn set_host_service(&self, service: Arc<HostService>) -> Result<(), Arc<HostService>> {
         self.host_service.set(service)
-    }
-
-    // ========================================================================
-    // Junction table methods — delegates to typed storage
-    // ========================================================================
-
-    /// Get credential IDs for a site from the junction table.
-    pub async fn get_credential_ids_for_site(&self, site_id: &Uuid) -> Result<Vec<Uuid>, Error> {
-        self.site_credential_storage
-            .get_credential_ids_for_site(site_id)
-            .await
-    }
-
-    /// Get credential IDs for multiple sites (batch).
-    pub async fn get_credential_ids_for_sites(
-        &self,
-        site_ids: &[Uuid],
-    ) -> Result<std::collections::HashMap<Uuid, Vec<Uuid>>, Error> {
-        self.site_credential_storage
-            .get_credential_ids_for_sites(site_ids)
-            .await
-    }
-
-    /// Get credential assignments for a host from the junction table.
-    pub async fn get_credential_assignments_for_host(
-        &self,
-        host_id: &Uuid,
-    ) -> Result<Vec<CredentialAssignment>, Error> {
-        self.host_credential_storage
-            .get_assignments_for_host(host_id)
-            .await
-    }
-
-    /// Get credential assignments for multiple hosts (batch).
-    pub async fn get_credential_assignments_for_hosts(
-        &self,
-        host_ids: &[Uuid],
-    ) -> Result<std::collections::HashMap<Uuid, Vec<CredentialAssignment>>, Error> {
-        self.host_credential_storage
-            .get_assignments_for_hosts(host_ids)
-            .await
-    }
-
-    /// Replace all credentials for a site (atomic).
-    pub async fn set_site_credentials(
-        &self,
-        site_id: &Uuid,
-        credential_ids: &[Uuid],
-    ) -> Result<(), Error> {
-        self.site_credential_storage
-            .save_for_site(site_id, credential_ids)
-            .await
-    }
-
-    /// Bulk-insert many site↔credential assignments at once, skipping the
-    /// per-site lock/delete. For seed paths on a freshly reset org. Each
-    /// pair is `(site_id, credential_id)`.
-    pub async fn create_site_credentials(&self, pairs: &[(Uuid, Uuid)]) -> Result<(), Error> {
-        let records: Vec<SiteCredential> = pairs
-            .iter()
-            .map(|&(site_id, credential_id)| SiteCredential {
-                site_id,
-                credential_id,
-            })
-            .collect();
-        self.site_credential_storage.create_many(&records).await
-    }
-
-    /// Merge `incoming` credentials into a site's junction (additive — never prunes).
-    ///
-    /// The site-side counterpart of [`Self::merge_host_credentials`], for promoting a
-    /// discovery's one-shot `IntegrationTarget::Site` targets into the durable site-wide
-    /// channel when the scan completes. Replacing would delete credentials assigned from the
-    /// sites page or the credential modal, which this path knows nothing about.
-    pub async fn merge_site_credentials(
-        &self,
-        site_id: &Uuid,
-        incoming: &[Uuid],
-    ) -> Result<(), Error> {
-        let existing = self.get_credential_ids_for_site(site_id).await?;
-        let mut merged = existing;
-        for credential_id in incoming {
-            if !merged.contains(credential_id) {
-                merged.push(*credential_id);
-            }
-        }
-        self.set_site_credentials(site_id, &merged).await
-    }
-
-    /// Replace all credential assignments for a host (atomic).
-    pub async fn set_host_credentials(
-        &self,
-        host_id: &Uuid,
-        assignments: &[CredentialAssignment],
-    ) -> Result<(), Error> {
-        self.host_credential_storage
-            .save_for_host(host_id, assignments)
-            .await
-    }
-
-    /// Merge `incoming` credential assignments into a host's junction (additive — never prunes).
-    ///
-    /// Discovery self-reports only the credentials that probed successfully on a host. Using the
-    /// replace path (`set_host_credentials`) there would delete user/init-assigned daemon-host
-    /// credentials that didn't probe this scan (e.g. a Docker socket on a Podman-only host),
-    /// regressing the junction-as-source-of-truth model. Merge keeps existing assignments and
-    /// overlays `incoming` (incoming wins per `credential_id`, refreshing `ip_address_ids`), so
-    /// discovery only adds. Explicit user edits still go through the replace path.
-    pub async fn merge_host_credentials(
-        &self,
-        host_id: &Uuid,
-        incoming: &[CredentialAssignment],
-    ) -> Result<(), Error> {
-        let mut by_host = self
-            .get_credential_assignments_for_hosts(&[*host_id])
-            .await?;
-        let existing = by_host.remove(host_id).unwrap_or_default();
-
-        let incoming_ids: std::collections::HashSet<Uuid> =
-            incoming.iter().map(|a| a.credential_id).collect();
-        let mut merged: Vec<CredentialAssignment> = existing
-            .into_iter()
-            .filter(|a| !incoming_ids.contains(&a.credential_id))
-            .collect();
-        merged.extend(incoming.iter().cloned());
-
-        self.set_host_credentials(host_id, &merged).await
-    }
-
-    /// Get the site IDs a credential is assigned to (reverse lookup).
-    pub async fn get_site_ids_for_credential(
-        &self,
-        credential_id: &Uuid,
-    ) -> Result<Vec<Uuid>, Error> {
-        self.site_credential_storage
-            .get_site_ids_for_credential(credential_id)
-            .await
-    }
-
-    /// Get the site IDs for multiple credentials (batch, reverse lookup).
-    pub async fn get_site_ids_for_credentials(
-        &self,
-        credential_ids: &[Uuid],
-    ) -> Result<std::collections::HashMap<Uuid, Vec<Uuid>>, Error> {
-        self.site_credential_storage
-            .get_site_ids_for_credentials(credential_ids)
-            .await
-    }
-
-    /// Get the host assignments for a credential (reverse lookup).
-    pub async fn get_host_assignments_for_credential(
-        &self,
-        credential_id: &Uuid,
-    ) -> Result<Vec<CredentialHostAssignment>, Error> {
-        self.host_credential_storage
-            .get_host_assignments_for_credential(credential_id)
-            .await
-    }
-
-    /// Get the host assignments for multiple credentials (batch, reverse lookup).
-    pub async fn get_host_assignments_for_credentials(
-        &self,
-        credential_ids: &[Uuid],
-    ) -> Result<std::collections::HashMap<Uuid, Vec<CredentialHostAssignment>>, Error> {
-        self.host_credential_storage
-            .get_host_assignments_for_credentials(credential_ids)
-            .await
-    }
-
-    /// Replace the full set of sites a credential is assigned to (atomic).
-    pub async fn set_credential_sites(
-        &self,
-        credential_id: &Uuid,
-        site_ids: &[Uuid],
-    ) -> Result<(), Error> {
-        self.site_credential_storage
-            .save_sites_for_credential(credential_id, site_ids)
-            .await
-    }
-
-    /// Replace the full set of host assignments for a credential (atomic).
-    pub async fn set_credential_host_assignments(
-        &self,
-        credential_id: &Uuid,
-        assignments: &[CredentialHostAssignment],
-    ) -> Result<(), Error> {
-        self.host_credential_storage
-            .save_host_assignments_for_credential(credential_id, assignments)
-            .await
     }
 
     /// Enforce the single-endpoint-per-host invariant: integrations whose
@@ -627,11 +457,6 @@ impl CredentialService {
 
         // Get site's SNMP credentials (from junction table)
         let site_cred_ids = self.get_credential_ids_for_site(&site_id).await?;
-        tracing::debug!(
-            site_id = %site_id,
-            credential_count = site_cred_ids.len(),
-            "Credential IDs found for site via junction table"
-        );
         // Legacy mapping only carries SNMPv2c — pre-v0.15.0 daemons can't speak
         // v1 or v3. v1/v3 credentials reach modern daemons via
         // build_all_credential_mappings.
@@ -646,12 +471,6 @@ impl CredentialService {
                 break;
             }
         }
-        tracing::debug!(
-            site_id = %site_id,
-            has_default = site_snmp_credential.is_some(),
-            "Site default SNMP credential resolution"
-        );
-
         // Get host-level SNMP credential overrides
         let host_ids: Vec<Uuid> = hosts.iter().map(|h| h.id).collect();
         let host_cred_map = self.get_credential_assignments_for_hosts(&host_ids).await?;
@@ -692,13 +511,6 @@ impl CredentialService {
             }
         }
 
-        tracing::debug!(
-            site_id = %site_id,
-            ip_overrides = overrides.len(),
-            has_default = site_snmp_credential.is_some(),
-            "SNMP credential mapping built for discovery"
-        );
-
         Ok(SnmpCredentialMapping {
             daemon_os: Default::default(),
             default_credential: site_snmp_credential,
@@ -727,6 +539,7 @@ impl CredentialService {
         site_id: Uuid,
         integration_targets: &[IntegrationTarget],
         daemon_version: Option<&semver::Version>,
+        placement: &DaemonPlacement,
     ) -> Result<
         (
             Vec<CredentialMapping<CredentialQueryPayload>>,
@@ -816,6 +629,19 @@ impl CredentialService {
             }
         }
 
+        // A container's bridge address, and a host's loopback, are reachable only from that host,
+        // so no other daemon is sent overrides for them. Before the integration targets: a
+        // daemon-host target is deduped against an existing 127.0.0.1 override for the same
+        // credential, and another host's (the seeded socket credentials are shared) must be gone
+        // by then or this daemon loses its own target.
+        let bridge_ctx = capability::ContainerBridgeContext::new(placement, &ip_addresses);
+        capability::retain_reachable_overrides(&bridge_ctx, &mut mappings_by_credential);
+        capability::retain_overrides_scanned_here(
+            placement,
+            &ip_addresses,
+            &mut mappings_by_credential,
+        );
+
         // Per-daemon integration targets from this daemon's Discovery (init-command targeting).
         // The single home for cred↔IP and local-socket targeting — it replaces the old org-wide
         // target_ips bootstrap and the modal's pending_credential_ids. Resolving the credential is
@@ -839,13 +665,24 @@ impl CredentialService {
             }
         }
 
-        // Version gate: never dispatch a credential mapping the target daemon can't
-        // deserialize. Filter on the `CredentialType` discriminant (kept alongside each
-        // mapping, 7-way) BEFORE the lossy collapse to the 5-way `CredentialQueryPayload`
-        // wire tag — SnmpV1/V3 have a higher floor than SnmpV2c. A missing version is
-        // treated conservatively (keep only the 0.16.2 wire floor). This protects the
-        // installed base of already-released daemons that predate `serde(other)`.
-        let withheld = retain_daemon_compatible(&mut mappings_by_credential, daemon_version);
+        // Withhold what this daemon is too old to use, and say what. Parsing the type comes first,
+        // so a credential withheld whole is gone before the others look at it. This set carries
+        // site credentials and host assignments, which cannot be validated against one daemon
+        // when they are saved because a site may hold several daemons on different versions, so
+        // reaching here means a mixed-version fleet or a downgrade.
+        let mut withheld = capability::retain_capable::<capability::ParsesCredentialType>(
+            &(),
+            &mut mappings_by_credential,
+            daemon_version,
+        );
+        withheld.extend(capability::retain_capable::<
+            capability::UsesSnmpV3SecurityOptions,
+        >(&(), &mut mappings_by_credential, daemon_version));
+        withheld.extend(capability::retain_capable::<
+            capability::TargetsContainerBridgeWithCredentials,
+        >(
+            &bridge_ctx, &mut mappings_by_credential, daemon_version
+        ));
 
         Ok((
             order_mappings_for_dispatch(mappings_by_credential, &created_at),
@@ -893,52 +730,6 @@ pub(crate) fn mapping_for<'a>(
         .entry(credential_id)
         .or_insert_with(|| TypedCredentialMapping::new(credential_type.discriminant()))
         .mapping
-}
-
-/// Drop any mapping the target daemon is too old to deserialize.
-///
-/// Filters on the 7-way `CredentialTypeDiscriminants` rather than the 5-way wire tag, because
-/// SnmpV1 and SnmpV3 carry a higher daemon floor than SnmpV2c but all three collapse to one `Snmp`
-/// tag on the wire — gating after that collapse could not tell them apart.
-/// Configuring an incompatible credential is already refused at the API with an actionable 400,
-/// but only for a discovery's `integration_targets`. This set also carries site credentials and
-/// host assignments, which are site-scoped and cannot be validated against one daemon version
-/// because a site may hold several daemons on different ones. So reaching here means a
-/// mixed-version fleet or a downgrade, where the credential silently does nothing on this daemon
-/// until it is upgraded — worth saying out loud, since a silent filter is indistinguishable from
-/// a credential that simply never worked.
-///
-/// Returns one `CredentialDaemonTooOld` warning per credential withheld, for the scan's record.
-pub(crate) fn retain_daemon_compatible(
-    mappings: &mut BTreeMap<Uuid, TypedCredentialMapping>,
-    daemon_version: Option<&semver::Version>,
-) -> Vec<DiscoveryWarning> {
-    let mut withheld = Vec::new();
-    mappings.retain(|credential_id, typed| {
-        let compatible = typed.discriminant.compatible_with_daemon(daemon_version);
-        if !compatible {
-            tracing::warn!(
-                %credential_id,
-                credential_type = %typed.discriminant.display_name(),
-                minimum_daemon_version = %typed.discriminant.minimum_daemon_version(),
-                daemon_version = daemon_version.map(|v| v.to_string()).unwrap_or_else(|| "unknown".to_string()),
-                "Not dispatching a credential this daemon is too old to use; upgrade the daemon \
-                 or the credential will keep being skipped on its scans"
-            );
-            withheld.push(DiscoveryWarning::CredentialDaemonTooOld {
-                integration: typed
-                    .discriminant
-                    .to_credential_type()
-                    .to_query_payload()
-                    .discriminant(),
-                credential_id: Some(*credential_id),
-                minimum_daemon_version: typed.discriminant.minimum_daemon_version(),
-                daemon_version: daemon_version.cloned(),
-            });
-        }
-        compatible
-    });
-    withheld
 }
 
 /// Flatten the per-credential mappings into the order the daemon should probe them.
@@ -1459,31 +1250,6 @@ mod integration_target_tests {
 
         assert_eq!(dispatched.len(), 1);
         assert_eq!(dispatched[0].default_credential_id, None);
-    }
-
-    /// The version gate has to run on the 7-way credential type, not the 5-way wire tag: SnmpV1
-    /// and SnmpV2c both serialize as `Snmp`, but only SnmpV1 requires a 0.17.0 daemon. Gating
-    /// after the collapse could not tell them apart and would either starve old daemons of
-    /// SNMPv2c or hand them a payload they cannot deserialize.
-    #[test]
-    fn version_gate_drops_only_the_type_the_daemon_cannot_read() {
-        let mut map: Mappings = Mappings::new();
-        let v2c_id = Uuid::from_u128(1);
-        let v1_id = Uuid::from_u128(2);
-
-        let v2c = snmp_v2c("public");
-        mapping_for(&mut map, v2c_id, &v2c).default_credential = Some(v2c.to_query_payload());
-        let v1 = CredentialTypeDiscriminants::SnmpV1.to_credential_type();
-        mapping_for(&mut map, v1_id, &v1).default_credential = Some(v1.to_query_payload());
-
-        let withheld = retain_daemon_compatible(&mut map, Some(&semver::Version::new(0, 16, 2)));
-
-        assert_eq!(map.keys().copied().collect::<Vec<_>>(), vec![v2c_id]);
-        // The withheld credential is reported on the scan rather than vanishing.
-        assert!(matches!(
-            withheld.as_slice(),
-            [DiscoveryWarning::CredentialDaemonTooOld { credential_id: Some(id), .. }] if *id == v1_id
-        ));
     }
 
     /// Overrides are emitted last so a host-specific credential still beats a site-wide one.

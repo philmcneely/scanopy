@@ -2,25 +2,23 @@ use crate::daemon::runtime::state::BufferedEntities;
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::auth::middleware::permissions::{Authorized, IsDaemon, Member, Or, Viewer};
 use crate::server::billing::types::base::{LimitSource, LimitType};
-use crate::server::daemons::r#impl::api::DiscoveryUpdatePayload;
-use crate::server::daemons::r#impl::version::{minimum_targeted_rescan, supports_targeted_rescan};
-use crate::server::discovery::r#impl::base::{Discovery, DiscoveryBase};
-use crate::server::discovery::r#impl::scan_settings::{RescanSettings, ScanSettings};
-use crate::server::discovery::r#impl::types::{DiscoveryType, RunType};
 use crate::server::hosts::r#impl::os::HostOsFamily;
 use crate::server::interfaces::r#impl::base::Interface;
 use crate::server::ip_addresses::r#impl::base::IPAddress;
 use crate::server::openapi::tags as api_tags;
-use crate::server::ports::r#impl::base::{Port, PortType};
+use crate::server::ports::r#impl::base::Port;
 use crate::server::services::r#impl::base::Service;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::events::traits::{Event, OrgScope};
 use crate::server::shared::events::types::BillingOperation;
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::shared::extractors::Query;
+use crate::server::shared::handlers::list::list_page;
 use crate::server::shared::handlers::ordering::OrderField;
 use crate::server::shared::handlers::query::{
-    FilterQueryExtractor, OrderDirection, PaginationParams, parse_tag_sets,
+    FilterQueryExtractor, OrderDirection, PaginationParams, narrow_by_tags_and_search,
 };
+use crate::server::shared::handlers::traits::ListScope;
 use crate::server::shared::handlers::traits::{
     BulkDeleteResponse, CrudHandlers, bulk_delete_handler, delete_handler,
 };
@@ -44,9 +42,6 @@ use crate::server::{
         api::{CreateHostRequest, DiscoveryHostRequest, HostResponse, UpdateHostRequest},
         base::{HOST_MAC_JOIN, Host, PRIMARY_INTERFACE_JOIN},
         legacy::{HostCreateRequestBody, HostCreateResponse, LegacyHostWithServicesResponse},
-        virtualization_tree::{
-            VIRTUALIZATION_TREE_GROUP_SQL, VIRTUALIZATION_TREE_JOIN, VIRTUALIZATION_TREE_ORDER_SQL,
-        },
     },
     shared::types::api::{ApiError, ApiResponse, ApiResult, PaginatedApiResponse},
 };
@@ -128,29 +123,6 @@ impl OrderField for HostOrderField {
             Self::Model => "hosts.model",
             Self::SysLocation => "hosts.sys_location",
             Self::OsFamily => "hosts.os->>'family'",
-        }
-    }
-
-    /// Grouping by Virtualized By groups each host under the top of its virtualization chain,
-    /// parent first, while sorting and filter options stay on the immediate service's name.
-    fn group_sql(&self) -> &'static str {
-        match self {
-            Self::VirtualizedBy => VIRTUALIZATION_TREE_GROUP_SQL,
-            _ => self.to_sql(),
-        }
-    }
-
-    fn group_join_sql(&self) -> Option<&'static str> {
-        match self {
-            Self::VirtualizedBy => Some(VIRTUALIZATION_TREE_JOIN.as_str()),
-            _ => self.join_sql(),
-        }
-    }
-
-    fn group_order_sql(&self) -> Option<&'static str> {
-        match self {
-            Self::VirtualizedBy => Some(VIRTUALIZATION_TREE_ORDER_SQL),
-            _ => None,
         }
     }
 
@@ -280,67 +252,14 @@ impl HostFilterQuery {
         // host list as empty-shell duplicates.
         let filter = filter.live_or_as_of(self.at);
 
-        let filter = match &self.tag_ids {
-            Some(tag_ids) if !tag_ids.is_empty() => {
-                filter.has_any_tags(tag_ids, EntityDiscriminants::Host)
-            }
-            _ => filter,
-        };
-        let filter = filter.has_tags_from_each(
-            &parse_tag_sets(self.tag_sets.as_deref())?,
-            EntityDiscriminants::Host,
-        );
-
-        // Server-side because the list is paginated: a client-side search would
-        // only ever match the page already loaded.
-        let filter = match self.search.as_deref() {
-            Some(search) if !search.trim().is_empty() => filter.text_search(search),
-            _ => filter,
-        };
+        let filter = narrow_by_tags_and_search(
+            filter,
+            self.tag_ids.as_deref(),
+            self.tag_sets.as_deref(),
+            self.search.as_deref(),
+        )?;
 
         Ok(self.apply_field_filters(filter))
-    }
-
-    /// Build the ORDER BY clause and apply any required JOINs to the filter.
-    /// Returns: (modified_filter, order_by_sql)
-    pub fn apply_ordering(&self, filter: StorableFilter<Host>) -> (StorableFilter<Host>, String) {
-        crate::server::shared::handlers::ordering::TagGroupOrdering {
-            group_by: self.group_by_tag_group,
-            order_by: self.order_by_tag_group,
-        }
-        .apply(
-            EntityDiscriminants::Host,
-            self.group_by,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "hosts.created_at ASC",
-        )
-    }
-
-    /// Whether the list is grouped by virtualization tree and sorted by a field. SQL orders a tree
-    /// group by its path, which leaves no room for the sort, so the handler builds that order with
-    /// `HostService::get_all_host_responses_tree_ordered` instead.
-    pub fn sorts_inside_virtualization_trees(&self) -> bool {
-        self.group_by_tag_group.is_none()
-            && matches!(self.group_by, Some(HostOrderField::VirtualizedBy))
-            && (self.order_by.is_some() || self.order_by_tag_group.is_some())
-    }
-
-    /// [`Self::apply_ordering`] without the grouping: the sort alone, with its JOINs.
-    pub fn apply_sort_only(&self, filter: StorableFilter<Host>) -> (StorableFilter<Host>, String) {
-        crate::server::shared::handlers::ordering::TagGroupOrdering {
-            group_by: None,
-            order_by: self.order_by_tag_group,
-        }
-        .apply(
-            EntityDiscriminants::Host,
-            None,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "hosts.created_at ASC",
-        )
     }
 
     /// Apply the field filters the Hosts tab offers.
@@ -452,7 +371,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(export_hosts_zip))
         .routes(routes!(consolidate_hosts))
         .routes(routes!(create_host_discovery))
-        .routes(routes!(rescan_host))
+        .merge(super::rescan::create_router())
 }
 
 /// List all hosts
@@ -478,89 +397,8 @@ async fn get_all_hosts(
     auth: Authorized<Viewer>,
     Query(query): Query<HostFilterQuery>,
 ) -> ApiResult<Json<PaginatedApiResponse<HostResponse>>> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    let filter = Host::list_filter(&state, &query, &site_ids, organization_id).await?;
-
-    // Apply pagination
-    let pagination = query.pagination();
-    let filter = pagination.apply_to_filter(filter);
-
-    // Apply ordering and JOINs
-    let tree_sorted = query.sorts_inside_virtualization_trees();
-    let (filter, order_by) = if tree_sorted {
-        query.apply_sort_only(filter.join(&VIRTUALIZATION_TREE_JOIN))
-    } else {
-        query.apply_ordering(filter)
-    };
-
-    // Grouped lists report each group's full size, not the slice of it that
-    // landed on this page. Runs against the same filter — including the JOIN
-    // `apply_ordering` just added, which the group expression may reference.
-    let group_sql = match (query.group_by_tag_group, query.group_by) {
-        (Some(_), _) => {
-            Some(crate::server::shared::handlers::ordering::TagGroupOrdering::GROUP_SQL)
-        }
-        (None, Some(group_field)) => Some(group_field.group_sql()),
-        (None, None) => None,
-    };
-    let group_counts = match group_sql {
-        Some(group_sql) => Some(
-            state
-                .services
-                .host_service
-                .count_by_group(filter.clone(), group_sql)
-                .await?,
-        ),
-        None => None,
-    };
-
-    let host_service = &state.services.host_service;
-    let include_children = query.include_children.unwrap_or(true);
-    let mut result = if tree_sorted {
-        host_service
-            .get_all_host_responses_tree_ordered(
-                filter,
-                &order_by,
-                pagination.effective_limit(),
-                pagination.effective_offset(),
-                query.at,
-                include_children,
-            )
-            .await?
-    } else {
-        host_service
-            .get_all_host_responses_paginated(filter, &order_by, query.at, include_children)
-            .await?
-    };
-
-    // Hydrate credential assignments from junction table
-    let host_ids: Vec<Uuid> = result.items.iter().map(|h| h.id).collect();
-    let cred_map = state
-        .services
-        .credential_service
-        .get_credential_assignments_for_hosts(&host_ids)
-        .await
-        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
-    for host in &mut result.items {
-        if let Some(assignments) = cred_map.get(&host.id) {
-            host.credential_assignments = assignments.clone();
-        }
-    }
-
-    // Get effective pagination values for response metadata
-    let limit = pagination.effective_limit().unwrap_or(0);
-    let offset = pagination.effective_offset();
-
-    let response = PaginatedApiResponse::success(result.items, result.total_count, limit, offset);
-
-    Ok(Json(match group_counts {
-        Some(counts) => response.with_group_counts(counts),
-        None => response,
-    }))
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Host>(&state, &scope, &query).await?))
 }
 
 /// Get a host by ID
@@ -702,7 +540,7 @@ async fn create_host(
                         .count_for_sites(&org_site_ids)
                         .await?;
                     if current_hosts >= limit {
-                        let _ = state
+                        state
                             .services
                             .event_bus
                             .publish(Event::new(
@@ -787,6 +625,7 @@ async fn create_host(
                 subnets,
                 interfaces_complete,
                 interface_data_complete,
+                port_coverage,
                 superseded_wire_shape,
             } = discovery_request;
 
@@ -817,6 +656,7 @@ async fn create_host(
                     subnets,
                     interfaces_complete,
                     interface_data_complete,
+                    &port_coverage,
                     Some(&scan_ctx),
                     entity,
                     None,
@@ -964,7 +804,7 @@ async fn create_host_discovery(
     auth: Authorized<IsDaemon>,
     ApiJson(request): ApiJson<DiscoveryHostRequest>,
 ) -> ApiResult<impl IntoResponse> {
-    // Legacy cleanup: remove once minimum_supported >= 0.16.0
+    // Legacy cleanup: remove once the enforced ceiling passes `last_without_ip_address_bindings()`
     let is_legacy_daemon = pre_interface_to_ip_address_rename(auth.entity.daemon_version());
 
     // Get daemon site_id from entity
@@ -985,6 +825,7 @@ async fn create_host_discovery(
     let entities = BufferedEntities {
         hosts: vec![request],
         subnets: vec![],
+        vlans: vec![],
     };
 
     let created = state
@@ -1010,7 +851,7 @@ async fn create_host_discovery(
         }
     })?;
 
-    // Legacy cleanup: remove once minimum_supported >= 0.16.0
+    // Legacy cleanup: remove once the enforced ceiling passes `last_without_ip_address_bindings()`
     // Pre-0.16.0 daemons expect "Interface"/"interface_id" in binding responses
     if is_legacy_daemon {
         let mut json = serde_json::to_value(ApiResponse::success(host_response))
@@ -1023,259 +864,6 @@ async fn create_host_discovery(
         serde_json::to_value(ApiResponse::success(host_response))
             .map_err(|e| ApiError::internal_error(&e.to_string()))?,
     ))
-}
-
-/// Rescan a host
-///
-/// Starts a one-shot scan of this host's addresses and nothing else, answering
-/// "is this host still there, and is its data current?" without sweeping the
-/// whole subnet.
-///
-/// The scan runs on the daemon that last discovered this host — evidence it can
-/// reach the address — and only if that daemon still has an interface on a
-/// subnet containing one of the host's scannable IPs. Where that interface has a
-/// MAC the daemon ARPs the target, which sees a live host even when every port
-/// is firewalled; on a MAC-less interface (a point-to-point tunnel) it falls
-/// back to a TCP probe. When no interface covers any of the host's addresses the
-/// request is refused with the specific reason. A loopback address is not a
-/// scannable IP — it is reached locally and is excluded from the target set.
-///
-/// Returns the session, which streams progress over `/api/v1/discovery/stream`
-/// like any other scan. A `Queued` phase means the daemon is busy; it will start
-/// when the running scan finishes.
-#[utoipa::path(
-    post,
-    path = "/{id}/rescan",
-    tag = Host::ENTITY_NAME_PLURAL,
-    params(("id" = uuid::Uuid, Path, description = "Host ID")),
-    responses(
-        (status = 200, description = "Rescan session started", body = ApiResponse<DiscoveryUpdatePayload>),
-        (status = 404, description = "Host not found", body = ApiErrorResponse),
-        (status = 400, description = "Host cannot be rescanned (never scanned, daemon gone, daemon unreachable, or daemon too old)", body = ApiErrorResponse),
-    ),
-     security(("user_api_key" = []), ("session" = []))
-)]
-async fn rescan_host(
-    State(state): State<Arc<AppState>>,
-    auth: Authorized<Member>,
-    Path(host_id): Path<Uuid>,
-) -> ApiResult<Json<ApiResponse<DiscoveryUpdatePayload>>> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    let host = state
-        .services
-        .host_service
-        .get_by_id(&host_id)
-        .await?
-        .ok_or_else(|| ApiError::entity_not_found::<Host>(host_id))?;
-
-    validate_read_access(Some(host.base.site_id), None, &site_ids, organization_id)?;
-
-    let ip_addresses = state
-        .services
-        .ip_address_service
-        .get_for_host(&host_id)
-        .await?;
-    if ip_addresses.is_empty() {
-        return Err(ApiError::bad_request(
-            "This host has no IP addresses to scan.",
-        ));
-    }
-
-    let daemon = resolve_rescan_daemon(&state, &host).await?;
-
-    // Only the addresses this daemon has a route to. The daemon ARPs the ones
-    // on an interface with a MAC and falls back to a TCP probe on the ones
-    // without (a point-to-point tunnel has no MAC but is perfectly routable) —
-    // refusing the latter outright made rescan impossible on VPN-only daemons
-    // rather than merely lower fidelity.
-    //
-    // A loopback address passes the junction check — the daemon reports its own
-    // 127.0.0.0/8 as an interfaced subnet — but is not scannable by either path:
-    // loopback subnets are dropped from every scan. Excluding it here keeps this
-    // endpoint and the daemon's own target resolution agreeing, and keeps
-    // 127.0.0.1 out of the frozen rescan name.
-    let interfaced = state
-        .services
-        .daemon_service
-        .get_interfaced_subnet_ids(&daemon.id)
-        .await;
-    let reachable: Vec<&IPAddress> = ip_addresses
-        .iter()
-        .filter(|ip| interfaced.contains(&ip.base.subnet_id) && !ip.base.ip_address.is_loopback())
-        .collect();
-
-    if reachable.is_empty() {
-        return Err(ApiError::bad_request(&format!(
-            "Daemon \"{}\" last scanned this host but has no interface on a subnet holding any \
-             of its scannable addresses, so it can't scan them directly.",
-            daemon.base.name
-        )));
-    }
-
-    // The ports already recorded on this host. `get_for_hosts` applies the live
-    // filter; `get_for_host` does not, and would resurrect historically-closed
-    // ports into the scan list.
-    let ports: Vec<PortType> = state
-        .services
-        .port_service
-        .get_for_hosts(&[host_id], None)
-        .await
-        .map_err(|e| ApiError::internal_error(&e.to_string()))?
-        .remove(&host_id)
-        .unwrap_or_default()
-        .into_iter()
-        .map(|p| p.base.port_type)
-        .collect();
-
-    // Inherit the daemon's configured scan settings so a deliberately lowered
-    // scan rate — or raw-socket probing the operator turned on — carries over.
-    // The conversion drops the full-scan fields, which a rescan must not have.
-    let settings = RescanSettings::from(
-        &daemon_scan_settings(&state, daemon.id)
-            .await
-            .unwrap_or_default(),
-    );
-
-    let discovery = Discovery::new(DiscoveryBase {
-        run_type: RunType::AdHoc { last_run: None },
-        discovery_type: DiscoveryType::Rescan {
-            host_id: daemon.base.host_id,
-            target_host_id: host.id,
-            ips: reachable.iter().map(|ip| ip.base.ip_address).collect(),
-            ports,
-            settings,
-        },
-        // Both the host name and the addresses are only known here, and the
-        // historical record inherits this name — so it carries the address the
-        // scan actually aimed at, not just the host's current name.
-        name: format!(
-            "Rescan of {} ({})",
-            host.base.name,
-            reachable
-                .iter()
-                .map(|ip| ip.base.ip_address.to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        daemon_id: daemon.id,
-        site_id: host.base.site_id,
-        tags: Vec::new(),
-    });
-
-    let discovery = state
-        .services
-        .discovery_service
-        .create_discovery(discovery, AuthenticatedEntity::System)
-        .await
-        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
-
-    // Auto-wake the daemon, matching POST /discovery/start-session — start_session
-    // itself doesn't clear standby, and a standby daemon never picks up the work.
-    let mut daemon = daemon;
-    if daemon.base.standby {
-        daemon.base.standby = false;
-        daemon.base.standby_cleared_at = Some(chrono::Utc::now());
-        state
-            .services
-            .daemon_service
-            .update(&mut daemon, AuthenticatedEntity::System)
-            .await?;
-        tracing::info!(daemon_id = %daemon.id, "Cleared daemon standby (rescan started)");
-    }
-
-    let update = state
-        .services
-        .discovery_service
-        .start_session(discovery, auth.into_entity())
-        .await?;
-
-    Ok(Json(ApiResponse::success(update)))
-}
-
-/// The scan settings on this daemon's own discovery configuration, if it has one.
-async fn daemon_scan_settings(state: &Arc<AppState>, daemon_id: Uuid) -> Option<ScanSettings> {
-    let filter = StorableFilter::new_from_uuid_column("daemon_id", &daemon_id).live_configs();
-    let discoveries = state
-        .services
-        .discovery_service
-        .get_all(filter)
-        .await
-        .ok()?;
-    discoveries
-        .into_iter()
-        .find_map(|d| match d.base.discovery_type {
-            DiscoveryType::Unified { scan_settings, .. } => Some(scan_settings),
-            _ => None,
-        })
-}
-
-/// The daemon that last discovered this host, validated as usable for a rescan.
-///
-/// Provenance beats inference here: the daemon that produced this host's data
-/// demonstrably reached the address, which is a stronger signal than any
-/// subnet-membership calculation over the interfaced-subnet junction.
-async fn resolve_rescan_daemon(state: &Arc<AppState>, host: &Host) -> Result<Daemon, ApiError> {
-    let Some(discovery_id) = host.last_discovery_id else {
-        return Err(ApiError::bad_request(
-            "This host hasn't been scanned yet, so there is no daemon known to reach it. \
-             Run a discovery first.",
-        ));
-    };
-
-    // The FK is ON DELETE SET NULL, so a pruned historical row lands above rather
-    // than here; this covers a row that vanished between reads.
-    let last_scan = state
-        .services
-        .discovery_service
-        .get_by_id(&discovery_id)
-        .await?
-        .ok_or_else(|| {
-            ApiError::bad_request(
-                "The scan that last found this host is no longer on record, so its daemon \
-                 can't be identified. Run a discovery first.",
-            )
-        })?;
-
-    let daemon = state
-        .services
-        .daemon_service
-        .get_by_id(&last_scan.base.daemon_id)
-        .await?
-        .ok_or_else(|| {
-            ApiError::bad_request(
-                "The daemon that last scanned this host no longer exists. Run a discovery from \
-                 another daemon to refresh it.",
-            )
-        })?;
-
-    if daemon.base.site_id != host.base.site_id {
-        return Err(ApiError::bad_request(&format!(
-            "Daemon \"{}\" has moved to a different site and can no longer reach this host.",
-            daemon.base.name
-        )));
-    }
-
-    if !supports_targeted_rescan(daemon.base.version.as_ref()) {
-        return Err(match daemon.base.version {
-            None => ApiError::bad_request(&format!(
-                "Daemon \"{}\" has not connected to the server yet, so its version is unknown. \
-                 Wait for it to check in, then try again.",
-                daemon.base.name
-            )),
-            Some(_) => ApiError::bad_request(&format!(
-                "Daemon \"{}\" does not support rescanning a single host. Upgrade it to version \
-                 {} or later.",
-                daemon.base.name,
-                minimum_targeted_rescan()
-            )),
-        });
-    }
-
-    Ok(daemon)
 }
 
 /// Consolidate hosts
@@ -1355,8 +943,12 @@ async fn consolidate_hosts(
         )));
     }
 
+    let reason = DeletionReason::HostMergedInto {
+        host_id: destination_host.id,
+        proven_by: Vec::new(),
+    };
     let mut host_response = host_service
-        .consolidate_hosts(destination_host, other_host, auth.into_entity())
+        .consolidate_hosts(destination_host, other_host, auth.into_entity(), reason)
         .await?;
 
     // Hydrate tags from junction table
@@ -1479,13 +1071,11 @@ async fn export_hosts_zip(
     auth: Authorized<Viewer>,
     Query(query): Query<HostFilterQuery>,
 ) -> ApiResult<impl IntoResponse> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
+    let scope = ListScope::of(&auth.entity)?;
+    let (site_ids, organization_id) = (scope.site_ids.clone(), scope.organization_id);
 
     // The list's own filter, so the export holds the rows the list showed.
-    let filter = Host::list_filter(&state, &query, &site_ids, organization_id).await?;
+    let filter = Host::list_filter(&state, &query, &scope).await?;
 
     // Get all hosts (no pagination for export)
     let hosts = state.services.host_service.get_all(filter).await?;

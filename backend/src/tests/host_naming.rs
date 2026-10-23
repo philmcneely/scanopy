@@ -41,6 +41,7 @@ use crate::server::subnets::r#impl::base::{Subnet, SubnetBase};
 use crate::server::subnets::r#impl::types::SubnetType;
 
 use super::{organization, test_services};
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 
 const LAN_CIDR: &str = "192.168.1.0/24";
 const DEVICE_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 20));
@@ -90,13 +91,13 @@ fn submission_at(
     host.base.apply_name(name);
 
     let subnet = Subnet::new(SubnetBase {
-        name: "lan".to_string(),
+        name: SubnetName::unattributed("lan".to_string()),
         site_id,
         cidr: SubnetCidr::new(
             SubnetCidrValue(LAN_CIDR.parse().unwrap()),
             AttributeSource::DaemonSelfReport,
         ),
-        subnet_type: SubnetType::Lan,
+        subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
         source: EntitySource::Discovery,
         ..Default::default()
     });
@@ -152,6 +153,7 @@ async fn submit(services: &ServiceFactory, s: Submission) -> HostResponse {
             vec![s.subnet],
             true,
             InterfaceDataComplete::default(),
+            &crate::server::ports::r#impl::coverage::PortCoverage::default(),
             None,
             AuthenticatedEntity::System,
             None,

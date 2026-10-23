@@ -62,12 +62,20 @@ export function bundleEdges(
 		// are linked" while dropping *which* cable, host or dependency links them — and bundles
 		// also lose their label and highlight only as a group.
 		//
+		// The identity names the relationship, not the segment: every hop of one dependency shares
+		// it. Two hops between the same containers (a chain into and out of a tag group, a hub
+		// with two spokes in one subnet) have different endpoints and are both drawn, so the
+		// endpoint pair is in the key too. Segments of one relation merge only where they would
+		// draw on top of each other.
+		//
 		// Only edges elevated onto their containers have no identity: those land on identical
 		// endpoints, so merging them is the only way to show there is more than one. The backend
 		// decides which is which — see `EdgeType::relation_key`.
 		const relationIdentity = getRelationIdentity(edge);
+		const [e1, e2] =
+			edge.source < edge.target ? [edge.source, edge.target] : [edge.target, edge.source];
 		const key = relationIdentity
-			? `${c1}:${c2}:${relationIdentity}`
+			? `${c1}:${c2}:${relationIdentity}:${e1}:${e2}`
 			: `${c1}:${c2}:${edge.edge_type}`;
 
 		const group = groups.get(key);

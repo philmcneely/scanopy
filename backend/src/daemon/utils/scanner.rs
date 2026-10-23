@@ -330,10 +330,28 @@ pub fn can_arp_scan(use_npcap: bool) -> bool {
     available
 }
 
+/// What a TCP connect scan of one address learned.
+pub struct TcpPortScan {
+    /// Ports that accepted a connection, with whether each looked like TLS.
+    pub open: Vec<(PortType, bool)>,
+    /// Every port with a definite answer: open, refused, or silent after every retry. A port
+    /// whose probe failed on this side (file descriptors exhausted, a critical socket error) or
+    /// was never probed because the scan was cancelled is left out, since nothing was learned.
+    pub covered: Vec<u16>,
+}
+
+/// One port's definite outcome.
+enum TcpProbe {
+    Open(PortType, bool),
+    Closed(u16),
+}
+
 /// Scan TCP ports with graceful FD exhaustion handling.
 ///
 /// When FD exhaustion is detected, the controller automatically reduces batch size
 /// and logs a warning. The scan continues with reduced concurrency rather than failing.
+// A connect scan of an address the daemon routes to, not an application probe.
+#[allow(clippy::disallowed_methods)]
 pub async fn scan_tcp_ports(
     ip: IpAddr,
     cancel: CancellationToken,
@@ -341,7 +359,7 @@ pub async fn scan_tcp_ports(
     scan_rate_pps: u32,
     tcp_ports_to_check: Vec<u16>,
     controller: Arc<ScanConcurrencyController>,
-) -> Result<Vec<(PortType, bool)>, Error> {
+) -> Result<TcpPortScan, Error> {
     let ports: Vec<PortType> = tcp_ports_to_check
         .iter()
         .map(|p| PortType::new_tcp(*p))
@@ -351,7 +369,7 @@ pub async fn scan_tcp_ports(
     let effective_batch_size = batch_size.min(controller.batch_size());
     let controller_for_log = controller.clone();
 
-    let open_ports = batch_scan(
+    let probes = batch_scan(
         ports.clone(),
         effective_batch_size,
         scan_rate_pps,
@@ -395,7 +413,7 @@ pub async fn scan_tcp_ports(
                             );
 
                             drop(stream);
-                            return Some((
+                            return Some(TcpProbe::Open(
                                 PortType::new_tcp(port.number()),
                                 use_https || port.is_https(),
                             ));
@@ -415,6 +433,11 @@ pub async fn scan_tcp_ports(
                                     port,
                                     e
                                 );
+                            }
+                            // Refused is an answer: nothing listens there. Any other error says
+                            // nothing about the port.
+                            if e.kind() == std::io::ErrorKind::ConnectionRefused {
+                                return Some(TcpProbe::Closed(port.number()));
                             }
                             return None;
                         }
@@ -439,7 +462,7 @@ pub async fn scan_tcp_ports(
                                     port,
                                     attempts
                                 );
-                                return None;
+                                return Some(TcpProbe::Closed(port.number()));
                             }
                         }
                     }
@@ -449,16 +472,31 @@ pub async fn scan_tcp_ports(
     )
     .await;
 
+    let mut scan = TcpPortScan {
+        open: Vec::new(),
+        covered: Vec::with_capacity(probes.len()),
+    };
+    for probe in probes {
+        match probe {
+            TcpProbe::Open(port, https) => {
+                scan.covered.push(port.number());
+                scan.open.push((port, https));
+            }
+            TcpProbe::Closed(number) => scan.covered.push(number),
+        }
+    }
+
     tracing::trace!(
         ip = %ip,
         ports_scanned = %ports.len(),
-        responses = %open_ports.len(),
+        responses = %scan.open.len(),
+        covered = %scan.covered.len(),
         effective_batch_size,
         degraded = controller_for_log.is_degraded(),
         "TCP ports scanned"
     );
 
-    Ok(open_ports)
+    Ok(scan)
 }
 
 /// Requests `endpoint` at each of `urls` in order and returns the first response.
@@ -806,6 +844,53 @@ mod unreadable_credential_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An open loopback port is found, a refused one is not, and both count as covered.
+    #[tokio::test]
+    async fn a_connect_scan_finds_the_open_port_and_covers_the_refused_one() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let open = listener.local_addr().unwrap().port();
+        let refused = {
+            let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            l.local_addr().unwrap().port()
+        };
+        let scan = scan_tcp_ports(
+            "127.0.0.1".parse().unwrap(),
+            CancellationToken::new(),
+            10,
+            0,
+            vec![open, refused],
+            ScanConcurrencyController::new(10),
+        )
+        .await
+        .unwrap();
+        let numbers: Vec<u16> = scan.open.iter().map(|(p, _)| p.number()).collect();
+        assert_eq!(numbers, vec![open]);
+        let mut covered = scan.covered;
+        covered.sort_unstable();
+        let mut expected = vec![open, refused];
+        expected.sort_unstable();
+        assert_eq!(covered, expected);
+    }
+
+    /// A cancelled scan probes nothing and so covers nothing.
+    #[tokio::test]
+    async fn a_cancelled_scan_covers_nothing() {
+        let cancel = CancellationToken::new();
+        cancel.cancel();
+        let scan = scan_tcp_ports(
+            "127.0.0.1".parse().unwrap(),
+            cancel,
+            10,
+            0,
+            vec![1, 2, 3],
+            ScanConcurrencyController::new(10),
+        )
+        .await
+        .unwrap();
+        assert!(scan.open.is_empty());
+        assert!(scan.covered.is_empty());
+    }
 
     #[test]
     fn test_scan_controller_initial_state() {

@@ -95,19 +95,6 @@ impl Hash for BillingPlan {
     }
 }
 
-impl Default for BillingPlan {
-    /// The conservative fallback plan. Self-hosted org provisioning uses the
-    /// license-resolved plan (`license::service::self_hosted_plan`), which falls
-    /// back to this whenever no valid license applies. `default()` also backstops
-    /// `Option<BillingPlan>::unwrap_or_default()` for rows with no plan set, where
-    /// Community (the least-privileged self-hosted plan) is the safe choice.
-    fn default() -> Self {
-        use crate::server::billing::plans::get_community_plan;
-
-        get_community_plan()
-    }
-}
-
 impl BillingPlan {
     pub fn to_yearly(&self, discount: f32) -> Self {
         let mut yearly_config = self.config();
@@ -523,10 +510,11 @@ impl BillingPlan {
     /// For Free: returns all enabled features (it's the baseline).
     /// For self-hosted plans with no previous tier: returns all enabled non-universal features.
     /// For cloud plans: returns features new vs the previous tier.
+    /// Sorted, so the generated fixture is identical from run to run.
     pub fn incremental_features(&self) -> Vec<&'static str> {
         let enabled = self.enabled_feature_ids();
 
-        match self.previous_tier() {
+        let mut features: Vec<&'static str> = match self.previous_tier() {
             Some(prev_disc) => {
                 let prev_plan = Self::default_for_discriminant(prev_disc);
                 match prev_plan {
@@ -546,7 +534,9 @@ impl BillingPlan {
                 let universal = Self::universal_feature_ids();
                 enabled.difference(&universal).copied().collect()
             }
-        }
+        };
+        features.sort_unstable();
+        features
     }
 
     /// Returns set of feature IDs where the feature is enabled on this plan.

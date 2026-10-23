@@ -108,7 +108,6 @@
 						<EntityTag
 							entityRef={entityRef('Host', neighbour.neighborHost.id, neighbour.neighborHost)}
 							label={hostDisplayName(neighbour.neighborHost)}
-							icon={entities.getIconComponent('Host')}
 							color={entities.getColorHelper('Host').color}
 						/>
 					{/if}

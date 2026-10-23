@@ -55,7 +55,7 @@ impl AppProbe for EtherNetIpProbe {
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
         let socket = UdpSocket::bind("0.0.0.0:0").await?;
-        let target = std::net::SocketAddr::new(ctx.ip, self.port().number());
+        let target = ctx.target(self.port().number());
 
         if socket
             .send_to(&list_identity_request(), target)

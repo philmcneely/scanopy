@@ -150,6 +150,8 @@ impl Default for Port {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Port {}
+
 impl ChangeTriggersTopologyStaleness<Port> for Port {
     fn triggers_staleness(&self, other: Option<Port>) -> bool {
         if let Some(other_port) = other {

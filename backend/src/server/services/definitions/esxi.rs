@@ -12,7 +12,7 @@ impl ServiceDefinition for Esxi {
         "ESXi"
     }
     fn description(&self) -> &'static str {
-        "VMware ESXi bare-metal hypervisor"
+        "VMware ESXi bare-metal hypervisor for server virtualization"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Hypervisor

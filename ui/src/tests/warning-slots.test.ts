@@ -2,12 +2,17 @@ import { describe, it, expect } from 'vitest';
 import warningCodes from '$lib/data/warning-codes.json';
 import warningRemedies from '$lib/data/warning-remedies.json';
 import discoveryIntegrations from '$lib/data/discovery-integrations.json';
+import claimSources from '$lib/data/claim-sources.json';
+import type { components } from '$lib/api/schema';
+import { snmpCheckOf, type CredentialLookup } from '$lib/features/discovery/utils/snmpCheck';
 import {
 	buildWarningReport,
 	credentialIdsOf,
 	type DiscoveryWarning,
 	type EntityNameLookup
 } from '$lib/features/discovery/utils/warnings';
+
+type Credential = components['schemas']['Credential'];
 
 /**
  * The frontend half of the slot contract.
@@ -60,7 +65,14 @@ describe('discovery warning rendering', () => {
 			widened_by_vlan: false,
 			declared: 'Windows',
 			actual: 'Unix',
-			elided: 7
+			elided: 7,
+			cause: 'TimedOut',
+			failures: [{ group: 'Interfaces', cause: 'TimedOut' }],
+			gap: {
+				type: 'TargetsContainerBridgeWithCredentials',
+				details: { addresses: ['172.17.0.3'] }
+			},
+			last_unsupported_daemon_version: '0.18.2'
 		}) as unknown as DiscoveryWarning;
 
 	/**
@@ -81,6 +93,29 @@ describe('discovery warning rendering', () => {
 			.flatMap((section) => section.entries)
 			.flatMap((entry) => entry.details)
 			.flatMap((statement) => statement.examples);
+
+	/**
+	 * A credential withheld whole and one that lost only its bridge addresses are different
+	 * statements, so each gap renders as its own sentence, and none leaves a slot unfilled.
+	 */
+	it('renders each capability gap as its own sentence', () => {
+		const gaps = [
+			{ type: 'ParsesCredentialType' },
+			{
+				type: 'UsesSnmpV3SecurityOptions',
+				details: { options: ['NoAuthNoPriv', 'AuthNoPriv', 'Md5Auth'] }
+			},
+			{ type: 'TargetsContainerBridgeWithCredentials', details: { addresses: ['172.17.0.3'] } }
+		];
+		const rendered = sentences(
+			gaps.map(
+				(gap) => ({ ...sample('CredentialNeedsNewerDaemon'), gap }) as unknown as DiscoveryWarning
+			)
+		);
+
+		expect(rendered).toHaveLength(gaps.length);
+		for (const sentence of rendered) expect(sentence).not.toMatch(/\{\w+\}/);
+	});
 
 	it('renders every code the backend can send, with no slot left unfilled', () => {
 		const unfilled: string[] = [];
@@ -106,9 +141,11 @@ describe('discovery warning rendering', () => {
 	});
 
 	it('groups warnings sharing a code into one sentence, naming every address', () => {
-		const warnings = ['192.168.7.235', '192.168.7.242'].map(
-			(address) => sample('InterfaceSetCutShort') && { ...sample('InterfaceSetCutShort'), address }
-		);
+		// A code with no device check, so the sentence is the only place its devices are named.
+		const warnings = ['192.168.7.235', '192.168.7.242'].map((address) => ({
+			...sample('VlanRecordingFailed'),
+			address
+		}));
 
 		const rendered = sentences(warnings as DiscoveryWarning[]);
 
@@ -117,6 +154,28 @@ describe('discovery warning rendering', () => {
 		expect(rendered).toHaveLength(1);
 		expect(rendered[0]).toContain('192.168.7.235');
 		expect(rendered[0]).toContain('192.168.7.242');
+	});
+
+	it('shares a sentence between devices whose reads all ended the same way, and only then', () => {
+		const nothing = (address: string, failures: unknown) =>
+			({ ...sample('SnmpCollectedNothing'), address, failures }) as DiscoveryWarning;
+		const timedOut = [
+			{ group: 'Interfaces', cause: 'TimedOut' },
+			{ group: 'ArpTable', cause: 'TimedOut' }
+		];
+
+		const same = sentences([nothing('10.91.16.1', timedOut), nothing('10.91.16.11', timedOut)]);
+		const different = sentences([
+			nothing('10.91.16.1', timedOut),
+			nothing('10.91.16.11', [{ group: 'Interfaces', cause: 'GenErr' }])
+		]);
+
+		// The customer's two devices failed identically, and read as one line naming both.
+		expect(same).toHaveLength(1);
+		expect(same[0]).toContain('10.91.16.1');
+		expect(same[0]).toContain('10.91.16.11');
+		// A device whose reads ended differently is a different statement.
+		expect(different).toHaveLength(2);
 	});
 
 	it('keeps devices that failed differently in separate sentences', () => {
@@ -268,7 +327,7 @@ describe('discovery warning rendering', () => {
 
 		expect(report).toHaveLength(1);
 		expect(report[0].entries).toHaveLength(1);
-		expect(report[0].entries[0].subjects.map((s) => s.label)).toEqual(devices);
+		expect(report[0].entries[0].affects).toEqual({ type: 'address', count: 4, only: null });
 		expect(report[0].entries[0].details).toHaveLength(1);
 		for (const device of devices) {
 			expect(report[0].entries[0].details[0].sentence).toContain(device);
@@ -333,15 +392,11 @@ describe('discovery warning rendering', () => {
 		const rowFor = (warnings: DiscoveryWarning[]) =>
 			buildWarningReport(warnings, credentialNames).flatMap((s) => s.entries)[0];
 
-		it('chips the credential alongside the address it failed at', () => {
+		it('counts the address a credential failed at, and keeps the credential as the action target', () => {
 			const row = rowFor([credentialWarning('CredentialMalformed')]);
 
-			// Both, not one: the address says which device was being reached, the credential says
-			// which record is wrong. Dropping either leaves the reader a lookup to do.
-			expect(row.subjects.map((s) => s.label)).toEqual(['10.0.0.1', 'Core switches SNMP']);
-			expect(row.subjects[1].entity).toEqual({ type: 'Credential', id: CREDENTIAL });
-			// The address is a label, not a link — there is no entity behind it.
-			expect(row.subjects[0].entity).toBeUndefined();
+			expect(row.affects).toEqual({ type: 'address', count: 1, only: '10.0.0.1' });
+			expect(credentialIdsOf(row)).toEqual([CREDENTIAL]);
 		});
 
 		it('renders a warning recorded before ids existed with the address alone', () => {
@@ -354,22 +409,18 @@ describe('discovery warning rendering', () => {
 			delete withoutId.credential_id;
 			const row = rowFor([withoutId as unknown as DiscoveryWarning]);
 
-			expect(row.subjects.map((s) => s.label)).toEqual(['10.0.0.1']);
+			expect(row.affects?.only).toBe('10.0.0.1');
 			expect(row.details[0].sentence).not.toMatch(/\{\w+\}/);
 			expect(credentialIdsOf(row)).toEqual([]);
 		});
 
-		it('drops a credential chip whose id resolves to nothing', () => {
-			// Deleted since the scan, or a viewer who cannot read credentials. Same policy as an
-			// unresolvable host id: no chip, never a raw UUID on screen.
+		it('keeps a credential whose name did not resolve as the action target', () => {
+			// Deleted since the scan, or a viewer who cannot read credentials.
 			const row = rowFor([
 				credentialWarning('CredentialMalformed', { credential_id: OTHER_CREDENTIAL })
 			]);
 
-			expect(row.subjects.map((s) => s.label)).toEqual(['10.0.0.1']);
-			expect(row.subjects.some((s) => s.entity?.type === 'Credential')).toBe(false);
-			// Still reachable as an action target, though — the id is good even if the name is not
-			// loaded, and the editor resolves it itself.
+			// The id is good even if the name is not loaded, and the editor resolves it itself.
 			expect(credentialIdsOf(row)).toEqual([OTHER_CREDENTIAL]);
 		});
 
@@ -439,8 +490,8 @@ describe('discovery warning rendering', () => {
 		expect(new Set(rows.map((r) => r.key)).size).toBe(2);
 	});
 
-	// Hosts are told apart by id, not name: two hosts both named "Docker" are two chips.
-	it('gives same-named hosts a chip each', () => {
+	// Hosts are told apart by id, not name: two hosts both named "Docker" are two hosts.
+	it('counts same-named hosts separately', () => {
 		const onHost = (host_id: string) =>
 			({
 				code: 'IntegrationWithoutCredential',
@@ -457,6 +508,260 @@ describe('discovery warning rendering', () => {
 			sameName
 		).flatMap((section) => section.entries);
 
-		expect(row.subjects.map((s) => s.label)).toEqual(['Docker', 'Docker']);
+		expect(row.affects).toEqual({ type: 'host', count: 2, only: null });
+	});
+});
+
+/**
+ * The commands a row offers for checking a warning against its device.
+ *
+ * Each device gets its own, built from its own address and the stored credential its warning
+ * names; a device with none says why. Asserted on what the commands do (which device, which
+ * request, which credential), not on their exact text.
+ */
+describe('SNMP check commands', () => {
+	const credentialId = '00000000-0000-0000-0000-0000000000c1';
+	const v3Credential = {
+		id: credentialId,
+		credential_type: {
+			type: 'SnmpV3',
+			security_name: 'netops',
+			security_level: 'AuthPriv',
+			auth_protocol: 'Sha256',
+			auth_password: { mode: 'Inline', value: 'auth-secret' },
+			priv_protocol: 'Aes256',
+			priv_password: { mode: 'Inline', value: 'priv-secret' },
+			context_name: 'vlan-20'
+		}
+	} as unknown as Credential;
+	const credentials: CredentialLookup = (id) => (id === credentialId ? v3Credential : undefined);
+
+	const nothing = (address: string, failures: unknown) =>
+		({
+			code: 'SnmpCollectedNothing',
+			address,
+			failures,
+			credential_id: credentialId
+		}) as unknown as DiscoveryWarning;
+
+	const outcomesOf = (warnings: DiscoveryWarning[]) =>
+		buildWarningReport(warnings)
+			.flatMap((section) => section.entries)
+			.flatMap((entry) => entry.details)
+			.map((statement) => statement.warnings.map((w) => snmpCheckOf(w, credentials)));
+
+	it('gives each device its own commands, and a device with none the reason why', () => {
+		const statements = outcomesOf([
+			nothing('192.168.7.229', [{ group: 'Interfaces', cause: 'TimedOut' }]),
+			nothing('192.168.7.230', [{ group: 'Interfaces', cause: 'GenErr' }]),
+			nothing('192.168.7.212', [])
+		]);
+
+		expect(statements).toHaveLength(3);
+		const [silent, generr, empty] = statements.map(([outcome]) => outcome);
+		for (const [outcome, address] of [
+			[silent, '192.168.7.229'],
+			[generr, '192.168.7.230']
+		] as const) {
+			expect(outcome && 'commands' in outcome).toBe(true);
+			const commands = (outcome as { commands: string[] }).commands;
+			expect(commands.every((c) => c.includes(address))).toBe(true);
+		}
+		expect(empty && 'reason' in empty).toBe(true);
+	});
+
+	it('authenticates with the stored credential, and never prints its secrets', () => {
+		const [[outcome]] = outcomesOf([nothing('10.0.0.1', [{ group: 'Lldp', cause: 'TimedOut' }])]);
+		const commands = (outcome as { commands: string[] }).commands.join('\n');
+
+		expect(commands).toContain('-u netops');
+		expect(commands).toContain('-n vlan-20');
+		expect(commands).not.toContain('secret');
+	});
+
+	it('turns off the increasing-OID check for an agent that answered out of order', () => {
+		const [[outcome]] = outcomesOf([
+			{
+				code: 'SnmpWalkDesynchronised',
+				address: '10.0.0.1',
+				group: 'ArpTable',
+				credential_id: credentialId
+			} as unknown as DiscoveryWarning
+		]);
+
+		expect((outcome as { commands: string[] }).commands.every((c) => c.includes('-Cc'))).toBe(true);
+	});
+
+	it("reads a device's own claim before recounting what it served", () => {
+		const [[outcome]] = outcomesOf([
+			{
+				code: 'ClaimedCountUnderRead',
+				address: '10.0.0.1',
+				group: 'Interfaces',
+				source: 'IfNumber',
+				expected: 23,
+				observed: 1,
+				credential_id: credentialId
+			} as unknown as DiscoveryWarning
+		]);
+		const claimed = claimSources.find((c) => c.id === 'IfNumber')?.metadata as { oid: string };
+
+		const [first] = (outcome as { commands: string[] }).commands;
+		expect(first.startsWith('snmpget')).toBe(true);
+		expect(first).toContain(claimed.oid);
+	});
+
+	it('offers no command for a device read without a known credential', () => {
+		const [[outcome]] = outcomesOf([
+			{
+				code: 'SnmpWalkPartialRecorded',
+				address: '10.0.0.9',
+				group: 'Lldp',
+				credential_id: null
+			} as unknown as DiscoveryWarning
+		]);
+
+		expect(outcome && 'commands' in outcome).toBe(false);
+		expect(outcome && 'reason' in outcome && outcome.reason).toContain('10.0.0.9');
+	});
+
+	it('takes a row with commands one device at a time, each with its own sentence', () => {
+		const claim = (address: string, credential_id: string | null) =>
+			({
+				code: 'ClaimedCapabilityEmpty',
+				address,
+				source: 'SysServicesBridgeBit',
+				group: 'BridgePortNumbering',
+				credential_id
+			}) as unknown as DiscoveryWarning;
+
+		const [row] = buildWarningReport(
+			[claim('192.168.7.212', credentialId), claim('192.168.7.218', null)],
+			undefined,
+			null,
+			credentials
+		).flatMap((s) => s.entries);
+
+		expect(row.devices.map((d) => d.address)).toEqual(['192.168.7.212', '192.168.7.218']);
+		const [withCommands, without] = row.devices;
+		expect(withCommands.sentence).toContain('192.168.7.212');
+		expect(withCommands.sentence).not.toContain('192.168.7.218');
+		expect('commands' in withCommands.outcome).toBe(true);
+		expect('reason' in without.outcome).toBe(true);
+	});
+
+	it('lists every device when no device in the row has commands', () => {
+		const claim = (address: string) =>
+			({
+				code: 'ClaimedCapabilityEmpty',
+				address,
+				source: 'SysServicesBridgeBit',
+				group: 'BridgePortNumbering',
+				credential_id: null
+			}) as unknown as DiscoveryWarning;
+
+		const [row] = buildWarningReport(
+			[claim('192.168.7.212'), claim('192.168.7.218')],
+			undefined,
+			null,
+			credentials
+		).flatMap((s) => s.entries);
+
+		expect(row.devices).toEqual([]);
+		expect(row.details[0].sentence).toContain('192.168.7.212');
+		expect(row.details[0].sentence).toContain('192.168.7.218');
+	});
+
+	it('offers nothing for a code no device read can repeat', () => {
+		const [[outcome]] = outcomesOf([
+			{
+				code: 'VlanRecordingFailed',
+				address: '10.0.0.1'
+			} as unknown as DiscoveryWarning
+		]);
+
+		expect(outcome).toBeNull();
+	});
+});
+
+/** What a collapsed row says it concerns, in place of a strip of chips. */
+describe('warning row header counts', () => {
+	const rowOf = (warnings: object[]) =>
+		buildWarningReport(warnings as DiscoveryWarning[]).flatMap((s) => s.entries)[0];
+
+	it('counts the hosts a neighbour row is about, by the device that reported it', () => {
+		const port = (host_id: string) => ({
+			code: 'LldpPortNotFound',
+			host_id,
+			remote_host_id: null,
+			if_descr: 'Gi1/0/1',
+			port_id: 'Port 9',
+			count: 1
+		});
+
+		const row = rowOf([
+			port('00000000-0000-0000-0000-000000000001'),
+			port('00000000-0000-0000-0000-000000000002')
+		]);
+
+		expect(row.affects).toMatchObject({ type: 'host', count: 2 });
+	});
+
+	it('gives a scan-wide row no count', () => {
+		const row = rowOf([{ code: 'ScanTimeLimit', hours: 4, hosts_not_scanned: 12 }]);
+
+		expect(row.affects).toBeNull();
+	});
+});
+
+/** The lines under a row that name each thing it is about, as links where there is one. */
+describe('warning row example links', () => {
+	it('links an assumed range to its subnet', () => {
+		const [line] = buildWarningReport([
+			{
+				code: 'ProvisionalSubnetInferred',
+				cidr: '10.20.31.0/24',
+				subnet_id: '00000000-0000-0000-0000-000000000003',
+				addresses: ['10.20.31.9'],
+				sys_names: ['offsite-branch-01'],
+				seen_by_host_ids: [],
+				widened_by_vlan: false,
+				count: 1
+			} as unknown as DiscoveryWarning
+		])
+			.flatMap((s) => s.entries)
+			.flatMap((e) => e.details)
+			.flatMap((d) => d.examples);
+
+		expect(line.near).toEqual({
+			label: '10.20.31.0/24',
+			entity: { type: 'Subnet', id: '00000000-0000-0000-0000-000000000003' }
+		});
+		expect(line.nearText).not.toContain('10.20.31.0/24');
+	});
+
+	it('lists the hosts an integration was found on without a credential', () => {
+		const hostNames: EntityNameLookup = (type, id) =>
+			type === 'Host' ? `host-${id.slice(-1)}` : undefined;
+		const onHost = (host_id: string) =>
+			({
+				code: 'IntegrationWithoutCredential',
+				integration: 'Snmp',
+				host_id
+			}) as unknown as DiscoveryWarning;
+
+		const lines = buildWarningReport(
+			[
+				onHost('00000000-0000-0000-0000-000000000001'),
+				onHost('00000000-0000-0000-0000-000000000002')
+			],
+			hostNames
+		)
+			.flatMap((s) => s.entries)
+			.flatMap((e) => e.details)
+			.flatMap((d) => d.examples);
+
+		expect(lines.map((l) => l.near?.label)).toEqual(['host-1', 'host-2']);
+		expect(lines.every((l) => l.near?.entity?.type === 'Host')).toBe(true);
 	});
 });

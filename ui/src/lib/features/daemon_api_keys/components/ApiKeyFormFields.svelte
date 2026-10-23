@@ -12,9 +12,10 @@
 	import DateInput from '$lib/shared/components/forms/input/DateInput.svelte';
 	import SelectSite from '$lib/features/sites/components/SelectSite.svelte';
 	import Checkbox from '$lib/shared/components/forms/input/Checkbox.svelte';
-	import TagPicker from '$lib/features/tags/components/TagPicker.svelte';
+	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import ApiKeyGenerator from '$lib/shared/components/api-keys/ApiKeyGenerator.svelte';
 	import {
+		common_tags,
 		common_apiKeyNameHelp,
 		common_enableApiKey,
 		common_expirationDateOptional,
@@ -97,8 +98,9 @@
 		{#if showTags}
 			<form.Field name="tags">
 				{#snippet children(field)}
-					<TagPicker
+					<TagPickerInline
 						entityType="DaemonApiKey"
+						label={common_tags()}
 						selectedTagIds={field.state.value || []}
 						onChange={(tags) => field.handleChange(tags)}
 					/>

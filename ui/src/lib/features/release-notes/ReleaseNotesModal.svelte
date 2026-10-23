@@ -3,6 +3,7 @@
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import type { UnseenReleaseNotes } from './queries';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		common_close,
 		releaseNotes_earlierReleases,
@@ -21,19 +22,28 @@
 
 	// The server renders the notes without raw HTML; sanitizing here keeps the
 	// modal safe whatever it is handed. Links in release content leave the app.
+	// Images load from scanopy.net, which gets no referrer naming this server.
 	function sanitize(html: string): string {
 		const fragment = DOMPurify.sanitize(html, { RETURN_DOM_FRAGMENT: true });
 		fragment.querySelectorAll('a').forEach((a) => {
 			a.setAttribute('target', '_blank');
 			a.setAttribute('rel', 'noopener noreferrer');
 		});
+		fragment.querySelectorAll('img').forEach((img) => {
+			img.setAttribute('referrerpolicy', 'no-referrer');
+			img.setAttribute('loading', 'lazy');
+		});
 		const container = document.createElement('div');
 		container.appendChild(fragment);
 		return container.innerHTML;
 	}
+
+	let actions = $derived<ModalAction[]>([
+		{ role: 'primary', label: common_close(), onClick: () => onClose() }
+	]);
 </script>
 
-<GenericModal {isOpen} title={releaseNotes_title()} size="lg" {onClose}>
+<GenericModal {isOpen} title={releaseNotes_title()} size="lg" {onClose} {actions}>
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="flex-1 space-y-8 overflow-auto p-6">
 			{#each notes?.releases ?? [] as release (release.version)}
@@ -62,14 +72,6 @@
 				</a>
 				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 			{/if}
-		</div>
-
-		<div class="modal-footer">
-			<div class="flex items-center justify-end">
-				<button type="button" class="btn-primary" onclick={() => onClose()}>
-					{common_close()}
-				</button>
-			</div>
 		</div>
 	</div>
 </GenericModal>
@@ -100,6 +102,13 @@
 	}
 	.release-notes-body :global(a) {
 		text-decoration: underline;
+	}
+	.release-notes-body :global(img) {
+		display: block;
+		max-width: 100%;
+		height: auto;
+		margin: 0.75rem 0;
+		border-radius: 0.375rem;
 	}
 	.release-notes-body :global(code) {
 		font-family: ui-monospace, monospace;

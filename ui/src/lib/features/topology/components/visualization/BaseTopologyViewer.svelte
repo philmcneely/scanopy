@@ -17,7 +17,7 @@
 		topology_levelContainersExpanded,
 		topology_levelSubcontainersExpanded,
 		topology_levelFullyExpanded,
-		topology_levelContainersFullyExpanded,
+		topology_levelGroupsExpanded,
 		topology_parseFailed,
 		topology_detailSimplified,
 		topology_updatedDuringScan,
@@ -62,8 +62,7 @@
 		isExporting,
 		isMeasuring,
 		detailSimplified,
-		isRenderingTopology,
-		expandedPortNodeIds
+		isRenderingTopology
 	} from '../../interactions';
 
 	// Import custom node/edge components
@@ -113,7 +112,7 @@
 	import { createInitialState, type XY } from '../../pipeline/types';
 	import { prepareTopologyData, hiddenMetadataKey } from '../../pipeline/prepare';
 	import { resolveNodeSizes } from '../../pipeline/measure';
-	import { executeLayout, handlePortExpansion } from '../../pipeline/execute-layout';
+	import { executeLayout } from '../../pipeline/execute-layout';
 	import { preloadElk } from '../../layout/elk-layout';
 	import { buildFlowNodes, sortFlowNodes, stripSizeSeed } from '../../pipeline/build-flow-nodes';
 	import { buildFlowEdges } from '../../pipeline/build-flow-edges';
@@ -123,6 +122,7 @@
 	import { shouldCull } from '../../pipeline/render-mode';
 	import {
 		installDiagnostics,
+		installLayoutSnapshot,
 		noteNodeStoreWrite,
 		noteRunDetail,
 		noteRunEnd,
@@ -556,6 +556,7 @@
 		}
 	});
 	installDiagnostics(diagnosticInputs);
+	installLayoutSnapshot(() => ({ nodes: get(nodes), edges: get(edges) }));
 
 	/**
 	 * Single point of write for the node store.
@@ -643,7 +644,6 @@
 		return {
 			collapsed: get(collapsedContainers),
 			expandedBundles: get(expandedBundles),
-			expandedPorts: get(expandedPortNodeIds),
 			expandedInlineGroups: get(expandedInlineGroups),
 			bundleEdges: get(topologyOptions).local.bundle_edges ?? false,
 			hiddenEdgeTypes: get(hiddenEdgeTypes).join(','),
@@ -775,9 +775,6 @@
 	});
 	expandedBundles.subscribe(() => {
 		if (storesInitialized) triggerLoad('bundles');
-	});
-	expandedPortNodeIds.subscribe(() => {
-		if (storesInitialized) triggerLoad('ports');
 	});
 	// Deferred like the collapsed set: a level step writes both, and they should cost one run.
 	expandedInlineGroups.subscribe(() => {
@@ -1065,33 +1062,10 @@
 			visibleNodes = layoutResult.visibleNodes;
 		}
 
-		// Port expansion handling (no full ELK re-layout).
-		//
-		// This is the pipeline's second DOM measurement site: it mounts the rebuilt nodes and reads
-		// `offsetWidth`/`offsetHeight` for the cards whose port list changed. Culling is
-		// deliberately *not* suspended for it, unlike the full measurement pass. Suspending it
-		// would mount every node in the graph to re-measure a handful of cards, which at this
-		// customer's scale is the out-of-memory failure by another route. A card whose ports the
-		// user just toggled is on screen by construction, so it is mounted and measures correctly;
-		// `handlePortExpansion` drops the cached size of any id it could not find in the DOM, so a
-		// card toggled and then scrolled away from re-measures for real the next time it mounts
-		// rather than keeping a stale height.
-		const currentExpandedPorts = get(expandedPortNodeIds);
-		const portsChanged = await handlePortExpansion(
-			layoutState,
-			currentExpandedPorts,
-			containerElement,
-			() => makeNodes(false),
-			(n) => setStoreNodes(n),
-			isStale,
-			needsElk,
-			viewCacheKey
-		);
-
 		// Build final nodes and edges. Edge handles are computed inside
 		// buildFlowEdges against final post-layout positions (from layoutGraph)
 		// rather than being precomputed by the layout engines.
-		const needsLayout = needsElk || portsChanged || prep.collapseChanged;
+		const needsLayout = needsElk || prep.collapseChanged;
 
 		// Edges first, then nodes.
 		//
@@ -1492,7 +1466,7 @@
 			case 3:
 				return topology_levelSubcontainersExpanded();
 			case 4:
-				return topology_levelContainersFullyExpanded();
+				return topology_levelGroupsExpanded();
 			case 5:
 				return topology_levelFullyExpanded();
 		}

@@ -10,52 +10,55 @@
 	import DisplayTag from './DisplayTag.svelte';
 	import HiddenTagsChip from './HiddenTagsChip.svelte';
 
-	export let item: T;
-	export let displayComponent: EntityDisplayComponent<T, C>;
-	export let context: C;
-	export let staticTags: boolean = false;
-	/** Show every tag instead of fitting them to the row (a hover popover, which can widen to fit). */
-	export let showAllTags: boolean = false;
+	interface Props {
+		item: T;
+		displayComponent: EntityDisplayComponent<T, C>;
+		context: C;
+		staticTags?: boolean;
+		/** Show every tag instead of fitting them to the row (a hover popover, which can widen to fit). */
+		showAllTags?: boolean;
+	}
+
+	let {
+		item,
+		displayComponent,
+		context,
+		staticTags = false,
+		showAllTags = false
+	}: Props = $props();
 
 	const staticTagsContext = getContext<boolean>('staticTags') ?? false;
 
-	$: icon = displayComponent.getIcon?.(item, context);
-	$: tags = displayTags(displayComponent, item, context);
-	$: label = displayComponent.getLabel(item, context);
-	$: description = displayComponent.getDescription?.(item, context) || '';
-	$: tagPickerProps = displayComponent.getTagPickerProps?.(item, context) ?? null;
-	$: showTagPicker =
-		tagPickerProps &&
-		context &&
-		typeof context === 'object' &&
-		'showEntityTagPicker' in context &&
-		(context as Record<string, unknown>).showEntityTagPicker;
-	$: tagPickerDisabled =
-		context &&
-		typeof context === 'object' &&
-		'tagPickerDisabled' in context &&
-		!!(context as Record<string, unknown>).tagPickerDisabled;
+	// Runes rather than `$:`: a legacy `$:` deep-reads every object it names, and a binding row's
+	// context carries the whole host form, so each row walked it on every edit to any service.
+	let icon = $derived(displayComponent.getIcon?.(item, context));
+	let tags = $derived(displayTags(displayComponent, item, context));
+	let label = $derived(displayComponent.getLabel(item, context));
+	let description = $derived(displayComponent.getDescription?.(item, context) || '');
+	let tagPickerProps = $derived(displayComponent.getTagPickerProps?.(item, context) ?? null);
+	let contextFields = $derived(
+		context && typeof context === 'object' ? (context as Record<string, unknown>) : null
+	);
+	let showTagPicker = $derived(!!tagPickerProps && !!contextFields?.showEntityTagPicker);
+	let tagPickerDisabled = $derived(!!contextFields?.tagPickerDisabled);
 
-	$: showEditableDescription =
-		context &&
-		typeof context === 'object' &&
-		'showEditableEntityDescription' in context &&
-		(context as Record<string, unknown>).showEditableEntityDescription;
-	$: descriptionValue = showEditableDescription
-		? (((context as Record<string, unknown>).entityDescription as string | null) ?? null)
-		: null;
-	$: descriptionDisabled = showEditableDescription
-		? !!(context as Record<string, unknown>).entityDescriptionDisabled
-		: true;
-	$: descriptionOnSave = showEditableDescription
-		? ((context as Record<string, unknown>).onEntityDescriptionSave as
-				((value: string | null) => void) | undefined)
-		: undefined;
+	let showEditableDescription = $derived(!!contextFields?.showEditableEntityDescription);
+	let descriptionValue = $derived(
+		showEditableDescription ? ((contextFields?.entityDescription as string | null) ?? null) : null
+	);
+	let descriptionDisabled = $derived(
+		showEditableDescription ? !!contextFields?.entityDescriptionDisabled : true
+	);
+	let descriptionOnSave = $derived(
+		showEditableDescription
+			? (contextFields?.onEntityDescriptionSave as ((value: string | null) => void) | undefined)
+			: undefined
+	);
 
-	let containerEl: HTMLDivElement;
-	let labelMeasureEl: HTMLSpanElement;
-	let measureEl: HTMLDivElement;
-	let visibleTagCount = 0;
+	let containerEl = $state<HTMLDivElement>();
+	let labelMeasureEl = $state<HTMLSpanElement>();
+	let measureEl = $state<HTMLDivElement>();
+	let visibleTagCount = $state(0);
 
 	const SPACING = {
 		gap: 8, // gap-2 = 0.5rem = 8px
@@ -87,27 +90,27 @@
 	onMount(() => {
 		calculateVisibleTags();
 		const observer = new ResizeObserver(() => calculateVisibleTags());
-		observer.observe(containerEl);
+		if (containerEl) observer.observe(containerEl);
 		return () => observer.disconnect();
 	});
 
-	$: if ((tags || label) && containerEl) {
-		// Recalculate when the tags or the label change
-		requestAnimationFrame(() => calculateVisibleTags());
-	}
+	// Recalculate when the tags or the label change
+	$effect(() => {
+		void tags;
+		void label;
+		if (containerEl) requestAnimationFrame(() => calculateVisibleTags());
+	});
 
-	$: visibleTags = showAllTags ? tags : tags.slice(0, visibleTagCount);
-	$: hiddenTags = showAllTags ? [] : tags.slice(visibleTagCount);
+	let visibleTags = $derived(showAllTags ? tags : tags.slice(0, visibleTagCount));
+	let hiddenTags = $derived(showAllTags ? [] : tags.slice(visibleTagCount));
 </script>
 
 <div class="flex min-w-0 items-center gap-3" class:list-select-item-container={showTagPicker}>
 	<!-- Icon -->
 	{#if icon}
+		{@const Icon = icon}
 		<div class="flex h-7 w-7 flex-shrink-0 items-center justify-center">
-			<svelte:component
-				this={icon}
-				class="h-5 w-5 {displayComponent.getIconColor?.(item, context) || 'text-secondary'}"
-			/>
+			<Icon class="h-5 w-5 {displayComponent.getIconColor?.(item, context) || 'text-secondary'}" />
 		</div>
 	{/if}
 
@@ -142,7 +145,7 @@
 
 	<!-- Tag picker as direct child for container query positioning -->
 	{#if showTagPicker && tagPickerProps && (!tagPickerDisabled || tagPickerProps.selectedTagIds.length > 0)}
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 		<div class="tag-picker-section flex items-start gap-1.5" onclick={(e) => e.stopPropagation()}>
 			<TagPickerInline
 				selectedTagIds={tagPickerProps.selectedTagIds}

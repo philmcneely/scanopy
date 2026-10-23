@@ -41,6 +41,7 @@ use crate::server::subnets::r#impl::types::SubnetType;
 use crate::server::tags::r#impl::base::{Tag, TagBase};
 
 use super::{daemon, dependency, organization, test_services, user};
+use crate::server::subnets::r#impl::base::{SubnetName, SubnetTypeAttributed};
 
 /// VM 103's two NICs.
 fn ens18() -> MacAddress {
@@ -99,13 +100,13 @@ async fn create_subnet(
         .subnet_service
         .create(
             Subnet::new(SubnetBase {
-                name: cidr.to_string(),
+                name: SubnetName::unattributed(cidr.to_string()),
                 site_id,
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(cidr.parse().unwrap()),
                     AttributeSource::DaemonSelfReport,
                 ),
-                subnet_type,
+                subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
                 source: EntitySource::Discovery,
                 ..Default::default()
             }),
@@ -197,6 +198,7 @@ async fn discover(
             vec![],
             false,
             InterfaceDataComplete::none(),
+            &crate::server::ports::r#impl::coverage::PortCoverage::default(),
             None,
             AuthenticatedEntity::System,
             None,
@@ -903,7 +905,12 @@ async fn a_manual_merge_keeps_interfaces_adjacencies_and_tags() {
         .unwrap();
     services
         .host_service
-        .consolidate_hosts(a_host, b_host, AuthenticatedEntity::System)
+        .consolidate_hosts(
+            a_host,
+            b_host,
+            AuthenticatedEntity::System,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
+        )
         .await
         .unwrap();
 
@@ -980,7 +987,11 @@ async fn a_network_identity_references_its_presenting_interface() {
 
     services
         .interface_service
-        .delete(&presenting, AuthenticatedEntity::System)
+        .delete(
+            &presenting,
+            AuthenticatedEntity::System,
+            crate::server::shared::events::types::DeletionReason::EntityRequested,
+        )
         .await
         .unwrap();
     let identity_now = services
@@ -1179,6 +1190,7 @@ async fn discover_with_ports(
             vec![],
             false,
             InterfaceDataComplete::none(),
+            &crate::server::ports::r#impl::coverage::PortCoverage::default(),
             None,
             AuthenticatedEntity::System,
             None,
@@ -1205,6 +1217,7 @@ fn container_on_api_port(
     proxy.base.virtualization_service_id = Some(runtime_id);
     proxy.base.virtualization_metadata =
         Some(ServiceVirtualization::Docker(DockerVirtualization {
+            state: Default::default(),
             container_name: Some("docker-api-proxy".to_string()),
             container_id: Some("a27773f8c424".to_string()),
             compose_project: Some("proxy".to_string()),
@@ -1315,6 +1328,7 @@ async fn a_stored_self_owned_runtime_is_cleared_on_rescan() {
     runtime.base.virtualization_service_id = Some(runtime.id);
     runtime.base.virtualization_metadata =
         Some(ServiceVirtualization::Docker(DockerVirtualization {
+            state: Default::default(),
             container_name: Some("docker-api-proxy".to_string()),
             container_id: Some("a27773f8c424".to_string()),
             compose_project: None,
@@ -1406,6 +1420,7 @@ impl DockerHost {
         c.base.virtualization_service_id = Some(self.runtime.id);
         c.base.virtualization_metadata =
             Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
                 container_name: Some(name.to_string()),
                 container_id: Some(format!("{name}-id")),
                 compose_project: None,
@@ -1652,6 +1667,7 @@ impl<'a> SocketHost<'a> {
                 vec![],
                 false,
                 InterfaceDataComplete::none(),
+                &crate::server::ports::r#impl::coverage::PortCoverage::default(),
                 None,
                 AuthenticatedEntity::System,
                 None,
@@ -1678,6 +1694,7 @@ impl<'a> SocketHost<'a> {
         container.base.virtualization_service_id = Some(runtime.id);
         container.base.virtualization_metadata =
             Some(ServiceVirtualization::Docker(DockerVirtualization {
+                state: Default::default(),
                 container_name: Some("plain-http".to_string()),
                 container_id: Some("298f41e5ae2e".to_string()),
                 compose_project: None,
@@ -1817,6 +1834,7 @@ async fn an_address_the_hypervisor_did_not_list_for_a_nic_stays_off_the_guest() 
             virtualization_service_id: Some(docker_id),
             virtualization_metadata: Some(HostVirtualization::Docker(
                 ContainerHostVirtualization {
+                    state: Default::default(),
                     container_name: Some("ipvlan-test".to_string()),
                     container_id: Some("aec2a3e9".to_string()),
                     compose_project: None,
@@ -1951,6 +1969,7 @@ async fn a_container_report_takes_its_address_off_a_host_holding_another_devices
             virtualization_service_id: Some(docker_id),
             virtualization_metadata: Some(HostVirtualization::Docker(
                 ContainerHostVirtualization {
+                    state: Default::default(),
                     container_name: Some("ipvlan-test".to_string()),
                     container_id: Some("aec2a3e9".to_string()),
                     compose_project: None,
@@ -2048,6 +2067,7 @@ async fn a_container_report_takes_its_address_off_its_runtimes_host() {
             virtualization_service_id: Some(docker_id),
             virtualization_metadata: Some(HostVirtualization::Docker(
                 ContainerHostVirtualization {
+                    state: Default::default(),
                     container_name: Some("ipvlan-test".to_string()),
                     container_id: Some("aec2a3e9".to_string()),
                     compose_project: None,

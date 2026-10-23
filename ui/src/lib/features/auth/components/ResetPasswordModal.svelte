@@ -11,6 +11,7 @@
 	import { Key } from 'lucide-svelte';
 	import Password from '$lib/shared/components/forms/input/Password.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
+	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		auth_backToLogin,
 		auth_goToLogin,
@@ -58,6 +59,19 @@
 	async function handleSubmit() {
 		await submitForm(form);
 	}
+
+	let actions = $derived<ModalAction[]>(
+		resetComplete
+			? [{ role: 'primary', label: auth_goToLogin(), onClick: onBackToLogin }]
+			: [
+					{
+						role: 'primary',
+						label: resetting ? common_resetting() : auth_resetPassword(),
+						onClick: handleSubmit,
+						disabled: resetting
+					}
+				]
+	);
 </script>
 
 <GenericModal
@@ -70,9 +84,25 @@
 	showBackdrop={false}
 	preventCloseOnClickOutside={true}
 	centerTitle={true}
+	{actions}
+	footerLayout="stack"
 >
 	{#snippet headerIcon()}
 		<ModalHeaderIcon Icon={Key} color="Blue" />
+	{/snippet}
+
+	{#snippet footerNote()}
+		{#if !resetComplete}
+			<div class="text-center">
+				<button
+					type="button"
+					onclick={onBackToLogin}
+					class="text-sm font-medium text-blue-400 hover:text-blue-300"
+				>
+					{auth_backToLogin()}
+				</button>
+			</div>
+		{/if}
 	{/snippet}
 
 	<form
@@ -109,31 +139,6 @@
 					{/snippet}
 				</form.Field>
 			{/if}
-		</div>
-
-		<!-- Footer -->
-		<div class="modal-footer">
-			<div class="flex w-full flex-col gap-4">
-				{#if resetComplete}
-					<button type="button" onclick={onBackToLogin} class="btn-primary w-full">
-						{auth_goToLogin()}
-					</button>
-				{:else}
-					<button type="submit" disabled={resetting} class="btn-primary w-full">
-						{resetting ? common_resetting() : auth_resetPassword()}
-					</button>
-
-					<div class="text-center">
-						<button
-							type="button"
-							onclick={onBackToLogin}
-							class="text-sm font-medium text-blue-400 hover:text-blue-300"
-						>
-							{auth_backToLogin()}
-						</button>
-					</div>
-				{/if}
-			</div>
 		</div>
 	</form>
 </GenericModal>

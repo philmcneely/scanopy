@@ -4,9 +4,19 @@ use crate::server::{
     config::AppState,
     shared::{
         entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants},
-        handlers::{query::NoFilterQuery, traits::CrudHandlers},
+        handlers::{
+            list::{ListOrdering, PaginatedList},
+            ordering::TagGroupOrdering,
+            query::narrow_by_tags_and_search,
+            traits::{CrudHandlers, ListScope, base_list_filter},
+        },
+        storage::filter::{Junction, StorableFilter},
+        types::api::ApiResult,
     },
-    sites::service::SiteService,
+    sites::{
+        handlers::{SiteListQuery, SiteOrderField},
+        service::SiteService,
+    },
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -135,15 +145,90 @@ impl Display for Site {
     }
 }
 
+/// The credentials assigned to each site.
+const SITE_CREDENTIALS: Junction = Junction {
+    table: "site_credentials",
+    own_column: "site_id",
+    other_column: "credential_id",
+    has_history: false,
+};
+
+impl SiteListQuery {
+    /// Everything the sites list narrows by: the caller's sites, staleness window, assigned
+    /// credentials, tags and search.
+    pub fn narrow(&self, scope: &ListScope) -> ApiResult<StorableFilter<Site>> {
+        let filter = narrow_by_tags_and_search(
+            base_list_filter::<Site>(scope, self),
+            self.tag_ids.as_deref(),
+            self.tag_sets.as_deref(),
+            self.search.as_deref(),
+        )?;
+        Ok(match &self.credential_ids {
+            Some(ids) if !ids.is_empty() => filter.linked_to(SITE_CREDENTIALS, ids),
+            _ => filter,
+        })
+    }
+}
+
+#[async_trait::async_trait]
 impl CrudHandlers for Site {
     type Service = SiteService;
-    type FilterQuery = NoFilterQuery;
-    type OrderField = crate::server::shared::handlers::ordering::NoOrderField;
+    type FilterQuery = SiteListQuery;
+    type OrderField = SiteOrderField;
 
     fn get_service(state: &AppState) -> &Self::Service {
         &state.services.site_service
     }
+
+    fn search_order() -> Option<Self::OrderField> {
+        Some(SiteOrderField::Name)
+    }
+
+    async fn list_filter(
+        _state: &AppState,
+        query: &SiteListQuery,
+        scope: &ListScope,
+    ) -> ApiResult<StorableFilter<Site>> {
+        query.narrow(scope)
+    }
 }
+
+#[async_trait::async_trait]
+impl PaginatedList for Site {
+    type Item = Site;
+
+    fn ordering(query: &SiteListQuery) -> ListOrdering<SiteOrderField> {
+        ListOrdering {
+            group_by: query.group_by,
+            order_by: query.order_by,
+            direction: query.order_direction,
+            tag_group: TagGroupOrdering {
+                group_by: query.group_by_tag_group,
+                order_by: query.order_by_tag_group,
+            },
+        }
+    }
+
+    /// Each site with the credentials assigned to it.
+    async fn items(
+        state: &AppState,
+        mut rows: Vec<Site>,
+        _query: &SiteListQuery,
+    ) -> ApiResult<Vec<Site>> {
+        let ids: Vec<Uuid> = rows.iter().map(|s| s.id).collect();
+        let mut credentials = state
+            .services
+            .credential_service
+            .get_credential_ids_for_sites(&ids)
+            .await?;
+        for site in &mut rows {
+            site.base.credential_ids = Some(credentials.remove(&site.id).unwrap_or_default());
+        }
+        Ok(rows)
+    }
+}
+
+impl crate::server::shared::events::log::EntityLog for Site {}
 
 impl ChangeTriggersTopologyStaleness<Site> for Site {
     fn triggers_staleness(&self, _other: Option<Site>) -> bool {
@@ -160,7 +245,14 @@ impl Storable for Site {
     }
 
     fn search_predicates() -> &'static [&'static str] {
-        &["sites.name ILIKE {}"]
+        &[
+            "sites.name ILIKE {}",
+            "EXISTS (SELECT 1 FROM daemons d WHERE d.site_id = sites.id AND d.name ILIKE {})",
+            "EXISTS (SELECT 1 FROM subnets s WHERE s.site_id = sites.id \
+             AND s.valid_to IS NULL AND s.name ILIKE {})",
+            "EXISTS (SELECT 1 FROM vlans v WHERE v.site_id = sites.id \
+             AND v.valid_to IS NULL AND v.name ILIKE {})",
+        ]
     }
 
     fn new(base: Self::BaseData) -> Self {

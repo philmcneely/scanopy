@@ -9,9 +9,16 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { isUserManagedSubnet, useSubnetsQuery } from '$lib/features/subnets/queries';
-	import { useUpdateVlanMutation, useVlansQuery } from '../queries';
+	import {
+		useBulkDeleteVlansMutation,
+		useDeleteVlanMutation,
+		useUpdateVlanMutation,
+		useVlansListQuery
+	} from '../queries';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import { useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import VlanEditModal from './VlanEditModal.svelte';
-	import { Edit } from 'lucide-svelte';
+	import { Edit, Trash2 } from 'lucide-svelte';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import type { TabProps } from '$lib/shared/types';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
@@ -23,17 +30,23 @@
 	import type { components } from '$lib/api/schema';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
 	import {
+		common_confirmBulkDelete,
+		common_confirmDeleteName,
+		common_delete,
 		common_edit,
 		common_noEntityYet,
 		common_vlans,
 		daemons_installPromptVlans,
-		vlans_emptySubtitle
+		vlans_emptySubtitle,
+		vlans_vlanTitle
 	} from '$lib/paraglide/messages';
 	import { hasDaemon } from '$lib/shared/onboarding/checklist';
 
 	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 
-	let { isReadOnly = false }: TabProps = $props();
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
+
+	const VLAN_FIELD_VALUES = '/api/v1/vlans/field-values/{field}';
 
 	let showVlanEditor = $state(false);
 	let editingVlan: Vlan | null = $state(null);
@@ -58,20 +71,38 @@
 	let onboarding = $derived((organizationQuery.data?.onboarding ?? []) as OnboardingOperation[]);
 
 	// Queries
-	const vlansQuery = useVlansQuery();
+	// One page of VLANs, paged, filtered and ordered on the server.
+	const page = listPageState(() => isActive);
+	const vlansQuery = useVlansListQuery(() => page.params());
+	// Filter options: the values the caller's VLANs hold, counted by the server.
+	const siteValuesQuery = useFieldValuesQuery(
+		VLAN_FIELD_VALUES,
+		'site_id',
+		undefined,
+		() => isActive
+	);
+	const sourceValuesQuery = useFieldValuesQuery(
+		VLAN_FIELD_VALUES,
+		'source',
+		undefined,
+		() => isActive
+	);
 	const sitesQuery = useSitesQuery();
 	// Shared full-list subnets cache — used to resolve the hydrated `subnet_ids`
 	// on each VLAN into names.
 	const subnetsQuery = useSubnetsQuery();
 	const tagsQuery = useTagsQuery();
-	const discoveryRunsQuery = useDiscoveriesByIds(() => discoveryRunIds(vlansQuery.data ?? []));
+	const discoveryRunsQuery = useDiscoveriesByIds(() =>
+		discoveryRunIds(vlansQuery.data?.items ?? [])
+	);
 	// The interfaces serving each VLAN, named by the hydrated `interface_ids`.
 	const interfacesQuery = useInterfacesByIds(() => [
-		...new Set((vlansQuery.data ?? []).flatMap((vlan) => vlan.interface_ids ?? []))
+		...new Set((vlansQuery.data?.items ?? []).flatMap((vlan) => vlan.interface_ids ?? []))
 	]);
 
 	// Derived data
-	let vlansData = $derived(vlansQuery.data ?? []);
+	let vlansData = $derived(vlansQuery.data?.items ?? []);
+	let vlansPagination = $derived(vlansQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let discoveryRunsData = $derived(discoveryRunsQuery.data ?? []);
 	let interfacesData = $derived(interfacesQuery.data ?? []);
@@ -79,14 +110,39 @@
 	let subnetsById = $derived(
 		new Map((subnetsQuery.data ?? []).filter(isUserManagedSubnet).map((s) => [s.id, s]))
 	);
-	let isLoading = $derived(vlansQuery.isPending);
+	let isLoading = $derived(vlansQuery.isPending && !vlansQuery.data);
 
 	const updateVlanMutation = useUpdateVlanMutation();
+	const deleteVlanMutation = useDeleteVlanMutation();
+	const bulkDeleteVlansMutation = useBulkDeleteVlansMutation();
 
-	/** Row actions. VLANs are discovered, so editing is the only action. */
+	/** Row actions. */
 	function vlanActions(vlan: Vlan): CardAction[] {
 		if (isReadOnly) return [];
-		return [{ label: common_edit(), icon: Edit, onClick: () => handleEditVlan(vlan) }];
+		return [
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditVlan(vlan) },
+			{
+				label: common_delete(),
+				icon: Trash2,
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
+				onClick: () => handleDeleteVlan(vlan)
+			}
+		];
+	}
+
+	function handleDeleteVlan(vlan: Vlan) {
+		const name = vlans_vlanTitle({ number: vlan.vlan_number, name: vlan.name });
+		if (confirm(common_confirmDeleteName({ name }))) {
+			deleteVlanMutation.mutate(vlan.id);
+		}
+	}
+
+	async function handleBulkDelete(ids: string[]) {
+		if (confirm(common_confirmBulkDelete({ count: ids.length, entity: common_vlans() }))) {
+			await bulkDeleteVlansMutation.mutateAsync(ids);
+		}
 	}
 
 	function handleEditVlan(vlan: Vlan) {
@@ -114,7 +170,7 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('Vlan', {});
+		await downloadCsv('Vlan', page.listQuery);
 	}
 
 	const tableDefaults: TableDefaults<VlanOrderField> = {
@@ -135,8 +191,11 @@
 		vlanColumns({
 			lookup: () => lookup,
 			sites: () => sitesData,
+			subnets: () => [...subnetsById.values()],
 			tags: () => tagsData,
-			discoveryRuns: () => discoveryRunsData
+			discoveryRuns: () => discoveryRunsData,
+			siteValues: () => siteValuesQuery.data,
+			sourceValues: () => sourceValuesQuery.data
 		})
 	);
 </script>
@@ -149,7 +208,7 @@
 	{:else if isLoading}
 		<!-- Loading state -->
 		<Loading />
-	{:else if vlansData.length === 0}
+	{:else if page.isEmpty(vlansQuery)}
 		<!-- Empty state: no CTA, there is nothing to create -->
 		<EmptyState
 			title={common_noEntityYet({ entity: common_vlans() })}
@@ -166,6 +225,10 @@
 			canEditTags={!isReadOnly}
 			getItemTags={getVlanTags}
 			getItemId={(item) => item.id}
+			serverPagination={vlansPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			onCsvExport={handleCsvExport}
 			getActions={vlanActions}
 			entityLabel={common_vlans()}

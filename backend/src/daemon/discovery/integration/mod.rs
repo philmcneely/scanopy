@@ -46,8 +46,10 @@ use crate::{
         },
         ports::r#impl::base::PortType,
         services::r#impl::{base::Service, endpoints::EndpointResponse, patterns::ClientProbe},
+        shared::attribution::AttributeMethod,
         shared::trusted_ca::TrustedCaBundle,
         subnets::r#impl::base::Subnet,
+        subnets::r#impl::inference::{overlaps, placeable_subnet},
     },
 };
 
@@ -142,6 +144,63 @@ pub fn merge_subnets(
         }
     }
     subnets
+}
+
+/// The subnets a reported range is checked against in [`place_reported_range`]: the site's live
+/// subnets and the one being swept, minus the organizational `0.0.0.0/0` rows and container
+/// bridges, which overlap real ranges without describing the same segment, and minus inferred
+/// ranges, which a reading corrects server-side.
+pub fn held_subnets(known: &[Subnet], scanning: Option<&Subnet>) -> Vec<Subnet> {
+    known
+        .iter()
+        .chain(scanning)
+        .filter(|s| {
+            !s.is_organizational_subnet()
+                && !s.is_container_bridge_subnet()
+                && s.base.cidr.source().method() != AttributeMethod::Inferred
+        })
+        .cloned()
+        .collect()
+}
+
+/// Where an address that came with a reported range belongs.
+#[derive(Debug)]
+pub enum ReportedRange<'a> {
+    /// No held subnet overlaps the reported range, so it is a segment this site does not hold
+    /// yet: a router interface on another VLAN, a network a controller defines.
+    New,
+    /// The address goes on this held subnet. Either the reported range is that subnet, or the
+    /// range overlaps held ones and this is the most specific held subnet containing the address.
+    Held(&'a Subnet),
+    /// The reported range overlaps a held subnet, and no held subnet contains the address.
+    Unplaced,
+}
+
+/// Decide whether a range a device or controller reports becomes a subnet: an SNMP device's own
+/// address and netmask, or a UniFi network's gateway address and prefix.
+///
+/// A device's netmask describes how that device is configured, not how the segment is built. A
+/// host on a `/22` with a `/24` mask still answers ARP across the whole `/22`, and creating its
+/// `/24` splits the segment: every address in that `/24` then lands on a subnet nothing else
+/// agrees exists. So a reported range becomes a subnet only when it overlaps nothing the site
+/// already holds. Otherwise the address goes on the held subnet that contains it.
+///
+/// `held` comes from [`held_subnets`].
+pub fn place_reported_range<'a>(
+    reported: &cidr::IpCidr,
+    address: IpAddr,
+    held: &'a [Subnet],
+) -> ReportedRange<'a> {
+    if let Some(same) = held.iter().find(|s| *s.base.cidr == *reported) {
+        return ReportedRange::Held(same);
+    }
+    if !held.iter().any(|s| overlaps(&s.base.cidr, reported)) {
+        return ReportedRange::New;
+    }
+    match placeable_subnet(held, address) {
+        Some(subnet) => ReportedRange::Held(subnet),
+        None => ReportedRange::Unplaced,
+    }
 }
 
 // ============================================================================
@@ -599,6 +658,7 @@ mod partial_result_tests {
     use super::*;
     use crate::server::hosts::r#impl::base::{Host, HostBase};
     use crate::server::shared::storage::traits::Storable;
+    use crate::server::subnets::r#impl::base::SubnetTypeAttributed;
     use crate::server::subnets::r#impl::base::{Subnet, SubnetBase};
     use crate::server::subnets::r#impl::types::SubnetType;
 
@@ -615,7 +675,7 @@ mod partial_result_tests {
 
     fn bridge_subnet() -> Subnet {
         Subnet::new(SubnetBase {
-            subnet_type: SubnetType::DockerBridge,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::DockerBridge),
             ..Default::default()
         })
     }
@@ -652,7 +712,7 @@ mod partial_result_tests {
         // The scratch went further than the checkpoint before it hung.
         let mut scratch = committed.clone();
         scratch.add_subnet(Subnet::new(SubnetBase {
-            subnet_type: SubnetType::PodmanBridge,
+            subnet_type: SubnetTypeAttributed::unattributed(SubnetType::PodmanBridge),
             ..Default::default()
         }));
 

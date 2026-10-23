@@ -136,6 +136,7 @@ fn test_container_virtualization_matches_docker_and_podman() {
     // PodmanContainer generic claims it, and the DockerContainer generic does not.
     let mut ctx = TestContext::new();
     ctx.virtualization = Some(ServiceVirtualization::Podman(PodmanVirtualization {
+        state: Default::default(),
         container_name: Some("scanopy-test-web".to_string()),
         container_id: Some("73413cba1d1c".to_string()),
         compose_project: None,
@@ -163,6 +164,7 @@ fn test_container_virtualization_matches_docker_and_podman() {
     let mut dctx = TestContext::new();
     dctx.virtualization = Some(ServiceVirtualization::Docker(
         crate::server::services::r#impl::virtualization::DockerVirtualization {
+            state: Default::default(),
             container_name: Some("nginx".to_string()),
             container_id: Some("abc123".to_string()),
             compose_project: None,
@@ -294,12 +296,25 @@ fn test_pattern_or_logic() {
     );
 }
 
-/// Whether the registered definition `id` matches one response from `path` on `port` carrying
+/// Whether the registered definition `id` matches one 200 response from `path` on `port` carrying
 /// `headers`.
 fn definition_matches_response(
     id: &str,
     port: PortType,
     path: &str,
+    headers: &[(&str, &str)],
+    body: &str,
+) -> bool {
+    definition_matches_status(id, port, path, 200, headers, body)
+}
+
+/// Whether the registered definition `id` matches one response with `status` from `path` on
+/// `port` carrying `headers`.
+fn definition_matches_status(
+    id: &str,
+    port: PortType,
+    path: &str,
+    status: u16,
     headers: &[(&str, &str)],
     body: &str,
 ) -> bool {
@@ -314,7 +329,7 @@ fn definition_matches_response(
             .iter()
             .map(|(name, value)| (name.to_string(), value.to_string()))
             .collect(),
-        status: 200,
+        status,
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -472,6 +487,112 @@ fn dawarich_is_identified_by_its_health_endpoints_version_header() {
     ));
 }
 
+/// Bodies captured from a Spring Boot 3 app built from start.spring.io with web and actuator.
+#[test]
+fn spring_boot_is_identified_by_its_actuator_health_endpoint_up_or_down() {
+    let up = "{\"groups\":[\"liveness\",\"readiness\"],\"status\":\"UP\"}";
+    let down = "{\"groups\":[\"liveness\",\"readiness\"],\"status\":\"DOWN\"}";
+    for port in [PortType::Http8080, PortType::Http8081] {
+        assert!(definition_matches_status(
+            "Spring Boot",
+            port,
+            "/actuator/health",
+            200,
+            &[],
+            up
+        ));
+        assert!(definition_matches_status(
+            "Spring Boot",
+            port,
+            "/actuator/health",
+            503,
+            &[],
+            down
+        ));
+    }
+
+    // With Actuator on a separate management port, the app port answers the health path with
+    // Spring's error body. Nothing else at that path is identified either.
+    assert!(!definition_matches_status(
+        "Spring Boot",
+        PortType::Http8080,
+        "/actuator/health",
+        404,
+        &[],
+        "{\"timestamp\":\"2026-10-20T20:40:54.744Z\",\"status\":404,\"error\":\"Not Found\",\"path\":\"/actuator/health\"}"
+    ));
+    assert!(!definition_matches_response(
+        "Spring Boot",
+        PortType::Http8080,
+        "/actuator/health",
+        &[NGINX],
+        NGINX_WELCOME
+    ));
+}
+
+/// Captured from `mher/flower:2.0` against a Redis broker.
+#[test]
+fn celery_is_identified_by_its_flower_dashboard() {
+    let port = PortType::new_tcp(5555);
+    let flower = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Flower</title><link href=\"/static/css/flower.css\" rel=\"stylesheet\"></head><body><nav class=\"navbar\"><a class=\"navbar-brand\" href=\"/\">Flower</a><a class=\"nav-link\" href=\"https://flower.readthedocs.io/\">Documentation</a></nav></body></html>";
+    assert!(definition_matches_response(
+        "Celery",
+        port,
+        "/",
+        &[],
+        flower
+    ));
+
+    assert!(!definition_matches_response(
+        "Celery",
+        port,
+        "/",
+        &[NGINX],
+        NGINX_WELCOME
+    ));
+    // A page that only links to Flower is not Flower.
+    assert!(!definition_matches_response(
+        "Celery",
+        port,
+        "/",
+        &[],
+        "<html><head><title>Homepage</title></head><body><a href=\"http://flower.lan\">Flower</a></body></html>"
+    ));
+}
+
+/// Captured from `Sidekiq::Web` mounted at /sidekiq in a Rack app. Every asset and link sits
+/// under /sidekiq, so the title and the navbar brand are what name it once the requested path is
+/// set aside.
+#[test]
+fn sidekiq_is_identified_by_its_web_dashboard() {
+    let dashboard = "<!doctype html><html dir=\"ltr\"><head><title>[DEVELOPMENT] Sidekiq</title><link href=\"/sidekiq/stylesheets/style.css\" media=\"screen\" rel=\"stylesheet\" type=\"text/css\"><script type=\"text/javascript\" src=\"/sidekiq/javascripts/application.js\"></script></head><body><nav class=\"navbar\"><a class=\"navbar-brand\" href=\"/sidekiq/\">Sidekiq</a><ul><li><a href=\"/sidekiq/\">Dashboard</a></li><li><a href=\"/sidekiq/busy\">Busy</a></li><li><a href=\"/sidekiq/queues\">Queues</a></li><li><a href=\"/sidekiq/retries\">Retries</a></li></ul></nav></body></html>";
+    for port in [PortType::Http3000, PortType::Http] {
+        assert!(definition_matches_response(
+            "Sidekiq",
+            port,
+            "/sidekiq",
+            &[],
+            dashboard
+        ));
+    }
+
+    // A Rails page that links to the dashboard names only the path.
+    assert!(!definition_matches_response(
+        "Sidekiq",
+        PortType::Http3000,
+        "/sidekiq",
+        &[],
+        "<html><head><title>Admin</title></head><body><a href=\"/sidekiq\">Background jobs</a></body></html>"
+    ));
+    assert!(!definition_matches_response(
+        "Sidekiq",
+        PortType::Http,
+        "/sidekiq",
+        &[NGINX],
+        NGINX_WELCOME
+    ));
+}
+
 #[test]
 fn test_jenkins_https_header_detection() {
     let ctx = TestContext::new();
@@ -588,6 +709,31 @@ fn test_client_response_with_port() {
         vec![probed_port],
         "Should return the probed port"
     );
+    assert_eq!(result.details.confidence, super::MatchConfidence::Certain);
+}
+
+/// An SSH credential configured for a port other than 22 identifies the SSH service on the port
+/// it authenticated on. The service used to require 22 open as well, so a credential on 2222
+/// authenticated and then collected nothing, because nothing on the host was SSH.
+#[test]
+fn ssh_matches_on_the_port_its_credential_authenticated_on() {
+    use crate::server::services::definitions::ssh::Ssh;
+    use crate::server::services::r#impl::definitions::ServiceDefinition;
+
+    let mut ctx = TestContext::new();
+    let credential_port = PortType::new_tcp(2222);
+    ctx.client_responses
+        .insert(super::ClientProbe::Ssh, vec![credential_port]);
+
+    let ports = vec![credential_port];
+    let baseline = ctx.create_baseline_params(&ports);
+    let params = ctx.create_params_with_ports(&baseline, &ports);
+    let result = Ssh
+        .discovery_pattern()
+        .matches(&params)
+        .expect("SSH matches on the credential's port");
+
+    assert_eq!(result.ports, vec![credential_port]);
     assert_eq!(result.details.confidence, super::MatchConfidence::Certain);
 }
 
@@ -818,4 +964,71 @@ fn an_unbrowsed_host_is_distinguished_from_one_that_did_not_answer() {
         "a host we never browsed must not report the same reason as one that answered \
          without this service"
     );
+}
+
+/// A routing-table gateway is a Gateway even when a DHCP or DNS server matched on it first. Those
+/// are generic definitions sorted ahead of Gateway, and a gateway nearly always runs one. Only a
+/// gateway-specific definition (an Eero, a Fios router) already matched displaces the generic one.
+#[test]
+fn a_gateway_running_dhcp_still_matches_the_generic_gateway() {
+    let service = |id: &str| Service {
+        base: crate::server::services::r#impl::base::ServiceBase {
+            service_definition: ServiceDefinitionRegistry::find_by_id(id).expect("definition"),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let mut ctx = TestContext::new();
+    ctx.gateway_ips = vec![ctx.ip_address.base.ip_address];
+    ctx.pi = ServiceDefinitionRegistry::find_by_id("Gateway").expect("Gateway");
+    let pattern = ctx.pi.discovery_pattern();
+    let ports = vec![];
+
+    ctx.matched_services = vec![service("DHCP Server"), service("DNS Server")];
+    let baseline = ctx.create_baseline_params(&ports);
+    assert!(
+        pattern
+            .matches(&ctx.create_params_with_ports(&baseline, &ports))
+            .is_ok(),
+        "DHCP and DNS on the gateway must not block the Gateway match"
+    );
+
+    ctx.matched_services = vec![service("Eero Gateway")];
+    let baseline = ctx.create_baseline_params(&ports);
+    assert!(
+        pattern
+            .matches(&ctx.create_params_with_ports(&baseline, &ports))
+            .is_err(),
+        "a gateway-specific definition already matched displaces the generic Gateway"
+    );
+}
+
+/// Only an address a router can hold is a gateway, under either of `IsGateway`'s rules. A Mac's
+/// loopback routes name 127.0.0.1 as their gateway, and with those dropped the subnet has no
+/// gateway, so 127.0.0.1 ending in .1 then matched the fallback rule instead.
+#[test]
+fn a_loopback_address_is_never_a_gateway() {
+    let ip = |s: &str| s.parse::<IpAddr>().unwrap();
+    assert!(!super::is_router_gateway(&ip("127.0.0.1")));
+    assert!(!super::is_router_gateway(&ip("::1")));
+    assert!(!super::is_router_gateway(&ip("0.0.0.0")));
+    assert!(!super::is_router_gateway(&ip("224.0.0.1")));
+    assert!(super::is_router_gateway(&ip("fe80::1")));
+
+    let matches_gateway = |address: &str, gateways: Vec<IpAddr>| {
+        let mut ctx = TestContext::new();
+        ctx.ip_address.base.ip_address = ip(address);
+        ctx.gateway_ips = gateways;
+        let ports = vec![];
+        let baseline = ctx.create_baseline_params(&ports);
+        Pattern::IsGateway
+            .matches(&ctx.create_params_with_ports(&baseline, &ports))
+            .is_ok()
+    };
+    // The .1 fallback rule, with no routing-table gateways known.
+    assert!(!matches_gateway("127.0.0.1", vec![]));
+    assert!(matches_gateway("192.168.1.1", vec![]));
+    // The routing-table rule.
+    assert!(!matches_gateway("127.0.0.1", vec![ip("127.0.0.1")]));
 }

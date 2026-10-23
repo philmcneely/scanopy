@@ -1,6 +1,10 @@
 import { credentialItems } from '$lib/features/credentials/columns';
 import { tagNames } from '$lib/features/tags/columns';
-import { entityRef, type FieldConfig } from '$lib/shared/components/data/types';
+import { entityRef } from '$lib/shared/components/data/types';
+import { defineRegistryFields } from '$lib/shared/entity-fields/table';
+import type { EntityLookup } from '$lib/shared/entity-fields';
+import type { components, operations } from '$lib/api/schema';
+import { fieldValueOptions, type FieldValueCount } from '$lib/shared/api/field-values';
 import { entities } from '$lib/shared/stores/metadata';
 import type { Site } from '../types';
 import type { Credential } from '$lib/features/credentials/types/base';
@@ -25,6 +29,8 @@ import {
 
 /** What the site columns read from the tab, each as a getter so values stay live. */
 export interface SiteColumnsContext {
+	/** Related entities the registry's site fields read; none beyond the site itself. */
+	lookup: () => EntityLookup;
 	tags: () => Tag[];
 	daemons: () => Daemon[];
 	/** The hosts the daemons run on, for each daemon chip's host name. */
@@ -33,7 +39,12 @@ export interface SiteColumnsContext {
 	subnets: () => Subnet[];
 	vlans: () => Vlan[];
 	credentials: () => Credential[];
+	staleWindowValues: () => FieldValueCount[] | undefined;
 }
+
+type SiteOrderField = components['schemas']['SiteOrderField'];
+/** The sites list endpoint's query params, which the filters are sent and linked as. */
+type SiteListParam = keyof NonNullable<operations['get_all_sites']['parameters']['query']>;
 
 // What a site contains, one resolver per column.
 function siteDaemons(ctx: SiteColumnsContext, site: Site): Daemon[] {
@@ -54,7 +65,7 @@ function siteCredentials(ctx: SiteColumnsContext, site: Site): Credential[] {
 		.filter((c): c is Credential => Boolean(c));
 }
 
-/** A site's staleness window as a filter value: its hours, prefixed when the server default applies. */
+/** A site's staleness window for its cell: its hours, prefixed when the server default applies. */
 const DEFAULT_WINDOW_PREFIX = 'default:';
 
 function staleWindowValue(site: Site): string | null {
@@ -71,126 +82,133 @@ function staleWindowLabel(value: string): string {
 	return isDefault ? sites_staleAfterDefault({ hours }) : hours;
 }
 
-export function siteColumns(ctx: SiteColumnsContext): FieldConfig<Site>[] {
-	return [
+/** Every SiteOrderField value is listed; the server sorts, groups and filters each. */
+export function siteColumns(ctx: SiteColumnsContext) {
+	return defineRegistryFields<Site, SiteOrderField, SiteListParam>(
+		'Site',
+		ctx.lookup,
 		{
-			key: 'name',
-			label: common_name(),
-			type: 'string',
-			searchable: true,
-			sortable: true,
-			display: { primary: true, width: 220, order: 0 }
-		},
-		{
-			key: 'vlans',
-			label: common_vlans(),
-			type: 'array',
-			searchable: true,
-			getValue: (site) => siteVlans(ctx, site).map((v) => v.name),
-			display: {
-				order: 1,
-				getItems: (site) =>
-					siteVlans(ctx, site).map((vlan) => ({
-						id: vlan.id,
-						label: vlan.name,
-						color: entities.getColorHelper('Vlan').color,
-						entityRef: entityRef('Vlan', vlan.id, vlan)
-					}))
-			}
-		},
-		{
-			key: 'tags',
-			label: common_tags(),
-			type: 'array',
-			searchable: true,
-			filterable: true,
-			getValue: (entity) => tagNames(entity.tags, ctx.tags())
-		},
-		{
-			key: 'daemons',
-			label: common_daemons(),
-			type: 'array',
-			searchable: true,
-			getValue: (site) => siteDaemons(ctx, site).map((d) => d.name),
-			display: {
-				order: 3,
-				getItems: (site) =>
-					siteDaemons(ctx, site).map((daemon) => ({
-						id: daemon.id,
-						label: daemon.name,
-						color: entities.getColorHelper('Daemon').color,
-						entityRef: entityRef('Daemon', daemon.id, daemon, {
-							hosts: ctx.daemonHosts(),
-							subnets: ctx.subnets()
-						})
-					}))
-			}
-		},
-		{
-			key: 'credentials',
-			label: common_credentials(),
-			type: 'array',
-			searchable: true,
-			// Credentials are shared across sites, so this filters. The other arrays here hold
-			// members of one site each, which search already finds.
-			filterable: true,
-			getValue: (site) => siteCredentials(ctx, site).map((c) => c.name),
-			getFilterValue: (site) => siteCredentials(ctx, site).map((c) => c.id),
-			filterLabel: (id) => ctx.credentials().find((c) => c.id === id)?.name ?? id,
-			display: {
-				order: 4,
-				getItems: (site) => credentialItems(siteCredentials(ctx, site))
-			}
-		},
-		{
-			key: 'subnets',
-			label: common_subnets(),
-			type: 'array',
-			searchable: true,
-			getValue: (site) => siteSubnets(ctx, site).map((s) => s.name),
-			display: {
-				order: 2,
-				getItems: (site) =>
-					siteSubnets(ctx, site).map((subnet) => ({
-						id: subnet.id,
-						label: subnet.name,
-						color: entities.getColorHelper('Subnet').color,
-						entityRef: entityRef('Subnet', subnet.id, subnet)
-					}))
-			}
-		},
-		{
-			key: 'created_at',
-			label: common_created(),
-			type: 'date',
-			sortable: true,
-			display: { hiddenByDefault: true }
-		},
-		{
-			key: 'updated_at',
-			label: common_updated(),
-			type: 'date',
-			sortable: true,
-			display: { hiddenByDefault: true }
-		},
-		{
+			name: {
+				label: common_name(),
+				type: 'string',
+				searchable: true,
+				// One header per site.
+				groupable: false,
+				display: { primary: true, width: 220, order: 0 }
+			},
+			created_at: {
+				label: common_created(),
+				type: 'date',
+				groupable: false,
+				display: { hiddenByDefault: true }
+			},
+			updated_at: {
+				label: common_updated(),
+				type: 'date',
+				groupable: false,
+				display: { hiddenByDefault: true }
+			},
 			// The effective window, with the server default applied, so a site that
 			// never set its own still shows the number staleness is judged by.
-			key: 'effective_stale_after_hours',
-			label: sites_staleAfter(),
-			type: 'string',
-			// A handful of values across sites; numeric collation orders 24 before 168.
-			sortable: true,
-			groupable: true,
-			filterable: true,
-			// Marked when no override is set, so an override equal to the default still reads as one.
-			getValue: (site) => {
-				const value = staleWindowValue(site);
-				return value === null ? null : staleWindowLabel(value);
+			effective_stale_after_hours: {
+				label: sites_staleAfter(),
+				type: 'string',
+				filterable: true,
+				serverFiltered: true,
+				// The windows some site judges by.
+				filterOptions: fieldValueOptions(ctx.staleWindowValues()),
+				filterLabel: (hours) => common_hoursCount({ hours: Number(hours) }),
+				getFilterValue: (site) => String(site.effective_stale_after_hours),
+				// The server groups on the hours.
+				getGroupValue: (site) => String(site.effective_stale_after_hours),
+				// Marked when no override is set, so an override equal to the default still reads as one.
+				getValue: (site) => {
+					const value = staleWindowValue(site);
+					return value === null ? null : staleWindowLabel(value);
+				},
+				display: { hiddenByDefault: true }
+			}
+		},
+		[
+			{
+				key: 'vlans',
+				label: common_vlans(),
+				type: 'array',
+				getValue: (site) => siteVlans(ctx, site).map((v) => v.name),
+				display: {
+					order: 1,
+					getItems: (site) =>
+						siteVlans(ctx, site).map((vlan) => ({
+							id: vlan.id,
+							label: vlan.name,
+							color: entities.getColorHelper('Vlan').color,
+							entityRef: entityRef('Vlan', vlan.id, vlan)
+						}))
+				}
 			},
-			getFilterValue: staleWindowValue,
-			filterLabel: staleWindowLabel,
-			display: { hiddenByDefault: true }
-		}
-	];
+			{
+				key: 'tags',
+				label: common_tags(),
+				type: 'array',
+				filterable: true,
+				getValue: (entity) => tagNames(entity.tags, ctx.tags())
+			},
+			{
+				key: 'daemons',
+				label: common_daemons(),
+				type: 'array',
+				getValue: (site) => siteDaemons(ctx, site).map((d) => d.name),
+				display: {
+					order: 3,
+					getItems: (site) =>
+						siteDaemons(ctx, site).map((daemon) => ({
+							id: daemon.id,
+							label: daemon.name,
+							color: entities.getColorHelper('Daemon').color,
+							entityRef: entityRef('Daemon', daemon.id, daemon, {
+								hosts: ctx.daemonHosts(),
+								subnets: ctx.subnets()
+							})
+						}))
+				}
+			},
+			{
+				key: 'credentials',
+				label: common_credentials(),
+				type: 'array',
+				// Credentials are shared across sites, so this filters. The other arrays here hold
+				// members of one site each, which search already finds.
+				filterable: true,
+				serverFiltered: true,
+				queryParam: 'credential_ids',
+				filterOptions: ctx.credentials().map((credential) => credential.id),
+				getValue: (site) => siteCredentials(ctx, site).map((c) => c.name),
+				getFilterValue: (site) => siteCredentials(ctx, site).map((c) => c.id),
+				filterLabel: (id) => ctx.credentials().find((c) => c.id === id)?.name ?? id,
+				display: {
+					order: 4,
+					getItems: (site) => credentialItems(siteCredentials(ctx, site))
+				}
+			},
+			{
+				key: 'subnets',
+				label: common_subnets(),
+				type: 'array',
+				getValue: (site) => siteSubnets(ctx, site).map((s) => s.name),
+				display: {
+					order: 2,
+					getItems: (site) =>
+						siteSubnets(ctx, site).map((subnet) => ({
+							id: subnet.id,
+							label: subnet.name,
+							color: entities.getColorHelper('Subnet').color,
+							entityRef: entityRef('Subnet', subnet.id, subnet)
+						}))
+				}
+			}
+		],
+		// The table shows the window in effect, the site's own or the organization default, as
+		// `effective_stale_after_hours`.
+		{ omit: ['stale_after_hours'] }
+	);
 }

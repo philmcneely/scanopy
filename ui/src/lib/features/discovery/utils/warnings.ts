@@ -19,25 +19,35 @@ import claimSources from '$lib/data/claim-sources.json';
 import discoveryIntegrations from '$lib/data/discovery-integrations.json';
 import malformedNeighbourConsequences from '$lib/data/malformed-neighbour-consequences.json';
 import osFamilies from '$lib/data/os-families.json';
+import snmpWalkCauses from '$lib/data/snmp-walk-causes.json';
 import snmpWalkGroups from '$lib/data/snmp-walk-groups.json';
 import warningCodes from '$lib/data/warning-codes.json';
 import warningRemedies from '$lib/data/warning-remedies.json';
 import { metaDescription, metaDescriptionWith, metaName, metaNameWith } from '$lib/i18n/metadata';
-import { joinList, MAX_LISTED } from '$lib/i18n/list';
+import { joinList } from '$lib/i18n/list';
+import { snmpCheckOf, type CredentialLookup, type SnmpCheckOutcome } from './snmpCheck';
 import { toColor, type Color } from '$lib/shared/utils/styling';
 import { osLabel } from '$lib/features/daemons/utils';
 import { credentialIntegrations } from '$lib/shared/stores/metadata';
 import {
 	common_host,
-	common_moreItems,
 	common_unknown,
 	common_unknownEntity,
 	discovery_warningNoFurtherDetail,
 	discovery_warningUnknownDaemon,
 	discovery_warningAtAddress,
+	discovery_warningGapContainerBridge,
+	discovery_warningGapCredentialType,
+	discovery_warningGapSnmpV3Options,
+	discovery_warningSnmpV3OptionAuthNoPriv,
+	discovery_warningSnmpV3OptionMd5Auth,
+	discovery_warningSnmpV3OptionNoAuthNoPriv,
 	discovery_warningInferredFrom,
 	discovery_warningSeenBy,
-	discovery_warningNoPortId
+	discovery_warningNoPortId,
+	discovery_warningNoWalkFailed,
+	discovery_warningWalkFailures,
+	discovery_warningWalkFailuresUnrecorded
 } from '$lib/paraglide/messages';
 
 export type DiscoveryWarning = components['schemas']['DiscoveryWarning'];
@@ -91,6 +101,24 @@ export interface WarningExample {
 export interface WarningStatement {
 	sentence: string;
 	examples: WarningExample[];
+	/** The occurrences behind the sentence, one per device, for what the row lists under it. */
+	warnings: DiscoveryWarning[];
+}
+
+/** One device in a row that offers commands: what the row says about it, and how to check it. */
+export interface DeviceCheck {
+	address: string;
+	credentialId: string | null;
+	sentence: string;
+	outcome: NonNullable<SnmpCheckOutcome>;
+}
+
+/** How many addresses, hosts or subnets a row concerns, and the one when there is only one. */
+export interface WarningAffects {
+	type: 'address' | 'host' | 'subnet';
+	count: number;
+	/** The single subject's label when `count` is 1 and it resolved. */
+	only: string | null;
 }
 
 /** One warning code's worth of a run, as a row in the report. */
@@ -104,10 +132,14 @@ export interface WarningEntry {
 	/** Severity, as the fixture already publishes it. */
 	color: Color;
 	icon: string;
-	/** The devices, ranges or addresses this row concerns, shown when the row is open. */
-	subjects: WarningSubject[];
-	/** The first few of them and a count of the rest, for the row's one-line header. */
-	preview: WarningSubject[];
+	/** What the row concerns, counted for its one-line header. `null` for a scan-level code. */
+	affects: WarningAffects | null;
+	/**
+	 * One device at a time, for a row that offers commands: each device's own sentence and what
+	 * checking it takes. Empty when no device in the row has commands, and the row lists its
+	 * statements instead.
+	 */
+	devices: DeviceCheck[];
 	/** What the row says, shown on disclosure. Usually one statement; more when they differ. */
 	details: WarningStatement[];
 	/** Every occurrence behind the row, so an action can read ids off the payload. */
@@ -188,6 +220,29 @@ function nameOf(fixture: { id: string; name: string | null }[], fixtureKey: stri
 }
 
 const group = (id: string) => nameOf(snmpWalkGroups, 'snmp_walk_groups', id);
+const cause = (id: string) => nameOf(snmpWalkCauses, 'snmp_walk_causes', id);
+
+/**
+ * How each failed read on a device ended, as one clause per cause naming the groups that ended
+ * that way. `null` is a daemon that recorded no causes; an empty list is a device whose every read
+ * ended normally on an empty table.
+ */
+function failuresOf(failures: components['schemas']['SnmpWalkFailure'][] | null): string {
+	if (failures === null) return discovery_warningWalkFailuresUnrecorded();
+	if (failures.length === 0) return discovery_warningNoWalkFailed();
+
+	const byCause = new Map<string, string[]>();
+	for (const failure of failures) {
+		const groups = byCause.get(failure.cause) ?? [];
+		groups.push(group(failure.group));
+		byCause.set(failure.cause, groups);
+	}
+	return [...byCause]
+		.map(([id, groups]) =>
+			discovery_warningWalkFailures({ groups: joinList(groups, 'conjunction'), cause: cause(id) })
+		)
+		.join(' ');
+}
 const claimSource = (id: string) => nameOf(claimSources, 'claim_sources', id);
 const consequence = (id: string) =>
 	nameOf(malformedNeighbourConsequences, 'malformed_neighbour_consequences', id);
@@ -211,6 +266,37 @@ const addressesOf = (group_: { address: string }[]) =>
 		group_.map((w) => w.address),
 		'conjunction'
 	);
+
+type CapabilityGap = components['schemas']['CapabilityGap'];
+type SnmpV3SecurityOption = components['schemas']['SnmpV3SecurityOption'];
+
+const SNMP_V3_OPTION_LABELS: Record<SnmpV3SecurityOption, () => string> = {
+	NoAuthNoPriv: () => discovery_warningSnmpV3OptionNoAuthNoPriv(),
+	AuthNoPriv: () => discovery_warningSnmpV3OptionAuthNoPriv(),
+	Md5Auth: () => discovery_warningSnmpV3OptionMd5Auth()
+};
+
+/**
+ * What a daemon missed of one credential, as the clause after "The {credential} credential".
+ * Exhaustive over the generated union, so a gap the backend adds does not compile until it reads.
+ */
+function capabilityGap(gap: CapabilityGap): string {
+	switch (gap.type) {
+		case 'ParsesCredentialType':
+			return discovery_warningGapCredentialType();
+		case 'UsesSnmpV3SecurityOptions':
+			return discovery_warningGapSnmpV3Options({
+				options: joinList(
+					gap.details.options.map((o) => SNMP_V3_OPTION_LABELS[o]()),
+					'conjunction'
+				)
+			});
+		case 'TargetsContainerBridgeWithCredentials':
+			return discovery_warningGapContainerBridge({
+				addresses: joinList(gap.details.addresses, 'conjunction')
+			});
+	}
+}
 
 const groupsOf = (group_: { group: string }[]) =>
 	joinList(
@@ -242,6 +328,13 @@ const WARNING_PARAMS = {
 	SnmpWalkPartialRecorded: (w) => ({ addresses: addressesOf(w), groups: groupsOf(w) }),
 	SnmpWalkBridgeMibAbsent: (w) => ({ addresses: addressesOf(w), groups: groupsOf(w) }),
 	SnmpWalkNoAnswer: (w) => ({ addresses: addressesOf(w), groups: groupsOf(w) }),
+	// The cause identifies the statement: reads that timed out and reads answered with genErr
+	// are different sentences.
+	SnmpWalkFailed: (w) => ({
+		addresses: addressesOf(w),
+		groups: groupsOf(w),
+		cause: cause(w[0].cause)
+	}),
 
 	// The figures are the substance of a claim warning, so two switches disagreeing with themselves
 	// by different amounts do not share a sentence — the bucketing below keeps them apart, and
@@ -282,7 +375,11 @@ const WARNING_PARAMS = {
 	MalformedNeighboursUnexpectedType: malformedParams,
 	MalformedNeighboursUnreadableIndex: malformedParams,
 
-	SnmpCollectedNothing: (w) => ({ addresses: addressesOf(w) }),
+	// Devices whose reads ended the same way share a sentence; any difference splits them.
+	SnmpCollectedNothing: (w) => ({
+		addresses: addressesOf(w),
+		failures: failuresOf(w[0].failures)
+	}),
 	VlanRecordingFailed: (w) => ({ addresses: addressesOf(w) }),
 	// One per host, like the credential codes. The two integrations identify the statement, so hosts
 	// read by the same pair in the same order share a sentence and a different pair stays apart.
@@ -318,9 +415,12 @@ const WARNING_PARAMS = {
 	}),
 	// Server-raised, for the one daemon that ran the scan, so its name is the session's. A daemon that
 	// never reported a version still has to read as a sentence.
-	CredentialDaemonTooOld: (w, { daemonName }) => ({
+	// The gap identifies the statement: a credential withheld whole and one that lost only its
+	// bridge addresses are different sentences.
+	CredentialNeedsNewerDaemon: (w, { daemonName }) => ({
 		credential: integration(w[0].integration),
-		required: w[0].minimum_daemon_version,
+		gap: capabilityGap(w[0].gap),
+		required: w[0].last_unsupported_daemon_version,
 		daemon: daemonName,
 		version: w[0].daemon_version ?? common_unknown()
 	}),
@@ -577,7 +677,12 @@ function describeProvisionalSubnet(
 	// far-end evidence that produced them — the pass that inferred it may have been scans ago, and
 	// one inferred while placing a controller-reported address never had a neighbour at all. The
 	// range alone is still the actionable part.
-	if (!w.addresses.length) return { near: null, nearText: w.cidr, far: null, farText: '' };
+	// The range itself links to its subnet, which is where it is confirmed. A subnet deleted since
+	// the scan lost its id and reads as the bare range.
+	const range: WarningSubject = w.subnet_id
+		? { label: w.cidr, entity: { type: 'Subnet', id: w.subnet_id } }
+		: { label: w.cidr };
+	if (!w.addresses.length) return { near: range, nearText: '', far: null, farText: '' };
 
 	// Paired positionally where both are present: `sys_names` omits far ends that sent none, so a
 	// group where only some did would otherwise misalign names against addresses.
@@ -588,9 +693,9 @@ function describeProvisionalSubnet(
 	const seenBy = [...new Set(w.seen_by_host_ids.map(hostName).filter(Boolean))] as string[];
 	const from = discovery_warningInferredFrom({ far_ends: joinList(named, 'conjunction') });
 	const text = seenBy.length
-		? `${w.cidr}, ${from} ${discovery_warningSeenBy({ devices: joinList(seenBy, 'conjunction') })}`
-		: `${w.cidr}, ${from}`;
-	return { near: null, nearText: text, far: null, farText: '' };
+		? `${from} ${discovery_warningSeenBy({ devices: joinList(seenBy, 'conjunction') })}`
+		: from;
+	return { near: range, nearText: text, far: null, farText: '' };
 }
 
 function portParams(
@@ -675,6 +780,11 @@ function examplesOf(group_: DiscoveryWarning[], hostName: HostNameLookup): Warni
 				return [describePort(w, hostName)];
 			case 'ProvisionalSubnetInferred':
 				return [describeProvisionalSubnet(w, hostName)];
+			// The hosts a credential would be added for, one per line, each linking to its host.
+			case 'IntegrationWithoutCredential': {
+				const host = hostSubject(w.host_id, hostName);
+				return host ? [{ near: host, nearText: '', far: null, farText: '' }] : [];
+			}
 			default:
 				return [];
 		}
@@ -700,69 +810,72 @@ function renderStatements(
 
 	return bucketByStatement(code, group_, context).map((bucket) => ({
 		sentence: metaDescriptionWith('warning_codes', code, build(bucket, context), fallback),
-		examples: examplesOf(bucket, hostName)
+		examples: examplesOf(bucket, hostName),
+		warnings: bucket
 	}));
 }
 
 /**
- * What makes two subjects the same: the entity when there is one, the text otherwise. Not the
- * label alone, which two hosts both named "Docker" share.
+ * Each device in a row, one at a time, when at least one of them has commands to offer.
+ *
+ * A device gets the sentence for itself alone, so the reader takes in one device's result and
+ * its command together rather than a grouped sentence and a list to match it against. A row where
+ * no device has commands returns none, and lists its statements, so the devices are still named.
  */
-export function subjectKey(subject: WarningSubject): string {
-	return subject.entity ? `${subject.entity.type}:${subject.entity.id}` : subject.label;
+function deviceChecksOf(
+	code: DiscoveryWarningCode,
+	row: DiscoveryWarning[],
+	credentialOf: CredentialLookup,
+	context: ParamContext
+): DeviceCheck[] {
+	const build = WARNING_PARAMS[code] as (w: DiscoveryWarning[], context: ParamContext) => Params;
+	const fallback = warningCodes.find((c) => c.id === code)?.description;
+	if (!fallback) return [];
+
+	const byAddress = new Map<string, DeviceCheck>();
+	for (const warning of row) {
+		if (!('address' in warning) || !warning.address || byAddress.has(warning.address)) continue;
+		const outcome = snmpCheckOf(warning, credentialOf);
+		if (!outcome) continue;
+		byAddress.set(warning.address, {
+			address: warning.address,
+			credentialId: 'credential_id' in warning ? (warning.credential_id ?? null) : null,
+			sentence: metaDescriptionWith('warning_codes', code, build([warning], context), fallback),
+			outcome
+		});
+	}
+	const devices = [...byAddress.values()];
+	return devices.some((d) => 'commands' in d.outcome) ? devices : [];
 }
 
-/** How many subjects a row's header names before counting the rest, so it stays one line. */
-const PREVIEW_SUBJECTS = 2;
-
 /**
- * What a warning is *about*, as the chips on its row.
- *
- * Read off the wire payload rather than out of the sentence: every variant carries a host id, a
- * range, or an address, and taking the subject out of the prose is what lets a row say who it
- * concerns before the reader has read anything. Scan-level codes carry none and get no chips.
+ * What a row concerns, counted for its header: addresses, hosts or subnets, read off what the
+ * occurrences carry. A list of chips there told a reader nothing they could act on, and repeated
+ * what the open row already says.
  *
  * The host id is preferred where a warning has both. An unmatched neighbour carries the address the
  * *far* end published, and the device an operator would go and look at is the near one that
- * reported it. An id that resolves to nothing is dropped rather than shown raw, the same policy the
- * sentences use — a host deleted since the scan reads as no chip, not as a UUID.
- *
- * A credential warning is the one case that yields *two* chips, and deliberately: the address says
- * which device was being reached and the credential says which record is wrong. Naming only the
- * address is the gap this exists to close — on a network with two SNMP communities it does not
- * identify one — and dropping the address in favour of the credential would lose where it failed.
+ * reported it. Scan-level codes carry none of the three and get no count.
  */
-function subjectsOf(
-	warnings: DiscoveryWarning[],
-	nameOfEntity: EntityNameLookup,
-	limit: number = MAX_LISTED
-): WarningSubject[] {
-	const subjects = warnings.flatMap((w): WarningSubject[] => {
+function affectsOf(warnings: DiscoveryWarning[], hostName: HostNameLookup): WarningAffects | null {
+	let type: WarningAffects['type'] | null = null;
+	const labels = new Map<string, string | null>();
+	for (const [i, w] of warnings.entries()) {
 		if ('host_id' in w) {
-			const subject = hostSubject(w.host_id, (id) => nameOfEntity('Host', id));
-			return subject ? [subject] : [];
+			type = 'host';
+			// A host deleted since the scan lost its id; each still counts as one.
+			labels.set(w.host_id ?? `gone:${i}`, hostSubject(w.host_id, hostName)?.label ?? null);
+		} else if ('cidr' in w) {
+			type = 'subnet';
+			labels.set(w.cidr, w.cidr);
+		} else if ('address' in w && w.address) {
+			type = 'address';
+			labels.set(w.address, w.address);
 		}
-		if ('cidr' in w) return [{ label: w.cidr }];
-
-		const chips: WarningSubject[] = 'address' in w ? [{ label: w.address }] : [];
-		// Historical rows and older daemons carry no id, so this is absent rather than empty —
-		// those rows keep rendering exactly as they did, with the address alone.
-		if ('credential_id' in w && w.credential_id) {
-			const label = nameOfEntity('Credential', w.credential_id);
-			if (label) {
-				chips.push({ label, entity: { type: 'Credential', id: w.credential_id } });
-			}
-		}
-		return chips;
-	});
-
-	const unique = [...new Map(subjects.map((s) => [subjectKey(s), s])).values()];
-	const listed = unique.slice(0, limit);
-	const elided = unique.length - listed.length;
-	// Capped like the sentences are, and for the same reason: a row that wraps to five lines of
-	// chips is a wall of text with rounded corners.
-	if (elided > 0) listed.push({ label: common_moreItems({ count: elided }) });
-	return listed;
+	}
+	if (type === null) return null;
+	const [only] = labels.values();
+	return { type, count: labels.size, only: labels.size === 1 ? only : null };
 }
 
 /** The rung a code sits on, as the backend filed it. */
@@ -872,7 +985,8 @@ function byTitle(
 export function buildWarningReport(
 	warnings: DiscoveryWarning[],
 	nameOfEntity: EntityNameLookup = NO_ENTITY_NAMES,
-	daemonName: string | null = null
+	daemonName: string | null = null,
+	credentialOf: CredentialLookup = () => undefined
 ): WarningSection[] {
 	const context: ParamContext = { daemonName: daemonName ?? discovery_warningUnknownDaemon() };
 	// The example and sentence builders below only ever name hosts, so they keep taking the
@@ -903,8 +1017,8 @@ export function buildWarningReport(
 				title,
 				color: toColor(meta.color),
 				icon: meta.icon,
-				subjects: subjectsOf(row, nameOfEntity),
-				preview: subjectsOf(row, nameOfEntity, PREVIEW_SUBJECTS),
+				affects: affectsOf(row, hostName),
+				devices: deviceChecksOf(code, row, credentialOf, context),
 				details: renderStatements(code, row, hostName, context),
 				warnings: row
 			});

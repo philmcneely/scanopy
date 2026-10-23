@@ -1,5 +1,8 @@
 //! A finished discovery session stamps the discovery FKs on what it scanned before
 //! `update_session` returns, with no event-bus subscriber in between.
+//! A running session publishes one discovery event per phase it enters.
+
+use std::sync::Arc;
 
 use chrono::{Duration, Utc};
 use uuid::Uuid;
@@ -8,6 +11,7 @@ use crate::daemon::discovery::types::base::DiscoveryPhase;
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::daemons::r#impl::api::{DiscoveryUpdatePayload, ScannedEntityIds};
 use crate::server::discovery::r#impl::types::DiscoveryType;
+use crate::server::shared::events::traits::{Event, EventFilter, Subscriber};
 use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::storage::traits::Storage;
 
@@ -60,11 +64,7 @@ async fn finished_session_stamps_scanned_host_with_its_historical_discovery() {
         ..Default::default()
     });
 
-    services
-        .discovery_service
-        .update_session(update)
-        .await
-        .unwrap();
+    services.discovery_service.update_session(update).await;
 
     let stamped = storage
         .hosts
@@ -92,4 +92,65 @@ async fn finished_session_stamps_scanned_host_with_its_historical_discovery() {
         .unwrap()
         .unwrap();
     assert_eq!(untouched.last_discovery_id, None);
+}
+
+/// Records the phase and previous phase of every discovery event it receives.
+#[derive(Default)]
+struct PhaseRecorder {
+    seen: std::sync::Mutex<Vec<(DiscoveryPhase, Option<DiscoveryPhase>)>>,
+}
+
+#[async_trait::async_trait]
+impl Subscriber<DiscoveryPhase> for PhaseRecorder {
+    fn filter(&self) -> EventFilter<DiscoveryPhase> {
+        EventFilter::all()
+    }
+    async fn handle(&self, events: Vec<Event<DiscoveryPhase>>) -> anyhow::Result<()> {
+        self.seen.lock().unwrap().extend(
+            events
+                .into_iter()
+                .map(|e| (e.operation, e.scope.previous_phase)),
+        );
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn daemon_updates_publish_one_event_per_phase_change() {
+    let (_storage, services, _container) = test_services().await;
+    let recorder = Arc::new(PhaseRecorder::default());
+    services
+        .event_bus
+        .register::<DiscoveryPhase>(recorder.clone(), "phase_recorder:discovery_phase")
+        .await;
+
+    let host_id = Uuid::new_v4();
+    let mut update = DiscoveryUpdatePayload::new(
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        DiscoveryType::SelfReport { host_id },
+        None,
+    );
+    for (phase, progress) in [
+        (DiscoveryPhase::Started, 0),
+        (DiscoveryPhase::Scanning, 10),
+        (DiscoveryPhase::Scanning, 50),
+    ] {
+        update.phase = phase;
+        update.progress = progress;
+        services
+            .discovery_service
+            .update_session(update.clone())
+            .await;
+    }
+    services.event_bus.flush().await;
+
+    assert_eq!(
+        *recorder.seen.lock().unwrap(),
+        vec![
+            (DiscoveryPhase::Started, None),
+            (DiscoveryPhase::Scanning, Some(DiscoveryPhase::Started)),
+        ]
+    );
 }

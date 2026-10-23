@@ -3,6 +3,11 @@
 DAYS ?= 365
 PLAN ?= standard
 
+# Prefix for recipe lines that compile or run tests. Empty by default, so make behaves as
+# usual for people and CI. Agent sessions set it to the shared build lock, so concurrent
+# worktrees queue instead of exhausting the machine. Long-running dev servers are not wrapped.
+SCANOPY_BUILD_WRAPPER ?=
+
 # A value in .env can be a 1Password reference rather than the secret itself, e.g.
 #   SCANOPY_LICENSE_SIGNING_KEY=op://Scanopy/License Key Pair/scanopy_license_private.pem
 # The reference may be quoted ("op://..." or 'op://...').
@@ -49,7 +54,8 @@ help:
 	@echo "  make format         - Format all code"
 	@echo "  make generate-types  - Generate TypeScript types from Rust"
 	@echo "  make generate-messages - Generate i18n message functions from messages/*.json"
-	@echo "  make generate-fixtures - Regenerate billing-plans.json and features.json from backend"
+	@echo "  make generate-fixtures - Regenerate ui/src/lib/data/*.json and logos from backend; skipped when backend/ is unchanged"
+	@echo "  make generate-fixtures FORCE=1 - Regenerate everything and re-download every logo"
 	@echo "  make generate-schema - Generate database schema diagram (requires tbls)"
 	@echo "  make issue-license  - Issue a signed Scanopy license key (requires LICENSE_SECRET_CMD + LICENSE_SECRET_REF env vars; PLAN defaults to standard, DAYS to 365)"
 	@echo "  make new-terms-update - Create a terms update file (cloud emails users notice of it); prompts for the effective date and documents"
@@ -112,7 +118,7 @@ help:
 	@echo "  make podman-workload-up  - Seed a discoverable Podman pod + containers"
 	@echo "  make podman-workload-down - Remove the Podman test workload"
 	@echo "  make unifi-status    - Check both UniFi auth transports (see tools/unifi/UNIFI-TEST-ENV.md)"
-	@echo "  make unifi-capture   - Capture stat/sysinfo + stat/device from the UniFi controller"
+	@echo "  make unifi-capture   - Capture devices, networks and port profiles from the UniFi controller"
 
 fresh-db:
 	make clean-db
@@ -135,7 +141,7 @@ clean-db:
 	docker rm scanopy-postgres || true
 
 migrate-db:
-	cd backend && cargo run --bin migrate -- --database-url postgresql://postgres:password@localhost:5432/scanopy
+	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo run --bin migrate -- --database-url postgresql://postgres:password@localhost:5432/scanopy
 
 lint-migrations:
 	@cd backend && ./scripts/lint-migrations.sh
@@ -183,7 +189,7 @@ daemon-build:
 		echo "Run 'make $@' without sudo; the targets elevate only where they must."; \
 		exit 1; \
 	fi
-	cd backend && cargo build --bin daemon
+	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo build --bin daemon
 
 # Rebuild and push the result into the installed background service.
 # Use this when you want the running service to pick up your changes.
@@ -346,27 +352,27 @@ dev-down:
 # from a logged-in browser session. topology-perf additionally wants a large
 # dataset — see backend/scripts/seed-l2-perf.sql.
 topology-perf:
-	cd ui && npm run test:topology-perf
+	cd ui && $(SCANOPY_BUILD_WRAPPER) npm run test:topology-perf
 
 topology-layout-eval:
-	cd ui && npm run test:topology-layout
+	cd ui && $(SCANOPY_BUILD_WRAPPER) npm run test:topology-layout
 
 test-unit:
 	cd ui && npx vite-node scripts/export-daemon-field-defs.ts --output=../backend/src/tests/daemon-config-frontend-fields.json 2>/dev/null
 	@echo "Running frontend tests..."
-	cd ui && npm test
+	cd ui && $(SCANOPY_BUILD_WRAPPER) npm test
 	@echo "Running backend unit tests..."
-	cd backend && cargo test --lib
+	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo test --lib
 
 test:
 	cd ui && npx vite-node scripts/export-daemon-field-defs.ts --output=../backend/src/tests/daemon-config-frontend-fields.json 2>/dev/null
 	@echo "Running frontend tests..."
-	cd ui && npm test
+	cd ui && $(SCANOPY_BUILD_WRAPPER) npm test
 	@echo "Running backend tests..."
 	make dev-down
 	rm -rf ./data/daemon_config/* ./data/daemon_serverpoll_config/*
 	@export DATABASE_URL="postgresql://postgres:password@localhost:5432/scanopy_test" && \
-	cd backend && cargo test -- --nocapture --test-threads=1
+	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo test -- --nocapture --test-threads=1
 
 format:
 	@echo "Formatting Server..."
@@ -380,12 +386,12 @@ lint:
 	@# One clippy pass over both bins, the lib and every test target: the two --bin passes
 	@# missed test code, which is how a broken tests/integration reached dev. `generate-fixtures`
 	@# compiles the release workflow's fixture target, which a stale enum match broke unnoticed.
-	cd backend && cargo fmt -- --check && cargo clippy --workspace --all-targets --features generate-fixtures -- -D warnings
+	cd backend && cargo fmt -- --check && $(SCANOPY_BUILD_WRAPPER) cargo clippy --workspace --all-targets --features generate-fixtures -- -D warnings
 	@echo "Generating paraglide i18n..."
 	cd ui && npx paraglide-js compile --outdir ./src/lib/paraglide --silent
 	@echo "Linting UI..."
 	@# `npm run lint` is `prettier --check . && eslint .`, so prettier already ran here.
-	cd ui && npm run lint && npm run check
+	cd ui && $(SCANOPY_BUILD_WRAPPER) npm run lint && $(SCANOPY_BUILD_WRAPPER) npm run check
 	@echo "Linting migrations..."
 	@$(MAKE) lint-migrations
 
@@ -394,14 +400,14 @@ generate-types: generate-api-types generate-error-codes
 
 generate-api-types:
 	@echo "Exporting OpenAPI spec from backend..."
-	cd backend && cargo run --bin generate-openapi
+	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo run --bin generate-openapi
 	@echo "Generating TypeScript types from OpenAPI spec..."
-	cd ui && npm run generate:api
+	cd ui && $(SCANOPY_BUILD_WRAPPER) npm run generate:api
 	@echo "TypeScript types exported to ui/src/lib/api/schema.d.ts"
 
 generate-error-codes:
 	@echo "Generating error codes from Rust enum..."
-	cd backend && cargo run --bin generate-error-codes
+	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo run --bin generate-error-codes
 	@echo "Merging error messages into en.json..."
 	cd ui && node scripts/merge-error-messages.js
 	@echo "Error codes generated and merged"
@@ -419,12 +425,34 @@ generate-messages:
 	cd ui && npx paraglide-js compile --outdir ./src/lib/paraglide --silent
 	@echo "Messages generated successfully"
 
-generate-fixtures:
+# The generator links the whole backend crate, which also embeds files outside src/ (assets/,
+# build.rs, Cargo.lock), so every file under backend/ counts as an input. A change anywhere reruns
+# it; the rerun rewrites only fixtures whose content changed and fetches only new or moved logos.
+# The stamp lives in the gitignored output dir, so deleting that dir forces a run, as does a
+# missing logo cache record. The stamp is taken before the run, so an input edited mid-run
+# triggers one more run next time.
+FIXTURE_STAMP := ui/src/lib/data/.fixtures-stamp
+LOGO_CACHE_RECORDS := ui/static/logos/services/.logo-cache.json ui/static/logos/os-families/.logo-cache.json ui/static/logos/identity-providers/.logo-cache.json
+FIXTURE_INPUTS = $(shell find backend -path backend/target -prune -o -type f -print) \
+	ui/scripts/generate-meta-messages.js messages/en.json
+
+ifeq ($(FORCE),1)
+.PHONY: $(FIXTURE_STAMP)
+endif
+ifneq ($(words $(wildcard $(LOGO_CACHE_RECORDS))),$(words $(LOGO_CACHE_RECORDS)))
+.PHONY: $(FIXTURE_STAMP)
+endif
+
+generate-fixtures: $(FIXTURE_STAMP)
+	@echo "✅ Metadata fixtures in ui/src/lib/data/ are up to date"
+
+$(FIXTURE_STAMP): $(FIXTURE_INPUTS)
 	@echo "Generating metadata fixtures from backend..."
-	cd backend && cargo run --bin generate-fixtures
+	@mkdir -p $(@D) && touch $@.next
+	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo run --bin generate-fixtures $(if $(filter 1,$(FORCE)),-- --force)
 	@echo "Syncing meta_* i18n keys into en.json..."
 	cd ui && node scripts/generate-meta-messages.js
-	@echo "✅ Generated all metadata fixtures in ui/src/lib/data/"
+	@mv $@.next $@
 
 refresh-vendored-data:
 	@echo "Refreshing vendored data assets (oui.csv)..."
@@ -469,7 +497,7 @@ issue-license:
 	@cd backend && { \
 		secret=$$($(LICENSE_SECRET_CMD) "$(LICENSE_SECRET_REF)") || { echo "Error: secret-fetch command failed."; exit 1; }; \
 		[ -n "$$secret" ] || { echo "Error: secret-fetch returned an empty value."; exit 1; }; \
-		SCANOPY_LICENSE_SIGNING_KEY="$$secret" cargo run --bin license -- create --days $(DAYS) $(if $(PLAN),--plan $(PLAN)); \
+		SCANOPY_LICENSE_SIGNING_KEY="$$secret" $(SCANOPY_BUILD_WRAPPER) cargo run --bin license -- create --days $(DAYS) $(if $(PLAN),--plan $(PLAN)); \
 	}
 
 # Prompts for the effective date and documents, with each
@@ -590,7 +618,7 @@ set-plan-self-hosted-plus:
 
 snmp-seed-credentials:
 	@echo "Seeding SNMP simulation credentials..."
-	@cd backend && cargo run --quiet --bin generate-snmp-fixtures --features snmp-sim -- --credentials \
+	@cd backend && $(SCANOPY_BUILD_WRAPPER) cargo run --quiet --bin generate-snmp-fixtures --features snmp-sim -- --credentials \
 		| docker exec -i scanopy-postgres psql -U postgres -d scanopy -v ON_ERROR_STOP=1
 	@echo ""
 	@echo "Assigned to every network in the database. If 'networks' reads 0 above,"

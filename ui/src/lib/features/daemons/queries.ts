@@ -10,6 +10,7 @@ import type { components, paths } from '$lib/api/schema';
 import type { Daemon } from './types/base';
 import type { DiscoveryUpdatePayload } from '../discovery/types/api';
 import type { ProvisionDaemonRequest, ProvisionDaemonResponse } from './types/base';
+import { invalidateListPages, useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 /**
  * Query hook for fetching all daemons
  * @param options.enabled - Optional getter function to control when query is enabled
@@ -26,6 +27,17 @@ export function useDaemonsQuery(options?: { enabled?: () => boolean }) {
 		},
 		enabled: options?.enabled?.() ?? true
 	}));
+}
+
+/** One page of the daemons list, kept apart from the full list the sidebar, home page and
+ * pickers read. */
+export function useDaemonsListQuery(params: () => ListPageParams) {
+	return useListPageQuery<Daemon>(
+		queryKeys.daemons.all,
+		({ query, querySerializer }) =>
+			apiClient.GET('/api/v1/daemons', { params: { query }, querySerializer }),
+		params
+	);
 }
 
 /**
@@ -139,6 +151,7 @@ export function useDeleteDaemonMutation() {
 				queryKeys.daemons.all,
 				(old) => old?.filter((d) => d.id !== id) ?? []
 			);
+			invalidateListPages(queryClient, queryKeys.daemons.all);
 		}
 	}));
 }
@@ -159,6 +172,7 @@ export function useBulkDeleteDaemonsMutation() {
 				queryKeys.daemons.all,
 				(old) => old?.filter((d) => !ids.includes(d.id)) ?? []
 			);
+			invalidateListPages(queryClient, queryKeys.daemons.all);
 		}
 	}));
 }
@@ -187,6 +201,7 @@ export function useProvisionDaemonMutation() {
 					? existing.map((d) => (d.id === response.daemon.id ? response.daemon : d))
 					: [...existing, response.daemon];
 			});
+			invalidateListPages(queryClient, queryKeys.daemons.all);
 		}
 	}));
 }
@@ -206,12 +221,9 @@ export function useRetryDaemonConnectionMutation() {
 			);
 			return id;
 		},
-		onSuccess: (id: string) => {
-			// Update the daemon in the cache to mark as reachable
-			queryClient.setQueryData<Daemon[]>(
-				queryKeys.daemons.all,
-				(old) => old?.map((d) => (d.id === id ? { ...d, is_unreachable: false } : d)) ?? []
-			);
+		onSuccess: () => {
+			// Refetch rather than patch: the status the server derives (`health`) changes with it.
+			queryClient.invalidateQueries({ queryKey: queryKeys.daemons.all });
 		}
 	}));
 }
@@ -289,4 +301,20 @@ export function getDaemonIsRunningDiscovery(
 		}
 	}
 	return false;
+}
+
+/** Asks the server to poll several unreachable ServerPoll daemons again. */
+export function useBulkRetryDaemonConnectionMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: async (ids: string[]) => {
+			requireSuccess(await apiClient.POST('/api/v1/daemons/bulk-retry-connection', { body: ids }));
+			return ids;
+		},
+		onSuccess: () => {
+			// Refetch rather than patch: the status the server derives (`health`) changes with it.
+			queryClient.invalidateQueries({ queryKey: queryKeys.daemons.all });
+		}
+	}));
 }

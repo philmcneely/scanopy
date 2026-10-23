@@ -176,14 +176,14 @@ impl SnmpWalkTransport for FlakyTransport {
         match self.answer() {
             Ok(v) => Ok(WalkPage::Varbinds(v)),
             Err(Answer::TooBig) => Ok(WalkPage::Refused { error_status: 1 }),
-            Err(_) => Err(anyhow::anyhow!("getbulk timed out")),
+            Err(_) => Err(RequestTimedOut("getbulk").into()),
         }
     }
 
     async fn walk_getnext<'a>(&'a mut self, _from: &[u64]) -> Result<Varbinds<'a>> {
         match self.answer() {
             Ok(v) => Ok(v),
-            Err(_) => Err(anyhow::anyhow!("getnext timed out")),
+            Err(_) => Err(RequestTimedOut("getnext").into()),
         }
     }
 }
@@ -300,7 +300,7 @@ async fn a_device_that_stays_silent_is_still_reported_short() {
         "a device that never answered again cannot have completed its table"
     );
     assert!(
-        matches!(stop, WalkStop::Transport),
+        matches!(stop, WalkStop::Failed(SnmpWalkCause::TimedOut)),
         "the reason has to survive to the warning — without it a timeout and a desynchronised \
          session are the same short column to an operator, but got {stop:?}"
     );
@@ -361,12 +361,12 @@ impl SnmpWalkTransport for BulkMuteTransport {
 
     async fn walk_getbulk<'a>(&'a mut self, _from: &[u64], _max: u32) -> Result<WalkPage<'a>> {
         self.bulk_requests += 1;
-        Err(anyhow::anyhow!("getbulk timed out"))
+        Err(RequestTimedOut("getbulk").into())
     }
 
     async fn walk_getnext<'a>(&'a mut self, _from: &[u64]) -> Result<Varbinds<'a>> {
         if !self.getnext_answers {
-            return Err(anyhow::anyhow!("getnext timed out"));
+            return Err(RequestTimedOut("getnext").into());
         }
         // One varbind per request, which is all a getnext ever returns, then out of the
         // subtree to end the column the way a real agent does.
@@ -422,8 +422,8 @@ async fn a_device_answering_neither_request_still_terminates_and_reports_why() {
     assert_eq!(seen, 0);
     assert!(!stop.is_complete());
     assert!(
-        matches!(stop, WalkStop::Transport),
-        "an unreachable agent is a transport verdict, not a table that ended: {stop:?}"
+        matches!(stop, WalkStop::Failed(SnmpWalkCause::TimedOut)),
+        "an unreachable agent is a timeout, not a table that ended: {stop:?}"
     );
     assert!(
         session.bulk_requests <= MAX_TRANSPORT_RETRIES as usize + 1,
@@ -582,8 +582,9 @@ async fn a_getnext_the_agent_keeps_refusing_ends_as_an_error_status() {
         .unwrap();
 
     assert!(
-        matches!(stop, WalkStop::ErrorStatus),
-        "a refused getnext is neither stale nor non-advancing, got {stop:?}"
+        matches!(stop, WalkStop::Failed(SnmpWalkCause::GenErr)),
+        "a refused getnext is neither stale nor non-advancing, and the status it carried is \
+         what ends it, got {stop:?}"
     );
     assert!(
         session.requests <= 1 + MAX_TRANSPORT_RETRIES as usize,

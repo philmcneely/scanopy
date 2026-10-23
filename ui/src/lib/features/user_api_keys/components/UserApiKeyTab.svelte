@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { collectionLookup } from '$lib/shared/entity-fields';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import type { CardAction } from '$lib/shared/components/data/types';
@@ -7,12 +8,11 @@
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
 	import { userApiKeyColumns } from './UserApiKeyTab.columns';
-	import type { FieldConfig } from '$lib/shared/components/data/types';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import UserApiKeyModal from './UserApiKeyModal.svelte';
 	import {
-		useUserApiKeysQuery,
+		useUserApiKeysListQuery,
 		useUpdateUserApiKeyMutation,
 		useDeleteUserApiKeyMutation,
 		useBulkDeleteUserApiKeysMutation,
@@ -20,6 +20,7 @@
 	} from '../queries';
 	import type { TabProps } from '$lib/shared/types';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 
 	import {
 		common_edit,
@@ -38,8 +39,11 @@
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
+	import type { components } from '$lib/api/schema';
 
-	let { isReadOnly = false }: TabProps = $props();
+	type UserApiKeyOrderField = components['schemas']['UserApiKeyOrderField'];
+
+	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
 	// Check if plan has api_access feature before querying
 	const organizationQuery = useOrganizationQuery();
@@ -51,7 +55,8 @@
 
 	// Queries
 	const tagsQuery = useTagsQuery();
-	const userApiKeysQuery = useUserApiKeysQuery({ enabled: () => hasApiAccess });
+	const page = listPageState(() => isActive);
+	const userApiKeysQuery = useUserApiKeysListQuery(() => page.params(hasApiAccess));
 	const sitesQuery = useSitesQuery();
 
 	// Mutations
@@ -61,9 +66,10 @@
 
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
-	let userApiKeysData = $derived(userApiKeysQuery.data ?? []);
+	let userApiKeysData = $derived(userApiKeysQuery.data?.items ?? []);
+	let userApiKeysPagination = $derived(userApiKeysQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
-	let isLoading = $derived(userApiKeysQuery.isPending);
+	let isLoading = $derived(userApiKeysQuery.isPending && !userApiKeysQuery.data);
 
 	let showModal = $state(false);
 	let editingApiKey = $state<UserApiKey | null>(null);
@@ -122,28 +128,38 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('UserApiKey', {});
+		await downloadCsv('UserApiKey', page.listQuery);
 	}
 
 	/** Row actions. */
 	function userApiKeyActions(apiKey: UserApiKey): CardAction[] {
 		return [
-			{ label: common_edit(), icon: Edit, onClick: () => handleEdit(apiKey) },
+			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEdit(apiKey) },
 			{
 				label: common_delete(),
 				icon: Trash2,
-				class: 'btn-icon-danger',
+				tone: 'danger',
+				isDelete: true,
+				onBulk: isReadOnly ? undefined : handleBulkDelete,
 				onClick: () => handleDelete(apiKey)
 			}
 		];
 	}
 
-	const tableDefaults: TableDefaults<string> = { sort: { field: 'name', direction: 'asc' } };
+	const tableDefaults: TableDefaults<UserApiKeyOrderField> = {
+		sort: { field: 'name', direction: 'asc' }
+	};
 
-	const apiKeyFields: FieldConfig<UserApiKey>[] = userApiKeyColumns({
-		sites: () => sitesData,
-		tags: () => tagsData
-	});
+	// The registry's key fields reach no related entity.
+	const lookup = collectionLookup({});
+
+	let apiKeyFields = $derived(
+		userApiKeyColumns({
+			lookup: () => lookup,
+			sites: () => sitesData,
+			tags: () => tagsData
+		})
+	);
 </script>
 
 <!-- The page's own actions, last in the table toolbar beside the filter and columns. -->
@@ -163,7 +179,7 @@
 		</EmptyState>
 	{:else if isLoading}
 		<Loading />
-	{:else if userApiKeysData.length === 0}
+	{:else if page.isEmpty(userApiKeysQuery)}
 		<EmptyState
 			title={userApiKeys_noApiKeysYet()}
 			subtitle={userApiKeys_noApiKeysSubtitle()}
@@ -177,13 +193,16 @@
 			{toolbarActions}
 			items={userApiKeysData}
 			fields={apiKeyFields}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			entityType="UserApiKey"
 			canEditTags={!isReadOnly}
 			getItemTags={getUserApiKeyTags}
 			storageKey="scanopy-user-api-keys-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}
+			serverPagination={userApiKeysPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			getActions={userApiKeyActions}
 			onCsvExport={handleCsvExport}
 		></DataControls>

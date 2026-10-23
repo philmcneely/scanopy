@@ -177,14 +177,6 @@ impl BillingService {
             .plan
             .ok_or_else(|| anyhow!("No plan in subscription metadata"))?;
 
-        tracing::info!(
-            organization_id = %org_id,
-            plan = %plan.name(),
-            subscription_status = ?sub.status,
-            subscription_id = %sub.id,
-            "Subscription updated"
-        );
-
         // Held until the transitions below are written. Stripe sends some
         // updates in quick pairs (see the Portal cancel below), and the second
         // must read the row the first one wrote, or both see the same prior
@@ -271,6 +263,7 @@ impl BillingService {
                                 .unwrap_or_default(),
                             save_offer_redeemed: meta.scanopy_cancel_save_offer_redeemed,
                             planned_period_end,
+                            subscription_id: sub.id.to_string(),
                         },
                         authentication.clone(),
                     ));
@@ -481,6 +474,7 @@ impl BillingService {
                     plan,
                     duration_days: meta.scanopy_pause_duration_days.unwrap_or(0),
                     resumes_at,
+                    subscription_id: sub.id.to_string(),
                 },
                 owner.clone().into(),
             ));
@@ -509,7 +503,8 @@ impl BillingService {
         {
             let resumed_at = chrono::DateTime::<Utc>::from_timestamp(event_created, 0)
                 .ok_or_else(|| anyhow!("Invalid event timestamp {event_created}"))?;
-            self.apply_pause_credit_if_due(&sub, &organization, resumed_at)
+            let pause_credit_cents = self
+                .apply_pause_credit_if_due(&sub, &organization, resumed_at)
                 .await
                 .map_err(|e| {
                     e.context(format!(
@@ -522,7 +517,11 @@ impl BillingService {
                 OrgScope {
                     organization_id: org_id,
                 },
-                BillingOperation::Resumed { was_early: false },
+                BillingOperation::Resumed {
+                    was_early: false,
+                    subscription_id: sub.id.to_string(),
+                    pause_credit_cents,
+                },
                 owner.clone().into(),
             ));
         }
@@ -565,6 +564,7 @@ impl BillingService {
                 BillingOperation::Reactivated {
                     trialing: sub.status == SubscriptionStatus::Trialing,
                     next_renewal_at: next_renewal_from_subscription(&sub),
+                    subscription_id: sub.id.to_string(),
                 },
                 owner.clone().into(),
             ));
@@ -607,11 +607,6 @@ impl BillingService {
             return self.handle_subscription_deleted(sub).await;
         }
 
-        tracing::info!(
-            "Updated organization {} subscription status to {}",
-            org_id,
-            sub.status
-        );
         Ok(())
     }
 
@@ -676,12 +671,6 @@ impl BillingService {
             return Ok(());
         };
 
-        tracing::info!(
-            organization_id = %org_id,
-            has_payment_method = organization.base.has_payment_method,
-            "Trial ending soon"
-        );
-
         // Publish TrialWillEnd event for email automation
         let owners = self
             .user_service
@@ -711,7 +700,7 @@ impl BillingService {
                     },
                     owner.clone().into(),
                 ))
-                .await?;
+                .await;
         }
 
         Ok(())
@@ -998,7 +987,6 @@ impl BillingService {
         if let Some(customer_id) = &customer_id {
             match write_off_unpaid_license_invoices(
                 &stripe,
-                org_id,
                 &CustomerId::from(customer_id.clone()),
                 period_end,
             )

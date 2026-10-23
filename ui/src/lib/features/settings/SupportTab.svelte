@@ -6,7 +6,6 @@
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import { BOOK_CALL_URL, supportEmailAddress } from '$lib/features/support/support';
 	import {
-		common_close,
 		common_email,
 		support_discordDesc,
 		support_emailDesc,
@@ -30,14 +29,6 @@
 		color: Color;
 		icon: IconComponent | string;
 	};
-
-	let {
-		onClose,
-		dismissible = true
-	}: {
-		onClose: () => void;
-		dismissible?: boolean;
-	} = $props();
 
 	const organizationQuery = useOrganizationQuery();
 	let organization = $derived(organizationQuery.data);
@@ -141,12 +132,4 @@
 			{/each}
 		</div>
 	</div>
-
-	{#if dismissible}
-		<div class="modal-footer">
-			<div class="flex justify-end">
-				<button type="button" onclick={onClose} class="btn-secondary">{common_close()}</button>
-			</div>
-		</div>
-	{/if}
 </div>

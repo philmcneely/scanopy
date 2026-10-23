@@ -21,7 +21,11 @@
 		useUnseenReleaseNotesQuery,
 		useMarkReleaseNotesSeenMutation
 	} from '$lib/features/release-notes/queries';
-	import { useConfigQuery, isLicenseSigningAvailable } from '$lib/shared/stores/config-query';
+	import {
+		useConfigQuery,
+		isCloud,
+		isLicenseSigningAvailable
+	} from '$lib/shared/stores/config-query';
 	import {
 		useOrganizationQuery,
 		useDaemonPromptResponseMutation
@@ -29,6 +33,7 @@
 	import {
 		hasLicensedPlan,
 		isBillingPlanActive,
+		isPlanUnchosen,
 		isSelfHostedPlanLocked as isSelfHostedPlanLockedFor
 	} from '$lib/features/organizations/types';
 	import { billingPlans } from '$lib/shared/stores/metadata';
@@ -59,12 +64,12 @@
 	// Billing modal: show when billing is enabled but user has no active plan
 	const configQuery = useConfigQuery();
 	const organizationQuery = useOrganizationQuery();
-	let billingEnabled = $derived(configQuery.data?.billing_enabled ?? false);
+	let isCloudDeployment = $derived(configQuery.data ? isCloud(configQuery.data) : false);
 	let licenseSigningAvailable = $derived(
 		configQuery.data != null && isLicenseSigningAvailable(configQuery.data)
 	);
 	let organization = $derived(organizationQuery.data);
-	// A licensed self-hosted plan on a billing-enabled server locks the main app:
+	// A licensed self-hosted plan on Scanopy Cloud locks the main app:
 	// the backend rejects main-app routes, and the org only gets Settings (its keys
 	// live on the License tab). Switching to a cloud plan unlocks it on the next
 	// org refetch.
@@ -76,17 +81,25 @@
 	// within milliseconds and the License tab flickers out of the tab list.
 	let licensedPlanJustPicked = $state(false);
 	let isSelfHostedPlanLocked = $derived(
-		(billingEnabled && licensedPlanJustPicked) ||
-			isSelfHostedPlanLockedFor(organization, billingEnabled)
+		(isCloudDeployment && licensedPlanJustPicked) ||
+			isSelfHostedPlanLockedFor(organization, isCloudDeployment)
 	);
 	$effect(() => {
 		if (licensedPlanJustPicked && organization != null && hasLicensedPlan(organization)) {
 			licensedPlanJustPicked = false;
 		}
 	});
+	// A cloud sign-up that hasn't chosen a plan is locked to Settings the same
+	// way: the backend opens only the Settings routes to it.
+	let planUnchosen = $derived(isPlanUnchosen(organization, isCloudDeployment));
+	// Set when the plan picker closes on a cloud plan. The plan only lands on the
+	// org after the Stripe webhook, so this keeps Settings from being forced open
+	// over the pending checkout. The main app still waits for the plan.
+	let cloudPlanJustPicked = $state(false);
+	let isMainAppLocked = $derived(isSelfHostedPlanLocked || planUnchosen);
 	// Main-app data (SSE streams, daemons) waits until the lock state is known.
 	let mainAppAvailable = $derived(
-		configQuery.data != null && organization != null && !isSelfHostedPlanLocked && !termsGated
+		configQuery.data != null && organization != null && !isMainAppLocked && !termsGated
 	);
 
 	// TanStack Query for daemons - used to determine default tab
@@ -96,13 +109,14 @@
 		enabled: () => isAuthenticated && mainAppAvailable
 	});
 	let needsPlanSelection = $derived(
-		billingEnabled && organization != null && !isBillingPlanActive(organization)
+		isCloudDeployment && organization != null && !isBillingPlanActive(organization)
 	);
-	// Suppresses needsPlanSelection after plan selection, before the org query reactively updates.
-	// Without this, closeModal() clears $modalState but needsPlanSelection keeps showBillingModal true.
+	// Set whenever the picker closes, so it opens on its own at most once per load. It
+	// also covers a plan selection before the org query reactively updates: without
+	// it, closeModal() clears $modalState but needsPlanSelection keeps showBillingModal true.
 	let planJustActivated = $state(false);
 	let showBillingModal = $derived(
-		billingEnabled &&
+		isCloudDeployment &&
 			((needsPlanSelection && !planJustActivated) || $modalState.name === 'billing-plan')
 	);
 
@@ -134,12 +148,14 @@
 	// Billing-blocking states force the Settings modal open and make it
 	// non-dismissible. Past-due users have to update payment; paused users have to
 	// click Resume Now before they can navigate elsewhere; orgs on a licensed
-	// self-hosted plan manage their license and card on the License tab. The inline
-	// alerts in BillingTab carry the matching urgent copy.
+	// self-hosted plan manage their license and card on the License tab; an org
+	// with no plan can change its account and choose a plan from the Billing tab.
+	// The inline alerts in BillingTab carry the matching urgent copy.
 	let isBillingBlocking = $derived(
-		(billingEnabled &&
+		(isCloudDeployment &&
 			(organization?.plan_status === 'past_due' || organization?.plan_status === 'paused')) ||
-			isSelfHostedPlanLocked
+			isSelfHostedPlanLocked ||
+			(planUnchosen && !cloudPlanJustPicked)
 	);
 	// Only owners can see the Billing tab; everyone else is held on Account,
 	// where SettingsModal explains that an owner has to resolve billing. An owner on
@@ -156,7 +172,7 @@
 		licenseTabVisible({
 			isOwner,
 			isDemoOrg,
-			billingEnabled,
+			isCloudDeployment,
 			signingAvailable: licenseSigningAvailable,
 			hasLicensedPlan: organization != null && hasLicensedPlan(organization),
 			licensedPlanPending: licensedPlanJustPicked
@@ -186,7 +202,7 @@
 	});
 
 	// Set initial tab based on daemons (only if no hash was specified in URL)
-	// Suppress when billing modal is showing — user must pick a plan first
+	// Suppress while the plan picker is showing
 	let initialTabSet = $state(false);
 	$effect(() => {
 		if (!initialHash && !initialTabSet && daemonsQuery.isSuccess && !showBillingModal) {
@@ -197,10 +213,12 @@
 		}
 	});
 
-	// Auto-open settings modal to billing tab when past_due, paused, or on a
-	// licensed self-hosted plan — each requires owner action before normal use.
+	// Auto-open settings modal to billing tab when past_due, paused, on a
+	// licensed self-hosted plan, or with no plan — each requires owner action
+	// before normal use. A new sign-up sees the plan picker first, and Settings
+	// opens once it closes.
 	$effect(() => {
-		if (isBillingBlocking && appInitialized) {
+		if (isBillingBlocking && appInitialized && !showBillingModal) {
 			openModal('settings', { tab: billingBlockingTab });
 		}
 	});
@@ -210,7 +228,7 @@
 	const LOCKED_ORG_MODALS = ['settings', 'billing-plan', 'payment-method'];
 	$effect(() => {
 		const name = $modalState.name;
-		if (isSelfHostedPlanLocked && name && !LOCKED_ORG_MODALS.includes(name)) {
+		if (isMainAppLocked && name && !LOCKED_ORG_MODALS.includes(name)) {
 			closeModal();
 		}
 	});
@@ -244,7 +262,7 @@
 	// Whether this org should see the daemon prompt: a new org with a site and
 	// no daemon that hasn't answered the prompt.
 	let daemonPromptWanted = $derived(
-		!isSelfHostedPlanLocked &&
+		!isMainAppLocked &&
 			!isViewer &&
 			(organization?.onboarding?.includes('OrgCreated') ?? false) &&
 			!organization?.onboarding?.includes('FirstDaemonRegistered') &&
@@ -290,7 +308,7 @@
 			!deepLinkOpened &&
 			!higherModalShownThisLoad &&
 			!daemonPromptShown &&
-			!isSelfHostedPlanLocked &&
+			!isMainAppLocked &&
 			$modalState.name === null &&
 			sitesQuery.isSuccess &&
 			daemonsQuery.isSuccess &&
@@ -334,7 +352,7 @@
 		deepLinkOpened = $modalState.name !== null;
 
 		// Block billing modal deep-link in non-cloud environments
-		if (!billingEnabled && $modalState.name === 'billing-plan') {
+		if (!isCloudDeployment && $modalState.name === 'billing-plan') {
 			closeModal();
 		}
 	}
@@ -378,7 +396,7 @@
 				bind:showSettings
 				settingsInitialTab={isBillingBlocking ? billingBlockingTab : 'account'}
 				settingsDismissible={!isBillingBlocking}
-				mainAppLocked={isSelfHostedPlanLocked}
+				mainAppLocked={isMainAppLocked}
 				{mainAppAvailable}
 				licensedPlanPending={licensedPlanJustPicked}
 			/>
@@ -473,7 +491,7 @@
 	<BillingPlanModal
 		isOpen={showBillingModal}
 		name="billing-plan"
-		dismissible={!needsPlanSelection}
+		dismissible={!needsPlanSelection || planUnchosen}
 		onClose={(selectedPlan) => {
 			planJustActivated = true;
 			// Key the licensed check off the plan the user just picked: `organization`
@@ -483,6 +501,7 @@
 			// tab as soon as the org query catches up.
 			const licensed =
 				selectedPlan != null && billingPlans.getMetadata(selectedPlan.type).license_plan != null;
+			if (selectedPlan != null && !licensed) cloudPlanJustPicked = true;
 			closeModal();
 			if (licensed) {
 				// Locks the app and opens Settings on the License tab now, rather than

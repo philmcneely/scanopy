@@ -1,4 +1,4 @@
-//! Generic "value is one of these" filters over a plain text column or a text leaf inside a JSONB
+//! Generic "value is one of these" filters over a plain text or boolean column, or a text leaf in a JSONB
 //! column, for the field filters a paginated list applies server-side.
 use super::*;
 
@@ -9,6 +9,41 @@ impl<T: Storable> StorableFilter<T> {
     pub fn text_column_in(mut self, column: &str, values: &[String]) -> Self {
         let col = self.qualify_column(column);
         self.push_text_in(col, values.iter().cloned());
+        self
+    }
+
+    /// Rows whose `expr`, read as text, is one of `values`. For a filter on the same expression an
+    /// order field sorts and groups by, so a derived column filters on exactly what it shows.
+    /// `expr` is SQL written in code, never request input; the values are bound.
+    pub fn expr_text_in(mut self, expr: &str, values: &[String]) -> Self {
+        self.push_text_in(format!("({expr})::text"), values.iter().cloned());
+        self
+    }
+
+    /// Rows whose boolean `column` holds one of `values`. Both values match every row with one;
+    /// none matches nothing.
+    pub fn bool_column_in(mut self, column: &str, values: &[bool]) -> Self {
+        let col = self.qualify_column(column);
+        match (values.contains(&true), values.contains(&false)) {
+            (true, true) => self.conditions.push(format!("{col} IS NOT NULL")),
+            (false, false) => self.conditions.push("FALSE".to_string()),
+            (only, _) => {
+                self.conditions
+                    .push(format!("{} = ${}", col, self.values.len() + 1));
+                self.values.push(SqlValue::Bool(only));
+            }
+        }
+        self
+    }
+
+    /// Rows whose `column` is NULL (`null`) or holds a value (`!null`).
+    pub fn column_is_null(mut self, column: &str, null: bool) -> Self {
+        let col = self.qualify_column(column);
+        self.conditions.push(if null {
+            format!("{col} IS NULL")
+        } else {
+            format!("{col} IS NOT NULL")
+        });
         self
     }
 
@@ -27,6 +62,28 @@ impl<T: Storable> StorableFilter<T> {
     ) -> Self {
         let expr = json_text_path(&self.qualify_column(column), path);
         self.push_text_in(expr, values.iter().map(|v| v.as_ref().to_string()));
+        self
+    }
+
+    /// [`Self::json_text_in`] for a leaf that serde defaults to `default` when absent. A row whose
+    /// `column` is set but holds no such leaf reads as `default`, so it matches when `default` is
+    /// selected. A row with `column` NULL never matches.
+    pub fn json_text_in_defaulting<V: AsRef<str>>(
+        mut self,
+        column: &str,
+        path: &[&str],
+        values: &[V],
+        default: &str,
+    ) -> Self {
+        let qualified = self.qualify_column(column);
+        let expr = json_text_path(&qualified, path);
+        let includes_default = values.iter().any(|v| v.as_ref() == default);
+        self.push_text_in(expr.clone(), values.iter().map(|v| v.as_ref().to_string()));
+        if includes_default && let Some(condition) = self.conditions.pop() {
+            self.conditions.push(format!(
+                "({condition} OR ({qualified} IS NOT NULL AND {expr} IS NULL))"
+            ));
+        }
         self
     }
 

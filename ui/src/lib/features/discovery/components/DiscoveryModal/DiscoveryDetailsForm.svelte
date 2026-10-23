@@ -1,4 +1,5 @@
 <script lang="ts">
+	import daemonVersionGates from '$lib/data/daemon-version-gates.json';
 	import { formatTimestamp } from '$lib/shared/utils/formatting';
 	import { effectiveTimeZone } from '$lib/shared/stores/display-settings.svelte';
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
@@ -129,7 +130,9 @@
 	{#if daemon && isPreUnifiedDaemon(daemon)}
 		<InlineWarning
 			title={discovery_upgradeRequiredTitle()}
-			body={discovery_upgradeRequiredBody()}
+			body={discovery_upgradeRequiredBody({
+				version: daemonVersionGates.last_without_unified_discovery
+			})}
 		/>
 	{/if}
 

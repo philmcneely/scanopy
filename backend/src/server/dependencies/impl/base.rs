@@ -143,6 +143,8 @@ impl Dependency {
     }
 }
 
+impl crate::server::shared::events::log::EntityLog for Dependency {}
+
 impl ChangeTriggersTopologyStaleness<Dependency> for Dependency {
     fn triggers_staleness(&self, other: Option<Dependency>) -> bool {
         match other {

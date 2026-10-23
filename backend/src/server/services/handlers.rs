@@ -3,12 +3,13 @@ use crate::server::hosts::r#impl::base::{Host, host_primary_address_join};
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::patterns::MatchConfidence;
-use crate::server::shared::entities::EntityDiscriminants;
+use crate::server::shared::handlers::list::list_page;
 use crate::server::shared::handlers::ordering::OrderField;
 use crate::server::shared::handlers::query::{
-    FilterQueryExtractor, OrderDirection, PaginationParams, parse_tag_sets,
+    FilterQueryExtractor, OrderDirection, PaginationParams, narrow_by_tags_and_search,
 };
-use crate::server::shared::handlers::traits::{CrudHandlers, update_handler};
+use crate::server::shared::handlers::traits::ListScope;
+use crate::server::shared::handlers::traits::update_handler;
 use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::storage::filter::StorableFilter;
 use crate::server::shared::storage::traits::{Entity, Storable};
@@ -17,6 +18,7 @@ use crate::server::shared::types::api::{
     ApiError, ApiErrorResponse, ApiResponse, ApiResult, PaginatedApiResponse,
 };
 use crate::server::shared::types::entities::{EntitySource, EntitySourceDiscriminants};
+use crate::server::shared::types::guest_state::GuestState;
 use crate::server::shared::types::metadata::HasId;
 use crate::server::shared::validation::validate_site_access;
 use crate::server::{
@@ -145,6 +147,8 @@ pub struct ServiceFilterQuery {
     /// Filter by match confidence (`source.details.confidence`). Repeat for several. Only
     /// services discovery matched to a definition carry one.
     pub match_confidences: Option<Vec<MatchConfidence>>,
+    /// Filter by the run state of the container a service is, at the last scan. Repeat for several.
+    pub guest_states: Option<Vec<GuestState>>,
     /// Filter by tag IDs (returns services that have ANY of the specified tags)
     pub tag_ids: Option<Vec<Uuid>>,
     /// Tag sets the service must hold one tag from each of. Each entry is a comma-separated
@@ -200,25 +204,12 @@ impl ServiceFilterQuery {
         // Hides close-and-clone's closed historical copies from the services list.
         let filter = filter.live_or_as_of(self.at);
 
-        // Apply tag filter if specified
-        let filter = match &self.tag_ids {
-            Some(tag_ids) if !tag_ids.is_empty() => filter.has_any_tags(
-                tag_ids,
-                crate::server::shared::entities::EntityDiscriminants::Service,
-            ),
-            _ => filter,
-        };
-        let filter = filter.has_tags_from_each(
-            &parse_tag_sets(self.tag_sets.as_deref())?,
-            EntityDiscriminants::Service,
-        );
-
-        // Server-side because the list is paginated: a client-side search would
-        // only ever match the page already loaded.
-        let filter = match self.search.as_deref() {
-            Some(search) if !search.trim().is_empty() => filter.text_search(search),
-            _ => filter,
-        };
+        let filter = narrow_by_tags_and_search(
+            filter,
+            self.tag_ids.as_deref(),
+            self.tag_sets.as_deref(),
+            self.search.as_deref(),
+        )?;
 
         // Ports reach services through the bindings junction.
         let filter = match &self.ports {
@@ -278,27 +269,20 @@ impl ServiceFilterQuery {
             _ => filter,
         };
 
-        Ok(filter)
-    }
+        let filter = match &self.guest_states {
+            Some(states) if !states.is_empty() => {
+                let ids: Vec<&str> = states.iter().map(|s| s.id()).collect();
+                filter.json_text_in_defaulting(
+                    "virtualization_metadata",
+                    &["details", "state"],
+                    &ids,
+                    GuestState::default().id(),
+                )
+            }
+            _ => filter,
+        };
 
-    /// Build the ORDER BY clause and apply any required JOINs to the filter.
-    /// Returns: (modified_filter, order_by_sql)
-    pub fn apply_ordering(
-        &self,
-        filter: StorableFilter<Service>,
-    ) -> (StorableFilter<Service>, String) {
-        crate::server::shared::handlers::ordering::TagGroupOrdering {
-            group_by: self.group_by_tag_group,
-            order_by: self.order_by_tag_group,
-        }
-        .apply(
-            EntityDiscriminants::Service,
-            self.group_by,
-            self.order_by,
-            self.order_direction,
-            filter,
-            "services.created_at ASC",
-        )
+        Ok(filter)
     }
 }
 
@@ -392,80 +376,8 @@ async fn get_all_services(
         ServiceFilterQuery,
     >,
 ) -> ApiResult<Json<PaginatedApiResponse<Service>>> {
-    let site_ids = auth.site_ids();
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    let filter = Service::list_filter(&state, &query, &site_ids, organization_id).await?;
-
-    // Apply pagination
-    let pagination = query.pagination();
-    let filter = pagination.apply_to_filter(filter);
-
-    // Apply ordering and JOINs
-    let (filter, order_by) = query.apply_ordering(filter);
-
-    // Grouped lists report each group's full size, not the slice of it that
-    // landed on this page. Runs against the same filter — including the JOIN
-    // `apply_ordering` just added, which the group expression may reference.
-    let group_sql = match (query.group_by_tag_group, query.group_by) {
-        (Some(_), _) => {
-            Some(crate::server::shared::handlers::ordering::TagGroupOrdering::GROUP_SQL)
-        }
-        (None, Some(group_field)) => Some(group_field.group_sql()),
-        (None, None) => None,
-    };
-    let group_counts = match group_sql {
-        Some(group_sql) => Some(
-            state
-                .services
-                .service_service
-                .count_by_group(filter.clone(), group_sql)
-                .await?,
-        ),
-        None => None,
-    };
-
-    let result = state
-        .services
-        .service_service
-        .get_paginated_ordered(filter, &order_by)
-        .await?;
-
-    // Hydrate tags
-    let entity_ids: Vec<Uuid> = result.items.iter().map(|s| s.id).collect();
-    let tags_map = state
-        .services
-        .entity_tag_service
-        .get_tags_map(
-            &entity_ids,
-            crate::server::shared::entities::EntityDiscriminants::Service,
-            None,
-        )
-        .await?;
-
-    let items: Vec<Service> = result
-        .items
-        .into_iter()
-        .map(|mut service| {
-            if let Some(tags) = tags_map.get(&service.id) {
-                service.base.tags = tags.clone();
-            }
-            service
-        })
-        .collect();
-
-    // Get effective pagination values for response metadata
-    let limit = pagination.effective_limit().unwrap_or(0);
-    let offset = pagination.effective_offset();
-
-    let response = PaginatedApiResponse::success(items, result.total_count, limit, offset);
-
-    Ok(Json(match group_counts {
-        Some(counts) => response.with_group_counts(counts),
-        None => response,
-    }))
+    let scope = ListScope::of(&auth.entity)?;
+    Ok(Json(list_page::<Service>(&state, &scope, &query).await?))
 }
 
 /// Create a new service

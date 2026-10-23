@@ -10,11 +10,12 @@ use uuid::Uuid;
 
 use crate::server::interfaces::r#impl::base::InterfaceDataComplete;
 use crate::{
-    daemon::runtime::state::BufferedEntities,
+    daemon::runtime::state::{BufferedEntities, PendingVlanBatch},
     server::{
         daemons::r#impl::api::ScannedEntityIds,
         hosts::r#impl::{api::DiscoveryHostRequest, api::HostResponse},
         subnets::r#impl::base::Subnet,
+        vlans::handlers::{VlanDiscoveryRequest, VlanDiscoveryResponse},
     },
 };
 
@@ -59,6 +60,18 @@ pub struct EntityBuffer {
     /// Pending → Created lifecycle — push the IDs directly after the upsert
     /// call returns. Cleared by `clear_all` at session end.
     vlans: Arc<RwLock<HashSet<Uuid>>>,
+    /// ServerPoll VLAN submissions, keyed by the id the waiting `upsert_vlans` call holds. A
+    /// ServerPoll daemon cannot POST to the server, so the batch waits here until the server's
+    /// poll collects it and answers with the ids.
+    vlan_batches: Arc<RwLock<HashMap<Uuid, VlanBatch>>>,
+}
+
+/// A buffered VLAN submission. Not a [`BufferedEntity`]: what comes back (an id per VLAN number)
+/// is a different shape from what went out.
+#[derive(Clone, Debug)]
+enum VlanBatch {
+    Pending(VlanDiscoveryRequest),
+    Created(VlanDiscoveryResponse),
 }
 
 impl EntityBuffer {
@@ -67,6 +80,7 @@ impl EntityBuffer {
             subnets: Arc::new(RwLock::new(HashMap::new())),
             hosts: Arc::new(RwLock::new(HashMap::new())),
             vlans: Arc::new(RwLock::new(HashSet::new())),
+            vlan_batches: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -156,6 +170,7 @@ impl EntityBuffer {
                 existing.ports.extend(host.ports);
                 existing.services.extend(host.services);
                 existing.interfaces.extend(host.interfaces);
+                existing.port_coverage.merge(host.port_coverage);
                 existing
                     .host
                     .base
@@ -187,6 +202,7 @@ impl EntityBuffer {
                     interfaces_complete: true,
                     interface_data_complete: InterfaceDataComplete::default(),
                     // This daemon is this build; it submits the current shape by construction.
+                    port_coverage: Default::default(),
                     superseded_wire_shape: false,
                 };
                 *entry = BufferedEntity::Created {
@@ -267,7 +283,25 @@ impl EntityBuffer {
                 .collect()
         };
 
-        BufferedEntities { hosts, subnets }
+        let vlans = {
+            let batches = self.vlan_batches.read().await;
+            batches
+                .iter()
+                .filter_map(|(pending_id, batch)| match batch {
+                    VlanBatch::Pending(request) => Some(PendingVlanBatch {
+                        pending_id: *pending_id,
+                        request: request.clone(),
+                    }),
+                    VlanBatch::Created(_) => None,
+                })
+                .collect()
+        };
+
+        BufferedEntities {
+            hosts,
+            subnets,
+            vlans,
+        }
     }
 
     // ========================================================================
@@ -280,6 +314,66 @@ impl EntityBuffer {
     pub async fn push_scanned_vlans(&self, ids: impl IntoIterator<Item = Uuid>) {
         let mut vlans = self.vlans.write().await;
         vlans.extend(ids);
+    }
+
+    /// Buffer a VLAN submission for a ServerPoll server to collect. Returns the id the answer
+    /// will arrive under.
+    pub async fn push_vlan_batch(&self, request: VlanDiscoveryRequest) -> Uuid {
+        let pending_id = Uuid::new_v4();
+        let mut batches = self.vlan_batches.write().await;
+        batches.insert(pending_id, VlanBatch::Pending(request));
+        pending_id
+    }
+
+    /// Record the server's answer to a buffered VLAN submission.
+    pub async fn mark_vlan_batch_created(&self, pending_id: Uuid, response: VlanDiscoveryResponse) {
+        let mut batches = self.vlan_batches.write().await;
+        if let Some(entry) = batches.get_mut(&pending_id) {
+            *entry = VlanBatch::Created(response);
+        }
+    }
+
+    /// Wait for the server to answer a buffered VLAN submission. `None` on timeout or
+    /// cancellation, which is also what a server that predates ServerPoll VLAN recording produces.
+    pub async fn await_vlan_batch(
+        &self,
+        pending_id: &Uuid,
+        timeout: Duration,
+        cancel: &CancellationToken,
+    ) -> Option<VlanDiscoveryResponse> {
+        let deadline = Instant::now() + timeout;
+        loop {
+            if cancel.is_cancelled() {
+                return None;
+            }
+            {
+                let batches = self.vlan_batches.read().await;
+                if let Some(VlanBatch::Created(response)) = batches.get(pending_id) {
+                    return Some(response.clone());
+                }
+            }
+            if Instant::now() > deadline {
+                return None;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    }
+
+    /// The server's id for a host this session submitted, given the id it was submitted under or
+    /// the server's own. `None` when the host was never created: its submission failed, timed
+    /// out, or never happened.
+    pub async fn created_host_id(&self, id: &Uuid) -> Option<Uuid> {
+        let hosts = self.hosts.read().await;
+        if let Some(entry) = hosts.get(id) {
+            return match entry {
+                BufferedEntity::Created { actual, .. } => Some(actual.host.id),
+                _ => None,
+            };
+        }
+        hosts.values().find_map(|entry| match entry {
+            BufferedEntity::Created { actual, .. } if actual.host.id == *id => Some(*id),
+            _ => None,
+        })
     }
 
     /// Collect canonical IDs of every entity confirmed (`Created`) by the
@@ -359,6 +453,10 @@ impl EntityBuffer {
             let mut vlans = self.vlans.write().await;
             vlans.clear();
         }
+        {
+            let mut batches = self.vlan_batches.write().await;
+            batches.clear();
+        }
     }
 
     /// Check if the buffer is empty.
@@ -395,7 +493,9 @@ impl Default for EntityBuffer {
 mod tests {
     use super::*;
     use crate::server::shared::attribution::AttributeSource;
-    use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{
+        SubnetCidr, SubnetCidrValue, SubnetName, SubnetTypeAttributed,
+    };
     use crate::server::{
         hosts::r#impl::{
             base::{Host, HostBase},
@@ -443,6 +543,7 @@ mod tests {
             subnets: vec![],
             interfaces_complete: true,
             interface_data_complete: InterfaceDataComplete::default(),
+            port_coverage: Default::default(),
             superseded_wire_shape: false,
         };
         buffer.push_host(host).await;
@@ -503,6 +604,7 @@ mod tests {
                         subnets: vec![],
                         interfaces_complete: true,
                         interface_data_complete: InterfaceDataComplete::default(),
+                        port_coverage: Default::default(),
                         superseded_wire_shape: false,
                     };
                     buf.push_host(host).await;
@@ -541,7 +643,8 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
-                name: "test-subnet".to_string(),
+                vlan_ids: Vec::new(),
+                name: SubnetName::unattributed("test-subnet".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 0), 24).unwrap(),
@@ -550,7 +653,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -598,7 +701,8 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
-                name: "subnet-1".to_string(),
+                vlan_ids: Vec::new(),
+                name: SubnetName::unattributed("subnet-1".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 0), 24).unwrap(),
@@ -607,7 +711,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -624,7 +728,8 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
-                name: "subnet-2".to_string(),
+                vlan_ids: Vec::new(),
+                name: SubnetName::unattributed("subnet-2".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 2, 0), 24).unwrap(),
@@ -633,7 +738,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -681,7 +786,8 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
-                name: "subnet-1".to_string(),
+                vlan_ids: Vec::new(),
+                name: SubnetName::unattributed("subnet-1".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 0), 24).unwrap(),
@@ -690,7 +796,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -707,7 +813,8 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
-                name: "subnet-2".to_string(),
+                vlan_ids: Vec::new(),
+                name: SubnetName::unattributed("subnet-2".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 2, 0), 24).unwrap(),
@@ -716,7 +823,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -777,7 +884,8 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
-                name: "discovered-subnet".to_string(),
+                vlan_ids: Vec::new(),
+                name: SubnetName::unattributed("discovered-subnet".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 0), 24).unwrap(),
@@ -786,7 +894,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -951,6 +1059,7 @@ mod tests {
             subnets: vec![],
             interfaces_complete: true,
             interface_data_complete: InterfaceDataComplete::default(),
+            port_coverage: Default::default(),
             superseded_wire_shape: false,
         };
         // Set the host ID to match our shared host_id
@@ -1029,6 +1138,7 @@ mod tests {
             subnets: vec![],
             interfaces_complete: true,
             interface_data_complete: InterfaceDataComplete::default(),
+            port_coverage: Default::default(),
             superseded_wire_shape: false,
         };
         let mut host2 = host2;
@@ -1101,7 +1211,8 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
-                name: "pending".to_string(),
+                vlan_ids: Vec::new(),
+                name: SubnetName::unattributed("pending".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 1, 0), 24).unwrap(),
@@ -1110,7 +1221,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -1129,7 +1240,8 @@ mod tests {
             last_discovery_id: None,
             first_discovery_id: None,
             base: SubnetBase {
-                name: "created".to_string(),
+                vlan_ids: Vec::new(),
+                name: SubnetName::unattributed("created".to_string()),
                 cidr: SubnetCidr::new(
                     SubnetCidrValue(IpCidr::V4(
                         Ipv4Cidr::new(Ipv4Addr::new(10, 0, 2, 0), 24).unwrap(),
@@ -1138,7 +1250,7 @@ mod tests {
                 ),
                 site_id,
                 description: None,
-                subnet_type: SubnetType::Unknown,
+                subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
                 source: EntitySource::Manual,
                 tags: vec![],
@@ -1244,6 +1356,7 @@ mod tests {
             subnets: vec![],
             interfaces_complete: true,
             interface_data_complete: InterfaceDataComplete::default(),
+            port_coverage: Default::default(),
             superseded_wire_shape: false,
         };
         let mut host_req = host_req;
@@ -1325,6 +1438,7 @@ mod tests {
                 subnets: vec![],
                 interfaces_complete: true,
                 interface_data_complete: InterfaceDataComplete::default(),
+                port_coverage: Default::default(),
                 superseded_wire_shape: false,
             })
             .await;

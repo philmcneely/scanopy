@@ -17,7 +17,6 @@
 use anyhow::Error;
 use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use crate::daemon::utils::app_probe::{AppProbe, AppProbeOutcome, ProbeContext};
@@ -52,18 +51,11 @@ impl AppProbe for OpcUaProbe {
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
         let port = self.port().number();
-        let addr = std::net::SocketAddr::new(ctx.ip, port);
-
-        let mut stream = match timeout(SCAN_TIMEOUT, TcpStream::connect(addr)).await {
-            Ok(Ok(stream)) => stream,
-            Ok(Err(e)) => {
-                ctx.note_connect_error(&e);
-                return Ok(AppProbeOutcome::NoAnswer);
-            }
-            Err(_) => return Ok(AppProbeOutcome::NoAnswer),
+        let Some(mut stream) = ctx.connect(port).await else {
+            return Ok(AppProbeOutcome::NoAnswer);
         };
 
-        let endpoint_url = format!("opc.tcp://{}:{}", ctx.ip, port);
+        let endpoint_url = format!("opc.tcp://{}", ctx.target(port));
         stream.write_all(&hello(&endpoint_url)).await?;
 
         let mut buf = [0u8; 256];

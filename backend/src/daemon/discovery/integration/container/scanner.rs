@@ -18,18 +18,25 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::daemon::discovery::service::ops::DiscoveryOps;
+use crate::daemon::utils::app_probe::{ProbeContext, scan_app_probes};
 use crate::daemon::utils::base::{DaemonUtils, PlatformDaemonUtils};
-use crate::daemon::utils::scanner::scan_endpoints;
+use crate::daemon::utils::scanner::{ScanConcurrencyController, scan_endpoints};
 use crate::server::bindings::r#impl::base::{Binding, BindingDiscriminants};
 use crate::server::credentials::r#impl::types::CredentialIntegration;
 use crate::server::discovery::r#impl::types::HostNamingFallback;
 use crate::server::ip_addresses::r#impl::base::{ALL_IP_ADDRESSES_IP, IPAddress};
 use crate::server::ports::r#impl::base::{Port, PortType, TransportProtocol};
-use crate::server::services::r#impl::base::{Service, ServiceMatchBaselineParams};
+use crate::server::services::r#impl::base::{Service, ServiceBase, ServiceMatchBaselineParams};
+use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::endpoints::{ApplicationProtocol, Endpoint, EndpointResponse};
+use crate::server::services::r#impl::patterns::ClientProbe;
+use crate::server::shared::storage::traits::Storable;
+use crate::server::shared::types::entities::EntitySource;
+use crate::server::shared::types::guest_state::GuestState;
 use crate::server::subnets::r#impl::base::Subnet;
 
 use super::ContainerRuntime;
+use super::probe_relay::{ExecRelay, RELAY_SURVEY_SCRIPT, RelaySurvey, listening_sockets};
 
 type IpPortHashMap = HashMap<IpAddr, Vec<PortType>>;
 
@@ -242,6 +249,12 @@ impl<'a> ContainerScanner<'a> {
                 return Ok(None);
             }
 
+            // A stopped container listens on nothing and has no addresses, so there is nothing to
+            // probe. It is still reported, so the server knows the runtime has it.
+            if super::guest_state(container) == GuestState::Stopped {
+                return Ok(Some(self.stopped_container(container).await?));
+            }
+
             let host_networking_mode = container
                 .host_config
                 .as_ref()
@@ -261,6 +274,40 @@ impl<'a> ContainerScanner<'a> {
         }
 
         Ok(None)
+    }
+
+    /// A stopped container as a generic container service with no bindings. The server matches it
+    /// to the stored service by container id, whatever that service was identified as, and
+    /// updates its state; its stored bindings stay until the stale window releases them.
+    async fn stopped_container(
+        &self,
+        container: &ContainerInspectResponse,
+    ) -> Result<ContainerScanResult> {
+        let container_name = container
+            .name
+            .as_ref()
+            .map(|n| n.trim_start_matches('/').to_string());
+        let service = Service::new(ServiceBase {
+            site_id: self.ops.site_id().await?,
+            name: container_name
+                .clone()
+                .unwrap_or_else(|| self.runtime.container_def().name().to_string()),
+            service_definition: self.runtime.container_def(),
+            virtualization_metadata: Some(self.runtime.service_virtualization(
+                container_name,
+                container.id.clone(),
+                Self::extract_compose_project(container),
+                GuestState::Stopped,
+            )),
+            virtualization_service_id: Some(self.runtime_service_id),
+            source: EntitySource::Discovery,
+            ..Default::default()
+        });
+        Ok(ContainerScanResult {
+            services: vec![service],
+            ports: vec![],
+            ip_addresses: vec![],
+        })
     }
 
     async fn process_host_mode_container(
@@ -323,8 +370,19 @@ impl<'a> ContainerScanner<'a> {
             .get(container_id)
             .unwrap_or(empty_vec_ref);
 
+        // A host-networked container listens on the host's own address, so what the relay can't
+        // reach is probed there as it is.
+        let client_responses = self
+            .probe_container_apps(
+                container.name.as_deref().map(|n| n.trim_start_matches('/')),
+                &open_ports,
+                &HashMap::new(),
+                Some((host_ip, cidr::IpCidr::new_host(host_ip))),
+                cidr::IpCidr::new_host(host_ip),
+            )
+            .await;
+
         for (ip_address, subnet) in container_interfaces_and_subnets {
-            let empty_client_responses = std::collections::HashMap::new();
             let params = ServiceMatchBaselineParams {
                 subnet,
                 ip_address,
@@ -338,10 +396,11 @@ impl<'a> ContainerScanner<'a> {
                             .map(|n| n.trim_start_matches("/").to_string()),
                         container.id.clone(),
                         Self::extract_compose_project(container),
+                        super::guest_state(container),
                     ),
                 ),
                 virtualization_service_id: Some(**runtime_service_id),
-                client_responses: &empty_client_responses,
+                client_responses: &client_responses,
                 // Container inventory, not a management controller's device inventory.
                 managed_device: &None,
                 // ...and not swept over multicast either.
@@ -437,6 +496,27 @@ impl<'a> ContainerScanner<'a> {
             vec![]
         };
 
+        // Protocol probes for what an HTTP endpoint can't identify (PostgreSQL, Redis, …), once for
+        // the whole container like the endpoint probe above.
+        let mut container_ports: Vec<PortType> = container_ips_to_container_ports
+            .values()
+            .flatten()
+            .copied()
+            .collect();
+        container_ports.sort_by_key(|p| (p.number(), p.protocol()));
+        container_ports.dedup();
+        let client_responses = self
+            .probe_container_apps(
+                container.name.as_deref().map(|n| n.trim_start_matches('/')),
+                &container_ports,
+                &host_to_container_port_map,
+                container_interfaces_and_subnets
+                    .first()
+                    .map(|(ip, subnet)| (ip.base.ip_address, *subnet.base.cidr)),
+                cidr::IpCidr::new_host(self.host_ip),
+            )
+            .await;
+
         for (ip_address, subnet) in container_interfaces_and_subnets {
             if cancel.is_cancelled() {
                 return Err(Error::msg("Discovery was cancelled"));
@@ -492,7 +572,6 @@ impl<'a> ContainerScanner<'a> {
                 .get(&ip_address.base.ip_address)
                 .unwrap_or(empty_vec_ref);
 
-            let empty_client_responses = std::collections::HashMap::new();
             if let Ok(Some(mut host_data)) = self
                 .ops
                 .build_host_from_scan(
@@ -509,10 +588,11 @@ impl<'a> ContainerScanner<'a> {
                                     .map(|n| n.trim_start_matches("/").to_string()),
                                 container.id.clone(),
                                 Self::extract_compose_project(container),
+                                super::guest_state(container),
                             ),
                         ),
                         virtualization_service_id: Some(**runtime_service_id),
-                        client_responses: &empty_client_responses,
+                        client_responses: &client_responses,
                         // Container inventory, not a management controller's device inventory.
                         managed_device: &None,
                         // ...and not swept over multicast either.
@@ -852,6 +932,90 @@ impl<'a> ContainerScanner<'a> {
             .await
     }
 
+    /// Run the TCP application probes (PostgreSQL, MySQL, Redis, …) against a container's ports,
+    /// and return what answered keyed by client probe, for service matching.
+    ///
+    /// Inside the container first, through an [`ExecRelay`] to each port listening on loopback:
+    /// the daemon often has no route to the container's own address (Docker Desktop's bridges are
+    /// inside its VM), and the container always reaches itself. A port answered or silent there is
+    /// settled. The rest (no relay tool in the image, exec refused by a socket proxy, a listener on
+    /// one address only) are probed from outside: published ports at `host_ip` on their host port,
+    /// the others at the container's own address.
+    pub(super) async fn probe_container_apps(
+        &self,
+        container_name: Option<&str>,
+        container_ports: &[PortType],
+        host_to_container_port_map: &HashMap<(IpAddr, u16), u16>,
+        container_ip: Option<(IpAddr, cidr::IpCidr)>,
+        host_subnet: cidr::IpCidr,
+    ) -> HashMap<ClientProbe, Vec<PortType>> {
+        let mut responses: HashMap<ClientProbe, Vec<PortType>> = HashMap::new();
+        let mut outside: Vec<PortType> = container_ports.to_vec();
+
+        if let Some(name) = container_name
+            && let Some(survey) = self.survey_relay(name).await
+        {
+            let (relayed, rest): (Vec<PortType>, Vec<PortType>) = outside
+                .into_iter()
+                .partition(|p| p.is_tcp() && survey.loopback_ports.contains(&p.number()));
+            outside = rest;
+
+            let (ip, subnet_cidr) = container_ip.unwrap_or((self.host_ip, host_subnet));
+            let ctx = ProbeContext {
+                ip,
+                subnet_cidr,
+                is_gateway: false,
+                cancel: self.cancel.clone(),
+                scan_controller: ScanConcurrencyController::new(CONTAINER_PROBE_BATCH),
+                // As below: a container's declared port is not a printer.
+                probe_raw_socket_ports: true,
+                port_map: HashMap::new(),
+                tunnel: Some(Arc::new(ExecRelay {
+                    client: self.client.clone(),
+                    container: name.to_string(),
+                    tool: survey.tool,
+                })),
+            };
+            for result in scan_app_probes(&ctx, &relayed, CONTAINER_PROBE_BATCH, 0, false).await {
+                if let Some(client_probe) = result.client_probe {
+                    responses.entry(client_probe).or_default().push(result.port);
+                }
+            }
+        }
+
+        for target in container_probe_targets(
+            self.host_ip,
+            host_to_container_port_map,
+            &outside,
+            container_ip.map(|(ip, _)| ip),
+        ) {
+            let subnet_cidr = match container_ip {
+                Some((ip, cidr)) if ip == target.ip => cidr,
+                _ => host_subnet,
+            };
+            let ctx = ProbeContext {
+                ip: target.ip,
+                subnet_cidr,
+                is_gateway: false,
+                cancel: self.cancel.clone(),
+                scan_controller: ScanConcurrencyController::new(CONTAINER_PROBE_BATCH),
+                // Ports the runtime declares for its containers can't be a printer, and 9100 is
+                // node_exporter's default, so the raw-socket gate stays off here (GH #801).
+                probe_raw_socket_ports: true,
+                port_map: target.port_map,
+                tunnel: None,
+            };
+            for result in
+                scan_app_probes(&ctx, &target.ports, CONTAINER_PROBE_BATCH, 0, false).await
+            {
+                if let Some(client_probe) = result.client_probe {
+                    responses.entry(client_probe).or_default().push(result.port);
+                }
+            }
+        }
+        responses
+    }
+
     /// The ports something inside the container is listening on, or `None` if we could not tell.
     ///
     /// Reads `/proc/net/tcp` **and** `/proc/net/tcp6`. Both are required: a dual-stack listener —
@@ -883,25 +1047,25 @@ impl<'a> ContainerScanner<'a> {
         Some(ports)
     }
 
+    /// Which relay the container can run and which of its ports it reaches, or `None` when it has
+    /// no relay tool or the exec was refused, leaving every port to the outside probes.
+    async fn survey_relay(&self, container_name: &str) -> Option<RelaySurvey> {
+        let output = self
+            .exec_capture(container_name, RELAY_SURVEY_SCRIPT, self.cancel.clone())
+            .await;
+        let survey = output.as_deref().and_then(RelaySurvey::parse);
+        tracing::debug!(
+            container = container_name,
+            exec_ran = output.is_some(),
+            relay = ?survey.as_ref().map(|s| s.tool),
+            "Surveyed the container for an application-probe relay"
+        );
+        survey
+    }
+
     /// Pull the listening ports out of `/proc/net/tcp`-format text.
     pub(crate) fn parse_listening_ports(procfs: &str) -> HashSet<u16> {
-        const TCP_LISTEN: &str = "0A";
-
-        procfs
-            .lines()
-            .filter_map(|line| {
-                let mut fields = line.split_whitespace();
-                // sl, local_address, rem_address, st
-                let _sl = fields.next()?;
-                let local = fields.next()?;
-                let _rem = fields.next()?;
-                if fields.next()? != TCP_LISTEN {
-                    return None;
-                }
-                let (_addr, port) = local.rsplit_once(':')?;
-                u16::from_str_radix(port, 16).ok()
-            })
-            .collect()
+        listening_sockets(procfs).map(|(_, port)| port).collect()
     }
 
     /// Ask every surviving `(port, path)` in one exec.
@@ -1451,7 +1615,10 @@ exec(\\\"try:\\\\n p=urllib.request.urlopen(r,context=c,timeout=1)\\\\nexcept Ex
     ) -> Result<Vec<(ContainerInspectResponse, ContainerSummary)>, Error> {
         let container_summaries = self
             .client
-            .list_containers(None::<ListContainersOptions>)
+            .list_containers(Some(ListContainersOptions {
+                all: true,
+                ..Default::default()
+            }))
             .await
             .map_err(|e| anyhow!(e))?;
 
@@ -1464,6 +1631,17 @@ exec(\\\"try:\\\\n p=urllib.request.urlopen(r,context=c,timeout=1)\\\\nexcept Ex
                     .await
                 {
                     Ok(inspected) => Some((inspected, summary)),
+                    // Listed, then removed before the inspect reached it.
+                    Err(bollard::errors::Error::DockerResponseServerError {
+                        status_code: 404,
+                        ..
+                    }) => {
+                        tracing::debug!(
+                            container_id = %id,
+                            "Container removed between list and inspect; skipping it"
+                        );
+                        None
+                    }
                     Err(e) => {
                         tracing::warn!(
                             container_id = %id,
@@ -1481,6 +1659,59 @@ exec(\\\"try:\\\\n p=urllib.request.urlopen(r,context=c,timeout=1)\\\\nexcept Ex
 
         Ok(inspections.into_iter().flatten().collect())
     }
+}
+
+/// How many application probes run at once against one container.
+const CONTAINER_PROBE_BATCH: usize = 16;
+
+/// One address to run a container's application probes at, and which of its ports to probe there.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct ContainerProbeTarget {
+    pub ip: IpAddr,
+    /// Container port → the port to reach it on at `ip`.
+    pub port_map: HashMap<u16, u16>,
+    pub ports: Vec<PortType>,
+}
+
+/// Where to run a container's TCP application probes: its published ports at `host_ip` through the
+/// host port each is published on, and the rest at its own address, when it has one.
+pub(crate) fn container_probe_targets(
+    host_ip: IpAddr,
+    host_to_container_port_map: &HashMap<(IpAddr, u16), u16>,
+    container_ports: &[PortType],
+    container_ip: Option<IpAddr>,
+) -> Vec<ContainerProbeTarget> {
+    // A port published on every address (0.0.0.0, ::) is reachable at the scanned one.
+    let mut port_map: HashMap<u16, u16> = HashMap::new();
+    for ((published_ip, host_port), container_port) in host_to_container_port_map {
+        if *published_ip == host_ip || published_ip.is_unspecified() {
+            port_map.entry(*container_port).or_insert(*host_port);
+        }
+    }
+    let (published, unpublished): (Vec<PortType>, Vec<PortType>) = container_ports
+        .iter()
+        .filter(|p| !p.is_udp())
+        .copied()
+        .partition(|p| port_map.contains_key(&p.number()));
+
+    let mut targets = Vec::new();
+    if !published.is_empty() {
+        targets.push(ContainerProbeTarget {
+            ip: host_ip,
+            port_map,
+            ports: published,
+        });
+    }
+    if let Some(ip) = container_ip
+        && !unpublished.is_empty()
+    {
+        targets.push(ContainerProbeTarget {
+            ip,
+            port_map: HashMap::new(),
+            ports: unpublished,
+        });
+    }
+    targets
 }
 
 /// Mirror each service's bindings from `primary_endpoint_id` onto the container's other
@@ -1677,6 +1908,46 @@ mod probe_tests {
 mod tests {
     use super::*;
     use crate::server::services::r#impl::base::ServiceBase;
+
+    /// A container publishing 5432 on 15432 and keeping 6379 to itself: Postgres is probed at the
+    /// scanned address on 15432, Redis at the container's own address on 6379.
+    #[test]
+    fn a_published_port_is_probed_on_the_host_and_the_rest_on_the_container() {
+        let host: IpAddr = "192.168.4.58".parse().unwrap();
+        let container: IpAddr = "172.17.0.3".parse().unwrap();
+        let published = HashMap::from([((ALL_IP_ADDRESSES_IP, 15432), 5432)]);
+        let ports = [PortType::new_tcp(5432), PortType::new_tcp(6379)];
+
+        let targets = container_probe_targets(host, &published, &ports, Some(container));
+
+        assert_eq!(
+            targets,
+            vec![
+                ContainerProbeTarget {
+                    ip: host,
+                    port_map: HashMap::from([(5432, 15432)]),
+                    ports: vec![PortType::new_tcp(5432)],
+                },
+                ContainerProbeTarget {
+                    ip: container,
+                    port_map: HashMap::new(),
+                    ports: vec![PortType::new_tcp(6379)],
+                },
+            ]
+        );
+    }
+
+    /// A port published on another address isn't reachable at the scanned one, and with no address
+    /// of its own the container's unpublished ports are left unprobed.
+    #[test]
+    fn a_port_published_elsewhere_is_not_probed_at_the_scanned_address() {
+        let host: IpAddr = "192.168.4.58".parse().unwrap();
+        let published = HashMap::from([(("10.0.0.3".parse().unwrap(), 15432), 5432)]);
+
+        let targets = container_probe_targets(host, &published, &[PortType::new_tcp(5432)], None);
+
+        assert!(targets.is_empty());
+    }
     use crate::server::services::r#impl::categories::ServiceCategory;
     use crate::server::services::r#impl::definitions::ServiceDefinition;
     use crate::server::services::r#impl::patterns::Pattern;

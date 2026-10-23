@@ -3,6 +3,7 @@ use super::*;
 use crate::daemon::discovery::types::base::DiscoveryPhase;
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
 use crate::server::daemons::r#impl::api::ScannedEntityIds;
+use crate::server::shared::events::types::DeletionReason;
 
 /// How long the completion request will wait for neighbour resolution before cutting it short.
 ///
@@ -78,7 +79,8 @@ impl DaemonService {
         self.set_interfaced_subnet_ids(&daemon_id, &subnet_ids)
             .await?;
 
-        self.update(&mut daemon, auth).await?;
+        self.update(&mut daemon, auth, UpdateReason::DaemonStatusReported)
+            .await?;
         Ok(())
     }
 
@@ -91,24 +93,13 @@ impl DaemonService {
         reported: Option<DaemonOs>,
     ) -> Result<(), ApiError> {
         match daemon.base.accept_reported_os(reported) {
-            Ok(ReportedOsOutcome::Unchanged) => Ok(()),
-            Ok(ReportedOsOutcome::Recorded) => {
-                tracing::info!(
-                    daemon_id = %daemon.id,
-                    os = ?daemon.base.os,
-                    "Recorded the OS a daemon reported"
-                );
-                Ok(())
-            }
-            Ok(ReportedOsOutcome::Adopted { picked }) => {
-                tracing::info!(
-                    daemon_id = %daemon.id,
-                    picked = ?picked,
-                    reported = ?daemon.base.os,
-                    "Daemon reported its OS for the first time and it differs from the one picked at creation; recording the reported OS"
-                );
-                Ok(())
-            }
+            // The caller's update logs the recorded OS, and the OS it adopts in place of the one picked at creation,
+            // as a change from one to the other.
+            Ok(
+                ReportedOsOutcome::Unchanged
+                | ReportedOsOutcome::Recorded
+                | ReportedOsOutcome::Adopted { .. },
+            ) => Ok(()),
             Err(mismatch) => {
                 tracing::warn!(
                     daemon_id = %daemon.id,
@@ -174,12 +165,12 @@ impl DaemonService {
         reported_os: Option<DaemonOs>,
         auth: AuthenticatedEntity,
     ) -> Result<ServerCapabilities, ApiError> {
-        // Reject daemons below the minimum supported version
+        // Reject daemons at or below the last unsupported version
         let policy = DaemonVersionPolicy::default();
-        if version < policy.minimum_supported {
+        if policy.rejects(&version) {
             return Err(ApiError::daemon_version_too_old(
                 &version.to_string(),
-                &policy.minimum_supported.to_string(),
+                &policy.last_unsupported.to_string(),
             ));
         }
 
@@ -203,16 +194,10 @@ impl DaemonService {
         if daemon.base.standby {
             daemon.base.standby = false;
             daemon.base.standby_cleared_at = Some(Utc::now());
-            tracing::info!(
-                daemon_id = %daemon_id,
-                "Cleared daemon standby on restart ({}-day grace granted)",
-                STANDBY_GRACE_PERIOD_DAYS
-            );
         }
 
-        self.update(&mut daemon, auth).await?;
-
-        tracing::info!(daemon_id = %daemon_id, version = %version, "Daemon startup");
+        self.update(&mut daemon, auth, UpdateReason::DaemonStarted)
+            .await?;
 
         // Migrate legacy discoveries if daemon just upgraded to unified-capable version
         if was_pre_unified
@@ -263,11 +248,7 @@ impl DaemonService {
 
         let status = policy.evaluate(Some(&version));
 
-        Ok(ServerCapabilities {
-            server_version: policy.latest.clone(),
-            minimum_daemon_version: policy.minimum_supported.clone(),
-            deprecation_warnings: status.warnings,
-        })
+        Ok(ServerCapabilities::from_policy(&policy, status.warnings))
     }
 
     /// Process a daemon registration request
@@ -314,8 +295,6 @@ impl DaemonService {
             return Err(ApiError::demo_mode_blocked());
         }
 
-        tracing::info!("{:?}", request);
-
         // For a 1:1 provisioned key the auth layer resolved the daemon from the key,
         // so that is the authoritative id — the client-sent request.daemon_id is
         // untrusted and, for a freshly provisioned daemon, not yet known. For a legacy
@@ -329,36 +308,22 @@ impl DaemonService {
             .as_ref()
             .and_then(|v| semver::Version::parse(v).ok());
 
-        // Reject daemons below the minimum supported version
+        // Reject daemons at or below the last unsupported version
         let policy = DaemonVersionPolicy::default();
-        if daemon_version
-            .as_ref()
-            .is_some_and(|v| v < &policy.minimum_supported)
-        {
+        if let Some(v) = daemon_version.as_ref().filter(|v| policy.rejects(v)) {
             return Err(ApiError::daemon_version_too_old(
-                &daemon_version.unwrap().to_string(),
-                &policy.minimum_supported.to_string(),
+                &v.to_string(),
+                &policy.last_unsupported.to_string(),
             ));
         }
 
         // Compute server_capabilities if version was provided
-        let server_capabilities = daemon_version.as_ref().map(|v| {
-            let status = policy.evaluate(Some(v));
-            ServerCapabilities {
-                server_version: policy.latest.clone(),
-                minimum_daemon_version: policy.minimum_supported.clone(),
-                deprecation_warnings: status.warnings,
-            }
-        });
+        let server_capabilities = daemon_version
+            .as_ref()
+            .map(|v| ServerCapabilities::from_policy(&policy, policy.evaluate(Some(v)).warnings));
 
         // Check if daemon already exists (re-registration scenario)
         if let Some(mut existing_daemon) = self.get_by_id(&effective_daemon_id).await? {
-            tracing::info!(
-                daemon_id = %effective_daemon_id,
-                host_id = %existing_daemon.base.host_id,
-                "Daemon already registered, updating registration"
-            );
-
             // Update daemon with current info
             // NOTE: We do NOT update URL from registration request.
             // URL is only set via admin provisioning for ServerPoll daemons.
@@ -383,7 +348,9 @@ impl DaemonService {
                 existing_daemon.base.version = Some(v);
             }
 
-            let updated_daemon = self.update(&mut existing_daemon, auth).await?;
+            let updated_daemon = self
+                .update(&mut existing_daemon, auth, UpdateReason::DaemonReregistered)
+                .await?;
 
             // A provisioned daemon's FIRST contact lands here (its record already exists from
             // provisioning), not in the new-registration branch — so emit the onboarding
@@ -480,6 +447,7 @@ impl DaemonService {
                 // data to preserve against.
                 true,
                 InterfaceDataComplete::default(),
+                &crate::server::ports::r#impl::coverage::PortCoverage::default(),
                 None,
                 auth.clone(),
                 None,
@@ -504,19 +472,13 @@ impl DaemonService {
                 .credential_service
                 .get_by_id(&target.credential_id())
                 .await?
+                && let Some(refusal) = crate::server::credentials::service::refusal_for_daemon(
+                    &cred,
+                    &request.name,
+                    daemon_version.as_ref(),
+                )
             {
-                let disc = CredentialTypeDiscriminants::from(&cred.base.credential_type);
-                if !disc.compatible_with_daemon(daemon_version.as_ref()) {
-                    return Err(ApiError::bad_request(&format!(
-                        "Credential type \"{}\" requires daemon version {} or newer, but this daemon is on {}.",
-                        disc.display_name(),
-                        disc.minimum_daemon_version(),
-                        daemon_version
-                            .as_ref()
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(|| "an unknown version".to_string()),
-                    )));
-                }
+                return Err(ApiError::bad_request(&refusal));
             }
         }
 
@@ -625,12 +587,9 @@ impl DaemonService {
     /// deliberate trade: the scan record is written before the daemon is acknowledged, so a failure
     /// here is one the daemon sees and can retry, rather than a session silently lost after a
     /// successful ack.
-    pub async fn process_discovery_progress(
-        &self,
-        mut update: DiscoveryUpdatePayload,
-    ) -> Result<(), ApiError> {
+    pub async fn process_discovery_progress(&self, mut update: DiscoveryUpdatePayload) {
         if update.phase == DiscoveryPhase::Complete
-            && update.discovery_type.rescan_target_host_id().is_none()
+            && update.discovery_type.rescan_target_host_ids().is_none()
         {
             self.resolve_neighbours_into_session(&mut update).await;
         }
@@ -651,8 +610,7 @@ impl DaemonService {
             );
         }
 
-        self.discovery_service.update_session(update).await?;
-        Ok(())
+        self.discovery_service.update_session(update).await;
     }
 
     /// Fold the subnets this scan found without the daemon naming them into the terminal payload,
@@ -843,13 +801,7 @@ impl DaemonService {
                 let neighbours = host_service
                     .neighbour_bearing_interface_count(update.site_id)
                     .await;
-                tracing::warn!(
-                    session_id = %update.session_id,
-                    site_id = %update.site_id,
-                    budget_seconds = RESOLUTION_BUDGET.as_secs(),
-                    neighbours,
-                    "Neighbour resolution exceeded its budget; finalizing the session without it"
-                );
+                // The warning is published with the session, and logged at WARN from there.
                 update
                     .warnings
                     .push(DiscoveryWarning::NeighbourResolutionIncomplete {
@@ -890,13 +842,6 @@ impl DaemonService {
                 let interfaces = host_service
                     .unresolved_fdb_interface_count(update.site_id)
                     .await;
-                tracing::warn!(
-                    session_id = %update.session_id,
-                    site_id = %update.site_id,
-                    budget_seconds = RESOLUTION_BUDGET.as_secs(),
-                    interfaces,
-                    "FDB link resolution exceeded its budget; finalizing the session without it"
-                );
                 update
                     .warnings
                     .push(DiscoveryWarning::FdbResolutionIncomplete {
@@ -984,6 +929,44 @@ impl DaemonService {
             .daemon_id()
             .map(crate::server::shared::services::scan_context::ScanContext::new);
 
+        // VLAN batches first: a daemon waiting on one holds its interfaces until it has the ids.
+        // A batch that fails is left unanswered, and the daemon records the VLANs as unrecorded
+        // when its wait times out — the same outcome a failed DaemonPoll upsert has.
+        let mut created_vlans = Vec::new();
+        for batch in entities.vlans {
+            let site_id = batch.request.site_id;
+            let organization_id = match self.site_service.get_by_id(&site_id).await {
+                Ok(Some(site)) => site.base.organization_id,
+                Ok(None) => {
+                    tracing::warn!(site_id = %site_id, "VLAN batch names an unknown site - skipping");
+                    continue;
+                }
+                Err(e) => {
+                    tracing::warn!(site_id = %site_id, error = %e, "Failed to resolve site for VLAN batch - skipping");
+                    continue;
+                }
+            };
+            match self
+                .vlan_service
+                .upsert_discovery_batch(
+                    site_id,
+                    organization_id,
+                    batch.request.vlans,
+                    scan_ctx.as_ref(),
+                )
+                .await
+            {
+                Ok(response) => created_vlans.push((batch.pending_id, response)),
+                Err(e) => {
+                    tracing::warn!(
+                        pending_id = %batch.pending_id,
+                        error = %e,
+                        "Failed to upsert discovered VLANs - skipping (daemon will time out)"
+                    );
+                }
+            }
+        }
+
         // Process each discovered host - continue on failure to avoid blocking entire batch
         for host_request in entities.hosts {
             let pending_id = host_request.host.id;
@@ -998,6 +981,7 @@ impl DaemonService {
                     host_request.subnets,
                     host_request.interfaces_complete,
                     host_request.interface_data_complete,
+                    &host_request.port_coverage,
                     scan_ctx.as_ref(),
                     auth.clone(),
                     limit_ctx.as_ref(),
@@ -1029,8 +1013,7 @@ impl DaemonService {
                     {
                         limit_event_emitted = true;
                         billing_limit_reached = Some((ctx.limit, ctx.org_id));
-                        let _ = self
-                            .event_bus
+                        self.event_bus
                             .publish(Event::new(
                                 OrgScope {
                                     organization_id: ctx.org_id,
@@ -1082,8 +1065,7 @@ impl DaemonService {
                 )
                 .await
         {
-            let _ = self
-                .event_bus
+            self.event_bus
                 .publish(Event::new(
                     OrgScope {
                         organization_id: org.id,
@@ -1127,6 +1109,7 @@ impl DaemonService {
         Ok(CreatedEntitiesPayload {
             subnets: created_subnets,
             hosts: created_hosts,
+            vlans: created_vlans,
             billing_limit_hit: billing_limit_reached,
             first_host_error,
         })
@@ -1269,14 +1252,6 @@ impl DaemonService {
             return Ok(());
         }
 
-        tracing::info!(
-            daemon_id = %daemon_id,
-            site_id = %site_id,
-            host_id = %host_id,
-            is_free_plan,
-            "Creating default discovery jobs for daemon"
-        );
-
         // Free plans use AdHoc (run once immediately), paid plans use Scheduled
         let default_run_type = if is_free_plan {
             RunType::AdHoc { last_run: None }
@@ -1393,12 +1368,15 @@ impl DaemonService {
             )
             .await?;
 
-        // Delete old discoveries
-        let count = discoveries.len();
+        // Delete old discoveries; each delete's event names it superseded.
         for old in &discoveries {
             if let Err(e) = self
                 .discovery_service
-                .delete(&old.id, AuthenticatedEntity::System)
+                .delete(
+                    &old.id,
+                    AuthenticatedEntity::System,
+                    DeletionReason::EntitySuperseded,
+                )
                 .await
             {
                 tracing::warn!(
@@ -1408,14 +1386,6 @@ impl DaemonService {
                 );
             }
         }
-
-        tracing::info!(
-            daemon_id = %daemon_id,
-            count = count,
-            "Migrated {} legacy discoveries to unified for daemon {}",
-            count,
-            daemon_id
-        );
 
         Ok(())
     }
@@ -1453,24 +1423,19 @@ impl DaemonService {
                 .map(|d| d.base.name.clone())
                 .unwrap_or_else(|| "your daemon".to_string());
 
-            tracing::info!(
-                daemon_id = %daemon_id,
-                organization_id = %org.id,
-                "Emitting FirstDaemonRegistered telemetry on first contact"
-            );
-
             self.event_bus
                 .publish(Event::new(
                     OrgScope {
                         organization_id: org.id,
                     },
                     OnboardingOperation::FirstDaemonRegistered {
+                        daemon_id,
                         daemon_name: daemon_name.to_string(),
                         site_name: site.base.name.clone(),
                     },
                     AuthenticatedEntity::System,
                 ))
-                .await?;
+                .await;
         }
 
         Ok(())

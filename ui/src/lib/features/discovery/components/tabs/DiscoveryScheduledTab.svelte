@@ -1,4 +1,5 @@
 <script lang="ts">
+	import daemonVersionGates from '$lib/data/daemon-version-gates.json';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
@@ -15,17 +16,20 @@
 	import { discoveryScheduledColumns } from './DiscoveryScheduledTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import { Play, Power, Edit, Trash2, Ban } from 'lucide-svelte';
-	import type { CardAction } from '$lib/shared/components/data/types';
+	import { disabledWhen, hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import {
-		useDiscoveriesQuery,
+		useScheduledDiscoveriesQuery,
 		useCreateDiscoveryMutation,
 		useUpdateDiscoveryMutation,
 		useDeleteDiscoveryMutation,
 		useBulkDeleteDiscoveriesMutation,
 		useInitiateDiscoveryMutation,
 		useActiveSessionsQuery,
-		useCancelDiscoveryMutation
+		useCancelDiscoveryMutation,
+		useBulkStartDiscoveriesMutation,
+		useBulkCancelDiscoveriesMutation,
+		useBulkSetDiscoveriesEnabledMutation
 	} from '../../queries';
 	import type { DiscoveryUpdatePayload } from '../../types/api';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -39,6 +43,8 @@
 	import type { components } from '$lib/api/schema';
 	import type { TabProps } from '$lib/shared/types';
 	import { downloadCsv } from '$lib/shared/utils/csvExport';
+	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
+	import { useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import {
@@ -57,6 +63,13 @@
 		discovery_alreadyRunning,
 		discovery_cannotDeleteWhileRunning,
 		discovery_cannotToggleWhileRunning,
+		discovery_rescanRunsOnce,
+		discovery_rescanRunsOnceBulk,
+		discovery_runningBulk,
+		discovery_notRunning,
+		discovery_notRunningBulk,
+		discovery_noSchedule,
+		discovery_noScheduleBulk,
 		discovery_confirmDeleteScheduled,
 		discovery_disableScheduleTooltip,
 		discovery_enableScheduleTooltip,
@@ -75,9 +88,37 @@
 
 	// Queries
 	const tagsQuery = useTagsQuery();
-	// Gated on `isActive` — see the matching comment in DiscoveryHistoryTab. Both
-	// subscribers must be gated for the query to actually go inactive.
-	const discoveriesQuery = useDiscoveriesQuery(() => isActive);
+	// One page of the scan configurations, paged, filtered and ordered on the server. Gated on
+	// `isActive`, like the history tab: every tab is mounted at once.
+	const page = listPageState(() => isActive);
+	const discoveriesQuery = useScheduledDiscoveriesQuery(() => page.params());
+	// Filter options: the values the scan configurations hold, scoped the way the list is.
+	const DISCOVERY_FIELD_VALUES = '/api/v1/discovery/field-values/{field}';
+	const configScope = () => ({ historical: false });
+	const daemonValuesQuery = useFieldValuesQuery(
+		DISCOVERY_FIELD_VALUES,
+		'daemon_id',
+		configScope,
+		() => isActive
+	);
+	const siteValuesQuery = useFieldValuesQuery(
+		DISCOVERY_FIELD_VALUES,
+		'site_id',
+		configScope,
+		() => isActive
+	);
+	const typeValuesQuery = useFieldValuesQuery(
+		DISCOVERY_FIELD_VALUES,
+		'discovery_type',
+		configScope,
+		() => isActive
+	);
+	const runTypeValuesQuery = useFieldValuesQuery(
+		DISCOVERY_FIELD_VALUES,
+		'run_type',
+		configScope,
+		() => isActive
+	);
 	const daemonsQuery = useDaemonsQuery();
 	const sitesQuery = useSitesQuery();
 
@@ -91,10 +132,14 @@
 	const deleteDiscoveryMutation = useDeleteDiscoveryMutation();
 	const bulkDeleteDiscoveriesMutation = useBulkDeleteDiscoveriesMutation();
 	const initiateDiscoveryMutation = useInitiateDiscoveryMutation();
+	const bulkStartDiscoveriesMutation = useBulkStartDiscoveriesMutation();
+	const bulkCancelDiscoveriesMutation = useBulkCancelDiscoveriesMutation();
+	const bulkSetEnabledMutation = useBulkSetDiscoveriesEnabledMutation();
 
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
-	let discoveriesData = $derived(discoveriesQuery.data ?? []);
+	let discoveriesData = $derived(discoveriesQuery.data?.items ?? []);
+	let discoveriesPagination = $derived(discoveriesQuery.data?.pagination ?? null);
 	let daemonsData = $derived(daemonsQuery.data ?? []);
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let sessionsList = $derived(sessionsQuery.data ?? []);
@@ -114,7 +159,9 @@
 	// them — and with no daemons the by-ids query is disabled, which in TanStack
 	// means it stays `isPending` forever.
 	let isLoading = $derived(
-		discoveriesQuery.isPending || daemonsQuery.isPending || sessionsQuery.isPending
+		(discoveriesQuery.isPending && !discoveriesQuery.data) ||
+			daemonsQuery.isPending ||
+			sessionsQuery.isPending
 	);
 
 	// Build lookup: discovery_id -> session (server always enriches discovery_id)
@@ -175,15 +222,21 @@
 		cancelDiscoveryMutation.mutate(sessionId);
 	}
 
-	function handleToggleEnabled(discovery: Discovery) {
-		if (discovery.run_type.type !== 'Scheduled') return;
-		updateDiscoveryMutation.mutate({
-			...discovery,
-			run_type: {
-				...discovery.run_type,
-				enabled: !discovery.run_type.enabled
-			}
-		});
+	async function handleBulkRun(ids: string[]) {
+		await bulkStartDiscoveriesMutation.mutateAsync(ids);
+	}
+
+	async function handleBulkCancel(ids: string[]) {
+		const sessionIds = discoveriesData
+			.filter((discovery) => ids.includes(discovery.id))
+			.map((discovery) => getActiveSession(discovery)?.session_id)
+			.filter((id): id is string => !!id);
+		await bulkCancelDiscoveriesMutation.mutateAsync({ discoveryIds: ids, sessionIds });
+	}
+
+	/** Turns the given discoveries' schedules on or off; the row toggle passes its one id. */
+	function setEnabled(enabled: boolean) {
+		return (ids: string[]) => bulkSetEnabledMutation.mutateAsync({ ids, enabled });
 	}
 
 	async function handleDiscoveryCreate(data: Discovery) {
@@ -211,11 +264,16 @@
 
 	// CSV export handler
 	async function handleCsvExport() {
-		await downloadCsv('Discovery', {});
+		// A one-off copy for the request, never read reactively.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const params = new URLSearchParams(page.listQuery);
+		params.set('historical', 'false');
+		await downloadCsv('Discovery', params);
 	}
 
 	/**
-	 * Row actions.
+	 * Row actions: Cancel and the schedule toggle (each only in its state), then Edit, Run and
+	 * Delete on every row.
 	 *
 	 * A run in flight blocks the destructive and scheduling actions, and the
 	 * tooltip carries the reason.
@@ -223,61 +281,67 @@
 	function discoveryActions(discovery: Discovery): CardAction[] {
 		if (isReadOnly) return [];
 
-		const running = getActiveSession(discovery) !== null;
+		const session = getActiveSession(discovery);
+		const running = session !== null;
 		const isRescan = discovery.discovery_type.type === 'Rescan';
+		const isScheduled = discovery.run_type.type === 'Scheduled';
 		const isEnabled = discovery.run_type.type === 'Scheduled' && discovery.run_type.enabled;
-		const actions: CardAction[] = [];
+		const whileRescan = disabledWhen(
+			isRescan,
+			discovery_rescanRunsOnce(),
+			discovery_rescanRunsOnceBulk()
+		);
+		const whileRunning = (reason: string) => disabledWhen(running, reason, discovery_runningBulk());
 
-		if (!isRescan) {
-			actions.push({
+		return [
+			{
+				label: common_cancel(),
+				icon: Ban,
+				tone: 'warning',
+				onClick: () => session?.session_id && handleCancelDiscovery(session.session_id),
+				onBulk: handleBulkCancel,
+				unavailable: hiddenWhen(
+					!session?.session_id,
+					discovery_notRunning(),
+					discovery_notRunningBulk()
+				)
+			},
+			{
+				label: isEnabled ? common_disable() : common_enable(),
+				icon: Power,
+				tone: isEnabled ? 'success' : undefined,
+				shortcut: 'O',
+				onClick: () => setEnabled(!isEnabled)([discovery.id]),
+				onBulk: setEnabled(!isEnabled),
+				unavailable:
+					hiddenWhen(!isScheduled, discovery_noSchedule(), discovery_noScheduleBulk()) ??
+					whileRunning(discovery_cannotToggleWhileRunning()),
+				tooltip: isEnabled ? discovery_disableScheduleTooltip() : discovery_enableScheduleTooltip()
+			},
+			{
 				label: common_edit(),
 				icon: Edit,
-				onClick: () => handleEditDiscovery(discovery)
-			});
-			actions.push({
+				isOpen: true,
+				onClick: () => handleEditDiscovery(discovery),
+				unavailable: whileRescan
+			},
+			{
 				label: common_run(),
 				icon: Play,
 				onClick: () => handleDiscoveryRun(discovery),
-				disabled: running,
-				tooltip: running ? discovery_alreadyRunning() : undefined
-			});
-
-			if (discovery.run_type.type === 'Scheduled') {
-				actions.push({
-					label: isEnabled ? common_disable() : common_enable(),
-					icon: Power,
-					class: isEnabled ? 'btn-icon-success' : 'btn-icon',
-					onClick: () => handleToggleEnabled(discovery),
-					disabled: running,
-					tooltip: running
-						? discovery_cannotToggleWhileRunning()
-						: isEnabled
-							? discovery_disableScheduleTooltip()
-							: discovery_enableScheduleTooltip()
-				});
+				onBulk: handleBulkRun,
+				unavailable: whileRescan ?? whileRunning(discovery_alreadyRunning())
+			},
+			{
+				label: common_delete(),
+				icon: Trash2,
+				tone: 'danger',
+				isDelete: true,
+				onBulk: handleBulkDelete,
+				onClick: () => handleDeleteDiscovery(discovery),
+				unavailable: whileRunning(discovery_cannotDeleteWhileRunning())
 			}
-		}
-
-		const session = getActiveSession(discovery);
-		if (session?.session_id) {
-			actions.push({
-				label: common_cancel(),
-				icon: Ban,
-				class: 'btn-icon-warning',
-				onClick: () => handleCancelDiscovery(session.session_id!)
-			});
-		}
-
-		actions.push({
-			label: common_delete(),
-			icon: Trash2,
-			class: 'btn-icon-danger',
-			onClick: () => handleDeleteDiscovery(discovery),
-			disabled: running,
-			tooltip: running ? discovery_cannotDeleteWhileRunning() : undefined
-		});
-
-		return actions;
+		];
 	}
 
 	/**
@@ -312,7 +376,11 @@
 			scheduleLapsed: () => scheduleLapsed,
 			schedulePaused: () => schedulePaused,
 			getActiveSession,
-			progressCell: () => progressCell
+			progressCell: () => progressCell,
+			daemonValues: () => daemonValuesQuery.data,
+			siteValues: () => siteValuesQuery.data,
+			typeValues: () => typeValuesQuery.data,
+			runTypeValues: () => runTypeValuesQuery.data
 		})
 	);
 </script>
@@ -322,8 +390,8 @@
 	{#if session}
 		{@const isCancelling = $cancellingSessions.get(session.session_id) === true}
 		{@const phase = isCancelling ? common_cancelling() : session.phase}
-		<div class="min-w-[16rem] space-y-2">
-			<div class="flex items-center gap-2">
+		<div class="min-w-0 space-y-2">
+			<div class="flex flex-wrap items-center gap-x-2">
 				<span class="text-secondary text-sm font-medium">{common_phase()}:</span>
 				<span class="text-accent text-sm font-medium">{phase}</span>
 			</div>
@@ -359,7 +427,9 @@
 	{#if hasLegacyDaemons}
 		<InlineWarning
 			title=""
-			body={discovery_legacyDaemonsWarning()}
+			body={discovery_legacyDaemonsWarning({
+				version: daemonVersionGates.last_without_unified_discovery
+			})}
 			dismissableKey="unified-discovery-migration"
 		/>
 	{/if}
@@ -368,7 +438,7 @@
 		<PreDaemonEmptyState title={daemons_installPromptDiscoveries()} {isReadOnly} />
 	{:else if isLoading}
 		<Loading />
-	{:else if discoveriesData.length === 0}
+	{:else if page.isEmpty(discoveriesQuery)}
 		<!-- Empty state -->
 		<EmptyState
 			title={discovery_noScheduledSessions()}
@@ -380,14 +450,15 @@
 		<DataControls
 			title={common_scans()}
 			{toolbarActions}
-			items={discoveriesData.filter(
-				(d) => d.run_type.type == 'AdHoc' || d.run_type.type == 'Scheduled'
-			)}
+			items={discoveriesData}
 			{fields}
-			onBulkDelete={isReadOnly ? undefined : handleBulkDelete}
 			storageKey="scanopy-discovery-scans-table-state"
 			defaults={tableDefaults}
 			getItemId={(item) => item.id}
+			serverPagination={discoveriesPagination}
+			onPageChange={page.onPageChange}
+			onQueryChange={page.onQueryChange}
+			serverQuery={{ stale: false }}
 			entityType="Discovery"
 			canEditTags={!isReadOnly}
 			getItemTags={(item) => item.tags}

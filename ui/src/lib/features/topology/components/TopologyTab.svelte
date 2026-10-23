@@ -44,6 +44,7 @@
 		pushTopologyParams,
 		showViewSwitcherHint,
 		showDependencyTutorial,
+		hiddenEntityTypesIn,
 		type TopologyView
 	} from '../queries';
 	import {
@@ -99,6 +100,7 @@
 	import type { TabProps } from '$lib/shared/types';
 	import {
 		common_delete,
+		common_firstDiscoveryEmailHint,
 		common_share,
 		common_upgrade,
 		daemons_installPromptTopology,
@@ -290,7 +292,7 @@
 							Record<string, Record<string, string[]>>
 						>
 					)[$activeView],
-					(($topologyOptions.request.hide_entities ?? {}) as Record<string, string[]>)[$activeView],
+					hiddenEntityTypesIn($topologyOptions, $activeView),
 					$activeTagFilter,
 					sitesData.find((n) => n.id === currentTopology?.site_id)
 				)
@@ -328,13 +330,12 @@
 			string,
 			Record<string, Record<string, string[]>>
 		>;
-		const hideEntities = ($topologyOptions.request.hide_entities ?? {}) as Record<string, string[]>;
 		updateTagFilter(
 			currentTopology ?? undefined,
 			$activeTagFilter,
 			$activeView,
 			hideMetadata[$activeView],
-			hideEntities[$activeView] ?? [],
+			hiddenEntityTypesIn($topologyOptions, $activeView),
 			sitesData.find((n) => n.id === currentTopology?.site_id)
 		);
 	});
@@ -752,7 +753,7 @@
 							<div
 								class="flex cursor-default flex-col items-center {discoveryColor.icon}"
 								data-tooltip={!hasCompletedFirstDiscovery && hasEmail
-									? "We'll email you when your scan is complete."
+									? common_firstDiscoveryEmailHint()
 									: ''}
 								use:tooltip
 							>

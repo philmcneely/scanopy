@@ -14,7 +14,7 @@
 //! with a different lifetime.
 //!
 //! This module is written to be deleted. When the enforced daemon floor rises above
-//! [`last_legacy_neighbor_wire`](crate::server::daemons::r#impl::version::last_legacy_neighbor_wire),
+//! [`last_without_neighbor_candidates`](crate::server::daemons::r#impl::version::last_without_neighbor_candidates),
 //! `legacy_neighbor_wire_shim_still_needed` fails and says so.
 
 use serde::Deserialize;

@@ -335,10 +335,17 @@ impl SessionSlot {
 
     /// Empty the slot, but only if it still holds `session_id`: by the time a finished task gets
     /// here, the slot may already hold the next session.
+    ///
+    /// Cancels the session's token on the way out, whatever the outcome. The session task has
+    /// already reported it, and threads the session spawned (ARP and ICMP senders, drains, SNMP
+    /// walks) watch the token: a successful run otherwise left an ARP sender broadcasting to a
+    /// large subnet for hours after the run had ended.
     async fn clear(&self, session_id: Uuid) {
         let mut active = self.active.write().await;
-        if active.as_ref().is_some_and(|s| s.session_id == session_id) {
-            *active = None;
+        if active.as_ref().is_some_and(|s| s.session_id == session_id)
+            && let Some(session) = active.take()
+        {
+            session.token.cancel();
         }
     }
 
@@ -491,6 +498,31 @@ mod tests {
 
         assert!(!cancelled);
         assert!(!running_token.unwrap().is_cancelled());
+    }
+
+    /// Threads a session spawned watch its token, and a run that ends on its own never cancels
+    /// it. Clearing the finished session is what stops them. A late clear for an older session
+    /// must not reach the one now running.
+    #[tokio::test]
+    async fn clearing_a_finished_session_stops_the_workers_watching_its_token() {
+        let slot = SessionSlot::default();
+        let finished = Uuid::new_v4();
+        let mut worker_token = None;
+        slot.install(finished, DiscoveryType::default(), |token| {
+            worker_token = Some(token.clone());
+            tokio::spawn(async {})
+        })
+        .await
+        .ok()
+        .unwrap();
+        let worker_token = worker_token.unwrap();
+
+        slot.clear(Uuid::new_v4()).await;
+        assert!(!worker_token.is_cancelled());
+
+        slot.clear(finished).await;
+        assert!(worker_token.is_cancelled());
+        assert!(slot.running().await.is_none());
     }
 
     #[tokio::test]

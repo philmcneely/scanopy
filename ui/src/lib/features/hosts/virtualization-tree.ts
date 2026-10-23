@@ -58,5 +58,6 @@ export const virtualizationTree: TreeConfig<TreeHost> = {
 	key: (host) => host.id,
 	parentKey: (host) => host.virtualization_parent_host_id ?? null,
 	depth: (host) => host.virtualization_depth ?? 0,
+	rootKey: (host) => host.virtualization_root_host_id ?? null,
 	rootsLabel: () => common_virtualized()
 };

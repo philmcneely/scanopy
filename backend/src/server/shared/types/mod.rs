@@ -5,6 +5,7 @@ pub mod entity_field;
 pub mod error_codes;
 pub mod examples;
 pub mod field_definition;
+pub mod guest_state;
 pub mod icon;
 pub mod metadata;
 

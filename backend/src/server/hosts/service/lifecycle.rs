@@ -160,74 +160,8 @@ impl HostService {
         })
     }
 
-    /// [`Self::get_all_host_responses_paginated`] for a list grouped by virtualization tree and
-    /// sorted by another field: each tree parent leads its subtree, and every set of siblings
-    /// follows `order_by`. SQL can't order siblings by a field of their own and their
-    /// ancestors', so the order is built here from every matching row's key, and the page is
-    /// sliced from it.
-    ///
-    /// `filter` carries [`VIRTUALIZATION_TREE_JOIN`] and whatever `order_by` joins, and no
-    /// pagination: `limit` and `offset` are applied to the ordered ids.
-    ///
-    /// [`VIRTUALIZATION_TREE_JOIN`]: crate::server::hosts::r#impl::virtualization_tree::VIRTUALIZATION_TREE_JOIN
-    pub async fn get_all_host_responses_tree_ordered(
-        &self,
-        filter: StorableFilter<Host>,
-        order_by: &str,
-        limit: Option<u32>,
-        offset: u32,
-        at: Option<DateTime<Utc>>,
-        include_children: bool,
-    ) -> Result<PaginatedResult<HostResponse>> {
-        use crate::server::hosts::r#impl::virtualization_tree::{
-            VIRTUALIZATION_TREE_GROUP_SQL, VIRTUALIZATION_TREE_PARENT_SQL, tree_order,
-        };
-
-        let keys = self
-            .storage()
-            .get_ordered_values(
-                filter,
-                order_by,
-                &[
-                    VIRTUALIZATION_TREE_GROUP_SQL,
-                    VIRTUALIZATION_TREE_PARENT_SQL,
-                ],
-            )
-            .await?;
-        let rows: Vec<(Uuid, String, Option<Uuid>)> = keys
-            .into_iter()
-            .map(|(id, values)| {
-                let group = values.first().cloned().flatten().unwrap_or_default();
-                let parent = values
-                    .get(1)
-                    .cloned()
-                    .flatten()
-                    .and_then(|v| v.parse().ok());
-                (id, group, parent)
-            })
-            .collect();
-        let total_count = rows.len() as u64;
-
-        let page: Vec<Uuid> = tree_order(&rows)
-            .into_iter()
-            .skip(offset as usize)
-            .take(limit.map(|l| l as usize).unwrap_or(usize::MAX))
-            .collect();
-        let mut hosts = self
-            .storage()
-            .get_all(StorableFilter::<Host>::new_from_entity_ids(&page))
-            .await?;
-        let rank: HashMap<Uuid, usize> = page.iter().enumerate().map(|(i, id)| (*id, i)).collect();
-        hosts.sort_by_key(|h| rank.get(&h.id).copied().unwrap_or(usize::MAX));
-
-        Ok(PaginatedResult {
-            items: self.host_responses(hosts, at, include_children).await?,
-            total_count,
-        })
-    }
-
     /// Responses for `hosts`, in their order: children, tags and tree placement hydrated.
-    async fn host_responses(
+    pub(crate) async fn host_responses(
         &self,
         hosts: Vec<Host>,
         at: Option<DateTime<Utc>>,
@@ -250,6 +184,24 @@ impl HostService {
                 Default::default(),
             )
         };
+        // The device type is read off a host's services, which a children-less response leaves
+        // out. Load them anyway for the device type alone, so a picker, a hover card and global search
+        // draw the same icon as the host list. Like the IP addresses above: one query per page.
+        let children_less_device_types: HashMap<
+            Uuid,
+            crate::server::hosts::r#impl::device_type::DeviceType,
+        > = if include_children {
+            HashMap::new()
+        } else {
+            let services_for_device_types = self.load_services_for_hosts(&host_ids, at).await?;
+            hosts
+                .iter()
+                .map(|h| {
+                    let services = services_for_device_types.get(&h.id).into_iter().flatten();
+                    (h.id, h.device_type(services))
+                })
+                .collect()
+        };
 
         // Hydrate tags from junction table
         let tags_map = self
@@ -268,13 +220,18 @@ impl HostService {
                 let ports = ports_map.get(&host.id).cloned().unwrap_or_default();
                 let services = services_map.get(&host.id).cloned().unwrap_or_default();
                 let interfaces = interfaces_map.get(&host.id).cloned().unwrap_or_default();
-                HostResponse::from_host_with_children(
+                let device_type = children_less_device_types.get(&host.id).copied();
+                let mut response = HostResponse::from_host_with_children(
                     host,
                     ip_addresses,
                     ports,
                     services,
                     interfaces,
-                )
+                );
+                if let Some(device_type) = device_type {
+                    response.device_type = device_type;
+                }
+                response
             })
             .collect::<Vec<_>>();
         let mut responses = responses;
@@ -316,8 +273,24 @@ impl HostService {
     )> {
         let ip_addresses_map = self.ip_address_service.get_for_hosts(host_ids, at).await?;
         let ports_map = self.port_service.get_for_hosts(host_ids, at).await?;
+        let services_map = self.load_services_for_hosts(host_ids, at).await?;
 
-        // Load services ordered by position and group by host_id.
+        // Load interfaces and group by host_id
+        let mut interfaces_map = self.interface_service.get_for_hosts(host_ids, at).await?;
+        // Sort each host's entries by if_index
+        for entries in interfaces_map.values_mut() {
+            entries.sort_by_key(|e| e.base.if_index);
+        }
+
+        Ok((ip_addresses_map, ports_map, services_map, interfaces_map))
+    }
+
+    /// Each host's services, ordered by position.
+    async fn load_services_for_hosts(
+        &self,
+        host_ids: &[Uuid],
+        at: Option<DateTime<Utc>>,
+    ) -> Result<HashMap<Uuid, Vec<Service>>> {
         let services = self
             .service_service
             .get_all_ordered(
@@ -333,14 +306,6 @@ impl HostService {
                 .or_default()
                 .push(service);
         }
-
-        // Load interfaces and group by host_id
-        let mut interfaces_map = self.interface_service.get_for_hosts(host_ids, at).await?;
-        // Sort each host's entries by if_index
-        for entries in interfaces_map.values_mut() {
-            entries.sort_by_key(|e| e.base.if_index);
-        }
-
-        Ok((ip_addresses_map, ports_map, services_map, interfaces_map))
+        Ok(services_map)
     }
 }

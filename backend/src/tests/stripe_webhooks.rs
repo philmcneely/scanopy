@@ -2,6 +2,7 @@
 //! envelope, the object fetched from (a stand-in for) Stripe, and the org row
 //! the handlers leave behind.
 
+use crate::server::shared::events::types::UpdateReason;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -189,7 +190,11 @@ async fn a_renewal_on_an_unchanged_plan_is_not_a_checkout() {
         state
             .services
             .organization_service
-            .update(&mut org, AuthenticatedEntity::System)
+            .update(
+                &mut org,
+                AuthenticatedEntity::System,
+                UpdateReason::EntityRequested,
+            )
             .await
             .unwrap();
         let mut events = billing_events(&state);
@@ -262,7 +267,11 @@ async fn the_portal_cancel_pair_announces_the_cancellation_once() {
     state
         .services
         .organization_service
-        .update(&mut org, AuthenticatedEntity::System)
+        .update(
+            &mut org,
+            AuthenticatedEntity::System,
+            UpdateReason::EntityRequested,
+        )
         .await
         .unwrap();
     let mut events = billing_events(&state);

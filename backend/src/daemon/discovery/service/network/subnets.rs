@@ -7,7 +7,6 @@ use tokio_util::sync::CancellationToken;
 
 use crate::daemon::discovery::service::ops::DiscoveryOps;
 use crate::daemon::utils::base::{DaemonUtils, PlatformDaemonUtils};
-use crate::server::daemons::r#impl::base::DaemonMode;
 use crate::server::subnets::r#impl::base::Subnet;
 
 use super::NetworkScan;
@@ -48,14 +47,14 @@ impl NetworkScan {
         if !self.known_subnets.is_empty() {
             return Ok(self.known_subnets.clone());
         }
-        if ops.config_store.get_mode().await? == DaemonMode::ServerPoll {
+        let Some(api_client) = &ops.api_client else {
             return Err(anyhow::anyhow!(
                 "The server sent no subnets with this scan, and a ServerPoll daemon cannot ask \
                  for them. Upgrade the server, or scan the daemon's own subnets instead of \
                  naming them."
             ));
-        }
-        ops.api_client
+        };
+        api_client
             .get("/api/v1/subnets", "Failed to get subnets")
             .await
     }
@@ -121,10 +120,12 @@ impl NetworkScan {
                     true
                 })
                 .collect();
-            let subnet_futures = subnets
+            let (mut resolved, to_create) = reuse_created_subnets(subnets, &self.created_subnets);
+            let subnet_futures = to_create
                 .iter()
                 .map(|subnet| ops.create_subnet(subnet, cancel));
-            try_join_all(subnet_futures).await?
+            resolved.extend(try_join_all(subnet_futures).await?);
+            resolved
         };
 
         Ok(ResolvedScanTargets {
@@ -134,12 +135,13 @@ impl NetworkScan {
         })
     }
 
-    /// Map each rescan target to the interfaced subnet containing it.
+    /// Map each rescan target to the site subnet it is scanned from.
     ///
     /// Targets that can't be resolved are dropped with a warning rather than
-    /// failing the session — one address this daemon can't reach must not cost a
-    /// host its rescan when the rest are perfectly scannable. The session fails
-    /// only when *nothing* resolves.
+    /// failing the session, so one address with no subnet doesn't cost a host
+    /// its rescan when the rest are scannable. The session fails only when
+    /// *nothing* resolves. A resolved address that doesn't answer is a scan
+    /// result (not found), not a failure.
     async fn resolve_rescan_targets(
         &self,
         target_ips: &HashSet<IpAddr>,
@@ -160,7 +162,7 @@ impl NetworkScan {
                 target = %ip,
                 subnet = %subnet,
                 reach = %reach,
-                "Resolved rescan target to its containing interfaced subnet"
+                "Resolved rescan target to its containing subnet"
             );
         }
         for (ip, skip) in &resolution.skipped {
@@ -194,30 +196,32 @@ pub(crate) enum RescanSkip {
     /// to be scanned from — and loopback subnets are dropped from every scan
     /// anyway (see `scan_and_process_hosts`), so resolving one buys nothing.
     Loopback,
-    /// No interface of this daemon sits on a subnet containing the address, so
-    /// there is no route to it. Normally the server's precondition has already
-    /// filtered these out; reaching here means its junction is stale.
-    NoInterfacedSubnet,
-    /// An interface covers the address but the server has no subnet record for
-    /// that CIDR, so there is nothing to attribute discovered hosts to.
-    NoSubnetRecord(cidr::IpCidr),
+    /// Only a container bridge subnet holds the address. Sweeps leave those to
+    /// the container scan, and so does a rescan.
+    ContainerBridge,
+    /// No subnet the server holds for this site contains the address, so a host
+    /// found there could not be attributed to one. The server sends only
+    /// addresses that have a subnet, so reaching here means the subnet was
+    /// deleted after the rescan started.
+    NoSubnet,
 }
 
 impl std::fmt::Display for RescanSkip {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Loopback => write!(f, "loopback addresses are reached locally, not scanned"),
-            Self::NoInterfacedSubnet => {
-                write!(f, "this daemon has no interface on a subnet containing it")
-            }
-            Self::NoSubnetRecord(cidr) => write!(f, "no subnet record exists for {cidr}"),
+            Self::ContainerBridge => write!(
+                f,
+                "container bridge addresses are scanned by the container scan"
+            ),
+            Self::NoSubnet => write!(f, "no subnet on this site contains it"),
         }
     }
 }
 
 /// The scannable half of a rescan's target set, plus what was dropped and why.
 pub(crate) struct RescanResolution {
-    /// The interfaced subnets the surviving targets will be scanned from.
+    /// The subnets the surviving targets will be scanned from.
     pub subnets: Vec<Subnet>,
     /// The targets that resolved — narrower than the requested set, so progress
     /// budgeting doesn't count addresses that will never be scanned.
@@ -240,6 +244,11 @@ pub(crate) enum RescanReach {
     /// subnets. Lower fidelity: a live host answering on no port reads as
     /// unresponsive.
     TcpOnly,
+    /// The daemon has no interface on the containing subnet and reaches it
+    /// through a router (another VLAN, a remote site), probed by TCP the way a
+    /// sweep probes a named subnet it has no interface on. Same fidelity as
+    /// `TcpOnly`.
+    Routed,
 }
 
 impl std::fmt::Display for RescanReach {
@@ -247,19 +256,27 @@ impl std::fmt::Display for RescanReach {
         match self {
             Self::Arp => write!(f, "arp"),
             Self::TcpOnly => write!(f, "tcp-only (no MAC on the containing interface)"),
+            Self::Routed => write!(f, "tcp-only (routed, no interface on the subnet)"),
         }
     }
 }
 
-/// Resolve rescan targets to the interfaced subnets they'll be scanned from.
+/// Resolve rescan targets to the site subnets they'll be scanned from.
 ///
 /// Pure: the caller supplies the daemon's live interfaces and the server's
 /// subnet records. Unresolvable targets are reported in `skipped` instead of
 /// aborting, so a mixed host (a real address plus a loopback) still rescans.
 ///
-/// A containing interface with a MAC always wins over one without, so ARP is
-/// used wherever it exists and the TCP fallback engages only for an address
-/// that genuinely cannot be ARP'd.
+/// Each target takes the first of these that holds it:
+/// 1. an interfaced subnet with a MAC, so ARP is used wherever it exists;
+/// 2. a MAC-less interfaced subnet (a tunnel), probed by TCP;
+/// 3. any other site subnet, reached through the daemon's routes and probed by
+///    TCP. Container bridge subnets are left to the container scan here, as in
+///    a sweep.
+///
+/// Within each, the narrowest subnet wins. `scan_and_process_hosts` partitions
+/// by the same "has a MAC on this CIDR" test, so the reach reported here is the
+/// path the scan takes.
 pub(crate) fn resolve_rescan_subnets(
     target_ips: &HashSet<IpAddr>,
     subnet_cidr_to_mac: &HashMap<cidr::IpCidr, Option<mac_address::MacAddress>>,
@@ -285,58 +302,80 @@ pub(crate) fn resolve_rescan_subnets(
             continue;
         }
 
-        // Prefer an interface that can ARP. Falling back to a MAC-less one is
-        // what lets a VPN/tunnel-only daemon rescan at all — every address it
-        // routes to sits on a point-to-point interface with no MAC, and
-        // refusing those made rescan impossible rather than merely lower
-        // fidelity.
-        let (containing, reach) = match longest_prefix_containing(
-            subnet_cidr_to_mac
+        // The narrowest site subnet holding the address among those `eligible` admits.
+        let narrowest = |eligible: &dyn Fn(&Subnet) -> bool| {
+            let cidr = longest_prefix_containing(
+                all_subnets
+                    .iter()
+                    .filter(|s| eligible(s))
+                    .map(|s| *s.base.cidr),
+                ip,
+            )?;
+            all_subnets
                 .iter()
-                .filter(|(_, mac)| mac.is_some())
-                .map(|(cidr, _)| *cidr),
-            ip,
-        ) {
-            Some(cidr) => (Some(cidr), RescanReach::Arp),
-            None => (
-                longest_prefix_containing(subnet_cidr_to_mac.keys().copied(), ip),
-                RescanReach::TcpOnly,
-            ),
+                .find(|s| *s.base.cidr == cidr && eligible(s))
+        };
+        let interfaced = |with_mac: bool| {
+            narrowest(&|s: &Subnet| {
+                subnet_cidr_to_mac
+                    .get(&*s.base.cidr)
+                    .is_some_and(|mac| mac.is_some() == with_mac)
+            })
         };
 
-        let Some(containing_cidr) = containing else {
-            resolution
-                .skipped
-                .push((ip, RescanSkip::NoInterfacedSubnet));
-            continue;
-        };
+        let found = interfaced(true)
+            .map(|s| (s, RescanReach::Arp))
+            .or_else(|| interfaced(false).map(|s| (s, RescanReach::TcpOnly)))
+            .or_else(|| {
+                narrowest(&|s: &Subnet| !s.is_container_bridge_subnet())
+                    .map(|s| (s, RescanReach::Routed))
+            });
 
-        let Some(parent) = all_subnets
-            .iter()
-            .find(|s| *s.base.cidr == containing_cidr)
-            .cloned()
-        else {
-            resolution
-                .skipped
-                .push((ip, RescanSkip::NoSubnetRecord(containing_cidr)));
+        let Some((parent, reach)) = found else {
+            let skip = if all_subnets.iter().any(|s| s.base.cidr.contains(&ip)) {
+                RescanSkip::ContainerBridge
+            } else {
+                RescanSkip::NoSubnet
+            };
+            resolution.skipped.push((ip, skip));
             continue;
         };
 
         resolution.resolved.insert(ip);
-        resolution.attributions.push((ip, containing_cidr, reach));
+        resolution.attributions.push((ip, *parent.base.cidr, reach));
         if !resolution.subnets.iter().any(|s| s.id == parent.id) {
-            resolution.subnets.push(parent);
+            resolution.subnets.push(parent.clone());
         }
     }
 
     resolution
 }
 
+/// Split the daemon's own subnets into those this session already created, returned as the
+/// server confirmed them, and those still to create. The session creates its interface subnets
+/// before the network phase; submitting them again cost a ServerPoll run another poll round and
+/// a DaemonPoll run one redundant POST per subnet.
+pub(crate) fn reuse_created_subnets(
+    own: Vec<Subnet>,
+    created: &[Subnet],
+) -> (Vec<Subnet>, Vec<Subnet>) {
+    let mut reused = Vec::new();
+    let mut to_create = Vec::new();
+    for subnet in own {
+        match created.iter().find(|c| *c.base.cidr == *subnet.base.cidr) {
+            Some(created) => reused.push(created.clone()),
+            None => to_create.push(subnet),
+        }
+    }
+    (reused, to_create)
+}
+
 /// The most specific of `cidrs` that contains `ip`.
 ///
 /// Longest prefix wins, matching the server's dangling-subnet repair
 /// (`resolve_dangling_subnet_id`): where a daemon has overlapping interfaces,
-/// the narrower one is the interface that will actually ARP the address.
+/// the narrower one is the interface that will actually ARP the address, and
+/// of overlapping routed subnets the narrower one is where the host lives.
 pub(crate) fn longest_prefix_containing(
     cidrs: impl Iterator<Item = cidr::IpCidr>,
     ip: IpAddr,
@@ -350,7 +389,8 @@ pub(crate) fn longest_prefix_containing(
 mod tests {
     use super::*;
     use crate::server::shared::attribution::AttributeSource;
-    use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{SubnetCidr, SubnetCidrValue, SubnetTypeAttributed};
+    use crate::server::subnets::r#impl::types::SubnetType;
     use std::str::FromStr;
 
     fn cidr(s: &str) -> cidr::IpCidr {
@@ -378,8 +418,6 @@ mod tests {
 
     #[test]
     fn no_containing_interface_is_not_a_match() {
-        // No match means the address can't be ARP'd, so the rescan skips it
-        // rather than silently scanning it without ARP.
         let candidates = [cidr("10.0.5.0/24"), cidr("192.168.1.0/24")];
         assert_eq!(
             longest_prefix_containing(candidates.into_iter(), ip("172.16.0.4")),
@@ -416,6 +454,25 @@ mod tests {
 
     fn targets(ips: &[&str]) -> HashSet<IpAddr> {
         ips.iter().map(|s| ip(s)).collect()
+    }
+
+    /// A subnet the session already created is handed back as the server confirmed it, under
+    /// the server's id, and is not submitted again. One it hasn't is.
+    #[test]
+    fn the_network_phase_creates_only_subnets_the_session_has_not() {
+        let confirmed = subnet("192.168.4.0/22");
+        let own = vec![subnet("192.168.4.0/22"), subnet("172.16.102.0/24")];
+
+        let (reused, to_create) = reuse_created_subnets(own, std::slice::from_ref(&confirmed));
+
+        assert_eq!(
+            reused.iter().map(|s| s.id).collect::<Vec<_>>(),
+            vec![confirmed.id]
+        );
+        assert_eq!(
+            to_create.iter().map(|s| *s.base.cidr).collect::<Vec<_>>(),
+            vec![cidr("172.16.102.0/24")]
+        );
     }
 
     /// The reported bug: a daemon host carries 127.0.0.1 alongside its real address, and the
@@ -502,33 +559,119 @@ mod tests {
         );
     }
 
-    /// A target no interface covers at all, or one whose subnet the server has no record of,
-    /// is dropped on its own — a stale interfaced-subnet junction must not cost the others.
+    fn bridge(cidr_str: &str) -> Subnet {
+        let mut s = subnet(cidr_str);
+        s.base.subnet_type = SubnetTypeAttributed::unattributed(SubnetType::DockerBridge);
+        s
+    }
+
+    /// A host on another VLAN, reached through a router: the daemon has no interface there,
+    /// and the site's subnet holding it is scanned by TCP, as a named-subnet sweep would.
     #[test]
-    fn one_unresolvable_target_does_not_drop_its_siblings() {
-        let interfaces = HashMap::from([
-            (cidr("10.0.5.0/24"), a_mac()),
-            (cidr("192.168.1.0/24"), a_mac()),
-        ]);
-        // No server record for 192.168.1.0/24, and nothing at all covering 172.16.0.4.
-        let records = vec![subnet("10.0.5.0/24")];
+    fn a_routed_target_resolves_to_its_site_subnet_over_tcp() {
+        let interfaces = HashMap::from([(cidr("192.168.1.0/24"), a_mac())]);
+        let records = vec![subnet("192.168.1.0/24"), subnet("10.20.0.0/24")];
+
+        let resolution = resolve_rescan_subnets(&targets(&["10.20.0.5"]), &interfaces, &records);
+
+        assert_eq!(resolution.resolved, targets(&["10.20.0.5"]));
+        assert!(resolution.skipped.is_empty());
+        assert_eq!(
+            resolution.attributions,
+            vec![(ip("10.20.0.5"), cidr("10.20.0.0/24"), RescanReach::Routed)]
+        );
+    }
+
+    /// An address no site subnet holds can't be attributed to one, so it is skipped rather
+    /// than scanned as a /32 whose host the server would drop.
+    #[test]
+    fn a_target_in_no_subnet_is_skipped() {
+        let interfaces = HashMap::from([(cidr("192.168.1.0/24"), a_mac())]);
 
         let resolution = resolve_rescan_subnets(
-            &targets(&["10.0.5.7", "172.16.0.4", "192.168.1.9"]),
+            &targets(&["172.16.0.4"]),
+            &interfaces,
+            &[subnet("192.168.1.0/24")],
+        );
+
+        assert!(resolution.subnets.is_empty());
+        assert_eq!(
+            resolution.skipped,
+            vec![(ip("172.16.0.4"), RescanSkip::NoSubnet)]
+        );
+    }
+
+    /// Container bridge subnets are scanned by the container scan, so a rescan doesn't route
+    /// TCP probes into one.
+    #[test]
+    fn a_target_on_a_container_bridge_is_left_to_the_container_scan() {
+        let resolution = resolve_rescan_subnets(
+            &targets(&["172.17.0.3"]),
+            &HashMap::new(),
+            &[bridge("172.17.0.0/16")],
+        );
+
+        assert!(resolution.subnets.is_empty());
+        assert_eq!(
+            resolution.skipped,
+            vec![(ip("172.17.0.3"), RescanSkip::ContainerBridge)]
+        );
+    }
+
+    /// One host with an ARP'd address, a routed one, one in no subnet and a loopback: each
+    /// resolves on its own, and the unresolvable ones don't cost the others.
+    #[test]
+    fn a_mixed_host_resolves_each_address_on_its_own() {
+        let interfaces = HashMap::from([
+            (cidr("192.168.1.0/24"), a_mac()),
+            (cidr("127.0.0.0/8"), None),
+        ]);
+        let records = vec![
+            subnet("192.168.1.0/24"),
+            subnet("10.20.0.0/16"),
+            subnet("10.20.5.0/24"),
+            subnet("127.0.0.0/8"),
+        ];
+
+        let resolution = resolve_rescan_subnets(
+            &targets(&["192.168.1.9", "10.20.5.7", "172.16.0.4", "127.0.0.1"]),
             &interfaces,
             &records,
         );
 
-        assert_eq!(resolution.resolved, targets(&["10.0.5.7"]));
+        assert_eq!(resolution.resolved, targets(&["192.168.1.9", "10.20.5.7"]));
+        // The narrower of two routed subnets holding the address wins.
+        assert_eq!(
+            resolution.attributions,
+            vec![
+                (ip("10.20.5.7"), cidr("10.20.5.0/24"), RescanReach::Routed),
+                (ip("192.168.1.9"), cidr("192.168.1.0/24"), RescanReach::Arp),
+            ]
+        );
         assert_eq!(
             resolution.skipped,
             vec![
-                (ip("172.16.0.4"), RescanSkip::NoInterfacedSubnet),
-                (
-                    ip("192.168.1.9"),
-                    RescanSkip::NoSubnetRecord(cidr("192.168.1.0/24"))
-                ),
+                (ip("127.0.0.1"), RescanSkip::Loopback),
+                (ip("172.16.0.4"), RescanSkip::NoSubnet),
             ]
+        );
+    }
+
+    /// An interface on the address's link whose subnet the server has no record of no longer
+    /// drops the target: a broader site subnet holding it is scanned by TCP instead.
+    #[test]
+    fn an_interface_without_a_record_falls_back_to_a_routed_subnet() {
+        let interfaces = HashMap::from([(cidr("10.0.5.0/24"), a_mac())]);
+
+        let resolution = resolve_rescan_subnets(
+            &targets(&["10.0.5.7"]),
+            &interfaces,
+            &[subnet("10.0.0.0/16")],
+        );
+
+        assert_eq!(
+            resolution.attributions,
+            vec![(ip("10.0.5.7"), cidr("10.0.0.0/16"), RescanReach::Routed)]
         );
     }
 

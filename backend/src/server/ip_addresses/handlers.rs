@@ -3,13 +3,13 @@ use crate::server::config::AppState;
 use crate::server::hosts::r#impl::base::Host;
 use crate::server::ip_addresses::r#impl::base::IPAddress;
 use crate::server::ip_addresses::service::IPAddressService;
+use crate::server::shared::events::types::DeletionReason;
 use crate::server::shared::handlers::query::IPAddressQuery;
 use crate::server::shared::handlers::traits::{
     BulkDeleteResponse, CrudHandlers, create_handler, update_handler,
 };
 use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::storage::filter::StorableFilter;
-use crate::server::shared::storage::lock::{self, DEFAULT_LOCK_TIMEOUT, LockKey};
 use crate::server::shared::storage::traits::Entity;
 use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::api::{
@@ -85,7 +85,7 @@ async fn validate_ip_address_consistency(
         if !subnet.base.cidr.contains(&ip_address.base.ip_address) {
             return Err(ApiError::ip_address_out_of_range(
                 &ip_address.base.ip_address.to_string(),
-                &subnet.base.name,
+                subnet.base.name(),
             ));
         }
     }
@@ -113,19 +113,13 @@ async fn create_ip_address(
 ) -> ApiResult<Json<ApiResponse<IPAddress>>> {
     validate_ip_address_consistency(&state, &ip_address).await?;
 
-    // DB-level lock per host: the MAX+1 position assignment below plus the
-    // insert are a read-modify-write with no row to lock (the new row
-    // doesn't exist yet); without this, concurrent creates on one host get
-    // duplicate positions. Error paths release via Drop.
-    let lock_guard = lock::session_lock(
-        &state.pool,
-        LockKey::IpPositions {
-            host_id: ip_address.base.host_id,
-        },
-        DEFAULT_LOCK_TIMEOUT,
-    )
-    .await
-    .map_err(|e| ApiError::internal_error(&e.to_string()))?;
+    // Held across the position assignment and the insert. Error paths release via Drop.
+    let lock_guard = state
+        .services
+        .ip_address_service
+        .lock_positions(ip_address.base.host_id)
+        .await
+        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
 
     // Auto-assign position to end of list (ignore any position in the request)
     let next_position = state
@@ -216,7 +210,7 @@ pub async fn delete_ip_address(
 
     // Delete the IP address
     service
-        .delete(&id, entity_auth.clone())
+        .delete(&id, entity_auth.clone(), DeletionReason::EntityRequested)
         .await
         .map_err(ApiError::from)?;
 
@@ -274,7 +268,11 @@ async fn bulk_delete_ip_addresses(
     // Only delete entities that actually exist and user has access to
     let valid_ids: Vec<Uuid> = entities.iter().map(|e| e.id).collect();
     let deleted_count = service
-        .delete_many(&valid_ids, entity_auth.clone())
+        .delete_many(
+            &valid_ids,
+            entity_auth.clone(),
+            DeletionReason::EntityRequested,
+        )
         .await
         .map_err(ApiError::from)?;
 

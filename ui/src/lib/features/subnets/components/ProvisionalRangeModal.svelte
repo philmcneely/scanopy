@@ -177,7 +177,6 @@
 										<EntityTag
 											entityRef={entityRef('Host', host.id, host)}
 											label={hostDisplayName(host)}
-											icon={entities.getIconComponent('Host')}
 											color={entities.getColorHelper('Host').color}
 										/>
 									{/each}

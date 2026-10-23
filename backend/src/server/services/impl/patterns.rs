@@ -69,9 +69,9 @@ pub enum MatchReason {
 impl utoipa::PartialSchema for MatchReason {
     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::Schema> {
         use utoipa::openapi::schema::{
-            ArrayBuilder, ObjectBuilder, OneOfBuilder, SchemaType, Type,
+            ArrayBuilder, ArrayItems, ObjectBuilder, OneOfBuilder, SchemaType, Type,
         };
-        use utoipa::openapi::{RefOr, Schema};
+        use utoipa::openapi::{Ref, RefOr, Schema};
 
         // Variant 1: { type: "reason", data: string }
         let reason_variant = ObjectBuilder::new()
@@ -92,8 +92,26 @@ impl utoipa::PartialSchema for MatchReason {
             .required("data")
             .build();
 
-        // Variant 2: { type: "container", data: [string, MatchReason[]] }
-        // Note: JSON Schema doesn't perfectly represent Rust tuples, so we use an array
+        // Variant 2: { type: "container", data: [string, MatchReason[]] }, as a two-item tuple
+        let container_data = ArrayBuilder::new()
+            .prefix_items([
+                Schema::Object(
+                    ObjectBuilder::new()
+                        .schema_type(SchemaType::new(Type::String))
+                        .description(Some("The rule that grouped these reasons."))
+                        .build(),
+                ),
+                Schema::Array(
+                    ArrayBuilder::new()
+                        .items(RefOr::Ref(Ref::from_schema_name("MatchReason")))
+                        .description(Some("The reasons it grouped."))
+                        .build(),
+                ),
+            ])
+            .items(ArrayItems::False)
+            .min_items(Some(2))
+            .max_items(Some(2))
+            .description(Some("Tuple of [name: string, children: MatchReason[]]"));
         let container_variant = ObjectBuilder::new()
             .title(Some("Container"))
             .property(
@@ -103,11 +121,7 @@ impl utoipa::PartialSchema for MatchReason {
                     .enum_values(Some(vec!["container"])),
             )
             .required("type")
-            .property(
-                "data",
-                ArrayBuilder::new()
-                    .description(Some("Tuple of [name: string, children: MatchReason[]]")),
-            )
+            .property("data", container_data)
             .required("data")
             .build();
 
@@ -220,6 +234,8 @@ pub enum ClientProbe {
     Rtsp,
     /// A NUT server answered its text protocol rather than an error of another shape.
     Nut,
+    /// An EPICS Channel Access server answered a `CA_PROTO_VERSION` header with its own.
+    EpicsCa,
     /// A Zabbix agent answered a passive check with its `ZBXD` header.
     ZabbixAgent,
     /// A Check_MK agent dumped its section list, which opens `<<<check_mk>>>`.
@@ -317,6 +333,7 @@ impl ClientProbe {
             | Self::Telnet
             | Self::Rtsp
             | Self::Nut
+            | Self::EpicsCa
             | Self::ZabbixAgent
             | Self::CheckMkAgent
             | Self::Smb
@@ -372,6 +389,8 @@ impl UnifiDeviceType {
     pub const SWITCH: &'static str = "usw";
     pub const GATEWAY: &'static str = "ugw";
     pub const DREAM_MACHINE: &'static str = "udm";
+    /// The Next-Gen Gateway line (UXG-Lite, UXG-Pro, UXG-Max). unpoller: `UXG.Type`.
+    pub const NEXT_GEN_GATEWAY: &'static str = "uxg";
 }
 
 /// Instant On's inventory `deviceType` values — the four members of the portal's own
@@ -671,6 +690,15 @@ pub fn probe_pattern(probe: &dyn crate::daemon::utils::app_probe::AppProbe) -> P
         ]),
         None => Pattern::Port(probe.port()),
     }
+}
+
+/// Whether an address can be a gateway at all: a router another host reaches. A loopback, unspecified
+/// or multicast address never is. macOS lists `127.0.0.1` as the gateway of its loopback routes, and
+/// `127.0.0.1` also ends in .1, so without this the daemon's own host matched the Gateway service
+/// by both of [`Pattern::IsGateway`]'s rules. An IPv6 link-local gateway (`fe80::1`) is a real
+/// router and passes.
+pub fn is_router_gateway(ip: &IpAddr) -> bool {
+    !ip.is_loopback() && !ip.is_unspecified() && !ip.is_multicast()
 }
 
 impl Pattern<'_> {
@@ -1069,6 +1097,11 @@ impl Pattern<'_> {
             }
 
             Pattern::IsGateway => {
+                if !is_router_gateway(&ip_address.base.ip_address) {
+                    return Err(anyhow!(
+                        "A loopback, unspecified or multicast address is never a gateway"
+                    ));
+                }
                 let gateway_ips_in_subnet: Vec<_> = gateway_ips
                     .iter()
                     .filter(|g| subnet.base.cidr.contains(g))
@@ -1126,7 +1159,7 @@ impl Pattern<'_> {
             }
 
             Pattern::SubnetIsType(subnet_type) => {
-                if &subnet.base.subnet_type == subnet_type {
+                if &subnet.base.subnet_type() == subnet_type {
                     Ok(MatchResult {
                         ports: vec![],
                         endpoint: None,

@@ -54,7 +54,10 @@ pub fn is_available() -> bool {
     }
 }
 
-/// Whether an interface can carry a DCP sweep at all: up, not loopback, has a MAC to send from.
+/// Whether an interface can carry a DCP sweep at all: up, not loopback, has a MAC to send from,
+/// and holds an IPv4 address, as every interface the scan builds its subnets from does. The last
+/// leaves out the interfaces with no network of their own (macOS `awdl0`, `llw0`, `anpi*`,
+/// bridge members, VM `vmenet*`), whose kernel refuses the frame with ENXIO on every run.
 /// Same capability shape ARP's own probe checks, and the same Windows caveat (pnet hardcodes
 /// `flags=0` there, so `is_up()` is not trustworthy and the real test is a trial channel open).
 pub fn is_dcp_capable(iface: &NetworkInterface) -> bool {
@@ -63,13 +66,17 @@ pub fn is_dcp_capable(iface: &NetworkInterface) -> bool {
     #[cfg(not(target_family = "windows"))]
     let up_check = iface.is_up();
 
-    up_check && !iface.is_loopback() && iface.mac.is_some()
+    up_check
+        && !iface.is_loopback()
+        && iface.mac.is_some()
+        && iface.ips.iter().any(|ip| ip.is_ipv4())
 }
 
 /// Sweep one interface: send one Identify Request, collect responses for [`LISTEN_WINDOW`],
 /// deduped by responder MAC (a device that answers more than once — retransmission, or multiple
 /// NICs sharing a segment view — is reported once).
 pub fn scan_interface(interface: &NetworkInterface) -> anyhow::Result<Vec<DcpIdentifyResponse>> {
+    let _span = tracing::info_span!("dcp", interface = %interface.name).entered();
     let source_mac = interface
         .mac
         .ok_or_else(|| anyhow::anyhow!("interface {} has no MAC address", interface.name))?;

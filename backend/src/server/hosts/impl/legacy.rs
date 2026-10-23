@@ -415,6 +415,7 @@ impl LegacyHostWithServicesRequest {
             interface_data_complete: Default::default(),
             // The whole point of this type: only a daemon old enough to predate the current
             // `POST /hosts/discovery` body ever produces one.
+            port_coverage: Default::default(),
             superseded_wire_shape: true,
         }
     }

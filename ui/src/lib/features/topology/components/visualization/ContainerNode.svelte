@@ -10,11 +10,7 @@
 	// import { NodeResizeControl } from '@xyflow/svelte';
 	import { createColorHelper } from '$lib/shared/utils/styling';
 	import type { Color, ColorStyle } from '$lib/shared/utils/styling';
-	import {
-		serviceCategories,
-		serviceDefinitions,
-		containerTypes
-	} from '$lib/shared/stores/metadata';
+	import { serviceCategories, containerTypes } from '$lib/shared/stores/metadata';
 	import { findInfraRuleId, getInfrastructureRuleIdForTopology } from '../../queries';
 	import { formatElementSummary, tallyContainerElements, tallyDirectElements } from '../../labels';
 	import {
@@ -27,6 +23,9 @@
 	import { useTopology, selectedTopologyId } from '../../context';
 	import type { RenderableTopology, TopologyNode } from '../../types/base';
 	import { containerEntity, resolveContainerNode } from '../../resolvers';
+	import { entityGlyph } from '../../entity-glyph';
+	import { entityTooltip } from '../../element-render-data';
+	import type { TooltipContent } from '$lib/shared/actions/tooltip';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { getFreshnessTag } from '$lib/shared/utils/freshness';
 	import { entities } from '$lib/shared/stores/metadata';
@@ -185,6 +184,21 @@
 	// Title text: from node header (set by backend graph builder)
 	let headerText = $derived((data as TopologyNode).header ?? '');
 
+	// Hover text for the header: the entity the container stands for, through the same tooltip
+	// its card would show; a grouping container with no entity names itself and what it holds.
+	let headerTooltip: TooltipContent | null = $derived.by(() => {
+		if (topology && containerSubject) {
+			return entityTooltip(containerSubject.entityType, containerSubject.entity, {
+				topology,
+				view: $activeView,
+				sites: sitesQuery.data ?? [],
+				name: headerText || undefined
+			});
+		}
+		if (!headerText) return null;
+		return { title: headerText, sections: childSummary ? [{ text: childSummary }] : [] };
+	});
+
 	/**
 	 * What this container draws — see `nodeDetail`.
 	 *
@@ -220,9 +234,14 @@
 	let serviceDefId = $derived(
 		(data as Record<string, unknown>)?.associated_service_definition as string | undefined
 	);
-	let logoComponent: IconComponent | null = $derived(
-		serviceDefId ? serviceDefinitions.getIconComponent(serviceDefId) : null
+	// A container standing for a device (a host) draws its device-type tile in place of its icon. The rule is
+	// the entity type's `glyph` metadata, the same one element cards follow.
+	let containerGlyph = $derived(
+		topology && containerSubject
+			? entityGlyph(containerSubject.entityType, containerSubject.entity, topology)
+			: null
 	);
+	let deviceType = $derived(containerGlyph?.type === 'device' ? containerGlyph.deviceType : null);
 	let colorHelper: ColorStyle = $derived(
 		nodeColor
 			? createColorHelper(nodeColor as Parameters<typeof createColorHelper>[0])
@@ -257,7 +276,7 @@
 			label: tag?.name ?? tagId,
 			color: (tag?.color as Color) ?? 'Gray',
 			title:
-				tagTooltip(tag, queryClient.getQueryData<TagGroup[]>(queryKeys.tagGroups.all) ?? []) ||
+				tagTooltip(tag, queryClient.getQueryData<TagGroup[]>(queryKeys.tagGroups.all) ?? []) ??
 				undefined
 		};
 	}
@@ -348,9 +367,6 @@
 					: null;
 				const groupServiceDef = (groupNode as Record<string, unknown>)
 					?.associated_service_definition as string | undefined;
-				const groupLogoComponent = groupServiceDef
-					? serviceDefinitions.getIconComponent(groupServiceDef)
-					: null;
 
 				const labels: GroupPill[] = (() => {
 					if (!rule) return [];
@@ -374,7 +390,7 @@
 					? formatElementSummary(tallyContainerElements(summary.groupId, topology), $activeView)
 					: '';
 				return {
-					logoComponent: groupLogoComponent,
+					logoDefinition: groupServiceDef ?? null,
 					headerText: sHeader,
 					labels: isInfra ? [] : labels,
 					childCount: summary.childCount,
@@ -460,12 +476,14 @@
 			{isCollapsible}
 			{headerText}
 			{iconComponent}
-			{logoComponent}
+			logoDefinition={serviceDefId ?? null}
+			{deviceType}
 			{fillIcon}
 			{colorHelper}
 			{groupLabels}
 			{childCount}
 			{childSummary}
+			tooltip={headerTooltip}
 			{staleTag}
 			onToggleCollapse={handleChevronClick}
 		/>
@@ -479,12 +497,14 @@
 			{isCollapsible}
 			{headerText}
 			{iconComponent}
-			{logoComponent}
+			logoDefinition={serviceDefId ?? null}
+			{deviceType}
 			{fillIcon}
 			{colorHelper}
 			{groupLabels}
 			{childCount}
 			{childSummary}
+			tooltip={headerTooltip}
 			{staleTag}
 			onToggleCollapse={handleChevronClick}
 		/>
@@ -517,12 +537,14 @@
 				{isCollapsible}
 				{headerText}
 				{iconComponent}
-				{logoComponent}
+				logoDefinition={serviceDefId ?? null}
+				{deviceType}
 				{fillIcon}
 				{colorHelper}
 				{groupLabels}
 				{childCount}
 				{childSummary}
+				tooltip={headerTooltip}
 				countOnly={isInfraRule}
 				onToggleCollapse={handleChevronClick}
 				{searchMatchCount}
@@ -535,12 +557,14 @@
 				{isCollapsible}
 				{headerText}
 				{iconComponent}
-				{logoComponent}
+				logoDefinition={serviceDefId ?? null}
+				{deviceType}
 				{fillIcon}
 				{colorHelper}
 				{groupLabels}
 				{childCount}
 				{childSummary}
+				tooltip={headerTooltip}
 				{ungroupedSummary}
 				onToggleCollapse={handleChevronClick}
 				subgroupSummaries={resolvedSubgroups}

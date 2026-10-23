@@ -76,7 +76,7 @@ pub fn create_router(state: Arc<DaemonAppState>, mode: DaemonMode) -> Router<Arc
 }
 
 async fn get_health() -> ApiResult<Json<ApiResponse<String>>> {
-    tracing::info!("Received healthcheck request");
+    tracing::debug!("Received healthcheck request");
 
     Ok(Json(ApiResponse::success(
         "Scanopy Daemon Running".to_string(),
@@ -186,11 +186,9 @@ async fn handle_first_contact(
         "  Server version:  {}",
         request.server_capabilities.server_version
     );
-    tracing::info!(
-        target: LOG_TARGET,
-        "  Min daemon ver:  {}",
-        request.server_capabilities.minimum_daemon_version
-    );
+    if let Some(v) = &request.server_capabilities.last_unsupported_daemon_version {
+        tracing::info!(target: LOG_TARGET, "  Rejects daemons up to: {}", v);
+    }
 
     // Log deprecation warnings
     request.server_capabilities.log_warnings();
@@ -271,6 +269,11 @@ async fn receive_created_entities(
         buffer.mark_host_created(pending_id, actual_host).await;
     }
 
+    let vlan_batch_count = payload.vlans.len();
+    for (pending_id, response) in payload.vlans {
+        buffer.mark_vlan_batch_created(pending_id, response).await;
+    }
+
     // Note: We intentionally do NOT call clear_created() here.
     // The await_*() methods poll for Created entries, and if we clear immediately,
     // there's a race condition where the entry is removed before the polling loop
@@ -280,6 +283,7 @@ async fn receive_created_entities(
     tracing::info!(
         subnets = subnet_count,
         hosts = host_count,
+        vlan_batches = vlan_batch_count,
         "Received and processed created entities confirmation from server"
     );
 

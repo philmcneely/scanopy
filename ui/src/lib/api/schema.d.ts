@@ -956,6 +956,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/daemon/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Daemon API Key field
+         * @description Every distinct value of one Daemon API Key field across the Daemon API Keys the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_daemon_api_key_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/daemon/{id}": {
         parameters: {
             query?: never;
@@ -1042,6 +1062,26 @@ export interface paths {
          * @description Export all User API Keys matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_user_api_keys_csv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/keys/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a User API Key field
+         * @description Every distinct value of one User API Key field across the User API Keys the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_user_api_key_field_values"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1329,6 +1369,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/daemons/bulk-retry-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry connection to unreachable daemons
+         * @description Resets the is_unreachable flag on each daemon, as `POST /{id}/retry-connection` does for one.
+         *     The poller contacts each again on its next cycle; one that is still down is marked
+         *     unreachable again, and its unreachable notification is sent again. The request is refused,
+         *     and nothing changes, if any daemon isn't a ServerPoll daemon.
+         */
+        post: operations["bulk_retry_daemon_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/daemons/email-install-command": {
         parameters: {
             query?: never;
@@ -1367,6 +1430,26 @@ export interface paths {
          * @description Export all Daemons matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_daemons_csv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daemons/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Daemon field
+         * @description Every distinct value of one Daemon field across the Daemons the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_daemon_field_values"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1688,6 +1771,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/discovery/bulk-cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Discovery Sessions
+         * @description Cancels the running session of each discovery, given discovery IDs. Sessions still queued
+         *     are cancelled before running ones, so cancelling a running session never starts a queued one
+         *     that is also being cancelled. The request is refused, and nothing is cancelled, if any
+         *     discovery isn't running or its session is just starting on its daemon.
+         */
+        post: operations["bulk_cancel_sessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/discovery/bulk-delete": {
         parameters: {
             query?: never;
@@ -1699,6 +1805,51 @@ export interface paths {
         put?: never;
         /** Bulk delete discoveries */
         post: operations["bulk_delete_discoveries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/discovery/bulk-set-enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn Discovery Schedules On or Off
+         * @description Turns the schedule of each scheduled discovery on or off, and changes nothing else about
+         *     them. The request is refused, and nothing changes, if any discovery has no schedule or is
+         *     running.
+         */
+        post: operations["bulk_set_enabled"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/discovery/bulk-start-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Discovery Sessions
+         * @description Starts a session for each discovery, as `POST /start-session` does for one. Sessions start
+         *     in turn: on a daemon running several, the first is dispatched and the rest queue behind it.
+         *     The request is refused, and nothing starts, if any discovery is a past run, a rescan, or
+         *     already running.
+         */
+        post: operations["bulk_start_sessions"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1869,6 +2020,32 @@ export interface paths {
          *     an array of host IDs to delete. Fails if any host has an associated daemon.
          */
         post: operations["bulk_delete_hosts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hosts/bulk-rescan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rescan hosts
+         * @description Rescans several hosts at once. Hosts last found by the same daemon share one
+         *     rescan, which scans all of their addresses in one session; hosts found by
+         *     different daemons get one rescan per daemon. Every host is checked as in
+         *     `POST /{id}/rescan` before any rescan starts, and the request is refused if
+         *     any of them can't be rescanned.
+         *
+         *     Returns one session per daemon.
+         */
+        post: operations["bulk_rescan_hosts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2048,14 +2225,17 @@ export interface paths {
          *     "is this host still there, and is its data current?" without sweeping the
          *     whole subnet.
          *
-         *     The scan runs on the daemon that last discovered this host — evidence it can
-         *     reach the address — and only if that daemon still has an interface on a
-         *     subnet containing one of the host's scannable IPs. Where that interface has a
-         *     MAC the daemon ARPs the target, which sees a live host even when every port
-         *     is firewalled; on a MAC-less interface (a point-to-point tunnel) it falls
-         *     back to a TCP probe. When no interface covers any of the host's addresses the
-         *     request is refused with the specific reason. A loopback address is not a
-         *     scannable IP — it is reached locally and is excluded from the target set.
+         *     The scan runs on the daemon that last discovered this host, which is evidence
+         *     it can reach the address. Where the daemon has an interface with a MAC on the
+         *     address's subnet it ARPs the target, which sees a live host even when every
+         *     port is firewalled. Every other address, on a MAC-less interface (a
+         *     point-to-point tunnel) or on a subnet the daemon reaches through a router, is
+         *     probed by TCP. An address that doesn't answer comes back as not found. A
+         *     loopback address is reached locally and is excluded from the target set.
+         *
+         *     Daemons at or below `last_without_routed_rescan` only rescan addresses on
+         *     subnets they have an interface on, and the request is refused when the host
+         *     has none.
          *
          *     Returns the session, which streams progress over `/api/v1/discovery/stream`
          *     like any other scan. A `Queued` phase means the daemon is busy; it will start
@@ -2179,6 +2359,27 @@ export interface paths {
         put?: never;
         /** Create invite */
         post: operations["create_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/bulk-revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke invites
+         * @description Revokes each invite, as `DELETE /{id}/revoke` does for one. The request is refused, and
+         *     nothing is revoked, if any invite is invalid or one the caller can't revoke.
+         */
+        post: operations["bulk_revoke_invites"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3035,6 +3236,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sites/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Site field
+         * @description Every distinct value of one Site field across the Sites the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_site_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sites/{id}": {
         parameters: {
             query?: never;
@@ -3149,6 +3370,26 @@ export interface paths {
          * @description Export all Subnets matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_subnets_csv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subnets/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Subnet field
+         * @description Every distinct value of one Subnet field across the Subnets the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_subnet_field_values"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3432,6 +3673,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tags/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Tag field
+         * @description Every distinct value of one Tag field across the Tags the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_tag_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags/{id}": {
         parameters: {
             query?: never;
@@ -3620,6 +3881,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List members
+         * @description The organization's users and its pending invites in one list, each limited to the ones the
+         *     caller may see: every user and invite for an owner, otherwise the caller themselves, members
+         *     below their role, and invites they created.
+         */
+        get: operations["list_members"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{id}": {
         parameters: {
             query?: never;
@@ -3738,6 +4021,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vlans/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the values of a Vlan field
+         * @description Every distinct value of one Vlan field across the Vlans the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_vlan_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vlans/{id}": {
         parameters: {
             query?: never;
@@ -3797,7 +4100,7 @@ export interface components {
          * @description API metadata included in all responses
          * @example {
          *       "api_version": 1,
-         *       "server_version": "0.18.1"
+         *       "server_version": "0.19.0"
          *     }
          */
         ApiMeta: {
@@ -3808,7 +4111,7 @@ export interface components {
             api_version: number;
             /**
              * @description Server version (semver)
-             * @example 0.18.1
+             * @example 0.19.0
              */
             server_version: string;
         };
@@ -3818,7 +4121,7 @@ export interface components {
          */
         ApiResponse: {
             /** @description The result payload. Omitted on failure. */
-            data?: null | components["schemas"]["TupleUnit"];
+            data?: components["schemas"]["TupleUnit"] | null;
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
              *     `ApiErrorResponse`.
@@ -3837,19 +4140,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-14T14:23:07.262626Z",
+             *       "created_at": "2026-10-22T23:24:30.832627Z",
              *       "first_discovery_id": null,
-             *       "id": "20c86e0f-7cc3-4e35-93c2-aa7d5c71a07f",
+             *       "id": "fc6c2dca-1633-473a-bfca-7132fb921d9b",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-14T14:23:07.262626Z",
+             *       "last_seen_at": "2026-10-22T23:24:30.832627Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-14T14:23:07.262626Z",
-             *       "valid_from": "2026-10-14T14:23:07.262626Z",
+             *       "updated_at": "2026-10-22T23:24:30.832627Z",
+             *       "valid_from": "2026-10-22T23:24:30.832627Z",
              *       "valid_to": null
              *     }
              */
@@ -4179,7 +4482,7 @@ export interface components {
                  * @description The host this entity belongs to.
                  */
                 host_id: string;
-                server_capabilities?: null | components["schemas"]["ServerCapabilities"];
+                server_capabilities?: components["schemas"]["ServerCapabilities"] | null;
             };
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
@@ -4203,6 +4506,8 @@ export interface components {
                  * @description When this record was first created.
                  */
                 created_at: string;
+                /** @description The one status the daemon's chip shows, the most severe that applies. */
+                health: components["schemas"]["DaemonHealth"];
                 /**
                  * Format: uuid
                  * @description Server-assigned unique identifier.
@@ -4499,8 +4804,8 @@ export interface components {
                  * @description Completion of the current phase, from 0 to 1.
                  */
                 progress: number;
-                reason?: null | components["schemas"]["DiscoveryTerminalReason"];
-                scanned?: null | components["schemas"]["ScannedEntityIds"];
+                reason?: components["schemas"]["DiscoveryTerminalReason"] | null;
+                scanned?: components["schemas"]["ScannedEntityIds"] | null;
                 /**
                  * Format: uuid
                  * @description The discovery run this update belongs to.
@@ -4549,7 +4854,7 @@ export interface components {
                  *     with `org_id` and `plan` set from the organization's current state.
                  */
                 entitlement: string;
-                instances?: null | components["schemas"]["InstanceUsage"];
+                instances?: components["schemas"]["InstanceUsage"] | null;
             };
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
@@ -4598,6 +4903,7 @@ export interface components {
              *       "created_at": "2026-01-15T10:30:00Z",
              *       "credential_assignments": [],
              *       "description": "Primary web server",
+             *       "device_type": "Server",
              *       "display_name": "web-server-01",
              *       "display_name_rung": "Name",
              *       "firmware_revision": null,
@@ -4722,19 +5028,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-14T14:23:07.222936Z",
+             *               "created_at": "2026-10-22T23:24:30.797940Z",
              *               "first_discovery_id": null,
-             *               "id": "632537ab-dd34-47e5-a6a5-ab828df84b0e",
+             *               "id": "1eb91317-7aa9-4574-9e4b-588aaf5d3fdf",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-14T14:23:07.222936Z",
+             *               "last_seen_at": "2026-10-22T23:24:30.797940Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-14T14:23:07.222936Z",
-             *               "valid_from": "2026-10-14T14:23:07.222936Z",
+             *               "updated_at": "2026-10-22T23:24:30.797940Z",
+             *               "valid_from": "2026-10-22T23:24:30.797940Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -4747,7 +5053,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Vaultwarden",
+             *           "service_definition": "Consul",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -4788,11 +5094,11 @@ export interface components {
                  */
                 readonly asset_tag?: string | null;
                 /** @description What produced the asset tag. Read-only. */
-                asset_tag_source?: components["schemas"]["AttributeSource"];
+                readonly asset_tag_source?: components["schemas"]["AttributeSource"];
                 /** @description LLDP chassis identifier, used to match the host to its neighbours. */
                 chassis_id?: string | null;
                 /** @description What produced the LLDP chassis identifier. Read-only: decided by whichever source read it. */
-                chassis_id_source?: components["schemas"]["AttributeSource"];
+                readonly chassis_id_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: date-time
                  * @description When this record was first created.
@@ -4802,6 +5108,12 @@ export interface components {
                 credential_assignments?: components["schemas"]["CredentialAssignment"][];
                 /** @description Free-text notes about the host. */
                 description?: string | null;
+                /**
+                 * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
+                 *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
+                 *     Read-only.
+                 */
+                readonly device_type?: components["schemas"]["DeviceType"];
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -4813,11 +5125,11 @@ export interface components {
                  *     list and another on the map.
                  */
                 readonly display_name?: string | null;
-                display_name_rung?: null | components["schemas"]["HostNameRung"];
+                readonly display_name_rung?: components["schemas"]["HostNameRung"] | null;
                 /** @description ENTITY-MIB entPhysicalFirmwareRev — firmware revision of the device. Read-only, as above. */
                 readonly firmware_revision: string | null;
                 /** @description What produced the firmware revision. Read-only: decided by whichever source read it. */
-                firmware_revision_source?: components["schemas"]["AttributeSource"];
+                readonly firmware_revision_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: uuid
                  * @description The discovery run that first observed this host. Drives the "First found by" column.
@@ -4834,7 +5146,7 @@ export interface components {
                  * @description What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.
                  *     Read-only: decided by whichever source read it.
                  */
-                hostname_source?: components["schemas"]["AttributeSource"];
+                readonly hostname_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: uuid
                  * @description Server-assigned unique identifier.
@@ -4859,15 +5171,15 @@ export interface components {
                 /** @description Link to the host's own management interface. */
                 management_url?: string | null;
                 /** @description What produced the management URL. Read-only: decided by whichever source read it. */
-                management_url_source?: components["schemas"]["AttributeSource"];
+                readonly management_url_source?: components["schemas"]["AttributeSource"];
                 /** @description ENTITY-MIB entPhysicalMfgName — hardware manufacturer. Read-only, as above. */
                 readonly manufacturer?: string | null;
                 /** @description What produced the manufacturer. Read-only: decided by whichever source read it. */
-                manufacturer_source?: components["schemas"]["AttributeSource"];
+                readonly manufacturer_source?: components["schemas"]["AttributeSource"];
                 /** @description ENTITY-MIB entPhysicalModelName — hardware model. Read-only, as above. */
                 readonly model?: string | null;
                 /** @description What produced the model. Read-only: decided by whichever source read it. */
-                model_source?: components["schemas"]["AttributeSource"];
+                readonly model_source?: components["schemas"]["AttributeSource"];
                 /** @description Human-facing name for the host. */
                 name: string;
                 /** @description Every rung of the display-name ladder for this host, highest first, with what each holds. */
@@ -4876,19 +5188,19 @@ export interface components {
                  * @description What produced `name`. Read-only: it is decided by whoever supplied the name, not by the
                  *     caller.
                  */
-                name_source?: components["schemas"]["AttributeSource"];
-                os: null | components["schemas"]["HostOs"];
+                readonly name_source?: components["schemas"]["AttributeSource"];
+                readonly os: components["schemas"]["HostOs"] | null;
                 /**
                  * @description What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS
                  *     in a string the host emitted rather than reading it off the host.
                  */
-                os_source?: components["schemas"]["AttributeSource"];
+                readonly os_source?: components["schemas"]["AttributeSource"];
                 /** @description Open ports on this host. */
                 ports: components["schemas"]["Port"][];
                 /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
                 readonly serial_number?: string | null;
                 /** @description What produced the serial number. Read-only: decided by whichever source read it. */
-                serial_number_source?: components["schemas"]["AttributeSource"];
+                readonly serial_number_source?: components["schemas"]["AttributeSource"];
                 /** @description Services running on this host. */
                 services: components["schemas"]["Service"][];
                 /**
@@ -4899,32 +5211,32 @@ export interface components {
                 /** @description ENTITY-MIB entPhysicalSoftwareRev — software revision of the device. Read-only, as above. */
                 readonly software_revision: string | null;
                 /** @description What produced the software revision. Read-only: decided by whichever source read it. */
-                software_revision_source?: components["schemas"]["AttributeSource"];
+                readonly software_revision_source?: components["schemas"]["AttributeSource"];
                 /** @description How this host came to be known — discovered, imported, or created by hand. */
                 source: components["schemas"]["EntitySource"];
                 /** @description SNMP sysContact — administrative contact as configured on the device. */
                 sys_contact?: string | null;
                 /** @description What produced SNMP sysContact. Read-only: decided by whichever source read it. */
-                sys_contact_source?: components["schemas"]["AttributeSource"];
+                readonly sys_contact_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysDescr — the device's own description of itself. */
                 sys_descr?: string | null;
                 /** @description What produced SNMP sysDescr. Read-only: decided by whichever source read it. */
-                sys_descr_source?: components["schemas"]["AttributeSource"];
+                readonly sys_descr_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysLocation — physical location as configured on the device. */
                 sys_location?: string | null;
                 /** @description What produced SNMP sysLocation. Read-only: decided by whichever source read it. */
-                sys_location_source?: components["schemas"]["AttributeSource"];
+                readonly sys_location_source?: components["schemas"]["AttributeSource"];
                 /**
                  * @description SNMP sysName.0 — the administratively-assigned hostname. Read-only: discovery collects it
                  *     from the device, so neither create nor update accepts it.
                  */
                 readonly sys_name?: string | null;
                 /** @description What produced SNMP sysName. Read-only: decided by whichever source read it. */
-                sys_name_source?: components["schemas"]["AttributeSource"];
+                readonly sys_name_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysObjectID — the vendor's identifier for the device model. */
                 sys_object_id?: string | null;
                 /** @description What produced SNMP sysObjectID. Read-only: decided by whichever source read it. */
-                sys_object_id_source?: components["schemas"]["AttributeSource"];
+                readonly sys_object_id_source?: components["schemas"]["AttributeSource"];
                 /** @description Tags assigned to this entity. */
                 tags: string[];
                 /**
@@ -4942,7 +5254,7 @@ export interface components {
                  * @description The interface on the virtualizing host that presents this host, for a network identity.
                  */
                 virtualization_interface_id?: string | null;
-                virtualization_metadata?: null | components["schemas"]["HostVirtualization"];
+                virtualization_metadata?: components["schemas"]["HostVirtualization"] | null;
                 /**
                  * Format: uuid
                  * @description The host this one runs under: the host of its virtualizing service.
@@ -5231,11 +5543,11 @@ export interface components {
             data?: {
                 /** @description The subscription is billed by sent invoice. */
                 bills_by_invoice: boolean;
-                open_invoice?: null | components["schemas"]["InvoiceSummary"];
-                pending_quote?: null | components["schemas"]["PendingQuote"];
+                open_invoice?: components["schemas"]["InvoiceSummary"] | null;
+                pending_quote?: components["schemas"]["PendingQuote"] | null;
                 /** @description Purchase order number printed on invoices. */
                 po_number?: string | null;
-                written_off_invoice?: null | components["schemas"]["InvoiceSummary"];
+                written_off_invoice?: components["schemas"]["InvoiceSummary"] | null;
             };
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
@@ -5303,7 +5615,7 @@ export interface components {
             data?: {
                 /** @description Organization name from pending setup */
                 org_name?: string | null;
-                site?: null | components["schemas"]["OnboardingSiteState"];
+                site?: components["schemas"]["OnboardingSiteState"] | null;
                 /**
                  * Format: uuid
                  * @description Site ID from pending setup (if any)
@@ -5311,7 +5623,7 @@ export interface components {
                 site_id?: string | null;
                 /** @description Current onboarding step (if any) */
                 step?: string | null;
-                use_case?: null | components["schemas"]["UseCase"];
+                use_case?: components["schemas"]["UseCase"] | null;
             };
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
@@ -5536,9 +5848,7 @@ export interface components {
         ApiResponse_PublicConfigResponse: {
             /** @description The result payload. Omitted on failure. */
             data?: {
-                available_upgrade?: null | components["schemas"]["AvailableUpgrade"];
-                /** @description Whether this deployment has billing configured. */
-                billing_enabled: boolean;
+                available_upgrade?: components["schemas"]["AvailableUpgrade"] | null;
                 /** @description How this instance is run: cloud, commercial self-hosted, or community. */
                 deployment_type: components["schemas"]["DeploymentType"];
                 /** @description Whether email/password login is turned off, leaving OIDC as the only method. */
@@ -5572,7 +5882,7 @@ export interface components {
                  *     the hard `exp` — the silent grace window.
                  */
                 license_in_grace_period: boolean;
-                license_instances?: null | components["schemas"]["InstanceUsage"];
+                license_instances?: components["schemas"]["InstanceUsage"] | null;
                 /**
                  * Format: date
                  * @description User-visible expiry — the date displayed to end users under
@@ -5592,7 +5902,7 @@ export interface components {
                  * @description Further days past the user-visible expiry before a key stops working.
                  */
                 license_key_grace_days: number;
-                license_key_type?: null | components["schemas"]["LicenseKeyType"];
+                license_key_type?: components["schemas"]["LicenseKeyType"] | null;
                 /**
                  * @description Whether this deployment can sign license keys. False on any server
                  *     without a signing key, where the Settings License tab and the
@@ -5601,7 +5911,7 @@ export interface components {
                  *     key can be present but unparseable.
                  */
                 license_signing_available: boolean;
-                license_status?: null | components["schemas"]["LicenseStatusDiscriminants"];
+                license_status?: components["schemas"]["LicenseStatusDiscriminants"] | null;
                 /**
                  * Format: date-time
                  * @description End of the paid period, shown as "Valid through" and in the expiry
@@ -5709,8 +6019,16 @@ export interface components {
             data?: {
                 /** @description Deprecation warnings for the daemon */
                 deprecation_warnings?: components["schemas"]["DeprecationWarning"][];
-                /** @description Minimum daemon version supported by this server */
-                minimum_daemon_version: string;
+                /**
+                 * @description Daemons at or below this version are rejected by this server. `None` from a server too old
+                 *     to send it.
+                 */
+                last_unsupported_daemon_version?: string | null;
+                /**
+                 * @description Deprecated: always 0.12.0. Daemons up to 0.18.2 require this field and only log it. Read
+                 *     `last_unsupported_daemon_version` instead.
+                 */
+                minimum_daemon_version?: string | null;
                 /** @description Server software version */
                 server_version: string;
             };
@@ -5734,19 +6052,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-14T14:23:07.251393Z",
+             *           "created_at": "2026-10-22T23:24:30.827090Z",
              *           "first_discovery_id": null,
-             *           "id": "87fb78a3-12c3-4815-9175-88f2d72f1956",
+             *           "id": "c87c9317-ad74-4576-ba13-b477778df3a4",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-14T14:23:07.251393Z",
+             *           "last_seen_at": "2026-10-22T23:24:30.827090Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-14T14:23:07.251393Z",
-             *           "valid_from": "2026-10-14T14:23:07.251393Z",
+             *           "updated_at": "2026-10-22T23:24:30.827090Z",
+             *           "valid_from": "2026-10-22T23:24:30.827090Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -5759,7 +6077,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Vaultwarden",
+             *       "service_definition": "Consul",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -6095,16 +6413,19 @@ export interface components {
              *       "last_seen_at": "2026-01-15T10:30:00Z",
              *       "lineage_id": null,
              *       "name": "LAN",
+             *       "name_source": "Unspecified",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
              *       },
              *       "subnet_type": "Lan",
+             *       "subnet_type_source": "Unspecified",
              *       "tags": [],
              *       "updated_at": "2026-01-15T10:30:00Z",
              *       "valid_from": "2026-01-15T10:30:00Z",
              *       "valid_to": null,
-             *       "virtualization_service_id": null
+             *       "virtualization_service_id": null,
+             *       "vlan_ids": []
              *     }
              */
             data?: components["schemas"]["SubnetBase"] & {
@@ -6172,12 +6493,23 @@ export interface components {
             /** @description A subnet together with what is derived from the rest of its site. */
             data?: components["schemas"]["Subnet"] & {
                 /**
+                 * Format: int32
+                 * @description How many ranges this one sits inside: 0 for a range nested in nothing.
+                 */
+                readonly nesting_depth: number;
+                /**
+                 * Format: uuid
+                 * @description The outermost range of the tree this one sits in: itself when it holds others and sits in
+                 *     none. `null` for a range that nests with nothing.
+                 */
+                readonly nesting_root_id: string | null;
+                /**
                  * Format: uuid
                  * @description The most specific other subnet on the same site whose range contains this one. `null` when
                  *     none does. Children are the subnets whose parent is this one.
                  */
                 readonly parent_subnet_id?: string | null;
-                range_evidence: null | components["schemas"]["RangeEvidence"];
+                readonly range_evidence: components["schemas"]["RangeEvidence"] | null;
                 /**
                  * Format: int64
                  * @description Addresses a host can hold in this range. Saturates for IPv6 ranges wider than a `/64`.
@@ -6713,6 +7045,64 @@ export interface components {
          * @description Envelope for a successful response. Failures are sent with a non-2xx status
          *     and an `ApiErrorResponse` body instead.
          */
+        ApiResponse_Vec_Discovery: {
+            /** @description The result payload. Omitted on failure. */
+            data?: (components["schemas"]["DiscoveryBase"] & {
+                /**
+                 * Format: date-time
+                 * @description When this record was first created.
+                 */
+                readonly created_at: string;
+                /** @description When true, the next scan will be a full port scan regardless of interval */
+                force_full_scan?: boolean;
+                /**
+                 * Format: uuid
+                 * @description Server-assigned unique identifier.
+                 */
+                readonly id: string;
+                /**
+                 * @description Per-daemon integration targeting: which integrations run on this daemon, and on which
+                 *     IPs. Delivered via the init command at registration and editable via the discovery
+                 *     modal. This is the single home for cred↔IP targeting; it replaces the global
+                 *     `credential.target_ips` (race-prone, consumed once).
+                 *
+                 *     One-shot: a target is offered to the daemon until a scan completes successfully, then
+                 *     dropped by [`Discovery::apply_successful_scan`]. Credentials that earned a durable home
+                 *     during the scan keep being retried from there — `host_credentials` for one that probed
+                 *     successfully, `site_credentials` for a broadcast one (see
+                 *     [`Discovery::take_site_scope_credential_ids`]).
+                 */
+                integration_targets: components["schemas"]["IntegrationTarget"][];
+                /**
+                 * @description Whether the next run of this discovery will be a full scan of all 65,535 ports rather than
+                 *     a light scan of common ports. Computed by the server on read and never stored.
+                 */
+                readonly next_run_is_full_scan?: boolean;
+                /**
+                 * Format: int32
+                 * @description Number of completed scans (incremented by server on session completion)
+                 */
+                readonly scan_count?: number;
+                /**
+                 * Format: date-time
+                 * @description When this record was last modified.
+                 */
+                readonly updated_at: string;
+            })[];
+            /**
+             * @description Not sent on a successful response. Failure messages arrive in an
+             *     `ApiErrorResponse`.
+             */
+            error?: string | null;
+            /** @description API and server version metadata. */
+            meta: components["schemas"]["ApiMeta"];
+            /** @description Always `true` on a successful response. */
+            success: boolean;
+        };
+        /**
+         * @description Envelope for a successful response. Failures are sent with a non-2xx status
+         *     and an `ApiErrorResponse` body instead.
+         */
         ApiResponse_Vec_DiscoveryUpdatePayload: {
             /** @description The result payload. Omitted on failure. */
             data?: {
@@ -6771,8 +7161,8 @@ export interface components {
                  * @description Completion of the current phase, from 0 to 1.
                  */
                 progress: number;
-                reason?: null | components["schemas"]["DiscoveryTerminalReason"];
-                scanned?: null | components["schemas"]["ScannedEntityIds"];
+                reason?: components["schemas"]["DiscoveryTerminalReason"] | null;
+                scanned?: components["schemas"]["ScannedEntityIds"] | null;
                 /**
                  * Format: uuid
                  * @description The discovery run this update belongs to.
@@ -7067,7 +7457,7 @@ export interface components {
          *     that do carry a [`ClientProbe`] keep it under their own name, `{"Probe":"Snmp"}`, which tells them
          *     apart from each other and from every bare name.
          */
-        AttributeSource: "Unspecified" | "OwnAddress" | "ServiceMatch" | "LldpNeighbourAddress" | "CipVendorId" | "SysDescrMatch" | "SysObjectIdMatch" | "LldpSysDescMatch" | "SshBannerMatch" | "HttpServerMatch" | "DnsSdDeviceInfoMatch" | "DnsSdAirPlayMatch" | "DnsSdInstanceName" | "DnsSdHostname" | "LldpChassisId" | "Lldpd" | "ReverseDns" | "ForwardingTable" | "ArpReply" | "IcmpEcho" | "PortScan" | "DaemonSelfReport" | "ProfinetDcp" | "ContainerRuntimeInfo" | "HypervisorConfig" | "GuestAgent" | "SshScript" | {
+        AttributeSource: "Unspecified" | "OwnAddress" | "ServiceMatch" | "LldpNeighbourAddress" | "CipVendorId" | "SysDescrMatch" | "SysObjectIdMatch" | "LldpSysDescMatch" | "SshBannerMatch" | "HttpServerMatch" | "DnsSdDeviceInfoMatch" | "DnsSdAirPlayMatch" | "InterfaceNameMatch" | "DnsSdInstanceName" | "DnsSdHostname" | "LldpChassisId" | "Lldpd" | "ReverseDns" | "ForwardingTable" | "ArpReply" | "IcmpEcho" | "PortScan" | "DaemonSelfReport" | "ProfinetDcp" | "ContainerRuntimeInfo" | "HypervisorConfig" | "GuestAgent" | "SshScript" | {
             /** @description A value the thing emitted about itself, over whatever transport [`ClientProbe`] names. */
             Probe: components["schemas"]["ClientProbe"];
         } | {
@@ -7126,19 +7516,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-14T14:23:07.223743Z",
+         *       "created_at": "2026-10-22T23:24:30.798643Z",
          *       "first_discovery_id": null,
-         *       "id": "217285f9-dc4e-4df2-b110-58abe807ad75",
+         *       "id": "f2f2a59d-eea4-4275-840d-c0c7d18a5bc4",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-14T14:23:07.223743Z",
+         *       "last_seen_at": "2026-10-22T23:24:30.798643Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-14T14:23:07.223743Z",
-         *       "valid_from": "2026-10-14T14:23:07.223743Z",
+         *       "updated_at": "2026-10-22T23:24:30.798643Z",
+         *       "valid_from": "2026-10-22T23:24:30.798643Z",
          *       "valid_to": null
          *     }
          */
@@ -7281,6 +7671,12 @@ export interface components {
             /** @description How many IDs the request asked to delete. */
             requested_count: number;
         };
+        BulkSetEnabledRequest: {
+            /** @description Whether their schedules run. */
+            enabled: boolean;
+            /** @description IDs of the scheduled discoveries. */
+            ids: string[];
+        };
         /** @description Request body for bulk tag operations */
         BulkTagRequest: {
             /** @description The IDs of entities to modify */
@@ -7310,7 +7706,7 @@ export interface components {
             comment?: string | null;
             /** @description Why the customer is cancelling, as picked from the cancel flow. */
             reason_code: components["schemas"]["CancelReason"];
-            save_offer_redeemed?: null | components["schemas"]["SaveOffer"];
+            save_offer_redeemed?: components["schemas"]["SaveOffer"] | null;
             /** @description Whether the retention discount was offered during this flow. */
             save_offer_shown?: components["schemas"]["SaveOffer"][];
         };
@@ -7320,6 +7716,25 @@ export interface components {
              * @description When the current paid period ends and access drops to the free tier.
              */
             period_end: string;
+        };
+        /** @description What a daemon missed of one credential because it is too old for part of it. */
+        CapabilityGap: {
+            /** @enum {string} */
+            type: "ParsesCredentialType";
+        } | {
+            /** @description The credential uses SNMPv3 options the daemon cannot parse, so none of it was sent. */
+            details: components["schemas"]["SnmpV3SecurityOptionsGap"];
+            /** @enum {string} */
+            type: "UsesSnmpV3SecurityOptions";
+        } | {
+            /**
+             * @description The credential targets containers on Docker or Podman bridge networks of the daemon's own
+             *     host, which the daemon does not try credentials at. Those addresses were not sent; the
+             *     rest of the credential was.
+             */
+            details: components["schemas"]["ContainerBridgeGap"];
+            /** @enum {string} */
+            type: "TargetsContainerBridgeWithCredentials";
         };
         ChangePlanPreview: {
             /**
@@ -7384,11 +7799,16 @@ export interface components {
          *     `every_client_probe_variant_has_a_producer` is what now says so.
          * @enum {string}
          */
-        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing";
+        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing";
         /** @enum {string} */
         ClockFormat: "browser_default" | "twelve_hour" | "twenty_four_hour";
         /** @enum {string} */
         Color: "Pink" | "Rose" | "Red" | "Amber" | "Orange" | "Green" | "Emerald" | "Teal" | "Cyan" | "Blue" | "Indigo" | "Purple" | "Fuchsia" | "Violet" | "Sky" | "Gray" | "Lime" | "Yellow";
+        /** @description A credential's addresses on bridge networks of the daemon's own host. */
+        ContainerBridgeGap: {
+            /** @description The credential's target addresses on bridge networks of the daemon's own host. */
+            addresses: string[];
+        };
         /**
          * @description A container with its own identity on the LAN: a macvlan or ipvlan endpoint gives it a MAC and
          *     an IP of its own, so it is a host under its runtime rather than a service on the runtime's
@@ -7403,6 +7823,8 @@ export interface components {
             container_name?: string | null;
             /** @description The network driver that gives the container its own LAN address. */
             network_type: components["schemas"]["ContainerNetworkType"];
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         /**
          * @description The container network drivers that put a container directly on the LAN.
@@ -7411,6 +7833,18 @@ export interface components {
         ContainerNetworkType: "MacVlan" | "IpVlan";
         /** @enum {string} */
         ContainerType: "Subnet" | "ServiceCategory" | "Application" | "ApplicationUngrouped" | "Root" | "Host" | "NestedTag" | "NestedServiceCategory" | "Hypervisor" | "ContainerRuntime" | "Stack" | "TrunkPort" | "VLAN" | "PortOpStatus";
+        /** @description The ports of one protocol a scan covered at one address. */
+        CoveredPorts: {
+            /**
+             * @description The address the ports were probed at.
+             * @example 192.168.1.10
+             */
+            ip_address: string;
+            /** @description The transport the probes used. */
+            protocol: components["schemas"]["TransportProtocol"];
+            /** @description The covered ports, as inclusive runs. */
+            ranges: components["schemas"]["PortRange"][];
+        };
         /**
          * @description Input for creating a binding with a service.
          *     `service_id` and `site_id` are assigned by the server after the service is created.
@@ -7484,7 +7918,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Vaultwarden",
+         *           "service_definition": "Consul",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -7538,7 +7972,7 @@ export interface components {
              * @description The interface on the virtualizing host that presents this host, for a network identity.
              */
             virtualization_interface_id?: string | null;
-            virtualization_metadata?: null | components["schemas"]["HostVirtualization"];
+            virtualization_metadata?: components["schemas"]["HostVirtualization"] | null;
             /**
              * Format: uuid
              * @description The hypervisor service this VM runs on.
@@ -7589,7 +8023,7 @@ export interface components {
             site_id: string;
             /** @description Tags assigned to this entity. */
             tags: string[];
-            virtualization_metadata?: null | components["schemas"]["ServiceVirtualization"];
+            virtualization_metadata?: components["schemas"]["ServiceVirtualization"] | null;
             /**
              * Format: uuid
              * @description The container runtime service hosting this container, if any.
@@ -7672,7 +8106,7 @@ export interface components {
             assigned_site_ids: string[];
             /** @description Protocol this credential authenticates with, and its settings. */
             credential_type: components["schemas"]["CredentialType"];
-            daemon_os?: null | components["schemas"]["OsFamily"];
+            daemon_os?: components["schemas"]["OsFamily"] | null;
             /** @description Free-text notes about the credential: what it is for, who owns it. */
             description: string | null;
             /**
@@ -7717,7 +8151,7 @@ export interface components {
          */
         CredentialIntegration: "Snmp" | "Gnmi" | "Docker" | "Podman" | "UnifiController" | "InstantOn" | "Ssh" | "WakeOnLan" | "Proxmox";
         /** @enum {string} */
-        CredentialOrderField: "created_at" | "name" | "updated_at";
+        CredentialOrderField: "created_at" | "name" | "updated_at" | "credential_type" | "integration" | "beta" | "unofficial_api" | "daemon_os";
         /**
          * @description Which fields depend on the credential's Daemon OS. Computed from the field definitions, so the
          *     form places the Daemon OS picker without its own rule: with the one field that depends on it, or
@@ -7740,6 +8174,12 @@ export interface components {
              * @description Number of hosts it collected from.
              */
             hosts: number;
+            /**
+             * @description The hosts whose guests (containers, VMs, network identities) it listed in full,
+             *     stopped ones included. The server removes a guest of one of these hosts that the run
+             *     did not report. Daemons predating this field send none, which removes nothing.
+             */
+            hosts_with_guests_listed?: string[];
             /** @enum {string} */
             type: "Collected";
         } | {
@@ -7771,7 +8211,7 @@ export interface components {
          *     Additive and exhaustive: a new credential variant will not compile until it declares its
          *     stability, and every existing type is `Stable` by explicit arm rather than by wildcard, so
          *     promoting an integration is a one-line reviewable change rather than a deletion nobody
-         *     notices. This is presentation metadata about the *code*, like `minimum_daemon_version` —
+         *     notices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —
          *     it is never stored on a credential row, so it carries no deploy-coexistence obligation.
          * @enum {string}
          */
@@ -7828,13 +8268,13 @@ export interface components {
              * @description Port for the Docker API proxy (default 2375)
              */
             port?: number;
-            ssl_cert?: null | components["schemas"]["FileOrInline"];
-            ssl_chain?: null | components["schemas"]["FileOrInline"];
-            ssl_key?: null | components["schemas"]["SecretValue"];
+            ssl_cert?: components["schemas"]["FileOrInline"] | null;
+            ssl_chain?: components["schemas"]["FileOrInline"] | null;
+            ssl_key?: components["schemas"]["SecretValue"] | null;
             /** @enum {string} */
             type: "DockerProxy";
         } | {
-            socket_path?: null | components["schemas"]["DaemonSocket"];
+            socket_path?: components["schemas"]["DaemonSocket"] | null;
             /** @enum {string} */
             type: "DockerSocket";
         } | {
@@ -7845,13 +8285,13 @@ export interface components {
              * @description Port for the Podman API proxy (default 2375)
              */
             port?: number;
-            ssl_cert?: null | components["schemas"]["FileOrInline"];
-            ssl_chain?: null | components["schemas"]["FileOrInline"];
-            ssl_key?: null | components["schemas"]["SecretValue"];
+            ssl_cert?: components["schemas"]["FileOrInline"] | null;
+            ssl_chain?: components["schemas"]["FileOrInline"] | null;
+            ssl_key?: components["schemas"]["SecretValue"] | null;
             /** @enum {string} */
             type: "PodmanProxy";
         } | {
-            socket_path?: null | components["schemas"]["DaemonSocket"];
+            socket_path?: components["schemas"]["DaemonSocket"] | null;
             /** @enum {string} */
             type: "PodmanSocket";
         } | {
@@ -7919,7 +8359,7 @@ export interface components {
         } | {
             /** @description Require this host key (OpenSSH `SHA256:…` fingerprint). Blank ⇒ trust on first use. */
             host_key_fingerprint?: string | null;
-            passphrase?: null | components["schemas"]["SecretValue"];
+            passphrase?: components["schemas"]["SecretValue"] | null;
             /**
              * Format: int32
              * @description Port `sshd` listens on (default 22).
@@ -7953,7 +8393,7 @@ export interface components {
              * @description UDP port for the magic packet.
              */
             port?: number;
-            secure_on_password?: null | components["schemas"]["SecretValue"];
+            secure_on_password?: components["schemas"]["SecretValue"] | null;
             /** @enum {string} */
             type: "WakeOnLan";
             /**
@@ -8042,6 +8482,11 @@ export interface components {
             /** @description Tags assigned to this entity. */
             tags: string[];
         };
+        /**
+         * @description Fields the daemon API key list can be ordered and grouped by.
+         * @enum {string}
+         */
+        DaemonApiKeyOrderField: "created_at" | "name" | "updated_at" | "site_id" | "is_enabled" | "last_used" | "expires_at";
         DaemonApiKeyResponse: {
             /** @description The stored key record. */
             api_key: components["schemas"]["DaemonApiKey"];
@@ -8078,7 +8523,7 @@ export interface components {
             mode: components["schemas"]["DaemonMode"];
             /** @description Human-facing name for this daemon. */
             name: string;
-            os: null | components["schemas"]["DaemonOs"];
+            os: components["schemas"]["DaemonOs"] | null;
             /**
              * Format: uuid
              * @description The site this entity belongs to.
@@ -8118,6 +8563,15 @@ export interface components {
             version?: string | null;
         };
         /**
+         * @description A daemon's status, the most severe that applies, in that order.
+         *
+         *     Unsupported ranks above Unreachable: a rejected daemon can't connect, so its unreachability is a
+         *     symptom and the version is the actionable cause. The daemons list sorts and groups by it, and
+         *     filters on its value, which reads the same in every language.
+         * @enum {string}
+         */
+        DaemonHealth: "unsupported" | "unreachable" | "standby" | "awaiting_connection" | "deprecated" | "outdated" | "unknown" | "healthy";
+        /**
          * @description Legacy heartbeat payload for backwards compatibility with pre-v0.14.0 daemons.
          *     Old daemons call POST /api/daemons/{id}/heartbeat with this payload.
          */
@@ -8145,7 +8599,7 @@ export interface components {
          * @description Fields that daemons can be ordered/grouped by.
          * @enum {string}
          */
-        DaemonOrderField: "created_at" | "name" | "last_seen" | "updated_at" | "site_id";
+        DaemonOrderField: "created_at" | "name" | "last_seen" | "updated_at" | "site_id" | "os" | "mode" | "maintainer" | "version" | "status";
         /**
          * @description Operating system a daemon is installed on, as picked when it is created.
          * @enum {string}
@@ -8188,7 +8642,7 @@ export interface components {
             mode: components["schemas"]["DaemonMode"];
             /** @description Name the daemon reports for itself. */
             name: string;
-            os?: null | components["schemas"]["DaemonOs"];
+            os?: components["schemas"]["DaemonOs"] | null;
             /**
              * Format: uuid
              * @description The site this entity belongs to.
@@ -8217,7 +8671,7 @@ export interface components {
              * @description The host this entity belongs to.
              */
             host_id: string;
-            server_capabilities?: null | components["schemas"]["ServerCapabilities"];
+            server_capabilities?: components["schemas"]["ServerCapabilities"] | null;
         };
         /** @description Daemon response for UI including computed version status */
         DaemonResponse: components["schemas"]["DaemonBase"] & {
@@ -8226,6 +8680,8 @@ export interface components {
              * @description When this record was first created.
              */
             created_at: string;
+            /** @description The one status the daemon's chip shows, the most severe that applies. */
+            health: components["schemas"]["DaemonHealth"];
             /**
              * Format: uuid
              * @description Server-assigned unique identifier.
@@ -8256,7 +8712,7 @@ export interface components {
         DaemonStartupRequest: {
             /** @description Daemon software version (semver format) */
             daemon_version: string;
-            os?: null | components["schemas"]["DaemonOs"];
+            os?: components["schemas"]["DaemonOs"] | null;
         };
         /** @description Lightweight daemon status for polling responses. */
         DaemonStatus: {
@@ -8272,7 +8728,7 @@ export interface components {
             mode: components["schemas"]["DaemonMode"];
             /** @description Name the daemon reports for itself. */
             name: string;
-            os?: null | components["schemas"]["DaemonOs"];
+            os?: components["schemas"]["DaemonOs"] | null;
             /**
              * @description Whether the daemon can accept a new discovery session.
              *     Both DaemonPoll and ServerPoll use this to avoid dispatching work to a busy daemon.
@@ -8308,7 +8764,7 @@ export interface components {
             supports_os_reporting?: boolean;
             /**
              * @description Whether this daemon can run a single-host rescan. Server-computed so the
-             *     frontend never has to hardcode a version floor.
+             *     frontend never has to hardcode a version gate.
              */
             supports_targeted_rescan?: boolean;
             /** @description Whether the daemon can run a combined discovery pass. */
@@ -8440,7 +8896,7 @@ export interface components {
              */
             site_id: string;
             /** @description Will be automatically set to Manual for creation through API */
-            source?: components["schemas"]["EntitySource"];
+            readonly source?: components["schemas"]["EntitySource"];
             /** @description Tags assigned to this entity. */
             tags: string[];
         };
@@ -8500,6 +8956,18 @@ export interface components {
             /** @description Date after which this daemon version stops being supported. */
             sunset_date?: string | null;
         };
+        /**
+         * @description What a host is, as a device: the class its icon stands for on the map.
+         *
+         *     Declaration order is precedence, highest first. A host whose services claim several device types takes
+         *     the first one here, so a firewall that also serves files reads as a firewall, and `Server`,
+         *     which any application implies, never hides a more specific device type.
+         *
+         *     `Unidentified` means no evidence yet, not a device class outside this list: every class the
+         *     evidence names gets its own variant.
+         * @enum {string}
+         */
+        DeviceType: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Mobile" | "Industrial" | "IoT" | "Server" | "Unidentified";
         Discovery: components["schemas"]["DiscoveryBase"] & {
             /**
              * Format: date-time
@@ -8598,6 +9066,12 @@ export interface components {
             interfaces_complete?: boolean;
             /** @description IP addresses observed on the host. */
             ip_addresses: components["schemas"]["IPAddress"][];
+            /**
+             * @description Every (address, protocol, port) this scan probed and got a definite answer from. A stored
+             *     port binding can change hands only where the scan covered it. Daemons predating this field
+             *     omit it, and empty coverage moves nothing.
+             */
+            port_coverage?: components["schemas"]["PortCoverage"];
             /** @description Open ports observed on the host. */
             ports: components["schemas"]["Port"][];
             /** @description Services identified on the host. */
@@ -8612,7 +9086,7 @@ export interface components {
          * @description Fields that discoveries can be ordered/grouped by.
          * @enum {string}
          */
-        DiscoveryOrderField: "created_at" | "name" | "updated_at" | "daemon_id" | "site_id" | "discovery_type" | "phase" | "started_at" | "finished_at" | "duration" | "warnings";
+        DiscoveryOrderField: "created_at" | "name" | "updated_at" | "daemon_id" | "site_id" | "discovery_type" | "phase" | "started_at" | "finished_at" | "duration" | "warnings" | "run_type" | "last_run" | "scan_count" | "force_full_scan" | "legacy";
         /** @enum {string} */
         DiscoveryPhase: "AwaitingSnapshot" | "Queued" | "Pending" | "Starting" | "Started" | "Scanning" | "Complete" | "Failed" | "Cancelled";
         /**
@@ -8666,23 +9140,24 @@ export interface components {
             /**
              * Format: uuid
              * @description ID of the host that the daemon is running on — same meaning as every
-             *     other variant. The host being rescanned is `target_host_id`.
+             *     other variant. The hosts being rescanned are `target_host_ids`.
              */
             host_id: string;
-            /** @description Addresses to scan on that host. */
+            /** @description Addresses to scan on those hosts. */
             ips: string[];
             /**
-             * @description Ports already known on that host, re-checked to confirm they are
-             *     still open. Scanned in addition to the standard discovery set, so a
-             *     rescan also surfaces newly-opened services.
+             * @description Ports already known on those hosts, re-checked on every address to
+             *     confirm they are still open. Scanned in addition to the standard
+             *     discovery set, so a rescan also surfaces newly-opened services.
              */
             ports?: components["schemas"]["PortType"][];
             settings?: components["schemas"]["RescanSettings"];
             /**
-             * Format: uuid
-             * @description The host being rescanned.
+             * @description The hosts being rescanned. Reads the single `target_host_id` that
+             *     rescans stored before multi-host rescans carry, and that older
+             *     daemons echo back, as a list of one.
              */
-            target_host_id: string;
+            target_host_ids: string[];
             /** @enum {string} */
             type: "Rescan";
         } | {
@@ -8757,8 +9232,8 @@ export interface components {
              * @description Completion of the current phase, from 0 to 1.
              */
             progress: number;
-            reason?: null | components["schemas"]["DiscoveryTerminalReason"];
-            scanned?: null | components["schemas"]["ScannedEntityIds"];
+            reason?: components["schemas"]["DiscoveryTerminalReason"] | null;
+            scanned?: components["schemas"]["ScannedEntityIds"] | null;
             /**
              * Format: uuid
              * @description The discovery run this update belongs to.
@@ -8804,6 +9279,11 @@ export interface components {
              * @description Interfaces read before the walk stopped.
              */
             collected: number;
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
         } | {
             /** @description The device whose walk fell short. */
             address: string;
@@ -8814,11 +9294,21 @@ export interface components {
              * @description Interfaces whose attribute columns were read in full.
              */
             collected: number;
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkEntryCap";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
             /**
              * Format: int32
@@ -8830,42 +9320,89 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "SnmpWalkUnsupported";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkDesynchronised";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkPartialDiscarded";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkPartialRecorded";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkBridgeMibAbsent";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device this group was read from. */
             address: string;
             /** @enum {string} */
             code: "SnmpWalkNoAnswer";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            group: components["schemas"]["SnmpWalkGroup"];
+        } | {
+            /** @description The device this group was read from. */
+            address: string;
+            cause: components["schemas"]["SnmpWalkCause"];
+            /** @enum {string} */
+            code: "SnmpWalkFailed";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
         } | {
             /** @description The device that published the count. */
             address: string;
             /** @enum {string} */
             code: "ClaimedCountReadCutShort";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             /**
              * Format: int32
              * @description Rows the device said it had.
@@ -8884,6 +9421,11 @@ export interface components {
             /** @enum {string} */
             code: "ClaimedCountUnderRead";
             /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
              * Format: int32
              * @description Rows the device said it had.
              */
@@ -8900,6 +9442,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "ClaimedCapabilityReadCutShort";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
             source: components["schemas"]["ClaimSource"];
         } | {
@@ -8907,6 +9454,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "ClaimedCapabilityEmpty";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
             source: components["schemas"]["ClaimSource"];
         } | {
@@ -8914,6 +9466,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "LldpLocalPortDropped";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             /**
              * Format: int32
              * @description Neighbours discarded for want of a matching interface.
@@ -8930,6 +9487,11 @@ export interface components {
             /** @enum {string} */
             code: "LldpLocalPortDroppedReadCutShort";
             /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
              * Format: int32
              * @description Neighbours discarded for want of a matching interface.
              */
@@ -8944,6 +9506,11 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "LldpLocalPortMisplaced";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
             /**
              * Format: int32
              * @description Neighbours drawn against a port that may be the wrong one.
@@ -8969,6 +9536,17 @@ export interface components {
             address: string;
             /** @enum {string} */
             code: "SnmpCollectedNothing";
+            /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
+             * @description Each table whose read failed, and how. These are not reported again on their own.
+             *     Empty when every read ended normally; `None` from a daemon that predates the field,
+             *     which recorded only that nothing came back.
+             */
+            failures: components["schemas"]["SnmpWalkFailure"][] | null;
         } | {
             /** @description The device whose VLANs could not be recorded. */
             address: string;
@@ -9008,7 +9586,7 @@ export interface components {
         } | {
             /** @description The OS family this daemon runs. */
             actual: components["schemas"]["OsFamily"];
-            actual_os?: null | components["schemas"]["DaemonOs"];
+            actual_os?: components["schemas"]["DaemonOs"] | null;
             /** @enum {string} */
             code: "CredentialDaemonOsMismatch";
             /**
@@ -9021,7 +9599,7 @@ export interface components {
             integration: components["schemas"]["CredentialQueryPayloadDiscriminants"];
         } | {
             /** @enum {string} */
-            code: "CredentialDaemonTooOld";
+            code: "CredentialNeedsNewerDaemon";
             /**
              * Format: uuid
              * @description The stored credential. See [`CredentialAttempt::credential_id`].
@@ -9032,12 +9610,14 @@ export interface components {
              * @example 0.18.0
              */
             daemon_version?: string | null;
+            /** @description What the daemon missed. */
+            gap: components["schemas"]["CapabilityGap"];
             integration: components["schemas"]["CredentialQueryPayloadDiscriminants"];
             /**
-             * @description The oldest daemon version that can receive this credential type.
-             * @example 0.18.1
+             * @description The last daemon release without what `gap` needs; any newer daemon has it.
+             * @example 0.18.0
              */
-            minimum_daemon_version: string;
+            last_unsupported_daemon_version: string;
         } | {
             /** @description The address the credential is bound to. */
             address: string;
@@ -9230,20 +9810,35 @@ export interface components {
          *     defaults to the tighter of its two layouts.
          */
         DisplaySettings: {
-            /** @default browser_default */
+            /**
+             * @description 12- or 24-hour clock for displayed times.
+             * @default browser_default
+             */
             clock: components["schemas"]["ClockFormat"];
-            /** @default browser_default */
+            /**
+             * @description Order of day, month and year in displayed dates.
+             * @default browser_default
+             */
             date_order: components["schemas"]["DateOrder"];
-            /** @default compact */
+            /**
+             * @description Cell padding and row height in entity tables.
+             * @default compact
+             */
             table_density: components["schemas"]["TableDensity"];
             /**
              * @description IANA time zone dates are shown in. `None` uses the browser's zone.
              * @default null
              */
             time_zone: string | null;
-            /** @default relative */
+            /**
+             * @description Whether recent events show as relative ("3h ago") or absolute times.
+             * @default relative
+             */
             timestamps: components["schemas"]["TimestampStyle"];
-            /** @default monday */
+            /**
+             * @description First day of the week in day pickers.
+             * @default monday
+             */
             week_start: components["schemas"]["WeekStart"];
         };
         /** @description The docker install method. */
@@ -9278,6 +9873,8 @@ export interface components {
             container_id?: string | null;
             /** @description Container name as reported by Docker. */
             container_name?: string | null;
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         Edge: components["schemas"]["EdgeType"] & {
             /**
@@ -9606,7 +10203,7 @@ export interface components {
              *     with `org_id` and `plan` set from the organization's current state.
              */
             entitlement: string;
-            instances?: null | components["schemas"]["InstanceUsage"];
+            instances?: components["schemas"]["InstanceUsage"] | null;
         };
         /** @enum {string} */
         EntityDiscriminants: "Site" | "Vlan" | "Subnet" | "Host" | "Service" | "IPAddress" | "Interface" | "Port" | "Binding" | "Discovery" | "Daemon" | "DaemonApiKey" | "Tag" | "TagGroup" | "User" | "UserApiKey" | "Credential" | "Organization" | "Invite" | "Topology" | "Snapshot" | "Share" | "Dependency";
@@ -9618,6 +10215,7 @@ export interface components {
              */
             field?: string | null;
             format: components["schemas"]["FieldFormat"];
+            group: components["schemas"]["FieldGroup"];
             /** @description Stable key: the CSV header, the list-table column id and the diagram Shape Data name. */
             id: string;
             /** @description English label; the UI translates it through a generated `meta_*` key. */
@@ -9715,7 +10313,7 @@ export interface components {
         FieldDefinition: {
             /** @description Value pre-filled when the field is first shown. */
             default_value?: string | null;
-            field_set?: null | components["schemas"]["FieldSetRole"];
+            field_set?: components["schemas"]["FieldSetRole"] | null;
             /** @description How the field should be rendered and validated. */
             field_type: components["schemas"]["FieldType"];
             /**
@@ -9734,7 +10332,7 @@ export interface components {
             help_text?: string | null;
             /** @description Server-assigned unique identifier. */
             id: string;
-            inline_format?: null | components["schemas"]["InlineFormat"];
+            inline_format?: components["schemas"]["InlineFormat"] | null;
             /** @description Human-facing field label. */
             label: string;
             /** @description Whether the field may be left empty. */
@@ -9792,6 +10390,20 @@ export interface components {
             /** @enum {string} */
             type: "Entity";
         };
+        /**
+         * @description The heading a field is listed under wherever fields are picked, such as a table's column
+         *     menu. One vocabulary for every entity: a MAC address is `Network` on hosts and interfaces
+         *     alike. Variant order is display order.
+         *
+         *     A field that points at other entities takes the first of these that fits:
+         *     `Virtualization` when it says what virtualizes, contains or manages the entity; `Network`
+         *     when the entities it reaches are addressing or connectivity (interfaces, IP addresses, ports,
+         *     bindings, subnets, VLANs); `Relationships` otherwise. A host's services are
+         *     `Relationships`: a service is what runs on the host, not how it is reached, and its ports
+         *     already show as the host's `Network` ports.
+         * @enum {string}
+         */
+        FieldGroup: "identity" | "network" | "device" | "virtualization" | "relationships" | "status" | "configuration" | "access" | "discovery" | "timestamps";
         /**
          * @description Schema of [`FieldDefinition::field_set`] on the wire. Never constructed: the values are the
          *     serialized variants of the set's own enum, which the schema cannot name generically.
@@ -9889,6 +10501,12 @@ export interface components {
              */
             value?: string | null;
         };
+        /**
+         * @description A guest's run state. Stored rows from before the state was recorded read as `Running`: Docker
+         *     and Podman discovery listed running containers only, so every stored container was running.
+         * @enum {string}
+         */
+        GuestState: "Running" | "Paused" | "Restarting" | "Stopped";
         /** @description One step from an object to related objects. */
         Hop: {
             entity: components["schemas"]["EntityDiscriminants"];
@@ -10016,7 +10634,7 @@ export interface components {
              */
             site_id: string;
             /** @description How this host came to be known — discovered, imported, or created by hand. */
-            source: components["schemas"]["EntitySource"];
+            readonly source: components["schemas"]["EntitySource"];
             /** @description Tags assigned to this entity. */
             tags: string[];
             /**
@@ -10027,7 +10645,7 @@ export interface components {
              *     clears it when the interface goes away.
              */
             virtualization_interface_id: string | null;
-            virtualization_metadata: null | components["schemas"]["HostVirtualization"];
+            virtualization_metadata: components["schemas"]["HostVirtualization"] | null;
             /**
              * Format: uuid
              * @description The service doing the virtualizing — the hypervisor this VM runs on.
@@ -10077,7 +10695,7 @@ export interface components {
         /** @description What one rung of the ladder holds for a particular host. */
         HostNameLadderEntry: {
             rung: components["schemas"]["HostNameRung"];
-            source: null | components["schemas"]["AttributeSource"];
+            source: components["schemas"]["AttributeSource"] | null;
             /**
              * @description The rung's value, or `None` when the host has nothing there. A value holding only
              *     whitespace counts as nothing.
@@ -10154,6 +10772,7 @@ export interface components {
          *       "created_at": "2026-01-15T10:30:00Z",
          *       "credential_assignments": [],
          *       "description": "Primary web server",
+         *       "device_type": "Server",
          *       "display_name": "web-server-01",
          *       "display_name_rung": "Name",
          *       "firmware_revision": null,
@@ -10278,19 +10897,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-14T14:23:07.221915Z",
+         *               "created_at": "2026-10-22T23:24:30.797110Z",
          *               "first_discovery_id": null,
-         *               "id": "56587744-20dc-41ee-b1da-39cc7dec8bdf",
+         *               "id": "3d638c11-1399-42ba-ad25-99cc4c837064",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-14T14:23:07.221915Z",
+         *               "last_seen_at": "2026-10-22T23:24:30.797110Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-14T14:23:07.221915Z",
-         *               "valid_from": "2026-10-14T14:23:07.221915Z",
+         *               "updated_at": "2026-10-22T23:24:30.797110Z",
+         *               "valid_from": "2026-10-22T23:24:30.797110Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10303,7 +10922,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Vaultwarden",
+         *           "service_definition": "Consul",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -10344,11 +10963,11 @@ export interface components {
              */
             readonly asset_tag?: string | null;
             /** @description What produced the asset tag. Read-only. */
-            asset_tag_source?: components["schemas"]["AttributeSource"];
+            readonly asset_tag_source?: components["schemas"]["AttributeSource"];
             /** @description LLDP chassis identifier, used to match the host to its neighbours. */
             chassis_id?: string | null;
             /** @description What produced the LLDP chassis identifier. Read-only: decided by whichever source read it. */
-            chassis_id_source?: components["schemas"]["AttributeSource"];
+            readonly chassis_id_source?: components["schemas"]["AttributeSource"];
             /**
              * Format: date-time
              * @description When this record was first created.
@@ -10358,6 +10977,12 @@ export interface components {
             credential_assignments?: components["schemas"]["CredentialAssignment"][];
             /** @description Free-text notes about the host. */
             description?: string | null;
+            /**
+             * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
+             *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
+             *     Read-only.
+             */
+            readonly device_type?: components["schemas"]["DeviceType"];
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.
@@ -10369,11 +10994,11 @@ export interface components {
              *     list and another on the map.
              */
             readonly display_name?: string | null;
-            display_name_rung?: null | components["schemas"]["HostNameRung"];
+            readonly display_name_rung?: components["schemas"]["HostNameRung"] | null;
             /** @description ENTITY-MIB entPhysicalFirmwareRev — firmware revision of the device. Read-only, as above. */
             readonly firmware_revision: string | null;
             /** @description What produced the firmware revision. Read-only: decided by whichever source read it. */
-            firmware_revision_source?: components["schemas"]["AttributeSource"];
+            readonly firmware_revision_source?: components["schemas"]["AttributeSource"];
             /**
              * Format: uuid
              * @description The discovery run that first observed this host. Drives the "First found by" column.
@@ -10390,7 +11015,7 @@ export interface components {
              * @description What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.
              *     Read-only: decided by whichever source read it.
              */
-            hostname_source?: components["schemas"]["AttributeSource"];
+            readonly hostname_source?: components["schemas"]["AttributeSource"];
             /**
              * Format: uuid
              * @description Server-assigned unique identifier.
@@ -10415,15 +11040,15 @@ export interface components {
             /** @description Link to the host's own management interface. */
             management_url?: string | null;
             /** @description What produced the management URL. Read-only: decided by whichever source read it. */
-            management_url_source?: components["schemas"]["AttributeSource"];
+            readonly management_url_source?: components["schemas"]["AttributeSource"];
             /** @description ENTITY-MIB entPhysicalMfgName — hardware manufacturer. Read-only, as above. */
             readonly manufacturer?: string | null;
             /** @description What produced the manufacturer. Read-only: decided by whichever source read it. */
-            manufacturer_source?: components["schemas"]["AttributeSource"];
+            readonly manufacturer_source?: components["schemas"]["AttributeSource"];
             /** @description ENTITY-MIB entPhysicalModelName — hardware model. Read-only, as above. */
             readonly model?: string | null;
             /** @description What produced the model. Read-only: decided by whichever source read it. */
-            model_source?: components["schemas"]["AttributeSource"];
+            readonly model_source?: components["schemas"]["AttributeSource"];
             /** @description Human-facing name for the host. */
             name: string;
             /** @description Every rung of the display-name ladder for this host, highest first, with what each holds. */
@@ -10432,19 +11057,19 @@ export interface components {
              * @description What produced `name`. Read-only: it is decided by whoever supplied the name, not by the
              *     caller.
              */
-            name_source?: components["schemas"]["AttributeSource"];
-            os: null | components["schemas"]["HostOs"];
+            readonly name_source?: components["schemas"]["AttributeSource"];
+            readonly os: components["schemas"]["HostOs"] | null;
             /**
              * @description What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS
              *     in a string the host emitted rather than reading it off the host.
              */
-            os_source?: components["schemas"]["AttributeSource"];
+            readonly os_source?: components["schemas"]["AttributeSource"];
             /** @description Open ports on this host. */
             ports: components["schemas"]["Port"][];
             /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
             readonly serial_number?: string | null;
             /** @description What produced the serial number. Read-only: decided by whichever source read it. */
-            serial_number_source?: components["schemas"]["AttributeSource"];
+            readonly serial_number_source?: components["schemas"]["AttributeSource"];
             /** @description Services running on this host. */
             services: components["schemas"]["Service"][];
             /**
@@ -10455,32 +11080,32 @@ export interface components {
             /** @description ENTITY-MIB entPhysicalSoftwareRev — software revision of the device. Read-only, as above. */
             readonly software_revision: string | null;
             /** @description What produced the software revision. Read-only: decided by whichever source read it. */
-            software_revision_source?: components["schemas"]["AttributeSource"];
+            readonly software_revision_source?: components["schemas"]["AttributeSource"];
             /** @description How this host came to be known — discovered, imported, or created by hand. */
             source: components["schemas"]["EntitySource"];
             /** @description SNMP sysContact — administrative contact as configured on the device. */
             sys_contact?: string | null;
             /** @description What produced SNMP sysContact. Read-only: decided by whichever source read it. */
-            sys_contact_source?: components["schemas"]["AttributeSource"];
+            readonly sys_contact_source?: components["schemas"]["AttributeSource"];
             /** @description SNMP sysDescr — the device's own description of itself. */
             sys_descr?: string | null;
             /** @description What produced SNMP sysDescr. Read-only: decided by whichever source read it. */
-            sys_descr_source?: components["schemas"]["AttributeSource"];
+            readonly sys_descr_source?: components["schemas"]["AttributeSource"];
             /** @description SNMP sysLocation — physical location as configured on the device. */
             sys_location?: string | null;
             /** @description What produced SNMP sysLocation. Read-only: decided by whichever source read it. */
-            sys_location_source?: components["schemas"]["AttributeSource"];
+            readonly sys_location_source?: components["schemas"]["AttributeSource"];
             /**
              * @description SNMP sysName.0 — the administratively-assigned hostname. Read-only: discovery collects it
              *     from the device, so neither create nor update accepts it.
              */
             readonly sys_name?: string | null;
             /** @description What produced SNMP sysName. Read-only: decided by whichever source read it. */
-            sys_name_source?: components["schemas"]["AttributeSource"];
+            readonly sys_name_source?: components["schemas"]["AttributeSource"];
             /** @description SNMP sysObjectID — the vendor's identifier for the device model. */
             sys_object_id?: string | null;
             /** @description What produced SNMP sysObjectID. Read-only: decided by whichever source read it. */
-            sys_object_id_source?: components["schemas"]["AttributeSource"];
+            readonly sys_object_id_source?: components["schemas"]["AttributeSource"];
             /** @description Tags assigned to this entity. */
             tags: string[];
             /**
@@ -10498,7 +11123,7 @@ export interface components {
              * @description The interface on the virtualizing host that presents this host, for a network identity.
              */
             virtualization_interface_id?: string | null;
-            virtualization_metadata?: null | components["schemas"]["HostVirtualization"];
+            virtualization_metadata?: components["schemas"]["HostVirtualization"] | null;
             /**
              * Format: uuid
              * @description The host this one runs under: the host of its virtualizing service.
@@ -11015,7 +11640,7 @@ export interface components {
             readonly valid_to?: string | null;
         };
         InterfaceBase: components["schemas"]["MacEvidence"] & components["schemas"]["FdbMacs"] & {
-            admin_status?: null | components["schemas"]["IfAdminStatus"];
+            admin_status?: components["schemas"]["IfAdminStatus"] | null;
             /**
              * Format: uuid
              * @description The host this entity belongs to.
@@ -11096,7 +11721,7 @@ export interface components {
              *     database or echoed in a response ever has it populated.
              */
             neighbor_candidates?: components["schemas"]["InterfaceNeighborEvidence"][];
-            oper_status?: null | components["schemas"]["IfOperStatus"];
+            oper_status?: components["schemas"]["IfOperStatus"] | null;
             /**
              * Format: uuid
              * @description The site this entity belongs to.
@@ -11147,7 +11772,7 @@ export interface components {
          *     created, and an existing row missing from the list is deleted.
          */
         InterfaceInput: {
-            admin_status?: null | components["schemas"]["IfAdminStatus"];
+            admin_status?: components["schemas"]["IfAdminStatus"] | null;
             /**
              * Format: uuid
              * @description Client-provided UUID for this interface.
@@ -11177,7 +11802,7 @@ export interface components {
              * @example a4:bb:6d:12:34:56
              */
             mac_address?: string | null;
-            oper_status?: null | components["schemas"]["IfOperStatus"];
+            oper_status?: components["schemas"]["IfOperStatus"] | null;
             /**
              * Format: int64
              * @description Interface speed in bits per second
@@ -11243,7 +11868,7 @@ export interface components {
              *     the daemon's own host.
              */
             evidence_source?: components["schemas"]["AttributeSource"];
-            lldp_chassis_id?: null | components["schemas"]["LldpChassisId"];
+            lldp_chassis_id?: components["schemas"]["LldpChassisId"] | null;
             /**
              * @description Remote management IP from LLDP neighbor (lldpRemManAddr). IPv4 or IPv6.
              * @example 192.168.1.1
@@ -11251,7 +11876,7 @@ export interface components {
             lldp_mgmt_addr?: string | null;
             /** @description Remote port description from LLDP neighbor (lldpRemPortDesc) */
             lldp_port_desc?: string | null;
-            lldp_port_id?: null | components["schemas"]["LldpPortId"];
+            lldp_port_id?: components["schemas"]["LldpPortId"] | null;
             /** @description Remote system description from LLDP neighbor (lldpRemSysDesc) - platform info */
             lldp_sys_desc?: string | null;
             /** @description Remote system name from LLDP neighbor (lldpRemSysName) */
@@ -11367,7 +11992,7 @@ export interface components {
             entity_name: string;
             /** @description Purchase order number printed on every invoice. */
             po_number?: string | null;
-            tax_id?: null | components["schemas"]["InvoiceBillingTaxId"];
+            tax_id?: components["schemas"]["InvoiceBillingTaxId"] | null;
         };
         /**
          * @description What to do once the billing entity is recorded.
@@ -11378,17 +12003,17 @@ export interface components {
         InvoiceBillingRequest: {
             details: components["schemas"]["InvoiceBillingDetails"];
             mode: components["schemas"]["InvoiceBillingMode"];
-            plan?: null | components["schemas"]["BillingPlan"];
+            plan?: components["schemas"]["BillingPlan"] | null;
         };
         /** @description Invoice billing state shown on the License tab. */
         InvoiceBillingStatus: {
             /** @description The subscription is billed by sent invoice. */
             bills_by_invoice: boolean;
-            open_invoice?: null | components["schemas"]["InvoiceSummary"];
-            pending_quote?: null | components["schemas"]["PendingQuote"];
+            open_invoice?: components["schemas"]["InvoiceSummary"] | null;
+            pending_quote?: components["schemas"]["PendingQuote"] | null;
             /** @description Purchase order number printed on invoices. */
             po_number?: string | null;
-            written_off_invoice?: null | components["schemas"]["InvoiceSummary"];
+            written_off_invoice?: components["schemas"]["InvoiceSummary"] | null;
         };
         /** @description Tax ID of the billing entity, as Stripe's Tax ID Element returns it. */
         InvoiceBillingTaxId: {
@@ -11671,6 +12296,11 @@ export interface components {
             address: string;
             consequence: components["schemas"]["MalformedNeighbourConsequence"];
             /**
+             * Format: uuid
+             * @description The stored credential the device was read with. `None` from a daemon that predates it.
+             */
+            credential_id: string | null;
+            /**
              * Format: int32
              * @description Records thrown away for want of a usable identifier.
              */
@@ -11687,7 +12317,7 @@ export interface components {
          * @description Where on an element card a mark paints.
          * @enum {string}
          */
-        MarkChannel: "Title" | "StatusDot" | "StateFill";
+        MarkChannel: "StateFill" | "Status";
         /** @enum {string} */
         MatchConfidence: "NotApplicable" | "Low" | "Medium" | "High" | "Certain";
         MatchDetails: {
@@ -11704,10 +12334,50 @@ export interface components {
             type: "reason";
         } | {
             /** @description Tuple of [name: string, children: MatchReason[]] */
-            data: unknown[];
+            data: [
+                string,
+                components["schemas"]["MatchReason"][]
+            ];
             /** @enum {string} */
             type: "container";
         };
+        /** @description One row of the members list: a user, or an invite still waiting to be accepted. */
+        Member: {
+            /**
+             * @description How the user signs in: `<provider>`, `<provider>+password`, `password` or `none`.
+             *     Provider names come from the server's OIDC config.
+             */
+            auth_method: string;
+            data: components["schemas"]["User"];
+            /**
+             * Format: uuid
+             * @description The user's id.
+             */
+            id: string;
+            status: components["schemas"]["MemberStatus"];
+            /** @enum {string} */
+            type: "user";
+        } | {
+            data: components["schemas"]["Invite"];
+            /**
+             * Format: uuid
+             * @description The invite's id.
+             */
+            id: string;
+            status: components["schemas"]["MemberStatus"];
+            /** @enum {string} */
+            type: "invite";
+        };
+        /**
+         * @description Fields the members list can be ordered and grouped by. Every one is derived in Rust.
+         * @enum {string}
+         */
+        MemberOrderField: "created_at" | "email" | "invite_status" | "permissions" | "oidc_provider" | "updated_at" | "invited_by" | "expires_at" | "email_verified" | "oidc_linked_at";
+        /**
+         * @description A member's place in the organization, as the status column shows it.
+         * @enum {string}
+         */
+        MemberStatus: "pending" | "you" | "user";
         /** @description Request body for merging a subnet into the range that contains it. */
         MergeSubnetRequest: {
             /**
@@ -11751,13 +12421,13 @@ export interface components {
          *     here + a `HasFilterValues` impl on the relevant entity.
          * @enum {string}
          */
-        MetadataFilterType: "Category" | "Virtualization" | "LinkState" | "Staleness" | "OperStatus";
+        MetadataFilterType: "Category" | "Virtualization" | "LinkState" | "Staleness" | "OperStatus" | "GuestState";
         /**
          * @description A metadata fixture whose entries name an enum-valued field, so the UI shows the fixture's
          *     name for the raw value. Serializes to the fixture key.
          * @enum {string}
          */
-        MetadataFixture: "if_oper_statuses" | "subnet_types" | "entity_sources" | "dependency_types" | "discovery_types" | "service_definitions" | "discovery_protocols" | "permissions" | "credential_types";
+        MetadataFixture: "if_oper_statuses" | "guest_states" | "subnet_types" | "entity_sources" | "dependency_types" | "discovery_types" | "service_definitions" | "discovery_protocols" | "permissions" | "credential_types";
         /**
          * @description The Windows MSI install method. The MSI itself is a static release asset the UI links to; only
          *     the per-daemon pre-fill data is tenant-specific.
@@ -11827,7 +12497,7 @@ export interface components {
              *     Used by Hypervisor and Stack subcontainers to show the service's logo.
              */
             associated_service_definition?: string | null;
-            color?: null | components["schemas"]["Color"];
+            color?: components["schemas"]["Color"] | null;
             /** @description What this container groups — a host, a subnet, an application, and so on. */
             container_type?: components["schemas"]["ContainerType"];
             /**
@@ -11907,7 +12577,7 @@ export interface components {
         OnboardingStateResponse: {
             /** @description Organization name from pending setup */
             org_name?: string | null;
-            site?: null | components["schemas"]["OnboardingSiteState"];
+            site?: components["schemas"]["OnboardingSiteState"] | null;
             /**
              * Format: uuid
              * @description Site ID from pending setup (if any)
@@ -11915,13 +12585,13 @@ export interface components {
             site_id?: string | null;
             /** @description Current onboarding step (if any) */
             step?: string | null;
-            use_case?: null | components["schemas"]["UseCase"];
+            use_case?: components["schemas"]["UseCase"] | null;
         };
         /** @description Request to save onboarding step */
         OnboardingStepRequest: {
             /** @description Identifier of the onboarding step the user has reached. */
             step: string;
-            use_case?: null | components["schemas"]["UseCase"];
+            use_case?: components["schemas"]["UseCase"] | null;
         };
         /**
          * @description Direction for ORDER BY clauses.
@@ -11992,7 +12662,7 @@ export interface components {
              *     powers the 14-day downgrade banner.
              */
             readonly last_downgrade_at?: string | null;
-            last_downgrade_from_plan?: null | components["schemas"]["BillingPlan"];
+            readonly last_downgrade_from_plan?: components["schemas"]["BillingPlan"] | null;
             /**
              * Format: date-time
              * @description Most recent `Paused` billing event's timestamp; powers the 6-month
@@ -12028,8 +12698,8 @@ export interface components {
             readonly next_renewal_at?: string | null;
             /** @description Progress through first-run setup. */
             onboarding: components["schemas"]["OnboardingOperationDiscriminants"][];
-            plan: null | components["schemas"]["BillingPlan"];
-            plan_status: null | components["schemas"]["PlanStatus"];
+            readonly plan: components["schemas"]["BillingPlan"] | null;
+            readonly plan_status: components["schemas"]["PlanStatus"] | null;
             /**
              * Format: date-time
              * @description When the free trial ends, if one is running.
@@ -12056,7 +12726,7 @@ export interface components {
          *         "offset": 0,
          *         "total_count": 142
          *       },
-         *       "server_version": "0.18.1"
+         *       "server_version": "0.19.0"
          *     }
          */
         PaginatedApiMeta: {
@@ -12069,7 +12739,7 @@ export interface components {
             pagination: components["schemas"]["PaginationMeta"];
             /**
              * @description Server version (semver)
-             * @example 0.18.1
+             * @example 0.19.0
              */
             server_version: string;
         };
@@ -12115,6 +12785,8 @@ export interface components {
                  * @description When this record was first created.
                  */
                 created_at: string;
+                /** @description The one status the daemon's chip shows, the most severe that applies. */
+                health: components["schemas"]["DaemonHealth"];
                 /**
                  * Format: uuid
                  * @description Server-assigned unique identifier.
@@ -12245,11 +12917,11 @@ export interface components {
                  */
                 readonly asset_tag?: string | null;
                 /** @description What produced the asset tag. Read-only. */
-                asset_tag_source?: components["schemas"]["AttributeSource"];
+                readonly asset_tag_source?: components["schemas"]["AttributeSource"];
                 /** @description LLDP chassis identifier, used to match the host to its neighbours. */
                 chassis_id?: string | null;
                 /** @description What produced the LLDP chassis identifier. Read-only: decided by whichever source read it. */
-                chassis_id_source?: components["schemas"]["AttributeSource"];
+                readonly chassis_id_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: date-time
                  * @description When this record was first created.
@@ -12259,6 +12931,12 @@ export interface components {
                 credential_assignments?: components["schemas"]["CredentialAssignment"][];
                 /** @description Free-text notes about the host. */
                 description?: string | null;
+                /**
+                 * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
+                 *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
+                 *     Read-only.
+                 */
+                readonly device_type?: components["schemas"]["DeviceType"];
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -12270,11 +12948,11 @@ export interface components {
                  *     list and another on the map.
                  */
                 readonly display_name?: string | null;
-                display_name_rung?: null | components["schemas"]["HostNameRung"];
+                readonly display_name_rung?: components["schemas"]["HostNameRung"] | null;
                 /** @description ENTITY-MIB entPhysicalFirmwareRev — firmware revision of the device. Read-only, as above. */
                 readonly firmware_revision: string | null;
                 /** @description What produced the firmware revision. Read-only: decided by whichever source read it. */
-                firmware_revision_source?: components["schemas"]["AttributeSource"];
+                readonly firmware_revision_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: uuid
                  * @description The discovery run that first observed this host. Drives the "First found by" column.
@@ -12291,7 +12969,7 @@ export interface components {
                  * @description What produced `hostname`: a PTR lookup, the host's own OS, a controller, mDNS, or a person.
                  *     Read-only: decided by whichever source read it.
                  */
-                hostname_source?: components["schemas"]["AttributeSource"];
+                readonly hostname_source?: components["schemas"]["AttributeSource"];
                 /**
                  * Format: uuid
                  * @description Server-assigned unique identifier.
@@ -12316,15 +12994,15 @@ export interface components {
                 /** @description Link to the host's own management interface. */
                 management_url?: string | null;
                 /** @description What produced the management URL. Read-only: decided by whichever source read it. */
-                management_url_source?: components["schemas"]["AttributeSource"];
+                readonly management_url_source?: components["schemas"]["AttributeSource"];
                 /** @description ENTITY-MIB entPhysicalMfgName — hardware manufacturer. Read-only, as above. */
                 readonly manufacturer?: string | null;
                 /** @description What produced the manufacturer. Read-only: decided by whichever source read it. */
-                manufacturer_source?: components["schemas"]["AttributeSource"];
+                readonly manufacturer_source?: components["schemas"]["AttributeSource"];
                 /** @description ENTITY-MIB entPhysicalModelName — hardware model. Read-only, as above. */
                 readonly model?: string | null;
                 /** @description What produced the model. Read-only: decided by whichever source read it. */
-                model_source?: components["schemas"]["AttributeSource"];
+                readonly model_source?: components["schemas"]["AttributeSource"];
                 /** @description Human-facing name for the host. */
                 name: string;
                 /** @description Every rung of the display-name ladder for this host, highest first, with what each holds. */
@@ -12333,19 +13011,19 @@ export interface components {
                  * @description What produced `name`. Read-only: it is decided by whoever supplied the name, not by the
                  *     caller.
                  */
-                name_source?: components["schemas"]["AttributeSource"];
-                os: null | components["schemas"]["HostOs"];
+                readonly name_source?: components["schemas"]["AttributeSource"];
+                readonly os: components["schemas"]["HostOs"] | null;
                 /**
                  * @description What produced the OS. Read-only, as above. A source whose method is `Inferred` matched the OS
                  *     in a string the host emitted rather than reading it off the host.
                  */
-                os_source?: components["schemas"]["AttributeSource"];
+                readonly os_source?: components["schemas"]["AttributeSource"];
                 /** @description Open ports on this host. */
                 ports: components["schemas"]["Port"][];
                 /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
                 readonly serial_number?: string | null;
                 /** @description What produced the serial number. Read-only: decided by whichever source read it. */
-                serial_number_source?: components["schemas"]["AttributeSource"];
+                readonly serial_number_source?: components["schemas"]["AttributeSource"];
                 /** @description Services running on this host. */
                 services: components["schemas"]["Service"][];
                 /**
@@ -12356,32 +13034,32 @@ export interface components {
                 /** @description ENTITY-MIB entPhysicalSoftwareRev — software revision of the device. Read-only, as above. */
                 readonly software_revision: string | null;
                 /** @description What produced the software revision. Read-only: decided by whichever source read it. */
-                software_revision_source?: components["schemas"]["AttributeSource"];
+                readonly software_revision_source?: components["schemas"]["AttributeSource"];
                 /** @description How this host came to be known — discovered, imported, or created by hand. */
                 source: components["schemas"]["EntitySource"];
                 /** @description SNMP sysContact — administrative contact as configured on the device. */
                 sys_contact?: string | null;
                 /** @description What produced SNMP sysContact. Read-only: decided by whichever source read it. */
-                sys_contact_source?: components["schemas"]["AttributeSource"];
+                readonly sys_contact_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysDescr — the device's own description of itself. */
                 sys_descr?: string | null;
                 /** @description What produced SNMP sysDescr. Read-only: decided by whichever source read it. */
-                sys_descr_source?: components["schemas"]["AttributeSource"];
+                readonly sys_descr_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysLocation — physical location as configured on the device. */
                 sys_location?: string | null;
                 /** @description What produced SNMP sysLocation. Read-only: decided by whichever source read it. */
-                sys_location_source?: components["schemas"]["AttributeSource"];
+                readonly sys_location_source?: components["schemas"]["AttributeSource"];
                 /**
                  * @description SNMP sysName.0 — the administratively-assigned hostname. Read-only: discovery collects it
                  *     from the device, so neither create nor update accepts it.
                  */
                 readonly sys_name?: string | null;
                 /** @description What produced SNMP sysName. Read-only: decided by whichever source read it. */
-                sys_name_source?: components["schemas"]["AttributeSource"];
+                readonly sys_name_source?: components["schemas"]["AttributeSource"];
                 /** @description SNMP sysObjectID — the vendor's identifier for the device model. */
                 sys_object_id?: string | null;
                 /** @description What produced SNMP sysObjectID. Read-only: decided by whichever source read it. */
-                sys_object_id_source?: components["schemas"]["AttributeSource"];
+                readonly sys_object_id_source?: components["schemas"]["AttributeSource"];
                 /** @description Tags assigned to this entity. */
                 tags: string[];
                 /**
@@ -12399,7 +13077,7 @@ export interface components {
                  * @description The interface on the virtualizing host that presents this host, for a network identity.
                  */
                 virtualization_interface_id?: string | null;
-                virtualization_metadata?: null | components["schemas"]["HostVirtualization"];
+                virtualization_metadata?: components["schemas"]["HostVirtualization"] | null;
                 /**
                  * Format: uuid
                  * @description The host this one runs under: the host of its virtualizing service.
@@ -12417,6 +13095,42 @@ export interface components {
                  */
                 virtualization_service_id?: string | null;
             }[];
+            /** @description Human-readable failure message. Omitted on success. */
+            error?: string | null;
+            /** @description API and server version metadata, plus pagination counters. */
+            meta: components["schemas"]["PaginatedApiMeta"];
+            /** @description `true` when the request succeeded. `false` responses carry `error` instead of `data`. */
+            success: boolean;
+        };
+        /** @description Response type for paginated list endpoints (pagination is always present in meta) */
+        PaginatedApiResponse_Member: {
+            /** @description The page of results. Empty when nothing matched the query. */
+            data: ({
+                /**
+                 * @description How the user signs in: `<provider>`, `<provider>+password`, `password` or `none`.
+                 *     Provider names come from the server's OIDC config.
+                 */
+                auth_method: string;
+                data: components["schemas"]["User"];
+                /**
+                 * Format: uuid
+                 * @description The user's id.
+                 */
+                id: string;
+                status: components["schemas"]["MemberStatus"];
+                /** @enum {string} */
+                type: "user";
+            } | {
+                data: components["schemas"]["Invite"];
+                /**
+                 * Format: uuid
+                 * @description The invite's id.
+                 */
+                id: string;
+                status: components["schemas"]["MemberStatus"];
+                /** @enum {string} */
+                type: "invite";
+            })[];
             /** @description Human-readable failure message. Omitted on success. */
             error?: string | null;
             /** @description API and server version metadata, plus pagination counters. */
@@ -12486,12 +13200,23 @@ export interface components {
             /** @description The page of results. Empty when nothing matched the query. */
             data: (components["schemas"]["Subnet"] & {
                 /**
+                 * Format: int32
+                 * @description How many ranges this one sits inside: 0 for a range nested in nothing.
+                 */
+                readonly nesting_depth: number;
+                /**
+                 * Format: uuid
+                 * @description The outermost range of the tree this one sits in: itself when it holds others and sits in
+                 *     none. `null` for a range that nests with nothing.
+                 */
+                readonly nesting_root_id: string | null;
+                /**
                  * Format: uuid
                  * @description The most specific other subnet on the same site whose range contains this one. `null` when
                  *     none does. Children are the subnets whose parent is this one.
                  */
                 readonly parent_subnet_id?: string | null;
-                range_evidence: null | components["schemas"]["RangeEvidence"];
+                readonly range_evidence: components["schemas"]["RangeEvidence"] | null;
                 /**
                  * Format: int64
                  * @description Addresses a host can hold in this range. Saturates for IPv6 ranges wider than a `/64`.
@@ -12883,6 +13608,8 @@ export interface components {
             container_id?: string | null;
             /** @description Container name as reported by Podman. */
             container_name?: string | null;
+            /** @description Whether the container was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
         };
         /**
          * @description Port entity with custom serialization that flattens PortType fields.
@@ -12970,6 +13697,12 @@ export interface components {
             site_id: string;
         };
         /**
+         * @description Every (address, protocol, port) a scan probed and got a definite answer from: open, refused,
+         *     or silent after every retry. A probe that failed on the scanner's side (file descriptors
+         *     exhausted, the scan cancelled) is left out, since it learned nothing about the port.
+         */
+        PortCoverage: components["schemas"]["CoveredPorts"][];
+        /**
          * @description Input for creating or updating a port.
          *     Used in both CreateHostRequest and UpdateHostRequest.
          *     Client must provide a UUID for the port.
@@ -12987,6 +13720,19 @@ export interface components {
             number: number;
             /** @description Transport protocol (Tcp or Udp) */
             protocol: components["schemas"]["TransportProtocol"];
+        };
+        /** @description An inclusive run of port numbers. */
+        PortRange: {
+            /**
+             * Format: int32
+             * @description Last port in the run, inclusive.
+             */
+            end: number;
+            /**
+             * Format: int32
+             * @description First port in the run.
+             */
+            start: number;
         };
         /** @description Port type with number, protocol, and optional type identifier */
         PortType: {
@@ -13040,7 +13786,7 @@ export interface components {
              *     the existing record's name is kept.
              */
             name?: string | null;
-            os?: null | components["schemas"]["DaemonOs"];
+            os?: components["schemas"]["DaemonOs"] | null;
             /**
              * @description Credential/integration references to seed onto the daemon's first
              *     discovery run. References only — never secret material. Empty by default.
@@ -13121,16 +13867,16 @@ export interface components {
          */
         ProxmoxGuestType: "Qemu" | "Lxc";
         ProxmoxVirtualization: {
-            guest_type?: null | components["schemas"]["ProxmoxGuestType"];
+            guest_type?: components["schemas"]["ProxmoxGuestType"] | null;
+            /** @description Whether the guest was running at the last scan. */
+            state?: components["schemas"]["GuestState"];
             /** @description Proxmox VMID of the guest. */
             vm_id?: string | null;
             /** @description Guest name as configured in Proxmox. */
             vm_name?: string | null;
         };
         PublicConfigResponse: {
-            available_upgrade?: null | components["schemas"]["AvailableUpgrade"];
-            /** @description Whether this deployment has billing configured. */
-            billing_enabled: boolean;
+            available_upgrade?: components["schemas"]["AvailableUpgrade"] | null;
             /** @description How this instance is run: cloud, commercial self-hosted, or community. */
             deployment_type: components["schemas"]["DeploymentType"];
             /** @description Whether email/password login is turned off, leaving OIDC as the only method. */
@@ -13164,7 +13910,7 @@ export interface components {
              *     the hard `exp` — the silent grace window.
              */
             license_in_grace_period: boolean;
-            license_instances?: null | components["schemas"]["InstanceUsage"];
+            license_instances?: components["schemas"]["InstanceUsage"] | null;
             /**
              * Format: date
              * @description User-visible expiry — the date displayed to end users under
@@ -13184,7 +13930,7 @@ export interface components {
              * @description Further days past the user-visible expiry before a key stops working.
              */
             license_key_grace_days: number;
-            license_key_type?: null | components["schemas"]["LicenseKeyType"];
+            license_key_type?: components["schemas"]["LicenseKeyType"] | null;
             /**
              * @description Whether this deployment can sign license keys. False on any server
              *     without a signing key, where the Settings License tab and the
@@ -13193,7 +13939,7 @@ export interface components {
              *     key can be present but unparseable.
              */
             license_signing_available: boolean;
-            license_status?: null | components["schemas"]["LicenseStatusDiscriminants"];
+            license_status?: components["schemas"]["LicenseStatusDiscriminants"] | null;
             /**
              * Format: date-time
              * @description End of the paid period, shown as "Valid through" and in the expiry
@@ -13714,8 +14460,16 @@ export interface components {
         ServerCapabilities: {
             /** @description Deprecation warnings for the daemon */
             deprecation_warnings?: components["schemas"]["DeprecationWarning"][];
-            /** @description Minimum daemon version supported by this server */
-            minimum_daemon_version: string;
+            /**
+             * @description Daemons at or below this version are rejected by this server. `None` from a server too old
+             *     to send it.
+             */
+            last_unsupported_daemon_version?: string | null;
+            /**
+             * @description Deprecated: always 0.12.0. Daemons up to 0.18.2 require this field and only log it. Read
+             *     `last_unsupported_daemon_version` instead.
+             */
+            minimum_daemon_version?: string | null;
             /** @description Server software version */
             server_version: string;
         };
@@ -13723,19 +14477,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-14T14:23:07.223478Z",
+         *           "created_at": "2026-10-22T23:24:30.798422Z",
          *           "first_discovery_id": null,
-         *           "id": "11546c06-216e-4b68-be9b-9c5eedc2a860",
+         *           "id": "a2609fdf-a5a1-41dc-9602-83992cfdca81",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-14T14:23:07.223478Z",
+         *           "last_seen_at": "2026-10-22T23:24:30.798422Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-14T14:23:07.223478Z",
-         *           "valid_from": "2026-10-14T14:23:07.223478Z",
+         *           "updated_at": "2026-10-22T23:24:30.798422Z",
+         *           "valid_from": "2026-10-22T23:24:30.798422Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -13748,7 +14502,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Vaultwarden",
+         *       "service_definition": "Consul",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -13831,10 +14585,10 @@ export interface components {
              */
             site_id: string;
             /** @description Will be automatically set to Manual for creation through API */
-            source: components["schemas"]["EntitySource"];
+            readonly source: components["schemas"]["EntitySource"];
             /** @description Tags assigned to this entity. */
             tags: string[];
-            virtualization_metadata?: null | components["schemas"]["ServiceVirtualization"];
+            virtualization_metadata?: components["schemas"]["ServiceVirtualization"] | null;
             /**
              * Format: uuid
              * @description The container runtime service hosting this container — see the note on
@@ -13871,7 +14625,7 @@ export interface components {
             service_definition: string;
             /** @description Tags for categorization */
             tags?: string[];
-            virtualization_metadata?: null | components["schemas"]["ServiceVirtualization"];
+            virtualization_metadata?: components["schemas"]["ServiceVirtualization"] | null;
             /**
              * Format: uuid
              * @description The container runtime service hosting this container, if any.
@@ -13917,7 +14671,7 @@ export interface components {
         SetupRequest: {
             /** @description Name for the organization created during setup. */
             organization_name: string;
-            site?: null | components["schemas"]["SiteSetup"];
+            site?: components["schemas"]["SiteSetup"] | null;
         };
         /** @description Response from setup endpoint */
         SetupResponse: {
@@ -14106,6 +14860,11 @@ export interface components {
             /** @description Tags assigned to this entity. */
             tags: string[];
         };
+        /**
+         * @description Fields the sites list can be ordered and grouped by.
+         * @enum {string}
+         */
+        SiteOrderField: "created_at" | "name" | "updated_at" | "effective_stale_after_hours";
         /** @description Site configuration for setup */
         SiteSetup: {
             /** @description Name for the site created during setup. */
@@ -14176,6 +14935,15 @@ export interface components {
             taken_at: string;
         };
         /**
+         * @description The net-snmp commands that check a warning against the device, from the daemon's host.
+         *
+         *     Published on each warning code's metadata as `snmp_check`, so the UI builds the commands from
+         *     what the code declares instead of keeping its own list of codes. Each value is the comparison
+         *     that tells an operator whether the device returns what the warning says it returned.
+         * @enum {string}
+         */
+        SnmpCheck: "Repeat" | "Recount" | "Claim" | "Unordered" | "Table";
+        /**
          * @description SNMPv3 USM authentication protocol. MD5 is offered for devices that support nothing else;
          *     SHA-2 variants beyond SHA-256 are not. Serialized form (e.g. "Sha256") is the wire value
          *     stored in the credential and used as the frontend select option value.
@@ -14187,6 +14955,16 @@ export interface components {
          * @enum {string}
          */
         SnmpV3PrivProtocol: "Aes128" | "Aes256";
+        /**
+         * @description One SNMPv3 option added after v3 first shipped (AuthPriv with SHA and AES only).
+         * @enum {string}
+         */
+        SnmpV3SecurityOption: "NoAuthNoPriv" | "AuthNoPriv" | "Md5Auth";
+        /** @description The SNMPv3 options a credential uses that daemons before 0.18.1 cannot parse. */
+        SnmpV3SecurityOptionsGap: {
+            /** @description The options the credential uses, each one a reason older daemons reject it. */
+            options: components["schemas"]["SnmpV3SecurityOption"][];
+        };
         /**
          * @description The security material of an SNMPv3 credential, by security level. A level carries exactly
          *     the fields it uses, so a credential cannot hold a privacy password it never sends.
@@ -14248,6 +15026,21 @@ export interface components {
             security_level: "AuthPriv";
         };
         /**
+         * @description How a read that returned nothing ended, as the daemon observed it.
+         *
+         *     Each value is something the daemon saw on the wire, never an inference about the device: a
+         *     timeout is a request with no response, an error status is the status the device returned.
+         *     Collapsing these into one "stopped answering" told an operator whose device had answered every
+         *     request with `genErr` that it had gone silent.
+         * @enum {string}
+         */
+        SnmpWalkCause: "TimedOut" | "EmptyResponse" | "UnreadableResponse" | "TooBig" | "GenErr" | "NoAccess" | "AuthorizationError" | "OtherErrorStatus";
+        /** @description One group that returned nothing on a device, and how its read ended. */
+        SnmpWalkFailure: {
+            cause: components["schemas"]["SnmpWalkCause"];
+            group: components["schemas"]["SnmpWalkGroup"];
+        };
+        /**
          * @description An SNMP data group a walk may come up short on.
          *
          *     An enum rather than a free string so the code derivation below is exhaustive: every group has
@@ -14298,16 +15091,19 @@ export interface components {
          *       "last_seen_at": "2026-01-15T10:30:00Z",
          *       "lineage_id": null,
          *       "name": "LAN",
+         *       "name_source": "Unspecified",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
          *       },
          *       "subnet_type": "Lan",
+         *       "subnet_type_source": "Unspecified",
          *       "tags": [],
          *       "updated_at": "2026-01-15T10:30:00Z",
          *       "valid_from": "2026-01-15T10:30:00Z",
          *       "valid_to": null,
-         *       "virtualization_service_id": null
+         *       "virtualization_service_id": null,
+         *       "vlan_ids": []
          *     }
          */
         Subnet: components["schemas"]["SubnetBase"] & {
@@ -14357,11 +15153,9 @@ export interface components {
              */
             readonly valid_to?: string | null;
         };
-        SubnetBase: components["schemas"]["SubnetCidr"] & {
+        SubnetBase: components["schemas"]["SubnetCidr"] & components["schemas"]["SubnetName"] & components["schemas"]["SubnetTypeAttributed"] & {
             /** @description Free-text notes about the subnet. */
             description?: string | null;
-            /** @description Human-facing name for this subnet. */
-            name: string;
             /**
              * Format: uuid
              * @description The site this entity belongs to.
@@ -14369,8 +15163,6 @@ export interface components {
             site_id: string;
             /** @description Will be automatically set to Manual for creation through API */
             source: components["schemas"]["EntitySource"];
-            /** @description What type of subnet this is — physical, virtual, container bridge, and so on. */
-            subnet_type: components["schemas"]["SubnetType"];
             /** @description Tags assigned to this entity. */
             tags: string[];
             /**
@@ -14384,6 +15176,12 @@ export interface components {
              *     cannot be written at all.
              */
             virtualization_service_id: string | null;
+            /**
+             * @description VLANs associated with this subnet, through the `subnet_vlans` junction (the reverse of
+             *     `Vlan::subnet_ids`). Hydrated by `SubnetService` on read; it is not a column on `subnets`,
+             *     so anything sent here on create/update is ignored by `to_params`.
+             */
+            vlan_ids?: string[];
         };
         SubnetCidr: {
             /**
@@ -14393,20 +15191,36 @@ export interface components {
             cidr: string;
             cidr_source?: components["schemas"]["AttributeSource"];
         };
+        SubnetName: {
+            /** @description Human-facing name for this subnet. */
+            name: string;
+            name_source?: components["schemas"]["AttributeSource"];
+        };
         /**
          * @description Fields that subnets can be ordered/grouped by.
          * @enum {string}
          */
-        SubnetOrderField: "created_at" | "name" | "cidr" | "subnet_type" | "updated_at" | "site_id" | "last_seen_at";
+        SubnetOrderField: "created_at" | "name" | "cidr" | "subnet_type" | "updated_at" | "site_id" | "last_seen_at" | "source" | "managed_by" | "utilization";
         /** @description A subnet together with what is derived from the rest of its site. */
         SubnetResponse: components["schemas"]["Subnet"] & {
+            /**
+             * Format: int32
+             * @description How many ranges this one sits inside: 0 for a range nested in nothing.
+             */
+            readonly nesting_depth: number;
+            /**
+             * Format: uuid
+             * @description The outermost range of the tree this one sits in: itself when it holds others and sits in
+             *     none. `null` for a range that nests with nothing.
+             */
+            readonly nesting_root_id: string | null;
             /**
              * Format: uuid
              * @description The most specific other subnet on the same site whose range contains this one. `null` when
              *     none does. Children are the subnets whose parent is this one.
              */
             readonly parent_subnet_id?: string | null;
-            range_evidence: null | components["schemas"]["RangeEvidence"];
+            readonly range_evidence: components["schemas"]["RangeEvidence"] | null;
             /**
              * Format: int64
              * @description Addresses a host can hold in this range. Saturates for IPv6 ranges wider than a `/64`.
@@ -14420,6 +15234,21 @@ export interface components {
         };
         /** @enum {string} */
         SubnetType: "Internet" | "Remote" | "Gateway" | "VpnTunnel" | "Dmz" | "Lan" | "WiFi" | "IoT" | "Guest" | "DockerBridge" | "PodmanBridge" | "MacVlan" | "IpVlan" | "Management" | "Storage" | "Loopback" | "Unknown";
+        SubnetTypeAttributed: {
+            subnet_type: components["schemas"]["SubnetType"];
+            subnet_type_source?: components["schemas"]["AttributeSource"];
+        };
+        /**
+         * @description A list-table column that is not a registry field: a value the table computes, reads from
+         *     another endpoint, or keeps out of CSV export (`created_at`, `last_seen_at`). Declared here so
+         *     the column menu files it under a group the backend chose. CSV, diagram Shape Data and the
+         *     inspector read only fields, never these.
+         */
+        TableColumn: {
+            group: components["schemas"]["FieldGroup"];
+            /** @description The column's key in the list table, and so in saved column preferences. */
+            id: string;
+        };
         /** @enum {string} */
         TableDensity: "comfortable" | "compact";
         /**
@@ -14476,7 +15305,7 @@ export interface components {
             color: components["schemas"]["Color"];
             /** @description Free-text notes about the tag. */
             description?: string | null;
-            icon?: null | components["schemas"]["TagIcon"];
+            icon?: components["schemas"]["TagIcon"] | null;
             /** @description Human-facing name for this tag. */
             name: string;
             /**
@@ -14542,7 +15371,7 @@ export interface components {
              * @description Whether this is a system group or one the organization named. Set by the server: groups
              *     created through the API are always `Custom`.
              */
-            group_type: components["schemas"]["TagGroupType"];
+            readonly group_type: components["schemas"]["TagGroupType"];
             /** @description The group's name. A system group's name is fixed. */
             name: string;
             /**
@@ -14561,6 +15390,11 @@ export interface components {
              */
             readonly scope_computed: boolean;
         };
+        /**
+         * @description Fields the tag groups list can be ordered and grouped by.
+         * @enum {string}
+         */
+        TagGroupOrderField: "created_at" | "name" | "updated_at" | "group_type" | "ordered";
         /**
          * @description What kind of tag group this is.
          *
@@ -14583,12 +15417,14 @@ export interface components {
          * @description Fields that tags can be ordered/grouped by.
          * @enum {string}
          */
-        TagOrderField: "created_at" | "name" | "color" | "updated_at" | "tag_group";
+        TagOrderField: "created_at" | "name" | "color" | "updated_at" | "tag_group" | "icon";
         /** @description Request body for setting a tag group's tag order */
         TagOrderRequest: {
             /** @description Every tag in the group, each once, in the order to list them. */
             tag_ids: string[];
         };
+        /** @enum {string} */
+        Target: "DaemonHost" | "Site" | "Hosts";
         /** @description Request to test reachability of a daemon URL. */
         TestReachabilityRequest: {
             /** @description If true, also perform an HTTP GET to {url}/health after the TCP check */
@@ -14730,6 +15566,8 @@ export interface components {
          *     host has no name".
          */
         TopologyHost: components["schemas"]["Host"] & {
+            /** @description What this host is, as a device: the device type its icon shows. See [`Host::device_type`]. */
+            readonly device_type?: components["schemas"]["DeviceType"];
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.
@@ -14827,7 +15665,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "6aff8cc7-b0c2-4166-a229-0bbba2f0bd02",
+             *           "id": "b61ff00f-03fe-478f-922f-26c5c9e76dd7",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -14837,23 +15675,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "bc07ed67-514d-4aa0-9fba-a27192a1e80c",
+             *           "id": "a22641af-b046-4940-9b4c-875c68f8eafe",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "d0679fcc-b22d-402c-bfdd-3a70ba593ce2",
+             *           "id": "e05ac25c-09ec-4858-876a-2650eb6e5d62",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "0b0986e2-73d1-4c98-a5c2-1b0969e5e465",
+             *           "id": "7e39eeb0-7d32-4562-b84a-04d418861f4f",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "bc07ed67-514d-4aa0-9fba-a27192a1e80c",
+             *           "id": "a22641af-b046-4940-9b4c-875c68f8eafe",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -14867,19 +15705,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "ad84a453-7655-4d9f-849d-40064f3bc44d",
+             *         "id": "a99d6b46-68d6-43c4-a525-490a3b91fe37",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "04403969-b41c-4738-a666-b507eb0c4750",
+             *         "id": "8fe4cd9e-fab0-440a-b1e7-fd5ab7d59e88",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "d734a1df-5380-484d-a0f8-38d80b6a2b75",
+             *         "id": "f967cec4-5269-46c1-9491-cfd8564fa019",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "f60ca13d-2253-414a-a5b4-3222d3d58548",
+             *         "id": "50a1ee48-9fcf-42b0-a125-62d00e6b9280",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -14900,7 +15738,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "83a66494-dc0e-41c1-ac2e-00232697cadd",
+             *         "id": "81c93f96-89ea-4939-bc26-3a2dfb6570ff",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -14909,15 +15747,15 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "08081253-78d8-4192-9d72-48f7bf286ac5",
+             *         "id": "f61d5397-b585-4834-b712-1d6c80fb5232",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "a3a3f834-d03a-4017-8c75-9bd0e86f2b04",
+             *         "id": "d60f75db-1e3d-438f-af5b-dad909acab79",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "dfcb4180-401c-4d9b-8b0e-3ddcac2b6f97",
+             *         "id": "34dbdc76-1ca6-40db-a080-fa6f763b746d",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -15161,7 +15999,7 @@ export interface components {
              * @description The interface on the virtualizing host that presents this host, for a network identity.
              */
             virtualization_interface_id?: string | null;
-            virtualization_metadata?: null | components["schemas"]["HostVirtualization"];
+            virtualization_metadata?: components["schemas"]["HostVirtualization"] | null;
             /**
              * Format: uuid
              * @description The hypervisor service this VM runs on.
@@ -15299,6 +16137,11 @@ export interface components {
             user_id: string;
         };
         /**
+         * @description Fields the user API key list can be ordered and grouped by.
+         * @enum {string}
+         */
+        UserApiKeyOrderField: "created_at" | "name" | "updated_at" | "permissions" | "is_enabled" | "last_used" | "expires_at";
+        /**
          * @description Response for user API key creation/rotation
          *     Contains the full API key record plus the plaintext key (shown only once)
          */
@@ -15347,11 +16190,6 @@ export interface components {
              *     own record (`/api/auth/me`, login, accept), false everywhere else.
              */
             readonly terms_acceptance_required?: boolean;
-            /**
-             * Format: date-time
-             * @description When the user accepted the terms of service.
-             */
-            readonly terms_accepted_at?: string | null;
         };
         /** @enum {string} */
         UserOrgPermissions: "Owner" | "Admin" | "Member" | "Viewer";
@@ -15412,7 +16250,7 @@ export interface components {
              *     the UI pluralizes as needed.
              */
             collective_noun?: string | null;
-            container_entity?: null | components["schemas"]["EntityDiscriminants"];
+            container_entity?: components["schemas"]["EntityDiscriminants"] | null;
             /**
              * @description Filter values this view hides out of the box, keyed the same way as the
              *     hide-set in request options.
@@ -15482,7 +16320,7 @@ export interface components {
         ViewInspectorConfig: {
             /** @description Inspector sections shown when a container is selected. */
             container_sections: components["schemas"]["InspectorSection"][];
-            dependency_creation?: null | components["schemas"]["DependencyMemberType"];
+            dependency_creation?: components["schemas"]["DependencyMemberType"] | null;
             /** @description Inspector sections shown when an element is selected. */
             element_sections: components["schemas"]["InspectorSection"][];
             /** @description Whether the inspector offers the application picker. */
@@ -15574,7 +16412,7 @@ export interface components {
              */
             readonly valid_to?: string | null;
         };
-        VlanBase: {
+        VlanBase: components["schemas"]["VlanName"] & {
             /** @description Free-text notes about the VLAN. */
             description?: string | null;
             /**
@@ -15583,8 +16421,6 @@ export interface components {
              *     Hydrated by `VlanService` on read; not a column on `vlans`.
              */
             interface_ids?: string[];
-            /** @description Human-facing name for this VLAN. */
-            name: string;
             /**
              * Format: uuid
              * @description The organization that owns this record.
@@ -15615,6 +16451,11 @@ export interface components {
         VlanDiscoveryItem: {
             /** @description VLAN name as configured on the device. */
             name: string;
+            /**
+             * @description Where the daemon read the name. Defaults to an SNMP read: daemons that predate this field
+             *     sent VLANs from SNMP alone.
+             */
+            name_source?: components["schemas"]["AttributeSource"];
             /**
              * Format: int32
              * @description 802.1Q VLAN ID.
@@ -15648,8 +16489,13 @@ export interface components {
              */
             vlan_number: number;
         };
+        VlanName: {
+            /** @description Human-facing name for this VLAN. */
+            name: string;
+            name_source?: components["schemas"]["AttributeSource"];
+        };
         /** @enum {string} */
-        VlanOrderField: "created_at" | "name" | "vlan_number" | "updated_at";
+        VlanOrderField: "created_at" | "name" | "vlan_number" | "updated_at" | "site_id" | "source" | "last_seen_at";
         /** @description Whether one address woke: whether the scan found it after the magic packets went out. */
         WakeOnLanResult: {
             /** @description The address the magic packets were sent for. */
@@ -17239,10 +18085,42 @@ export interface operations {
     list_daemon_api_keys: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
                 /** @description Filter by specific entity IDs (for selective loading) */
                 ids?: string[] | null;
+                /**
+                 * @description `true` returns only keys no daemon is bound to, the ones managed from the API keys page;
+                 *     `false` only keys bound to a daemon. Omit for both.
+                 */
+                unbound?: boolean | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty,
+                 *     matches none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -17362,10 +18240,42 @@ export interface operations {
     export_daemon_api_keys_csv: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
                 /** @description Filter by specific entity IDs (for selective loading) */
                 ids?: string[] | null;
+                /**
+                 * @description `true` returns only keys no daemon is bound to, the ones managed from the API keys page;
+                 *     `false` only keys bound to a daemon. Omit for both.
+                 */
+                unbound?: boolean | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty,
+                 *     matches none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -17384,6 +18294,79 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_daemon_api_key_field_values: {
+        parameters: {
+            query?: {
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Filter by specific entity IDs (for selective loading) */
+                ids?: string[] | null;
+                /**
+                 * @description `true` returns only keys no daemon is bound to, the ones managed from the API keys page;
+                 *     `false` only keys bound to a daemon. Omit for both.
+                 */
+                unbound?: boolean | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty,
+                 *     matches none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["DaemonApiKeyOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["DaemonApiKeyOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Daemon API Key counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };
@@ -17532,6 +18515,37 @@ export interface operations {
     get_all_user_api_keys: {
         parameters: {
             query?: {
+                /** @description Only keys limited to one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only keys with access to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
+                 *     none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -17651,6 +18665,37 @@ export interface operations {
     export_user_api_keys_csv: {
         parameters: {
             query?: {
+                /** @description Only keys limited to one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only keys with access to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
+                 *     none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -17669,6 +18714,74 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_user_api_key_field_values: {
+        parameters: {
+            query?: {
+                /** @description Only keys limited to one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only keys with access to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
+                 *     none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["UserApiKeyOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their User API Key counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };
@@ -18087,14 +19200,48 @@ export interface operations {
     get_all_credentials: {
         parameters: {
             query?: {
-                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). */
-                type?: null | components["schemas"]["CredentialTypeDiscriminants"];
+                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several. */
+                type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
+                /** @description Only credentials of one of these integrations. Repeat for several. */
+                integrations?: components["schemas"]["CredentialIntegration"][] | null;
+                /**
+                 * @description Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).
+                 *     Sent empty, matches none.
+                 */
+                beta?: boolean[] | null;
+                /**
+                 * @description Only credentials whose type reads an unpublished API (`true`), a published one (`false`),
+                 *     or both (repeat it). Sent empty, matches none.
+                 */
+                unofficial_api?: boolean[] | null;
+                /** @description Only credentials whose type can be applied to one of these targets. Repeat for several. */
+                targets?: components["schemas"]["Target"][] | null;
+                /** @description Only file and socket credentials for one of these daemon OS families. Repeat for several. */
+                daemon_os?: components["schemas"]["OsFamily"][] | null;
+                /** @description Only credentials assigned to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns credentials that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the credential must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["CredentialOrderField"];
+                group_by?: components["schemas"]["CredentialOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["CredentialOrderField"];
+                order_by?: components["schemas"]["CredentialOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -18220,14 +19367,48 @@ export interface operations {
     export_credentials_csv: {
         parameters: {
             query?: {
-                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). */
-                type?: null | components["schemas"]["CredentialTypeDiscriminants"];
+                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several. */
+                type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
+                /** @description Only credentials of one of these integrations. Repeat for several. */
+                integrations?: components["schemas"]["CredentialIntegration"][] | null;
+                /**
+                 * @description Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).
+                 *     Sent empty, matches none.
+                 */
+                beta?: boolean[] | null;
+                /**
+                 * @description Only credentials whose type reads an unpublished API (`true`), a published one (`false`),
+                 *     or both (repeat it). Sent empty, matches none.
+                 */
+                unofficial_api?: boolean[] | null;
+                /** @description Only credentials whose type can be applied to one of these targets. Repeat for several. */
+                targets?: components["schemas"]["Target"][] | null;
+                /** @description Only file and socket credentials for one of these daemon OS families. Repeat for several. */
+                daemon_os?: components["schemas"]["OsFamily"][] | null;
+                /** @description Only credentials assigned to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns credentials that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the credential must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["CredentialOrderField"];
+                group_by?: components["schemas"]["CredentialOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["CredentialOrderField"];
+                order_by?: components["schemas"]["CredentialOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -18362,14 +19543,42 @@ export interface operations {
     get_daemons: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only daemons in one of these statuses. Repeat for several. */
+                statuses?: components["schemas"]["DaemonHealth"][] | null;
+                /** @description Only daemons installed on one of these operating systems. Repeat for several. */
+                os?: components["schemas"]["DaemonOs"][] | null;
+                /** @description Only daemons that connect one of these ways. Repeat for several. */
+                modes?: components["schemas"]["DaemonMode"][] | null;
+                /** @description Only daemons maintained by one of these users. Repeat for several. */
+                maintainer_ids?: string[] | null;
+                /** @description Only daemons running one of these versions. Repeat for several. */
+                versions?: string[] | null;
+                /** @description Only daemons with an interface on one of these subnets. Repeat for several. */
+                interfaced_subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns daemons that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and url. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DaemonOrderField"];
+                group_by?: components["schemas"]["DaemonOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DaemonOrderField"];
+                order_by?: components["schemas"]["DaemonOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -18417,6 +19626,58 @@ export interface operations {
             };
             /** @description daemon has active sessions */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_retry_daemon_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description IDs of the daemons to retry */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Connection retries initiated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            /** @description A daemon isn't a ServerPoll daemon; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A daemon was not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -18480,14 +19741,42 @@ export interface operations {
     export_daemons_csv: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only daemons in one of these statuses. Repeat for several. */
+                statuses?: components["schemas"]["DaemonHealth"][] | null;
+                /** @description Only daemons installed on one of these operating systems. Repeat for several. */
+                os?: components["schemas"]["DaemonOs"][] | null;
+                /** @description Only daemons that connect one of these ways. Repeat for several. */
+                modes?: components["schemas"]["DaemonMode"][] | null;
+                /** @description Only daemons maintained by one of these users. Repeat for several. */
+                maintainer_ids?: string[] | null;
+                /** @description Only daemons running one of these versions. Repeat for several. */
+                versions?: string[] | null;
+                /** @description Only daemons with an interface on one of these subnets. Repeat for several. */
+                interfaced_subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns daemons that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and url. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DaemonOrderField"];
+                group_by?: components["schemas"]["DaemonOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DaemonOrderField"];
+                order_by?: components["schemas"]["DaemonOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -18506,6 +19795,79 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_daemon_field_values: {
+        parameters: {
+            query?: {
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only daemons in one of these statuses. Repeat for several. */
+                statuses?: components["schemas"]["DaemonHealth"][] | null;
+                /** @description Only daemons installed on one of these operating systems. Repeat for several. */
+                os?: components["schemas"]["DaemonOs"][] | null;
+                /** @description Only daemons that connect one of these ways. Repeat for several. */
+                modes?: components["schemas"]["DaemonMode"][] | null;
+                /** @description Only daemons maintained by one of these users. Repeat for several. */
+                maintainer_ids?: string[] | null;
+                /** @description Only daemons running one of these versions. Repeat for several. */
+                versions?: string[] | null;
+                /** @description Only daemons with an interface on one of these subnets. Repeat for several. */
+                interfaced_subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns daemons that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the daemon must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and url. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["DaemonOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["DaemonOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["DaemonOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Daemon counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };
@@ -18891,11 +20253,11 @@ export interface operations {
                 /** @description Filter by site ID */
                 site_id?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DependencyOrderField"];
+                group_by?: components["schemas"]["DependencyOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DependencyOrderField"];
+                order_by?: components["schemas"]["DependencyOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -18987,11 +20349,11 @@ export interface operations {
                 /** @description Filter by site ID */
                 site_id?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DependencyOrderField"];
+                group_by?: components["schemas"]["DependencyOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DependencyOrderField"];
+                order_by?: components["schemas"]["DependencyOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19154,12 +20516,41 @@ export interface operations {
                  *     that runs it.
                  */
                 search?: string | null;
+                /**
+                 * @description Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for
+                 *     several.
+                 */
+                run_types?: string[] | null;
+                /**
+                 * @description Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat
+                 *     it). Sent empty, matches none.
+                 */
+                legacy?: boolean[] | null;
+                /**
+                 * @description Only configurations whose next run is forced to a full scan (`true`), not (`false`), or
+                 *     both (repeat it). Sent empty, matches none.
+                 */
+                force_full_scan?: boolean[] | null;
+                /** @description Filter by tag IDs (returns discoveries that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DiscoveryOrderField"];
+                group_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DiscoveryOrderField"];
+                order_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19235,6 +20626,58 @@ export interface operations {
             };
         };
     };
+    bulk_cancel_sessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description IDs of the discoveries whose sessions to cancel */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Sessions cancelled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            /** @description A discovery isn't running; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A discovery was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A session is starting on its daemon */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     bulk_delete_discoveries: {
         parameters: {
             query?: never;
@@ -19259,6 +20702,109 @@ export interface operations {
                 };
             };
             /** @description discovery has active session */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_set_enabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkSetEnabledRequest"];
+            };
+        };
+        responses: {
+            /** @description Schedules updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_Discovery"];
+                };
+            };
+            /** @description A discovery has no schedule; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A discovery was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A discovery is running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_start_sessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description IDs of the discoveries to start */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Sessions started, in the order given */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_DiscoveryUpdatePayload"];
+                };
+            };
+            /** @description A discovery can't be started; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A discovery was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A discovery is already running */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19295,12 +20841,41 @@ export interface operations {
                  *     that runs it.
                  */
                 search?: string | null;
+                /**
+                 * @description Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for
+                 *     several.
+                 */
+                run_types?: string[] | null;
+                /**
+                 * @description Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat
+                 *     it). Sent empty, matches none.
+                 */
+                legacy?: boolean[] | null;
+                /**
+                 * @description Only configurations whose next run is forced to a full scan (`true`), not (`false`), or
+                 *     both (repeat it). Sent empty, matches none.
+                 */
+                force_full_scan?: boolean[] | null;
+                /** @description Filter by tag IDs (returns discoveries that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DiscoveryOrderField"];
+                group_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DiscoveryOrderField"];
+                order_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19349,12 +20924,41 @@ export interface operations {
                  *     that runs it.
                  */
                 search?: string | null;
+                /**
+                 * @description Only scan configurations that run one of these ways (`Scheduled`, `AdHoc`). Repeat for
+                 *     several.
+                 */
+                run_types?: string[] | null;
+                /**
+                 * @description Only configurations of a legacy type (`true`), a current one (`false`), or both (repeat
+                 *     it). Sent empty, matches none.
+                 */
+                legacy?: boolean[] | null;
+                /**
+                 * @description Only configurations whose next run is forced to a full scan (`true`), not (`false`), or
+                 *     both (repeat it). Sent empty, matches none.
+                 */
+                force_full_scan?: boolean[] | null;
+                /** @description Filter by tag IDs (returns discoveries that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the discovery must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["DiscoveryOrderField"];
+                group_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["DiscoveryOrderField"];
+                order_by?: components["schemas"]["DiscoveryOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19646,9 +21250,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["HostOrderField"];
+                group_by?: components["schemas"]["HostOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["HostOrderField"];
+                order_by?: components["schemas"]["HostOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -19660,7 +21264,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19778,6 +21382,49 @@ export interface operations {
             };
         };
     };
+    bulk_rescan_hosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description IDs of the hosts to rescan */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Rescan sessions started, one per daemon */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_DiscoveryUpdatePayload"];
+                };
+            };
+            /** @description A host cannot be rescanned; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description A host was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     create_host_discovery: {
         parameters: {
             query?: never;
@@ -19867,9 +21514,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["HostOrderField"];
+                group_by?: components["schemas"]["HostOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["HostOrderField"];
+                order_by?: components["schemas"]["HostOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -19881,7 +21528,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -19979,9 +21626,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["HostOrderField"];
+                group_by?: components["schemas"]["HostOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["HostOrderField"];
+                order_by?: components["schemas"]["HostOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -19993,7 +21640,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -20091,9 +21738,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["HostOrderField"];
+                group_by?: components["schemas"]["HostOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["HostOrderField"];
+                order_by?: components["schemas"]["HostOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -20105,7 +21752,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -20341,7 +21988,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse_DiscoveryUpdatePayload"];
                 };
             };
-            /** @description Host cannot be rescanned (never scanned, daemon gone, daemon unreachable, or daemon too old) */
+            /** @description Host cannot be rescanned (never scanned, daemon gone, or daemon too old) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20702,6 +22349,49 @@ export interface operations {
                 };
             };
             /** @description Cannot create invite with higher permissions */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_revoke_invites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description IDs of the invites to revoke */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Invites revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            /** @description An invite is invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description An invite can't be revoked by the caller */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -21887,7 +23577,7 @@ export interface operations {
                 /** @description Only entities carrying every one of these tags. Repeat for several. */
                 tag_ids?: string[] | null;
                 /** @description Search only this entity type, for its later pages. Omit for the first page of every type. */
-                entity_type?: null | components["schemas"]["EntityDiscriminants"];
+                entity_type?: components["schemas"]["EntityDiscriminants"] | null;
                 /** @description Matches per type (1-50, default 5). */
                 limit?: number | null;
                 /** @description Matches to skip in each type. */
@@ -21940,6 +23630,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -21954,9 +23646,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["ServiceOrderField"];
+                group_by?: components["schemas"]["ServiceOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["ServiceOrderField"];
+                order_by?: components["schemas"]["ServiceOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -21968,7 +23660,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Only services exposed on one of these port numbers, over either protocol. */
                 ports?: number[] | null;
                 /** @description Exclude services belonging to these categories. */
@@ -22094,6 +23786,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -22108,9 +23802,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["ServiceOrderField"];
+                group_by?: components["schemas"]["ServiceOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["ServiceOrderField"];
+                order_by?: components["schemas"]["ServiceOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -22122,7 +23816,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Only services exposed on one of these port numbers, over either protocol. */
                 ports?: number[] | null;
                 /** @description Exclude services belonging to these categories. */
@@ -22190,6 +23884,8 @@ export interface operations {
                  *     services discovery matched to a definition carry one.
                  */
                 match_confidences?: components["schemas"]["MatchConfidence"][] | null;
+                /** @description Filter by the run state of the container a service is, at the last scan. Repeat for several. */
+                guest_states?: components["schemas"]["GuestState"][] | null;
                 /** @description Filter by tag IDs (returns services that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -22204,9 +23900,9 @@ export interface operations {
                  */
                 search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["ServiceOrderField"];
+                group_by?: components["schemas"]["ServiceOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["ServiceOrderField"];
+                order_by?: components["schemas"]["ServiceOrderField"] | null;
                 /**
                  * @description Group by the tag each row holds from this tag group, in the group's tag order. Takes
                  *     the place of `group_by`.
@@ -22218,7 +23914,7 @@ export interface operations {
                  */
                 order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Only services exposed on one of these port numbers, over either protocol. */
                 ports?: number[] | null;
                 /** @description Exclude services belonging to these categories. */
@@ -22802,6 +24498,38 @@ export interface operations {
     get_all_sites: {
         parameters: {
             query?: {
+                /** @description Only sites with one of these credentials assigned. Repeat for several. */
+                credential_ids?: string[] | null;
+                /**
+                 * @description Only sites whose effective staleness window is one of these, in hours. Repeat for
+                 *     several.
+                 */
+                effective_stale_after_hours?: number[] | null;
+                /** @description Filter by tag IDs (returns sites that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /**
+                 * @description Free-text search. Case-insensitive substring match against the site's name and the names
+                 *     of its daemons, subnets and VLANs.
+                 */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["SiteOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["SiteOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -22920,6 +24648,38 @@ export interface operations {
     export_sites_csv: {
         parameters: {
             query?: {
+                /** @description Only sites with one of these credentials assigned. Repeat for several. */
+                credential_ids?: string[] | null;
+                /**
+                 * @description Only sites whose effective staleness window is one of these, in hours. Repeat for
+                 *     several.
+                 */
+                effective_stale_after_hours?: number[] | null;
+                /** @description Filter by tag IDs (returns sites that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /**
+                 * @description Free-text search. Case-insensitive substring match against the site's name and the names
+                 *     of its daemons, subnets and VLANs.
+                 */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["SiteOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["SiteOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -22938,6 +24698,75 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_site_field_values: {
+        parameters: {
+            query?: {
+                /** @description Only sites with one of these credentials assigned. Repeat for several. */
+                credential_ids?: string[] | null;
+                /**
+                 * @description Only sites whose effective staleness window is one of these, in hours. Repeat for
+                 *     several.
+                 */
+                effective_stale_after_hours?: number[] | null;
+                /** @description Filter by tag IDs (returns sites that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the site must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /**
+                 * @description Free-text search. Case-insensitive substring match against the site's name and the names
+                 *     of its daemons, subnets and VLANs.
+                 */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["SiteOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["SiteOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["SiteOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Site counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };
@@ -23207,14 +25036,41 @@ export interface operations {
     list_subnets: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by specific entity IDs (for selective loading) */
+                ids?: string[] | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only subnets of one of these types. Repeat for several. */
+                subnet_types?: string[] | null;
+                /** @description Only subnets that came to exist one of these ways (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Only bridge subnets created by one of these container runtimes. Repeat for several. */
+                managed_by?: string[] | null;
+                /**
+                 * @description `true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates
+                 *     (`Subnet::is_user_managed`).
+                 */
+                user_managed?: boolean | null;
+                /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["SubnetOrderField"];
+                group_by?: components["schemas"]["SubnetOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["SubnetOrderField"];
+                order_by?: components["schemas"]["SubnetOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -23314,14 +25170,41 @@ export interface operations {
     export_subnets_csv: {
         parameters: {
             query?: {
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by specific entity IDs (for selective loading) */
+                ids?: string[] | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only subnets of one of these types. Repeat for several. */
+                subnet_types?: string[] | null;
+                /** @description Only subnets that came to exist one of these ways (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Only bridge subnets created by one of these container runtimes. Repeat for several. */
+                managed_by?: string[] | null;
+                /**
+                 * @description `true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates
+                 *     (`Subnet::is_user_managed`).
+                 */
+                user_managed?: boolean | null;
+                /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["SubnetOrderField"];
+                group_by?: components["schemas"]["SubnetOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["SubnetOrderField"];
+                order_by?: components["schemas"]["SubnetOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -23356,6 +25239,94 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_subnet_field_values: {
+        parameters: {
+            query?: {
+                /** @description Filter by specific entity IDs (for selective loading) */
+                ids?: string[] | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Only subnets of one of these types. Repeat for several. */
+                subnet_types?: string[] | null;
+                /** @description Only subnets that came to exist one of these ways (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Only bridge subnets created by one of these container runtimes. Repeat for several. */
+                managed_by?: string[] | null;
+                /**
+                 * @description `true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates
+                 *     (`Subnet::is_user_managed`).
+                 */
+                user_managed?: boolean | null;
+                /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["SubnetOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["SubnetOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+                /**
+                 * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
+                 *     instant (snapshot view) instead of live state.
+                 */
+                at?: string | null;
+                /**
+                 * @description `true` returns only subnets discovery hasn't observed within their
+                 *     site's staleness window; `false` returns only those it has. Omit for
+                 *     both. Evaluated per row against the subnet's own site's window.
+                 */
+                stale?: boolean | null;
+                /**
+                 * @description Free-text search. Case-insensitive substring match against the subnet's
+                 *     name, CIDR and description.
+                 */
+                search?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["SubnetOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Subnet counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };
@@ -23516,7 +25487,39 @@ export interface operations {
     };
     get_all_tag_groups: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Only system groups (`true`), only the organization's own (`false`), or both (repeat it).
+                 *     Sent empty, matches none.
+                 */
+                system?: boolean[] | null;
+                /**
+                 * @description Only groups keeping their tags in a set order (`true`), by name (`false`), or both (repeat
+                 *     it). Sent empty, matches none.
+                 */
+                ordered?: boolean[] | null;
+                /** @description Only groups that apply to one of these entity types. Repeat for several. */
+                entity_types?: components["schemas"]["EntityDiscriminants"][] | null;
+                /**
+                 * @description `true` also returns groups that apply to every entity type. Set on its own it returns only
+                 *     those.
+                 */
+                include_every_entity_type?: boolean | null;
+                /** @description Only groups holding one of these tags. Repeat for several. */
+                tag_ids?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["TagGroupOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["TagGroupOrderField"] | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -23765,12 +25768,20 @@ export interface operations {
     get_all_tags: {
         parameters: {
             query?: {
+                /** @description Only tags of one of these colours. Repeat for several. */
+                colors?: string[] | null;
+                /** @description Only tags in one of these groups. Repeat for several. */
+                tag_group_ids?: string[] | null;
+                /** @description Only tags with one of these icons. Repeat for several. */
+                icons?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["TagOrderField"];
+                group_by?: components["schemas"]["TagOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["TagOrderField"];
+                order_by?: components["schemas"]["TagOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -23985,12 +25996,20 @@ export interface operations {
     export_tags_csv: {
         parameters: {
             query?: {
+                /** @description Only tags of one of these colours. Repeat for several. */
+                colors?: string[] | null;
+                /** @description Only tags in one of these groups. Repeat for several. */
+                tag_group_ids?: string[] | null;
+                /** @description Only tags with one of these icons. Repeat for several. */
+                icons?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["TagOrderField"];
+                group_by?: components["schemas"]["TagOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["TagOrderField"];
+                order_by?: components["schemas"]["TagOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
@@ -24014,6 +26033,62 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_tag_field_values: {
+        parameters: {
+            query?: {
+                /** @description Only tags of one of these colours. Repeat for several. */
+                colors?: string[] | null;
+                /** @description Only tags in one of these groups. Repeat for several. */
+                tag_group_ids?: string[] | null;
+                /** @description Only tags with one of these icons. Repeat for several. */
+                icons?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["TagOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["TagOrderField"] | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+                /**
+                 * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
+                 *     instant (snapshot view) instead of live state.
+                 */
+                at?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["TagOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Tag counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };
@@ -24168,7 +26243,7 @@ export interface operations {
                  * @description The view to build the graph for. When omitted, the graph of every view is built and
                  *     returned. The topology tab always sends the view it draws.
                  */
-                view?: null | components["schemas"]["TopologyView"];
+                view?: components["schemas"]["TopologyView"] | null;
             };
             header?: never;
             path?: never;
@@ -24456,7 +26531,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse_BulkDeleteResponse"];
                 };
             };
-            /** @description Cannot delete users with higher permissions */
+            /** @description Cannot delete yourself, or a user whose role you could not grant */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -24488,6 +26563,62 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    list_members: {
+        parameters: {
+            query?: {
+                /** @description Only members in one of these statuses. Repeat for several. */
+                statuses?: components["schemas"]["MemberStatus"][] | null;
+                /** @description Only members with one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only users assigned one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description `true` also returns admins and owners, who reach every site. Set on its own it returns only
+                 *     those.
+                 */
+                all_sites?: boolean | null;
+                /**
+                 * @description Only users signing in one of these ways (`<provider>`, `<provider>+password`, `password`,
+                 *     `none`). Repeat for several.
+                 */
+                auth_methods?: string[] | null;
+                /** @description Only invites created by one of these users. Repeat for several. */
+                invited_by?: string[] | null;
+                /**
+                 * @description Only users whose email is verified (`true`), unverified (`false`), or both (repeat it).
+                 *     Sent empty, matches none.
+                 */
+                email_verified?: boolean[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the email. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["MemberOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["MemberOrderField"] | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Users and pending invites */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedApiResponse_Member"];
                 };
             };
         };
@@ -24599,7 +26730,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse"];
                 };
             };
-            /** @description Cannot delete user with higher permissions */
+            /** @description Cannot delete yourself, or a user whose role you could not grant */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -24677,17 +26808,35 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["VlanOrderField"];
+                group_by?: components["schemas"]["VlanOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["VlanOrderField"];
+                order_by?: components["schemas"]["VlanOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
                 offset?: number | null;
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Filter by how the VLAN came to exist (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Filter to VLANs linked to one of these subnets. Repeat for several. */
+                subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns VLANs that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the VLAN must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /**
                  * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
                  *     instant (snapshot view) instead of live state.
@@ -24820,17 +26969,35 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: null | components["schemas"]["VlanOrderField"];
+                group_by?: components["schemas"]["VlanOrderField"] | null;
                 /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: null | components["schemas"]["VlanOrderField"];
+                order_by?: components["schemas"]["VlanOrderField"] | null;
                 /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: null | components["schemas"]["OrderDirection"];
+                order_direction?: components["schemas"]["OrderDirection"] | null;
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
                 limit?: number | null;
                 /** @description Number of results to skip. Default: 0. */
                 offset?: number | null;
-                /** @description Filter by site ID */
-                site_id?: string | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Filter by how the VLAN came to exist (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Filter to VLANs linked to one of these subnets. Repeat for several. */
+                subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns VLANs that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the VLAN must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
                 /**
                  * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
                  *     instant (snapshot view) instead of live state.
@@ -24855,6 +27022,79 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    get_vlan_field_values: {
+        parameters: {
+            query?: {
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["VlanOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["VlanOrderField"] | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+                /** @description Filter by site ID. Repeat the parameter to pass several. */
+                site_ids?: string[] | null;
+                /** @description Filter by how the VLAN came to exist (`source.type`). Repeat for several. */
+                sources?: components["schemas"]["EntitySourceDiscriminants"][] | null;
+                /** @description Filter to VLANs linked to one of these subnets. Repeat for several. */
+                subnet_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns VLANs that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the VLAN must hold one tag from each of. Each entry is a comma-separated list
+                 *     of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /**
+                 * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
+                 *     instant (snapshot view) instead of live state.
+                 */
+                at?: string | null;
+                /**
+                 * @description Free-text search. Case-insensitive substring match against the VLAN ID,
+                 *     name and description.
+                 */
+                search?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["VlanOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their Vlan counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };

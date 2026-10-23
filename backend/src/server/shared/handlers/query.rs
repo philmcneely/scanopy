@@ -5,7 +5,10 @@ use uuid::Uuid;
 
 use crate::server::shared::types::api::ApiError;
 
-use crate::server::shared::storage::{filter::StorableFilter, traits::Storable};
+use crate::server::shared::storage::{
+    filter::StorableFilter,
+    traits::{Entity, Storable},
+};
 
 // ============================================================================
 // Pagination Parameters
@@ -439,6 +442,87 @@ pub fn parse_tag_sets(sets: Option<&[String]>) -> Result<Vec<Vec<Uuid>>, ApiErro
                 .collect()
         })
         .collect()
+}
+
+/// A boolean column's filter, as a list sends it: the values a row may hold, repeated for both. A
+/// lone empty value means neither box is checked, which matches no row; absence means no filter.
+///
+/// For `#[serde(default, deserialize_with = "deserialize_bool_values")]` on an
+/// `Option<Vec<bool>>`.
+pub fn deserialize_bool_values<'de, D>(deserializer: D) -> Result<Option<Vec<bool>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let Some(values) = Option::<Vec<String>>::deserialize(deserializer)? else {
+        return Ok(None);
+    };
+    values
+        .iter()
+        .filter(|value| !value.is_empty())
+        .map(|value| match value.as_str() {
+            "true" => Ok(true),
+            "false" => Ok(false),
+            other => Err(serde::de::Error::custom(format!(
+                "\"{other}\" is not true or false"
+            ))),
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(Some)
+}
+
+/// Each value's serde name: the text a column holding it stores, for filtering on it.
+pub fn serde_names<V: Serialize>(values: &[V]) -> Vec<String> {
+    values
+        .iter()
+        .filter_map(|value| {
+            serde_json::to_value(value)
+                .ok()?
+                .as_str()
+                .map(str::to_string)
+        })
+        .collect()
+}
+
+/// Rows on the requested sites the caller can see, or on every site they can see when none is
+/// requested. A requested site outside the caller's access narrows the result to nothing; it never
+/// widens it.
+pub fn on_requested_sites<T: Storable>(
+    filter: StorableFilter<T>,
+    requested: Option<&[Uuid]>,
+    user_site_ids: &[Uuid],
+) -> StorableFilter<T> {
+    match requested {
+        Some(requested) => {
+            let accessible: Vec<Uuid> = requested
+                .iter()
+                .copied()
+                .filter(|id| user_site_ids.contains(id))
+                .collect();
+            filter.site_ids(&accessible)
+        }
+        None => filter.site_ids(user_site_ids),
+    }
+}
+
+/// The narrowing every taggable, searchable list shares: rows holding any of `tag_ids`, rows
+/// holding a tag from each of `tag_sets`, and rows matching `search` through the entity's search
+/// predicates. Server-side because the list is paginated: narrowing the loaded page instead would
+/// miss matches on every other page.
+pub fn narrow_by_tags_and_search<T: Entity>(
+    filter: StorableFilter<T>,
+    tag_ids: Option<&[Uuid]>,
+    tag_sets: Option<&[String]>,
+    search: Option<&str>,
+) -> Result<StorableFilter<T>, ApiError> {
+    let filter = match tag_ids {
+        Some(tag_ids) if !tag_ids.is_empty() => filter.has_any_tags(tag_ids, T::entity_type()),
+        _ => filter,
+    };
+    let filter = filter.has_tags_from_each(&parse_tag_sets(tag_sets)?, T::entity_type());
+    Ok(match search {
+        Some(search) if !search.trim().is_empty() => filter.text_search(search),
+        _ => filter,
+    })
 }
 
 #[cfg(test)]

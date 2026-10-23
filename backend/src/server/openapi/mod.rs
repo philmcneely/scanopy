@@ -13,13 +13,15 @@ use utoipa::openapi::schema::Schema;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::openapi::{Components, OpenApi, PathItem};
 
+use crate::daemon::discovery::types::warnings::SnmpCheck;
 use crate::server::bindings::r#impl::base::Binding;
 use crate::server::credentials::handlers::CredentialOrderField;
 use crate::server::credentials::r#impl::base::Credential;
 use crate::server::credentials::r#impl::types::{
     CredentialIntegration, CredentialOsFields, CredentialStability, CredentialTypeDiscriminants,
-    UpstreamSupport,
+    OsFamily, Target, UpstreamSupport,
 };
+use crate::server::daemon_api_keys::handlers::DaemonApiKeyOrderField;
 use crate::server::daemon_api_keys::r#impl::base::DaemonApiKey;
 use crate::server::daemons::handlers::DaemonOrderField;
 use crate::server::daemons::r#impl::base::Daemon;
@@ -41,17 +43,21 @@ use crate::server::services::r#impl::base::Service;
 use crate::server::shared::handlers::query::{OrderDirection, PaginationParams};
 use crate::server::shared::storage::traits::Entity;
 use crate::server::shared::types::entities::{EntityFreshness, EntitySourceDiscriminants};
-use crate::server::shared::types::entity_field::{EntityField, FieldFormat, Hop, MetadataFixture};
+use crate::server::shared::types::entity_field::{
+    EntityField, FieldFormat, FieldGroup, Hop, MetadataFixture, TableColumn,
+};
 use crate::server::shared::types::field_definition::{
     FieldDefinition, FieldType, InlineFormat, SelectOption,
 };
 use crate::server::shares::r#impl::base::Share;
+use crate::server::sites::handlers::SiteOrderField;
 use crate::server::sites::r#impl::Site;
 use crate::server::snapshots::types::base::Snapshot;
 use crate::server::subnets::handlers::SubnetOrderField;
 use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::subnets::r#impl::nesting::SubnetResponse;
 use crate::server::tags::groups::base::TagGroup;
+use crate::server::tags::groups::handlers::TagGroupOrderField;
 use crate::server::tags::handlers::TagOrderField;
 use crate::server::tags::r#impl::base::Tag;
 use crate::server::topology::types::base::Topology;
@@ -59,8 +65,10 @@ use crate::server::topology::types::views::{
     DependencyMemberType, InspectorSection, ViewElementConfig, ViewElementOrder,
     ViewHandleStrategy, ViewInspectorConfig, ViewLayoutAlgorithm, ViewLayoutConfig, ViewRootOrder,
 };
+use crate::server::user_api_keys::handlers::UserApiKeyOrderField;
 use crate::server::user_api_keys::r#impl::base::UserApiKey;
 use crate::server::users::r#impl::base::User;
+use crate::server::users::members::{MemberOrderField, MemberStatus};
 use crate::server::vlans::handlers::VlanOrderField;
 use crate::server::vlans::r#impl::base::Vlan;
 
@@ -118,6 +126,12 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         CredentialOrderField,
         DiscoveryOrderField,
         VlanOrderField,
+        UserApiKeyOrderField,
+        DaemonApiKeyOrderField,
+        SiteOrderField,
+        TagGroupOrderField,
+        MemberOrderField,
+        MemberStatus,
         // Derived staleness status. Not a field on any entity (it's computed
         // per-request against the site's window), so nothing else pulls it
         // into the schema — but the frontend must derive its union from here
@@ -157,6 +171,10 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         // Which credential fields depend on which declared OS. Travels inside `TypeMetadata.metadata`
         // like `CredentialIntegration`; the form types its picker placement from here.
         CredentialOsFields,
+        // How an operator checks a scan warning against the device. Travels inside the warning
+        // codes fixture's untyped `TypeMetadata.metadata`; the warning report types its command
+        // builder from here.
+        SnmpCheck,
         // Referenced by the install-command query parameter, so it needs a registered schema.
         InstallCommandType,
         // The subnet list and get-by-id body. Inlined into the generic envelopes, so registered by
@@ -167,6 +185,9 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         CredentialTypeDiscriminants,
         // Referenced by the host-list `?sources` filter, for the same reason.
         EntitySourceDiscriminants,
+        // Referenced by the credential-list `?targets` and `?daemon_os` filters, for the same reason.
+        Target,
+        OsFamily,
         // Dynamic form metadata. Travels to the frontend inside the untyped `TypeMetadata.metadata`
         // blob and the scan-settings fixture, so nothing else pulls it into the schema — but the
         // frontend must derive its `field_type` union from here rather than hand-maintaining one.
@@ -177,6 +198,8 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         Hop,
         FieldFormat,
         MetadataFixture,
+        FieldGroup,
+        TableColumn,
         FieldDefinition,
         FieldType,
         SelectOption,
@@ -514,27 +537,33 @@ fn add_security_schemes(spec: &mut OpenApi) {
     // User API key authentication (most common for API consumers)
     components.security_schemes.insert(
         "user_api_key".to_string(),
-        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-            "Authorization",
-            "User API key (Bearer scp_u_...). Create in Platform > API Keys.",
+        RefOr::T(SecurityScheme::ApiKey(ApiKey::Header(
+            ApiKeyValue::with_description(
+                "Authorization",
+                "User API key (Bearer scp_u_...). Create in Platform > API Keys.",
+            ),
         ))),
     );
 
     // Daemon API key authentication
     components.security_schemes.insert(
         "daemon_api_key".to_string(),
-        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-            "Authorization",
-            "Daemon API key (Bearer scp_d_...). Requires X-Daemon-ID header.",
+        RefOr::T(SecurityScheme::ApiKey(ApiKey::Header(
+            ApiKeyValue::with_description(
+                "Authorization",
+                "Daemon API key (Bearer scp_d_...). Requires X-Daemon-ID header.",
+            ),
         ))),
     );
 
     // Session cookie authentication (used by web UI)
     components.security_schemes.insert(
         "session".to_string(),
-        SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::with_description(
-            "session_id",
-            "Browser session cookie. Obtained via /api/auth/login.",
+        RefOr::T(SecurityScheme::ApiKey(ApiKey::Cookie(
+            ApiKeyValue::with_description(
+                "session_id",
+                "Browser session cookie. Obtained via /api/auth/login.",
+            ),
         ))),
     );
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import type { Edge } from '@xyflow/svelte';
 	import EntityDisplayWrapper from '$lib/shared/components/forms/selection/display/EntityDisplayWrapper.svelte';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
@@ -82,7 +83,7 @@
 		<InspectorSection
 			id="edge:ContainerRuntime:host"
 			title={topology_containerHost()}
-			icon={entities.getIconComponent('Host')}
+			icon={hostIcon(containerizingHost)}
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>

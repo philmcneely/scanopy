@@ -187,18 +187,21 @@ pub(super) fn generate_discoveries(
                                 address: IpAddr::V4(Ipv4Addr::new(10, 0, 1, 3)),
                                 group: SnmpWalkGroup::Lldp,
                                 source: ClaimSource::LldpLocalIdentity,
+                                credential_id: Some(network_devices_cred_id),
                             },
                             // ClearsOnTheNextScan: a partial ARP-table read was discarded
                             // rather than recorded.
                             DiscoveryWarning::SnmpWalkPartialDiscarded {
                                 address: IpAddr::V4(Ipv4Addr::new(10, 0, 40, 20)),
                                 group: SnmpWalkGroup::ArpTable,
+                                credential_id: Some(network_devices_cred_id),
                             },
                             // NothingToDo: a firewall has no bridge ports to number, and no
                             // later scan changes that.
                             DiscoveryWarning::SnmpWalkUnsupported {
                                 address: IpAddr::V4(Ipv4Addr::new(10, 0, 1, 1)),
                                 group: SnmpWalkGroup::BridgePortNumbering,
+                                credential_id: Some(network_devices_cred_id),
                             },
                         ],
                         // What each credential produced: SNMP collected from the network devices,
@@ -206,7 +209,10 @@ pub(super) fn generate_discoveries(
                         credential_results: vec![
                             CredentialRunResult {
                                 credential_id: network_devices_cred_id,
-                                outcome: CredentialRunOutcome::Collected { hosts: 9 },
+                                outcome: CredentialRunOutcome::Collected {
+                                    hosts: 9,
+                                    hosts_with_guests_listed: vec![],
+                                },
                             },
                             CredentialRunResult {
                                 credential_id: linux_inventory_cred_id,
@@ -326,11 +332,17 @@ pub(super) fn generate_discoveries(
                         credential_results: vec![
                             CredentialRunResult {
                                 credential_id: find_cred_id("Data Center SNMPv3"),
-                                outcome: CredentialRunOutcome::Collected { hosts: 2 },
+                                outcome: CredentialRunOutcome::Collected {
+                                    hosts: 2,
+                                    hosts_with_guests_listed: vec![],
+                                },
                             },
                             CredentialRunResult {
                                 credential_id: find_cred_id("Arista gNMI"),
-                                outcome: CredentialRunOutcome::Collected { hosts: 1 },
+                                outcome: CredentialRunOutcome::Collected {
+                                    hosts: 1,
+                                    hosts_with_guests_listed: vec![],
+                                },
                             },
                         ],
                         started_at: Some(three_days_ago),

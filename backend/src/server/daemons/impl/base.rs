@@ -11,6 +11,10 @@ use validator::Validate;
 
 use crate::server::credentials::r#impl::types::OsFamily;
 use crate::server::shared::entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants};
+use crate::server::shared::events::{
+    log::{EntityLog, EventLog, changes_log},
+    types::{EventLogLevel, UpdateReason},
+};
 use crate::server::shared::types::{
     Color, Icon,
     metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
@@ -263,14 +267,41 @@ pub struct Daemon {
     pub base: DaemonBase,
 }
 
-impl Daemon {
-    pub fn suppress_logs(&self, other: &Self) -> bool {
-        self.base.mode == other.base.mode
-            && self.base.url == other.base.url
-            && self.base.site_id == other.base.site_id
-            && self.base.host_id == other.base.host_id
-    }
+/// Every heartbeat moves `last_seen`, so that alone logs nothing; `tags` live in their own
+/// junction. Going unreachable gets a WARN line of its own, saying why, so it isn't lost among
+/// the changes; a start gets an INFO line, since a restart on the same version changes nothing
+/// else.
+impl EntityLog for Daemon {
+    const LOG_IGNORED_PATHS: &'static [&'static str] = &["last_seen", "tags"];
 
+    fn update_log(&self, before: &Self, id: Uuid, reason: &UpdateReason) -> EventLog {
+        let log = changes_log(before, self, id, reason, Self::LOG_IGNORED_PATHS);
+        if self.base.is_unreachable && !before.base.is_unreachable {
+            log.with_line(
+                EventLogLevel::Warn,
+                format!(
+                    "Daemon {} unreachable: {}",
+                    self.base.name,
+                    reason.describe()
+                ),
+            )
+        } else if matches!(reason, UpdateReason::DaemonStarted) {
+            let version = self
+                .base
+                .version
+                .as_ref()
+                .map_or_else(|| "unknown".to_string(), ToString::to_string);
+            log.with_line(
+                EventLogLevel::Info,
+                format!("Daemon {} started, version {version}", self.base.name),
+            )
+        } else {
+            log
+        }
+    }
+}
+
+impl Daemon {
     /// Check if daemon supports full ServerPoll mode (v0.14.0+).
     ///
     /// Legacy daemons (< v0.14.0) only support `/api/discovery/initiate` and
@@ -353,6 +384,42 @@ mod tests {
             last_seen: connected.then(Utc::now),
             ..Default::default()
         }
+    }
+
+    /// A heartbeat moves only `last_seen` and logs nothing; a change of state logs its changes;
+    /// going unreachable adds a WARN line carrying why.
+    #[test]
+    fn a_heartbeat_logs_nothing_and_going_unreachable_says_why() {
+        let mut before = crate::server::shared::types::examples::daemon();
+        before.base.is_unreachable = false;
+        let id = before.id;
+
+        let mut heartbeat = before.clone();
+        heartbeat.base.last_seen = Some(Utc::now());
+        assert!(
+            heartbeat
+                .update_log(&before, id, &UpdateReason::DaemonHeartbeat)
+                .is_silent()
+        );
+
+        let mut standby = before.clone();
+        standby.base.standby = !before.base.standby;
+        let log = standby.update_log(&before, id, &UpdateReason::DaemonStandbyChanged);
+        assert!(!log.is_silent());
+        assert!(log.line.is_none());
+
+        let mut unreachable = before.clone();
+        unreachable.base.is_unreachable = true;
+        let reason = UpdateReason::DaemonPollFailed {
+            error: "connection refused".to_string(),
+            rejected_by_daemon: false,
+        };
+        let line = unreachable
+            .update_log(&before, id, &reason)
+            .line
+            .expect("an unreachable daemon gets a line");
+        assert!(matches!(line.level, EventLogLevel::Warn));
+        assert!(line.text.contains("connection refused"), "{}", line.text);
     }
 
     const REPORTING: &str = "0.17.20";

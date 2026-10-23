@@ -96,7 +96,7 @@ pub async fn walk_if_table<T: SnmpWalkTransport>(
         let known = known_if_indexes.clone();
         let mut column_indexes: HashSet<i32> = HashSet::new();
         let mut column_foreign = 0usize;
-        let walked = walk_subtree(session, ip, base_oid_str, |suffix, value| {
+        let stop = walk_subtree(session, ip, base_oid_str, |suffix, value| {
             let Some(&if_index_u64) = suffix.last() else {
                 return;
             };
@@ -146,14 +146,12 @@ pub async fn walk_if_table<T: SnmpWalkTransport>(
             }
         })
         .await
-        .map(WalkStop::is_complete)
-        .unwrap_or(false);
+        .unwrap_or(WalkStop::Failed(SnmpWalkCause::UnreadableResponse));
+        let walked = stop.is_complete();
 
         // A column cut short (timeout/error/limit) means this is NOT an authoritative
         // full ifTable — the server must not prune stale interfaces against it (#649).
-        if !walked {
-            shortfall.complete = false;
-        }
+        shortfall.record(stop);
 
         if column_name == "ifIndex" {
             index_column_complete = Some(walked);
@@ -185,10 +183,10 @@ pub async fn walk_if_table<T: SnmpWalkTransport>(
     let mut result: Vec<IfTableEntry> = entries.into_values().collect();
     result.sort_by_key(|e| e.if_index);
 
-    // The ifTable keeps its own two-flag model (`set_complete` / `attributes_complete`) rather
-    // than reporting a `ShortfallReason`: a truncated interface *set* and a truncated attribute
-    // *column* mean different things to the server, and only the first may gate pruning. The
-    // accumulator is used here purely for the attribute-column flag.
+    // The ifTable keeps its own two-flag model (`set_complete` / `attributes_complete`): a
+    // truncated interface *set* and a truncated attribute *column* mean different things to the
+    // server, and only the first may gate pruning. The accumulator supplies the attribute-column
+    // flag and the reason the first short column stopped.
     let complete = shortfall.complete;
 
     // A foreign row means something answered for an interface this device never listed, so the
@@ -226,6 +224,7 @@ pub async fn walk_if_table<T: SnmpWalkTransport>(
         entries: result,
         set_complete,
         attributes_complete: complete,
+        reason: shortfall.reason,
     })
 }
 

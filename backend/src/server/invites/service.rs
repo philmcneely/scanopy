@@ -1,3 +1,4 @@
+use crate::server::shared::events::types::DeletionReason;
 use std::sync::Arc;
 
 use chrono::Utc;
@@ -91,13 +92,19 @@ impl InviteService {
         ) {
             self.event_bus()
                 .publish(
-                    Event::new(scope, EntityOperation::Deleted, AuthenticatedEntity::System)
-                        .with_flags(EntityEventFlags {
-                            trigger_stale,
-                            ..Default::default()
-                        }),
+                    Event::new(
+                        scope,
+                        EntityOperation::Deleted {
+                            reason: DeletionReason::InviteConsumed,
+                        },
+                        AuthenticatedEntity::System,
+                    )
+                    .with_flags(EntityEventFlags {
+                        trigger_stale,
+                        ..Default::default()
+                    }),
                 )
-                .await?;
+                .await;
         }
 
         Ok(invite)
@@ -115,13 +122,15 @@ impl InviteService {
                 }
 
                 let ids: Vec<Uuid> = expired_invites.iter().map(|i| i.id).collect();
-                match self.storage.delete_many(&ids).await {
-                    Ok(count) => {
-                        tracing::debug!("Cleaned up {} expired invites.", count);
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to delete expired invites: {}", e);
-                    }
+                if let Err(e) = self
+                    .delete_many(
+                        &ids,
+                        AuthenticatedEntity::System,
+                        DeletionReason::InviteExpired,
+                    )
+                    .await
+                {
+                    tracing::error!("Failed to delete expired invites: {}", e);
                 }
             }
             Err(e) => {

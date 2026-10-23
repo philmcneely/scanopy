@@ -124,6 +124,7 @@ pub mod unifi_controller;
 pub mod crowdsec;
 pub mod firewall;
 pub mod fortigate;
+pub mod open_wrt;
 pub mod opn_sense;
 pub mod pf_blocker_ng;
 pub mod pf_sense;
@@ -162,6 +163,7 @@ pub mod pi_hole;
 pub mod ceph;
 pub mod file_server;
 pub mod filezilla_server;
+pub mod iscsi;
 pub mod minio;
 pub mod next_cloud;
 pub mod nfs_server;
@@ -194,6 +196,7 @@ pub mod jellyfin;
 pub mod jellyseerr;
 pub mod jellystat;
 pub mod komga;
+pub mod ombi;
 pub mod overseerr;
 pub mod plex;
 pub mod sabnzbd;
@@ -211,6 +214,7 @@ pub mod zigbee2mqtt;
 pub mod zwave_js;
 
 // Virtualization
+pub mod consul;
 pub mod docker_api_proxy;
 pub mod docker_container;
 pub mod docker_daemon;
@@ -249,14 +253,17 @@ pub mod redis_db;
 // Message Queues
 pub mod activemq;
 pub mod ampq;
+pub mod celery;
 pub mod kafka;
 pub mod mqtt;
 pub mod ntfy;
 pub mod rabbitmq;
+pub mod sidekiq;
 
 // Development
 
 // Collaboration
+pub mod bookstack;
 pub mod confluence_server;
 pub mod discourse;
 pub mod jira_server;
@@ -284,6 +291,7 @@ pub mod teamcity;
 // Web
 pub mod ghost;
 pub mod mendelson_as2;
+pub mod spring_boot;
 pub mod tomcat;
 pub mod web_service;
 pub mod wordpress;
@@ -300,6 +308,7 @@ pub mod vault;
 pub mod vaultwarden;
 
 // Dashboard
+pub mod dashy;
 pub mod glance_app;
 pub mod homarr;
 pub mod homepage;
@@ -377,6 +386,7 @@ pub mod wiz;
 
 // Industrial
 pub mod bacnet;
+pub mod epics;
 pub mod ethernet_ip;
 pub mod modbus_tcp;
 pub mod opc_ua;
