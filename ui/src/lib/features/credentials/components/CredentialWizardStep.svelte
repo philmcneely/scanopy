@@ -85,6 +85,8 @@
 		 *  credentials take its OS family as their `daemon_os` and hide the Daemon OS picker;
 		 *  existing credentials set up for another family are blocked. */
 		daemonOs?: DaemonOS | null;
+		/** Keep the remove action on rows with `lockedHosts`. See `CredentialsStep`. */
+		assignedRowsRemovable?: boolean;
 	}
 
 	let {
@@ -96,7 +98,8 @@
 		claimedDaemonHostIntegrations = [],
 		daemonVersion = null,
 		daemonName = null,
-		daemonOs = null
+		daemonOs = null,
+		assignedRowsRemovable = false
 	}: Props = $props();
 
 	let fixedDaemonOs = $derived(daemonOs ? osFamilyOf(daemonOs) : null);
@@ -118,11 +121,14 @@
 	// Local items array for ListConfigEditor display
 	let items = $derived(pendingCredentials.map((p) => p.credential));
 
-	// A credential assigned through the junction is never removable from this list: the
-	// assignment lives on the host/credential, so the trash would either do nothing or
-	// imply it had unassigned it. Its targets *here* are removed row by row instead.
+	// Where rows are listed for their junction assignments (discovery), a credential assigned
+	// that way is never removable: the assignment lives on the host/credential, so the trash
+	// would either do nothing or imply it had unassigned it. Its targets *here* are removed row
+	// by row instead. Where the user added the row (daemon setup), removing it is theirs to do.
 	let assignedElsewhereCredIds = $derived(
-		pendingCredentials.filter((p) => p.lockedHosts?.length).map((p) => p.credential.id)
+		assignedRowsRemovable
+			? []
+			: pendingCredentials.filter((p) => p.lockedHosts?.length).map((p) => p.credential.id)
 	);
 
 	function isDaemonHostOnly(typeId: string): boolean {
