@@ -34,6 +34,7 @@
 	import RadioGroup from '$lib/shared/components/forms/input/RadioGroup.svelte';
 	import type { FieldDefinition, FieldType } from '$lib/shared/stores/metadata';
 	import { Eye, EyeOff, Plus } from 'lucide-svelte';
+	import type { Snippet } from 'svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import { docsUrl } from '$lib/shared/utils/docs';
 	import {
@@ -320,11 +321,10 @@
 	// Track target IPs as local $state for reactivity (TanStack Form doesn't drive Svelte 5 reactivity)
 	let targetIpValues = $state<string[]>(['']);
 	let hasDaemonHostTarget = $derived(targetIpValues.some(isDaemonHostValue));
-	// Wizard cards that show both targets and fields number them: pick a target, then configure.
 	let showSteps = $derived(compact && !hideTargets && !hideFields);
-	// Until a target is entered, the add-target buttons are the card's primary action.
+	// Until a target row exists, the add-target buttons are the card's primary action.
 	let targetCtaClass = $derived(
-		`${targetIpValues.some((ip) => (ip?.trim() ?? '') !== '') ? 'btn-secondary' : 'btn-primary'} px-3 py-1.5 text-sm`
+		`${targetIpValues.length > 0 ? 'btn-secondary' : 'btn-primary'} px-3 py-1.5 text-sm`
 	);
 
 	// --- Secret/file field mode tracking ---
@@ -893,12 +893,14 @@
 	{/if}
 {/snippet}
 
-{#snippet stepHeading(number: number, label: string)}
+<!-- A wizard card that shows both targets and fields puts each in a numbered step card. -->
+{#snippet stepCard(number: number, label: string, content: Snippet)}
 	{#if showSteps}
-		<h3 class="text-sm font-semibold text-primary">
-			{common_stepNumber({ number: String(number) })}
-			{label}
-		</h3>
+		<InfoCard title={`${common_stepNumber({ number: String(number) })} ${label}`}>
+			<div class="space-y-4">{@render content()}</div>
+		</InfoCard>
+	{:else}
+		{@render content()}
 	{/if}
 {/snippet}
 
@@ -907,147 +909,153 @@
 		{@render integrationDocsHint()}
 
 		{#if !hideTargets}
-			{@render stepHeading(1, daemons_credentialWizardStepSelectTarget())}
-			<!-- Hosts this credential already reaches through the host/credential junction.
+			{#snippet targetsStep()}
+				<!-- Hosts this credential already reaches through the host/credential junction.
 			     Informational, like the site-wide credential line in the wizard — these are
 			     owned elsewhere, so they are listed rather than offered as editable rows.
 			     Shown in both modes: it is a fact about the credential, not about the choice
 			     being made here. -->
-			{#if lockedHosts.length > 0}
-				<p class="flex flex-wrap items-center gap-1 text-xs text-tertiary">
-					<span>{credentials_alreadyAssignedTo()}</span>
-					{#each lockedHosts as host (host.id)}
-						<EntityTag
-							entityRef={entityRef('Host', host.id, host)}
-							label={hostDisplayName(host)}
-							color={entities.getColorHelper('Host').color}
-						/>
-					{/each}
-				</p>
-			{/if}
-
-			<!-- Target mode selector — only when the type supports both modes -->
-			{#if showTargetModeToggle}
-				<SegmentedControl
-					options={[
-						{ value: 'per_host', label: daemons_credentialWizardTargetSpecificHosts() },
-						{ value: 'broadcast', label: daemons_credentialWizardTargetAllHosts() }
-					]}
-					selected={targetMode}
-					onchange={(v) => handleTargetModeChange(v as 'per_host' | 'broadcast')}
-					size="sm"
-				/>
-			{/if}
-
-			{#if targetMode === 'broadcast'}
-				<p class="text-xs text-muted">{daemons_credentialWizardBroadcastHelp()}</p>
-			{:else}
-				{#each targetIpValues as ip, i (i)}
-					<div class="flex items-center gap-2">
-						{#if isDaemonHostValue(ip)}
-							<input
-								type="text"
-								class="input-field min-w-0 flex-1"
-								value={daemons_credentialWizardDaemonHostTargetLabel()}
-								disabled
+				{#if lockedHosts.length > 0}
+					<p class="flex flex-wrap items-center gap-1 text-xs text-tertiary">
+						<span>{credentials_alreadyAssignedTo()}</span>
+						{#each lockedHosts as host (host.id)}
+							<EntityTag
+								entityRef={entityRef('Host', host.id, host)}
+								label={hostDisplayName(host)}
+								color={entities.getColorHelper('Host').color}
 							/>
-						{:else}
-							<div class="min-w-0 flex-1">
-								<form.Field
-									name={targetIpFieldName(i)}
-									validators={{
-										onBlur: ({ value }: { value: string | undefined }) => validateTargetIp(value),
-										onChange: ({ value }: { value: string | undefined }) => validateTargetIp(value),
-										onSubmit: ({ value }: { value: string | undefined }) => validateTargetIp(value)
-									}}
-									listeners={{
-										onChange: ({ value }: { value: string }) => handleTargetIpChange(i, value)
-									}}
-								>
-									{#snippet children(field: AnyFieldApi)}
-										<TextInput
-											label=""
-											id="target-ip-{fieldPrefix}{i}"
-											placeholder={credentials_ipExamplePlaceholder()}
-											{field}
-										/>
-									{/snippet}
-								</form.Field>
-							</div>
-						{/if}
-						<button
-							type="button"
-							class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
-							onclick={() => handleRemoveTarget(i)}>&times;</button
-						>
-					</div>
-				{/each}
-				<div class="flex flex-wrap items-center gap-3">
-					{#if supportsDaemonHost}
-						{#if daemonHostUnavailable && !hasDaemonHostTarget}
-							<!-- Claimed by another credential: unselectable, reason on hover -->
-							<span
-								class="inline-block"
-								data-tooltip={daemons_credentialWizardDaemonHostUnavailable({
-									integration: integrationName
-								})}
-								use:tooltip
+						{/each}
+					</p>
+				{/if}
+
+				<!-- Target mode selector — only when the type supports both modes -->
+				{#if showTargetModeToggle}
+					<SegmentedControl
+						options={[
+							{ value: 'per_host', label: daemons_credentialWizardTargetSpecificHosts() },
+							{ value: 'broadcast', label: daemons_credentialWizardTargetAllHosts() }
+						]}
+						selected={targetMode}
+						onchange={(v) => handleTargetModeChange(v as 'per_host' | 'broadcast')}
+						size="sm"
+					/>
+				{/if}
+
+				{#if targetMode === 'broadcast'}
+					<p class="text-xs text-muted">{daemons_credentialWizardBroadcastHelp()}</p>
+				{:else}
+					{#each targetIpValues as ip, i (i)}
+						<div class="flex items-center gap-2">
+							{#if isDaemonHostValue(ip)}
+								<input
+									type="text"
+									class="input-field min-w-0 flex-1"
+									value={daemons_credentialWizardDaemonHostTargetLabel()}
+									disabled
+								/>
+							{:else}
+								<div class="min-w-0 flex-1">
+									<form.Field
+										name={targetIpFieldName(i)}
+										validators={{
+											onBlur: ({ value }: { value: string | undefined }) => validateTargetIp(value),
+											onChange: ({ value }: { value: string | undefined }) =>
+												validateTargetIp(value),
+											onSubmit: ({ value }: { value: string | undefined }) =>
+												validateTargetIp(value)
+										}}
+										listeners={{
+											onChange: ({ value }: { value: string }) => handleTargetIpChange(i, value)
+										}}
+									>
+										{#snippet children(field: AnyFieldApi)}
+											<TextInput
+												label=""
+												id="target-ip-{fieldPrefix}{i}"
+												placeholder={credentials_ipExamplePlaceholder()}
+												{field}
+											/>
+										{/snippet}
+									</form.Field>
+								</div>
+							{/if}
+							<button
+								type="button"
+								class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
+								onclick={() => handleRemoveTarget(i)}>&times;</button
 							>
+						</div>
+					{/each}
+					<div class="flex flex-wrap items-center gap-3">
+						{#if supportsDaemonHost}
+							{#if daemonHostUnavailable && !hasDaemonHostTarget}
+								<!-- Claimed by another credential: unselectable, reason on hover -->
+								<span
+									class="inline-block"
+									data-tooltip={daemons_credentialWizardDaemonHostUnavailable({
+										integration: integrationName
+									})}
+									use:tooltip
+								>
+									<button type="button" class={targetCtaClass} disabled>
+										<Plus size={14} />
+										{daemons_credentialWizardAddDaemonHostTarget()}
+									</button>
+								</span>
+							{:else if hasDaemonHostTarget}
+								<!-- Already added: disabled -->
 								<button type="button" class={targetCtaClass} disabled>
 									<Plus size={14} />
 									{daemons_credentialWizardAddDaemonHostTarget()}
 								</button>
-							</span>
-						{:else if hasDaemonHostTarget}
-							<!-- Already added: disabled -->
-							<button type="button" class={targetCtaClass} disabled>
+							{:else}
+								<button type="button" class={targetCtaClass} onclick={handleAddDaemonHostTarget}>
+									<Plus size={14} />
+									{daemons_credentialWizardAddDaemonHostTarget()}
+								</button>
+							{/if}
+						{/if}
+						{#if supportsRemoteHosts}
+							<button type="button" class={targetCtaClass} onclick={handleAddIpTarget}>
 								<Plus size={14} />
-								{daemons_credentialWizardAddDaemonHostTarget()}
-							</button>
-						{:else}
-							<button type="button" class={targetCtaClass} onclick={handleAddDaemonHostTarget}>
-								<Plus size={14} />
-								{daemons_credentialWizardAddDaemonHostTarget()}
+								{daemons_credentialWizardAddRemoteHostTarget()}
 							</button>
 						{/if}
-					{/if}
-					{#if supportsRemoteHosts}
-						<button type="button" class={targetCtaClass} onclick={handleAddIpTarget}>
-							<Plus size={14} />
-							{daemons_credentialWizardAddRemoteHostTarget()}
-						</button>
-					{/if}
-				</div>
-				<p class="text-xs text-muted">{daemons_credentialWizardTargetIpHelp()}</p>
-			{/if}
+					</div>
+					<p class="text-xs text-muted">{daemons_credentialWizardTargetIpHelp()}</p>
+				{/if}
+			{/snippet}
+			{@render stepCard(1, daemons_credentialWizardStepSelectTarget(), targetsStep)}
 		{/if}
 
 		<!-- Name + fields. `disabled` shows them read-only (vs `hideFields` which hides them);
 		     a disabled <fieldset> disables every descendant control, including SegmentedControls. -->
 		{#if !hideFields}
-			{@render stepHeading(2, daemons_credentialWizardStepConfigure())}
-			<fieldset {disabled} class="m-0 min-w-0 space-y-4 border-0 p-0">
-				<form.Field
-					name={nameFieldName}
-					validators={{
-						onBlur: ({ value }: { value: string }) => required(value) || max(100)(value),
-						onSubmit: ({ value }: { value: string }) => required(value) || max(100)(value)
-					}}
-					listeners={{ onChange: ({ value }: { value: string }) => onChange?.({ name: value }) }}
-				>
-					{#snippet children(field: AnyFieldApi)}
-						<TextInput
-							label={common_name()}
-							id="credential-name-{fieldPrefix}"
-							{field}
-							{disabled}
-							required
-						/>
-					{/snippet}
-				</form.Field>
+			{#snippet fieldsStep()}
+				<fieldset {disabled} class="m-0 min-w-0 space-y-4 border-0 p-0">
+					<form.Field
+						name={nameFieldName}
+						validators={{
+							onBlur: ({ value }: { value: string }) => required(value) || max(100)(value),
+							onSubmit: ({ value }: { value: string }) => required(value) || max(100)(value)
+						}}
+						listeners={{ onChange: ({ value }: { value: string }) => onChange?.({ name: value }) }}
+					>
+						{#snippet children(field: AnyFieldApi)}
+							<TextInput
+								label={common_name()}
+								id="credential-name-{fieldPrefix}"
+								{field}
+								{disabled}
+								required
+							/>
+						{/snippet}
+					</form.Field>
 
-				{@render fieldCardList()}
-			</fieldset>
+					{@render fieldCardList()}
+				</fieldset>
+			{/snippet}
+			{@render stepCard(2, daemons_credentialWizardStepConfigure(), fieldsStep)}
 		{/if}
 	</div>
 {:else}
