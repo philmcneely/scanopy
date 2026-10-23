@@ -733,7 +733,7 @@
 	"daemons_credentialWizardDescription": "Set up the integrations and credentials this daemon uses when scanning. %link%.",
 	"daemons_credentialWizardDescriptionLinkText": "Learn about credential types",
 	"daemons_credentialWizardEmpty": "No integrations added. Pick one from the list above to set it up, or continue without any.",
-	"daemons_credentialWizardExistingDescription": "Set additional targets for this existing credential below. To edit fields, close this modal and go to the Credentials tab.",
+	"daemons_credentialWizardExistingFieldsReadOnly": "Fields can't be edited here. To change them, close this window and open the credential from Credentials in the sidebar.",
 	"daemons_credentialWizardReturn": "Create {count} credential(s) and continue to install",
 	"daemons_credentialWizardReturnToInstall": "Continue to install",
 	"daemons_credentialWizardSelectExisting": "Select an existing credential to add",

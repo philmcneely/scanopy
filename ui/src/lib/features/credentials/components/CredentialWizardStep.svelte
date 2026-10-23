@@ -9,7 +9,6 @@
 	import { slugifySiteName } from '$lib/features/daemons/utils';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
-	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import { credentialTypes, entities } from '$lib/shared/stores/metadata';
 	import type { TypedTypeMetadata, CredentialTypeMetadata } from '$lib/shared/stores/metadata';
 	import type { Credential, CredentialType } from '$lib/features/credentials/types/base';
@@ -50,7 +49,6 @@
 		daemons_credentialWizardCreateNew,
 		daemons_credentialWizardAddExisting,
 		daemons_credentialWizardSelectExisting,
-		daemons_credentialWizardExistingDescription,
 		daemons_credentialWizardDaemonHostUnavailable,
 		credentials_requiresDaemonVersion
 	} from '$lib/paraglide/messages';
@@ -593,12 +591,8 @@
 						     A credential already assigned to a host through the junction lands here too,
 						     with those assignments rendered as locked target rows — one card per
 						     credential, whether this discovery targets it, it is assigned elsewhere,
-						     or both. A seeded default gets no edit/targets hint: its fields are fixed. -->
-						{#if !pending.credential.is_default}
-							<div class="mb-4">
-								<InlineInfo body={daemons_credentialWizardExistingDescription()} />
-							</div>
-						{/if}
+						     or both. -->
+
 						<CredentialForm
 							bind:this={credentialFormRefs[index]}
 							{form}
