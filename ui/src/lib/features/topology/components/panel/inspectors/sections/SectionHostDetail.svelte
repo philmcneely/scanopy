@@ -46,7 +46,7 @@
 {#if host}
 	<InspectorSection id="HostDetail" section="HostDetail">
 		<InferredHostNotice source={host.source} class="mb-2" />
-		<div class="card card-static">
+		<div class="card-static card">
 			<EntityDisplayWrapper context={hostContext} item={host} displayComponent={HostDisplay} />
 		</div>
 	</InspectorSection>

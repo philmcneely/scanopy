@@ -86,10 +86,10 @@
 
 			<!-- Edge style label -->
 			<div class="flex flex-col">
-				<span class="text-primary text-sm font-medium"
+				<span class="text-sm font-medium text-primary"
 					>{common_style()}: {selectedEdgeStyleLabel}</span
 				>
-				<span class="text-tertiary text-xs"
+				<span class="text-xs text-tertiary"
 					><span class="capitalize">{common_color()}: {formData.color}</span></span
 				>
 			</div>
@@ -112,7 +112,7 @@
 		{#if showCollapseToggle}
 			<!-- Header with collapse button -->
 			<div class="flex items-center justify-between">
-				<div class="text-primary block text-sm font-medium">{dependencies_editEdgeStyle()}</div>
+				<div class="block text-sm font-medium text-primary">{dependencies_editEdgeStyle()}</div>
 				<button type="button" onclick={() => (collapsed = true)} class="btn-secondary text-xs">
 					{common_done()}
 				</button>
@@ -122,8 +122,8 @@
 		<div class={layout === 'horizontal' ? 'grid grid-cols-2 gap-6' : 'space-y-6'}>
 			<!-- Edge Color Section -->
 			<div class="{layout === 'horizontal' ? 'card p-4' : ''} space-y-3">
-				<div class="text-primary text-sm font-medium">{dependencies_edgeColor()}</div>
-				<p class="text-tertiary text-xs">{dependencies_edgeColorHelp()}</p>
+				<div class="text-sm font-medium text-primary">{dependencies_edgeColor()}</div>
+				<p class="text-xs text-tertiary">{dependencies_edgeColorHelp()}</p>
 
 				<div class="grid grid-cols-7 gap-2">
 					{#each AVAILABLE_COLORS as color (color)}
@@ -163,8 +163,8 @@
 
 			<!-- Edge Style Section -->
 			<div class="{layout === 'horizontal' ? 'card p-4' : ''} space-y-3">
-				<div class="text-primary text-sm font-medium">{dependencies_edgeStyleLabel()}</div>
-				<p class="text-tertiary text-xs">{dependencies_edgeStyleHelp()}</p>
+				<div class="text-sm font-medium text-primary">{dependencies_edgeStyleLabel()}</div>
+				<p class="text-xs text-tertiary">{dependencies_edgeStyleHelp()}</p>
 
 				<div class="space-y-1">
 					{#each edgeStyleOptions as option (option.value)}

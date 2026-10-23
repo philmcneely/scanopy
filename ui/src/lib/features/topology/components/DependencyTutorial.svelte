@@ -75,8 +75,8 @@
 	<TopologyOverlay title={topology_tutorialTitle()} size="lg" fixedHeight offsetForPanel>
 		<div class="flex min-h-0 flex-1 flex-col">
 			<!-- Explainer -->
-			<div class="flex-shrink-0 px-6 py-3">
-				<p class="text-secondary text-sm">{topology_tutorialExplainer()}</p>
+			<div class="shrink-0 px-6 py-3">
+				<p class="text-sm text-secondary">{topology_tutorialExplainer()}</p>
 			</div>
 			<!-- Mini SvelteFlow canvas with real ElementNode + edge rendering -->
 			<div class="min-h-0 flex-1">
@@ -86,7 +86,7 @@
 			</div>
 
 			<!-- Checklist below the canvas -->
-			<div class="flex-shrink-0 p-4">
+			<div class="shrink-0 p-4">
 				<div class="mb-2 flex items-center gap-0.5">
 					{#each selectionDots as filled, i (i)}
 						<span
@@ -122,7 +122,7 @@
 				</div>
 
 				<div class="mt-3 text-center">
-					<button class="text-secondary hover:text-primary text-xs underline" onclick={onDismiss}>
+					<button class="text-xs text-secondary underline hover:text-primary" onclick={onDismiss}>
 						{topology_tutorialSkip()}
 					</button>
 				</div>

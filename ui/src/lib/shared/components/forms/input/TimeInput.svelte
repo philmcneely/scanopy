@@ -24,7 +24,7 @@
 		onblur={() => field.handleBlur()}
 		oninput={(e) => field.handleChange(e.currentTarget.value)}
 		{disabled}
-		class="input-field time-picker"
+		class="time-picker input-field"
 		class:input-field-error={hasErrors}
 	/>
 </FormField>

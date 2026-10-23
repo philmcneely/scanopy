@@ -81,7 +81,7 @@
 			{#if sections.own.length > 0}
 				<div class="space-y-1">
 					{#each sections.own as service (service.id)}
-						<div class="card card-static">
+						<div class="card-static card">
 							<EntityDisplayWrapper
 								context={serviceContext}
 								item={service}
@@ -101,7 +101,7 @@
 					count={group.services.length + group.hosts.length}
 				>
 					{#each group.services as service (service.id)}
-						<div class="card card-static">
+						<div class="card-static card">
 							<EntityDisplayWrapper
 								context={serviceContext}
 								item={service}
@@ -110,7 +110,7 @@
 						</div>
 					{/each}
 					{#each group.hosts as member (member.host.id)}
-						<div class="card card-static">
+						<div class="card-static card">
 							<EntityDisplayWrapper
 								context={hostContext(member.services)}
 								item={member.host}
@@ -120,7 +120,7 @@
 						{#if member.services.length > 0}
 							<div class="ml-4 space-y-1">
 								{#each member.services as service (service.id)}
-									<div class="card card-static">
+									<div class="card-static card">
 										<EntityDisplayWrapper
 											context={serviceContext}
 											item={service}

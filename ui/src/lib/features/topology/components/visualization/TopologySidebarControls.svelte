@@ -61,7 +61,7 @@
 	const findShortcut = shortcutLabel('F');
 </script>
 
-<Panel position="top-right" class="!m-[10px] !flex !flex-col !items-end !gap-2 !p-0">
+<Panel position="top-right" class="m-[10px]! flex! flex-col! items-end! gap-2! p-0!">
 	{#if onToggleEditMode}
 		<TopologySidebarButton
 			onclick={onToggleEditMode}
@@ -78,7 +78,7 @@
 	{/if}
 
 	<!-- Collapse/Expand group -->
-	<div class="flex flex-col !shadow-lg">
+	<div class="flex flex-col shadow-lg!">
 		<TopologySidebarButton
 			onclick={onStepExpand}
 			title={collapseLevelTooltipExpand}
@@ -142,7 +142,7 @@
 	{/if}
 
 	<!-- Fit view + Zoom group -->
-	<div class="flex flex-col !shadow-lg">
+	<div class="flex flex-col shadow-lg!">
 		<TopologySidebarButton
 			onclick={onFitView}
 			title={topology_shortcutFitView()}

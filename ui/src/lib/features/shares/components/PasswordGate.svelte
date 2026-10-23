@@ -118,7 +118,7 @@
 				</form.Field>
 
 				{#if serverError}
-					<p class="text-danger text-sm">{serverError}</p>
+					<p class="text-sm text-danger">{serverError}</p>
 				{/if}
 			</div>
 		</div>

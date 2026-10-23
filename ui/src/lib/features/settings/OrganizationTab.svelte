@@ -268,10 +268,10 @@
 					<InfoCard>
 						<div class="flex items-center justify-between">
 							<div>
-								<p class="text-primary text-sm font-medium">
+								<p class="text-sm font-medium text-primary">
 									{common_entityName({ entity: common_organization() })}
 								</p>
-								<p class="text-secondary text-xs">{settings_org_updateName()}</p>
+								<p class="text-xs text-secondary">{settings_org_updateName()}</p>
 							</div>
 							<button
 								onclick={() => {
@@ -292,8 +292,8 @@
 								<InfoCard>
 									<div class="flex items-center justify-between">
 										<div>
-											<p class="text-primary text-sm font-medium">{settings_org_populateDemo()}</p>
-											<p class="text-secondary text-xs">
+											<p class="text-sm font-medium text-primary">{settings_org_populateDemo()}</p>
+											<p class="text-xs text-secondary">
 												{settings_org_populateDemoHelp()}
 											</p>
 										</div>
@@ -308,8 +308,8 @@
 							<InfoCard>
 								<div class="flex items-center justify-between">
 									<div>
-										<p class="text-primary text-sm font-medium">{settings_org_resetData()}</p>
-										<p class="text-secondary text-xs">
+										<p class="text-sm font-medium text-primary">{settings_org_resetData()}</p>
+										<p class="text-xs text-secondary">
 											{settings_org_resetDataHelp()}
 										</p>
 									</div>
@@ -325,8 +325,8 @@
 							<InfoCard>
 								<div class="flex items-center justify-between">
 									<div>
-										<p class="text-primary text-sm font-medium">{settings_org_delete()}</p>
-										<p class="text-secondary text-xs">
+										<p class="text-sm font-medium text-primary">{settings_org_delete()}</p>
+										<p class="text-xs text-secondary">
 											{settings_org_deleteHelp()}
 										</p>
 									</div>
@@ -346,7 +346,7 @@
 		{:else if subView === 'edit'}
 			<div class="flex-1 overflow-auto p-6">
 				<div class="space-y-6">
-					<p class="text-secondary text-sm">{settings_org_updateName()}</p>
+					<p class="text-sm text-secondary">{settings_org_updateName()}</p>
 					<form.Field
 						name="name"
 						validators={{
@@ -368,9 +368,9 @@
 		{/if}
 	{:else}
 		<div class="flex-1 overflow-auto p-6">
-			<div class="text-secondary py-8 text-center">
+			<div class="py-8 text-center text-secondary">
 				<p>{settings_org_unableToLoad()}</p>
-				<p class="text-tertiary mt-2 text-sm">{common_tryAgainLater()}</p>
+				<p class="mt-2 text-sm text-tertiary">{common_tryAgainLater()}</p>
 			</div>
 		</div>
 	{/if}

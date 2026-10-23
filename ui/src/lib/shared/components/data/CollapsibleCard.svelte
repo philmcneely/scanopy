@@ -21,10 +21,10 @@
 	}
 </script>
 
-<div class="card card-static">
+<div class="card-static card">
 	<button
 		type="button"
-		class="flex w-full items-center justify-between text-left focus:outline-none"
+		class="flex w-full items-center justify-between text-left focus:outline-hidden"
 		onclick={toggle}
 		aria-expanded={expanded}
 	>
@@ -32,21 +32,21 @@
 			<div class="flex items-center gap-2">
 				{#if icon}
 					{@const Icon = icon}
-					<Icon class="text-secondary h-4 w-4 flex-shrink-0" />
+					<Icon class="h-4 w-4 shrink-0 text-secondary" />
 				{/if}
-				<h3 class="text-primary text-sm font-semibold">{title}</h3>
+				<h3 class="text-sm font-semibold text-primary">{title}</h3>
 				{#if badge}
 					{@render badge()}
 				{/if}
 			</div>
 			{#if description}
-				<p class="text-tertiary mt-0.5 text-xs">{description}</p>
+				<p class="mt-0.5 text-xs text-tertiary">{description}</p>
 			{/if}
 		</div>
 		{#if expanded}
-			<ChevronDown class="text-secondary ml-3 h-4 w-4 flex-shrink-0" />
+			<ChevronDown class="ml-3 h-4 w-4 shrink-0 text-secondary" />
 		{:else}
-			<ChevronRight class="text-secondary ml-3 h-4 w-4 flex-shrink-0" />
+			<ChevronRight class="ml-3 h-4 w-4 shrink-0 text-secondary" />
 		{/if}
 	</button>
 

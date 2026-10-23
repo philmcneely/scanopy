@@ -110,7 +110,7 @@
 				{isActive}
 			/>
 		{:else if daemonPrompt}
-			<section class="card card-static">
+			<section class="card-static card">
 				<PreDaemonEmptyState
 					title={gettingStarted_stepDaemonDescription()}
 					isReadOnly={daemonPrompt === 'readOnly'}
@@ -128,27 +128,27 @@
 		<!-- Demo Topology Embed — shown before first topology rebuild -->
 		{#if configData && isCloud(configData) && !has('FirstDiscoveryCompleted') && !demoTopologyDismissed}
 			<section>
-				<div class="card card-static overflow-hidden !p-0">
+				<div class="card-static overflow-hidden card p-0!">
 					<div class="flex items-center justify-between px-4 pt-3">
-						<h3 class="text-primary text-base font-semibold">{home_demoEmbedTitle()}</h3>
+						<h3 class="text-base font-semibold text-primary">{home_demoEmbedTitle()}</h3>
 						<div class="flex items-center gap-3">
 							<a
 								href="https://demo.scanopy.net/share/a1b2c3d4-e5f6-7890-abcd-ef1234567890?utm_source=app&utm_medium=in_app&utm_campaign=demo_embed&utm_content=home_link"
 								target="_blank"
 								rel="noopener noreferrer"
-								class="text-link text-sm hover:underline"
+								class="text-sm text-link hover:underline"
 							>
 								View full screen
 							</a>
 							<button
 								onclick={dismissDemoTopology}
-								class="text-tertiary hover:text-secondary text-sm"
+								class="text-sm text-tertiary hover:text-secondary"
 							>
 								Dismiss
 							</button>
 						</div>
 					</div>
-					<p class="text-secondary px-4 pb-2 text-sm">
+					<p class="px-4 pb-2 text-sm text-secondary">
 						{home_demoEmbedSubtitle()}
 					</p>
 					<div class="h-[400px] w-full">

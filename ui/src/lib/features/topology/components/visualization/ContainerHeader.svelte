@@ -194,7 +194,7 @@
 {#if variant === 'external'}
 	<!-- External title pill: card above container -->
 	<div
-		class="nopan nodrag card text-secondary z-100 absolute left-0 flex cursor-pointer items-center gap-1 px-2 py-1 shadow-lg backdrop-blur-sm"
+		class="nopan nodrag absolute left-0 z-100 flex cursor-pointer items-center gap-1 card px-2 py-1 text-secondary shadow-lg backdrop-blur-xs"
 		style:top="-{EXTERNAL_TITLE_OFFSET}px"
 		role="button"
 		tabindex={-1}
@@ -219,7 +219,7 @@
 		{#if headerText}
 			<span
 				data-entity-header
-				class="text-s text-secondary whitespace-nowrap font-medium"
+				class="text-s font-medium whitespace-nowrap text-secondary"
 				use:tooltipAction={{ content: tooltip }}
 			>
 				{headerText}
@@ -234,7 +234,7 @@
 	<!-- Inline header: inside container top padding -->
 	<div
 		bind:this={inlineContainerEl}
-		class="nopan nodrag text-secondary absolute left-2 right-2 top-2 flex items-center gap-1 overflow-hidden rounded-t px-2 py-0.5"
+		class="nopan nodrag absolute top-2 right-2 left-2 flex items-center gap-1 overflow-hidden rounded-t px-2 py-0.5 text-secondary"
 	>
 		{#if isCollapsible}
 			<span data-fixed class="flex items-center"><span class="caret text-secondary"></span></span>
@@ -249,14 +249,14 @@
 			<span
 				data-fixed
 				data-entity-header
-				class="text-tertiary flex-shrink-0 whitespace-nowrap text-xs font-medium"
+				class="shrink-0 text-xs font-medium whitespace-nowrap text-tertiary"
 				use:tooltipAction={{ content: tooltip }}
 			>
 				{headerText}{groupLabels.length > 0 ? ':' : ''}
 			</span>
 		{/if}
 		{#if staleTag}
-			<span data-fixed class="flex-shrink-0"><Tag {...staleTag} pill /></span>
+			<span data-fixed class="shrink-0"><Tag {...staleTag} pill /></span>
 		{/if}
 		{#each visibleLabels as pill (pill.label)}
 			<Tag label={pill.label} color={pill.color} title={pill.title ?? ''} />
@@ -289,7 +289,7 @@
 			{@const IconComp = iconComponent}
 			<span data-fixed
 				><IconComp
-					class={`h-3.5 w-3.5 flex-shrink-0 ${colorHelper.icon}`}
+					class={`h-3.5 w-3.5 shrink-0 ${colorHelper.icon}`}
 					fill={fillIcon ? 'currentColor' : 'none'}
 				/></span
 			>
@@ -301,7 +301,7 @@
 			<span
 				data-fixed
 				data-entity-header
-				class="text-tertiary whitespace-nowrap text-xs font-medium"
+				class="text-xs font-medium whitespace-nowrap text-tertiary"
 				use:tooltipAction={{ content: tooltip }}
 			>
 				{headerText}{groupLabels.length > 0 ? ':' : ''}
@@ -318,7 +318,7 @@
 		{#if searchMatchCount > 0}
 			<span
 				data-fixed
-				class="ml-auto flex items-center gap-0.5 whitespace-nowrap rounded-full bg-blue-500/20 px-1.5 py-0.5 text-[10px] leading-none text-blue-400"
+				class="ml-auto flex items-center gap-0.5 rounded-full bg-blue-500/20 px-1.5 py-0.5 text-[10px] leading-none whitespace-nowrap text-blue-400"
 			>
 				<Search class="h-2.5 w-2.5" />
 				{searchMatchCount}
@@ -327,7 +327,7 @@
 		{#if !hideCount}
 			<span
 				data-fixed
-				class="text-tertiary whitespace-nowrap text-xs"
+				class="text-xs whitespace-nowrap text-tertiary"
 				class:ml-auto={searchMatchCount === 0}
 			>
 				{#if countOnly}
@@ -344,11 +344,11 @@
 		class="rounded-xl text-center text-sm font-semibold shadow-lg"
 		style="background: var(--color-topology-node-bg); position: relative; overflow: visible; transition: box-shadow 0.15s ease-in-out; border-top: 2px solid {colorHelper.rgb}; {tagHoverRingStyle}"
 	>
-		<div class="flex min-w-fit flex-col items-center gap-2 whitespace-nowrap px-6 py-4">
+		<div class="flex min-w-fit flex-col items-center gap-2 px-6 py-4 whitespace-nowrap">
 			<!-- The container's name is not repeated here: a collapsed root container is named by
 			     its external title pill, which stays visible above the box in both states. -->
 			<span
-				class="text-secondary text-base font-medium underline"
+				class="text-base font-medium text-secondary underline"
 				use:tooltipAction={{ content: tooltip }}
 			>
 				{topology_elementCount({ summary: childSummary })}
@@ -362,20 +362,20 @@
 				</span>
 			{/if}
 			{#if ungroupedCount > 0 && subgroupSummaries.length > 0}
-				<span class="text-tertiary text-xs">
+				<span class="text-xs text-tertiary">
 					{topology_ungroupedCount({ summary: ungroupedSummary })}
 				</span>
 			{/if}
 			{#each subgroupSummaries as summary, i (i)}
 				<div
-					class="flex items-center gap-1 whitespace-nowrap rounded-md border border-dashed border-gray-300 px-2 py-1 dark:border-gray-600"
+					class="flex items-center gap-1 rounded-md border border-dashed border-gray-300 px-2 py-1 whitespace-nowrap dark:border-gray-600"
 					style="background: var(--color-topology-subgroup-bg);"
 				>
 					{#if summary.logoDefinition}
 						<SoftwareGlyph definition={summary.logoDefinition} framed={false} />
 					{/if}
 					{#if summary.headerText}
-						<span class="text-tertiary text-xs"
+						<span class="text-xs text-tertiary"
 							>{summary.headerText}{summary.labels.length > 0 ? ':' : ''}</span
 						>
 					{/if}
@@ -386,7 +386,7 @@
 						<HiddenTagsChip tags={summary.labels.slice(2)} interactive />
 					{/if}
 					{#if !summary.hideCount}
-						<span class="text-tertiary text-xs">
+						<span class="text-xs text-tertiary">
 							{#if summary.countOnly}
 								({summary.childCount})
 							{:else}

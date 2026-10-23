@@ -288,13 +288,13 @@
 	{/snippet}
 
 	{#if isSnapshotView}
-		<div class="px-6 pb-2 pt-4">
+		<div class="px-6 pt-4 pb-2">
 			<InlineInfo title={shares_snapshotShareInfoTitle()} body={shares_snapshotShareInfoBody()} />
 		</div>
 	{/if}
 
 	{#if emailVerification.pending}
-		<div class="px-6 pb-2 pt-4">
+		<div class="px-6 pt-4 pb-2">
 			<EmailVerificationNotice body={topology_verifyEmailToShare()} />
 		</div>
 	{/if}

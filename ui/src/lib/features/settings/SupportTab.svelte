@@ -112,11 +112,9 @@
 		<div class="grid grid-cols-2 gap-3">
 			{#each supportOptions as option (option.description)}
 				{@const colors = createColorHelper(option.color)}
-				<button onclick={() => handleCardClick(option.url)} class="card w-full text-left">
+				<button onclick={() => handleCardClick(option.url)} class="w-full card text-left">
 					<div class="flex items-center gap-3">
-						<div
-							class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg {colors.bg}"
-						>
+						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {colors.bg}">
 							{#if typeof option.icon === 'string'}
 								<img src={option.icon} alt={option.title} class="h-5 w-5" />
 							{:else}
@@ -124,8 +122,8 @@
 							{/if}
 						</div>
 						<div class="min-w-0 flex-1">
-							<p class="text-primary text-sm font-medium">{option.title}</p>
-							<p class="text-secondary truncate text-xs">{option.description}</p>
+							<p class="text-sm font-medium text-primary">{option.title}</p>
+							<p class="truncate text-xs text-secondary">{option.description}</p>
 						</div>
 					</div>
 				</button>

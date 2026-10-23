@@ -97,7 +97,7 @@
 				class:input-field-error={hasErrors}
 				aria-label={common_days()}
 			/>
-			<span class="text-secondary text-sm">{common_days()}</span>
+			<span class="text-sm text-secondary">{common_days()}</span>
 		</div>
 		<div class="flex items-center gap-1.5">
 			<input
@@ -114,7 +114,7 @@
 				class:input-field-error={hasErrors}
 				aria-label={common_hours()}
 			/>
-			<span class="text-secondary text-sm">{common_hours()}</span>
+			<span class="text-sm text-secondary">{common_hours()}</span>
 		</div>
 	</div>
 </FormField>

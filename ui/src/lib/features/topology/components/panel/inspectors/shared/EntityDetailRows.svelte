@@ -119,7 +119,7 @@
 </script>
 
 {#if rows.length > 0 || children}
-	<div class="card card-static space-y-1.5">
+	<div class="card-static space-y-1.5 card">
 		{#each rows as row (row.field.id)}
 			<InfoRow label={row.label}>
 				<span class="inline-flex flex-wrap items-center justify-end gap-1">
@@ -137,7 +137,7 @@
 							<CopyableValue {value} variant="inline" />
 						{/each}
 					{:else}
-						<span class="text-primary text-sm">{row.text}</span>
+						<span class="text-sm text-primary">{row.text}</span>
 					{/if}
 				</span>
 			</InfoRow>

@@ -639,7 +639,7 @@
 	<!-- Filters -->
 	<div class="space-y-3">
 		<div class="flex items-center justify-between gap-2">
-			<p class="text-secondary text-xs font-medium">
+			<p class="text-xs font-medium text-secondary">
 				{#if userFilterTotal > 0}
 					{topology_nFiltersApplied({
 						count: userFilterTotal,
@@ -652,7 +652,7 @@
 			{#if userFilterTotal > 0}
 				<button
 					type="button"
-					class="btn-secondary shrink-0 gap-1 rounded px-1.5 py-0 text-xs font-medium"
+					class="btn-secondary shrink-0 gap-1 rounded-sm px-1.5 py-0 text-xs font-medium"
 					onclick={clearAllFiltersForView}
 				>
 					<FunnelX class="h-3 w-3" />
@@ -662,7 +662,7 @@
 		</div>
 
 		<div class="space-y-1.5">
-			<div class="text-secondary text-xs font-semibold uppercase tracking-wide">
+			<div class="text-xs font-semibold tracking-wide text-secondary uppercase">
 				{common_edges()}
 			</div>
 			<FilterGroup
@@ -697,14 +697,14 @@
 
 		{#if viewWideFilters.some(filterOffersAChoice)}
 			<div class="filter-section space-y-1.5 border-t border-gray-300 pt-2 dark:border-gray-700">
-				<div class="flex select-none items-center gap-1.5">
-					<span class="text-secondary text-xs font-semibold uppercase tracking-wide">
+				<div class="flex items-center gap-1.5 select-none">
+					<span class="text-xs font-semibold tracking-wide text-secondary uppercase">
 						{viewWideLabel}
 					</span>
 					{#if viewWideFilterCount > 0}
 						<button
 							type="button"
-							class="btn-secondary gap-1 rounded px-1.5 py-0 text-xs font-medium"
+							class="btn-secondary gap-1 rounded-sm px-1.5 py-0 text-xs font-medium"
 							title={topology_clearSectionFilters({ entity: viewWideLabel })}
 							onclick={clearViewWideFilters}
 						>
@@ -761,7 +761,7 @@
 {:else if activeTab === 'layout'}
 	<!-- Sort and group -->
 	<div class="space-y-3">
-		<p class="text-tertiary text-xs">{topology_layoutHelp()}</p>
+		<p class="text-xs text-tertiary">{topology_layoutHelp()}</p>
 		<ElementSortSelect
 			disabled={!editState.isEditable}
 			disabledReason={editState.isEditable ? '' : getOptionDisabledTooltip()}
@@ -771,7 +771,7 @@
 {:else if activeTab === 'visual'}
 	<!-- Visual Options -->
 	<div class="space-y-3">
-		<p class="text-tertiary text-xs">{topology_displayHelp()}</p>
+		<p class="text-xs text-tertiary">{topology_displayHelp()}</p>
 		{#each sections as section (section.name)}
 			{#each section.fields as def (def.id)}
 				{#if def.type === 'boolean'}
@@ -787,7 +787,7 @@
 					/>
 				{:else if def.type === 'string'}
 					<div>
-						<label for={def.id} class="text-secondary mb-1 block text-sm font-medium">
+						<label for={def.id} class="mb-1 block text-sm font-medium text-secondary">
 							{def.label()}
 						</label>
 						<input
@@ -799,7 +799,7 @@
 							oninput={(e) => updateValue(def, e.currentTarget.value)}
 						/>
 						{#if def.helpText}
-							<p class="text-tertiary mt-1 text-xs">{def.helpText()}</p>
+							<p class="mt-1 text-xs text-tertiary">{def.helpText()}</p>
 						{/if}
 					</div>
 				{/if}

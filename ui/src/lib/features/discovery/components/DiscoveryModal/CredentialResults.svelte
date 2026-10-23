@@ -73,15 +73,15 @@
 		{#each rows as row (row.key)}
 			{@const credential = row.credentialId ? credentialsById.get(row.credentialId) : undefined}
 			{@const open = expanded.has(row.key)}
-			<li class="card card-static px-3 py-1.5">
+			<li class="card-static card px-3 py-1.5">
 				<button
 					type="button"
-					class="hover:bg-tertiary/40 -mx-1 flex w-full min-w-0 cursor-pointer items-start gap-2 rounded px-1 py-1 text-left"
+					class="hover:bg-tertiary/40 -mx-1 flex w-full min-w-0 cursor-pointer items-start gap-2 rounded-sm px-1 py-1 text-left"
 					aria-expanded={open}
 					onclick={() => toggle(row.key)}
 				>
 					<ChevronRight
-						class="text-secondary mt-0.5 h-4 w-4 shrink-0 transition-transform {open
+						class="mt-0.5 h-4 w-4 shrink-0 text-secondary transition-transform {open
 							? 'rotate-90'
 							: ''}"
 					/>
@@ -94,9 +94,9 @@
 								color={entities.getColorHelper('Credential').color}
 							/>
 						{:else if row.integration}
-							<span class="text-primary text-sm">{integration(row.integration)}</span>
+							<span class="text-sm text-primary">{integration(row.integration)}</span>
 						{:else}
-							<span class="text-primary text-sm">
+							<span class="text-sm text-primary">
 								{common_unknownEntity({ entity: common_credential() })}
 							</span>
 						{/if}
@@ -122,22 +122,22 @@
 						{#each buildWarningReport(row.warnings, nameOfEntity, daemonName) as section (section.remedy)}
 							{#each section.entries as entry (entry.code)}
 								<div class="space-y-1">
-									<p class="text-primary text-sm">{entry.title}</p>
+									<p class="text-sm text-primary">{entry.title}</p>
 									{#each entry.details as statement, i (i)}
-										<p class="text-tertiary text-sm">{statement.sentence}</p>
+										<p class="text-sm text-tertiary">{statement.sentence}</p>
 									{/each}
 								</div>
 							{/each}
 						{/each}
 
 						{#if row.outcome?.type === 'Collected'}
-							<p class="text-tertiary text-sm">
+							<p class="text-sm text-tertiary">
 								{discovery_credentialCollectedHosts({ count: row.outcome.hosts })}
 							</p>
 						{:else if row.outcome?.type === 'SshScript'}
 							<SshScriptRuns runs={row.outcome.runs} />
 						{:else if row.outcome?.type === 'WakeOnLan'}
-							<p class="text-tertiary text-sm">
+							<p class="text-sm text-tertiary">
 								{discovery_credentialWokeHosts({
 									woke: row.outcome.hosts.filter((h) => h.woke).length,
 									total: row.outcome.hosts.length

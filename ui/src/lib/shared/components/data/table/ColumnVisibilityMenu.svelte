@@ -214,7 +214,7 @@
 	type="button"
 	bind:this={trigger}
 	onclick={() => (open = !open)}
-	class="btn-secondary summary-control"
+	class="summary-control btn-secondary"
 	aria-expanded={open}
 	aria-haspopup="dialog"
 >
@@ -224,7 +224,7 @@
 		{@const paused = listShortcuts.isPaused()}
 		<!-- Same key hint as the other controls in the summary row (`PaginationBar`). -->
 		<span
-			class="text-tertiary font-normal transition-opacity {paused ? 'opacity-40' : ''}"
+			class="font-normal text-tertiary transition-opacity {paused ? 'opacity-40' : ''}"
 			title={paused ? common_shortcutsPausedInSearch() : undefined}>({columnsShortcut})</span
 		>
 	{/if}
@@ -240,11 +240,11 @@
 >
 	<div bind:this={panelElement} class="w-[17rem]">
 		<div class="mb-2 flex items-center justify-between">
-			<span class="text-primary text-sm font-semibold">{common_columns()}</span>
+			<span class="text-sm font-semibold text-primary">{common_columns()}</span>
 			<button
 				type="button"
 				onclick={onReset}
-				class="text-tertiary hover:text-secondary text-xs transition-colors"
+				class="text-xs text-tertiary transition-colors hover:text-secondary"
 			>
 				{common_resetColumns()}
 			</button>
@@ -259,9 +259,9 @@
 				draggingSection === key
 					? 'opacity-50'
 					: ''} {isSectionTarget && sectionDropTarget?.position === 'before'
-					? '!border-t-blue-500'
+					? 'border-t-blue-500!'
 					: ''} {isSectionTarget && sectionDropTarget?.position === 'after'
-					? '!border-b-blue-500'
+					? 'border-b-blue-500!'
 					: ''}"
 				role="presentation"
 				ondragover={(event) => handleSectionDragOver(event, key)}
@@ -271,7 +271,7 @@
 					<!-- Flush left, with its columns indented beneath it. Dragging the heading, or its
 							arrows, moves every column under it. -->
 					<div
-						class="text-tertiary mt-2 flex items-center gap-1 pr-1 text-xs font-semibold uppercase tracking-wide"
+						class="mt-2 flex items-center gap-1 pr-1 text-xs font-semibold tracking-wide text-tertiary uppercase"
 						draggable={sectionIndex !== -1}
 						ondragstart={(event) => handleSectionDragStart(event, key)}
 						ondragend={clearDrag}
@@ -295,7 +295,7 @@
 								onclick={() => stepSection(key, -1)}
 								disabled={sectionIndex <= 0}
 								aria-label={common_moveColumnUp({ column: heading })}
-								class="hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
+								class="rounded-sm p-0.5 transition-colors hover:text-primary disabled:opacity-30"
 							>
 								<ChevronUp class="h-4 w-4" />
 							</button>
@@ -306,7 +306,7 @@
 								onclick={() => stepSection(key, 1)}
 								disabled={sectionIndex === movableSections.length - 1}
 								aria-label={common_moveColumnDown({ column: heading })}
-								class="hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
+								class="rounded-sm p-0.5 transition-colors hover:text-primary disabled:opacity-30"
 							>
 								<ChevronDown class="h-4 w-4" />
 							</button>
@@ -323,8 +323,8 @@
 							column.id
 								? 'opacity-50'
 								: ''} {isTarget && dropTarget?.position === 'before'
-								? '!border-t-blue-500'
-								: ''} {isTarget && dropTarget?.position === 'after' ? '!border-b-blue-500' : ''}"
+								? 'border-t-blue-500!'
+								: ''} {isTarget && dropTarget?.position === 'after' ? 'border-b-blue-500!' : ''}"
 							draggable={canMove}
 							ondragstart={(event) => handleDragStart(event, column.id)}
 							ondragover={(event) => handleDragOver(event, column.id)}
@@ -333,7 +333,7 @@
 						>
 							{#if canMove}
 								<span
-									class="text-tertiary cursor-grab"
+									class="cursor-grab text-tertiary"
 									title={common_dragToReorderColumn({ column: column.label })}
 									aria-hidden="true"
 								>
@@ -347,9 +347,9 @@
 									type="checkbox"
 									checked={visibility[column.id] !== false}
 									onchange={() => onToggle(column.id)}
-									class="checkbox-card h-4 w-4 rounded"
+									class="h-4 w-4 checkbox-card rounded-sm"
 								/>
-								<span class="text-secondary truncate text-sm" title={column.label}
+								<span class="truncate text-sm text-secondary" title={column.label}
 									>{column.label}</span
 								>
 							</label>
@@ -361,7 +361,7 @@
 									onclick={() => step(column.id, -1)}
 									disabled={index <= 0}
 									aria-label={common_moveColumnUp({ column: column.label })}
-									class="text-tertiary hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
+									class="rounded-sm p-0.5 text-tertiary transition-colors hover:text-primary disabled:opacity-30"
 								>
 									<ChevronUp class="h-4 w-4" />
 								</button>
@@ -372,7 +372,7 @@
 									onclick={() => step(column.id, 1)}
 									disabled={index === movable.length - 1}
 									aria-label={common_moveColumnDown({ column: column.label })}
-									class="text-tertiary hover:text-primary rounded p-0.5 transition-colors disabled:opacity-30"
+									class="rounded-sm p-0.5 text-tertiary transition-colors hover:text-primary disabled:opacity-30"
 								>
 									<ChevronDown class="h-4 w-4" />
 								</button>

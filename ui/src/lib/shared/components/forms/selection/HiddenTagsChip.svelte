@@ -79,7 +79,7 @@
 		aria-haspopup="dialog"
 		aria-expanded={isOpen}
 		aria-label={label}
-		class="text-tertiary hover:text-secondary inline-flex shrink-0 cursor-pointer items-center p-0.5 transition-colors"
+		class="inline-flex shrink-0 cursor-pointer items-center p-0.5 text-tertiary transition-colors hover:text-secondary"
 		onmouseenter={handleMouseEnter}
 		onmouseleave={handleMouseLeave}
 		onclick={toggle}
@@ -109,6 +109,6 @@
 		use:tooltip
 		data-tooltip={names || label}
 		aria-label={label}
-		class="text-tertiary inline-flex shrink-0 items-center p-0.5"><Info class="h-3.5 w-3.5" /></span
+		class="inline-flex shrink-0 items-center p-0.5 text-tertiary"><Info class="h-3.5 w-3.5" /></span
 	>
 {/if}

@@ -58,7 +58,7 @@
 			{#if dismissableKey}
 				<button
 					onclick={dismiss}
-					class="ml-2 shrink-0 rounded p-0.5 transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+					class="ml-2 shrink-0 rounded-sm p-0.5 transition-colors hover:bg-black/10 dark:hover:bg-white/10"
 					aria-label={common_dismiss()}
 				>
 					<X class="h-4 w-4" />

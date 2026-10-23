@@ -113,7 +113,7 @@
 		<div class="flex-1 overflow-auto p-6">
 			<div class="space-y-6">
 				<p class="text-secondary">
-					{daemons_updateAvailable()} <span class="text-primary font-medium">{daemon.name}</span>.
+					{daemons_updateAvailable()} <span class="font-medium text-primary">{daemon.name}</span>.
 					{#if daemon.version_status.version}
 						{daemons_currentVersion()}
 						<span class="font-mono">{daemon.version_status.version}.</span>
@@ -185,7 +185,7 @@
 									/>
 								{:else}
 									<div class="space-y-2">
-										<p class="text-secondary text-sm">
+										<p class="text-sm text-secondary">
 											{daemons_dockerLatestTag()}
 										</p>
 										<CodeContainer
@@ -197,7 +197,7 @@
 								{/if}
 
 								<div class="space-y-2">
-									<p class="text-secondary text-sm">
+									<p class="text-sm text-secondary">
 										{daemons_dockerPinnedVersion()}
 										<span class="font-mono">docker-compose.yml</span>:
 									</p>
@@ -206,7 +206,7 @@
 										expandable={false}
 										code={artifacts.docker.pinned_image}
 									/>
-									<p class="text-secondary text-sm">
+									<p class="text-sm text-secondary">
 										{daemons_dockerApplyChanges()}
 									</p>
 								</div>

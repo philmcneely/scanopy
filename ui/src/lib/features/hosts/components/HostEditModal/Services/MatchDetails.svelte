@@ -14,15 +14,15 @@
 
 {#snippet matchReasonNode(reason: MatchReason)}
 	{#if reason.type === 'reason'}
-		<div class="text-secondary flex items-start gap-2 py-1 text-sm">
+		<div class="flex items-start gap-2 py-1 text-sm text-secondary">
 			<span class="text-tertiary select-none">•</span>
 			<span>{reason.data}</span>
 		</div>
 	{:else}
 		<div class="py-1">
-			<span class="text-secondary text-sm font-medium">{reason.data[0]}</span>
+			<span class="text-sm font-medium text-secondary">{reason.data[0]}</span>
 			{#if reason.data[1].length > 0}
-				<div class="ml-2 mt-1 border-l-2 pl-4" style="border-color: var(--color-border)">
+				<div class="mt-1 ml-2 border-l-2 pl-4" style="border-color: var(--color-border)">
 					{#each reason.data[1] as child, index (index)}
 						{@render matchReasonNode(child)}
 					{/each}
@@ -37,19 +37,19 @@
 		{#if rootChildren.length > 0}
 			<button
 				type="button"
-				class="text-secondary hover:text-primary flex items-center gap-1 text-left text-sm"
+				class="flex items-center gap-1 text-left text-sm text-secondary hover:text-primary"
 				aria-expanded={isExpanded}
 				onclick={() => (isExpanded = !isExpanded)}
 			>
 				{#if isExpanded}
-					<ChevronDown class="h-4 w-4 flex-shrink-0" />
+					<ChevronDown class="h-4 w-4 shrink-0" />
 				{:else}
-					<ChevronRight class="h-4 w-4 flex-shrink-0" />
+					<ChevronRight class="h-4 w-4 shrink-0" />
 				{/if}
 				{matchReasonLabel(details.reason)}
 			</button>
 		{:else}
-			<span class="text-secondary text-sm">{matchReasonLabel(details.reason)}</span>
+			<span class="text-sm text-secondary">{matchReasonLabel(details.reason)}</span>
 		{/if}
 		<Tag {...matchConfidences.getTag(details.confidence)} />
 	</div>

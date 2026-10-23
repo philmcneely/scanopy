@@ -23,6 +23,6 @@
 	<ProgressTrack class="min-w-16 flex-1">
 		<AnimatedProgressBar {progress} {stalled} />
 	</ProgressTrack>
-	<span class="text-secondary shrink-0 text-xs">{progress}%</span>
+	<span class="shrink-0 text-xs text-secondary">{progress}%</span>
 	<StallTag {session_id} {phase} {cancelling} />
 </div>

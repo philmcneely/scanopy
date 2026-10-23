@@ -21,7 +21,7 @@
 </script>
 
 <nav
-	class={inline ? 'flex flex-1 items-center' : 'flex w-full items-start pb-4 pt-4'}
+	class={inline ? 'flex flex-1 items-center' : 'flex w-full items-start pt-4 pb-4'}
 	aria-label={common_progressSteps()}
 >
 	{#each tabs as tab, i (tab.id)}
@@ -70,9 +70,9 @@
 
 			<!-- Label -->
 			<span
-				class="whitespace-nowrap text-center text-xs
+				class="text-center text-xs whitespace-nowrap
 				{isCurrent
-					? 'text-primary font-semibold'
+					? 'font-semibold text-primary'
 					: isCompleted
 						? 'text-secondary'
 						: tab.disabled

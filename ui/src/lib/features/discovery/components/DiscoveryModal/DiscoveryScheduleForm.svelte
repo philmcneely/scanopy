@@ -168,7 +168,7 @@
 		{#if rawCronMode}
 			<InlineInfo title={discovery_scheduleCronExpression()} body={discovery_scheduleCronInfo()} />
 		{/if}
-		<p class="text-tertiary text-sm">
+		<p class="text-sm text-tertiary">
 			{discovery_scheduleHelp()}
 		</p>
 
@@ -204,7 +204,7 @@
 			<form.Field name="schedule_days_of_week">
 				{#snippet children(field: AnyFieldApi)}
 					<div>
-						<span class="text-secondary mb-2 block text-sm font-medium">
+						<span class="mb-2 block text-sm font-medium text-secondary">
 							{discovery_scheduleDaysOfWeek()}
 						</span>
 						<div class="flex gap-1">

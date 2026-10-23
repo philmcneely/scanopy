@@ -215,7 +215,7 @@
 					? entities.getIconComponent(selectionEntityType)
 					: inspectorSections.getIconComponent('Identity')}
 				<SelectionIcon
-					class="h-4 w-4 flex-shrink-0 {selectionEntityType
+					class="h-4 w-4 shrink-0 {selectionEntityType
 						? entities.getColorHelper(selectionEntityType).icon
 						: inspectorSections.getColorHelper('Identity').icon}"
 				/>
@@ -232,7 +232,7 @@
 		{/snippet}
 		<div class="space-y-2">
 			{#if thisInterface}
-				<div class="card card-static">
+				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={{ compact: true }}
 						item={thisInterface}
@@ -240,7 +240,7 @@
 					/>
 				</div>
 			{:else if thisIPAddress}
-				<div class="card card-static">
+				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={ipAddressDisplayContext}
 						item={thisIPAddress}
@@ -248,7 +248,7 @@
 					/>
 				</div>
 			{:else if thisService}
-				<div class="card card-static">
+				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={serviceDisplayContext}
 						item={thisService}
@@ -257,7 +257,7 @@
 				</div>
 			{:else if thisHostElement}
 				<InferredHostNotice source={thisHostElement.source} />
-				<div class="card card-static">
+				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={hostElementContext}
 						item={thisHostElement}
@@ -265,7 +265,7 @@
 					/>
 				</div>
 			{:else if thisSubnet}
-				<div class="card card-static">
+				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={subnetContext}
 						item={thisSubnet}
@@ -280,7 +280,7 @@
 					{/if}
 				</div>
 			{:else if thisHostContainer}
-				<div class="card card-static">
+				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={hostContainerContext}
 						item={thisHostContainer}
@@ -288,8 +288,8 @@
 					/>
 				</div>
 			{:else if containerTitle}
-				<div class="card card-static">
-					<p class="text-primary text-sm font-medium">{containerTitle}</p>
+				<div class="card-static card">
+					<p class="text-sm font-medium text-primary">{containerTitle}</p>
 				</div>
 			{/if}
 
@@ -300,7 +300,7 @@
 			{:else if listedSubnet}
 				<EntityDetailRows {node} {topology} {sections}>
 					<div class="space-y-1">
-						<span class="text-secondary text-sm">{common_utilization()}</span>
+						<span class="text-sm text-secondary">{common_utilization()}</span>
 						<SubnetUtilization subnet={listedSubnet} />
 					</div>
 				</EntityDetailRows>

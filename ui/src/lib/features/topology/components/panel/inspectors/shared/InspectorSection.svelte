@@ -66,19 +66,19 @@
 			onclick={() => toggleInspectorSection(id)}
 		>
 			{#if collapsed}
-				<ChevronRight class="text-tertiary h-4 w-4 flex-shrink-0" />
+				<ChevronRight class="h-4 w-4 shrink-0 text-tertiary" />
 			{:else}
-				<ChevronDown class="text-tertiary h-4 w-4 flex-shrink-0" />
+				<ChevronDown class="h-4 w-4 shrink-0 text-tertiary" />
 			{/if}
 			{#if glyph}
 				{@render glyph()}
 			{:else if Icon}
-				<Icon class="h-4 w-4 flex-shrink-0 {resolvedIconClass}" />
+				<Icon class="h-4 w-4 shrink-0 {resolvedIconClass}" />
 			{/if}
-			<span class="text-primary truncate text-sm font-semibold">{resolvedTitle}</span>
+			<span class="truncate text-sm font-semibold text-primary">{resolvedTitle}</span>
 			{#if count !== undefined}
 				<span
-					class="bg-surface-secondary text-tertiary flex-shrink-0 rounded-full px-1.5 text-xs tabular-nums"
+					class="bg-surface-secondary shrink-0 rounded-full px-1.5 text-xs text-tertiary tabular-nums"
 				>
 					{count}
 				</span>
@@ -90,7 +90,7 @@
 	</div>
 	{#if !collapsed}
 		{#if resolvedDescription}
-			<p class="text-tertiary mb-2 mt-0.5 pl-[22px] text-xs">{resolvedDescription}</p>
+			<p class="mt-0.5 mb-2 pl-[22px] text-xs text-tertiary">{resolvedDescription}</p>
 		{:else}
 			<div class="mb-2"></div>
 		{/if}

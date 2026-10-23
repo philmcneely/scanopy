@@ -131,13 +131,13 @@
      content so the content column spans the full card width — otherwise the
      fade starts to the left of the X button and cuts off dropdown chevrons
      that still have room. -->
-<div class="card card-static relative p-2 text-sm">
+<div class="card-static relative card p-2 text-sm">
 	<!-- pr reserves space for the fade region (and the X button when present) so
 	     dropdown chevrons / tag tails never sit inside the fade. -->
 	<div class="dep-card-content space-y-2 overflow-hidden {onRemove ? 'pr-7' : 'pr-4'}">
 		<!-- Line 1: Host {host} -->
 		<div class="flex items-center gap-1.5">
-			<span class="text-tertiary flex-shrink-0">{common_host()}</span>
+			<span class="shrink-0 text-tertiary">{common_host()}</span>
 			{#if host}
 				<EntityTag
 					entityRef={entityRef('Host', host.id, host)}
@@ -149,12 +149,12 @@
 
 		<!-- Line 2: running {service} (tag or picker), or error when no services -->
 		{#if hasNoServices}
-			<p class="text-danger text-xs">
+			<p class="text-xs text-danger">
 				{dependencies_noServicesError({ name: noServicesLabel })}
 			</p>
 		{:else}
 			<div class="flex items-center gap-1.5">
-				<span class="text-tertiary flex-shrink-0">running</span>
+				<span class="shrink-0 text-tertiary">running</span>
 				{#if hasPicker}
 					<form.Field name="picks.{target.elementId}">
 						{#snippet children(field: AnyFieldApi)}
@@ -175,14 +175,14 @@
 						color={serviceIconColor(resolvedService.service_definition)}
 					/>
 				{:else}
-					<span class="text-tertiary text-xs italic">—</span>
+					<span class="text-xs text-tertiary italic">—</span>
 				{/if}
 			</div>
 
 			<!-- Line 3 (Bindings mode): at {binding} (tag or picker) -->
 			{#if memberMode === 'Bindings' && resolvedServiceId}
 				<div class="flex items-center gap-1.5">
-					<span class="text-tertiary flex-shrink-0">{common_at()}</span>
+					<span class="shrink-0 text-tertiary">{common_at()}</span>
 					<BindingPicker
 						{form}
 						{topology}
@@ -199,7 +199,7 @@
 	{#if onRemove}
 		<button
 			type="button"
-			class="btn-icon absolute right-2 top-2 p-1"
+			class="absolute top-2 right-2 btn-icon p-1"
 			onclick={onRemove}
 			title={common_remove()}
 			aria-label={common_remove()}

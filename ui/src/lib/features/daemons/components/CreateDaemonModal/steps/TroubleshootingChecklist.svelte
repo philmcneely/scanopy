@@ -209,8 +209,8 @@
 	});
 </script>
 
-<div class="card card-static divide-y divide-gray-200 dark:divide-gray-700">
-	<p class="text-secondary pb-3 text-sm">{daemons_troubleshoot_followSteps()}</p>
+<div class="card-static divide-y divide-gray-200 card dark:divide-gray-700">
+	<p class="pb-3 text-sm text-secondary">{daemons_troubleshoot_followSteps()}</p>
 
 	{#if isServerPoll}
 		<ChecklistItem
@@ -219,12 +219,12 @@
 			onToggle={() => toggle('listening')}
 		>
 			{#snippet detail()}
-				<p class="text-tertiary text-sm">{daemons_troubleshoot_isListeningDesc()}</p>
+				<p class="text-sm text-tertiary">{daemons_troubleshoot_isListeningDesc()}</p>
 				<CopyableValue value={processCheckCommand} />
 				{#if !isDocker}
 					<CopyableValue value={portCheckCommand} />
 				{/if}
-				<p class="text-tertiary text-sm">{daemons_troubleshoot_processNotFound()}</p>
+				<p class="text-sm text-tertiary">{daemons_troubleshoot_processNotFound()}</p>
 			{/snippet}
 		</ChecklistItem>
 
@@ -234,10 +234,10 @@
 			onToggle={() => toggle('firewall')}
 		>
 			{#snippet detail()}
-				<p class="text-tertiary text-sm">
+				<p class="text-sm text-tertiary">
 					{daemons_troubleshoot_firewallNatDesc({ daemonUrl: daemonUrl || '' })}
 				</p>
-				<p class="text-tertiary text-sm italic">{daemons_troubleshoot_firewallNote()}</p>
+				<p class="text-sm text-tertiary italic">{daemons_troubleshoot_firewallNote()}</p>
 			{/snippet}
 		</ChecklistItem>
 
@@ -247,7 +247,7 @@
 			onToggle={() => toggle('server-reach')}
 		>
 			{#snippet detail()}
-				<p class="text-tertiary text-sm">{daemons_troubleshoot_canServerReachDesc()}</p>
+				<p class="text-sm text-tertiary">{daemons_troubleshoot_canServerReachDesc()}</p>
 				{#if daemonUrl && onHealthCheck}
 					{#if healthResult}
 						{#if healthResult.reachable && healthResult.health}
@@ -288,9 +288,9 @@
 			onToggle={() => toggle('running')}
 		>
 			{#snippet detail()}
-				<p class="text-tertiary text-sm">{daemons_troubleshoot_isDaemonRunningDesc()}</p>
+				<p class="text-sm text-tertiary">{daemons_troubleshoot_isDaemonRunningDesc()}</p>
 				<CopyableValue value={processCheckCommand} />
-				<p class="text-tertiary text-sm">{daemons_troubleshoot_processNotFound()}</p>
+				<p class="text-sm text-tertiary">{daemons_troubleshoot_processNotFound()}</p>
 				{#if onReviewCommands}
 					<button type="button" class="btn-secondary text-xs" onclick={onReviewCommands}>
 						{daemons_troubleshoot_reviewInstallCommand()}
@@ -305,14 +305,14 @@
 			onToggle={() => toggle('reach-server')}
 		>
 			{#snippet detail()}
-				<p class="text-tertiary text-sm">{daemons_troubleshoot_canReachServerStep1()}</p>
+				<p class="text-sm text-tertiary">{daemons_troubleshoot_canReachServerStep1()}</p>
 				<CopyableValue value={healthCheckCommand} />
-				<p class="text-tertiary mt-2 text-sm">{daemons_troubleshoot_canReachServerStep2()}</p>
+				<p class="mt-2 text-sm text-tertiary">{daemons_troubleshoot_canReachServerStep2()}</p>
 				<CopyableValue value={`nslookup ${serverHostname}`} />
-				<p class="text-tertiary mt-2 text-sm">
+				<p class="mt-2 text-sm text-tertiary">
 					{daemons_troubleshoot_canReachServerStep3({ portDesc: serverPortDesc })}
 				</p>
-				<p class="text-tertiary mt-1 text-sm italic">{daemons_troubleshoot_firewallNote()}</p>
+				<p class="mt-1 text-sm text-tertiary italic">{daemons_troubleshoot_firewallNote()}</p>
 			{/snippet}
 		</ChecklistItem>
 	{/if}
@@ -324,29 +324,29 @@
 		onToggle={() => toggle('logs')}
 	>
 		{#snippet detail()}
-			<p class="text-tertiary text-sm">{daemons_troubleshoot_checkLogsDesc()}</p>
+			<p class="text-sm text-tertiary">{daemons_troubleshoot_checkLogsDesc()}</p>
 			{#if isDocker}
-				<p class="text-secondary mt-2 text-sm font-medium">
+				<p class="mt-2 text-sm font-medium text-secondary">
 					{daemons_troubleshoot_logFileDocker()}
 				</p>
 				<CopyableValue value={logCommand} />
-				<p class="text-secondary mt-2 text-sm font-medium">
+				<p class="mt-2 text-sm font-medium text-secondary">
 					{daemons_troubleshoot_logFileMounted()}
 				</p>
 				<CopyableValue value={`tail -50 ${dockerHostLogPath}`} />
 			{:else}
 				{#if hasCustomLogPath}
-					<p class="text-secondary mt-2 text-sm font-medium">
+					<p class="mt-2 text-sm font-medium text-secondary">
 						{daemons_troubleshoot_logFileCustom({ path: effectiveLogPath })}
 					</p>
 				{:else}
-					<p class="text-secondary mt-2 text-sm font-medium">
+					<p class="mt-2 text-sm font-medium text-secondary">
 						{daemons_troubleshoot_logFileAt({ path: effectiveLogPath })}
 					</p>
 				{/if}
 				<CopyableValue value={logCommand} />
 				{#if journalCommand}
-					<p class="text-secondary mt-2 text-sm font-medium">
+					<p class="mt-2 text-sm font-medium text-secondary">
 						{daemons_troubleshoot_logFileOrJournal()}
 					</p>
 					<CopyableValue value={journalCommand} />
@@ -354,12 +354,12 @@
 			{/if}
 
 			<div class="mt-3">
-				<p class="text-secondary text-sm font-medium">{daemons_troubleshoot_commonErrors()}</p>
-				<table class="text-tertiary mt-1 w-full text-xs">
+				<p class="text-sm font-medium text-secondary">{daemons_troubleshoot_commonErrors()}</p>
+				<table class="mt-1 w-full text-xs text-tertiary">
 					<thead>
-						<tr class="text-secondary border-b border-gray-200 text-left dark:border-gray-700">
-							<th class="pb-1 pr-3 font-medium">{common_error()}</th>
-							<th class="pb-1 pr-3 font-medium">{common_cause()}</th>
+						<tr class="border-b border-gray-200 text-left text-secondary dark:border-gray-700">
+							<th class="pr-3 pb-1 font-medium">{common_error()}</th>
+							<th class="pr-3 pb-1 font-medium">{common_cause()}</th>
 							<th class="pb-1 font-medium">{common_fix()}</th>
 						</tr>
 					</thead>
@@ -428,8 +428,8 @@
 
 	<!-- Still stuck? — always expanded -->
 	<div class="pt-3">
-		<h3 class="text-primary text-sm font-semibold">{daemons_troubleshoot_stillStuck()}</h3>
-		<p class="text-tertiary mt-0.5 text-xs">{daemons_troubleshoot_stillStuckDesc()}</p>
+		<h3 class="text-sm font-semibold text-primary">{daemons_troubleshoot_stillStuck()}</h3>
+		<p class="mt-0.5 text-xs text-tertiary">{daemons_troubleshoot_stillStuckDesc()}</p>
 		<div class="mt-3">
 			<SupportOptions isTroubleshooting={true} />
 		</div>

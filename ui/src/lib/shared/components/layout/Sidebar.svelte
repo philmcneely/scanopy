@@ -712,7 +712,7 @@
 	}
 
 	const inactiveButtonClass =
-		'text-tertiary hover:text-secondary hover:bg-gray-100 dark:hover:bg-gray-800 border border-[var(--color-bg-sidebar)]';
+		'text-tertiary hover:text-secondary hover:bg-gray-100 dark:hover:bg-gray-800 border border-(--color-bg-sidebar)';
 
 	const sectionHeaderClass =
 		'text-secondary hover:text-primary flex w-full items-center rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-800/50';
@@ -724,7 +724,7 @@
 </script>
 
 <div
-	class="sidebar flex flex-shrink-0 flex-col transition-all duration-300"
+	class="sidebar flex shrink-0 flex-col transition-all duration-300"
 	class:w-16={collapsed}
 	class:w-48={!collapsed}
 >
@@ -733,14 +733,14 @@
 		<div class="px-2 py-4">
 			<button
 				onclick={toggleCollapse}
-				class="text-tertiary hover:text-secondary flex w-full items-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+				class="flex w-full items-center rounded-lg text-tertiary transition-colors hover:bg-gray-100 hover:text-secondary dark:hover:bg-gray-800"
 				style="height: 38px; padding: 0.375rem 0.75rem;"
 				aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 			>
-				<Menu class="h-5 w-5 flex-shrink-0" />
+				<Menu class="h-5 w-5 shrink-0" />
 				{#if !collapsed}
-					<img src="/logos/scanopy-logo.png" alt="Logo" class="ml-2 h-6 w-auto rounded" />
-					<h1 class="text-primary ml-1.5 text-sm font-bold">Scanopy</h1>
+					<img src="/logos/scanopy-logo.png" alt="Logo" class="ml-2 h-6 w-auto rounded-sm" />
+					<h1 class="ml-1.5 text-sm font-bold text-primary">Scanopy</h1>
 				{/if}
 			</button>
 			<!-- Global search. Collapsed, the bar shrinks to its icon and the shortcut moves to the
@@ -753,12 +753,12 @@
 					onclick={() => globalSearchOpen.set(true)}
 					class="{collapsed
 						? `${inactiveButtonClass} justify-center rounded-lg`
-						: 'input-field text-muted hover:border-gray-400 dark:hover:border-gray-500'} toolbar-control mt-2 flex w-full items-center gap-2 px-3"
+						: 'input-field text-muted hover:border-gray-400 dark:hover:border-gray-500'} mt-2 flex toolbar-control w-full items-center gap-2 px-3"
 					title={collapsed ? globalSearch_openWithShortcut({ shortcut: searchShortcut }) : ''}
 					aria-label={globalSearch_placeholder()}
 					aria-keyshortcuts={searchShortcut}
 				>
-					<Search class="text-tertiary h-4 w-4 flex-shrink-0" />
+					<Search class="h-4 w-4 shrink-0 text-tertiary" />
 					{#if !collapsed}
 						<span class="flex-1 truncate text-left">{globalSearch_searchAll()}</span>
 						<!-- Dims while a table search has focus: the key types there instead. -->
@@ -802,7 +802,7 @@
 								>
 									<span class="flex-1 text-left">{configItem.label}</span>
 									<ChevronDown
-										class="h-4 w-4 flex-shrink-0 transition-transform {sectionStates[configItem.id]
+										class="h-4 w-4 shrink-0 transition-transform {sectionStates[configItem.id]
 											? '-rotate-90'
 											: ''}"
 									/>
@@ -817,16 +817,16 @@
 											<button
 												onclick={() => handleItemClick(item)}
 												class="{baseClasses} {isItemActive(item)
-													? 'text-primary border border-blue-500/30 bg-blue-100 dark:border-blue-600 dark:bg-blue-700'
+													? 'border border-blue-500/30 bg-blue-100 text-primary dark:border-blue-600 dark:bg-blue-700'
 													: inactiveButtonClass}"
 												style="height: 2rem; padding: 0.375rem 0.75rem;"
 												title={collapsed ? item.label : ''}
 											>
 												<span class="relative">
-													<item.icon class="h-4 w-4 flex-shrink-0" />
+													<item.icon class="h-4 w-4 shrink-0" />
 													{#if dotColor}
 														<span
-															class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full"
+															class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full"
 															style="background-color: {dotColor}"
 														></span>
 													{/if}
@@ -843,12 +843,12 @@
 															<button
 																onclick={() => handleItemClick(child)}
 																class="{baseClasses} {activeTab === child.id
-																	? 'text-primary border border-blue-500/30 bg-blue-100 dark:border-blue-600 dark:bg-blue-700'
+																	? 'border border-blue-500/30 bg-blue-100 text-primary dark:border-blue-600 dark:bg-blue-700'
 																	: inactiveButtonClass}"
 																style="height: 2.25rem; padding: 0.375rem 0.75rem;"
 																title={collapsed ? child.label : ''}
 															>
-																<child.icon class="h-4 w-4 flex-shrink-0" />
+																<child.icon class="h-4 w-4 shrink-0" />
 																{#if !collapsed}
 																	<span class="ml-3 truncate text-sm">{child.label}</span>
 																{/if}
@@ -869,12 +869,12 @@
 								onclick={() => handleItemClick(configItem)}
 								class="{baseClasses} {activeTab === configItem.id ||
 								(configItem.id === 'settings' && showSettings)
-									? 'text-primary border border-blue-500/30 bg-blue-100 dark:border-blue-600 dark:bg-blue-700'
+									? 'border border-blue-500/30 bg-blue-100 text-primary dark:border-blue-600 dark:bg-blue-700'
 									: inactiveButtonClass}"
 								style="height: 2rem; padding: 0.375rem 0.75rem;"
 								title={collapsed ? configItem.label : ''}
 							>
-								<configItem.icon class="h-4 w-4 flex-shrink-0" />
+								<configItem.icon class="h-4 w-4 shrink-0" />
 								{#if !collapsed}
 									<span class="ml-2.5 truncate">{configItem.label}</span>
 								{/if}
@@ -887,7 +887,7 @@
 	</div>
 
 	<!-- Bottom Navigation -->
-	<div class="flex-shrink-0 border-t px-2 py-2" style="border-color: var(--color-border)">
+	<div class="shrink-0 border-t px-2 py-2" style="border-color: var(--color-border)">
 		<ul class="space-y-1">
 			{#snippet sidebarAmberCta({
 				Icon,
@@ -905,7 +905,7 @@
 					{onclick}
 				>
 					<span class="relative">
-						<Icon class="h-5 w-5 flex-shrink-0" />
+						<Icon class="h-5 w-5 shrink-0" />
 					</span>
 					{#if !collapsed}
 						<span class="ml-3 truncate">{label}</span>
@@ -942,15 +942,15 @@
 							onclick={() => handleItemClick(item)}
 							class="{baseClasses} {activeTab === item.id ||
 							(item.id === 'settings' && showSettings)
-								? 'text-primary border border-blue-500/30 bg-blue-100 dark:border-blue-600 dark:bg-blue-700'
+								? 'border border-blue-500/30 bg-blue-100 text-primary dark:border-blue-600 dark:bg-blue-700'
 								: inactiveButtonClass}"
 							style="height: 2rem; padding: 0.375rem 0.75rem;"
 							title={collapsed ? item.label : ''}
 						>
 							<span class="relative">
-								<item.icon class="h-5 w-5 flex-shrink-0" />
+								<item.icon class="h-5 w-5 shrink-0" />
 								{#if item.id === 'settings' && showBillingNotification}
-									<span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-500"
+									<span class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-500"
 									></span>
 								{/if}
 							</span>

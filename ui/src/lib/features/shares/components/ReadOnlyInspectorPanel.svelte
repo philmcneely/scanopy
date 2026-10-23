@@ -37,7 +37,7 @@
 
 <!-- Floating Panel -->
 <div
-	class="topology-options absolute left-4 top-4 z-10 duration-300 {expanded ? 'w-80' : 'w-auto'}"
+	class="topology-options absolute top-4 left-4 z-10 duration-300 {expanded ? 'w-80' : 'w-auto'}"
 >
 	<div class="card p-0 shadow-lg">
 		{#if expanded}
@@ -49,10 +49,10 @@
 					onclick={() => setExpanded(false)}
 					aria-label={topology_collapsePanel()}
 				>
-					<ChevronLeft class="text-secondary h-5 w-5" />
+					<ChevronLeft class="h-5 w-5 text-secondary" />
 				</button>
 				<!-- Title -->
-				<div class="text-primary flex-1 px-4 py-3 text-sm font-medium">
+				<div class="flex-1 px-4 py-3 text-sm font-medium text-primary">
 					<Info class="mr-1 inline h-4 w-4" />
 					Inspector
 				</div>
@@ -72,7 +72,7 @@
 						<InspectorEdge edge={$selectedEdge} />
 					{/key}
 				{:else}
-					<div class="text-tertiary py-8 text-center text-sm">
+					<div class="py-8 text-center text-sm text-tertiary">
 						Click on a node or edge to inspect it
 					</div>
 				{/if}
@@ -84,7 +84,7 @@
 				onclick={() => setExpanded(true)}
 				aria-label={topology_expandPanel()}
 			>
-				<ChevronRight class="text-secondary h-5 w-5" />
+				<ChevronRight class="h-5 w-5 text-secondary" />
 			</button>
 		{/if}
 	</div>

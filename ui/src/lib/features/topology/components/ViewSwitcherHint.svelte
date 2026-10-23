@@ -54,10 +54,10 @@
 </script>
 
 {#if ready && portalContainer}
-	<div use:portal class="fixed z-[9999] w-64" style="top: {top}px; left: {left}px;">
+	<div use:portal class="fixed z-9999 w-64" style="top: {top}px; left: {left}px;">
 		<div class="hint-callout relative rounded-lg px-4 py-3">
 			<div class="hint-arrow absolute -top-2 left-1/2 -translate-x-1/2"></div>
-			<p class="text-primary text-xs">
+			<p class="text-xs text-primary">
 				{topology_viewSwitcherHint()}
 			</p>
 		</div>

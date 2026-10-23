@@ -44,7 +44,7 @@
 	<div class="flex flex-col items-center">
 		<button
 			type="button"
-			class="flex-shrink-0 pt-3 transition-colors {!disabled
+			class="shrink-0 pt-3 transition-colors {!disabled
 				? 'cursor-pointer hover:opacity-70'
 				: 'opacity-50'}"
 			{disabled}
@@ -91,7 +91,7 @@
 		{/if}
 
 		{#if hasDetail && detail}
-			<div class="space-y-2.5 pb-2 pt-2 text-sm">
+			<div class="space-y-2.5 pt-2 pb-2 text-sm">
 				{@render detail()}
 			</div>
 		{/if}

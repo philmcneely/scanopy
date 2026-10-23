@@ -11,6 +11,6 @@
 </script>
 
 <span class="inline-flex items-center gap-1.5 text-sm">
-	<RoleIcon class="h-4 w-4 flex-shrink-0 {deviceTypes.getColorHelper(resolved).icon}" />
+	<RoleIcon class="h-4 w-4 shrink-0 {deviceTypes.getColorHelper(resolved).icon}" />
 	{deviceTypes.getName(resolved)}
 </span>

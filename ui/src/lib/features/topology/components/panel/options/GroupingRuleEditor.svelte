@@ -609,7 +609,7 @@
 		onMoveDown={handleContainerMoveDown}
 	>
 		{#snippet helpSnippet()}
-			<p class="text-tertiary text-xs">{topology_containerGroupingHelp()}</p>
+			<p class="text-xs text-tertiary">{topology_containerGroupingHelp()}</p>
 		{/snippet}
 		{#snippet itemSnippet({ item })}
 			<GroupingRuleItem
@@ -646,7 +646,7 @@
 	onEdit={handleVisibleElementEdit}
 >
 	{#snippet helpSnippet()}
-		<p class="text-tertiary text-xs">
+		<p class="text-xs text-tertiary">
 			{topology_elementGroupingHelp({ label: elementGroupingLabelPlural })}
 		</p>
 	{/snippet}
@@ -699,7 +699,7 @@
 				class="mt-2 w-full space-y-3 border-t border-gray-200 pt-2 dark:border-gray-700"
 			>
 				{#if item.id === getInfrastructureRuleId()}
-					<p class="text-tertiary text-xs">{topology_infraRuleNote({ useCase: useCaseLabel })}</p>
+					<p class="text-xs text-tertiary">{topology_infraRuleNote({ useCase: useCaseLabel })}</p>
 				{/if}
 				<!-- Title input (hidden for infrastructure rule — title is system-managed) -->
 				{#if item.id !== getInfrastructureRuleId()}

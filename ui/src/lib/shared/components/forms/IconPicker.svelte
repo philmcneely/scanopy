@@ -78,7 +78,7 @@
 </script>
 
 <div class="space-y-2">
-	<label for={id} class="text-secondary block text-sm font-medium">{label}</label>
+	<label for={id} class="block text-sm font-medium text-secondary">{label}</label>
 	<div class="flex items-center gap-2">
 		<button
 			bind:this={trigger}
@@ -86,19 +86,19 @@
 			type="button"
 			aria-haspopup="dialog"
 			aria-expanded={open}
-			class="input-field flex w-40 items-center justify-between gap-2"
+			class="flex input-field w-40 items-center justify-between gap-2"
 			{disabled}
 			onclick={() => (open = !open)}
 		>
 			<span class="flex items-center gap-2">
 				{#if SelectedIcon}
 					<SelectedIcon class="h-4 w-4" />
-					<span class="text-primary truncate text-sm">{value}</span>
+					<span class="truncate text-sm text-primary">{value}</span>
 				{:else}
-					<span class="text-tertiary text-sm">{common_none()}</span>
+					<span class="text-sm text-tertiary">{common_none()}</span>
 				{/if}
 			</span>
-			<ChevronDown class="text-tertiary h-4 w-4 shrink-0" />
+			<ChevronDown class="h-4 w-4 shrink-0 text-tertiary" />
 		</button>
 		{#if value && !disabled}
 			<button
@@ -137,7 +137,7 @@
 				</button>
 			</div>
 			{#if filtered.length === 0}
-				<p class="text-tertiary px-1 py-2 text-xs">{common_noIconsMatch({ query })}</p>
+				<p class="px-1 py-2 text-xs text-tertiary">{common_noIconsMatch({ query })}</p>
 			{:else}
 				<div
 					bind:this={scroller}
@@ -147,7 +147,7 @@
 				>
 					<div class="relative" style="height: {rowCount * ROW_HEIGHT}px;">
 						<div
-							class="absolute left-0 right-0 grid"
+							class="absolute right-0 left-0 grid"
 							style="top: {firstRow *
 								ROW_HEIGHT}px; grid-template-columns: repeat({COLUMNS}, minmax(0, 1fr));"
 						>
@@ -163,7 +163,7 @@
 									aria-label={name}
 									onclick={() => choose(name)}
 								>
-									<Icon class="text-secondary h-4 w-4" />
+									<Icon class="h-4 w-4 text-secondary" />
 								</button>
 							{/each}
 						</div>
@@ -174,6 +174,6 @@
 	</Popover>
 
 	{#if helpText}
-		<p class="text-tertiary text-xs">{helpText}</p>
+		<p class="text-xs text-tertiary">{helpText}</p>
 	{/if}
 </div>

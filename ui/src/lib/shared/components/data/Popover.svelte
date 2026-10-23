@@ -191,7 +191,7 @@
 		use:portal
 		bind:this={popoverEl}
 		{id}
-		class="fixed z-[9999] flex flex-col overflow-hidden rounded-lg border shadow-[0_4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+		class="fixed z-9999 flex flex-col overflow-hidden rounded-lg border shadow-[0_4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
 		style:border-color="var(--color-border)"
 		style:background="var(--color-bg-elevated)"
 		style:min-width={minWidth}

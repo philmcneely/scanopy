@@ -725,7 +725,7 @@
 		<div class="space-y-3">
 			<!-- Header -->
 			<div
-				class="card card-static flex items-center justify-evenly gap-2 px-2 py-2"
+				class="card-static flex items-center justify-evenly gap-2 card px-2 py-2"
 				style="border-bottom: 2px solid {viewColorStyle.rgb}; transition: border-color 0.3s ease;"
 			>
 				{#if currentTopology}
@@ -747,7 +747,7 @@
 					</div>
 
 					{#if !isReadOnly}
-						<div class="card-divider-v self-stretch"></div>
+						<div class="self-stretch card-divider-v"></div>
 						{#if activeSession}
 							{@const estimate = activeSession.estimated_remaining_secs}
 							<div
@@ -769,7 +769,7 @@
 									<span class="text-[10px]">Estimating...</span>
 								{/if}
 							</div>
-							<div class="card-divider-v self-stretch"></div>
+							<div class="self-stretch card-divider-v"></div>
 						{/if}
 					{/if}
 				{/if}
@@ -783,7 +783,7 @@
 						options={sitesData}
 					/>
 
-					<div class="card-divider-v self-stretch"></div>
+					<div class="self-stretch card-divider-v"></div>
 
 					<RichSelect
 						label=""
@@ -823,7 +823,7 @@
 						{/if}
 					{/if}
 
-					<div class="card-divider-v self-stretch"></div>
+					<div class="self-stretch card-divider-v"></div>
 
 					<div bind:this={viewSwitcherEl}>
 						<RichSelect
@@ -891,7 +891,7 @@
 					{/if}
 				</div>
 			{:else}
-				<div class="card card-static text-secondary">
+				<div class="card-static card text-secondary">
 					{topology_noTopologySelected()}
 				</div>
 			{/if}

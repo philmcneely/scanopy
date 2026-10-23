@@ -34,16 +34,16 @@
 	}
 </script>
 
-<div class="card card-static px-0 py-2">
+<div class="card-static card px-0 py-2">
 	<button
 		onclick={toggle}
-		class="text-secondary hover:text-primary flex w-full items-center gap-2 px-3 py-2 text-sm font-medium"
+		class="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-secondary hover:text-primary"
 	>
 		{#if expanded}<ChevronDown class="h-4 w-4" />{:else}<ChevronRight class="h-4 w-4" />{/if}
 		{common_options()}
 	</button>
 	{#if expanded}
-		<p class="text-tertiary mb-2 px-3 text-xs">{topology_optionsHint()}</p>
+		<p class="mb-2 px-3 text-xs text-tertiary">{topology_optionsHint()}</p>
 		<div class="space-y-3 px-3 pb-3">
 			{@render children()}
 		</div>

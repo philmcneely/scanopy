@@ -72,7 +72,7 @@
 		<div class={`flex items-center justify-between  ${expanded ? 'mb-1' : ''}`}>
 			<button
 				type="button"
-				class="text-tertiary hover:text-secondary flex items-center gap-1 p-1 text-xs transition-colors"
+				class="flex items-center gap-1 p-1 text-xs text-tertiary transition-colors hover:text-secondary"
 				onclick={toggleJson}
 			>
 				<Braces class="h-3 w-3" />
@@ -81,7 +81,7 @@
 			{#if expanded}
 				<button
 					type="button"
-					class="text-tertiary hover:text-secondary p-1 transition-colors"
+					class="p-1 text-tertiary transition-colors hover:text-secondary"
 					onclick={toggleJson}
 					title={common_collapse()}
 				>

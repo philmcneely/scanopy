@@ -48,9 +48,9 @@
 <!-- Hoverable name sits alongside the buttons. Hover affordance is scoped
   to the name only — the buttons live outside so hovering them does not
   trigger the entity-wide node highlight. -->
-<div class="flex select-none items-center gap-1.5">
+<div class="flex items-center gap-1.5 select-none">
 	<span
-		class="filter-section-name text-secondary text-xs font-semibold uppercase tracking-wide"
+		class="filter-section-name text-xs font-semibold tracking-wide text-secondary uppercase"
 		class:filter-section-name-hoverable={hoverable}
 		onmouseenter={onEnter}
 		onmouseleave={onLeave}
@@ -60,7 +60,7 @@
 	{#if activeFilterCount > 0 && onClearSection}
 		<button
 			type="button"
-			class="btn-secondary gap-1 rounded px-1.5 py-0 text-xs font-medium"
+			class="btn-secondary gap-1 rounded-sm px-1.5 py-0 text-xs font-medium"
 			title={topology_clearSectionFilters({ entity: label })}
 			onclick={() => onClearSection(entityType)}
 		>
@@ -71,7 +71,7 @@
 	{#if togglePresent}
 		<button
 			type="button"
-			class="btn-secondary rounded px-1 py-0"
+			class="btn-secondary rounded-sm px-1 py-0"
 			disabled={toggleDisabled}
 			title={toggleDisabled
 				? topology_hideLastElementDisabled({ entity: label })

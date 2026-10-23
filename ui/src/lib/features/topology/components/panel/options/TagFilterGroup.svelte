@@ -84,7 +84,7 @@
 
 <div class="space-y-2">
 	{#if label}
-		<div class="text-tertiary text-xs">{label}</div>
+		<div class="text-xs text-tertiary">{label}</div>
 	{/if}
 	{#each sections as section, index (section.label ?? `loose-${index}`)}
 		<FilterGroup

@@ -374,7 +374,7 @@
 	{#if os}
 		<OsTag {os} />
 	{:else}
-		<span class="text-tertiary text-sm">—</span>
+		<span class="text-sm text-tertiary">—</span>
 	{/if}
 {/snippet}
 

@@ -371,16 +371,16 @@
 	{#if hasSearch}
 		<div class="max-h-[60vh] overflow-y-auto px-2 pb-2" role="listbox">
 			{#if isLoading && rows.length === 0}
-				<p class="text-tertiary px-2 py-3 text-sm">{common_loading()}</p>
+				<p class="px-2 py-3 text-sm text-tertiary">{common_loading()}</p>
 			{:else if rows.length === 0}
-				<p class="text-tertiary px-2 py-3 text-sm">
+				<p class="px-2 py-3 text-sm text-tertiary">
 					{search.text.trim()
 						? globalSearch_noResults({ query: search.text })
 						: globalSearch_noTaggedResults()}
 				</p>
 			{:else}
 				<div class="flex items-baseline justify-between gap-3 px-2 py-1">
-					<span class="text-tertiary text-xs tabular-nums">
+					<span class="text-xs text-tertiary tabular-nums">
 						{globalSearch_resultCount({ count: totalResults })}
 					</span>
 					<SearchHint inline tabCompletes={completion !== null} />
@@ -390,7 +390,7 @@
 			{#each groups as group (group.type)}
 				<div class="mb-2">
 					<h3
-						class="text-tertiary flex items-baseline gap-1.5 px-2 py-1 text-xs font-semibold uppercase tracking-wide"
+						class="flex items-baseline gap-1.5 px-2 py-1 text-xs font-semibold tracking-wide text-tertiary uppercase"
 					>
 						{groupLabel(group.type)}
 						<span class="font-normal tabular-nums">({group.total})</span>
@@ -407,7 +407,7 @@
 									tabindex="-1"
 									aria-selected={index === highlighted}
 									disabled={loadingMore === row.type}
-									class="text-secondary w-full rounded-lg px-2 py-1.5 text-left text-sm transition-colors {index ===
+									class="w-full rounded-lg px-2 py-1.5 text-left text-sm text-secondary transition-colors {index ===
 									highlighted
 										? 'bg-gray-100 dark:bg-gray-800'
 										: 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}"

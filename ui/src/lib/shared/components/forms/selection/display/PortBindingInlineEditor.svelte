@@ -118,14 +118,14 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="flex-1" onclick={(e) => e.stopPropagation()}>
-	<div class="text-secondary mb-1 block text-xs font-medium">{hosts_bindings_portBinding()}</div>
+	<div class="mb-1 block text-xs font-medium text-secondary">{hosts_bindings_portBinding()}</div>
 
 	{#if !service}
-		<div class="text-danger rounded border border-red-600 bg-red-900/20 px-2 py-1 text-xs">
+		<div class="rounded-sm border border-red-600 bg-red-900/20 px-2 py-1 text-xs text-danger">
 			{hosts_bindings_serviceNotFound()}
 		</div>
 	{:else if !host}
-		<div class="text-danger rounded border border-red-600 bg-red-900/20 px-2 py-1 text-xs">
+		<div class="rounded-sm border border-red-600 bg-red-900/20 px-2 py-1 text-xs text-danger">
 			{hosts_bindings_hostNotFound()}
 		</div>
 	{:else}
@@ -136,7 +136,7 @@
 				</div>
 			{:else if host.ip_addresses.length > 0}
 				<div class="min-w-0 flex-1">
-					<div class="text-tertiary mb-1 block text-xs">{common_ipAddress()}</div>
+					<div class="mb-1 block text-xs text-tertiary">{common_ipAddress()}</div>
 					<RichSelect
 						selectedValue={selectedInterface}
 						options={ipAddressOptions.map((o) => o.item)}
@@ -153,19 +153,19 @@
 			{#if host.ports.length === 0}
 				<div class="flex-1">
 					<div
-						class="rounded border border-yellow-600 bg-yellow-900/20 px-2 py-1 text-xs text-warning"
+						class="rounded-sm border border-yellow-600 bg-yellow-900/20 px-2 py-1 text-xs text-warning"
 					>
 						{hosts_bindings_noPorts()}
 					</div>
 				</div>
 			{:else if !hasValidPortOptions}
 				<div class="flex-1">
-					<div class="text-tertiary mb-1 block text-xs">{common_port()}</div>
+					<div class="mb-1 block text-xs text-tertiary">{common_port()}</div>
 					<InlineDanger title={hosts_ports_noAvailableOnInterface()} />
 				</div>
 			{:else}
 				<div class="min-w-0 flex-1">
-					<div class="text-tertiary mb-1 block text-xs">{common_port()}</div>
+					<div class="mb-1 block text-xs text-tertiary">{common_port()}</div>
 					<RichSelect
 						selectedValue={selectedPort}
 						options={portOptions.map((o) => o.item)}

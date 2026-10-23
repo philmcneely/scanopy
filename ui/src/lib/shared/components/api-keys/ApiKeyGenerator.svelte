@@ -57,7 +57,7 @@
 	<div class="flex items-start gap-2">
 		<button
 			type="button"
-			class="btn-primary flex-shrink-0 self-stretch"
+			class="btn-primary shrink-0 self-stretch"
 			onclick={handleClick}
 			disabled={loading}
 		>

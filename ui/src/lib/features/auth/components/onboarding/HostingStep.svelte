@@ -75,7 +75,7 @@
 
 	{#snippet footerNote()}
 		{#if onSwitchToLogin}
-			<p class="text-secondary text-center text-sm">
+			<p class="text-center text-sm text-secondary">
 				{onboarding_alreadyHaveAccount()}
 				<button
 					type="button"
@@ -91,7 +91,7 @@
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="flex-1 overflow-y-auto p-6">
 			<div class="space-y-6">
-				<p class="text-secondary text-center text-sm">{onboarding_hostingSubtitle()}</p>
+				<p class="text-center text-sm text-secondary">{onboarding_hostingSubtitle()}</p>
 
 				<div class="grid gap-3">
 					{#each options as option (option.id)}
@@ -99,21 +99,21 @@
 						{@const Icon = option.icon}
 						<button
 							type="button"
-							class="card flex items-center gap-4 p-4 text-left transition-all {isSelected
+							class="flex items-center gap-4 card p-4 text-left transition-all {isSelected
 								? 'ring-2 ring-blue-500'
 								: 'hover:bg-gray-100 dark:hover:bg-gray-800'}"
 							onclick={() => select(option.id)}
 						>
 							<div
-								class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg {isSelected
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {isSelected
 									? 'bg-blue-500/20 text-blue-400'
 									: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}"
 							>
 								<Icon class="h-5 w-5" />
 							</div>
 							<div>
-								<div class="text-primary font-medium">{option.label()}</div>
-								<div class="text-secondary text-sm">{option.description()}</div>
+								<div class="font-medium text-primary">{option.label()}</div>
+								<div class="text-sm text-secondary">{option.description()}</div>
 							</div>
 						</button>
 					{/each}

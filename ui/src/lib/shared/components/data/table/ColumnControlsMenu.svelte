@@ -71,7 +71,7 @@
 	<Filter class="h-3.5 w-3.5" aria-hidden="true" />
 	{#if active}
 		<span
-			class="absolute right-0 top-0 h-1.5 w-1.5 rounded-full bg-purple-600 dark:bg-purple-400"
+			class="absolute top-0 right-0 h-1.5 w-1.5 rounded-full bg-purple-600 dark:bg-purple-400"
 			aria-hidden="true"
 		></span>
 	{/if}
@@ -103,7 +103,7 @@
 				<button
 					type="button"
 					onclick={() => filters.clearField(key)}
-					class="text-tertiary hover:text-secondary text-xs transition-colors"
+					class="text-xs text-tertiary transition-colors hover:text-secondary"
 				>
 					{common_clearFilter()}
 				</button>

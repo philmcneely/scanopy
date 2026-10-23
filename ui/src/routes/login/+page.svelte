@@ -92,7 +92,7 @@
 	function handleClose() {}
 </script>
 
-<div class="relative flex min-h-screen flex-col items-center bg-[var(--color-bg-elevated)] p-4">
+<div class="relative flex min-h-screen flex-col items-center bg-(--color-bg-elevated) p-4">
 	<!-- Background image with overlay -->
 	<div class="absolute inset-0 z-0">
 		<div
@@ -105,7 +105,7 @@
 	</div>
 
 	<!-- GitHub Stars - positioned absolutely at bottom -->
-	<!-- <div class="absolute bottom-10 left-10 z-[100] hidden md:block">
+	<!-- <div class="absolute bottom-10 left-10 z-100 hidden md:block">
 		<GithubStars />
 	</div> -->
 

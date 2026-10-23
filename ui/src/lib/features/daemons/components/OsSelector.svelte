@@ -65,7 +65,7 @@
 	<!-- OS Selector: Desktop layout -->
 	<div role="group" aria-label={daemons_operatingSystem()} class="hidden sm:block">
 		<div class="flex items-baseline justify-between">
-			<span class="text-secondary text-sm font-medium">{daemons_operatingSystem()}</span>
+			<span class="text-sm font-medium text-secondary">{daemons_operatingSystem()}</span>
 			{@render afterLabel?.()}
 		</div>
 		<div class="mt-2 flex items-center justify-between gap-2">
@@ -80,7 +80,7 @@
 						disabled={osDisabled}
 						onclick={() => onOsSelect(option.id)}
 					>
-						<OsIcon os={option.id} class="h-4 w-4 flex-shrink-0" />
+						<OsIcon os={option.id} class="h-4 w-4 shrink-0" />
 						{option.label}
 					</button>
 				{/each}
@@ -91,7 +91,7 @@
 
 	<!-- OS Selector: Mobile layout -->
 	<div role="group" aria-label={daemons_operatingSystem()} class="sm:hidden">
-		<span class="text-secondary mb-1 block text-sm font-medium">{daemons_operatingSystem()}</span>
+		<span class="mb-1 block text-sm font-medium text-secondary">{daemons_operatingSystem()}</span>
 		<div class="flex items-stretch gap-2">
 			<select
 				class="input-field flex-1"
@@ -125,7 +125,7 @@
 		{#each linuxMethodOptions as option (option.id)}
 			<button
 				type="button"
-				class="btn-secondary btn-sm flex-1 {linuxMethod === option.id ? 'ring-primary ring-2' : ''}"
+				class="btn-sm btn-secondary flex-1 {linuxMethod === option.id ? 'ring-primary ring-2' : ''}"
 				aria-pressed={linuxMethod === option.id}
 				onclick={() => onLinuxMethodChange?.(option.id)}
 			>
@@ -140,7 +140,7 @@
 		{#each windowsMethodOptions as option (option.id)}
 			<button
 				type="button"
-				class="btn-secondary btn-sm flex-1 {windowsMethod === option.id
+				class="btn-sm btn-secondary flex-1 {windowsMethod === option.id
 					? 'ring-primary ring-2'
 					: ''}"
 				aria-pressed={windowsMethod === option.id}

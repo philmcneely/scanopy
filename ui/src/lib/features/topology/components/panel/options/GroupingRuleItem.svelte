@@ -31,6 +31,6 @@
 <div class="flex items-center gap-2" class:opacity-40={disabled} use:tooltip={{ content }}>
 	<span class="text-sm" class:text-primary={!disabled} class:text-tertiary={disabled}>{label}</span>
 	{#if locked}
-		<Lock class="text-tertiary h-3 w-3" />
+		<Lock class="h-3 w-3 text-tertiary" />
 	{/if}
 </div>

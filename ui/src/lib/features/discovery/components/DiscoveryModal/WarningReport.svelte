@@ -404,23 +404,23 @@
 							<div class="flex min-w-0 items-center gap-2">
 								<button
 									type="button"
-									class="hover:bg-tertiary/40 -mx-1 flex min-w-0 cursor-pointer items-center gap-2 rounded px-1 py-1 text-left"
+									class="hover:bg-tertiary/40 -mx-1 flex min-w-0 cursor-pointer items-center gap-2 rounded-sm px-1 py-1 text-left"
 									aria-expanded={isOpen}
 									onclick={() => toggleRow(entry.key)}
 								>
 									<ChevronRight
-										class="text-secondary h-4 w-4 shrink-0 transition-transform {isOpen
+										class="h-4 w-4 shrink-0 text-secondary transition-transform {isOpen
 											? 'rotate-90'
 											: ''}"
 									/>
 									<EntryIcon class="h-4 w-4 shrink-0 {colors.icon}" />
-									<span class="text-primary min-w-0 truncate text-sm">{entry.title}</span>
+									<span class="min-w-0 truncate text-sm text-primary">{entry.title}</span>
 								</button>
 
 								<!-- Who the row concerns, as a count: the open row says the rest. -->
 								<div class="flex min-w-0 flex-1 items-center overflow-hidden">
 									{#if entry.affects}
-										<span class="text-tertiary truncate text-xs">{affectsLabel(entry.affects)}</span
+										<span class="truncate text-xs text-tertiary">{affectsLabel(entry.affects)}</span
 										>
 									{/if}
 								</div>
@@ -440,17 +440,17 @@
 							</div>
 
 							{#if isOpen}
-								<div class="space-y-2 pb-1 pl-12 pt-1">
+								<div class="space-y-2 pt-1 pb-1 pl-12">
 									<!-- A row with commands takes one device at a time: its own result and its
 									     command. Any other row lists its statements, naming every device. -->
 									{#if entry.devices.length === 0}
 										{#each entry.details as statement, i (i)}
 											<div class="space-y-1">
-												<p class="text-tertiary text-sm">{statement.sentence}</p>
+												<p class="text-sm text-tertiary">{statement.sentence}</p>
 												{#if statement.examples.length > 0}
 													<ul class="space-y-0.5">
 														{#each statement.examples as example, j (j)}
-															<li class="text-tertiary flex flex-wrap items-center gap-1 text-xs">
+															<li class="flex flex-wrap items-center gap-1 text-xs text-tertiary">
 																{#if example.near}
 																	{@render entityChip(example.near)}
 																{/if}
@@ -497,11 +497,11 @@
 													onchange={(address) => selectedDevices.set(entry.key, address)}
 												/>
 											{/if}
-											<p class="text-tertiary text-sm">{selected.sentence}</p>
+											<p class="text-sm text-tertiary">{selected.sentence}</p>
 											{#if 'commands' in selected.outcome}
 												{@const credential = credentialChipOf(selected.credentialId)}
 												<div class="space-y-1">
-													<p class="text-secondary flex flex-wrap items-center gap-1 text-xs">
+													<p class="flex flex-wrap items-center gap-1 text-xs text-secondary">
 														<span>{discovery_snmpCheckFor({ address: selected.address })}</span>
 														{#if credential}{@render entityChip(credential)}{/if}
 													</p>
@@ -512,7 +512,7 @@
 													/>
 												</div>
 											{:else}
-												<p class="text-tertiary text-xs">{selected.outcome.reason}</p>
+												<p class="text-xs text-tertiary">{selected.outcome.reason}</p>
 											{/if}
 										</div>
 									{/if}

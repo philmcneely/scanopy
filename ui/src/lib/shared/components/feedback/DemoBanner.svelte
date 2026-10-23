@@ -11,7 +11,7 @@
 			href="https://app.scanopy.net/onboarding?utm_source=demo&utm_medium=in_app&utm_campaign=demo_signup&utm_content=banner_cta"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="ml-2 rounded px-2 py-0.5 text-xs font-medium underline hover:no-underline"
+			class="ml-2 rounded-sm px-2 py-0.5 text-xs font-medium underline hover:no-underline"
 		>
 			{auth_createAccount()}
 		</a>
@@ -20,7 +20,7 @@
 			href={`${BOOK_CALL_URL}?overlayCalendar=true`}
 			target="_blank"
 			rel="noopener noreferrer"
-			class="ml-2 rounded px-2 py-0.5 text-xs font-medium underline hover:no-underline"
+			class="ml-2 rounded-sm px-2 py-0.5 text-xs font-medium underline hover:no-underline"
 		>
 			{demo_talkToSales()}
 		</a>

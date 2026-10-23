@@ -273,9 +273,9 @@
 </script>
 
 <div class={stickyHeader ? 'flex min-h-0 flex-1 flex-col' : ''}>
-	<div class={`mb-2 flex items-start justify-between gap-4${stickyHeader ? ' flex-shrink-0' : ''}`}>
+	<div class={`mb-2 flex items-start justify-between gap-4${stickyHeader ? ' shrink-0' : ''}`}>
 		<div class="min-w-0 flex-1">
-			<div class="text-secondary flex items-center gap-2 text-sm font-medium">
+			<div class="flex items-center gap-2 text-sm font-medium text-secondary">
 				<span>
 					{label}
 					{#if required}<span class="text-danger">*</span>{/if}
@@ -285,11 +285,11 @@
 				{/if}
 			</div>
 			{#if helpSnippet}
-				<div class="text-tertiary mt-1 text-sm">
+				<div class="mt-1 text-sm text-tertiary">
 					{@render helpSnippet()}
 				</div>
 			{:else if helpText}
-				<p class="text-tertiary mt-1 text-sm">
+				<p class="mt-1 text-sm text-tertiary">
 					{helpText}
 				</p>
 			{/if}
@@ -327,7 +327,7 @@
 
 	<!-- Add Item Section with RichSelect -->
 	{#if allowAddFromOptions}
-		<div class="mb-3 mt-4 space-y-2">
+		<div class="mt-4 mb-3 space-y-2">
 			{#if hasDualMode}
 				<SegmentedControl
 					options={[
@@ -383,7 +383,7 @@
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
 					class="
-						card flex flex-wrap items-center gap-3 rounded-lg border p-3 transition-all
+						flex flex-wrap items-center gap-3 card rounded-lg border p-3 transition-all
 						{isHighlighted
 						? 'card-focused'
 						: selectionIndicator === 'highlight' && isItemSelected(item)
@@ -410,12 +410,12 @@
 				>
 					<!-- Selection checkbox -->
 					{#if allowSelection && itemClickAction != 'select'}
-						<div class="flex-shrink-0">
+						<div class="shrink-0">
 							<input
 								type="checkbox"
 								checked={isItemSelected(item)}
 								onclick={() => toggleItemSelection(item)}
-								class="checkbox-card h-4 w-4"
+								class="h-4 w-4 checkbox-card"
 							/>
 						</div>
 					{/if}
@@ -515,7 +515,7 @@
 					     toggles it; its own click stops so the toggle doesn't run twice. -->
 					{#if selectable && itemClickAction == 'select' && selectionIndicator === 'checkbox'}
 						<span
-							class="flex flex-shrink-0"
+							class="flex shrink-0"
 							data-tooltip={selectionDisabledReason ?? undefined}
 							use:tooltip
 						>
@@ -527,7 +527,7 @@
 									e.stopPropagation();
 									toggleItemSelection(item);
 								}}
-								class="checkbox-card h-4 w-4"
+								class="h-4 w-4 checkbox-card"
 							/>
 						</span>
 					{/if}
@@ -541,7 +541,7 @@
 		</div>
 	{:else if computedEmptyMessage}
 		<div
-			class="text-secondary rounded-lg border border-dashed border-gray-400 py-4 text-center text-sm dark:border-gray-500"
+			class="rounded-lg border border-dashed border-gray-400 py-4 text-center text-sm text-secondary dark:border-gray-500"
 		>
 			{computedEmptyMessage}
 		</div>
@@ -549,7 +549,7 @@
 
 	<!-- Error Message -->
 	{#if error}
-		<div class="text-danger mt-2 text-sm">
+		<div class="mt-2 text-sm text-danger">
 			{error}
 		</div>
 	{/if}

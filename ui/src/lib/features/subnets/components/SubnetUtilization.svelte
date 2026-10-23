@@ -39,7 +39,7 @@
 
 <div class="flex min-w-0 items-center gap-2" use:tooltip={{ content }}>
 	<ProgressTrack progress={ratio * 100} {color} size="sm" class="w-16 shrink-0" />
-	<span class="text-tertiary truncate text-xs tabular-nums"
+	<span class="truncate text-xs text-tertiary tabular-nums"
 		>{subnets_utilizationValue({ used, usable })}</span
 	>
 </div>

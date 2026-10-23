@@ -55,7 +55,7 @@
 			<button
 				type="button"
 				onclick={() => (showAll = true)}
-				class="text-tertiary hover:text-secondary text-xs transition-colors"
+				class="text-xs text-tertiary transition-colors hover:text-secondary"
 			>
 				{common_moreItems({ count: overflow })}
 			</button>

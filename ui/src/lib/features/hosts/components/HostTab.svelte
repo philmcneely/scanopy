@@ -461,7 +461,7 @@
 	{#if host.os}
 		<OsTag os={host.os} source={host.os_source} />
 	{:else}
-		<span class="text-tertiary text-sm">—</span>
+		<span class="text-sm text-tertiary">—</span>
 	{/if}
 {/snippet}
 

@@ -49,12 +49,12 @@
 			{#each notes?.releases ?? [] as release (release.version)}
 				<section>
 					<div class="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-						<h2 class="text-primary text-base font-semibold">{release.title}</h2>
-						<span class="text-tertiary text-xs">
+						<h2 class="text-base font-semibold text-primary">{release.title}</h2>
+						<span class="text-xs text-tertiary">
 							v{release.version} · {formatLongDate(release.date, 'UTC')}
 						</span>
 					</div>
-					<div class="release-notes-body text-secondary text-sm">
+					<div class="release-notes-body text-sm text-secondary">
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized above -->
 						{@html sanitize(release.html)}
 					</div>
@@ -63,7 +63,7 @@
 			{#if notes?.changelog_url}
 				<!-- eslint-disable svelte/no-navigation-without-resolve -->
 				<a
-					class="text-link text-sm"
+					class="text-sm text-link"
 					href={notes.changelog_url}
 					target="_blank"
 					rel="external noopener noreferrer"

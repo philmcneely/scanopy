@@ -39,7 +39,7 @@
 		{#if label.length > 0}
 			<label
 				for={id}
-				class="text-secondary flex cursor-pointer items-center gap-2 text-sm font-medium"
+				class="flex cursor-pointer items-center gap-2 text-sm font-medium text-secondary"
 			>
 				{@render children()}
 				<div>
@@ -53,23 +53,23 @@
 		{/if}
 
 		{#if showErrors}
-			<div class="text-danger flex items-center gap-2">
+			<div class="flex items-center gap-2 text-danger">
 				<AlertCircle size={16} />
 				<p class="text-xs">{errors[0]}</p>
 			</div>
 		{/if}
 
 		{#if helpText}
-			<p class="text-tertiary text-xs">{helpText}</p>
+			<p class="text-xs text-tertiary">{helpText}</p>
 		{/if}
 	</div>
 {:else}
 	<div class="space-y-2">
 		{#if label.length > 0}
-			<label for={id} class="text-secondary block text-sm font-medium">
+			<label for={id} class="block text-sm font-medium text-secondary">
 				{label}
 				{#if required}
-					<span class="text-danger ml-1">*</span>
+					<span class="ml-1 text-danger">*</span>
 				{/if}
 			</label>
 		{/if}
@@ -77,14 +77,14 @@
 		{@render children()}
 
 		{#if showErrors}
-			<div class="text-danger flex items-center gap-2">
+			<div class="flex items-center gap-2 text-danger">
 				<AlertCircle size={16} />
 				<p class="text-xs">{errors[0]}</p>
 			</div>
 		{/if}
 
 		{#if helpText}
-			<p class="text-tertiary text-xs">{helpText}</p>
+			<p class="text-xs text-tertiary">{helpText}</p>
 		{/if}
 	</div>
 {/if}

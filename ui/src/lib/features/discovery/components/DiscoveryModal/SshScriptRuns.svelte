@@ -27,7 +27,7 @@
 			<!-- The collapsed row already shows the address and the outcome; the address is repeated
 			     here only to tell several runs apart. -->
 			{#if runs.length > 1}
-				<p class="text-primary font-mono text-sm">{run.ip}</p>
+				<p class="font-mono text-sm text-primary">{run.ip}</p>
 			{/if}
 			{#if run.exit_code != null}
 				<InfoRow label={discovery_sshScriptExitCode()} mono>{run.exit_code}</InfoRow>
@@ -48,7 +48,7 @@
 			{#if run.detail}
 				<InfoRow label={common_details()}>
 					<pre
-						class="text-secondary max-h-40 overflow-auto whitespace-pre-wrap font-mono text-xs">{run.detail}</pre>
+						class="max-h-40 overflow-auto font-mono text-xs whitespace-pre-wrap text-secondary">{run.detail}</pre>
 				</InfoRow>
 			{/if}
 		</div>

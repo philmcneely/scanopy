@@ -69,14 +69,14 @@
 						aria-selected={tab.id === activeTab}
 						class="relative flex shrink-0 items-center border-y-2 border-t-transparent px-1 text-xl font-bold transition-colors {tab.id ===
 						activeTab
-							? 'text-primary border-b-blue-500'
-							: 'text-muted hover:text-secondary border-b-transparent'}"
+							? 'border-b-blue-500 text-primary'
+							: 'border-b-transparent text-muted hover:text-secondary'}"
 						onclick={() => onSelectTab(tab.id)}
 					>
 						{tab.label}
 						{#if tab.notification}
 							<span
-								class="absolute -right-1 top-2 h-2 w-2 rounded-full"
+								class="absolute top-2 -right-1 h-2 w-2 rounded-full"
 								style="background-color: {tab.notification}"
 							></span>
 						{/if}
@@ -84,11 +84,11 @@
 				{/each}
 			</div>
 		{:else}
-			<h1 class="text-primary shrink-0 text-xl font-bold">{title}</h1>
+			<h1 class="shrink-0 text-xl font-bold text-primary">{title}</h1>
 		{/if}
 		{#if subtitle}
 			<span
-				class="text-tertiary hover:text-secondary inline-flex cursor-help transition-colors"
+				class="inline-flex cursor-help text-tertiary transition-colors hover:text-secondary"
 				use:tooltip
 				data-tooltip={subtitle}
 				role="note"
@@ -98,8 +98,8 @@
 			</span>
 		{/if}
 		{#if aside}
-			<span aria-hidden="true" class="text-primary text-xl font-bold">·</span>
-			<span class="text-primary truncate text-xl font-bold">{aside}</span>
+			<span aria-hidden="true" class="text-xl font-bold text-primary">·</span>
+			<span class="truncate text-xl font-bold text-primary">{aside}</span>
 		{/if}
 	</div>
 {/if}

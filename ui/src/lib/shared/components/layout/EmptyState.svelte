@@ -38,9 +38,9 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div bind:this={root} class="py-12 text-center">
-	<IconComponent size={16} class="text-secondary mx-auto mb-4 h-16 w-16" />
-	<p class="text-secondary mb-4 text-lg">{title}</p>
-	<p class="text-tertiary mb-6">{subtitle}</p>
+	<IconComponent size={16} class="mx-auto mb-4 h-16 w-16 text-secondary" />
+	<p class="mb-4 text-lg text-secondary">{title}</p>
+	<p class="mb-6 text-tertiary">{subtitle}</p>
 	{#if children}
 		{@render children()}
 	{:else if hasCta}

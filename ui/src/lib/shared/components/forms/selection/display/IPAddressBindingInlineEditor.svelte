@@ -66,16 +66,16 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="flex-1" onclick={(e) => e.stopPropagation()}>
-	<div class="text-secondary mb-1 block text-xs font-medium">
+	<div class="mb-1 block text-xs font-medium text-secondary">
 		{hosts_bindings_ipAddressBinding()}
 	</div>
 
 	{#if !service}
-		<div class="text-danger rounded border border-red-600 bg-red-900/20 px-2 py-1 text-xs">
+		<div class="rounded-sm border border-red-600 bg-red-900/20 px-2 py-1 text-xs text-danger">
 			{hosts_bindings_serviceNotFound()}
 		</div>
 	{:else if !host}
-		<div class="text-danger rounded border border-red-600 bg-red-900/20 px-2 py-1 text-xs">
+		<div class="rounded-sm border border-red-600 bg-red-900/20 px-2 py-1 text-xs text-danger">
 			{hosts_bindings_hostNotFound()}
 		</div>
 	{:else}
@@ -86,7 +86,7 @@
 				{:else if host.ip_addresses && host.ip_addresses.length === 1}
 					<!-- Single IP address - show as read-only -->
 					<div
-						class="text-secondary rounded px-2 py-1 text-sm"
+						class="rounded-sm px-2 py-1 text-sm text-secondary"
 						style="border: 1px solid var(--color-border-input); background: var(--color-bg-input)"
 					>
 						{ipAddr

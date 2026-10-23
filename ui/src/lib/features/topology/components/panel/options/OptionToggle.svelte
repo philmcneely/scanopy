@@ -44,10 +44,10 @@
 	<label
 		class="flex items-center gap-2 {disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}"
 	>
-		<input type="checkbox" class="checkbox-card h-4 w-4" {checked} {disabled} onchange={toggle} />
-		<span class="text-secondary text-sm">{label}</span>
+		<input type="checkbox" class="h-4 w-4 checkbox-card" {checked} {disabled} onchange={toggle} />
+		<span class="text-sm text-secondary">{label}</span>
 	</label>
 	{#if helpText}
-		<p class="text-tertiary ml-6 mt-1 text-xs">{helpText}</p>
+		<p class="mt-1 ml-6 text-xs text-tertiary">{helpText}</p>
 	{/if}
 </div>

@@ -97,13 +97,13 @@
 
 {#if visible}
 	<section>
-		<div class="card card-static !rounded-lg !p-4">
+		<div class="card-static card rounded-lg! p-4!">
 			<div class="flex items-center justify-between">
 				<div>
-					<h3 class="text-primary text-sm font-semibold">{home_profileTitle()}</h3>
-					<p class="text-secondary mt-1 text-xs">{home_profileSubtitle()}</p>
+					<h3 class="text-sm font-semibold text-primary">{home_profileTitle()}</h3>
+					<p class="mt-1 text-xs text-secondary">{home_profileSubtitle()}</p>
 				</div>
-				<button onclick={dismiss} class="text-tertiary hover:text-secondary text-sm">
+				<button onclick={dismiss} class="text-sm text-tertiary hover:text-secondary">
 					{common_dismiss()}
 				</button>
 			</div>
@@ -136,7 +136,7 @@
 						{/snippet}
 					</form.Field>
 				</div>
-				<button type="submit" class="btn-primary mt-3 text-sm">{common_submit()}</button>
+				<button type="submit" class="mt-3 btn-primary text-sm">{common_submit()}</button>
 			</form>
 		</div>
 	</section>

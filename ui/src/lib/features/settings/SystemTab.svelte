@@ -193,14 +193,14 @@
 	labelFor: string | null,
 	control: Snippet
 )}
-	<div class="card card-static flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+	<div class="card-static flex flex-col gap-3 card sm:flex-row sm:items-center sm:justify-between">
 		<div class="min-w-0">
 			{#if labelFor}
-				<label for={labelFor} class="text-primary text-sm font-semibold">{title}</label>
+				<label for={labelFor} class="text-sm font-semibold text-primary">{title}</label>
 			{:else}
-				<h3 class="text-primary text-sm font-semibold">{title}</h3>
+				<h3 class="text-sm font-semibold text-primary">{title}</h3>
 			{/if}
-			<p class="text-tertiary mt-0.5 text-xs">{description}</p>
+			<p class="mt-0.5 text-xs text-tertiary">{description}</p>
 		</div>
 		<div class="shrink-0 sm:w-80">
 			{@render control()}
@@ -308,8 +308,8 @@
 	</CollapsibleCard>
 
 	<div class="mt-auto flex flex-col gap-1">
-		<p class="text-tertiary text-xs">{settings_system_version({ version: VERSION })}</p>
-		<p class="text-tertiary text-xs">{settings_system_copyright({ year: copyrightYear })}</p>
+		<p class="text-xs text-tertiary">{settings_system_version({ version: VERSION })}</p>
+		<p class="text-xs text-tertiary">{settings_system_copyright({ year: copyrightYear })}</p>
 		<DocsHint
 			text={settings_system_license()}
 			href="https://scanopy.net/commercial"

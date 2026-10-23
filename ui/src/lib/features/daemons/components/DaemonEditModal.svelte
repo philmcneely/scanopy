@@ -301,14 +301,14 @@
 							</detailsForm.Field>
 
 							<div class="space-y-2">
-								<label for="daemon-mode" class="text-secondary block text-sm font-medium">
+								<label for="daemon-mode" class="block text-sm font-medium text-secondary">
 									{daemons_config_mode()}
 								</label>
 								<select id="daemon-mode" class="input-field" disabled value={daemon.mode}>
 									<option value="daemon_poll">daemon_poll</option>
 									<option value="server_poll">server_poll</option>
 								</select>
-								<p class="text-tertiary text-xs">{daemons_readOnlyFieldHelp()}</p>
+								<p class="text-xs text-tertiary">{daemons_readOnlyFieldHelp()}</p>
 							</div>
 						</div>
 
@@ -383,7 +383,7 @@
 					     repeatedly. -->
 					{#if hasReconfigure}
 						<InfoCard title={daemons_reconfigureSectionTitle()}>
-							<p class="text-tertiary text-sm">{daemons_reconfigureSectionHelp()}</p>
+							<p class="text-sm text-tertiary">{daemons_reconfigureSectionHelp()}</p>
 							<OsSelector
 								selectedOS={syncOs}
 								onOsSelect={(os) => (pickedSyncOs = os)}
@@ -392,7 +392,7 @@
 								onLinuxMethodChange={(method) => (syncLinuxMethod = method)}
 							>
 								{#if syncIsDocker}
-									<p class="text-secondary text-sm">{daemons_reconfigureDockerHint()}</p>
+									<p class="text-sm text-secondary">{daemons_reconfigureDockerHint()}</p>
 									<CodeContainer
 										language="yaml"
 										expandable={false}

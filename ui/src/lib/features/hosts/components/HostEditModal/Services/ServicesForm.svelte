@@ -185,7 +185,7 @@
 									e.stopPropagation();
 									handleTransferPorts(item, highlightedItem);
 								}}
-								class="btn-secondary flex-shrink-0 text-xs"
+								class="btn-secondary shrink-0 text-xs"
 								title={hosts_services_transferBindingsTitle({
 									count: selectedPortBindings.length
 								})}

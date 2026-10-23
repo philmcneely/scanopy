@@ -84,7 +84,7 @@
 
 		<div class="space-y-4">
 			<div>
-				<label for="interface_{iface.id}" class="text-secondary mb-1 block text-sm font-medium">
+				<label for="interface_{iface.id}" class="mb-1 block text-sm font-medium text-secondary">
 					{common_name()} <span class="text-red-400">*</span>
 				</label>
 				<input
@@ -101,7 +101,7 @@
 			</div>
 
 			<div>
-				<label for="interface_ip_{iface.id}" class="text-secondary mb-1 block text-sm font-medium">
+				<label for="interface_ip_{iface.id}" class="mb-1 block text-sm font-medium text-secondary">
 					{common_ipAddress()} <span class="text-red-400">*</span>
 				</label>
 				<input
@@ -115,7 +115,7 @@
 				{#if ipError}
 					<p class="mt-1 text-xs text-red-400">{ipError}</p>
 				{:else}
-					<p class="text-tertiary mt-1 text-xs">
+					<p class="mt-1 text-xs text-tertiary">
 						{hosts_ipAddresses_ipMustBeWithin({ cidr: subnet.cidr })}
 					</p>
 				{/if}

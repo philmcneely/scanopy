@@ -91,7 +91,7 @@
 
 	{#snippet footerNote()}
 		{#if onSwitchToLogin}
-			<p class="text-secondary text-center text-sm">
+			<p class="text-center text-sm text-secondary">
 				{onboarding_alreadyHaveAccount()}
 				<button
 					type="button"
@@ -107,7 +107,7 @@
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="flex-1 overflow-y-auto p-6">
 			<div class="space-y-6">
-				<p class="text-secondary text-center text-sm">{onboarding_tailorSetup()}</p>
+				<p class="text-center text-sm text-secondary">{onboarding_tailorSetup()}</p>
 
 				<!-- Use Case Cards -->
 				<div class="grid gap-3">
@@ -117,21 +117,21 @@
 						{@const Icon = useCaseIcons[useCaseId]}
 						<button
 							type="button"
-							class="card flex items-center gap-4 p-4 text-left transition-all {isSelected
+							class="flex items-center gap-4 card p-4 text-left transition-all {isSelected
 								? `ring-2 ${useCaseConfig.colors.ring}`
 								: 'hover:bg-gray-100 dark:hover:bg-gray-800'}"
 							onclick={() => selectUseCase(useCaseId)}
 						>
 							<div
-								class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg {isSelected
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {isSelected
 									? `${useCaseConfig.colors.bg} ${useCaseConfig.colors.text}`
 									: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}"
 							>
 								<Icon class="h-5 w-5" />
 							</div>
 							<div>
-								<div class="text-primary font-medium">{useCaseConfig.label}</div>
-								<div class="text-secondary text-sm">{useCaseConfig.description}</div>
+								<div class="font-medium text-primary">{useCaseConfig.label}</div>
+								<div class="text-sm text-secondary">{useCaseConfig.description}</div>
 							</div>
 						</button>
 					{/each}
@@ -143,7 +143,7 @@
 						title={onboarding_commercialNoticeTitle()}
 						body={onboarding_commercialNoticeBody()}
 					/>
-					<button type="button" class="btn-primary mt-4" onclick={handleLicenseAcknowledge}>
+					<button type="button" class="mt-4 btn-primary" onclick={handleLicenseAcknowledge}>
 						{onboarding_understandContinue()}
 					</button>
 				{/if}

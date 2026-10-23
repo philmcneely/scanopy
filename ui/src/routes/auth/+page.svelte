@@ -31,6 +31,6 @@
 </script>
 
 <!-- Redirect page - shows briefly while redirecting -->
-<div class="flex min-h-screen items-center justify-center bg-[var(--color-bg-elevated)]">
+<div class="flex min-h-screen items-center justify-center bg-(--color-bg-elevated)">
 	<div class="text-secondary">Redirecting...</div>
 </div>

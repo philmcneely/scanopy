@@ -45,7 +45,7 @@
 
 <div class="space-y-2">
 	{#if label}
-		<div class="text-tertiary text-xs">{label}</div>
+		<div class="text-xs text-tertiary">{label}</div>
 	{/if}
 	<div class="flex flex-wrap gap-1.5">
 		{#each items as item (item.value)}

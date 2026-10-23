@@ -214,7 +214,7 @@
 	{/if}
 </svelte:head>
 
-<div class="{isEmbed ? 'h-screen w-screen' : 'min-h-screen'} bg-[var(--color-bg-elevated)]">
+<div class="{isEmbed ? 'h-screen w-screen' : 'min-h-screen'} bg-(--color-bg-elevated)">
 	{#if loading}
 		<div class="flex {isEmbed ? 'h-full' : 'min-h-screen'} items-center justify-center">
 			<Loading />
@@ -226,7 +226,7 @@
 				: 'min-h-screen'} flex-col items-center justify-center gap-2 p-4 text-center"
 		>
 			<AlertTriangle class="h-8 w-8 text-yellow-500" />
-			<p class="text-secondary text-sm">{error}</p>
+			<p class="text-sm text-secondary">{error}</p>
 		</div>
 	{:else if topologyData && renderableTopology}
 		<div class={isEmbed ? 'h-full' : 'h-screen'}>

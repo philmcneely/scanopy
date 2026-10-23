@@ -106,7 +106,7 @@
 		<div class="flex flex-col gap-1">
 			<label
 				for={`scan_${field.id}`}
-				class="text-secondary flex cursor-pointer items-center gap-2 text-sm font-medium"
+				class="flex cursor-pointer items-center gap-2 text-sm font-medium text-secondary"
 			>
 				<input
 					type="checkbox"
@@ -114,12 +114,12 @@
 					checked={!!getScanValue(field.id)}
 					disabled={readOnly}
 					onchange={(e) => updateScanSetting(field.id, e.currentTarget.checked)}
-					class="checkbox-card h-4 w-4 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+					class="h-4 w-4 checkbox-card focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
 				/>
 				<div>{field.label}</div>
 			</label>
 			{#if getHelpText(field)}
-				<p class="text-tertiary text-xs">{getHelpText(field)}</p>
+				<p class="text-xs text-tertiary">{getHelpText(field)}</p>
 			{/if}
 		</div>
 	{/each}
@@ -130,7 +130,7 @@
 			use:tooltip
 			data-tooltip={!isEditing ? discovery_firstScanMustBeLight() : null}
 		>
-			<label for="scan_full_scan_interval" class="text-secondary block text-sm font-medium">
+			<label for="scan_full_scan_interval" class="block text-sm font-medium text-secondary">
 				{fullScanIntervalField.label}
 			</label>
 			<input
@@ -143,9 +143,9 @@
 				class="input-field"
 			/>
 			{#if fullScanIntervalField.help_text}
-				<p class="text-tertiary text-xs">{fullScanIntervalField.help_text}</p>
+				<p class="text-xs text-tertiary">{fullScanIntervalField.help_text}</p>
 			{/if}
-			<p class="text-tertiary text-xs italic">{discovery_scanModeIntervalExplainer()}</p>
+			<p class="text-xs text-tertiary italic">{discovery_scanModeIntervalExplainer()}</p>
 		</div>
 		{#if formData.discovery_type.type === 'Unified'}
 			<div
@@ -155,7 +155,7 @@
 			>
 				<label
 					for="scan_force_full_scan"
-					class="text-secondary flex items-center gap-2 text-sm font-medium"
+					class="flex items-center gap-2 text-sm font-medium text-secondary"
 					class:cursor-pointer={isEditing && !readOnly}
 					class:cursor-not-allowed={!isEditing || readOnly}
 					class:opacity-50={!isEditing}
@@ -168,11 +168,11 @@
 						onchange={(e) => {
 							formData.force_full_scan = e.currentTarget.checked;
 						}}
-						class="checkbox-card h-4 w-4 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+						class="h-4 w-4 checkbox-card focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
 					/>
 					<div>{discovery_forceFullScan()}</div>
 				</label>
-				<p class="text-tertiary text-xs">{discovery_forceFullScanHelp()}</p>
+				<p class="text-xs text-tertiary">{discovery_forceFullScanHelp()}</p>
 			</div>
 		{/if}
 	{/if}

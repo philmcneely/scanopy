@@ -51,7 +51,7 @@
 			{#each options as option (option.value)}
 				<label
 					class={variant === 'card'
-						? 'card card-static flex flex-1 cursor-pointer flex-col gap-2 p-3'
+						? 'card-static flex flex-1 cursor-pointer flex-col gap-2 card p-3'
 						: 'flex cursor-pointer flex-col gap-1'}
 				>
 					<div class="flex items-center gap-2">
@@ -65,12 +65,12 @@
 								field.handleChange(option.value);
 								onChange?.(option.value);
 							}}
-							class="checkbox-card h-4 w-4 disabled:cursor-not-allowed disabled:opacity-50"
+							class="h-4 w-4 checkbox-card disabled:cursor-not-allowed disabled:opacity-50"
 						/>
-						<span class="text-primary text-sm">{option.label}</span>
+						<span class="text-sm text-primary">{option.label}</span>
 					</div>
 					{#if option.helpText}
-						<p class="text-tertiary text-xs">{option.helpText}</p>
+						<p class="text-xs text-tertiary">{option.helpText}</p>
 					{/if}
 				</label>
 			{/each}

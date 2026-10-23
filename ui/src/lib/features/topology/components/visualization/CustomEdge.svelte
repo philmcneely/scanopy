@@ -452,7 +452,7 @@
 				style="background: none; pointer-events: none;"
 			>
 				<div
-					class="card text-secondary nopan flex items-center gap-2"
+					class="nopan flex items-center gap-2 card text-secondary"
 					style="font-size: 12px; font-weight: 500; padding: 0.5rem 0.75rem; border-color: var(--color-border); cursor: {isDragging
 						? 'grabbing'
 						: 'grab'}; pointer-events: auto; opacity: {labelOpacity}; transition: opacity 0.2s ease-in-out;"
@@ -468,7 +468,7 @@
 							<span class="truncate" style="max-width: {ENDPOINT_MAX_WIDTH_PX}px;"
 								>{labelEndpoints[0]}</span
 							>
-							<span class="flex-shrink-0">↔</span>
+							<span class="shrink-0">↔</span>
 							<span class="truncate" style="max-width: {ENDPOINT_MAX_WIDTH_PX}px;"
 								>{labelEndpoints[1]}</span
 							>

@@ -17,24 +17,24 @@
 	const daemonColor = entities.getColorHelper('Daemon').icon;
 </script>
 
-<div class="card card-static">
-	<h4 class="text-primary mb-3 truncate text-sm font-semibold">{site.name}</h4>
+<div class="card-static card">
+	<h4 class="mb-3 truncate text-sm font-semibold text-primary">{site.name}</h4>
 	<div class="grid grid-cols-2 gap-3">
 		<div class="flex items-center gap-2">
-			<HostIcon class="h-4 w-4 flex-shrink-0 {hostColor}" />
-			<span class="text-secondary text-sm">{site.host_count} hosts</span>
+			<HostIcon class="h-4 w-4 shrink-0 {hostColor}" />
+			<span class="text-sm text-secondary">{site.host_count} hosts</span>
 		</div>
 		<div class="flex items-center gap-2">
-			<ServiceIcon class="h-4 w-4 flex-shrink-0 {serviceColor}" />
-			<span class="text-secondary text-sm">{site.service_count} services</span>
+			<ServiceIcon class="h-4 w-4 shrink-0 {serviceColor}" />
+			<span class="text-sm text-secondary">{site.service_count} services</span>
 		</div>
 		<div class="flex items-center gap-2">
-			<SubnetIcon class="h-4 w-4 flex-shrink-0 {subnetColor}" />
-			<span class="text-secondary text-sm">{site.subnet_count} subnets</span>
+			<SubnetIcon class="h-4 w-4 shrink-0 {subnetColor}" />
+			<span class="text-sm text-secondary">{site.subnet_count} subnets</span>
 		</div>
 		<div class="flex items-center gap-2">
-			<DaemonIcon class="h-4 w-4 flex-shrink-0 {daemonColor}" />
-			<span class="text-secondary text-sm">{site.daemon_count} daemons</span>
+			<DaemonIcon class="h-4 w-4 shrink-0 {daemonColor}" />
+			<span class="text-sm text-secondary">{site.daemon_count} daemons</span>
 		</div>
 	</div>
 </div>

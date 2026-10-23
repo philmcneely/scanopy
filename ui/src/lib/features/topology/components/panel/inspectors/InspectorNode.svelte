@@ -17,7 +17,7 @@
 		<InspectorContainerNode {node} />
 	{:else}
 		<div class="space-y-3">
-			<p class="text-tertiary text-sm">{inspector_nodeDetailsUnavailable()}</p>
+			<p class="text-sm text-tertiary">{inspector_nodeDetailsUnavailable()}</p>
 		</div>
 	{/if}
 </div>

@@ -201,7 +201,7 @@ export function tooltip(node: HTMLElement, options: TooltipOptions = {}) {
 		const anchor =
 			(options.anchorClosest && node.closest<HTMLElement>(options.anchorClosest)) || node;
 		const body = createRawSnippet(() => ({
-			render: () => '<div class="text-secondary break-words text-xs leading-tight"></div>',
+			render: () => '<div class="text-secondary wrap-break-word text-xs leading-tight"></div>',
 			setup(el: Element) {
 				el.appendChild(renderTooltip(document, content));
 			}

@@ -83,7 +83,7 @@
 	}
 </script>
 
-<div class="relative flex min-h-screen flex-col items-center bg-[var(--color-bg-elevated)] p-4">
+<div class="relative flex min-h-screen flex-col items-center bg-(--color-bg-elevated) p-4">
 	<!-- Background image with overlay -->
 	<div class="absolute inset-0 z-0">
 		<div
@@ -112,18 +112,18 @@
 
 				{#if status === 'verifying'}
 					<div class="p-6 text-center">
-						<h2 class="text-primary mb-2 text-xl font-semibold">{verifyEmail_verifying()}</h2>
+						<h2 class="mb-2 text-xl font-semibold text-primary">{verifyEmail_verifying()}</h2>
 						<p class="text-tertiary">{verifyEmail_verifyingBody()}</p>
 					</div>
 				{:else if status === 'success'}
 					<div class="p-6 text-center">
-						<h2 class="text-primary mb-2 text-xl font-semibold">{verifyEmail_verified()}</h2>
+						<h2 class="mb-2 text-xl font-semibold text-primary">{verifyEmail_verified()}</h2>
 						<p class="text-tertiary">{verifyEmail_verifiedBody()}</p>
 					</div>
 				{:else if status === 'error'}
 					<div class="p-6 text-center">
-						<h2 class="text-primary mb-2 text-xl font-semibold">{verifyEmail_failed()}</h2>
-						<p class="text-tertiary mb-4">{errorMessage}</p>
+						<h2 class="mb-2 text-xl font-semibold text-primary">{verifyEmail_failed()}</h2>
+						<p class="mb-4 text-tertiary">{errorMessage}</p>
 						{#if email}
 							<button
 								type="button"
@@ -134,19 +134,19 @@
 								{isResending ? common_sending() : verifyEmail_resend()}
 							</button>
 						{:else}
-							<p class="text-muted text-sm">
+							<p class="text-sm text-muted">
 								{verifyEmail_tryRegisteringAgain()}
 							</p>
 						{/if}
 					</div>
 				{:else if status === 'pending'}
 					<div class="p-6 text-center">
-						<h2 class="text-primary mb-2 text-xl font-semibold">{auth_checkYourEmail()}</h2>
-						<p class="text-tertiary mb-4">
+						<h2 class="mb-2 text-xl font-semibold text-primary">{auth_checkYourEmail()}</h2>
+						<p class="mb-4 text-tertiary">
 							{verifyEmail_sentLinkTo({ email })}
 						</p>
 						<div class="space-y-3">
-							<p class="text-muted text-sm">{verifyEmail_didntReceive()}</p>
+							<p class="text-sm text-muted">{verifyEmail_didntReceive()}</p>
 							<button
 								type="button"
 								class="btn-secondary w-full"
@@ -159,8 +159,8 @@
 					</div>
 				{:else}
 					<div class="p-6 text-center">
-						<h2 class="text-primary mb-2 text-xl font-semibold">{verifyEmail_noToken()}</h2>
-						<p class="text-tertiary mb-4">
+						<h2 class="mb-2 text-xl font-semibold text-primary">{verifyEmail_noToken()}</h2>
+						<p class="mb-4 text-tertiary">
 							{verifyEmail_noTokenBody()}
 						</p>
 						<button type="button" class="btn-secondary w-full" onclick={handleBackToLogin}>

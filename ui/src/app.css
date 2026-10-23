@@ -1,8 +1,564 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-@reference "tailwindcss";
+@plugin '@tailwindcss/forms';
+
+@source './**/*.{html,js,svelte,ts}';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+	--color-primary-50: #f0f9ff;
+	--color-primary-500: #0ea5e9;
+	--color-primary-600: #0284c7;
+	--color-primary-700: #0369a1;
+	--color-primary-900: #0c4a6e;
+
+	--color-gray-800: #1f2937;
+	--color-gray-900: #111827;
+
+	--color-success: #10b981;
+	--color-warning: #f59e0b;
+	--color-error: #ef4444;
+
+	--font-mono: Monaco, Consolas, Liberation Mono, monospace;
+}
+
+/* Tailwind v4 defaults borders to currentcolor and buttons to the default cursor.
+   Markup here relies on a gray-200 border and a pointer cursor on buttons, so set
+   both. Removing the border rule means adding a border color to every bare `border`. */
+@layer base {
+	*,
+	::after,
+	::before,
+	::backdrop,
+	::file-selector-button {
+		border-color: var(--color-gray-200, currentcolor);
+	}
+
+	button:not(:disabled),
+	[role='button']:not(:disabled) {
+		cursor: pointer;
+	}
+}
+
+@utility btn-primary {
+	/* Primary action button - blue accent for emphasis */
+	@apply bg-blue-700 hover:bg-blue-600;
+	@apply border border-blue-600 hover:border-blue-500;
+	@apply rounded-md px-4 py-2 font-medium text-white;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center gap-2;
+	@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-blue-600 disabled:hover:bg-blue-700;
+}
+
+@utility btn-primary-lg {
+	/* Larger primary button variant for wizard "Next" actions */
+	@apply px-5 py-2.5 text-base;
+}
+
+@utility toolbar-control {
+	/* One height for everything on a page's toolbar row: the filter input, icon buttons and the
+	   page's own actions. Matches an `input-field` at `text-sm`, and the sidebar search, so the
+	   toolbar lines up with it. */
+	@apply h-[38px] py-0 text-sm;
+}
+
+@utility btn-secondary {
+	/* Secondary action button - outlined, less prominent */
+	@apply bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800;
+	@apply border border-gray-300 hover:border-gray-400 dark:border-gray-700 dark:hover:border-gray-600;
+	@apply rounded-md px-4 py-2 font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center gap-2;
+	@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-gray-300 disabled:hover:bg-transparent disabled:hover:text-gray-600 dark:disabled:hover:border-gray-700 dark:disabled:hover:text-gray-400;
+}
+
+@utility btn-danger {
+	/* Destructive action button - for dangerous operations */
+	@apply bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-950/60;
+	@apply border border-red-300 hover:border-red-400 dark:border-red-800/50 dark:hover:border-red-700;
+	@apply rounded-md px-4 py-2 font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center gap-2;
+	@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-red-300 disabled:hover:bg-red-50 disabled:hover:text-red-600 dark:disabled:hover:border-red-800/50 dark:disabled:hover:bg-red-950/40 dark:disabled:hover:text-red-400;
+}
+
+@utility btn-success {
+	/* Success/confirmation action button - for positive operations */
+	@apply bg-green-50 hover:bg-green-100 dark:bg-green-950/40 dark:hover:bg-green-950/60;
+	@apply border border-green-300 hover:border-green-400 dark:border-green-800/50 dark:hover:border-green-700;
+	@apply rounded-md px-4 py-2 font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center gap-2;
+	@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-green-300 disabled:hover:bg-green-50 disabled:hover:text-green-600 dark:disabled:hover:border-green-800/50 dark:disabled:hover:bg-green-950/40 dark:disabled:hover:text-green-400;
+}
+
+@utility btn-warning {
+	/* Warning action button - mirrors btn-danger pattern for yellow/warning states */
+	@apply bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/40 dark:hover:bg-yellow-950/60;
+	@apply border border-yellow-300 hover:border-yellow-400 dark:border-yellow-800/50 dark:hover:border-yellow-700;
+	@apply rounded-md px-4 py-2 font-medium text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center gap-2;
+	@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-yellow-300 disabled:hover:bg-yellow-50 disabled:hover:text-yellow-600 dark:disabled:hover:border-yellow-800/50 dark:disabled:hover:bg-yellow-950/40 dark:disabled:hover:text-yellow-400;
+}
+
+@utility btn-info {
+	/* Info action button - mirrors btn-primary pattern for blue/info states */
+	@apply bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-950/60;
+	@apply border border-blue-300 hover:border-blue-400 dark:border-blue-800/50 dark:hover:border-blue-700;
+	@apply rounded-md px-4 py-2 font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center gap-2;
+	@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-blue-300 disabled:hover:bg-blue-50 disabled:hover:text-blue-600 dark:disabled:hover:border-blue-800/50 dark:disabled:hover:bg-blue-950/40 dark:disabled:hover:text-blue-400;
+}
+
+@utility btn-icon {
+	/* Icon buttons - minimal style for icon-only actions */
+	@apply rounded-sm p-2 text-tertiary hover:bg-gray-100 hover:text-secondary dark:hover:bg-gray-800;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center;
+	@apply disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-tertiary;
+
+	.entity-table[data-density='compact']
+		:is(&, .btn-icon-danger, .btn-icon-info, .btn-icon-warning, .btn-icon-success) {
+		@apply p-1;
+	}
+}
+
+@utility btn-icon-danger {
+	/* Icon button - danger variant */
+	@apply rounded-sm p-2 text-tertiary hover:text-red-600 dark:hover:text-red-400;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center;
+	@apply disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-tertiary;
+
+	.entity-table[data-density='compact']
+		:is(.btn-icon, &, .btn-icon-info, .btn-icon-warning, .btn-icon-success) {
+		@apply p-1;
+	}
+}
+
+@utility btn-icon-info {
+	/* Icon button - info variant */
+	@apply rounded-sm p-2 text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center;
+	@apply disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-blue-600 dark:disabled:hover:text-blue-400;
+
+	.entity-table[data-density='compact']
+		:is(.btn-icon, .btn-icon-danger, &, .btn-icon-warning, .btn-icon-success) {
+		@apply p-1;
+	}
+}
+
+@utility btn-icon-warning {
+	/* Icon button - warning variant */
+	@apply rounded-sm p-2 text-orange-600 hover:text-orange-500 dark:text-orange-400 dark:hover:text-orange-300;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center;
+	@apply disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-orange-600 dark:disabled:hover:text-orange-400;
+
+	.entity-table[data-density='compact']
+		:is(.btn-icon, .btn-icon-danger, .btn-icon-info, &, .btn-icon-success) {
+		@apply p-1;
+	}
+}
+
+@utility btn-icon-success {
+	/* Icon button - success variant */
+	@apply rounded-sm p-2 text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300;
+	@apply transition-colors duration-150;
+	@apply inline-flex items-center justify-center;
+	@apply disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-green-600 dark:disabled:hover:text-green-400;
+
+	.entity-table[data-density='compact']
+		:is(.btn-icon, .btn-icon-danger, .btn-icon-info, .btn-icon-warning, &) {
+		@apply p-1;
+	}
+}
+
+@utility entity-table {
+	/*
+	 * Entity table density, from the user's display settings. Every cell reads its
+	 * padding from these, so a density is defined here and nowhere else.
+	 */
+	--cell-px: 0.75rem;
+	--cell-py: 0.5rem;
+
+	&[data-density='compact'] {
+		--cell-px: 0.5rem;
+		--cell-py: 0.25rem;
+	}
+
+	&[data-density='compact']
+		:is(.btn-icon, .btn-icon-danger, .btn-icon-info, .btn-icon-warning, .btn-icon-success) {
+		@apply p-1;
+	}
+
+	/*
+	 * Columns pinned while the table scrolls sideways (EntityTable's `pinAttrs`). A pinned cell is
+	 * opaque, or the cells scrolling under it would show through: it paints the page background
+	 * with its row's tint (`--row-tint`, set on the row for hover and selection) on top. The edge
+	 * classes draw the line between the pinned columns and the ones scrolling past them.
+	 */
+	& tr {
+		--row-tint: transparent;
+	}
+
+	& :is(.pin-left, .pin-right) {
+		position: sticky;
+		z-index: 20;
+		background: linear-gradient(var(--row-tint), var(--row-tint)), var(--color-bg-body);
+	}
+
+	& .pin-left {
+		left: var(--pin-left, 0px);
+	}
+
+	& .pin-right {
+		right: var(--pin-right, 0px);
+	}
+
+	/* A group header spans the whole row; its label stays at the left edge while the row scrolls. */
+	& .pin-content {
+		position: sticky;
+		left: var(--cell-px);
+	}
+
+	& .pin-edge-right {
+		box-shadow: inset -1px 0 var(--color-border);
+	}
+
+	& .pin-edge-left {
+		box-shadow: inset 1px 0 var(--color-border);
+	}
+}
+
+@utility pin-left {
+	.entity-table :is(&, .pin-right) {
+		position: sticky;
+		z-index: 20;
+		background: linear-gradient(var(--row-tint), var(--row-tint)), var(--color-bg-body);
+	}
+
+	.entity-table & {
+		left: var(--pin-left, 0px);
+	}
+}
+
+@utility pin-right {
+	.entity-table :is(.pin-left, &) {
+		position: sticky;
+		z-index: 20;
+		background: linear-gradient(var(--row-tint), var(--row-tint)), var(--color-bg-body);
+	}
+
+	.entity-table & {
+		right: var(--pin-right, 0px);
+	}
+}
+
+@utility pin-content {
+	/* A group header spans the whole row; its label stays at the left edge while the row scrolls. */
+	.entity-table & {
+		position: sticky;
+		left: var(--cell-px);
+	}
+}
+
+@utility pin-edge-right {
+	.entity-table & {
+		box-shadow: inset -1px 0 var(--color-border);
+	}
+}
+
+@utility pin-edge-left {
+	.entity-table & {
+		box-shadow: inset 1px 0 var(--color-border);
+	}
+}
+
+@utility card {
+	/* Card component */
+	border: 1px solid var(--color-border);
+	background: var(--color-bg-surface);
+	@apply backdrop-blur-xs;
+	@apply rounded-2xl p-6 shadow-xl transition-all duration-300 ease-in-out;
+
+	&:not(.card-static):not(.card-selected) {
+		@apply hover:ring-1;
+		--tw-ring-color: var(--color-border);
+	}
+}
+
+@utility card-focused {
+	background: var(--color-bg-surface-hover);
+	--tw-ring-color: var(--color-border);
+}
+
+@utility card-selected {
+	@apply ring-2 ring-blue-500;
+	@apply hover:ring-2 hover:ring-blue-500;
+}
+
+@utility checkbox-card {
+	@apply cursor-pointer rounded-sm text-blue-600 focus:ring-0 focus-visible:ring-2 focus-visible:ring-blue-500;
+	@apply border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700;
+	/* The dark background above (.dark .checkbox-card) outranks the forms plugin's checked
+		   fill, so restate the fill at higher specificity: checked is blue at rest, not only
+		   on hover/focus. */
+	@apply checked:border-transparent checked:bg-current dark:checked:border-transparent dark:checked:bg-current;
+}
+
+@utility card-divider-h {
+	/* Card dividers/borders */
+	border-top: 1px solid var(--color-border);
+}
+
+@utility card-divider-v {
+	border-right: 1px solid var(--color-border);
+}
+
+@utility sidebar {
+	/* Sidebar component */
+	@apply fixed top-0 left-0 z-10 flex h-screen w-48 flex-col;
+	border-right: 1px solid var(--color-border);
+	background-color: var(--color-bg-sidebar);
+}
+
+@utility sidebar-section {
+	@apply p-6;
+	border-bottom: 1px solid var(--color-border);
+}
+
+@utility sidebar-footer {
+	@apply p-4;
+	border-top: 1px solid var(--color-border);
+}
+
+@utility modal-background {
+	/* Modal components */
+	@apply bg-black/70 p-4 backdrop-blur-xs;
+}
+
+@utility modal-page {
+	@apply fixed inset-0 z-50 flex items-center justify-center overscroll-contain px-3 py-4 sm:px-0 sm:py-16;
+}
+
+@utility modal-page-anchored {
+	/* GenericModal `anchor="container"`: fill the nearest positioned ancestor instead of the
+	   viewport, for a modal that belongs to one region of the page rather than to the whole app
+	   (the topology view's overlays). Must stay after `.modal-page` — same specificity, so source
+	   order is what lets it win on `position` and `z-index`. */
+	@apply absolute z-30;
+}
+
+@utility modal-container {
+	@apply w-full rounded-lg shadow-2xl;
+	border: 1px solid var(--color-border);
+	background: var(--color-bg-elevated);
+}
+
+@utility modal-header {
+	@apply flex shrink-0 items-center justify-between p-6;
+	border-bottom: 1px solid var(--color-border);
+}
+
+@utility modal-content {
+	@apply flex min-h-0 flex-1 flex-col overflow-hidden;
+}
+
+@utility modal-footer {
+	@apply shrink-0 p-6;
+	border-top: 1px solid var(--color-border);
+}
+
+@layer components {
+	/* The JSON toggle (EntityMetadataSection) floats over the bottom-left corner of whatever
+	   precedes it. Room at the bottom of that element lets its content scroll clear of the
+	   toggle, so the toggle never covers anything. */
+	*:has(+ .entity-metadata-toggle),
+	/* ListConfigEditor's panes are absolutely positioned and scroll on their own. */
+	*:has(+ .entity-metadata-toggle) .list-config-pane {
+		padding-bottom: 2.5rem !important;
+	}
+}
+
+@utility input-field {
+	/* Form inputs */
+	@apply w-full rounded-md px-3 py-2;
+	border: 1px solid var(--color-border-input);
+	background: var(--color-bg-input);
+	color: var(--color-text-primary);
+	@apply transition-colors duration-150;
+	@apply focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-hidden;
+	@apply disabled:cursor-not-allowed disabled:opacity-50;
+
+	&::placeholder {
+		color: var(--color-text-muted);
+	}
+}
+
+@utility input-field-error {
+	@apply border-red-500 focus:border-red-500 focus:ring-red-500;
+}
+
+@utility input-secondary {
+	/* Secondary input/select - transparent style for toolbars, matches btn-secondary */
+	@apply h-[42px] bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800;
+	@apply border hover:border-gray-400 dark:hover:border-gray-600;
+	border-color: var(--color-border);
+	@apply rounded-md px-4 py-2 font-medium;
+	color: var(--color-text-tertiary);
+	@apply transition-colors duration-150;
+	@apply cursor-pointer appearance-none;
+	@apply focus:outline-hidden;
+
+	&:hover {
+		color: var(--color-text-secondary);
+	}
+
+	&:focus {
+		border-color: var(--color-border-input);
+	}
+}
+
+@utility select-trigger {
+	/* Dropdown/select components */
+	@apply flex w-full items-center justify-between rounded-md;
+	border: 1px solid var(--color-border-input);
+	background: var(--color-bg-input);
+	color: var(--color-text-primary);
+	@apply px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-hidden;
+	@apply transition-colors duration-150;
+	@apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility select-trigger-error {
+	@apply border-red-500 focus:border-red-500 focus:ring-red-500;
+}
+
+@utility select-option {
+	@apply w-full px-3 py-3 text-left transition-colors;
+	@apply hover:bg-gray-100 dark:hover:bg-gray-600;
+	@apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility select-option-selected {
+	@apply border-l-2 border-blue-500 bg-blue-50/30 dark:bg-purple-900/30;
+}
+
+@utility list-item {
+	/* List items (for ListSelectItem, cards, etc) */
+	@apply rounded-lg p-4;
+	border: 1px solid var(--color-border);
+	background: var(--color-bg-surface);
+	@apply transition-colors duration-150;
+}
+
+@utility list-item-selected {
+	@apply border-blue-500 ring-1 ring-blue-500;
+	@apply bg-blue-50/20 dark:bg-purple-900/20;
+}
+
+@utility list-item-hover {
+	@apply hover:bg-gray-100 dark:hover:bg-gray-700/50;
+
+	&:hover {
+		border-color: var(--color-border-input);
+	}
+}
+
+@utility label-dark {
+	/* Label/tag backgrounds (for topology nodes, etc) */
+	@apply rounded-md px-2 py-1 shadow-lg backdrop-blur-xs;
+	border: 1px solid var(--color-border-input);
+	@apply bg-white/95 dark:bg-gray-800/95;
+}
+
+@utility text-primary {
+	/* Text color utilities - semantic naming */
+	color: var(--color-text-primary);
+}
+
+@utility text-secondary {
+	color: var(--color-text-secondary);
+}
+
+@utility text-tertiary {
+	color: var(--color-text-tertiary);
+}
+
+@utility text-muted {
+	color: var(--color-text-muted);
+}
+
+@utility text-disabled {
+	color: var(--color-text-disabled);
+}
+
+@utility text-link {
+	@apply font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300;
+}
+
+/* `text-success` and `text-warning` take their light-mode color from the theme colors above,
+   which win over a custom utility of the same name. These keep the dark-mode shades the v3
+   component classes applied on top. */
+@layer utilities {
+	.dark .text-success {
+		color: var(--color-green-400);
+	}
+
+	.dark .text-warning {
+		color: var(--color-yellow-400);
+	}
+}
+
+@utility text-danger {
+	@apply text-red-600 dark:text-red-400;
+}
+
+@utility text-info {
+	@apply text-blue-600 dark:text-blue-400;
+}
+
+@utility text-accent {
+	@apply text-purple-600 dark:text-purple-400;
+}
+
+@utility summary-control {
+	/* The compact controls in a table's summary row (clears, fields, export, rows per page, paging):
+	   one height, so the row lines up. Defined after .btn-secondary and .input-field so its size wins
+	   over theirs. */
+	@apply inline-flex h-6 w-auto shrink-0 items-center gap-1 rounded-sm px-1.5 py-0 text-xs font-medium;
+}
+
+@utility text-gradient {
+	/* Neutral gradient text */
+	background: var(--gradient-text);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+@utility text-gradient-accent {
+	/* Purple accent gradient */
+	background: linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #9333ea 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+@utility glass {
+	background: var(--color-glass-bg);
+	backdrop-filter: blur(10px);
+	border: 1px solid var(--color-glass-border);
+}
+
+@layer utilities {
+	@reference "tailwindcss";
+}
 
 @layer base {
 	:root {
@@ -87,341 +643,6 @@
 }
 
 @layer components {
-	/* Primary action button - blue accent for emphasis */
-	.btn-primary {
-		@apply bg-blue-700 hover:bg-blue-600;
-		@apply border border-blue-600 hover:border-blue-500;
-		@apply rounded-md px-4 py-2 font-medium text-white;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center gap-2;
-		@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-blue-600 disabled:hover:bg-blue-700;
-	}
-
-	/* Larger primary button variant for wizard "Next" actions */
-	.btn-primary-lg {
-		@apply px-5 py-2.5 text-base;
-	}
-
-	/* One height for everything on a page's toolbar row: the filter input, icon buttons and the
-	   page's own actions. Matches an `input-field` at `text-sm`, and the sidebar search, so the
-	   toolbar lines up with it. */
-	.toolbar-control {
-		@apply h-[38px] py-0 text-sm;
-	}
-
-	/* Secondary action button - outlined, less prominent */
-	.btn-secondary {
-		@apply bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800;
-		@apply border border-gray-300 hover:border-gray-400 dark:border-gray-700 dark:hover:border-gray-600;
-		@apply rounded-md px-4 py-2 font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center gap-2;
-		@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-gray-300 disabled:hover:bg-transparent disabled:hover:text-gray-600 dark:disabled:hover:border-gray-700 dark:disabled:hover:text-gray-400;
-	}
-
-	/* Destructive action button - for dangerous operations */
-	.btn-danger {
-		@apply bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-950/60;
-		@apply border border-red-300 hover:border-red-400 dark:border-red-800/50 dark:hover:border-red-700;
-		@apply rounded-md px-4 py-2 font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center gap-2;
-		@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-red-300 disabled:hover:bg-red-50 disabled:hover:text-red-600 dark:disabled:hover:border-red-800/50 dark:disabled:hover:bg-red-950/40 dark:disabled:hover:text-red-400;
-	}
-
-	/* Success/confirmation action button - for positive operations */
-	.btn-success {
-		@apply bg-green-50 hover:bg-green-100 dark:bg-green-950/40 dark:hover:bg-green-950/60;
-		@apply border border-green-300 hover:border-green-400 dark:border-green-800/50 dark:hover:border-green-700;
-		@apply rounded-md px-4 py-2 font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center gap-2;
-		@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-green-300 disabled:hover:bg-green-50 disabled:hover:text-green-600 dark:disabled:hover:border-green-800/50 dark:disabled:hover:bg-green-950/40 dark:disabled:hover:text-green-400;
-	}
-
-	/* Warning action button - mirrors btn-danger pattern for yellow/warning states */
-	.btn-warning {
-		@apply bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/40 dark:hover:bg-yellow-950/60;
-		@apply border border-yellow-300 hover:border-yellow-400 dark:border-yellow-800/50 dark:hover:border-yellow-700;
-		@apply rounded-md px-4 py-2 font-medium text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center gap-2;
-		@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-yellow-300 disabled:hover:bg-yellow-50 disabled:hover:text-yellow-600 dark:disabled:hover:border-yellow-800/50 dark:disabled:hover:bg-yellow-950/40 dark:disabled:hover:text-yellow-400;
-	}
-
-	/* Info action button - mirrors btn-primary pattern for blue/info states */
-	.btn-info {
-		@apply bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-950/60;
-		@apply border border-blue-300 hover:border-blue-400 dark:border-blue-800/50 dark:hover:border-blue-700;
-		@apply rounded-md px-4 py-2 font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center gap-2;
-		@apply disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-blue-300 disabled:hover:bg-blue-50 disabled:hover:text-blue-600 dark:disabled:hover:border-blue-800/50 dark:disabled:hover:bg-blue-950/40 dark:disabled:hover:text-blue-400;
-	}
-
-	/* Icon buttons - minimal style for icon-only actions */
-	.btn-icon {
-		@apply text-tertiary hover:text-secondary rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-800;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center;
-		@apply disabled:hover:text-tertiary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent;
-	}
-
-	/* Icon button - danger variant */
-	.btn-icon-danger {
-		@apply text-tertiary rounded p-2 hover:text-red-600 dark:hover:text-red-400;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center;
-		@apply disabled:hover:text-tertiary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent;
-	}
-
-	/* Icon button - info variant */
-	.btn-icon-info {
-		@apply rounded p-2 text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center;
-		@apply disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-blue-600 dark:disabled:hover:text-blue-400;
-	}
-
-	/* Icon button - warning variant */
-	.btn-icon-warning {
-		@apply rounded p-2 text-orange-600 hover:text-orange-500 dark:text-orange-400 dark:hover:text-orange-300;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center;
-		@apply disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-orange-600 dark:disabled:hover:text-orange-400;
-	}
-
-	/* Icon button - success variant */
-	.btn-icon-success {
-		@apply rounded p-2 text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300;
-		@apply transition-colors duration-150;
-		@apply inline-flex items-center justify-center;
-		@apply disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-green-600 dark:disabled:hover:text-green-400;
-	}
-
-	/*
-	 * Entity table density, from the user's display settings. Every cell reads its
-	 * padding from these, so a density is defined here and nowhere else.
-	 */
-	.entity-table {
-		--cell-px: 0.75rem;
-		--cell-py: 0.5rem;
-	}
-
-	.entity-table[data-density='compact'] {
-		--cell-px: 0.5rem;
-		--cell-py: 0.25rem;
-	}
-
-	.entity-table[data-density='compact']
-		:is(.btn-icon, .btn-icon-danger, .btn-icon-info, .btn-icon-warning, .btn-icon-success) {
-		@apply p-1;
-	}
-
-	/*
-	 * Columns pinned while the table scrolls sideways (EntityTable's `pinAttrs`). A pinned cell is
-	 * opaque, or the cells scrolling under it would show through: it paints the page background
-	 * with its row's tint (`--row-tint`, set on the row for hover and selection) on top. The edge
-	 * classes draw the line between the pinned columns and the ones scrolling past them.
-	 */
-	.entity-table tr {
-		--row-tint: transparent;
-	}
-
-	.entity-table :is(.pin-left, .pin-right) {
-		position: sticky;
-		z-index: 20;
-		background: linear-gradient(var(--row-tint), var(--row-tint)), var(--color-bg-body);
-	}
-
-	.entity-table .pin-left {
-		left: var(--pin-left, 0px);
-	}
-
-	.entity-table .pin-right {
-		right: var(--pin-right, 0px);
-	}
-
-	/* A group header spans the whole row; its label stays at the left edge while the row scrolls. */
-	.entity-table .pin-content {
-		position: sticky;
-		left: var(--cell-px);
-	}
-
-	.entity-table .pin-edge-right {
-		box-shadow: inset -1px 0 var(--color-border);
-	}
-
-	.entity-table .pin-edge-left {
-		box-shadow: inset 1px 0 var(--color-border);
-	}
-
-	/* Card component */
-	.card {
-		border: 1px solid var(--color-border);
-		background: var(--color-bg-surface);
-		@apply backdrop-blur-sm;
-		@apply rounded-2xl p-6 shadow-xl transition-all duration-300 ease-in-out;
-	}
-
-	.card:not(.card-static):not(.card-selected) {
-		@apply hover:ring-1;
-		--tw-ring-color: var(--color-border);
-	}
-
-	.card-focused {
-		background: var(--color-bg-surface-hover);
-		--tw-ring-color: var(--color-border);
-	}
-
-	.card-selected {
-		@apply ring-2 ring-blue-500;
-		@apply hover:ring-2 hover:ring-blue-500;
-	}
-
-	.checkbox-card {
-		@apply cursor-pointer rounded text-blue-600 focus:ring-0 focus-visible:ring-2 focus-visible:ring-blue-500;
-		@apply border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700;
-		/* The dark background above (.dark .checkbox-card) outranks the forms plugin's checked
-		   fill, so restate the fill at higher specificity: checked is blue at rest, not only
-		   on hover/focus. */
-		@apply checked:border-transparent checked:bg-current dark:checked:border-transparent dark:checked:bg-current;
-	}
-	/* Card dividers/borders */
-	.card-divider-h {
-		border-top: 1px solid var(--color-border);
-	}
-
-	.card-divider-v {
-		border-right: 1px solid var(--color-border);
-	}
-
-	/* Sidebar component */
-	.sidebar {
-		@apply fixed left-0 top-0 z-10 flex h-screen w-48 flex-col;
-		border-right: 1px solid var(--color-border);
-		background-color: var(--color-bg-sidebar);
-	}
-
-	.sidebar-section {
-		@apply p-6;
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.sidebar-footer {
-		@apply p-4;
-		border-top: 1px solid var(--color-border);
-	}
-
-	/* Modal components */
-	.modal-background {
-		@apply bg-black/70 p-4 backdrop-blur-sm;
-	}
-	.modal-page {
-		@apply fixed inset-0 z-50 flex items-center justify-center overscroll-contain px-3 py-4 sm:px-0 sm:py-16;
-	}
-
-	/* GenericModal `anchor="container"`: fill the nearest positioned ancestor instead of the
-	   viewport, for a modal that belongs to one region of the page rather than to the whole app
-	   (the topology view's overlays). Must stay after `.modal-page` — same specificity, so source
-	   order is what lets it win on `position` and `z-index`. */
-	.modal-page-anchored {
-		@apply absolute z-30;
-	}
-
-	.modal-container {
-		@apply w-full rounded-lg shadow-2xl;
-		border: 1px solid var(--color-border);
-		background: var(--color-bg-elevated);
-	}
-
-	.modal-header {
-		@apply flex shrink-0 items-center justify-between p-6;
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.modal-content {
-		@apply flex min-h-0 flex-1 flex-col overflow-hidden;
-	}
-
-	.modal-footer {
-		@apply shrink-0 p-6;
-		border-top: 1px solid var(--color-border);
-	}
-
-	/* The JSON toggle (EntityMetadataSection) floats over the bottom-left corner of whatever
-	   precedes it. Room at the bottom of that element lets its content scroll clear of the
-	   toggle, so the toggle never covers anything. */
-	*:has(+ .entity-metadata-toggle),
-	/* ListConfigEditor's panes are absolutely positioned and scroll on their own. */
-	*:has(+ .entity-metadata-toggle) .list-config-pane {
-		padding-bottom: 2.5rem !important;
-	}
-
-	/* Form inputs */
-	.input-field {
-		@apply w-full rounded-md px-3 py-2;
-		border: 1px solid var(--color-border-input);
-		background: var(--color-bg-input);
-		color: var(--color-text-primary);
-		@apply transition-colors duration-150;
-		@apply focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500;
-		@apply disabled:cursor-not-allowed disabled:opacity-50;
-	}
-
-	.input-field::placeholder {
-		color: var(--color-text-muted);
-	}
-
-	.input-field-error {
-		@apply border-red-500 focus:border-red-500 focus:ring-red-500;
-	}
-
-	/* Secondary input/select - transparent style for toolbars, matches btn-secondary */
-	.input-secondary {
-		@apply h-[42px] bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800;
-		@apply border hover:border-gray-400 dark:hover:border-gray-600;
-		border-color: var(--color-border);
-		@apply rounded-md px-4 py-2 font-medium;
-		color: var(--color-text-tertiary);
-		@apply transition-colors duration-150;
-		@apply cursor-pointer appearance-none;
-		@apply focus:outline-none;
-	}
-
-	.input-secondary:hover {
-		color: var(--color-text-secondary);
-	}
-
-	.input-secondary:focus {
-		border-color: var(--color-border-input);
-	}
-
-	/* Dropdown/select components */
-	.select-trigger {
-		@apply flex w-full items-center justify-between rounded-md;
-		border: 1px solid var(--color-border-input);
-		background: var(--color-bg-input);
-		color: var(--color-text-primary);
-		@apply px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500;
-		@apply transition-colors duration-150;
-		@apply disabled:cursor-not-allowed disabled:opacity-50;
-	}
-
-	.select-trigger-error {
-		@apply border-red-500 focus:border-red-500 focus:ring-red-500;
-	}
-
-	.select-option {
-		@apply w-full px-3 py-3 text-left transition-colors;
-		@apply hover:bg-gray-100 dark:hover:bg-gray-600;
-		@apply disabled:cursor-not-allowed disabled:opacity-50;
-	}
-
-	.select-option-selected {
-		@apply border-l-2 border-blue-500 bg-blue-50/30 dark:bg-purple-900/30;
-	}
-
 	/* Datetime picker styling — colorScheme is set on <html> by the theme script */
 
 	/* Radio button styling */
@@ -432,80 +653,6 @@
 	input[type='radio']:checked {
 		background-color: rgb(37, 99, 235);
 		border-color: rgb(37, 99, 235);
-	}
-
-	/* List items (for ListSelectItem, cards, etc) */
-	.list-item {
-		@apply rounded-lg p-4;
-		border: 1px solid var(--color-border);
-		background: var(--color-bg-surface);
-		@apply transition-colors duration-150;
-	}
-
-	.list-item-selected {
-		@apply border-blue-500 ring-1 ring-blue-500;
-		@apply bg-blue-50/20 dark:bg-purple-900/20;
-	}
-
-	.list-item-hover {
-		@apply hover:bg-gray-100 dark:hover:bg-gray-700/50;
-	}
-
-	.list-item-hover:hover {
-		border-color: var(--color-border-input);
-	}
-
-	/* Label/tag backgrounds (for topology nodes, etc) */
-	.label-dark {
-		@apply rounded-md px-2 py-1 shadow-lg backdrop-blur-sm;
-		border: 1px solid var(--color-border-input);
-		@apply bg-white/95 dark:bg-gray-800/95;
-	}
-
-	/* Text color utilities - semantic naming */
-	.text-primary {
-		color: var(--color-text-primary);
-	}
-
-	.text-secondary {
-		color: var(--color-text-secondary);
-	}
-
-	.text-tertiary {
-		color: var(--color-text-tertiary);
-	}
-
-	.text-muted {
-		color: var(--color-text-muted);
-	}
-
-	.text-disabled {
-		color: var(--color-text-disabled);
-	}
-
-	.text-link {
-		@apply font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300;
-	}
-
-	/* Semantic text colors for status/actions */
-	.text-success {
-		@apply text-green-600 dark:text-green-400;
-	}
-
-	.text-warning {
-		@apply text-yellow-950 dark:text-yellow-400;
-	}
-
-	.text-danger {
-		@apply text-red-600 dark:text-red-400;
-	}
-
-	.text-info {
-		@apply text-blue-600 dark:text-blue-400;
-	}
-
-	.text-accent {
-		@apply text-purple-600 dark:text-purple-400;
 	}
 
 	/* Scrollbars */
@@ -531,37 +678,6 @@
 
 	::-webkit-scrollbar-thumb:hover {
 		background-color: var(--color-scrollbar-thumb-hover);
-	}
-
-	/* The compact controls in a table's summary row (clears, fields, export, rows per page, paging):
-	   one height, so the row lines up. Defined after .btn-secondary and .input-field so its size wins
-	   over theirs. */
-	.summary-control {
-		@apply inline-flex h-6 w-auto shrink-0 items-center gap-1 rounded px-1.5 py-0 text-xs font-medium;
-	}
-}
-
-@layer utilities {
-	/* Neutral gradient text */
-	.text-gradient {
-		background: var(--gradient-text);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
-	}
-
-	/* Purple accent gradient */
-	.text-gradient-accent {
-		background: linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #9333ea 100%);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
-	}
-
-	.glass {
-		background: var(--color-glass-bg);
-		backdrop-filter: blur(10px);
-		border: 1px solid var(--color-glass-border);
 	}
 }
 

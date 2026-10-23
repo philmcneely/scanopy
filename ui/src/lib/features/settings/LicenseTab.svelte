@@ -328,10 +328,10 @@
 						{/if}
 						<dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
 							<dt class="text-secondary">{common_tier()}</dt>
-							<dd class="text-primary font-medium">{billingPlans.getName(planType)}</dd>
+							<dd class="font-medium text-primary">{billingPlans.getName(planType)}</dd>
 							{#if validThrough}
 								<dt class="text-secondary">{settings_billing_license_validThrough()}</dt>
-								<dd class="text-primary flex flex-wrap items-center gap-3">
+								<dd class="flex flex-wrap items-center gap-3 text-primary">
 									<span>{validThrough}</span>
 									<!-- Whatever is required to keep that date moving, beside the
 									     date itself rather than in a card further down. -->
@@ -363,7 +363,7 @@
 
 						<div class="space-y-3 border-t pt-3" style="border-color: var(--color-border)">
 							<div>
-								<p class="text-secondary text-sm">{settings_billing_license_keyTypeLabel()}</p>
+								<p class="text-sm text-secondary">{settings_billing_license_keyTypeLabel()}</p>
 								<div class="mt-1">
 									<SegmentedControl
 										options={keyTypeOptions}
@@ -384,28 +384,28 @@
 								     rather than why air-gapped is unavailable. It has to come first:
 								     such an org has a card and is not past due, so it falls through
 								     every branch below to no line at all. -->
-								<p class="text-secondary text-sm">
+								<p class="text-sm text-secondary">
 									{settings_billing_license_airGappedCurrentUntil({
 										date: formatLongDate(airGappedCurrentUntil)
 									})}
 								</p>
 							{:else if !airGappedIncluded}
-								<p class="text-secondary text-sm">
+								<p class="text-sm text-secondary">
 									{settings_billing_license_offlineKeyUpsell()}
 									<button type="button" onclick={openPlanPicker} class="text-link hover:underline">
 										{settings_billing_changePlan()}
 									</button>
 								</p>
 							{:else if !hasCard}
-								<p class="text-secondary text-sm">
+								<p class="text-sm text-secondary">
 									{settings_billing_license_airGappedNeedsCard()}
 								</p>
 							{:else if isPastDue}
-								<p class="text-secondary text-sm">
+								<p class="text-sm text-secondary">
 									{settings_billing_license_airGappedPastDue()}
 								</p>
 							{:else if hasOpenInvoice}
-								<p class="text-secondary text-sm">
+								<p class="text-sm text-secondary">
 									{settings_billing_license_airGappedOpenInvoice()}
 									{#if openInvoiceUrl}
 										<!-- eslint-disable svelte/no-navigation-without-resolve -->
@@ -423,7 +423,7 @@
 							{/if}
 
 							<div>
-								<label class="text-secondary text-sm" for="license-key">
+								<label class="text-sm text-secondary" for="license-key">
 									{settings_billing_license_keyLabel()}
 								</label>
 								<div class="mt-1 flex flex-wrap items-center gap-2">
@@ -469,7 +469,7 @@
 				{/if}
 
 				{#if locked}
-					<p class="text-secondary text-sm">
+					<p class="text-sm text-secondary">
 						{settings_billing_license_notSelfHosting()}
 						<button
 							type="button"

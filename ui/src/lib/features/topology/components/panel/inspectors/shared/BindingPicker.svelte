@@ -168,7 +168,7 @@
 {#if backing}
 	{#if isFirstService}
 		{#if ipCandidates.length === 0}
-			<span class="text-tertiary text-xs italic">
+			<span class="text-xs text-tertiary italic">
 				{topology_multiSelectNoBindings()}
 			</span>
 		{:else if ipCandidates.length === 1}
@@ -205,14 +205,14 @@
 		{/if}
 	{:else if bindingCandidates.length === 0}
 		{#if backing.bindings.every((b) => b.type === 'IPAddress')}
-			<p class="text-danger text-xs">
+			<p class="text-xs text-danger">
 				{dependencies_noOpenPortsError({
 					serviceName: backing.name,
 					hostName: host ? hostDisplayName(host) : ''
 				})}
 			</p>
 		{:else}
-			<span class="text-tertiary text-xs italic">
+			<span class="text-xs text-tertiary italic">
 				{topology_multiSelectNoBindings()}
 			</span>
 		{/if}

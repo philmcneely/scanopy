@@ -72,7 +72,7 @@
 	count={hasDeps ? outboundDeps.length + inboundDeps.length : undefined}
 >
 	{#if !hasDeps}
-		<p class="text-tertiary text-sm">{inspector_noDependencies()}</p>
+		<p class="text-sm text-tertiary">{inspector_noDependencies()}</p>
 	{:else}
 		<div class="space-y-3">
 			{#if outboundDeps.length > 0}
@@ -83,7 +83,7 @@
 				>
 					<div class="space-y-1">
 						{#each outboundDeps as dep (dep.id)}
-							<div class="card card-static">
+							<div class="card-static card">
 								<EntityDisplayWrapper
 									item={dep}
 									context={{ compact: true }}
@@ -102,7 +102,7 @@
 				>
 					<div class="space-y-1">
 						{#each inboundDeps as dep (dep.id)}
-							<div class="card card-static">
+							<div class="card-static card">
 								<EntityDisplayWrapper
 									item={dep}
 									context={{ compact: true }}

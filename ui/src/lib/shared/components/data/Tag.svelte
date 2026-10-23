@@ -48,7 +48,7 @@
 		nativeTooltip || !title || typeof title === 'string' ? null : title
 	);
 	let fadedClasses = $derived(
-		faded ? 'opacity-50 grayscale hover:opacity-75 hover:grayscale-[50%] dark:opacity-40' : ''
+		faded ? 'opacity-50 grayscale hover:opacity-75 hover:grayscale-50 dark:opacity-40' : ''
 	);
 
 	// An icon carries the meaning on its own, so a tag with one is not unknown for lacking text.
@@ -85,22 +85,22 @@
 
 {#snippet content()}
 	<span
-		class="inline-flex min-w-0 max-w-full items-center gap-1 {pill
+		class="inline-flex max-w-full min-w-0 items-center gap-1 {pill
 			? 'rounded-full'
-			: 'rounded'} {displayLabel ? 'px-2' : 'px-1.5'} py-0.5 text-xs font-medium
-		{isUnknown ? unknownClasses : disabled ? 'text-tertiary bg-gray-700/30' : `${bgColor} ${textColor}`}
+			: 'rounded-sm'} {displayLabel ? 'px-2' : 'px-1.5'} py-0.5 text-xs font-medium
+		{isUnknown ? unknownClasses : disabled ? 'bg-gray-700/30 text-tertiary' : `${bgColor} ${textColor}`}
 		{isShiny ? 'tag-shiny' : ''}"
 	>
 		{#if icon}
 			{@const Icon = icon}
-			<Icon size={16} class="{textColor} flex-shrink-0" />
+			<Icon size={16} class="{textColor} shrink-0" />
 		{/if}
 
 		{#if displayLabel}
 			<span class="truncate" use:titleWhenTruncated={displayLabel}>{displayLabel}</span>
 		{/if}
 		{#if badge.length > 0}
-			<span class="flex-shrink-0 {textColor}">{badge}</span>
+			<span class="shrink-0 {textColor}">{badge}</span>
 		{/if}
 		{#if removable && onRemove}
 			<!-- Tab reaches it, and Delete or Backspace removes the tag like a click. -->
@@ -115,7 +115,7 @@
 						onRemove();
 					}
 				}}
-				class="rounded-full p-0.5 transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+				class="rounded-full p-0.5 transition-colors hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
 			>
 				<X class="h-3 w-3" />
 			</button>
@@ -132,7 +132,7 @@
 		use:tooltip={{ content: tooltipContent }}
 		data-tooltip={nativeTooltip ? null : titleText || null}
 		title={nativeTooltip ? titleText || undefined : undefined}
-		class="inline-flex max-w-full flex-shrink-0 items-center gap-1 whitespace-nowrap rounded brightness-100 transition-all hover:brightness-90 dark:hover:brightness-125 {fadedClasses}"
+		class="inline-flex max-w-full shrink-0 items-center gap-1 rounded-sm whitespace-nowrap brightness-100 transition-all hover:brightness-90 dark:hover:brightness-125 {fadedClasses}"
 		onclick={(e) => e.stopPropagation()}
 	>
 		{@render content()}
@@ -143,7 +143,7 @@
 		use:tooltip={{ content: tooltipContent }}
 		data-tooltip={nativeTooltip ? null : titleText || null}
 		title={nativeTooltip ? titleText || undefined : undefined}
-		class="inline-flex max-w-full flex-shrink-0 cursor-pointer appearance-none items-center gap-1 whitespace-nowrap rounded brightness-100 transition-all hover:brightness-90 dark:hover:brightness-125 {fadedClasses}"
+		class="inline-flex max-w-full shrink-0 cursor-pointer appearance-none items-center gap-1 rounded-sm whitespace-nowrap brightness-100 transition-all hover:brightness-90 dark:hover:brightness-125 {fadedClasses}"
 		{onclick}
 		{onmouseenter}
 		{onmouseleave}
@@ -156,7 +156,7 @@
 		use:tooltip={{ content: tooltipContent }}
 		data-tooltip={nativeTooltip ? null : titleText || null}
 		title={nativeTooltip ? titleText || undefined : undefined}
-		class="inline-flex max-w-full flex-shrink-0 items-center gap-1 whitespace-nowrap rounded {fadedClasses}"
+		class="inline-flex max-w-full shrink-0 items-center gap-1 rounded-sm whitespace-nowrap {fadedClasses}"
 	>
 		{@render content()}
 	</div>

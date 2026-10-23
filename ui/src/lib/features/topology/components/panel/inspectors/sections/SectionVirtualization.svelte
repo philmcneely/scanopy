@@ -64,7 +64,7 @@
 
 {#if virtualizerHost}
 	<InspectorSection id="Virtualization" section="Virtualization" {title}>
-		<div class="card card-static">
+		<div class="card-static card">
 			<EntityDisplayWrapper
 				context={hostContext}
 				item={virtualizerHost}

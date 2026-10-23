@@ -323,7 +323,7 @@
 							<button
 								type="button"
 								onclick={onSwitchToLogin}
-								class="text-link text-sm hover:underline"
+								class="text-sm text-link hover:underline"
 							>
 								{auth_signInInstead()}
 							</button>
@@ -335,12 +335,12 @@
 			{:else}
 				<!-- Sub-step: Password -->
 				<div class="space-y-6">
-					<div class="card card-static flex items-center justify-between !rounded-lg !px-4 !py-3">
-						<span class="text-secondary text-sm">{emailValue}</span>
+					<div class="card-static flex items-center justify-between card rounded-lg! px-4! py-3!">
+						<span class="text-sm text-secondary">{emailValue}</span>
 						<button
 							type="button"
 							onclick={handleChangeEmail}
-							class="text-link text-sm hover:underline"
+							class="text-sm text-link hover:underline"
 						>
 							{common_change()}
 						</button>

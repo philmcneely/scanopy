@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:51dcc390-d952-4866-845d-5d62ab68ed66",
+  "serialNumber": "urn:uuid:20fd77db-4cd2-4211-9343-b172af061239",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-22T20:08:05Z",
+    "timestamp": "2026-10-23T01:57:11Z",
     "tools": {
       "components": [
         {
@@ -2826,10 +2826,10 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/%40posthog/browser-common@0.9.1?package-id=9f4111392e81b701",
+      "bom-ref": "pkg:npm/%40posthog/browser-common@0.9.9?package-id=6f5acf7121988e22",
       "type": "library",
       "name": "@posthog/browser-common",
-      "version": "0.9.1",
+      "version": "0.9.9",
       "licenses": [
         {
           "license": {
@@ -2837,8 +2837,8 @@
           }
         }
       ],
-      "cpe": "cpe:2.3:a:\\@posthog\\/browser-common:\\@posthog\\/browser-common:0.9.1:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/%40posthog/browser-common@0.9.1",
+      "cpe": "cpe:2.3:a:\\@posthog\\/browser-common:\\@posthog\\/browser-common:0.9.9:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/%40posthog/browser-common@0.9.9",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -2858,23 +2858,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@posthog\\/browser-common:\\@posthog\\/browser_common:0.9.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@posthog\\/browser-common:\\@posthog\\/browser_common:0.9.9:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@posthog\\/browser_common:\\@posthog\\/browser-common:0.9.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@posthog\\/browser_common:\\@posthog\\/browser-common:0.9.9:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@posthog\\/browser_common:\\@posthog\\/browser_common:0.9.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@posthog\\/browser_common:\\@posthog\\/browser_common:0.9.9:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@posthog\\/browser:\\@posthog\\/browser-common:0.9.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@posthog\\/browser:\\@posthog\\/browser-common:0.9.9:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@posthog\\/browser:\\@posthog\\/browser_common:0.9.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@posthog\\/browser:\\@posthog\\/browser_common:0.9.9:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -2883,10 +2883,10 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/%40posthog/core@1.55.3?package-id=76a5d5a799749fa7",
+      "bom-ref": "pkg:npm/%40posthog/core@1.60.0?package-id=e3d0c591f3cff991",
       "type": "library",
       "name": "@posthog/core",
-      "version": "1.55.3",
+      "version": "1.60.0",
       "licenses": [
         {
           "license": {
@@ -2894,8 +2894,8 @@
           }
         }
       ],
-      "cpe": "cpe:2.3:a:\\@posthog\\/core:\\@posthog\\/core:1.55.3:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/%40posthog/core@1.55.3",
+      "cpe": "cpe:2.3:a:\\@posthog\\/core:\\@posthog\\/core:1.60.0:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/%40posthog/core@1.60.0",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -2920,10 +2920,10 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/%40posthog/types@1.413.0?package-id=538958311e03bb9f",
+      "bom-ref": "pkg:npm/%40posthog/types@1.416.0?package-id=e2c9480e6a397065",
       "type": "library",
       "name": "@posthog/types",
-      "version": "1.413.0",
+      "version": "1.416.0",
       "licenses": [
         {
           "license": {
@@ -2931,8 +2931,8 @@
           }
         }
       ],
-      "cpe": "cpe:2.3:a:\\@posthog\\/types:\\@posthog\\/types:1.413.0:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/%40posthog/types@1.413.0",
+      "cpe": "cpe:2.3:a:\\@posthog\\/types:\\@posthog\\/types:1.416.0:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/%40posthog/types@1.416.0",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -5409,10 +5409,10 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/%40tanstack/devtools-event-client@0.4.0?package-id=2e6da7af4c78cae1",
+      "bom-ref": "pkg:npm/%40tanstack/devtools-event-client@0.4.4?package-id=7ecf7fe4df9a11e8",
       "type": "library",
       "name": "@tanstack/devtools-event-client",
-      "version": "0.4.0",
+      "version": "0.4.4",
       "licenses": [
         {
           "license": {
@@ -5420,8 +5420,8 @@
           }
         }
       ],
-      "cpe": "cpe:2.3:a:\\@tanstack\\/devtools-event-client:\\@tanstack\\/devtools-event-client:0.4.0:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/%40tanstack/devtools-event-client@0.4.0",
+      "cpe": "cpe:2.3:a:\\@tanstack\\/devtools-event-client:\\@tanstack\\/devtools-event-client:0.4.4:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/%40tanstack/devtools-event-client@0.4.4",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -5441,39 +5441,39 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/devtools-event-client:\\@tanstack\\/devtools_event_client:0.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/devtools-event-client:\\@tanstack\\/devtools_event_client:0.4.4:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/devtools_event_client:\\@tanstack\\/devtools-event-client:0.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/devtools_event_client:\\@tanstack\\/devtools-event-client:0.4.4:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/devtools_event_client:\\@tanstack\\/devtools_event_client:0.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/devtools_event_client:\\@tanstack\\/devtools_event_client:0.4.4:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/devtools-event:\\@tanstack\\/devtools-event-client:0.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/devtools-event:\\@tanstack\\/devtools-event-client:0.4.4:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/devtools-event:\\@tanstack\\/devtools_event_client:0.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/devtools-event:\\@tanstack\\/devtools_event_client:0.4.4:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/devtools_event:\\@tanstack\\/devtools-event-client:0.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/devtools_event:\\@tanstack\\/devtools-event-client:0.4.4:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/devtools_event:\\@tanstack\\/devtools_event_client:0.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/devtools_event:\\@tanstack\\/devtools_event_client:0.4.4:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/devtools:\\@tanstack\\/devtools-event-client:0.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/devtools:\\@tanstack\\/devtools-event-client:0.4.4:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/devtools:\\@tanstack\\/devtools_event_client:0.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/devtools:\\@tanstack\\/devtools_event_client:0.4.4:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -5482,10 +5482,10 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/%40tanstack/form-core@1.28.3?package-id=9a2a5c677e773296",
+      "bom-ref": "pkg:npm/%40tanstack/form-core@1.33.5?package-id=01f003ed0b506e86",
       "type": "library",
       "name": "@tanstack/form-core",
-      "version": "1.28.3",
+      "version": "1.33.5",
       "licenses": [
         {
           "license": {
@@ -5493,8 +5493,8 @@
           }
         }
       ],
-      "cpe": "cpe:2.3:a:\\@tanstack\\/form-core:\\@tanstack\\/form-core:1.28.3:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/%40tanstack/form-core@1.28.3",
+      "cpe": "cpe:2.3:a:\\@tanstack\\/form-core:\\@tanstack\\/form-core:1.33.5:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/%40tanstack/form-core@1.33.5",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -5514,23 +5514,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/form-core:\\@tanstack\\/form_core:1.28.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/form-core:\\@tanstack\\/form_core:1.33.5:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/form_core:\\@tanstack\\/form-core:1.28.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/form_core:\\@tanstack\\/form-core:1.33.5:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/form_core:\\@tanstack\\/form_core:1.28.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/form_core:\\@tanstack\\/form_core:1.33.5:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/form:\\@tanstack\\/form-core:1.28.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/form:\\@tanstack\\/form-core:1.33.5:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/form:\\@tanstack\\/form_core:1.28.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/form:\\@tanstack\\/form_core:1.33.5:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -5653,10 +5653,10 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/%40tanstack/store@0.8.1?package-id=7efb41db4bc7cd5c",
+      "bom-ref": "pkg:npm/%40tanstack/store@0.11.2?package-id=6f32440cb4464b3e",
       "type": "library",
       "name": "@tanstack/store",
-      "version": "0.8.1",
+      "version": "0.11.2",
       "licenses": [
         {
           "license": {
@@ -5664,8 +5664,8 @@
           }
         }
       ],
-      "cpe": "cpe:2.3:a:\\@tanstack\\/store:\\@tanstack\\/store:0.8.1:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/%40tanstack/store@0.8.1",
+      "cpe": "cpe:2.3:a:\\@tanstack\\/store:\\@tanstack\\/store:0.11.2:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/%40tanstack/store@0.11.2",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -5690,10 +5690,10 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/%40tanstack/svelte-form@1.28.3?package-id=ed03a61a54a62e31",
+      "bom-ref": "pkg:npm/%40tanstack/svelte-form@1.33.5?package-id=a5b09adc7456749e",
       "type": "library",
       "name": "@tanstack/svelte-form",
-      "version": "1.28.3",
+      "version": "1.33.5",
       "licenses": [
         {
           "license": {
@@ -5701,8 +5701,8 @@
           }
         }
       ],
-      "cpe": "cpe:2.3:a:\\@tanstack\\/svelte-form:\\@tanstack\\/svelte-form:1.28.3:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/%40tanstack/svelte-form@1.28.3",
+      "cpe": "cpe:2.3:a:\\@tanstack\\/svelte-form:\\@tanstack\\/svelte-form:1.33.5:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/%40tanstack/svelte-form@1.33.5",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -5722,23 +5722,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/svelte-form:\\@tanstack\\/svelte_form:1.28.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/svelte-form:\\@tanstack\\/svelte_form:1.33.5:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/svelte_form:\\@tanstack\\/svelte-form:1.28.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/svelte_form:\\@tanstack\\/svelte-form:1.33.5:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/svelte_form:\\@tanstack\\/svelte_form:1.28.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/svelte_form:\\@tanstack\\/svelte_form:1.33.5:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/svelte:\\@tanstack\\/svelte-form:1.28.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/svelte:\\@tanstack\\/svelte-form:1.33.5:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/svelte:\\@tanstack\\/svelte_form:1.28.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/svelte:\\@tanstack\\/svelte_form:1.33.5:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -5804,10 +5804,10 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/%40tanstack/svelte-store@0.9.1?package-id=591f1a778f04aed5",
+      "bom-ref": "pkg:npm/%40tanstack/svelte-store@0.12.3?package-id=5be2e5de7251411e",
       "type": "library",
       "name": "@tanstack/svelte-store",
-      "version": "0.9.1",
+      "version": "0.12.3",
       "licenses": [
         {
           "license": {
@@ -5815,8 +5815,8 @@
           }
         }
       ],
-      "cpe": "cpe:2.3:a:\\@tanstack\\/svelte-store:\\@tanstack\\/svelte-store:0.9.1:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/%40tanstack/svelte-store@0.9.1",
+      "cpe": "cpe:2.3:a:\\@tanstack\\/svelte-store:\\@tanstack\\/svelte-store:0.12.3:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/%40tanstack/svelte-store@0.12.3",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -5836,23 +5836,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/svelte-store:\\@tanstack\\/svelte_store:0.9.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/svelte-store:\\@tanstack\\/svelte_store:0.12.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/svelte_store:\\@tanstack\\/svelte-store:0.9.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/svelte_store:\\@tanstack\\/svelte-store:0.12.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/svelte_store:\\@tanstack\\/svelte_store:0.9.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/svelte_store:\\@tanstack\\/svelte_store:0.12.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/svelte:\\@tanstack\\/svelte-store:0.9.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/svelte:\\@tanstack\\/svelte-store:0.12.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/svelte:\\@tanstack\\/svelte_store:0.9.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/svelte:\\@tanstack\\/svelte_store:0.12.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -5861,10 +5861,10 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/%40tanstack/table-core@8.21.3?package-id=3bddf21a0702cbc2",
+      "bom-ref": "pkg:npm/%40tanstack/table-core@9.3.1?package-id=f67fdb2272cf6809",
       "type": "library",
       "name": "@tanstack/table-core",
-      "version": "8.21.3",
+      "version": "9.3.1",
       "licenses": [
         {
           "license": {
@@ -5872,8 +5872,8 @@
           }
         }
       ],
-      "cpe": "cpe:2.3:a:\\@tanstack\\/table-core:\\@tanstack\\/table-core:8.21.3:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/%40tanstack/table-core@8.21.3",
+      "cpe": "cpe:2.3:a:\\@tanstack\\/table-core:\\@tanstack\\/table-core:9.3.1:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/%40tanstack/table-core@9.3.1",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -5893,23 +5893,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/table-core:\\@tanstack\\/table_core:8.21.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/table-core:\\@tanstack\\/table_core:9.3.1:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/table_core:\\@tanstack\\/table-core:8.21.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/table_core:\\@tanstack\\/table-core:9.3.1:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/table_core:\\@tanstack\\/table_core:8.21.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/table_core:\\@tanstack\\/table_core:9.3.1:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/table:\\@tanstack\\/table-core:8.21.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/table:\\@tanstack\\/table-core:9.3.1:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:\\@tanstack\\/table:\\@tanstack\\/table_core:8.21.3:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:\\@tanstack\\/table:\\@tanstack\\/table_core:9.3.1:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -12779,7 +12779,7 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/bollard@0.20.2?package-id=87f4605ff9a14b3c",
+      "bom-ref": "pkg:cargo/bollard@0.20.2?package-id=63929f9356a9f1d5",
       "type": "library",
       "name": "bollard",
       "version": "0.20.2",
@@ -20327,12 +20327,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/dns-lookup@3.0.1?package-id=22b29a9ee91e7b17",
+      "bom-ref": "pkg:cargo/dns-lookup@4.0.2?package-id=110657c34f5abd03",
       "type": "library",
       "name": "dns-lookup",
-      "version": "3.0.1",
-      "cpe": "cpe:2.3:a:dns-lookup:dns-lookup:3.0.1:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/dns-lookup@3.0.1",
+      "version": "4.0.2",
+      "cpe": "cpe:2.3:a:dns-lookup:dns-lookup:4.0.2:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/dns-lookup@4.0.2",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -20358,23 +20358,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:dns-lookup:dns_lookup:3.0.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:dns-lookup:dns_lookup:4.0.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:dns_lookup:dns-lookup:3.0.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:dns_lookup:dns-lookup:4.0.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:dns_lookup:dns_lookup:3.0.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:dns_lookup:dns_lookup:4.0.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:dns:dns-lookup:3.0.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:dns:dns-lookup:4.0.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:dns:dns_lookup:3.0.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:dns:dns_lookup:4.0.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -26230,12 +26230,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/hickory-net@0.26.1?package-id=a0a9d83bbe26f2b7",
+      "bom-ref": "pkg:cargo/hickory-net@0.26.3?package-id=3a9e6338ef5340db",
       "type": "library",
       "name": "hickory-net",
-      "version": "0.26.1",
-      "cpe": "cpe:2.3:a:hickory-net:hickory-net:0.26.1:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/hickory-net@0.26.1",
+      "version": "0.26.3",
+      "cpe": "cpe:2.3:a:hickory-net:hickory-net:0.26.3:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/hickory-net@0.26.3",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -26261,23 +26261,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory-net:hickory_net:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory-net:hickory_net:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory_net:hickory-net:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory_net:hickory-net:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory_net:hickory_net:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory_net:hickory_net:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory:hickory-net:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory:hickory-net:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory:hickory_net:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory:hickory_net:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -26286,12 +26286,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/hickory-proto@0.26.1?package-id=e6d9cededc21e8ca",
+      "bom-ref": "pkg:cargo/hickory-proto@0.26.3?package-id=c26533883c727635",
       "type": "library",
       "name": "hickory-proto",
-      "version": "0.26.1",
-      "cpe": "cpe:2.3:a:hickory-proto:hickory-proto:0.26.1:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/hickory-proto@0.26.1",
+      "version": "0.26.3",
+      "cpe": "cpe:2.3:a:hickory-proto:hickory-proto:0.26.3:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/hickory-proto@0.26.3",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -26317,23 +26317,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory-proto:hickory_proto:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory-proto:hickory_proto:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory_proto:hickory-proto:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory_proto:hickory-proto:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory_proto:hickory_proto:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory_proto:hickory_proto:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory:hickory-proto:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory:hickory-proto:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory:hickory_proto:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory:hickory_proto:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -26342,12 +26342,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/hickory-resolver@0.26.1?package-id=c05952819f0f0cc5",
+      "bom-ref": "pkg:cargo/hickory-resolver@0.26.3?package-id=038bb3993858e711",
       "type": "library",
       "name": "hickory-resolver",
-      "version": "0.26.1",
-      "cpe": "cpe:2.3:a:hickory-resolver:hickory-resolver:0.26.1:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/hickory-resolver@0.26.1",
+      "version": "0.26.3",
+      "cpe": "cpe:2.3:a:hickory-resolver:hickory-resolver:0.26.3:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/hickory-resolver@0.26.3",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -26373,23 +26373,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory-resolver:hickory_resolver:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory-resolver:hickory_resolver:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory_resolver:hickory-resolver:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory_resolver:hickory-resolver:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory_resolver:hickory_resolver:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory_resolver:hickory_resolver:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory:hickory-resolver:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory:hickory-resolver:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:hickory:hickory_resolver:0.26.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:hickory:hickory_resolver:0.26.3:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -27452,7 +27452,7 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/hyper-rustls@0.27.7?package-id=c745af779d4f2949",
+      "bom-ref": "pkg:cargo/hyper-rustls@0.27.7?package-id=3f679ac28bd89c7a",
       "type": "library",
       "name": "hyper-rustls",
       "version": "0.27.7",
@@ -31221,7 +31221,7 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/lettre@0.11.22?package-id=c149c535fa3942c5",
+      "bom-ref": "pkg:cargo/lettre@0.11.22?package-id=c3a031caaaffd21a",
       "type": "library",
       "name": "lettre",
       "version": "0.11.22",
@@ -32521,12 +32521,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/mailchecker@6.0.20?package-id=92668fe3fbf25264",
+      "bom-ref": "pkg:cargo/mailchecker@6.0.21?package-id=a2af46795700ce41",
       "type": "library",
       "name": "mailchecker",
-      "version": "6.0.20",
-      "cpe": "cpe:2.3:a:mailchecker:mailchecker:6.0.20:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/mailchecker@6.0.20",
+      "version": "6.0.21",
+      "cpe": "cpe:2.3:a:mailchecker:mailchecker:6.0.21:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/mailchecker@6.0.21",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -33839,12 +33839,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/nanoid@0.4.0?package-id=93ea75c40e170718",
+      "bom-ref": "pkg:cargo/nanoid@0.5.0?package-id=fbf950fcbe60db11",
       "type": "library",
       "name": "nanoid",
-      "version": "0.4.0",
-      "cpe": "cpe:2.3:a:nanoid:nanoid:0.4.0:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/nanoid@0.4.0",
+      "version": "0.5.0",
+      "cpe": "cpe:2.3:a:nanoid:nanoid:0.5.0:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/nanoid@0.5.0",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -38693,6 +38693,42 @@
       ]
     },
     {
+      "bom-ref": "pkg:cargo/pastey@0.2.3?package-id=e6c8097070000bce",
+      "type": "library",
+      "name": "pastey",
+      "version": "0.2.3",
+      "cpe": "cpe:2.3:a:pastey:pastey:0.2.3:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/pastey@0.2.3",
+      "externalReferences": [
+        {
+          "url": "registry+https://github.com/rust-lang/crates.io-index",
+          "type": "distribution"
+        }
+      ],
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "rust-cargo-lock-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "rust"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "rust-crate"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "rust-cargo-lock-entry"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/backend/Cargo.lock"
+        }
+      ]
+    },
+    {
       "bom-ref": "pkg:npm/path-parse@1.0.7?package-id=9815a9c7721b4c1d",
       "type": "library",
       "name": "path-parse",
@@ -41998,17 +42034,17 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/posthog-js@1.435.6?package-id=079554063d86f59d",
+      "bom-ref": "pkg:npm/posthog-js@1.438.19?package-id=8c604605e9ab0c68",
       "type": "library",
       "name": "posthog-js",
-      "version": "1.435.6",
+      "version": "1.438.19",
       "licenses": [
         {
           "expression": "Apache-2.0 AND MIT"
         }
       ],
-      "cpe": "cpe:2.3:a:posthog-js:posthog-js:1.435.6:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/posthog-js@1.435.6",
+      "cpe": "cpe:2.3:a:posthog-js:posthog-js:1.438.19:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/posthog-js@1.438.19",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -42028,23 +42064,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:posthog-js:posthog_js:1.435.6:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:posthog-js:posthog_js:1.438.19:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:posthog_js:posthog-js:1.435.6:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:posthog_js:posthog-js:1.438.19:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:posthog_js:posthog_js:1.435.6:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:posthog_js:posthog_js:1.438.19:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:posthog:posthog-js:1.435.6:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:posthog:posthog-js:1.438.19:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:posthog:posthog_js:1.435.6:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:posthog:posthog_js:1.438.19:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -43576,7 +43612,7 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/quinn@0.11.9?package-id=ca1075b145df8fa7",
+      "bom-ref": "pkg:cargo/quinn@0.11.9?package-id=e6d30696f7339520",
       "type": "library",
       "name": "quinn",
       "version": "0.11.9",
@@ -43612,7 +43648,7 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/quinn-proto@0.11.16?package-id=c4c52fe4e4c0161c",
+      "bom-ref": "pkg:cargo/quinn-proto@0.11.16?package-id=5520cbff873d3995",
       "type": "library",
       "name": "quinn-proto",
       "version": "0.11.16",
@@ -45436,7 +45472,7 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/reqwest@0.12.24?package-id=5e0d2ec5f3b875be",
+      "bom-ref": "pkg:cargo/reqwest@0.12.24?package-id=478eaef7cd3a9270",
       "type": "library",
       "name": "reqwest",
       "version": "0.12.24",
@@ -46168,12 +46204,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/russh@0.63.3?package-id=9aeeac25558a2514",
+      "bom-ref": "pkg:cargo/russh@0.64.1?package-id=ef501154160711f0",
       "type": "library",
       "name": "russh",
-      "version": "0.63.3",
-      "cpe": "cpe:2.3:a:russh:russh:0.63.3:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/russh@0.63.3",
+      "version": "0.64.1",
+      "cpe": "cpe:2.3:a:russh:russh:0.64.1:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/russh@0.64.1",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -46828,12 +46864,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
+      "bom-ref": "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
       "type": "library",
       "name": "rustls",
-      "version": "0.23.35",
-      "cpe": "cpe:2.3:a:rustls:rustls:0.23.35:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/rustls@0.23.35",
+      "version": "0.23.46",
+      "cpe": "cpe:2.3:a:rustls:rustls:0.23.46:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/rustls@0.23.46",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -47120,12 +47156,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/rustls-webpki@0.103.13?package-id=0596a3f222ec90bb",
+      "bom-ref": "pkg:cargo/rustls-webpki@0.103.16?package-id=4b76104155934e13",
       "type": "library",
       "name": "rustls-webpki",
-      "version": "0.103.13",
-      "cpe": "cpe:2.3:a:rustls-webpki:rustls-webpki:0.103.13:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/rustls-webpki@0.103.13",
+      "version": "0.103.16",
+      "cpe": "cpe:2.3:a:rustls-webpki:rustls-webpki:0.103.16:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/rustls-webpki@0.103.16",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -47151,23 +47187,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:rustls-webpki:rustls_webpki:0.103.13:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:rustls-webpki:rustls_webpki:0.103.16:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:rustls_webpki:rustls-webpki:0.103.13:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:rustls_webpki:rustls-webpki:0.103.16:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:rustls_webpki:rustls_webpki:0.103.13:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:rustls_webpki:rustls_webpki:0.103.16:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:rustls:rustls-webpki:0.103.13:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:rustls:rustls-webpki:0.103.16:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:rustls:rustls_webpki:0.103.13:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:rustls:rustls_webpki:0.103.16:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -47376,12 +47412,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/scanopy-server@0.18.2?package-id=ef67300982d8b0e4",
+      "bom-ref": "pkg:cargo/scanopy-server@0.19.0?package-id=2c74ddc93be9ece8",
       "type": "library",
       "name": "scanopy-server",
-      "version": "0.18.2",
-      "cpe": "cpe:2.3:a:scanopy-server:scanopy-server:0.18.2:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/scanopy-server@0.18.2",
+      "version": "0.19.0",
+      "cpe": "cpe:2.3:a:scanopy-server:scanopy-server:0.19.0:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/scanopy-server@0.19.0",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -47401,23 +47437,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:scanopy-server:scanopy_server:0.18.2:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:scanopy-server:scanopy_server:0.19.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:scanopy_server:scanopy-server:0.18.2:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:scanopy_server:scanopy-server:0.19.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:scanopy_server:scanopy_server:0.18.2:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:scanopy_server:scanopy_server:0.19.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:scanopy:scanopy-server:0.18.2:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:scanopy:scanopy-server:0.19.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:scanopy:scanopy_server:0.18.2:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:scanopy:scanopy_server:0.19.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -47426,12 +47462,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/scanopy-ui@0.18.2?package-id=793be5dd81366a1e",
+      "bom-ref": "pkg:npm/scanopy-ui@0.19.0?package-id=63051a9a0c75a86e",
       "type": "library",
       "name": "scanopy-ui",
-      "version": "0.18.2",
-      "cpe": "cpe:2.3:a:scanopy-ui:scanopy-ui:0.18.2:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/scanopy-ui@0.18.2",
+      "version": "0.19.0",
+      "cpe": "cpe:2.3:a:scanopy-ui:scanopy-ui:0.19.0:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/scanopy-ui@0.19.0",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -47451,23 +47487,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:scanopy-ui:scanopy_ui:0.18.2:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:scanopy-ui:scanopy_ui:0.19.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:scanopy_ui:scanopy-ui:0.18.2:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:scanopy_ui:scanopy-ui:0.19.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:scanopy_ui:scanopy_ui:0.18.2:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:scanopy_ui:scanopy_ui:0.19.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:scanopy:scanopy-ui:0.18.2:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:scanopy:scanopy-ui:0.19.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:scanopy:scanopy_ui:0.18.2:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:scanopy:scanopy_ui:0.19.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -48073,12 +48109,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+      "bom-ref": "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
       "type": "library",
       "name": "serde",
-      "version": "1.0.228",
-      "cpe": "cpe:2.3:a:serde:serde:1.0.228:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/serde@1.0.228",
+      "version": "1.0.229",
+      "cpe": "cpe:2.3:a:serde:serde:1.0.229:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/serde@1.0.229",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -48221,12 +48257,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4",
+      "bom-ref": "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7",
       "type": "library",
       "name": "serde_core",
-      "version": "1.0.228",
-      "cpe": "cpe:2.3:a:serde-core:serde-core:1.0.228:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/serde_core@1.0.228",
+      "version": "1.0.229",
+      "cpe": "cpe:2.3:a:serde-core:serde-core:1.0.229:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/serde_core@1.0.229",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -48252,23 +48288,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:serde-core:serde_core:1.0.228:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:serde-core:serde_core:1.0.229:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:serde_core:serde-core:1.0.228:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:serde_core:serde-core:1.0.229:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:serde_core:serde_core:1.0.228:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:serde_core:serde_core:1.0.229:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:serde:serde-core:1.0.228:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:serde:serde-core:1.0.229:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:serde:serde_core:1.0.228:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:serde:serde_core:1.0.229:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -48277,12 +48313,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5",
+      "bom-ref": "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923",
       "type": "library",
       "name": "serde_derive",
-      "version": "1.0.228",
-      "cpe": "cpe:2.3:a:serde-derive:serde-derive:1.0.228:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/serde_derive@1.0.228",
+      "version": "1.0.229",
+      "cpe": "cpe:2.3:a:serde-derive:serde-derive:1.0.229:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/serde_derive@1.0.229",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -48308,23 +48344,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:serde-derive:serde_derive:1.0.228:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:serde-derive:serde_derive:1.0.229:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:serde_derive:serde-derive:1.0.228:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:serde_derive:serde-derive:1.0.229:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:serde_derive:serde_derive:1.0.228:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:serde_derive:serde_derive:1.0.229:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:serde:serde-derive:1.0.228:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:serde:serde-derive:1.0.229:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:serde:serde_derive:1.0.228:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:serde:serde_derive:1.0.229:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -50381,10 +50417,10 @@
       ]
     },
     {
-      "bom-ref": "pkg:npm/source-map-js@1.2.1?package-id=4a13a6f67384ebd6",
+      "bom-ref": "pkg:npm/source-map-js@1.2.2?package-id=1fde7d7a6afc938a",
       "type": "library",
       "name": "source-map-js",
-      "version": "1.2.1",
+      "version": "1.2.2",
       "licenses": [
         {
           "license": {
@@ -50392,8 +50428,8 @@
           }
         }
       ],
-      "cpe": "cpe:2.3:a:source-map-js:source-map-js:1.2.1:*:*:*:*:*:*:*",
-      "purl": "pkg:npm/source-map-js@1.2.1",
+      "cpe": "cpe:2.3:a:source-map-js:source-map-js:1.2.2:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/source-map-js@1.2.2",
       "properties": [
         {
           "name": "syft:package:foundBy",
@@ -50413,39 +50449,39 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:source-map-js:source_map_js:1.2.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:source-map-js:source_map_js:1.2.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:source_map_js:source-map-js:1.2.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:source_map_js:source-map-js:1.2.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:source_map_js:source_map_js:1.2.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:source_map_js:source_map_js:1.2.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:source-map:source-map-js:1.2.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:source-map:source-map-js:1.2.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:source-map:source_map_js:1.2.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:source-map:source_map_js:1.2.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:source_map:source-map-js:1.2.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:source_map:source-map-js:1.2.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:source_map:source_map_js:1.2.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:source_map:source_map_js:1.2.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:source:source-map-js:1.2.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:source:source-map-js:1.2.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:source:source_map_js:1.2.1:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:source:source_map_js:1.2.2:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -50710,7 +50746,7 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/sqlx-core@0.8.6?package-id=0d6c8bd92afe4141",
+      "bom-ref": "pkg:cargo/sqlx-core@0.8.6?package-id=cfd7b3ce166cf16b",
       "type": "library",
       "name": "sqlx-core",
       "version": "0.8.6",
@@ -52134,6 +52170,42 @@
       "version": "2.0.110",
       "cpe": "cpe:2.3:a:syn:syn:2.0.110:*:*:*:*:*:*:*",
       "purl": "pkg:cargo/syn@2.0.110",
+      "externalReferences": [
+        {
+          "url": "registry+https://github.com/rust-lang/crates.io-index",
+          "type": "distribution"
+        }
+      ],
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "rust-cargo-lock-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "rust"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "rust-crate"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "rust-cargo-lock-entry"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/backend/Cargo.lock"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:cargo/syn@3.0.9?package-id=74aeb3acfc8b2766",
+      "type": "library",
+      "name": "syn",
+      "version": "3.0.9",
+      "cpe": "cpe:2.3:a:syn:syn:3.0.9:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/syn@3.0.9",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -54079,7 +54151,7 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/tokio-rustls@0.26.4?package-id=d43b6145de178d37",
+      "bom-ref": "pkg:cargo/tokio-rustls@0.26.4?package-id=f8e5eb6e83428273",
       "type": "library",
       "name": "tokio-rustls",
       "version": "0.26.4",
@@ -55567,6 +55639,42 @@
       ]
     },
     {
+      "bom-ref": "pkg:cargo/treediff@5.0.0?package-id=786d320a40c2f4e2",
+      "type": "library",
+      "name": "treediff",
+      "version": "5.0.0",
+      "cpe": "cpe:2.3:a:treediff:treediff:5.0.0:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/treediff@5.0.0",
+      "externalReferences": [
+        {
+          "url": "registry+https://github.com/rust-lang/crates.io-index",
+          "type": "distribution"
+        }
+      ],
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "rust-cargo-lock-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "rust"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "rust-crate"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "rust-cargo-lock-entry"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/backend/Cargo.lock"
+        }
+      ]
+    },
+    {
       "bom-ref": "pkg:cargo/try-lock@0.2.5?package-id=2894ecb40ada0348",
       "type": "library",
       "name": "try-lock",
@@ -56865,7 +56973,7 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/ureq@3.1.4?package-id=5f540df5789b8268",
+      "bom-ref": "pkg:cargo/ureq@3.1.4?package-id=5dc320c66885044d",
       "type": "library",
       "name": "ureq",
       "version": "3.1.4",
@@ -57234,12 +57342,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/utoipa@5.4.0?package-id=8a6bbc1e101160c5",
+      "bom-ref": "pkg:cargo/utoipa@6.0.0?package-id=026aa674ba293d66",
       "type": "library",
       "name": "utoipa",
-      "version": "5.4.0",
-      "cpe": "cpe:2.3:a:utoipa:utoipa:5.4.0:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/utoipa@5.4.0",
+      "version": "6.0.0",
+      "cpe": "cpe:2.3:a:utoipa:utoipa:6.0.0:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/utoipa@6.0.0",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -57270,12 +57378,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/utoipa-axum@0.2.0?package-id=633521f606f7b336",
+      "bom-ref": "pkg:cargo/utoipa-axum@0.3.0?package-id=9e830d01db2dcf89",
       "type": "library",
       "name": "utoipa-axum",
-      "version": "0.2.0",
-      "cpe": "cpe:2.3:a:utoipa-axum:utoipa-axum:0.2.0:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/utoipa-axum@0.2.0",
+      "version": "0.3.0",
+      "cpe": "cpe:2.3:a:utoipa-axum:utoipa-axum:0.3.0:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/utoipa-axum@0.3.0",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -57301,23 +57409,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:utoipa-axum:utoipa_axum:0.2.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:utoipa-axum:utoipa_axum:0.3.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:utoipa_axum:utoipa-axum:0.2.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:utoipa_axum:utoipa-axum:0.3.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:utoipa_axum:utoipa_axum:0.2.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:utoipa_axum:utoipa_axum:0.3.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:utoipa:utoipa-axum:0.2.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:utoipa:utoipa-axum:0.3.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:utoipa:utoipa_axum:0.2.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:utoipa:utoipa_axum:0.3.0:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -57326,12 +57434,12 @@
       ]
     },
     {
-      "bom-ref": "pkg:cargo/utoipa-gen@5.4.0?package-id=97d3d8381cdebab6",
+      "bom-ref": "pkg:cargo/utoipa-gen@6.0.1?package-id=cedaf4655a04cd93",
       "type": "library",
       "name": "utoipa-gen",
-      "version": "5.4.0",
-      "cpe": "cpe:2.3:a:utoipa-gen:utoipa-gen:5.4.0:*:*:*:*:*:*:*",
-      "purl": "pkg:cargo/utoipa-gen@5.4.0",
+      "version": "6.0.1",
+      "cpe": "cpe:2.3:a:utoipa-gen:utoipa-gen:6.0.1:*:*:*:*:*:*:*",
+      "purl": "pkg:cargo/utoipa-gen@6.0.1",
       "externalReferences": [
         {
           "url": "registry+https://github.com/rust-lang/crates.io-index",
@@ -57357,23 +57465,23 @@
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:utoipa-gen:utoipa_gen:5.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:utoipa-gen:utoipa_gen:6.0.1:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:utoipa_gen:utoipa-gen:5.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:utoipa_gen:utoipa-gen:6.0.1:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:utoipa_gen:utoipa_gen:5.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:utoipa_gen:utoipa_gen:6.0.1:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:utoipa:utoipa-gen:5.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:utoipa:utoipa-gen:6.0.1:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:cpe23",
-          "value": "cpe:2.3:a:utoipa:utoipa_gen:5.4.0:*:*:*:*:*:*:*"
+          "value": "cpe:2.3:a:utoipa:utoipa_gen:6.0.1:*:*:*:*:*:*:*"
         },
         {
           "name": "syft:location:0:path",
@@ -64755,11 +64863,11 @@
       "hashes": [
         {
           "alg": "SHA-1",
-          "content": "342558246ec0bdf602144b066503e4cd45212b7b"
+          "content": "96b8cc5f0509d8b650d71953a3619f3b8ec061be"
         },
         {
           "alg": "SHA-256",
-          "content": "f791f0ca85620eea0b7a3460ddbfa389d536780df287113399871a5d5c1f3b1c"
+          "content": "ddd7aee7363c0821b09fcc6c9352f3f7562d4ce19789c205647423c3e18ac263"
         }
       ]
     },
@@ -64770,11 +64878,11 @@
       "hashes": [
         {
           "alg": "SHA-1",
-          "content": "e51068062f09e4a760deac01f83d5cfc0c22e902"
+          "content": "d772dbfd687c02fa99ee9a670213333344ba5358"
         },
         {
           "alg": "SHA-256",
-          "content": "57d31fc3b387c62eaf15a20da1cd6069acdb42c82462b77a3530b5c16025be07"
+          "content": "6e2b5b6bdfdc009d45b098a1baedc065b3cd60e3ec82fb1be6d9497d8ccaaed4"
         }
       ]
     },
@@ -64785,11 +64893,11 @@
       "hashes": [
         {
           "alg": "SHA-1",
-          "content": "50cfb642ee7a6511e9603e6345a4de8e0bcdc1a8"
+          "content": "bf327dfcedd4b8794436a109cd082d5651355693"
         },
         {
           "alg": "SHA-256",
-          "content": "8a5aa2ca0608a37b2ef495a302f5edbf0a0b853e65741ab2ea1c40d64e2753ac"
+          "content": "5c2d33b72865cd1d579ffac4e3fe2a771f9bc4374d194d5b3a1224560f8f0f2b"
         }
       ]
     },
@@ -64800,11 +64908,11 @@
       "hashes": [
         {
           "alg": "SHA-1",
-          "content": "158db9885354c9ed2fd747ea739680a9fb712f0b"
+          "content": "c4e0ae1b91eaeea89c4076e10762a8198103afdc"
         },
         {
           "alg": "SHA-256",
-          "content": "eb85241636d3df70379de7607f804ffc970ab366b4c9fc4d59949fc976d7363d"
+          "content": "78f2c7a028bfda6e1bdc807801e5e60f9d1b7fccf88fbc01b492be2763d891b2"
         }
       ]
     },
@@ -64860,11 +64968,11 @@
       "hashes": [
         {
           "alg": "SHA-1",
-          "content": "3c7bb6defdcb3c39cbd51ea7cdd90cef235ab875"
+          "content": "0af23b314e2ed78964889901d30b5a0bb6b7686f"
         },
         {
           "alg": "SHA-256",
-          "content": "c581255299d7f44447bed7c44e0ad894e8e5d7b2081fde00106429e51e198f60"
+          "content": "21a56e9a3dfbafc47997e8af7ba247a2daaccc1416b147372b740a177f796071"
         }
       ]
     },
@@ -64875,11 +64983,11 @@
       "hashes": [
         {
           "alg": "SHA-1",
-          "content": "14fe7f1ad4180733615a018a3d17df0fc3485d5d"
+          "content": "5ac986c70d225509a303fa056d3ff7b327afe3d4"
         },
         {
           "alg": "SHA-256",
-          "content": "ad116977bfa3be3a9ac6c66a2d20f91e67731f90dc984acec6fba650d3386965"
+          "content": "938d6f7929b583a3ba5be2ac33d7c0462f4a0e1b62c9e2326320ca60f60fdd8f"
         }
       ]
     },
@@ -64905,11 +65013,11 @@
       "hashes": [
         {
           "alg": "SHA-1",
-          "content": "df9f2817120378eb79d8888e48d1dfed42141a61"
+          "content": "b43215434cdf6db0e21665f719c9c347d0fead7e"
         },
         {
           "alg": "SHA-256",
-          "content": "4613ebf1d720178b4977dba7de466e6c379b047d40cc7bc5e91d9e6f18aee976"
+          "content": "5d57d8df3a05e5b3b8329706c7480c426e458f8b8b7ada2eb11dbfbe1c741b6c"
         }
       ]
     }
@@ -64957,7 +65065,7 @@
         "pkg:cargo/cfg-if@1.0.4?package-id=8511a5c4c9be1f0a",
         "pkg:cargo/getrandom@0.3.4?package-id=fac3a5a16ce42eaa",
         "pkg:cargo/once_cell@1.21.3?package-id=97ab8d25a7aec695",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/version_check@0.9.5?package-id=241fa41b59901cb7",
         "pkg:cargo/zerocopy@0.8.27?package-id=8c1e1b3a16bb4dae"
       ]
@@ -65156,7 +65264,7 @@
         "pkg:cargo/async-stripe-shared@1.0.0-rc.9?package-id=609a8baa601c9311",
         "pkg:cargo/async-stripe-types@1.0.0-rc.9?package-id=e356ddccb0d3c38c",
         "pkg:cargo/miniserde@0.1.43?package-id=7324be8910310286",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/smol_str@0.3.6?package-id=dd3da61a21f8705b",
         "pkg:cargo/tracing@0.1.41?package-id=4322088d4de9c2ec"
@@ -65169,7 +65277,7 @@
         "pkg:cargo/async-stripe-shared@1.0.0-rc.9?package-id=609a8baa601c9311",
         "pkg:cargo/async-stripe-types@1.0.0-rc.9?package-id=e356ddccb0d3c38c",
         "pkg:cargo/miniserde@0.1.43?package-id=7324be8910310286",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/smol_str@0.3.6?package-id=dd3da61a21f8705b",
         "pkg:cargo/tracing@0.1.41?package-id=4322088d4de9c2ec"
       ]
@@ -65182,7 +65290,7 @@
         "pkg:cargo/bytes@1.11.1?package-id=c69b0fb622a21615",
         "pkg:cargo/futures-util@0.3.31?package-id=b2563392c52b3804",
         "pkg:cargo/miniserde@0.1.43?package-id=7324be8910310286",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_qs@1.1.3?package-id=188217d6baf8f0ab",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
@@ -65196,7 +65304,7 @@
         "pkg:cargo/async-stripe-shared@1.0.0-rc.9?package-id=609a8baa601c9311",
         "pkg:cargo/async-stripe-types@1.0.0-rc.9?package-id=e356ddccb0d3c38c",
         "pkg:cargo/miniserde@0.1.43?package-id=7324be8910310286",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/smol_str@0.3.6?package-id=dd3da61a21f8705b",
         "pkg:cargo/tracing@0.1.41?package-id=4322088d4de9c2ec"
       ]
@@ -65208,7 +65316,7 @@
         "pkg:cargo/async-stripe-shared@1.0.0-rc.9?package-id=609a8baa601c9311",
         "pkg:cargo/async-stripe-types@1.0.0-rc.9?package-id=e356ddccb0d3c38c",
         "pkg:cargo/miniserde@0.1.43?package-id=7324be8910310286",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/smol_str@0.3.6?package-id=dd3da61a21f8705b",
         "pkg:cargo/tracing@0.1.41?package-id=4322088d4de9c2ec"
@@ -65221,7 +65329,7 @@
         "pkg:cargo/async-stripe-shared@1.0.0-rc.9?package-id=609a8baa601c9311",
         "pkg:cargo/async-stripe-types@1.0.0-rc.9?package-id=e356ddccb0d3c38c",
         "pkg:cargo/miniserde@0.1.43?package-id=7324be8910310286",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/smol_str@0.3.6?package-id=dd3da61a21f8705b",
         "pkg:cargo/tracing@0.1.41?package-id=4322088d4de9c2ec"
       ]
@@ -65231,7 +65339,7 @@
       "dependsOn": [
         "pkg:cargo/async-stripe-types@1.0.0-rc.9?package-id=e356ddccb0d3c38c",
         "pkg:cargo/miniserde@0.1.43?package-id=7324be8910310286",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/smol_str@0.3.6?package-id=dd3da61a21f8705b",
         "pkg:cargo/tracing@0.1.41?package-id=4322088d4de9c2ec"
@@ -65241,7 +65349,7 @@
       "ref": "pkg:cargo/async-stripe-types@1.0.0-rc.9?package-id=e356ddccb0d3c38c",
       "dependsOn": [
         "pkg:cargo/miniserde@0.1.43?package-id=7324be8910310286",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/smol_str@0.3.6?package-id=dd3da61a21f8705b"
       ]
@@ -65253,7 +65361,7 @@
         "pkg:cargo/async-stripe-shared@1.0.0-rc.9?package-id=609a8baa601c9311",
         "pkg:cargo/bytes@1.11.1?package-id=c69b0fb622a21615",
         "pkg:cargo/http-body-util@0.1.3?package-id=e50f39318f035ab6",
-        "pkg:cargo/hyper-rustls@0.27.7?package-id=c745af779d4f2949",
+        "pkg:cargo/hyper-rustls@0.27.7?package-id=3f679ac28bd89c7a",
         "pkg:cargo/hyper-util@0.1.18?package-id=9ab03f9ff762059d",
         "pkg:cargo/hyper@1.8.1?package-id=e70b792564b94b4c",
         "pkg:cargo/miniserde@0.1.43?package-id=7324be8910310286",
@@ -65366,7 +65474,7 @@
         "pkg:cargo/pin-project-lite@0.2.16?package-id=3bf6cbc61136d164",
         "pkg:cargo/pin-utils@0.1.0?package-id=3ea9c5e503d64cb6",
         "pkg:cargo/ryu@1.0.20?package-id=f59faaac17b9e4bf",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/time@0.3.47?package-id=bdce32ec92c9c797"
       ]
     },
@@ -65375,7 +65483,7 @@
       "dependsOn": [
         "pkg:cargo/axum@0.8.7?package-id=bb46e7b1e360bc2c",
         "pkg:cargo/client-ip@0.1.1?package-id=088ae75cc71363fd",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -65410,7 +65518,7 @@
         "pkg:cargo/mime@0.3.17?package-id=0b319840f4fd73b9",
         "pkg:cargo/pin-project-lite@0.2.16?package-id=3bf6cbc61136d164",
         "pkg:cargo/rustversion@1.0.22?package-id=5fa926fff8ae149f",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4",
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7",
         "pkg:cargo/serde_html_form@0.2.8?package-id=7e266529f31fe8a7",
         "pkg:cargo/serde_path_to_error@0.1.20?package-id=9ec8a092e769a200",
         "pkg:cargo/tower-layer@0.3.3?package-id=b1dda0191cac0589",
@@ -65444,7 +65552,7 @@
         "pkg:cargo/mime@0.3.17?package-id=0b319840f4fd73b9",
         "pkg:cargo/percent-encoding@2.3.2?package-id=b8f6f04eb1c2b0da",
         "pkg:cargo/pin-project-lite@0.2.16?package-id=3bf6cbc61136d164",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4",
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_path_to_error@0.1.20?package-id=9ec8a092e769a200",
         "pkg:cargo/serde_urlencoded@0.7.1?package-id=b15793bd5fd72a0f",
@@ -65482,7 +65590,7 @@
     {
       "ref": "pkg:cargo/bincode@1.3.3?package-id=4e039a1932d2e713",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -65511,7 +65619,7 @@
     {
       "ref": "pkg:cargo/bitflags@2.13.1?package-id=04741419980f336d",
       "dependsOn": [
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
@@ -65597,7 +65705,7 @@
         "pkg:cargo/prost@0.14.1?package-id=188783339ebbb409",
         "pkg:cargo/tonic-prost@0.14.2?package-id=300db076d83c3e6d",
         "pkg:cargo/tonic@0.14.2?package-id=8f1c3b8ab63b439c",
-        "pkg:cargo/ureq@3.1.4?package-id=5f540df5789b8268"
+        "pkg:cargo/ureq@3.1.4?package-id=5dc320c66885044d"
       ]
     },
     {
@@ -65607,14 +65715,14 @@
         "pkg:cargo/bollard-buildkit-proto@0.7.0?package-id=549e9216ea6c138d",
         "pkg:cargo/bytes@1.11.1?package-id=c69b0fb622a21615",
         "pkg:cargo/prost@0.14.1?package-id=188783339ebbb409",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_repr@0.1.20?package-id=4f8ce362aa6c0b66",
         "pkg:cargo/time@0.3.47?package-id=bdce32ec92c9c797"
       ]
     },
     {
-      "ref": "pkg:cargo/bollard@0.20.2?package-id=87f4605ff9a14b3c",
+      "ref": "pkg:cargo/bollard@0.20.2?package-id=63929f9356a9f1d5",
       "dependsOn": [
         "pkg:cargo/async-stream@0.3.6?package-id=21452e03fd84d7a2",
         "pkg:cargo/base64@0.22.1?package-id=b74355108b3a28f3",
@@ -65629,7 +65737,7 @@
         "pkg:cargo/http-body-util@0.1.3?package-id=e50f39318f035ab6",
         "pkg:cargo/http@1.3.1?package-id=cc9a26417902e4c4",
         "pkg:cargo/hyper-named-pipe@0.1.0?package-id=958615cd270d6b92",
-        "pkg:cargo/hyper-rustls@0.27.7?package-id=c745af779d4f2949",
+        "pkg:cargo/hyper-rustls@0.27.7?package-id=3f679ac28bd89c7a",
         "pkg:cargo/hyper-util@0.1.18?package-id=9ab03f9ff762059d",
         "pkg:cargo/hyper@1.8.1?package-id=e70b792564b94b4c",
         "pkg:cargo/hyperlocal@0.9.1?package-id=515947fc415585f5",
@@ -65639,9 +65747,9 @@
         "pkg:cargo/rand@0.9.3?package-id=ad3fd1dc077d7f67",
         "pkg:cargo/rustls-native-certs@0.8.2?package-id=fe68380f2d72c9de",
         "pkg:cargo/rustls-pki-types@1.13.0?package-id=64095f1e6f4a4de6",
-        "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5",
+        "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_urlencoded@0.7.1?package-id=b15793bd5fd72a0f",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
@@ -65801,7 +65909,7 @@
         "pkg:cargo/iana-time-zone@0.1.64?package-id=c13b8fce42df599a",
         "pkg:cargo/js-sys@0.3.82?package-id=4cd8da93a0b1bd66",
         "pkg:cargo/num-traits@0.2.19?package-id=54e7ce361a39db25",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/wasm-bindgen@0.2.105?package-id=0ed28880ee19069c",
         "pkg:cargo/windows-link@0.2.1?package-id=4c64750e352341b4"
       ]
@@ -65809,7 +65917,7 @@
     {
       "ref": "pkg:cargo/cidr@0.3.1?package-id=d2411ac1e95f5fab",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -65916,7 +66024,7 @@
         "pkg:cargo/pathdiff@0.2.3?package-id=9afed940269ba70c",
         "pkg:cargo/ron@0.8.1?package-id=11ccaac7a2bf3de5",
         "pkg:cargo/rust-ini@0.20.0?package-id=1accd7659bdca3da",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/toml@0.8.23?package-id=abb8b6247e0c5e78",
         "pkg:cargo/yaml-rust2@0.8.1?package-id=ff8210454263ec02"
@@ -65978,8 +66086,8 @@
         "pkg:cargo/idna@1.1.0?package-id=19ba3fd4cfa45e93",
         "pkg:cargo/log@0.4.28?package-id=286ae7b051f75c65",
         "pkg:cargo/publicsuffix@2.3.0?package-id=40a5af57a328f229",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/time@0.3.47?package-id=bdce32ec92c9c797",
         "pkg:cargo/url@2.5.8?package-id=2ff2e5aae0621403"
@@ -66112,7 +66220,7 @@
         "pkg:cargo/csv-core@0.1.13?package-id=28130f609535f1cf",
         "pkg:cargo/itoa@1.0.15?package-id=1f4f899cc037f963",
         "pkg:cargo/ryu@1.0.20?package-id=f59faaac17b9e4bf",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
@@ -66309,7 +66417,7 @@
       "ref": "pkg:cargo/deranged@0.5.5?package-id=3fdbdc5ec2418783",
       "dependsOn": [
         "pkg:cargo/powerfmt@0.2.0?package-id=c1d8ed6373c1437c",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
@@ -66391,7 +66499,7 @@
       "ref": "pkg:cargo/dhcproto@0.15.0?package-id=b1600788ebf4510f",
       "dependsOn": [
         "pkg:cargo/dhcproto-macros@0.2.0?package-id=28c7d2792724adbb",
-        "pkg:cargo/hickory-proto@0.26.1?package-id=e6d9cededc21e8ca",
+        "pkg:cargo/hickory-proto@0.26.3?package-id=c26533883c727635",
         "pkg:cargo/ipnet@2.12.0?package-id=49e8e57b3fa13fa5",
         "pkg:cargo/rand@0.10.1?package-id=e5f0200bb7a2ff4b",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6"
@@ -66462,19 +66570,19 @@
       ]
     },
     {
-      "ref": "pkg:cargo/dns-lookup@3.0.1?package-id=22b29a9ee91e7b17",
+      "ref": "pkg:cargo/dns-lookup@4.0.2?package-id=110657c34f5abd03",
       "dependsOn": [
         "pkg:cargo/cfg-if@1.0.4?package-id=8511a5c4c9be1f0a",
         "pkg:cargo/libc@0.2.189?package-id=72d602e6de6c3aa8",
         "pkg:cargo/socket2@0.6.1?package-id=571ad36f01c2c44c",
-        "pkg:cargo/windows-sys@0.60.2?package-id=ebc160486c22ba57"
+        "pkg:cargo/windows-sys@0.61.2?package-id=8d2e3181934ac350"
       ]
     },
     {
       "ref": "pkg:cargo/docker_credential@1.3.2?package-id=2c5f332a2e63ef2b",
       "dependsOn": [
         "pkg:cargo/base64@0.21.7?package-id=b61d5d443668fd14",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc"
       ]
     },
@@ -66512,7 +66620,7 @@
       "dependsOn": [
         "pkg:cargo/curve25519-dalek@4.1.3?package-id=cceafb5000c84744",
         "pkg:cargo/ed25519@2.2.3?package-id=0c271e0592507e7f",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/sha2@0.10.9?package-id=927e05652d1a75e6",
         "pkg:cargo/subtle@2.6.1?package-id=14ab505ea3d24f64",
         "pkg:cargo/zeroize@1.9.0?package-id=0cb9c59c7cd238e2"
@@ -66524,7 +66632,7 @@
         "pkg:cargo/curve25519-dalek@5.0.0?package-id=b46cf936c77d9f42",
         "pkg:cargo/ed25519@3.0.0?package-id=c152074aeddf2ab6",
         "pkg:cargo/rand_core@0.10.1?package-id=4ddefa39e7643d45",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/sha2@0.11.0?package-id=726da38a40101cac",
         "pkg:cargo/signature@3.0.0?package-id=571e860e7e550582",
         "pkg:cargo/subtle@2.6.1?package-id=14ab505ea3d24f64",
@@ -66548,7 +66656,7 @@
     {
       "ref": "pkg:cargo/either@1.15.0?package-id=2e30492bd65894da",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -66598,7 +66706,7 @@
     {
       "ref": "pkg:cargo/email_address@0.2.9?package-id=3d2999fe9b1449cf",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -66728,7 +66836,7 @@
       "dependsOn": [
         "pkg:cargo/atomic@0.6.1?package-id=bdd20e5ffb81dc9a",
         "pkg:cargo/pear@0.2.9?package-id=aa361d99b88ac4d1",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/toml@0.8.23?package-id=abb8b6247e0c5e78",
         "pkg:cargo/uncased@0.9.10?package-id=271092d4733b421d",
@@ -66756,7 +66864,7 @@
       "dependsOn": [
         "pkg:cargo/borrow-or-share@0.2.4?package-id=af6a798e19df2271",
         "pkg:cargo/ref-cast@1.0.25?package-id=9938e1ae08fdd5d4",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -67041,7 +67149,7 @@
       ]
     },
     {
-      "ref": "pkg:cargo/hickory-net@0.26.1?package-id=a0a9d83bbe26f2b7",
+      "ref": "pkg:cargo/hickory-net@0.26.3?package-id=3a9e6338ef5340db",
       "dependsOn": [
         "pkg:cargo/async-trait@0.1.89?package-id=27f695f61cfc2df2",
         "pkg:cargo/cfg-if@1.0.4?package-id=8511a5c4c9be1f0a",
@@ -67049,7 +67157,7 @@
         "pkg:cargo/futures-channel@0.3.31?package-id=cf01e75c2ea842fe",
         "pkg:cargo/futures-io@0.3.31?package-id=c6cc604bfebc0685",
         "pkg:cargo/futures-util@0.3.31?package-id=b2563392c52b3804",
-        "pkg:cargo/hickory-proto@0.26.1?package-id=e6d9cededc21e8ca",
+        "pkg:cargo/hickory-proto@0.26.3?package-id=c26533883c727635",
         "pkg:cargo/idna@1.1.0?package-id=19ba3fd4cfa45e93",
         "pkg:cargo/ipnet@2.12.0?package-id=49e8e57b3fa13fa5",
         "pkg:cargo/jni@0.22.4?package-id=1bac592acfbea347",
@@ -67062,7 +67170,7 @@
       ]
     },
     {
-      "ref": "pkg:cargo/hickory-proto@0.26.1?package-id=e6d9cededc21e8ca",
+      "ref": "pkg:cargo/hickory-proto@0.26.3?package-id=c26533883c727635",
       "dependsOn": [
         "pkg:cargo/data-encoding@2.9.0?package-id=9d18dee194d17e48",
         "pkg:cargo/idna@1.1.0?package-id=19ba3fd4cfa45e93",
@@ -67079,12 +67187,12 @@
       ]
     },
     {
-      "ref": "pkg:cargo/hickory-resolver@0.26.1?package-id=c05952819f0f0cc5",
+      "ref": "pkg:cargo/hickory-resolver@0.26.3?package-id=038bb3993858e711",
       "dependsOn": [
         "pkg:cargo/cfg-if@1.0.4?package-id=8511a5c4c9be1f0a",
         "pkg:cargo/futures-util@0.3.31?package-id=b2563392c52b3804",
-        "pkg:cargo/hickory-net@0.26.1?package-id=a0a9d83bbe26f2b7",
-        "pkg:cargo/hickory-proto@0.26.1?package-id=e6d9cededc21e8ca",
+        "pkg:cargo/hickory-net@0.26.3?package-id=3a9e6338ef5340db",
+        "pkg:cargo/hickory-proto@0.26.3?package-id=c26533883c727635",
         "pkg:cargo/ipconfig@0.3.2?package-id=d87dd8cf7f6f39e0",
         "pkg:cargo/ipnet@2.12.0?package-id=49e8e57b3fa13fa5",
         "pkg:cargo/jni@0.22.4?package-id=1bac592acfbea347",
@@ -67229,15 +67337,15 @@
       ]
     },
     {
-      "ref": "pkg:cargo/hyper-rustls@0.27.7?package-id=c745af779d4f2949",
+      "ref": "pkg:cargo/hyper-rustls@0.27.7?package-id=3f679ac28bd89c7a",
       "dependsOn": [
         "pkg:cargo/http@1.3.1?package-id=cc9a26417902e4c4",
         "pkg:cargo/hyper-util@0.1.18?package-id=9ab03f9ff762059d",
         "pkg:cargo/hyper@1.8.1?package-id=e70b792564b94b4c",
         "pkg:cargo/log@0.4.28?package-id=286ae7b051f75c65",
         "pkg:cargo/rustls-pki-types@1.13.0?package-id=64095f1e6f4a4de6",
-        "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
-        "pkg:cargo/tokio-rustls@0.26.4?package-id=d43b6145de178d37",
+        "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
+        "pkg:cargo/tokio-rustls@0.26.4?package-id=f8e5eb6e83428273",
         "pkg:cargo/tokio@1.48.0?package-id=84f7fbd5e2f3c1d8",
         "pkg:cargo/tower-service@0.3.3?package-id=f7b00c4ded946e92",
         "pkg:cargo/webpki-roots@1.0.4?package-id=680bb676d96f8041"
@@ -67439,7 +67547,7 @@
       "dependsOn": [
         "pkg:cargo/autocfg@1.5.0?package-id=ca1db0951323e56f",
         "pkg:cargo/hashbrown@0.12.3?package-id=9d43aa7cf20d6e56",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -67447,8 +67555,8 @@
       "dependsOn": [
         "pkg:cargo/equivalent@1.0.2?package-id=7f28cd0ed684cce9",
         "pkg:cargo/hashbrown@0.17.1?package-id=3b5d2df71708d9b1",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
@@ -67490,20 +67598,20 @@
     {
       "ref": "pkg:cargo/ipnet@2.12.0?package-id=49e8e57b3fa13fa5",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
       "ref": "pkg:cargo/ipnetwork@0.20.0?package-id=0b6cd0806640ad25",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
       "ref": "pkg:cargo/iri-string@0.7.9?package-id=109c53c59010705d",
       "dependsOn": [
         "pkg:cargo/memchr@2.7.6?package-id=60ccbd57bb909f00",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -67625,7 +67733,7 @@
       "dependsOn": [
         "pkg:cargo/pest@2.8.3?package-id=d692fc3a42a417a0",
         "pkg:cargo/pest_derive@2.8.3?package-id=b108e27a23bfd864",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -67650,8 +67758,8 @@
         "pkg:cargo/percent-encoding@2.3.2?package-id=b8f6f04eb1c2b0da",
         "pkg:cargo/referencing@0.29.1?package-id=88a7c3179f76a2a1",
         "pkg:cargo/regex-syntax@0.8.8?package-id=d8497e263576ab41",
-        "pkg:cargo/reqwest@0.12.24?package-id=5e0d2ec5f3b875be",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/reqwest@0.12.24?package-id=478eaef7cd3a9270",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/uuid-simd@0.8.0?package-id=a05c988205925ec2"
       ]
@@ -67669,7 +67777,7 @@
         "pkg:cargo/pem@3.0.6?package-id=15285de18c749b26",
         "pkg:cargo/rand@0.8.6?package-id=0735095f5ae5a244",
         "pkg:cargo/rsa@0.9.10?package-id=9acdeb4e74de0078",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/sha2@0.10.9?package-id=927e05652d1a75e6",
         "pkg:cargo/signature@2.2.0?package-id=2426cf46d7cf582c",
@@ -67708,7 +67816,7 @@
       ]
     },
     {
-      "ref": "pkg:cargo/lettre@0.11.22?package-id=c149c535fa3942c5",
+      "ref": "pkg:cargo/lettre@0.11.22?package-id=c3a031caaaffd21a",
       "dependsOn": [
         "pkg:cargo/async-trait@0.1.89?package-id=27f695f61cfc2df2",
         "pkg:cargo/base64@0.22.1?package-id=b74355108b3a28f3",
@@ -67723,9 +67831,9 @@
         "pkg:cargo/nom@8.0.0?package-id=4a8d8b9d2fa22dba",
         "pkg:cargo/percent-encoding@2.3.2?package-id=b8f6f04eb1c2b0da",
         "pkg:cargo/quoted_printable@0.5.1?package-id=6234222de11ffe12",
-        "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
+        "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
         "pkg:cargo/socket2@0.6.1?package-id=571ad36f01c2c44c",
-        "pkg:cargo/tokio-rustls@0.26.4?package-id=d43b6145de178d37",
+        "pkg:cargo/tokio-rustls@0.26.4?package-id=f8e5eb6e83428273",
         "pkg:cargo/tokio@1.48.0?package-id=84f7fbd5e2f3c1d8",
         "pkg:cargo/url@2.5.8?package-id=2ff2e5aae0621403",
         "pkg:cargo/webpki-roots@1.0.4?package-id=680bb676d96f8041"
@@ -67766,13 +67874,13 @@
       "ref": "pkg:cargo/lock_api@0.4.14?package-id=c6bc668b2ce1c817",
       "dependsOn": [
         "pkg:cargo/scopeguard@1.2.0?package-id=3de69ff77c74abd3",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
       "ref": "pkg:cargo/lucide-icons@0.562.0?package-id=7475954eba776f27",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -67800,12 +67908,12 @@
       "ref": "pkg:cargo/mac_address@1.1.8?package-id=98e27810930612fd",
       "dependsOn": [
         "pkg:cargo/nix@0.29.0?package-id=9cdc0fdd2b69bc04",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/winapi@0.3.9?package-id=55bbc7d784bfb092"
       ]
     },
     {
-      "ref": "pkg:cargo/mailchecker@6.0.20?package-id=92668fe3fbf25264",
+      "ref": "pkg:cargo/mailchecker@6.0.21?package-id=a2af46795700ce41",
       "dependsOn": [
         "pkg:cargo/fast_chemail@0.9.6?package-id=9763d1ad3a243ff0",
         "pkg:cargo/once_cell@1.21.3?package-id=97ab8d25a7aec695"
@@ -67973,7 +68081,7 @@
         "pkg:cargo/num-traits@0.2.19?package-id=54e7ce361a39db25",
         "pkg:cargo/regex@1.12.2?package-id=3cd9dbed983917ce",
         "pkg:cargo/saturating@0.1.0?package-id=2e1c660823dfd275",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/sha1@0.11.0?package-id=2b94e33af1a34e42",
         "pkg:cargo/sha2@0.11.0?package-id=726da38a40101cac",
@@ -67982,9 +68090,9 @@
       ]
     },
     {
-      "ref": "pkg:cargo/nanoid@0.4.0?package-id=93ea75c40e170718",
+      "ref": "pkg:cargo/nanoid@0.5.0?package-id=fbf950fcbe60db11",
       "dependsOn": [
-        "pkg:cargo/rand@0.8.6?package-id=0735095f5ae5a244"
+        "pkg:cargo/rand@0.9.3?package-id=ad3fd1dc077d7f67"
       ]
     },
     {
@@ -67993,7 +68101,7 @@
         "pkg:cargo/either@1.15.0?package-id=2e30492bd65894da",
         "pkg:cargo/proc-macro2@1.0.103?package-id=81fedb686e17648d",
         "pkg:cargo/quote@1.0.42?package-id=809daabb5d78ac48",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/syn@1.0.109?package-id=07483a784dedd897"
       ]
     },
@@ -68245,8 +68353,8 @@
         "pkg:cargo/getrandom@0.2.16?package-id=1b5f670ea16dfff9",
         "pkg:cargo/http@1.3.1?package-id=cc9a26417902e4c4",
         "pkg:cargo/rand@0.8.6?package-id=0735095f5ae5a244",
-        "pkg:cargo/reqwest@0.12.24?package-id=5e0d2ec5f3b875be",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/reqwest@0.12.24?package-id=478eaef7cd3a9270",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_path_to_error@0.1.20?package-id=9ec8a092e769a200",
         "pkg:cargo/sha2@0.10.9?package-id=927e05652d1a75e6",
@@ -68380,7 +68488,7 @@
     {
       "ref": "pkg:cargo/oid@0.2.1?package-id=5c513e0d5efa47ab",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -68430,7 +68538,7 @@
         "pkg:cargo/rand@0.8.6?package-id=0735095f5ae5a244",
         "pkg:cargo/rsa@0.9.10?package-id=9acdeb4e74de0078",
         "pkg:cargo/serde-value@0.7.0?package-id=55e6af442d7cd166",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_path_to_error@0.1.20?package-id=9ec8a092e769a200",
         "pkg:cargo/serde_plain@1.0.2?package-id=d61e28ff1b1483ae",
@@ -68630,7 +68738,7 @@
       "ref": "pkg:cargo/pem@3.0.6?package-id=15285de18c749b26",
       "dependsOn": [
         "pkg:cargo/base64@0.22.1?package-id=b74355108b3a28f3",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
@@ -68670,8 +68778,8 @@
         "pkg:cargo/fixedbitset@0.5.7?package-id=0918b6019c500b64",
         "pkg:cargo/hashbrown@0.15.5?package-id=eb7f27c1f3898205",
         "pkg:cargo/indexmap@2.14.2?package-id=a029dcc81321bab4",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923"
       ]
     },
     {
@@ -68698,7 +68806,7 @@
       "ref": "pkg:cargo/phf@0.13.1?package-id=58970d5b5a7d5f82",
       "dependsOn": [
         "pkg:cargo/phf_shared@0.13.1?package-id=8767135c3d9134ec",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -68754,7 +68862,7 @@
       "ref": "pkg:cargo/picky-asn1-der@0.5.6?package-id=2930ce76cc6ac2f7",
       "dependsOn": [
         "pkg:cargo/picky-asn1@0.10.1?package-id=fb4c91fad2378f9f",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_bytes@0.11.19?package-id=a0753d4237a30124"
       ]
     },
@@ -68765,14 +68873,14 @@
         "pkg:cargo/oid@0.2.1?package-id=5c513e0d5efa47ab",
         "pkg:cargo/picky-asn1-der@0.5.6?package-id=2930ce76cc6ac2f7",
         "pkg:cargo/picky-asn1@0.10.1?package-id=fb4c91fad2378f9f",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
       "ref": "pkg:cargo/picky-asn1@0.10.1?package-id=fb4c91fad2378f9f",
       "dependsOn": [
         "pkg:cargo/oid@0.2.1?package-id=5c513e0d5efa47ab",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_bytes@0.11.19?package-id=a0753d4237a30124"
       ]
     },
@@ -68795,7 +68903,7 @@
         "pkg:cargo/picky-asn1@0.10.1?package-id=fb4c91fad2378f9f",
         "pkg:cargo/rand@0.10.1?package-id=e5f0200bb7a2ff4b",
         "pkg:cargo/rand_core@0.10.1?package-id=4ddefa39e7643d45",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/sha1@0.11.0?package-id=2b94e33af1a34e42",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
         "pkg:cargo/uuid@1.26.0?package-id=52f225f30c0b41e6"
@@ -68874,7 +68982,7 @@
         "pkg:cargo/base64@0.23.1?package-id=2f73d3dc8f8570af",
         "pkg:cargo/indexmap@2.14.2?package-id=a029dcc81321bab4",
         "pkg:cargo/quick-xml@0.42.0?package-id=70ddc7d2cb9739b0",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/time@0.3.47?package-id=bdce32ec92c9c797"
       ]
     },
@@ -68986,7 +69094,7 @@
         "pkg:cargo/regex@1.12.2?package-id=3cd9dbed983917ce",
         "pkg:cargo/reqwest@0.11.27?package-id=46b40e90857b71d3",
         "pkg:cargo/semver@1.0.27?package-id=91547c64d7f86db8",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/sha1@0.10.6?package-id=fdf2cac6a93103cd",
         "pkg:cargo/tokio@1.48.0?package-id=84f7fbd5e2f3c1d8",
@@ -69149,7 +69257,7 @@
       ]
     },
     {
-      "ref": "pkg:cargo/quinn-proto@0.11.16?package-id=c4c52fe4e4c0161c",
+      "ref": "pkg:cargo/quinn-proto@0.11.16?package-id=5520cbff873d3995",
       "dependsOn": [
         "pkg:cargo/bytes@1.11.1?package-id=c69b0fb622a21615",
         "pkg:cargo/getrandom@0.4.3?package-id=6f81cf507f35e6e5",
@@ -69159,7 +69267,7 @@
         "pkg:cargo/ring@0.17.14?package-id=305e24408cfe1108",
         "pkg:cargo/rustc-hash@2.1.1?package-id=01199020a526077a",
         "pkg:cargo/rustls-pki-types@1.13.0?package-id=64095f1e6f4a4de6",
-        "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
+        "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
         "pkg:cargo/slab@0.4.11?package-id=c3c516d29562048b",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
         "pkg:cargo/tinyvec@1.10.0?package-id=d9c0d26cd5f41e60",
@@ -69179,15 +69287,15 @@
       ]
     },
     {
-      "ref": "pkg:cargo/quinn@0.11.9?package-id=ca1075b145df8fa7",
+      "ref": "pkg:cargo/quinn@0.11.9?package-id=e6d30696f7339520",
       "dependsOn": [
         "pkg:cargo/bytes@1.11.1?package-id=c69b0fb622a21615",
         "pkg:cargo/cfg_aliases@0.2.1?package-id=f2d50b583ce74246",
         "pkg:cargo/pin-project-lite@0.2.16?package-id=3bf6cbc61136d164",
-        "pkg:cargo/quinn-proto@0.11.16?package-id=c4c52fe4e4c0161c",
+        "pkg:cargo/quinn-proto@0.11.16?package-id=5520cbff873d3995",
         "pkg:cargo/quinn-udp@0.5.14?package-id=d739612748bf1912",
         "pkg:cargo/rustc-hash@2.1.1?package-id=01199020a526077a",
-        "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
+        "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
         "pkg:cargo/socket2@0.6.1?package-id=571ad36f01c2c44c",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
         "pkg:cargo/tokio@1.48.0?package-id=84f7fbd5e2f3c1d8",
@@ -69316,7 +69424,7 @@
     {
       "ref": "pkg:cargo/redact@0.1.11?package-id=72876332a6955244",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -69407,7 +69515,7 @@
         "pkg:cargo/pin-project-lite@0.2.16?package-id=3bf6cbc61136d164",
         "pkg:cargo/rustls-pemfile@1.0.4?package-id=6c2b899e3b2a8672",
         "pkg:cargo/rustls@0.21.12?package-id=dbe175679ac2a053",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_urlencoded@0.7.1?package-id=b15793bd5fd72a0f",
         "pkg:cargo/sync_wrapper@0.1.2?package-id=05ba7f8e5486ce70",
@@ -69425,7 +69533,7 @@
       ]
     },
     {
-      "ref": "pkg:cargo/reqwest@0.12.24?package-id=5e0d2ec5f3b875be",
+      "ref": "pkg:cargo/reqwest@0.12.24?package-id=478eaef7cd3a9270",
       "dependsOn": [
         "pkg:cargo/base64@0.22.1?package-id=b74355108b3a28f3",
         "pkg:cargo/bytes@1.11.1?package-id=c69b0fb622a21615",
@@ -69437,21 +69545,21 @@
         "pkg:cargo/http-body-util@0.1.3?package-id=e50f39318f035ab6",
         "pkg:cargo/http-body@1.0.1?package-id=159f2cfc618f3806",
         "pkg:cargo/http@1.3.1?package-id=cc9a26417902e4c4",
-        "pkg:cargo/hyper-rustls@0.27.7?package-id=c745af779d4f2949",
+        "pkg:cargo/hyper-rustls@0.27.7?package-id=3f679ac28bd89c7a",
         "pkg:cargo/hyper-util@0.1.18?package-id=9ab03f9ff762059d",
         "pkg:cargo/hyper@1.8.1?package-id=e70b792564b94b4c",
         "pkg:cargo/js-sys@0.3.82?package-id=4cd8da93a0b1bd66",
         "pkg:cargo/log@0.4.28?package-id=286ae7b051f75c65",
         "pkg:cargo/percent-encoding@2.3.2?package-id=b8f6f04eb1c2b0da",
         "pkg:cargo/pin-project-lite@0.2.16?package-id=3bf6cbc61136d164",
-        "pkg:cargo/quinn@0.11.9?package-id=ca1075b145df8fa7",
+        "pkg:cargo/quinn@0.11.9?package-id=e6d30696f7339520",
         "pkg:cargo/rustls-pki-types@1.13.0?package-id=64095f1e6f4a4de6",
-        "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_urlencoded@0.7.1?package-id=b15793bd5fd72a0f",
         "pkg:cargo/sync_wrapper@1.0.2?package-id=07f6596deb0b93a4",
-        "pkg:cargo/tokio-rustls@0.26.4?package-id=d43b6145de178d37",
+        "pkg:cargo/tokio-rustls@0.26.4?package-id=f8e5eb6e83428273",
         "pkg:cargo/tokio-util@0.7.17?package-id=6d427651821bda1c",
         "pkg:cargo/tokio@1.48.0?package-id=84f7fbd5e2f3c1d8",
         "pkg:cargo/tower-http@0.6.8?package-id=0f6a9797d51b688e",
@@ -69501,7 +69609,7 @@
       "dependsOn": [
         "pkg:cargo/byteorder@1.5.0?package-id=ffe3744533753d1f",
         "pkg:cargo/rmp@0.8.14?package-id=bcbbdaee82d3bdff",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -69517,8 +69625,8 @@
       "dependsOn": [
         "pkg:cargo/base64@0.21.7?package-id=b61d5d443668fd14",
         "pkg:cargo/bitflags@2.13.1?package-id=04741419980f336d",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923"
       ]
     },
     {
@@ -69604,7 +69712,7 @@
       ]
     },
     {
-      "ref": "pkg:cargo/russh@0.63.3?package-id=9aeeac25558a2514",
+      "ref": "pkg:cargo/russh@0.64.1?package-id=ef501154160711f0",
       "dependsOn": [
         "pkg:cargo/aes@0.9.3?package-id=ffcc5c53916dffa0",
         "pkg:cargo/bitflags@2.13.1?package-id=04741419980f336d",
@@ -69766,7 +69874,7 @@
       ]
     },
     {
-      "ref": "pkg:cargo/rustls-webpki@0.103.13?package-id=0596a3f222ec90bb",
+      "ref": "pkg:cargo/rustls-webpki@0.103.16?package-id=4b76104155934e13",
       "dependsOn": [
         "pkg:cargo/ring@0.17.14?package-id=305e24408cfe1108",
         "pkg:cargo/rustls-pki-types@1.13.0?package-id=64095f1e6f4a4de6",
@@ -69783,13 +69891,13 @@
       ]
     },
     {
-      "ref": "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
+      "ref": "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
       "dependsOn": [
         "pkg:cargo/log@0.4.28?package-id=286ae7b051f75c65",
         "pkg:cargo/once_cell@1.21.3?package-id=97ab8d25a7aec695",
         "pkg:cargo/ring@0.17.14?package-id=305e24408cfe1108",
         "pkg:cargo/rustls-pki-types@1.13.0?package-id=64095f1e6f4a4de6",
-        "pkg:cargo/rustls-webpki@0.103.13?package-id=0596a3f222ec90bb",
+        "pkg:cargo/rustls-webpki@0.103.16?package-id=4b76104155934e13",
         "pkg:cargo/subtle@2.6.1?package-id=14ab505ea3d24f64",
         "pkg:cargo/zeroize@1.9.0?package-id=0cb9c59c7cd238e2"
       ]
@@ -69808,7 +69916,7 @@
       ]
     },
     {
-      "ref": "pkg:cargo/scanopy-server@0.18.2?package-id=ef67300982d8b0e4",
+      "ref": "pkg:cargo/scanopy-server@0.19.0?package-id=2c74ddc93be9ece8",
       "dependsOn": [
         "pkg:cargo/anstyle-query@1.1.5?package-id=3eb3e92be11ef569",
         "pkg:cargo/anyhow@1.0.103?package-id=cc88ccfde1e2cc6a",
@@ -69834,7 +69942,7 @@
         "pkg:cargo/axum@0.8.7?package-id=bb46e7b1e360bc2c",
         "pkg:cargo/backon@1.6.0?package-id=402bd822a0d1f794",
         "pkg:cargo/base64ct@1.8.3?package-id=25b4db0fba6b47dc",
-        "pkg:cargo/bollard@0.20.2?package-id=87f4605ff9a14b3c",
+        "pkg:cargo/bollard@0.20.2?package-id=63929f9356a9f1d5",
         "pkg:cargo/bytes@1.11.1?package-id=c69b0fb622a21615",
         "pkg:cargo/cassandra-protocol@4.0.1?package-id=e303240f28c742a6",
         "pkg:cargo/chrono-tz@0.10.4?package-id=adb250804d0376af",
@@ -69847,7 +69955,7 @@
         "pkg:cargo/csv@1.4.0?package-id=ebe64b44d05896b0",
         "pkg:cargo/dhcproto@0.15.0?package-id=b1600788ebf4510f",
         "pkg:cargo/directories-next@2.0.0?package-id=f945419760cd2807",
-        "pkg:cargo/dns-lookup@3.0.1?package-id=22b29a9ee91e7b17",
+        "pkg:cargo/dns-lookup@4.0.2?package-id=110657c34f5abd03",
         "pkg:cargo/dotenvy@0.15.7?package-id=80d0e7375a90f87a",
         "pkg:cargo/dyn-clone@1.0.20?package-id=e6a1e9e6b644fd67",
         "pkg:cargo/dyn-eq@0.1.3?package-id=96144ed6dba9dcc1",
@@ -69859,7 +69967,7 @@
         "pkg:cargo/futures@0.3.31?package-id=0f7d9dafe4db512e",
         "pkg:cargo/governor@0.10.2?package-id=35ac56605aef126c",
         "pkg:cargo/hex@0.4.3?package-id=770a3d2932e67887",
-        "pkg:cargo/hickory-resolver@0.26.1?package-id=c05952819f0f0cc5",
+        "pkg:cargo/hickory-resolver@0.26.3?package-id=038bb3993858e711",
         "pkg:cargo/hmac@0.12.1?package-id=b49e7717a37dd091",
         "pkg:cargo/hostname@0.4.1?package-id=ef320aa9314d1c07",
         "pkg:cargo/html2text@0.16.4?package-id=8261804674b7c0dd",
@@ -69876,18 +69984,18 @@
         "pkg:cargo/jsonwebtoken@10.3.0?package-id=d001d3d4f979da5a",
         "pkg:cargo/kafka-protocol@0.18.0?package-id=22ae017270c3b61f",
         "pkg:cargo/lazy_static@1.5.0?package-id=ecd9ee8d6583d966",
-        "pkg:cargo/lettre@0.11.22?package-id=c149c535fa3942c5",
+        "pkg:cargo/lettre@0.11.22?package-id=c3a031caaaffd21a",
         "pkg:cargo/libc@0.2.189?package-id=72d602e6de6c3aa8",
         "pkg:cargo/local-ip-address@0.6.5?package-id=d0798c22cd42ed87",
         "pkg:cargo/lucide-icons@0.562.0?package-id=7475954eba776f27",
         "pkg:cargo/mac_address@1.1.8?package-id=98e27810930612fd",
-        "pkg:cargo/mailchecker@6.0.20?package-id=92668fe3fbf25264",
+        "pkg:cargo/mailchecker@6.0.21?package-id=a2af46795700ce41",
         "pkg:cargo/metrics-exporter-prometheus@0.16.2?package-id=ecc304ce2739f6c3",
         "pkg:cargo/metrics@0.24.3?package-id=e113ee20a560dd15",
         "pkg:cargo/mime_guess@2.0.5?package-id=ad2cbd7b325a5f4d",
         "pkg:cargo/moka@0.12.11?package-id=c8586e24295115be",
         "pkg:cargo/mysql_common@0.38.2?package-id=8ce5aecdcb6439e7",
-        "pkg:cargo/nanoid@0.4.0?package-id=93ea75c40e170718",
+        "pkg:cargo/nanoid@0.5.0?package-id=fbf950fcbe60db11",
         "pkg:cargo/net-route@0.4.6?package-id=59e6fd4918d01c1e",
         "pkg:cargo/netdev@0.46.3?package-id=6f6dd95aaa39f5f7",
         "pkg:cargo/oauth2@5.0.0?package-id=a957cf88c1401d62",
@@ -69916,17 +70024,17 @@
         "pkg:cargo/redact@0.1.11?package-id=72876332a6955244",
         "pkg:cargo/redis-protocol@6.0.0?package-id=84d7746053b01a73",
         "pkg:cargo/regex@1.12.2?package-id=3cd9dbed983917ce",
-        "pkg:cargo/reqwest@0.12.24?package-id=5e0d2ec5f3b875be",
+        "pkg:cargo/reqwest@0.12.24?package-id=478eaef7cd3a9270",
         "pkg:cargo/rlimit@0.10.2?package-id=104ce37c1785d61a",
         "pkg:cargo/rsa@0.9.10?package-id=9acdeb4e74de0078",
         "pkg:cargo/rsntp@4.1.2?package-id=b22f04aa25822c28",
         "pkg:cargo/rtsp-types@0.1.3?package-id=9ceb23c42c62e9d8",
-        "pkg:cargo/russh@0.63.3?package-id=9aeeac25558a2514",
+        "pkg:cargo/russh@0.64.1?package-id=ef501154160711f0",
         "pkg:cargo/rust-embed@8.12.0?package-id=173eb21651d1117d",
-        "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
+        "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
         "pkg:cargo/secrecy@0.10.3?package-id=53a5c1447ec3234a",
         "pkg:cargo/semver@1.0.27?package-id=91547c64d7f86db8",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_with@3.21.0?package-id=963dae4db23cbd7d",
         "pkg:cargo/serial_test@3.2.0?package-id=354b4edb1420c4fe",
@@ -69942,7 +70050,7 @@
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
         "pkg:cargo/time@0.3.47?package-id=bdce32ec92c9c797",
         "pkg:cargo/tokio-cron-scheduler@0.15.1?package-id=35d0de1628885ab8",
-        "pkg:cargo/tokio-rustls@0.26.4?package-id=d43b6145de178d37",
+        "pkg:cargo/tokio-rustls@0.26.4?package-id=f8e5eb6e83428273",
         "pkg:cargo/tokio-stream@0.1.17?package-id=91d69567044518ea",
         "pkg:cargo/tokio-util@0.7.17?package-id=6d427651821bda1c",
         "pkg:cargo/tokio@1.48.0?package-id=84f7fbd5e2f3c1d8",
@@ -69958,11 +70066,12 @@
         "pkg:cargo/tracing-appender@0.2.5?package-id=2aa447759d60d070",
         "pkg:cargo/tracing-subscriber@0.3.20?package-id=9a7669a1df6d9419",
         "pkg:cargo/tracing@0.1.41?package-id=4322088d4de9c2ec",
+        "pkg:cargo/treediff@5.0.0?package-id=786d320a40c2f4e2",
         "pkg:cargo/typed-path@0.12.3?package-id=f88b9a4fcda45eeb",
         "pkg:cargo/url@2.5.8?package-id=2ff2e5aae0621403",
         "pkg:cargo/urlencoding@2.1.3?package-id=fda4326c0b85c124",
-        "pkg:cargo/utoipa-axum@0.2.0?package-id=633521f606f7b336",
-        "pkg:cargo/utoipa@5.4.0?package-id=8a6bbc1e101160c5",
+        "pkg:cargo/utoipa-axum@0.3.0?package-id=9e830d01db2dcf89",
+        "pkg:cargo/utoipa@6.0.0?package-id=026aa674ba293d66",
         "pkg:cargo/uuid@1.26.0?package-id=52f225f30c0b41e6",
         "pkg:cargo/validator@0.20.0?package-id=776118a90f4eb866",
         "pkg:cargo/walkdir@2.5.0?package-id=1f29230ab6c3c5e1",
@@ -69990,7 +70099,7 @@
       "dependsOn": [
         "pkg:cargo/dyn-clone@1.0.20?package-id=e6a1e9e6b644fd67",
         "pkg:cargo/ref-cast@1.0.25?package-id=9938e1ae08fdd5d4",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc"
       ]
     },
@@ -69999,7 +70108,7 @@
       "dependsOn": [
         "pkg:cargo/dyn-clone@1.0.20?package-id=e6a1e9e6b644fd67",
         "pkg:cargo/ref-cast@1.0.25?package-id=9938e1ae08fdd5d4",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc"
       ]
     },
@@ -70044,7 +70153,7 @@
     {
       "ref": "pkg:cargo/secrecy@0.10.3?package-id=53a5c1447ec3234a",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/zeroize@1.9.0?package-id=0cb9c59c7cd238e2"
       ]
     },
@@ -70068,43 +70177,43 @@
     {
       "ref": "pkg:cargo/semver@1.0.27?package-id=91547c64d7f86db8",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
       "ref": "pkg:cargo/serde-value@0.7.0?package-id=55e6af442d7cd166",
       "dependsOn": [
         "pkg:cargo/ordered-float@2.10.1?package-id=06249deba3336727",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
-      "ref": "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+      "ref": "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
       "dependsOn": [
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4",
-        "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5"
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7",
+        "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923"
       ]
     },
     {
       "ref": "pkg:cargo/serde_bytes@0.11.19?package-id=a0753d4237a30124",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
-      "ref": "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4",
+      "ref": "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7",
       "dependsOn": [
-        "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5"
+        "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923"
       ]
     },
     {
-      "ref": "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5",
+      "ref": "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923",
       "dependsOn": [
         "pkg:cargo/proc-macro2@1.0.103?package-id=81fedb686e17648d",
         "pkg:cargo/quote@1.0.42?package-id=809daabb5d78ac48",
-        "pkg:cargo/syn@2.0.110?package-id=8b37ec211f9ed2e0"
+        "pkg:cargo/syn@3.0.9?package-id=74aeb3acfc8b2766"
       ]
     },
     {
@@ -70114,7 +70223,7 @@
         "pkg:cargo/indexmap@2.14.2?package-id=a029dcc81321bab4",
         "pkg:cargo/itoa@1.0.15?package-id=1f4f899cc037f963",
         "pkg:cargo/ryu@1.0.20?package-id=f59faaac17b9e4bf",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
@@ -70123,22 +70232,22 @@
         "pkg:cargo/itoa@1.0.15?package-id=1f4f899cc037f963",
         "pkg:cargo/memchr@2.7.6?package-id=60ccbd57bb909f00",
         "pkg:cargo/ryu@1.0.20?package-id=f59faaac17b9e4bf",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
       "ref": "pkg:cargo/serde_path_to_error@0.1.20?package-id=9ec8a092e769a200",
       "dependsOn": [
         "pkg:cargo/itoa@1.0.15?package-id=1f4f899cc037f963",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
       "ref": "pkg:cargo/serde_plain@1.0.2?package-id=d61e28ff1b1483ae",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -70147,7 +70256,7 @@
         "pkg:cargo/itoa@1.0.15?package-id=1f4f899cc037f963",
         "pkg:cargo/percent-encoding@2.3.2?package-id=b8f6f04eb1c2b0da",
         "pkg:cargo/ryu@1.0.20?package-id=f59faaac17b9e4bf",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -70161,7 +70270,7 @@
     {
       "ref": "pkg:cargo/serde_spanned@0.6.9?package-id=965a050e17f0c4c6",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -70170,7 +70279,7 @@
         "pkg:cargo/form_urlencoded@1.2.2?package-id=5ee951dbf7859462",
         "pkg:cargo/itoa@1.0.15?package-id=1f4f899cc037f963",
         "pkg:cargo/ryu@1.0.20?package-id=f59faaac17b9e4bf",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -70184,7 +70293,7 @@
         "pkg:cargo/indexmap@2.14.2?package-id=a029dcc81321bab4",
         "pkg:cargo/schemars@0.9.0?package-id=3bc685d219010b59",
         "pkg:cargo/schemars@1.1.0?package-id=6d921b8dbcdba57d",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4",
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_with_macros@3.21.0?package-id=093ac97876d181bd",
         "pkg:cargo/time@0.3.47?package-id=bdce32ec92c9c797"
@@ -70203,7 +70312,7 @@
       "ref": "pkg:cargo/serdect@0.4.3?package-id=401a91468c526ae2",
       "dependsOn": [
         "pkg:cargo/base16ct@1.0.0?package-id=cf9d26dedb4d9528",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -70317,14 +70426,14 @@
     {
       "ref": "pkg:cargo/smallvec@1.15.1?package-id=74e8f64781dc1446",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
       "ref": "pkg:cargo/smol_str@0.3.6?package-id=dd3da61a21f8705b",
       "dependsOn": [
         "pkg:cargo/borsh@1.5.7?package-id=b89fdad6fc0f8470",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4"
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7"
       ]
     },
     {
@@ -70401,7 +70510,7 @@
       ]
     },
     {
-      "ref": "pkg:cargo/sqlx-core@0.8.6?package-id=0d6c8bd92afe4141",
+      "ref": "pkg:cargo/sqlx-core@0.8.6?package-id=cfd7b3ce166cf16b",
       "dependsOn": [
         "pkg:cargo/base64@0.22.1?package-id=b74355108b3a28f3",
         "pkg:cargo/bytes@1.11.1?package-id=c69b0fb622a21615",
@@ -70423,8 +70532,8 @@
         "pkg:cargo/memchr@2.7.6?package-id=60ccbd57bb909f00",
         "pkg:cargo/once_cell@1.21.3?package-id=97ab8d25a7aec695",
         "pkg:cargo/percent-encoding@2.3.2?package-id=b8f6f04eb1c2b0da",
-        "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/sha2@0.10.9?package-id=927e05652d1a75e6",
         "pkg:cargo/smallvec@1.15.1?package-id=74e8f64781dc1446",
@@ -70448,10 +70557,10 @@
         "pkg:cargo/once_cell@1.21.3?package-id=97ab8d25a7aec695",
         "pkg:cargo/proc-macro2@1.0.103?package-id=81fedb686e17648d",
         "pkg:cargo/quote@1.0.42?package-id=809daabb5d78ac48",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/sha2@0.10.9?package-id=927e05652d1a75e6",
-        "pkg:cargo/sqlx-core@0.8.6?package-id=0d6c8bd92afe4141",
+        "pkg:cargo/sqlx-core@0.8.6?package-id=cfd7b3ce166cf16b",
         "pkg:cargo/sqlx-mysql@0.8.6?package-id=30593ba4bd732dfc",
         "pkg:cargo/sqlx-postgres@0.8.6?package-id=ca69344c0e5c3672",
         "pkg:cargo/sqlx-sqlite@0.8.6?package-id=195336c5f1e5f71a",
@@ -70465,7 +70574,7 @@
       "dependsOn": [
         "pkg:cargo/proc-macro2@1.0.103?package-id=81fedb686e17648d",
         "pkg:cargo/quote@1.0.42?package-id=809daabb5d78ac48",
-        "pkg:cargo/sqlx-core@0.8.6?package-id=0d6c8bd92afe4141",
+        "pkg:cargo/sqlx-core@0.8.6?package-id=cfd7b3ce166cf16b",
         "pkg:cargo/sqlx-macros-core@0.8.6?package-id=8246a831af2b8a02",
         "pkg:cargo/syn@2.0.110?package-id=8b37ec211f9ed2e0"
       ]
@@ -70499,11 +70608,11 @@
         "pkg:cargo/percent-encoding@2.3.2?package-id=b8f6f04eb1c2b0da",
         "pkg:cargo/rand@0.8.6?package-id=0735095f5ae5a244",
         "pkg:cargo/rsa@0.9.10?package-id=9acdeb4e74de0078",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/sha1@0.10.6?package-id=fdf2cac6a93103cd",
         "pkg:cargo/sha2@0.10.9?package-id=927e05652d1a75e6",
         "pkg:cargo/smallvec@1.15.1?package-id=74e8f64781dc1446",
-        "pkg:cargo/sqlx-core@0.8.6?package-id=0d6c8bd92afe4141",
+        "pkg:cargo/sqlx-core@0.8.6?package-id=cfd7b3ce166cf16b",
         "pkg:cargo/stringprep@0.1.5?package-id=38176fe5c977ea56",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
         "pkg:cargo/time@0.3.47?package-id=bdce32ec92c9c797",
@@ -70538,11 +70647,11 @@
         "pkg:cargo/memchr@2.7.6?package-id=60ccbd57bb909f00",
         "pkg:cargo/once_cell@1.21.3?package-id=97ab8d25a7aec695",
         "pkg:cargo/rand@0.8.6?package-id=0735095f5ae5a244",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/sha2@0.10.9?package-id=927e05652d1a75e6",
         "pkg:cargo/smallvec@1.15.1?package-id=74e8f64781dc1446",
-        "pkg:cargo/sqlx-core@0.8.6?package-id=0d6c8bd92afe4141",
+        "pkg:cargo/sqlx-core@0.8.6?package-id=cfd7b3ce166cf16b",
         "pkg:cargo/stringprep@0.1.5?package-id=38176fe5c977ea56",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
         "pkg:cargo/time@0.3.47?package-id=bdce32ec92c9c797",
@@ -70565,9 +70674,9 @@
         "pkg:cargo/libsqlite3-sys@0.30.1?package-id=ab58d92f8e0f0d82",
         "pkg:cargo/log@0.4.28?package-id=286ae7b051f75c65",
         "pkg:cargo/percent-encoding@2.3.2?package-id=b8f6f04eb1c2b0da",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_urlencoded@0.7.1?package-id=b15793bd5fd72a0f",
-        "pkg:cargo/sqlx-core@0.8.6?package-id=0d6c8bd92afe4141",
+        "pkg:cargo/sqlx-core@0.8.6?package-id=cfd7b3ce166cf16b",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
         "pkg:cargo/time@0.3.47?package-id=bdce32ec92c9c797",
         "pkg:cargo/tracing@0.1.41?package-id=4322088d4de9c2ec",
@@ -70578,7 +70687,7 @@
     {
       "ref": "pkg:cargo/sqlx@0.8.6?package-id=238ae5835b3e0071",
       "dependsOn": [
-        "pkg:cargo/sqlx-core@0.8.6?package-id=0d6c8bd92afe4141",
+        "pkg:cargo/sqlx-core@0.8.6?package-id=cfd7b3ce166cf16b",
         "pkg:cargo/sqlx-macros@0.8.6?package-id=d5e5f4086aad63c0",
         "pkg:cargo/sqlx-mysql@0.8.6?package-id=30593ba4bd732dfc",
         "pkg:cargo/sqlx-postgres@0.8.6?package-id=ca69344c0e5c3672",
@@ -70642,7 +70751,7 @@
         "pkg:cargo/parking_lot@0.12.5?package-id=85e072b778348bd9",
         "pkg:cargo/phf_shared@0.13.1?package-id=8767135c3d9134ec",
         "pkg:cargo/precomputed-hash@0.1.1?package-id=0d5404a7ba41f949",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
@@ -70711,6 +70820,14 @@
       ]
     },
     {
+      "ref": "pkg:cargo/syn@3.0.9?package-id=74aeb3acfc8b2766",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.103?package-id=81fedb686e17648d",
+        "pkg:cargo/quote@1.0.42?package-id=809daabb5d78ac48",
+        "pkg:cargo/unicode-ident@1.0.22?package-id=d0fe65431001d029"
+      ]
+    },
+    {
       "ref": "pkg:cargo/sync_wrapper@1.0.2?package-id=07f6596deb0b93a4",
       "dependsOn": [
         "pkg:cargo/futures-core@0.3.31?package-id=c3623053c7fce089"
@@ -70735,8 +70852,8 @@
         "pkg:cargo/onig@6.5.1?package-id=8266206abf695181",
         "pkg:cargo/plist@1.10.1?package-id=7f5d83c5fc56d735",
         "pkg:cargo/regex-syntax@0.8.8?package-id=d8497e263576ab41",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
         "pkg:cargo/walkdir@2.5.0?package-id=1f29230ab6c3c5e1",
@@ -70811,7 +70928,7 @@
       "dependsOn": [
         "pkg:cargo/astral-tokio-tar@0.6.2?package-id=f15b2d3d134df6b7",
         "pkg:cargo/async-trait@0.1.89?package-id=27f695f61cfc2df2",
-        "pkg:cargo/bollard@0.20.2?package-id=87f4605ff9a14b3c",
+        "pkg:cargo/bollard@0.20.2?package-id=63929f9356a9f1d5",
         "pkg:cargo/bytes@1.11.1?package-id=c69b0fb622a21615",
         "pkg:cargo/docker_credential@1.3.2?package-id=2c5f332a2e63ef2b",
         "pkg:cargo/either@1.15.0?package-id=2e30492bd65894da",
@@ -70824,7 +70941,7 @@
         "pkg:cargo/memchr@2.7.6?package-id=60ccbd57bb909f00",
         "pkg:cargo/parse-display@0.9.1?package-id=986b29010a0d9a4e",
         "pkg:cargo/pin-project-lite@0.2.16?package-id=3bf6cbc61136d164",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/serde_with@3.21.0?package-id=963dae4db23cbd7d",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
@@ -70882,7 +70999,7 @@
         "pkg:cargo/itoa@1.0.15?package-id=1f4f899cc037f963",
         "pkg:cargo/num-conv@0.2.0?package-id=60ad6caab4be90e6",
         "pkg:cargo/powerfmt@0.2.0?package-id=c1d8ed6373c1437c",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4",
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7",
         "pkg:cargo/time-core@0.1.8?package-id=16a48a69a010bd2f",
         "pkg:cargo/time-macros@0.2.27?package-id=71e9ea830e792bc2"
       ]
@@ -70950,9 +71067,9 @@
       ]
     },
     {
-      "ref": "pkg:cargo/tokio-rustls@0.26.4?package-id=d43b6145de178d37",
+      "ref": "pkg:cargo/tokio-rustls@0.26.4?package-id=f8e5eb6e83428273",
       "dependsOn": [
-        "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
+        "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
         "pkg:cargo/tokio@1.48.0?package-id=84f7fbd5e2f3c1d8"
       ]
     },
@@ -70990,7 +71107,7 @@
     {
       "ref": "pkg:cargo/toml@0.8.23?package-id=abb8b6247e0c5e78",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_spanned@0.6.9?package-id=965a050e17f0c4c6",
         "pkg:cargo/toml_datetime@0.6.11?package-id=3892cb47638465e5",
         "pkg:cargo/toml_edit@0.22.27?package-id=b4f28b7e5b1e07ba"
@@ -70999,14 +71116,14 @@
     {
       "ref": "pkg:cargo/toml_datetime@0.6.11?package-id=3892cb47638465e5",
       "dependsOn": [
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda"
       ]
     },
     {
       "ref": "pkg:cargo/toml_edit@0.22.27?package-id=b4f28b7e5b1e07ba",
       "dependsOn": [
         "pkg:cargo/indexmap@2.14.2?package-id=a029dcc81321bab4",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_spanned@0.6.9?package-id=965a050e17f0c4c6",
         "pkg:cargo/toml_datetime@0.6.11?package-id=3892cb47638465e5",
         "pkg:cargo/toml_write@0.1.2?package-id=a5b4a1f4e6fbbc3d",
@@ -71039,7 +71156,7 @@
         "pkg:cargo/pin-project@1.1.10?package-id=7b541066ee81acbe",
         "pkg:cargo/socket2@0.6.1?package-id=571ad36f01c2c44c",
         "pkg:cargo/sync_wrapper@1.0.2?package-id=07f6596deb0b93a4",
-        "pkg:cargo/tokio-rustls@0.26.4?package-id=d43b6145de178d37",
+        "pkg:cargo/tokio-rustls@0.26.4?package-id=f8e5eb6e83428273",
         "pkg:cargo/tokio-stream@0.1.17?package-id=91d69567044518ea",
         "pkg:cargo/tokio@1.48.0?package-id=84f7fbd5e2f3c1d8",
         "pkg:cargo/tower-layer@0.3.3?package-id=b1dda0191cac0589",
@@ -71117,7 +71234,7 @@
         "pkg:cargo/http@1.3.1?package-id=cc9a26417902e4c4",
         "pkg:cargo/parking_lot@0.12.5?package-id=85e072b778348bd9",
         "pkg:cargo/rand@0.8.6?package-id=0735095f5ae5a244",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/thiserror@2.0.18?package-id=c9058539c8b0f2a6",
         "pkg:cargo/time@0.3.47?package-id=bdce32ec92c9c797",
@@ -71242,6 +71359,12 @@
       ]
     },
     {
+      "ref": "pkg:cargo/treediff@5.0.0?package-id=786d320a40c2f4e2",
+      "dependsOn": [
+        "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc"
+      ]
+    },
+    {
       "ref": "pkg:cargo/uncased@0.9.10?package-id=271092d4733b421d",
       "dependsOn": [
         "pkg:cargo/version_check@0.9.5?package-id=241fa41b59901cb7"
@@ -71270,13 +71393,13 @@
       ]
     },
     {
-      "ref": "pkg:cargo/ureq@3.1.4?package-id=5f540df5789b8268",
+      "ref": "pkg:cargo/ureq@3.1.4?package-id=5dc320c66885044d",
       "dependsOn": [
         "pkg:cargo/base64@0.22.1?package-id=b74355108b3a28f3",
         "pkg:cargo/log@0.4.28?package-id=286ae7b051f75c65",
         "pkg:cargo/percent-encoding@2.3.2?package-id=b8f6f04eb1c2b0da",
         "pkg:cargo/rustls-pki-types@1.13.0?package-id=64095f1e6f4a4de6",
-        "pkg:cargo/rustls@0.23.35?package-id=3865aa7f3c9a922e",
+        "pkg:cargo/rustls@0.23.46?package-id=68cefba9b1d52e6f",
         "pkg:cargo/ureq-proto@0.5.2?package-id=285a81c7352534cf",
         "pkg:cargo/utf-8@0.7.6?package-id=d206bb1c9e93aafe",
         "pkg:cargo/webpki-roots@1.0.4?package-id=680bb676d96f8041"
@@ -71288,37 +71411,37 @@
         "pkg:cargo/form_urlencoded@1.2.2?package-id=5ee951dbf7859462",
         "pkg:cargo/idna@1.1.0?package-id=19ba3fd4cfa45e93",
         "pkg:cargo/percent-encoding@2.3.2?package-id=b8f6f04eb1c2b0da",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5"
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923"
       ]
     },
     {
-      "ref": "pkg:cargo/utoipa-axum@0.2.0?package-id=633521f606f7b336",
+      "ref": "pkg:cargo/utoipa-axum@0.3.0?package-id=9e830d01db2dcf89",
       "dependsOn": [
         "pkg:cargo/axum@0.8.7?package-id=bb46e7b1e360bc2c",
-        "pkg:cargo/paste@1.0.15?package-id=9e55703f425f8f56",
+        "pkg:cargo/pastey@0.2.3?package-id=e6c8097070000bce",
         "pkg:cargo/tower-layer@0.3.3?package-id=b1dda0191cac0589",
         "pkg:cargo/tower-service@0.3.3?package-id=f7b00c4ded946e92",
-        "pkg:cargo/utoipa@5.4.0?package-id=8a6bbc1e101160c5"
+        "pkg:cargo/utoipa@6.0.0?package-id=026aa674ba293d66"
       ]
     },
     {
-      "ref": "pkg:cargo/utoipa-gen@5.4.0?package-id=97d3d8381cdebab6",
+      "ref": "pkg:cargo/utoipa-gen@6.0.1?package-id=cedaf4655a04cd93",
       "dependsOn": [
         "pkg:cargo/proc-macro2@1.0.103?package-id=81fedb686e17648d",
         "pkg:cargo/quote@1.0.42?package-id=809daabb5d78ac48",
         "pkg:cargo/regex@1.12.2?package-id=3cd9dbed983917ce",
-        "pkg:cargo/syn@2.0.110?package-id=8b37ec211f9ed2e0",
+        "pkg:cargo/syn@3.0.9?package-id=74aeb3acfc8b2766",
         "pkg:cargo/uuid@1.26.0?package-id=52f225f30c0b41e6"
       ]
     },
     {
-      "ref": "pkg:cargo/utoipa@5.4.0?package-id=8a6bbc1e101160c5",
+      "ref": "pkg:cargo/utoipa@6.0.0?package-id=026aa674ba293d66",
       "dependsOn": [
         "pkg:cargo/indexmap@2.14.2?package-id=a029dcc81321bab4",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
-        "pkg:cargo/utoipa-gen@5.4.0?package-id=97d3d8381cdebab6"
+        "pkg:cargo/utoipa-gen@6.0.1?package-id=cedaf4655a04cd93"
       ]
     },
     {
@@ -71334,7 +71457,7 @@
       "dependsOn": [
         "pkg:cargo/getrandom@0.4.3?package-id=6f81cf507f35e6e5",
         "pkg:cargo/js-sys@0.3.82?package-id=4cd8da93a0b1bd66",
-        "pkg:cargo/serde_core@1.0.228?package-id=c7213ea9d20007b4",
+        "pkg:cargo/serde_core@1.0.229?package-id=34e69ed73d3e11c7",
         "pkg:cargo/sha1_smol@1.0.1?package-id=66988a1acbee8290",
         "pkg:cargo/wasm-bindgen@0.2.105?package-id=0ed28880ee19069c"
       ]
@@ -71345,8 +71468,8 @@
         "pkg:cargo/idna@1.1.0?package-id=19ba3fd4cfa45e93",
         "pkg:cargo/once_cell@1.21.3?package-id=97ab8d25a7aec695",
         "pkg:cargo/regex@1.12.2?package-id=3cd9dbed983917ce",
-        "pkg:cargo/serde@1.0.228?package-id=8d47347b1891d18e",
-        "pkg:cargo/serde_derive@1.0.228?package-id=4d31f54b562adfe5",
+        "pkg:cargo/serde@1.0.229?package-id=5aca60f1fff7abda",
+        "pkg:cargo/serde_derive@1.0.229?package-id=8e650a01925b5923",
         "pkg:cargo/serde_json@1.0.145?package-id=d81b198d2106a3fc",
         "pkg:cargo/url@2.5.8?package-id=2ff2e5aae0621403",
         "pkg:cargo/validator_derive@0.20.0?package-id=d2eb3ab28c47de49"
@@ -72058,16 +72181,17 @@
       ]
     },
     {
-      "ref": "pkg:npm/%40posthog/browser-common@0.9.1?package-id=9f4111392e81b701",
+      "ref": "pkg:npm/%40posthog/browser-common@0.9.9?package-id=6f5acf7121988e22",
       "dependsOn": [
-        "pkg:npm/%40posthog/core@1.55.3?package-id=76a5d5a799749fa7",
-        "pkg:npm/%40posthog/types@1.413.0?package-id=538958311e03bb9f"
+        "pkg:npm/%40posthog/core@1.60.0?package-id=e3d0c591f3cff991",
+        "pkg:npm/%40posthog/types@1.416.0?package-id=e2c9480e6a397065",
+        "pkg:npm/preact@10.29.7?package-id=91ec7cd81ba9805e"
       ]
     },
     {
-      "ref": "pkg:npm/%40posthog/core@1.55.3?package-id=76a5d5a799749fa7",
+      "ref": "pkg:npm/%40posthog/core@1.60.0?package-id=e3d0c591f3cff991",
       "dependsOn": [
-        "pkg:npm/%40posthog/types@1.413.0?package-id=538958311e03bb9f"
+        "pkg:npm/%40posthog/types@1.416.0?package-id=e2c9480e6a397065"
       ]
     },
     {
@@ -72100,18 +72224,18 @@
       ]
     },
     {
-      "ref": "pkg:npm/%40tanstack/form-core@1.28.3?package-id=9a2a5c677e773296",
+      "ref": "pkg:npm/%40tanstack/form-core@1.33.5?package-id=01f003ed0b506e86",
       "dependsOn": [
-        "pkg:npm/%40tanstack/devtools-event-client@0.4.0?package-id=2e6da7af4c78cae1",
+        "pkg:npm/%40tanstack/devtools-event-client@0.4.4?package-id=7ecf7fe4df9a11e8",
         "pkg:npm/%40tanstack/pacer-lite@0.1.1?package-id=48d976126cae8dfd",
-        "pkg:npm/%40tanstack/store@0.8.1?package-id=7efb41db4bc7cd5c"
+        "pkg:npm/%40tanstack/store@0.11.2?package-id=6f32440cb4464b3e"
       ]
     },
     {
-      "ref": "pkg:npm/%40tanstack/svelte-form@1.28.3?package-id=ed03a61a54a62e31",
+      "ref": "pkg:npm/%40tanstack/svelte-form@1.33.5?package-id=a5b09adc7456749e",
       "dependsOn": [
-        "pkg:npm/%40tanstack/form-core@1.28.3?package-id=9a2a5c677e773296",
-        "pkg:npm/%40tanstack/svelte-store@0.9.1?package-id=591f1a778f04aed5"
+        "pkg:npm/%40tanstack/form-core@1.33.5?package-id=01f003ed0b506e86",
+        "pkg:npm/%40tanstack/svelte-store@0.12.3?package-id=5be2e5de7251411e"
       ]
     },
     {
@@ -72121,9 +72245,15 @@
       ]
     },
     {
-      "ref": "pkg:npm/%40tanstack/svelte-store@0.9.1?package-id=591f1a778f04aed5",
+      "ref": "pkg:npm/%40tanstack/svelte-store@0.12.3?package-id=5be2e5de7251411e",
       "dependsOn": [
-        "pkg:npm/%40tanstack/store@0.8.1?package-id=7efb41db4bc7cd5c"
+        "pkg:npm/%40tanstack/store@0.11.2?package-id=6f32440cb4464b3e"
+      ]
+    },
+    {
+      "ref": "pkg:npm/%40tanstack/table-core@9.3.1?package-id=f67fdb2272cf6809",
+      "dependsOn": [
+        "pkg:npm/%40tanstack/store@0.11.2?package-id=6f32440cb4464b3e"
       ]
     },
     {
@@ -72454,15 +72584,15 @@
       "dependsOn": [
         "pkg:npm/nanoid@3.3.18?package-id=d94328d075ba1000",
         "pkg:npm/picocolors@1.1.1?package-id=8a857b6ad75f9385",
-        "pkg:npm/source-map-js@1.2.1?package-id=4a13a6f67384ebd6"
+        "pkg:npm/source-map-js@1.2.2?package-id=1fde7d7a6afc938a"
       ]
     },
     {
-      "ref": "pkg:npm/posthog-js@1.435.6?package-id=079554063d86f59d",
+      "ref": "pkg:npm/posthog-js@1.438.19?package-id=8c604605e9ab0c68",
       "dependsOn": [
-        "pkg:npm/%40posthog/browser-common@0.9.1?package-id=9f4111392e81b701",
-        "pkg:npm/%40posthog/core@1.55.3?package-id=76a5d5a799749fa7",
-        "pkg:npm/%40posthog/types@1.413.0?package-id=538958311e03bb9f",
+        "pkg:npm/%40posthog/browser-common@0.9.9?package-id=6f5acf7121988e22",
+        "pkg:npm/%40posthog/core@1.60.0?package-id=e3d0c591f3cff991",
+        "pkg:npm/%40posthog/types@1.416.0?package-id=e2c9480e6a397065",
         "pkg:npm/core-js@3.49.0?package-id=f3740f5e3041656a",
         "pkg:npm/dompurify@3.4.16?package-id=4412c7c3c26e4569",
         "pkg:npm/fflate@0.4.9?package-id=4bad73d08ebf6ead",
@@ -72514,15 +72644,15 @@
       ]
     },
     {
-      "ref": "pkg:npm/scanopy-ui@0.18.2?package-id=793be5dd81366a1e",
+      "ref": "pkg:npm/scanopy-ui@0.19.0?package-id=63051a9a0c75a86e",
       "dependsOn": [
         "pkg:npm/%40beyonk/gdpr-cookie-consent-banner@16.0.2?package-id=cd6aef3707be3a0f",
         "pkg:npm/%40peculiar/x509@1.14.3?package-id=f9f09aa6bd0dd2b7",
         "pkg:npm/%40stripe/stripe-js@9.17.0?package-id=a5ee0da78d3d34fe",
         "pkg:npm/%40tailwindcss/forms@0.5.11?package-id=c4e06eaa1fd86e52",
-        "pkg:npm/%40tanstack/svelte-form@1.28.3?package-id=ed03a61a54a62e31",
+        "pkg:npm/%40tanstack/svelte-form@1.33.5?package-id=a5b09adc7456749e",
         "pkg:npm/%40tanstack/svelte-query@6.0.18?package-id=23ebc66d3d1f7fcd",
-        "pkg:npm/%40tanstack/table-core@8.21.3?package-id=3bddf21a0702cbc2",
+        "pkg:npm/%40tanstack/table-core@9.3.1?package-id=f67fdb2272cf6809",
         "pkg:npm/%40types/d3-force@3.0.10?package-id=3ded41696afd1fa1",
         "pkg:npm/%40types/jquery@3.5.33?package-id=13e7ee6c1d86e2d0",
         "pkg:npm/%40xyflow/svelte@1.6.6?package-id=9b437f663694e6cf",
@@ -72542,7 +72672,7 @@
         "pkg:npm/openapi-fetch@0.15.2?package-id=39b51ac70659508f",
         "pkg:npm/openapi-typescript@7.13.0?package-id=c07c3241dfd1d439",
         "pkg:npm/postcss@8.5.23?package-id=3a41d2a15bfb69f6",
-        "pkg:npm/posthog-js@1.435.6?package-id=079554063d86f59d",
+        "pkg:npm/posthog-js@1.438.19?package-id=8c604605e9ab0c68",
         "pkg:npm/semver@7.8.5?package-id=829da4a4a4e2b95a",
         "pkg:npm/svelte-forms@2.3.1?package-id=c0f246fa65336def",
         "pkg:npm/svelte-prism@1.1.6?package-id=3855204c1e37a873",

@@ -159,7 +159,7 @@
 				{#if isFullScan(payload.discovery_type)}
 					<div>
 						<p>{discovery_scanModeFull()}</p>
-						<p class="text-tertiary text-xs">{discovery_fullScanCompleted()}</p>
+						<p class="text-xs text-tertiary">{discovery_fullScanCompleted()}</p>
 					</div>
 				{:else}
 					{discovery_scanModeLight()}

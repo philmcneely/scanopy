@@ -65,7 +65,7 @@
 	count={crossBoundaryDeps.length > 0 ? crossBoundaryDeps.length : undefined}
 >
 	{#if crossBoundaryDeps.length === 0}
-		<p class="text-tertiary text-sm">{inspector_noDependencies()}</p>
+		<p class="text-sm text-tertiary">{inspector_noDependencies()}</p>
 	{:else}
 		<InspectorSubsection
 			id="DependencySummary:crossing"
@@ -74,7 +74,7 @@
 		>
 			<div class="space-y-1">
 				{#each crossBoundaryDeps as dep (dep.id)}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							item={dep}
 							context={{ compact: true }}

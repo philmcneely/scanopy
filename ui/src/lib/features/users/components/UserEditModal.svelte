@@ -190,12 +190,12 @@
 					<InfoCard title={common_account()}>
 						<div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
 							<div class="space-y-1">
-								<span class="text-secondary block text-sm">{common_email()}</span>
-								<span class="text-primary block break-all text-sm font-medium">{user.email}</span>
+								<span class="block text-sm text-secondary">{common_email()}</span>
+								<span class="block text-sm font-medium break-all text-primary">{user.email}</span>
 							</div>
 							<div class="space-y-1">
-								<span class="text-secondary block text-sm">{common_authentication()}</span>
-								<span class="text-primary block text-sm"
+								<span class="block text-sm text-secondary">{common_authentication()}</span>
+								<span class="block text-sm text-primary"
 									>{user.oidc_provider || common_emailAndPassword()}</span
 								>
 							</div>

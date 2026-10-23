@@ -44,7 +44,7 @@
 		</div>
 	{/if}
 
-	<p class="text-tertiary text-sm">{topology_neighborLinkPortsUnknown()}</p>
+	<p class="text-sm text-tertiary">{topology_neighborLinkPortsUnknown()}</p>
 
 	{#if sourceHost}
 		<InspectorSection
@@ -54,7 +54,7 @@
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>
-			<div class="card card-static">
+			<div class="card-static card">
 				<EntityDisplayWrapper
 					context={{
 						services: topology?.services.filter((s) => s.host_id === sourceHost.id) ?? [],
@@ -76,7 +76,7 @@
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>
-			<div class="card card-static">
+			<div class="card-static card">
 				<EntityDisplayWrapper
 					context={{
 						services: topology?.services.filter((s) => s.host_id === targetHost.id) ?? [],

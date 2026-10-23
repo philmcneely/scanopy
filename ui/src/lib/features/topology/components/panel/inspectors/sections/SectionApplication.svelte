@@ -110,7 +110,7 @@
 
 {#if entityId}
 	<InspectorSection id="Application" section="Application">
-		<div class="card card-static space-y-2 p-2">
+		<div class="card-static space-y-2 card p-2">
 			{#if hasAppTag && currentAppTag}
 				<div class="flex flex-wrap items-center gap-1">
 					<Tag
@@ -120,20 +120,20 @@
 						isShiny={true}
 					/>
 					{#if isAppInherited}
-						<span class="text-tertiary text-xs">{tags_inheritedFromHost()}</span>
+						<span class="text-xs text-tertiary">{tags_inheritedFromHost()}</span>
 					{:else if isAppOverride && hostAppTag}
-						<span class="text-tertiary text-xs">{common_overrides()}</span>
+						<span class="text-xs text-tertiary">{common_overrides()}</span>
 						<Tag
 							label={hostAppTag.name}
 							color={hostAppTag.color}
 							icon={concepts.getIconComponent('Application')}
 							isShiny={true}
 						/>
-						<span class="text-tertiary text-xs">{tags_fromHost()}</span>
+						<span class="text-xs text-tertiary">{tags_fromHost()}</span>
 					{/if}
 				</div>
 				{#if isAppInherited}
-					<p class="text-tertiary text-xs">{tags_inheritedOverrideHint()}</p>
+					<p class="text-xs text-tertiary">{tags_inheritedOverrideHint()}</p>
 				{/if}
 			{/if}
 			<div class="flex flex-wrap items-center gap-1.5">

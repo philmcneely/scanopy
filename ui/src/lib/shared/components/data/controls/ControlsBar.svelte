@@ -119,7 +119,7 @@
 	</div>
 
 	<!-- Right: table actions, then the page's own -->
-	<div class="flex flex-shrink-0 items-center gap-2">
+	<div class="flex shrink-0 items-center gap-2">
 		{#if selectionActions}
 			{@render selectionActions()}
 		{/if}

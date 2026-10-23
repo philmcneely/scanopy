@@ -162,7 +162,7 @@
 	{#snippet footerNote()}
 		{#if subStep === 'credentials' && !disablePasswordLogin && enablePasswordReset && !demoMode}
 			<div class="text-center">
-				<p class="text-tertiary text-sm">
+				<p class="text-sm text-tertiary">
 					{auth_forgotYourPassword()}
 					<button
 						type="button"
@@ -178,7 +178,7 @@
 		<!-- Register Link -->
 		{#if onSwitchToRegister && !disableRegistration && !demoMode}
 			<div class="text-center">
-				<p class="text-tertiary text-sm">
+				<p class="text-sm text-tertiary">
 					{auth_dontHaveAccount()}
 					<button
 						type="button"
@@ -222,14 +222,14 @@
 				{#if demoMode}
 					<div class="mb-6">
 						<InlineInfo title={auth_demoModeTitle()} body={auth_demoModeBody()} />
-						<div class="card mt-3 !rounded-md !p-3 font-mono text-sm">
+						<div class="mt-3 card rounded-md! p-3! font-mono text-sm">
 							<div class="text-secondary">
 								<span class="text-tertiary">{common_email()}:</span>
-								<span class="text-primary ml-2">demo@scanopy.net</span>
+								<span class="ml-2 text-primary">demo@scanopy.net</span>
 							</div>
-							<div class="text-secondary mt-1">
+							<div class="mt-1 text-secondary">
 								<span class="text-tertiary">{common_password()}:</span>
-								<span class="text-primary ml-2">password123</span>
+								<span class="ml-2 text-primary">password123</span>
 							</div>
 						</div>
 					</div>

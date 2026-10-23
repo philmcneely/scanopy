@@ -52,7 +52,7 @@
 			iconClass={entities.getColorHelper('Service').icon}
 			description={null}
 		>
-			<div class="card card-static">
+			<div class="card-static card">
 				<EntityDisplayWrapper
 					context={{
 						ipAddressId: null,
@@ -77,7 +77,7 @@
 			iconClass={entities.getColorHelper('Host').icon}
 			description={null}
 		>
-			<div class="card card-static">
+			<div class="card-static card">
 				<EntityDisplayWrapper
 					context={{
 						services:
@@ -105,11 +105,11 @@
 		count={managedVms.length}
 	>
 		{#if managedVms.length === 0}
-			<p class="text-secondary text-sm">{hosts_virtualization_noVmsYet()}</p>
+			<p class="text-sm text-secondary">{hosts_virtualization_noVmsYet()}</p>
 		{:else}
 			<div class="space-y-1">
 				{#each managedVms as vmHost (vmHost.id)}
-					<div class="card card-static">
+					<div class="card-static card">
 						<EntityDisplayWrapper
 							context={{
 								services: topology?.services.filter((s) => s.host_id == vmHost.id) ?? [],

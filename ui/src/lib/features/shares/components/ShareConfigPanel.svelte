@@ -186,7 +186,7 @@
 		     resolve until the backend has a persisted record. -->
 		{#if isSaved}
 			<div>
-				<span class="text-secondary mb-1 block text-sm font-medium">{shares_shareUrl()}</span>
+				<span class="mb-1 block text-sm font-medium text-secondary">{shares_shareUrl()}</span>
 				<CodeContainer
 					language="bash"
 					expandable={false}
@@ -194,7 +194,7 @@
 				/>
 			</div>
 			<div class="space-y-2">
-				<span class="text-secondary mb-1 block text-sm font-medium">{shares_embedCode()}</span>
+				<span class="mb-1 block text-sm font-medium text-secondary">{shares_embedCode()}</span>
 				{#if !hasEmbedsFeature}
 					<InlineInfo title={shares_embedsRequirePlan()} body={shares_upgradeForEmbeds()} />
 					<div class="mt-2">
@@ -321,7 +321,7 @@
 				</form.Field>
 			</div>
 			<div>
-				<span class="text-secondary mb-1 block text-sm font-medium">{common_theme()}</span>
+				<span class="mb-1 block text-sm font-medium text-secondary">{common_theme()}</span>
 				<div class="flex gap-2">
 					<button
 						type="button"
@@ -356,7 +356,7 @@
 					</button>
 				</div>
 			</div>
-			<span class="text-secondary block text-sm font-medium">{shares_embedDimensions()}</span>
+			<span class="block text-sm font-medium text-secondary">{shares_embedDimensions()}</span>
 			<div class="grid grid-cols-2 gap-4">
 				<form.Field name={embedWidthFieldName}>
 					{#snippet children(field: AnyFieldApi)}

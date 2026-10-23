@@ -29,14 +29,14 @@
 </script>
 
 <section>
-	<h3 class="text-primary mb-3 text-base font-semibold">{home_recentScans()}</h3>
+	<h3 class="mb-3 text-base font-semibold text-primary">{home_recentScans()}</h3>
 	{#if runs.length === 0}
-		<p class="text-tertiary text-sm">{home_noScansYet()}</p>
+		<p class="text-sm text-tertiary">{home_noScansYet()}</p>
 	{:else}
 		<div class="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4">
 			{#each runs as run (run.discovery.id)}
 				<button
-					class="card card-static cursor-pointer text-left"
+					class="card-static cursor-pointer card text-left"
 					onclick={() => onOpenRun?.(run.discovery)}
 				>
 					<HomeDiscoveryDisplay item={run} context={{ daemons, sites }} />

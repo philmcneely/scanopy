@@ -171,7 +171,7 @@
 		linkText={hosts_credentialOverrideHelpLinkText()}
 	/>
 	{#if siteDefaultCredentials.length > 0}
-		<p class="text-tertiary mt-1 flex flex-wrap items-center gap-1 text-xs">
+		<p class="mt-1 flex flex-wrap items-center gap-1 text-xs text-tertiary">
 			<span>{daemons_credentialWizardSiteCredentials()}</span>
 			{#each siteDefaultCredentials as cred (cred.id)}
 				<EntityTag
