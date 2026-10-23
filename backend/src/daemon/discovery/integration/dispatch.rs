@@ -478,6 +478,8 @@ pub struct ExecuteParams<'a> {
     pub host_id: Uuid,
     pub host_naming_fallback: HostNamingFallback,
     pub known_subnets: &'a [Subnet],
+    /// See [`IntegrationContext::scanned_subnets`].
+    pub scanned_subnets: &'a [Subnet],
     pub scanning_subnet: Option<&'a Subnet>,
     pub ip_address_id: Option<Uuid>,
 }
@@ -636,6 +638,7 @@ pub async fn execute_integrations(
             host_id: params.host_id,
             host_naming_fallback: params.host_naming_fallback,
             known_subnets: params.known_subnets,
+            scanned_subnets: params.scanned_subnets,
             accept_invalid_certs,
             trusted_ca: trusted_ca.as_deref(),
             scanning_subnet: params.scanning_subnet,

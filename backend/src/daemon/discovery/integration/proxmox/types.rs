@@ -175,11 +175,17 @@ pub struct NodeKernel {
 
 /// One entry of `GET /nodes/{node}/network`: the node's network config (bridges, bonds, NICs),
 /// with the address each is configured with. Carries no MAC.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct NodeNetworkEntry {
     pub iface: String,
     #[serde(default)]
     pub address: Option<String>,
     #[serde(default)]
     pub address6: Option<String>,
+    /// A Linux bridge's ports, space-separated (`enp1s0`), or `none`.
+    #[serde(default)]
+    pub bridge_ports: Option<String>,
+    /// An OVS bridge's ports, space-separated.
+    #[serde(default)]
+    pub ovs_ports: Option<String>,
 }

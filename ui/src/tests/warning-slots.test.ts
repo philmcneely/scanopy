@@ -72,7 +72,10 @@ describe('discovery warning rendering', () => {
 				type: 'TargetsContainerBridgeWithCredentials',
 				details: { addresses: ['172.17.0.3'] }
 			},
-			last_unsupported_daemon_version: '0.18.2'
+			last_unsupported_daemon_version: '0.18.2',
+			guest: 'gitlab',
+			node: 'pve',
+			bridge: 'vmbr1'
 		}) as unknown as DiscoveryWarning;
 
 	/**

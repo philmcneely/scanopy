@@ -87,6 +87,9 @@ impl DiscoveryWarning {
 
             Self::VlanRecordingFailed { .. }
             | Self::EqualReachIntegrationsMerged { .. }
+            | Self::ProxmoxGuestOutsideScan { .. }
+            | Self::ProxmoxGuestBehindNode { .. }
+            | Self::ProxmoxGuestIsolated { .. }
             | Self::ConnectionsWithoutProtocolResponse { .. }
             | Self::ScanTimeLimitWithEstimate { .. }
             | Self::ScanTimeLimit { .. }
