@@ -57,8 +57,6 @@ erDiagram
 "public.bindings" }o--o| "public.ports" : "FOREIGN KEY (port_id) REFERENCES ports(id) ON DELETE CASCADE"
 "public.bindings" }o--o| "public.snapshots" : "FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE"
 "public.dependency_members" }o--|| "public.dependencies" : "FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE"
-"public.dependency_members" }o--|| "public.services" : "FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE"
-"public.dependency_members" }o--o| "public.bindings" : "FOREIGN KEY (binding_id) REFERENCES bindings(id) ON DELETE CASCADE"
 "public.dependency_members" }o--o| "public.snapshots" : "FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE"
 "public.user_api_keys" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.user_api_keys" }o--|| "public.organizations" : "FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE"
