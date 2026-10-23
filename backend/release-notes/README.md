@@ -10,19 +10,29 @@ date: 2026-10-11
 title: 'Short headline for the release'
 email: true
 modal: true
+licensed_email: false
 ---
 
 Markdown body. Raw HTML is dropped when rendered.
 ```
 
-`email: true` sends the release email to every user when a server starts on this version. That
-email covers every release since the last one sent. `email: false` shows the notes in the app
-only.
+`email: true` sends the release email to every user when a server starts on this version. The
+email carries this release's notes only. A release with `email: false` is never emailed, and a later
+emailed release doesn't include it. `email: false` shows the notes in the app only.
+
+The email ends each section of the body (the text before each heading, and the last section) with a
+link to the app, and closes with an Open Scanopy button.
+
+On Scanopy Cloud, owners of a current self-hosted licence get an upgrade version of the email in
+place of the general one: the same notes, with every link pointing to the upgrade guide. Other
+members of their org get neither, since their own server announces the release.
+`licensed_email: true` sends that version to licence owners even when `email` is `false`. A file
+without `licensed_email` sends it only with `email: true`. Self-hosted servers ignore it.
 
 `modal: true` opens the release notes modal for each user after the upgrade, listing every release
 they haven't dismissed. `modal: false` leaves it closed; the release's notes show the next time a
-release opens it. A file without `modal` opens it. Prepare Release sets both flags from its
-`announce_by_email` and `show_modal` inputs.
+release opens it. A file without `modal` opens it. Prepare Release sets the three flags from its
+`announce_by_email`, `show_modal` and `email_licensed_owners` inputs.
 
 Edit a file here before the release is tagged. A server shows the copy it was built with, so a
 change after the tag reaches servers only with the next release.

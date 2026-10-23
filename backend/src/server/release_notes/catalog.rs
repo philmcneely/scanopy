@@ -8,6 +8,7 @@
 use std::sync::OnceLock;
 
 use chrono::NaiveDate;
+use comrak::nodes::NodeValue;
 use rust_embed::Embed;
 use semver::Version;
 
@@ -54,6 +55,30 @@ pub(crate) fn render_markdown(body: &str) -> String {
     comrak::markdown_to_html(body.trim(), &comrak::Options::default())
 }
 
+/// Render a markdown body as sections, split before each top-level heading.
+/// Content before the first heading is a section of its own. A heading inside
+/// a code block or a list doesn't split.
+fn render_sections(body: &str) -> Vec<String> {
+    let body = body.trim();
+    let arena = comrak::Arena::new();
+    let root = comrak::parse_document(&arena, body, &comrak::Options::default());
+    let lines: Vec<&str> = body.lines().collect();
+    let mut bounds = vec![0];
+    bounds.extend(
+        root.children()
+            .filter(|node| matches!(node.data().value, NodeValue::Heading(_)))
+            .map(|node| node.data().sourcepos.start.line - 1),
+    );
+    bounds.push(lines.len());
+    bounds.dedup();
+    bounds
+        .windows(2)
+        .map(|range| lines[range[0]..range[1]].join("\n"))
+        .filter(|section| !section.trim().is_empty())
+        .map(|section| render_markdown(&section))
+        .collect()
+}
+
 /// One release's notes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReleaseNote {
@@ -65,8 +90,15 @@ pub struct ReleaseNote {
     /// Whether this release opens the release notes modal on its own. Notes
     /// from before the flag existed have none and open it.
     pub modal: bool,
+    /// Whether Scanopy Cloud emails this release to the owners of self-hosted
+    /// licences when it doesn't email everyone. Notes from before the flag
+    /// existed have none and don't.
+    pub licensed_email: bool,
     /// The body, rendered from markdown with raw HTML left out.
     pub html: String,
+    /// The body rendered as sections, split before each heading. The release
+    /// email closes each one with a link.
+    pub sections: Vec<String>,
 }
 
 impl ReleaseNote {
@@ -76,7 +108,7 @@ impl ReleaseNote {
     }
 
     /// Parse a notes file: YAML-style frontmatter (`version`, `date`, `title`,
-    /// `email`, optional `modal`), then the markdown body.
+    /// `email`, optional `modal` and `licensed_email`), then the markdown body.
     pub fn parse(source: &str) -> Result<Self, String> {
         let (frontmatter, body) = split_frontmatter(source)?;
         let required = |key: &str| frontmatter.required(key);
@@ -97,6 +129,11 @@ impl ReleaseNote {
             Some("false") => false,
             Some(other) => return Err(format!("modal `{other}` is not true or false")),
         };
+        let licensed_email = match frontmatter.field("licensed_email").as_deref() {
+            None | Some("false") => false,
+            Some("true") => true,
+            Some(other) => return Err(format!("licensed_email `{other}` is not true or false")),
+        };
 
         Ok(Self {
             version,
@@ -104,7 +141,9 @@ impl ReleaseNote {
             title: required("title")?,
             email,
             modal,
+            licensed_email,
             html: render_markdown(body),
+            sections: render_sections(body),
         })
     }
 }
@@ -216,6 +255,32 @@ pub(crate) mod tests {
         assert_eq!(modal("email: false"), Ok(true));
         assert_eq!(modal("email: false\nmodal: false"), Ok(false));
         assert!(modal("email: false\nmodal: maybe").is_err());
+    }
+
+    /// Notes written before the `licensed_email` flag existed email no licence
+    /// owners on their own, as they didn't.
+    #[test]
+    fn licensed_email_defaults_to_off_when_the_flag_is_absent() {
+        let licensed = |extra: &str| {
+            ReleaseNote::parse(&note_file_with("0.18.0", extra).1).map(|note| note.licensed_email)
+        };
+        assert_eq!(licensed("email: false"), Ok(false));
+        assert_eq!(licensed("email: false\nlicensed_email: true"), Ok(true));
+        assert!(licensed("email: false\nlicensed_email: yes").is_err());
+    }
+
+    /// Sections split before every top-level heading, keep any lead-in as their
+    /// own, and render the same markup as the whole body.
+    #[test]
+    fn sections_split_before_each_heading() {
+        let body = "Lead-in.\n\n## New Features\n\n- One\n\n```\n## not a heading\n```\n\nSetext\n------\n\n- Two\n";
+        let sections = render_sections(body);
+        assert_eq!(sections.len(), 3);
+        assert_eq!(sections[0], "<p>Lead-in.</p>\n");
+        assert!(sections[1].starts_with("<h2>New Features</h2>"));
+        assert!(sections[1].contains("## not a heading"));
+        assert!(sections[2].starts_with("<h2>Setext</h2>"));
+        assert_eq!(sections.concat(), render_markdown(body));
     }
 
     #[test]

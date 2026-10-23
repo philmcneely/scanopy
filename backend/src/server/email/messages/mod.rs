@@ -23,6 +23,7 @@ mod invoice_credited;
 mod invoice_finalization_failed;
 mod invoice_issued;
 mod invoice_overdue;
+mod licensed_server_upgrade;
 pub mod links;
 mod oidc_linked;
 mod oidc_unlinked;
@@ -81,6 +82,7 @@ pub use invoice_credited::InvoiceCredited;
 pub use invoice_finalization_failed::InvoiceFinalizationFailed;
 pub use invoice_issued::InvoiceIssued;
 pub use invoice_overdue::InvoiceOverdue;
+pub use licensed_server_upgrade::LicensedServerUpgrade;
 pub use oidc_linked::OidcLinked;
 pub use oidc_unlinked::OidcUnlinked;
 pub use organization_deleted::OrganizationDeleted;
@@ -191,8 +193,10 @@ impl EmailCategory {
             // Every link leads into the locked app, and the org's scans run
             // on its own server.
             Self::DiscoveryDigest => false,
-            // Its own server announces its own releases.
-            Self::ProductUpdates => false,
+            // Its owners get LicensedServerUpgrade. Its other members get no
+            // release email: `ReleaseNotesService` leaves them out, and their
+            // own server announces each release to them.
+            Self::ProductUpdates => true,
         }
     }
 
@@ -944,12 +948,10 @@ mod tests {
             "---\nversion: 0.18.0\ndate: 2026-10-11\ntitle: 'Faster discovery'\nemail: true\n---\n\n- Fix a thing\n",
         )
         .unwrap();
+        f("release_notes", &ReleaseNotes { note: &note });
         f(
-            "release_notes",
-            &ReleaseNotes {
-                notes: &[&note],
-                truncated: true,
-            },
+            "licensed_server_upgrade",
+            &LicensedServerUpgrade { note: &note },
         );
 
         let payload = DiscoveryDigestPayload {

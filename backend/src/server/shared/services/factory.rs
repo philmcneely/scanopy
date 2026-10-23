@@ -517,6 +517,8 @@ impl ServiceFactory {
             storage.release_announcements.clone(),
             user_service.clone(),
             email_service.clone(),
+            (deployment_type == crate::server::config::DeploymentType::Cloud)
+                .then(|| organization_service.clone()),
             bulk_email_quota,
             config.hold_release_email,
         ));

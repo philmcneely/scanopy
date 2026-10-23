@@ -43,6 +43,14 @@ on:
         options:
           - 'yes'
           - 'no'
+      email_licensed_owners:
+        description: 'Scanopy Cloud emails self-hosted licence owners the release notes with an upgrade link, even when the release emails no one else (when it emails everyone, licence owners get this version of it either way). Used when the notes are generated.'
+        required: false
+        default: 'no'
+        type: choice
+        options:
+          - 'no'
+          - 'yes'
 
 permissions: {}
 
@@ -216,6 +224,7 @@ jobs:
         RAW_NOTES: ${{ fromJSON(steps.ai_notes.outputs.structured_output || '{}').notes }}
         EMAIL: ${{ steps.email.outputs.email }}
         MODAL: ${{ inputs.show_modal == 'yes' }}
+        LICENSED_EMAIL: ${{ inputs.email_licensed_owners == 'yes' }}
       run: |
         sed -i "s/^version = .*/version = \"$VERSION\"/" backend/Cargo.toml
         (cd backend && cargo check --quiet)
@@ -233,6 +242,7 @@ jobs:
           echo "title: '${TITLE}'"
           echo "email: ${EMAIL}"
           echo "modal: ${MODAL}"
+          echo "licensed_email: ${LICENSED_EMAIL}"
           echo "---"
           echo ""
           printf '%s\n' "$NOTES"
@@ -248,6 +258,7 @@ jobs:
         NOTES_FILE: ${{ steps.phase.outputs.notes_file }}
         EMAIL: ${{ steps.email.outputs.email }}
         MODAL: ${{ inputs.show_modal == 'yes' }}
+        LICENSED_EMAIL: ${{ inputs.email_licensed_owners == 'yes' }}
         PREV_TAG: ${{ steps.prev_tag.outputs.prev_tag }}
       run: |
         BRANCH="release/v${VERSION}"
@@ -258,9 +269,16 @@ jobs:
         git push --force origin "$BRANCH"
 
         if [ "$EMAIL" = "true" ]; then
-          EMAIL_LINE="\`email: true\`: servers that upgrade to v${VERSION} email these notes to every user, together with the notes of each release since the last emailed one."
+          EMAIL_LINE="\`email: true\`: servers that upgrade to v${VERSION} email these notes to every user. On Scanopy Cloud, self-hosted licence owners get them with an upgrade link instead."
         else
           EMAIL_LINE="\`email: false\`: the notes show in the app only. Set it to \`true\` to email them."
+        fi
+        if [ "$EMAIL" = "true" ]; then
+          LICENSED_LINE="\`licensed_email: ${LICENSED_EMAIL}\`: no effect, because \`email: true\` already sends licence owners the upgrade version."
+        elif [ "$LICENSED_EMAIL" = "true" ]; then
+          LICENSED_LINE="\`licensed_email: true\`: Scanopy Cloud emails these notes with an upgrade link to self-hosted licence owners only."
+        else
+          LICENSED_LINE="\`licensed_email: false\`: licence owners get no email. Set it to \`true\` to send them these notes with an upgrade link."
         fi
         if [ "$MODAL" = "true" ]; then
           MODAL_LINE="\`modal: true\`: users see the release notes modal after the upgrade."
@@ -280,6 +298,7 @@ jobs:
           echo "- [ ] Edit \`${NOTES_FILE}\` until it reads right"
           echo "- [ ] Check the \`email\` flag. ${EMAIL_LINE}"
           echo "- [ ] Check the \`modal\` flag. ${MODAL_LINE}"
+          echo "- [ ] Check the \`licensed_email\` flag. ${LICENSED_LINE}"
           echo "- [ ] Check the Deploy-Mode line above (\`backward-compatible\` or \`downtime\`)"
           for TERMS_FILE in $TERMS_FILES; do
             echo "- [ ] Read the terms update \`${TERMS_FILE}\`. Scanopy Cloud emails it to every user once v${VERSION} deploys."
