@@ -385,7 +385,6 @@ impl DiscoveryRunner {
             host_id: self.host_id,
             host_naming_fallback: self.host_naming_fallback,
             known_subnets,
-            scanned_subnets: std::slice::from_ref(&target.subnet),
             scanning_subnet: Some(&target.subnet),
             ip_address_id: Some(target.ip_address.id),
         };

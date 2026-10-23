@@ -18,8 +18,7 @@ mod coding;
 pub use coding::{
     warn_contradicted_claims, warn_credential_issues, warn_equal_reach_integrations,
     warn_incomplete_interface_walks, warn_incomplete_snmp_walks, warn_malformed_neighbours,
-    warn_snmp_collected_nothing, warn_unreached_proxmox_guests, warn_unresolved_lldp_ports,
-    warn_vlan_recording_failures,
+    warn_snmp_collected_nothing, warn_unresolved_lldp_ports, warn_vlan_recording_failures,
 };
 
 use std::net::IpAddr;
@@ -243,28 +242,6 @@ pub enum MalformedNeighbourReason {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VlanRecordingFailed {
     pub ip: IpAddr,
-}
-
-/// A running Proxmox VE guest at addresses no subnet this scan covers, recorded without ports or
-/// services.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UnreachedProxmoxGuest {
-    /// Its first address.
-    pub ip: IpAddr,
-    /// Its Proxmox VE name, else its VMID.
-    pub guest: String,
-    pub reason: UnreachedGuestReason,
-}
-
-/// Why nothing identified an unreached guest's services, which decides what the operator can do.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum UnreachedGuestReason {
-    /// On a shared network outside the scan, or one the node's config doesn't list.
-    OutsideScan,
-    /// On a bridge with no uplink that `node` holds an address on.
-    BehindNode { node: String, bridge: String },
-    /// On a bridge with no uplink and no node address.
-    Isolated { bridge: String },
 }
 
 /// A host whose interfaces two full-ifTable integrations both collected in one scan.
