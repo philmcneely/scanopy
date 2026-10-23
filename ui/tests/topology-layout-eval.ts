@@ -19,7 +19,10 @@ import {
  *    through a card that is not an endpoint, and their total and longest drawn length;
  *  - dependency order: share of inner dependency edges whose target reads after its source (a
  *    lower row, or the same row to the right);
- *  - edges between root containers: total and longest drawn length;
+ *  - edges between root containers: crossings between them as drawn, and total and longest drawn
+ *    length;
+ *  - chord crossings: pairs of edges sharing no endpoint whose straight handle-to-handle chords
+ *    cross, which counts what node and port order decide regardless of routing;
  *  - root containers: overlaps, bounding box, and the share of it no container covers;
  *  - ELK time per layout run.
  *
@@ -29,6 +32,9 @@ import {
  *
  * Run:
  *   SESSION_ID=<session> npx playwright test tests/topology-layout-eval.ts --project=chromium
+ *
+ * `EVAL_VIEWS=L2Physical` limits the run to the listed views. L2Physical is scored at every
+ * collapse level, as `<site> L2Physical L<level>`.
  *
  * Writes `tests/screenshots/layout-eval.json` and one screenshot per view.
  */
@@ -117,6 +123,8 @@ interface ViewMetrics {
 	dependencyEdges: number;
 	dependencyInOrderPct: number;
 	crossEdges: number;
+	crossCrossings: number;
+	chordCrossings: number;
 	crossLengthTotal: number;
 	crossLengthMax: number;
 	boundsWidth: number;
@@ -275,6 +283,35 @@ function computeMetrics(
 		}
 	}
 
+	const shareEndpoint = (a: SnapshotEdge, b: SnapshotEdge) =>
+		a.source === b.source ||
+		a.source === b.target ||
+		a.target === b.source ||
+		a.target === b.target;
+
+	// Crossings between edges joining different root containers, as drawn, and as straight chords
+	// between each edge's handle endpoints, which ignores routing and counts what an order decides.
+	let crossCrossings = 0;
+	for (let i = 0; i < cross.length; i++) {
+		for (let j = i + 1; j < cross.length; j++) {
+			if (shareEndpoint(cross[i], cross[j])) continue;
+			if (polylinesCross(paths[cross[i].id], paths[cross[j].id])) crossCrossings++;
+		}
+	}
+	const chord = (e: SnapshotEdge) => {
+		const p = paths[e.id];
+		return [p[0], p[p.length - 1]] as const;
+	};
+	let chordCrossings = 0;
+	for (let i = 0; i < drawn.length; i++) {
+		for (let j = i + 1; j < drawn.length; j++) {
+			if (shareEndpoint(drawn[i], drawn[j])) continue;
+			const [a, b] = chord(drawn[i]);
+			const [c, d] = chord(drawn[j]);
+			if (segmentsCross(a, b, c, d)) chordCrossings++;
+		}
+	}
+
 	// Inner edges whose drawn path enters a card that is neither endpoint nor an endpoint's ancestor.
 	const elements = nodes.filter((n) => n.type === 'Element' && n.width > 0 && n.height > 0);
 	let innerBehindCards = 0;
@@ -333,6 +370,8 @@ function computeMetrics(
 			? Math.round((100 * inOrder.length) / dependencyEdges.length)
 			: 100,
 		crossEdges: cross.length,
+		crossCrossings,
+		chordCrossings,
 		crossLengthTotal: Math.round(sum(crossLengths)),
 		crossLengthMax: Math.round(max(crossLengths)),
 		boundsWidth: rootBoxes.length ? Math.round(maxX - minX) : 0,
@@ -344,6 +383,11 @@ function computeMetrics(
 
 /** The topology page picks its site from this key, not from the URL. */
 const SELECTED_SITE_KEY = 'scanopy_topology_selected_site_id';
+
+/** The collapse level the viewer last applied, as `collapse.ts` persists it. */
+async function collapseLevel(page: Page): Promise<string | null> {
+	return page.evaluate(() => localStorage.getItem('scanopy_topology_collapse_level'));
+}
 
 test('topology layout quality evaluation', async ({ context }) => {
 	test.setTimeout(600_000);
@@ -373,12 +417,7 @@ test('topology layout quality evaluation', async ({ context }) => {
 			},
 			[SELECTED_SITE_KEY, siteId]
 		);
-		for (const view of VIEWS) {
-			const name = `${site} ${view}`;
-			await page.goto(`/?view=${view}#topology`);
-			await page.waitForSelector('.svelte-flow__node', { timeout: 60_000 });
-			await waitForStableLayout(page);
-
+		const measure = async (name: string) => {
 			const perf = await readPipelinePerf(page);
 			const elkRuns = perf.counts['layout.elk-compute'] ?? 0;
 			const elkMs = elkRuns ? (perf.durations['layout.elk-compute'] ?? 0) / elkRuns : 0;
@@ -403,6 +442,32 @@ test('topology layout quality evaluation', async ({ context }) => {
 					failures.push(`${name}: ${key} ${value} < ${bound.min}`);
 				}
 			}
+		};
+
+		const only = process.env.EVAL_VIEWS?.split(',');
+		for (const view of VIEWS.filter((v) => !only || only.includes(v))) {
+			await page.goto(`/?view=${view}#topology`);
+			await page.waitForSelector('.svelte-flow__node', { timeout: 60_000 });
+			await waitForStableLayout(page);
+			if (view !== 'L2Physical') {
+				await measure(`${site} ${view}`);
+				continue;
+			}
+
+			// L2 at every collapse level: walk to the most collapsed, then expand one level at a time.
+			await page.locator('.svelte-flow').click({ position: { x: 5, y: 5 } });
+			const step = async (key: '[' | ']') => {
+				const before = await collapseLevel(page);
+				await page.keyboard.press(key);
+				await waitForStableLayout(page);
+				return (await collapseLevel(page)) !== before;
+			};
+			while (await step('[')) {
+				/* collapse fully */
+			}
+			do {
+				await measure(`${site} ${view} L${await collapseLevel(page)}`);
+			} while (await step(']'));
 		}
 		await page.close();
 	}

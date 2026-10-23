@@ -129,8 +129,7 @@ export interface ElementRenderResult {
 
 /**
  * An icon card: the element's glyph with a short label and the rest of the card's text on hover. A
- * device or software draws its glyph large above the label; a port draws as one row of glyph, label
- * and status dot, the same row a group member is.
+ * device, software or port draws its glyph large above the label.
  */
 export interface ElementIconCard {
 	glyph: EntityGlyph;
@@ -413,7 +412,7 @@ export function hostTooltip(
 	);
 }
 
-/** The interface fields a port row's tooltip lists, in order: what the one-line row has no room for. */
+/** The interface fields a port card's tooltip lists, in order: what the card has no room for. */
 const PORT_TOOLTIP_FIELDS = [
 	'oper_status',
 	'speed_bps',
@@ -908,10 +907,6 @@ export function elementShapeKey(result: ElementRenderResult): string {
 	if (!d) return 'null';
 
 	const icon = result.iconCard;
-	// A port is one truncated row, with the stale pill above it when it is stale.
-	if (icon?.glyph.type === 'port') {
-		return ['row', d.elementType, result.staleTag ? 1 : 0].join('|');
-	}
 	// An icon card renders only the glyph, an optional stale pill and a label clamped to two
 	// lines of ~14 characters.
 	if (icon) {
