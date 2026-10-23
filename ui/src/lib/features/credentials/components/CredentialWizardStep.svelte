@@ -50,6 +50,7 @@
 		daemons_credentialWizardAddExisting,
 		daemons_credentialWizardSelectExisting,
 		daemons_credentialWizardDaemonHostUnavailable,
+		daemons_credentialWizardExistingFieldsReadOnly,
 		credentials_requiresDaemonVersion
 	} from '$lib/paraglide/messages';
 
@@ -586,7 +587,7 @@
 				<div class:hidden={selectedIndex !== index}>
 					{#if pending.isExisting}
 						<!-- Existing credential added by reference (incl. daemon-host-only sockets):
-						     read-only here (fields shown disabled). Checked before isDaemonHostOnly so an
+						     Step 2 shows a pointer to edit it on its own instead of its fields. Checked before isDaemonHostOnly so an
 						     existing socket cred renders as a reference card, not an editable new form.
 						     A credential already assigned to a host through the junction lands here too,
 						     with those assignments rendered as locked target rows — one card per
@@ -598,7 +599,7 @@
 							{form}
 							credential={pending.credential}
 							compact={true}
-							disabled={true}
+							fieldsNotice={daemons_credentialWizardExistingFieldsReadOnly()}
 							fieldPrefix={`credentials[${index}].`}
 							fixedCredentialType={pending.credential.credential_type.type}
 							fixedName={pending.credential.name}

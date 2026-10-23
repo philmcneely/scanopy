@@ -35,7 +35,6 @@
 	import RadioGroup from '$lib/shared/components/forms/input/RadioGroup.svelte';
 	import type { FieldDefinition, FieldType } from '$lib/shared/stores/metadata';
 	import { Eye, EyeOff, Plus } from 'lucide-svelte';
-	import type { Snippet } from 'svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import { docsUrl } from '$lib/shared/utils/docs';
 	import {
@@ -60,7 +59,6 @@
 		common_details,
 		common_name,
 		common_stepNumber,
-		daemons_credentialWizardExistingFieldsReadOnly,
 		daemons_credentialWizardStepConfigure,
 		daemons_credentialWizardStepSelectTarget,
 		common_options,
@@ -103,10 +101,9 @@
 		fixedName?: string;
 		compact?: boolean;
 		hideFields?: boolean;
-		/** Show the name + field inputs but render them disabled (read-only), instead of hiding
-		 *  them with `hideFields`. Used for referenced/managed credentials (e.g. a daemon-host
-		 *  socket) so the user can see values like socket_path but cannot edit them here. */
-		disabled?: boolean;
+		/** Shown in Step 2 in place of the name + field inputs. Used for a saved credential added
+		 *  by reference, whose fields are edited from the credential itself, not here. */
+		fieldsNotice?: string;
 		/** Hide the target (scope/IP) section — for daemon-host-only types (e.g. the local
 		 *  socket) whose target is implicit (127.0.0.1). Shows fields, no target picker. */
 		hideTargets?: boolean;
@@ -153,7 +150,7 @@
 		fixedName,
 		compact = false,
 		hideFields = false,
-		disabled = false,
+		fieldsNotice,
 		hideTargets = false,
 		fieldPrefix = '',
 		daemonHostUnavailable = false,
@@ -258,7 +255,7 @@
 	let visibleFieldGroups = $derived(groupFieldsByGroup(currentFields));
 
 	type FieldGroup = ReturnType<typeof groupFieldsByGroup>[number];
-	interface FieldSection {
+	interface FieldCard {
 		key: string;
 		title: string;
 		/** Holds the name/description/type fields (standard mode only). */
@@ -271,22 +268,22 @@
 		return name ?? common_options();
 	}
 
-	// A section holds two or more fields: a group with one field joins the section before it (the
-	// Details section for the first group), or the next section when nothing precedes it.
-	function buildFieldSections(withIdentity: boolean, groups: FieldGroup[]): FieldSection[] {
-		const sections: FieldSection[] = [];
+	// A card holds two or more fields: a group with one field joins the card before it (the
+	// Details card for the first group), or the next card when nothing precedes it.
+	function buildFieldCards(withIdentity: boolean, groups: FieldGroup[]): FieldCard[] {
+		const cards: FieldCard[] = [];
 		if (withIdentity) {
-			sections.push({ key: '_identity', title: common_details(), identity: true, groups: [] });
+			cards.push({ key: '_identity', title: common_details(), identity: true, groups: [] });
 		}
 		let pending: FieldGroup[] = [];
 		for (const group of groups) {
-			const last = sections.at(-1);
+			const last = cards.at(-1);
 			if (group.fields.length === 1) {
 				if (last) last.groups.push(group);
 				else pending.push(group);
 				continue;
 			}
-			sections.push({
+			cards.push({
 				key: group.name ?? '_ungrouped',
 				title: groupTitle(group.name),
 				identity: false,
@@ -295,34 +292,35 @@
 			pending = [];
 		}
 		if (pending.length > 0) {
-			sections.push({
+			cards.push({
 				key: pending[0].name ?? '_ungrouped',
 				title: groupTitle(pending[0].name),
 				identity: false,
 				groups: pending
 			});
 		}
-		return sections;
+		return cards;
 	}
 
 	// Standard mode: the identity fields and each field group. Compact mode keeps the name on the
 	// surface above the groups.
-	function sectionsFor(groups: FieldGroup[]): FieldSection[] {
+	function cardsFor(groups: FieldGroup[]): FieldCard[] {
 		return compact
-			? buildFieldSections(false, groups)
-			: buildFieldSections(section !== 'fields', section !== 'identity' ? groups : []);
+			? buildFieldCards(false, groups)
+			: buildFieldCards(section !== 'fields', section !== 'identity' ? groups : []);
 	}
 
-	let fieldSections = $derived(sectionsFor(visibleFieldGroups));
+	let fieldCards = $derived(cardsFor(visibleFieldGroups));
 
-	// One section's worth of fields renders without a header; two or more sections each get one.
+	// One card's worth of fields sits on the modal surface; two or more cards each get a title.
 	// Decided from every field of the type, so a field-set choice that hides a group (SNMPv3
 	// authNoPriv hides Privacy) shows or hides fields without switching the layout to flat.
-	let useGroupHeaders = $derived(sectionsFor(groupFieldsByGroup(typeFields)).length > 1);
+	let useGroupCards = $derived(cardsFor(groupFieldsByGroup(typeFields)).length > 1);
 
 	// Track target IPs as local $state for reactivity (TanStack Form doesn't drive Svelte 5 reactivity)
 	let targetIpValues = $state<string[]>(['']);
 	let hasDaemonHostTarget = $derived(targetIpValues.some(isDaemonHostValue));
+	// Wizard cards that show both targets and fields number them: pick a target, then configure.
 	let showSteps = $derived(compact && !hideTargets && !hideFields);
 	// Until a target row exists, the add-target buttons are the card's primary action.
 	let targetCtaClass = $derived(
@@ -895,18 +893,12 @@
 	{/if}
 {/snippet}
 
-<!-- A wizard card that shows both targets and fields puts each in a numbered step card. -->
-{#snippet stepCard(number: number, label: string, content: Snippet)}
+{#snippet stepHeading(number: number, label: string)}
 	{#if showSteps}
-		<InfoCard>
-			<h3 class="text-lg font-semibold text-primary">
-				{common_stepNumber({ number: String(number) })}
-				{label}
-			</h3>
-			<div class="space-y-4">{@render content()}</div>
-		</InfoCard>
-	{:else}
-		{@render content()}
+		<h3 class="text-base font-semibold text-primary">
+			{common_stepNumber({ number: String(number) })}
+			{label}
+		</h3>
 	{/if}
 {/snippet}
 
@@ -915,158 +907,142 @@
 		{@render integrationDocsHint()}
 
 		{#if !hideTargets}
-			{#snippet targetsStep()}
-				<!-- Hosts this credential already reaches through the host/credential junction.
+			{@render stepHeading(1, daemons_credentialWizardStepSelectTarget())}
+			<!-- Hosts this credential already reaches through the host/credential junction.
 			     Informational, like the site-wide credential line in the wizard — these are
 			     owned elsewhere, so they are listed rather than offered as editable rows.
 			     Shown in both modes: it is a fact about the credential, not about the choice
 			     being made here. -->
-				{#if lockedHosts.length > 0}
-					<p class="flex flex-wrap items-center gap-1 text-xs text-tertiary">
-						<span>{credentials_alreadyAssignedTo()}</span>
-						{#each lockedHosts as host (host.id)}
-							<EntityTag
-								entityRef={entityRef('Host', host.id, host)}
-								label={hostDisplayName(host)}
-								color={entities.getColorHelper('Host').color}
-							/>
-						{/each}
-					</p>
-				{/if}
-
-				<!-- Target mode selector — only when the type supports both modes -->
-				{#if showTargetModeToggle}
-					<SegmentedControl
-						options={[
-							{ value: 'per_host', label: daemons_credentialWizardTargetSpecificHosts() },
-							{ value: 'broadcast', label: daemons_credentialWizardTargetAllHosts() }
-						]}
-						selected={targetMode}
-						onchange={(v) => handleTargetModeChange(v as 'per_host' | 'broadcast')}
-						size="sm"
-					/>
-				{/if}
-
-				{#if targetMode === 'broadcast'}
-					<p class="text-xs text-muted">{daemons_credentialWizardBroadcastHelp()}</p>
-				{:else}
-					{#each targetIpValues as ip, i (i)}
-						<div class="flex items-center gap-2">
-							{#if isDaemonHostValue(ip)}
-								<input
-									type="text"
-									class="input-field min-w-0 flex-1"
-									value={daemons_credentialWizardDaemonHostTargetLabel()}
-									disabled
-								/>
-							{:else}
-								<div class="min-w-0 flex-1">
-									<form.Field
-										name={targetIpFieldName(i)}
-										validators={{
-											onBlur: ({ value }: { value: string | undefined }) => validateTargetIp(value),
-											onChange: ({ value }: { value: string | undefined }) =>
-												validateTargetIp(value),
-											onSubmit: ({ value }: { value: string | undefined }) =>
-												validateTargetIp(value)
-										}}
-										listeners={{
-											onChange: ({ value }: { value: string }) => handleTargetIpChange(i, value)
-										}}
-									>
-										{#snippet children(field: AnyFieldApi)}
-											<TextInput
-												label=""
-												id="target-ip-{fieldPrefix}{i}"
-												placeholder={credentials_ipExamplePlaceholder()}
-												{field}
-											/>
-										{/snippet}
-									</form.Field>
-								</div>
-							{/if}
-							<button
-								type="button"
-								class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
-								onclick={() => handleRemoveTarget(i)}>&times;</button
-							>
-						</div>
+			{#if lockedHosts.length > 0}
+				<p class="flex flex-wrap items-center gap-1 text-xs text-tertiary">
+					<span>{credentials_alreadyAssignedTo()}</span>
+					{#each lockedHosts as host (host.id)}
+						<EntityTag
+							entityRef={entityRef('Host', host.id, host)}
+							label={hostDisplayName(host)}
+							color={entities.getColorHelper('Host').color}
+						/>
 					{/each}
-					<div class="flex flex-wrap items-center gap-3">
-						{#if supportsDaemonHost}
-							{#if daemonHostUnavailable && !hasDaemonHostTarget}
-								<!-- Claimed by another credential: unselectable, reason on hover -->
-								<span
-									class="inline-block"
-									data-tooltip={daemons_credentialWizardDaemonHostUnavailable({
-										integration: integrationName
-									})}
-									use:tooltip
+				</p>
+			{/if}
+
+			<!-- Target mode selector — only when the type supports both modes -->
+			{#if showTargetModeToggle}
+				<SegmentedControl
+					options={[
+						{ value: 'per_host', label: daemons_credentialWizardTargetSpecificHosts() },
+						{ value: 'broadcast', label: daemons_credentialWizardTargetAllHosts() }
+					]}
+					selected={targetMode}
+					onchange={(v) => handleTargetModeChange(v as 'per_host' | 'broadcast')}
+					size="sm"
+				/>
+			{/if}
+
+			{#if targetMode === 'broadcast'}
+				<p class="text-xs text-muted">{daemons_credentialWizardBroadcastHelp()}</p>
+			{:else}
+				{#each targetIpValues as ip, i (i)}
+					<div class="flex items-center gap-2">
+						{#if isDaemonHostValue(ip)}
+							<input
+								type="text"
+								class="input-field min-w-0 flex-1"
+								value={daemons_credentialWizardDaemonHostTargetLabel()}
+								disabled
+							/>
+						{:else}
+							<div class="min-w-0 flex-1">
+								<form.Field
+									name={targetIpFieldName(i)}
+									validators={{
+										onBlur: ({ value }: { value: string | undefined }) => validateTargetIp(value),
+										onChange: ({ value }: { value: string | undefined }) => validateTargetIp(value),
+										onSubmit: ({ value }: { value: string | undefined }) => validateTargetIp(value)
+									}}
+									listeners={{
+										onChange: ({ value }: { value: string }) => handleTargetIpChange(i, value)
+									}}
 								>
-									<button type="button" class={targetCtaClass} disabled>
-										<Plus size={14} />
-										{daemons_credentialWizardAddDaemonHostTarget()}
-									</button>
-								</span>
-							{:else if hasDaemonHostTarget}
-								<!-- Already added: disabled -->
+									{#snippet children(field: AnyFieldApi)}
+										<TextInput
+											label=""
+											id="target-ip-{fieldPrefix}{i}"
+											placeholder={credentials_ipExamplePlaceholder()}
+											{field}
+										/>
+									{/snippet}
+								</form.Field>
+							</div>
+						{/if}
+						<button
+							type="button"
+							class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
+							onclick={() => handleRemoveTarget(i)}>&times;</button
+						>
+					</div>
+				{/each}
+				<div class="flex flex-wrap items-center gap-3">
+					{#if supportsDaemonHost}
+						{#if daemonHostUnavailable && !hasDaemonHostTarget}
+							<!-- Claimed by another credential: unselectable, reason on hover -->
+							<span
+								class="inline-block"
+								data-tooltip={daemons_credentialWizardDaemonHostUnavailable({
+									integration: integrationName
+								})}
+								use:tooltip
+							>
 								<button type="button" class={targetCtaClass} disabled>
 									<Plus size={14} />
 									{daemons_credentialWizardAddDaemonHostTarget()}
 								</button>
-							{:else}
-								<button type="button" class={targetCtaClass} onclick={handleAddDaemonHostTarget}>
-									<Plus size={14} />
-									{daemons_credentialWizardAddDaemonHostTarget()}
-								</button>
-							{/if}
-						{/if}
-						{#if supportsRemoteHosts}
-							<button type="button" class={targetCtaClass} onclick={handleAddIpTarget}>
+							</span>
+						{:else if hasDaemonHostTarget}
+							<!-- Already added: disabled -->
+							<button type="button" class={targetCtaClass} disabled>
 								<Plus size={14} />
-								{daemons_credentialWizardAddRemoteHostTarget()}
+								{daemons_credentialWizardAddDaemonHostTarget()}
+							</button>
+						{:else}
+							<button type="button" class={targetCtaClass} onclick={handleAddDaemonHostTarget}>
+								<Plus size={14} />
+								{daemons_credentialWizardAddDaemonHostTarget()}
 							</button>
 						{/if}
-					</div>
-					<p class="text-xs text-muted">{daemons_credentialWizardTargetIpHelp()}</p>
-				{/if}
-			{/snippet}
-			{@render stepCard(1, daemons_credentialWizardStepSelectTarget(), targetsStep)}
+					{/if}
+					{#if supportsRemoteHosts}
+						<button type="button" class={targetCtaClass} onclick={handleAddIpTarget}>
+							<Plus size={14} />
+							{daemons_credentialWizardAddRemoteHostTarget()}
+						</button>
+					{/if}
+				</div>
+				<p class="text-xs text-muted">{daemons_credentialWizardTargetIpHelp()}</p>
+			{/if}
 		{/if}
 
-		<!-- Name + fields. `disabled` shows them read-only (vs `hideFields` which hides them);
-		     a disabled <fieldset> disables every descendant control, including SegmentedControls. -->
+		<!-- Name + fields, or `fieldsNotice` in their place. -->
 		{#if !hideFields}
-			{#snippet fieldsStep()}
-				<!-- Read-only reference to a saved credential: its fields are edited on their own, not
-				     here. A seeded default's fields are fixed, so it gets no edit pointer. -->
-				{#if disabled && !credential?.is_default}
-					<InlineInfo body={daemons_credentialWizardExistingFieldsReadOnly()} />
-				{/if}
-				<fieldset {disabled} class="m-0 min-w-0 space-y-4 border-0 p-0">
-					<form.Field
-						name={nameFieldName}
-						validators={{
-							onBlur: ({ value }: { value: string }) => required(value) || max(100)(value),
-							onSubmit: ({ value }: { value: string }) => required(value) || max(100)(value)
-						}}
-						listeners={{ onChange: ({ value }: { value: string }) => onChange?.({ name: value }) }}
-					>
-						{#snippet children(field: AnyFieldApi)}
-							<TextInput
-								label={common_name()}
-								id="credential-name-{fieldPrefix}"
-								{field}
-								{disabled}
-								required
-							/>
-						{/snippet}
-					</form.Field>
+			{@render stepHeading(2, daemons_credentialWizardStepConfigure())}
+			{#if fieldsNotice}
+				<InlineInfo body={fieldsNotice} />
+			{:else}
+				<form.Field
+					name={nameFieldName}
+					validators={{
+						onBlur: ({ value }: { value: string }) => required(value) || max(100)(value),
+						onSubmit: ({ value }: { value: string }) => required(value) || max(100)(value)
+					}}
+					listeners={{ onChange: ({ value }: { value: string }) => onChange?.({ name: value }) }}
+				>
+					{#snippet children(field: AnyFieldApi)}
+						<TextInput label={common_name()} id="credential-name-{fieldPrefix}" {field} required />
+					{/snippet}
+				</form.Field>
 
-					{@render fieldSectionList()}
-				</fieldset>
-			{/snippet}
-			{@render stepCard(2, daemons_credentialWizardStepConfigure(), fieldsStep)}
+				{@render fieldCardList()}
+			{/if}
 		{/if}
 	</div>
 {:else}
@@ -1078,39 +1054,36 @@
 		}}
 		class="flex flex-col gap-4"
 	>
-		<!-- Standard mode: name/type and the field groups, laid out by `fieldSections`. A caller showing
+		<!-- Standard mode: name/type and the field groups, laid out by `fieldCards`. A caller showing
 		     one section unmounts the other's fields, so validation only reaches what is on screen; the
 		     values and modes live in this component and the form, and survive. -->
 		{#if section !== 'fields'}
 			{@render integrationDocsHint()}
 		{/if}
 
-		{@render fieldSectionList()}
+		{@render fieldCardList()}
 	</form>
 {/if}
 
-{#snippet fieldSectionList()}
-	{#each fieldSections as fieldSection (fieldSection.key)}
-		{#if useGroupHeaders}
-			<section class="space-y-3">
-				<h3 class="border-b border-(--color-border) pb-2 text-base font-semibold text-primary">
-					{fieldSection.title}
-				</h3>
-				{@render fieldSectionContents(fieldSection)}
-			</section>
+{#snippet fieldCardList()}
+	{#each fieldCards as card (card.key)}
+		{#if useGroupCards}
+			<InfoCard title={card.title}>
+				{@render fieldCardContents(card)}
+			</InfoCard>
 		{:else}
-			{@render fieldSectionContents(fieldSection)}
+			{@render fieldCardContents(card)}
 		{/if}
 	{/each}
 {/snippet}
 
-{#snippet fieldSectionContents(fieldSection: FieldSection)}
-	{#if fieldSection.identity}
+{#snippet fieldCardContents(card: FieldCard)}
+	{#if card.identity}
 		<div class="space-y-4">
 			{@render identityFields()}
 		</div>
 	{/if}
-	{#each fieldSection.groups as group (group.name ?? '_ungrouped')}
+	{#each card.groups as group (group.name ?? '_ungrouped')}
 		{@render fieldList(group.fields)}
 	{/each}
 {/snippet}
@@ -1189,7 +1162,6 @@
 					id="{fieldPrefix}{DAEMON_OS_FIELD}"
 					field={formField}
 					options={osFamilyOptions()}
-					{disabled}
 					value={daemonOs}
 					onChange={(os) => (daemonOs = os)}
 					variant="inline"
@@ -1422,7 +1394,6 @@
 						field={formField}
 						options={field.options ?? []}
 						required={!field.optional}
-						{disabled}
 						value={fieldValues[field.id] ?? field.default_value ?? ''}
 						onChange={(v) => handleFieldValueChange(field.id, v)}
 						variant="inline"
