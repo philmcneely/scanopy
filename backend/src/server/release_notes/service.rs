@@ -1,12 +1,19 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::Result;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use semver::Version;
+use uuid::Uuid;
 
 use crate::server::{
-    email::{EmailService, messages::ReleaseNotes, rate_limit},
+    email::{
+        EmailService,
+        messages::{LicensedServerUpgrade, ReleaseNotes},
+        rate_limit,
+    },
+    organizations::{r#impl::base::Organization, service::OrganizationService},
     release_notes::{
         catalog::{Catalog, MAX_SHOWN, ReleaseNote},
         storage::{ReleaseAnnouncement, ReleaseAnnouncementBase},
@@ -28,6 +35,9 @@ pub struct ReleaseNotesService {
     storage: Arc<GenericPostgresStorage<ReleaseAnnouncement>>,
     user_service: Arc<UserService>,
     email_service: Option<Arc<EmailService>>,
+    /// Set on Scanopy Cloud only, the one server that sells self-hosted
+    /// licences: it finds the licence owners a release email goes to.
+    organization_service: Option<Arc<OrganizationService>>,
     /// Paces the release email below the transport's own limit, so other
     /// emails keep part of the quota while it goes out.
     bulk_limiter: DefaultDirectRateLimiter,
@@ -68,62 +78,134 @@ pub struct Unseen<'a> {
     pub auto_open: bool,
 }
 
+/// Who a release email goes to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Audience {
+    /// Every verified user. On Scanopy Cloud, licence owners get the licensed
+    /// variant instead.
+    Everyone,
+    /// Only the owners of a current self-hosted licence, on Scanopy Cloud.
+    LicensedOwners,
+}
+
+/// A release email to send: the running release's notes, to `audience`.
+#[derive(Debug, PartialEq, Eq)]
+struct Mailing<'a> {
+    note: &'a ReleaseNote,
+    audience: Audience,
+}
+
+/// A version this start recorded, with its email and who that email routes to.
+type Claimed = (ReleaseAnnouncement, Mailing<'static>, Licensed);
+
 /// What starting on the running version calls for.
 #[derive(Debug, PartialEq, Eq)]
 enum Plan<'a> {
     /// Already recorded, or older than a recorded version.
     Nothing,
-    /// Record the version, and send these notes when there are any.
-    Record(Option<Shown<'a>>),
+    /// Record the version, and send this email when there is one.
+    Record(Option<Mailing<'a>>),
 }
 
 /// Decide what starting on `running` calls for, given every recorded version.
+/// `cloud` is whether this is Scanopy Cloud, the only server that emails
+/// licence owners.
 ///
 /// No recorded version and no users is a fresh install: it records its
 /// version and sends nothing. No recorded version with users is an upgrade
 /// from a release before this table existed, and is announced like any other.
+/// An email carries the running release alone, never releases before it that
+/// sent none.
 fn plan<'a>(
     running: &Version,
     recorded: &[ReleaseAnnouncement],
     users_exist: bool,
+    cloud: bool,
     catalog: &'a Catalog,
 ) -> Plan<'a> {
-    let versions: Vec<(Version, bool)> = recorded
+    let versions: Vec<Version> = recorded
         .iter()
-        .filter_map(|row| {
-            let version = Version::parse(&row.base.version).ok()?;
-            Some((version, row.base.email_sent_at.is_some()))
-        })
+        .filter_map(|row| Version::parse(&row.base.version).ok())
         .collect();
 
-    if versions.iter().any(|(version, _)| version >= running) {
+    if versions.iter().any(|version| version >= running) {
         return Plan::Nothing;
     }
     if versions.is_empty() && !users_exist {
         return Plan::Record(None);
     }
-    match catalog.get(running) {
-        Some(note) if note.email => {}
-        Some(_) => return Plan::Record(None),
-        None => {
-            tracing::warn!(version = %running, "No release notes for this version; sending no release email");
-            return Plan::Record(None);
-        }
-    }
-
-    // The email covers every release since the last one emailed, or since the
-    // oldest version on record when none has been.
-    let last_emailed = versions
-        .iter()
-        .filter(|(_, emailed)| *emailed)
-        .map(|(v, _)| v)
-        .max();
-    let since = last_emailed.or_else(|| versions.iter().map(|(v, _)| v).min());
-    let notes = match since {
-        Some(since) => catalog.between(since, running),
-        None => catalog.get(running).into_iter().collect(),
+    let Some(note) = catalog.get(running) else {
+        tracing::warn!(version = %running, "No release notes for this version; sending no release email");
+        return Plan::Record(None);
     };
-    Plan::Record(Some(Shown::capped(notes)))
+    let audience = if note.email {
+        Some(Audience::Everyone)
+    } else if note.licensed_email && cloud {
+        Some(Audience::LicensedOwners)
+    } else {
+        None
+    };
+    Plan::Record(audience.map(|audience| Mailing { note, audience }))
+}
+
+/// The self-hosted licence holders on Scanopy Cloud, for routing a release
+/// email. Empty on a self-hosted server.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct Licensed {
+    /// Owners of an org whose self-hosted licence is current.
+    owners: HashSet<Uuid>,
+    /// Orgs on a self-hosted plan, current or not. They are locked out of the
+    /// cloud app, so their members get no general release email.
+    locked_orgs: HashSet<Uuid>,
+}
+
+/// Of `organizations`, those on a self-hosted plan, and of those the ones
+/// whose licence is still paid through `now`.
+fn licensed_orgs(organizations: &[Organization], now: DateTime<Utc>) -> (HashSet<Uuid>, Vec<Uuid>) {
+    let locked: Vec<&Organization> = organizations
+        .iter()
+        .filter(|org| {
+            org.base
+                .plan
+                .is_some_and(|plan| plan.license_plan().is_some())
+        })
+        .collect();
+    let current = locked
+        .iter()
+        .filter(|org| org.base.license_paid_through.is_some_and(|paid| paid > now))
+        .map(|org| org.id)
+        .collect();
+    (locked.iter().map(|org| org.id).collect(), current)
+}
+
+/// Which release email a user gets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Variant {
+    General,
+    Licensed,
+}
+
+/// Each verified user in `users` that `audience` reaches, with the email they
+/// get. A licence owner gets the licensed variant, never the general email
+/// too.
+fn route<'u>(
+    users: &'u [User],
+    licensed: &Licensed,
+    audience: Audience,
+) -> Vec<(&'u User, Variant)> {
+    users
+        .iter()
+        .filter(|user| user.base.email_verified)
+        .filter_map(|user| {
+            if licensed.owners.contains(&user.id) {
+                Some((user, Variant::Licensed))
+            } else if licensed.locked_orgs.contains(&user.base.organization_id) {
+                None
+            } else {
+                (audience == Audience::Everyone).then_some((user, Variant::General))
+            }
+        })
+        .collect()
 }
 
 /// The releases after `seen` up to `running`, or `running` alone when nothing
@@ -145,6 +227,7 @@ impl ReleaseNotesService {
         storage: Arc<GenericPostgresStorage<ReleaseAnnouncement>>,
         user_service: Arc<UserService>,
         email_service: Option<Arc<EmailService>>,
+        organization_service: Option<Arc<OrganizationService>>,
         bulk_quota: Quota,
         hold_email: bool,
     ) -> Self {
@@ -152,6 +235,7 @@ impl ReleaseNotesService {
             storage,
             user_service,
             email_service,
+            organization_service,
             bulk_quota,
             Catalog::embedded(),
             Version::parse(env!("CARGO_PKG_VERSION")).expect("CARGO_PKG_VERSION is semver"),
@@ -164,6 +248,7 @@ impl ReleaseNotesService {
         storage: Arc<GenericPostgresStorage<ReleaseAnnouncement>>,
         user_service: Arc<UserService>,
         email_service: Option<Arc<EmailService>>,
+        organization_service: Option<Arc<OrganizationService>>,
         bulk_quota: Quota,
         catalog: &'static Catalog,
         running: Version,
@@ -172,6 +257,7 @@ impl ReleaseNotesService {
             storage,
             user_service,
             email_service,
+            organization_service,
             bulk_limiter: RateLimiter::direct(bulk_quota),
             catalog,
             running,
@@ -222,24 +308,23 @@ impl ReleaseNotesService {
                 return;
             }
         };
-        if let Some((row, shown)) = claimed
-            && let Err(e) = self.send(row, shown).await
+        if let Some((row, mailing, licensed)) = claimed
+            && let Err(e) = self.send(row, mailing, licensed).await
         {
             tracing::error!(error = %e, version = %self.running, "Release email failed");
         }
     }
 
-    /// Record the running version unless it already is. Returns the new row
-    /// and the notes to email when this call recorded it and the release asks
-    /// for an email. Serialized by an advisory lock, so of several containers
-    /// starting together exactly one records the version.
+    /// Record the running version unless it already is. Returns the new row,
+    /// the email to send and the licence holders it routes by, when this call
+    /// recorded the version and the release asks for an email. Serialized by an
+    /// advisory lock, so of several containers starting together exactly one
+    /// records the version.
     ///
     /// A release that asks for an email is left unrecorded unless email is
-    /// `Ready`, so the first start that can send it still does.
-    async fn claim(
-        &self,
-        readiness: EmailReadiness,
-    ) -> Result<Option<(ReleaseAnnouncement, Shown<'static>)>> {
+    /// `Ready` and the licence holders could be read, so the first start that
+    /// can send it still does.
+    async fn claim(&self, readiness: EmailReadiness) -> Result<Option<Claimed>> {
         let guard = self
             .storage
             .session_lock(LockKey::ReleaseAnnouncement, DEFAULT_LOCK_TIMEOUT)
@@ -249,19 +334,18 @@ impl ReleaseNotesService {
         result
     }
 
-    async fn claim_locked(
-        &self,
-        readiness: EmailReadiness,
-    ) -> Result<Option<(ReleaseAnnouncement, Shown<'static>)>> {
+    async fn claim_locked(&self, readiness: EmailReadiness) -> Result<Option<Claimed>> {
         let recorded = self
             .storage
             .get_all(StorableFilter::new_for_server_wide_job())
             .await?;
         let users_exist = self.user_service.any_exist().await?;
-        let email = match plan(&self.running, &recorded, users_exist, self.catalog) {
+        let cloud = self.organization_service.is_some();
+        let email = match plan(&self.running, &recorded, users_exist, cloud, self.catalog) {
             Plan::Nothing => return Ok(None),
             Plan::Record(email) => email,
         };
+        let mut licensed = Licensed::default();
         if email.is_some() {
             match readiness {
                 EmailReadiness::Ready => {}
@@ -280,6 +364,7 @@ impl ReleaseNotesService {
                     return Ok(None);
                 }
             }
+            licensed = self.licensed().await?;
         }
         let row = self
             .storage
@@ -289,13 +374,43 @@ impl ReleaseNotesService {
             }))
             .await?;
         tracing::info!(version = %self.running, email = email.is_some(), "Recorded a new server version");
-        Ok(email.map(|shown| (row, shown)))
+        Ok(email.map(|mailing| (row, mailing, licensed)))
     }
 
-    /// Email `shown` to every verified user, paced by the bulk limiter. A
+    /// The self-hosted licence holders, read on Scanopy Cloud only.
+    async fn licensed(&self) -> Result<Licensed> {
+        let Some(organization_service) = &self.organization_service else {
+            return Ok(Licensed::default());
+        };
+        let organizations = organization_service
+            .get_all(StorableFilter::new_for_server_wide_job())
+            .await?;
+        let (locked_orgs, current) = licensed_orgs(&organizations, Utc::now());
+        let mut owners = HashSet::new();
+        for organization_id in current {
+            owners.extend(
+                self.user_service
+                    .get_organization_owners(&organization_id)
+                    .await?
+                    .into_iter()
+                    .map(|owner| owner.id),
+            );
+        }
+        Ok(Licensed {
+            owners,
+            locked_orgs,
+        })
+    }
+
+    /// Send `mailing` to the users it reaches, paced by the bulk limiter. A
     /// relay that keeps refusing for now (a daily quota, an outage) stops the
     /// run rather than failing every remaining recipient the same way.
-    async fn send(&self, mut row: ReleaseAnnouncement, shown: Shown<'static>) -> Result<()> {
+    async fn send(
+        &self,
+        mut row: ReleaseAnnouncement,
+        mailing: Mailing<'static>,
+        licensed: Licensed,
+    ) -> Result<()> {
         let Some(email_service) = &self.email_service else {
             tracing::info!("Email is not configured; the release email was not sent");
             return Ok(());
@@ -304,21 +419,25 @@ impl ReleaseNotesService {
             .user_service
             .get_all(StorableFilter::new_for_server_wide_job())
             .await?;
-        let recipients: Vec<&User> = users.iter().filter(|u| u.base.email_verified).collect();
-        let email = ReleaseNotes {
-            notes: &shown.notes,
-            truncated: shown.truncated,
-        };
+        let recipients = route(&users, &licensed, mailing.audience);
+        let general = ReleaseNotes { note: mailing.note };
+        let upgrade = LicensedServerUpgrade { note: mailing.note };
 
         let (mut processed, mut failed) = (0usize, 0usize);
         // Each send is an `email_sent` event and each failure has its own line, so the run
         // writes no summary.
-        for user in &recipients {
+        for (user, variant) in &recipients {
             self.bulk_limiter.until_ready().await;
-            match email_service
-                .send_release_notes(user.base.email.clone(), &email)
-                .await
-            {
+            let to = user.base.email.clone();
+            let sent = match variant {
+                Variant::General => email_service.send_release_notes(to, &general).await,
+                Variant::Licensed => {
+                    email_service
+                        .send_licensed_server_upgrade(to, &upgrade)
+                        .await
+                }
+            };
+            match sent {
                 Ok(()) => processed += 1,
                 Err(e) if rate_limit::is_transient(&e) => {
                     tracing::error!(
@@ -361,42 +480,47 @@ mod tests {
         })
     }
 
-    /// Releases 0.18.0 through 0.18.7 (email off) and 0.19.0 (email on).
+    /// Releases 0.18.0 through 0.18.7 with both emails off, except 0.18.5,
+    /// which emails licence owners only, and 0.19.0, which emails everyone.
     fn catalog() -> &'static Catalog {
         let mut files: Vec<_> = (0..=7)
-            .map(|p| note_file(&format!("0.18.{p}"), false))
+            .map(|p| match p {
+                5 => note_file_with("0.18.5", "email: false\nlicensed_email: true"),
+                p => note_file(&format!("0.18.{p}"), false),
+            })
             .collect();
         files.push(note_file("0.19.0", true));
         Box::leak(Box::new(Catalog::from_files(files)))
     }
 
-    fn emailed(plan: Plan<'_>) -> Option<Vec<String>> {
+    /// The version and audience `plan` emails, `None` when it records without
+    /// one, or a panic when it records nothing.
+    fn emailed(plan: Plan<'_>) -> Option<(String, Audience)> {
         match plan {
-            Plan::Record(Some(shown)) => {
-                Some(shown.notes.iter().map(|n| n.version.to_string()).collect())
-            }
-            Plan::Record(None) => Some(vec![]),
-            Plan::Nothing => None,
+            Plan::Record(mailing) => mailing.map(|m| (m.note.version.to_string(), m.audience)),
+            Plan::Nothing => panic!("expected the version to be recorded"),
         }
     }
 
     #[test]
     fn a_recorded_or_older_version_does_nothing() {
         let catalog = catalog();
-        assert_eq!(
-            plan(&v("0.19.0"), &[row("0.19.0", true)], true, catalog),
-            Plan::Nothing
-        );
-        assert_eq!(
-            plan(&v("0.18.7"), &[row("0.19.0", true)], true, catalog),
-            Plan::Nothing
-        );
+        for cloud in [false, true] {
+            assert_eq!(
+                plan(&v("0.19.0"), &[row("0.19.0", true)], true, cloud, catalog),
+                Plan::Nothing
+            );
+            assert_eq!(
+                plan(&v("0.18.7"), &[row("0.19.0", true)], true, cloud, catalog),
+                Plan::Nothing
+            );
+        }
     }
 
     #[test]
     fn a_fresh_install_records_without_email() {
         assert_eq!(
-            plan(&v("0.19.0"), &[], false, catalog()),
+            plan(&v("0.19.0"), &[], false, true, catalog()),
             Plan::Record(None)
         );
     }
@@ -404,52 +528,161 @@ mod tests {
     #[test]
     fn the_first_upgrade_after_this_feature_announces_the_running_release() {
         assert_eq!(
-            emailed(plan(&v("0.19.0"), &[], true, catalog())),
-            Some(vec!["0.19.0".into()])
+            emailed(plan(&v("0.19.0"), &[], true, false, catalog())),
+            Some(("0.19.0".into(), Audience::Everyone))
         );
     }
 
+    /// Each combination of the two flags, on Scanopy Cloud and self-hosted.
+    /// Only Cloud emails licence owners, and an email carries the running
+    /// release alone, however many releases since the last one sent none.
     #[test]
-    fn a_release_without_email_records_only() {
-        assert_eq!(
-            plan(&v("0.18.3"), &[row("0.18.2", false)], true, catalog()),
-            Plan::Record(None)
-        );
-    }
-
-    /// The next emailed release carries every release since the last email,
-    /// capped, with the overflow flagged.
-    #[test]
-    fn an_emailed_release_covers_everything_since_the_last_email() {
+    fn the_flags_pick_the_audience() {
         let catalog = catalog();
         let recorded = [
             row("0.18.0", true),
+            row("0.18.2", false),
             row("0.18.4", false),
-            row("0.18.6", false),
         ];
-        match plan(&v("0.19.0"), &recorded, true, catalog) {
-            Plan::Record(Some(shown)) => {
-                let versions: Vec<_> = shown.notes.iter().map(|n| n.version.to_string()).collect();
-                assert_eq!(versions, ["0.19.0", "0.18.7", "0.18.6", "0.18.5", "0.18.4"]);
-                assert!(
-                    shown.truncated,
-                    "0.18.1 to 0.18.3 are left for the changelog"
-                );
-            }
-            other => panic!("expected an email, got {other:?}"),
+        let cases = [
+            ("0.19.0", true, Some(Audience::Everyone)),
+            ("0.19.0", false, Some(Audience::Everyone)),
+            ("0.18.5", true, Some(Audience::LicensedOwners)),
+            ("0.18.5", false, None),
+            ("0.18.6", true, None),
+            ("0.18.6", false, None),
+        ];
+        for (running, cloud, audience) in cases {
+            assert_eq!(
+                emailed(plan(&v(running), &recorded, true, cloud, catalog)),
+                audience.map(|audience| (running.to_string(), audience)),
+                "{running} on cloud={cloud}"
+            );
         }
     }
 
-    fn service(storage: &StorageFactory, running: &str) -> ReleaseNotesService {
+    fn user_in(organization_id: Uuid, verified: bool) -> User {
+        let mut user = crate::tests::user(&organization_id);
+        user.base.email =
+            email_address::EmailAddress::new_unchecked(format!("{}@example.com", user.id));
+        user.base.email_verified = verified;
+        user
+    }
+
+    /// A cloud user, a licence owner and another member of the owner's org,
+    /// and an unverified licence owner, routed to `audience`.
+    fn routed(audience: Audience) -> Vec<(&'static str, Variant)> {
+        let (cloud_org, licensed_org) = (Uuid::new_v4(), Uuid::new_v4());
+        let users = vec![
+            ("cloud user", user_in(cloud_org, true)),
+            ("owner", user_in(licensed_org, true)),
+            ("member", user_in(licensed_org, true)),
+            ("unverified owner", user_in(licensed_org, false)),
+        ];
+        let licensed = Licensed {
+            owners: [&users[1].1, &users[3].1].map(|user| user.id).into(),
+            locked_orgs: [licensed_org].into(),
+        };
+        let (names, users): (Vec<_>, Vec<_>) = users.into_iter().unzip();
+        route(&users, &licensed, audience)
+            .into_iter()
+            .map(|(user, variant)| {
+                let index = users.iter().position(|u| u.id == user.id).unwrap();
+                (names[index], variant)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn licence_owners_get_the_licensed_variant_in_place_of_the_general_email() {
+        assert_eq!(
+            routed(Audience::Everyone),
+            [
+                ("cloud user", Variant::General),
+                ("owner", Variant::Licensed)
+            ]
+        );
+    }
+
+    #[test]
+    fn a_licensed_only_release_reaches_licence_owners_only() {
+        assert_eq!(
+            routed(Audience::LicensedOwners),
+            [("owner", Variant::Licensed)]
+        );
+    }
+
+    /// Every org on a self-hosted plan is locked out of the cloud app, and
+    /// those with a current licence, online or air-gapped, have owners to email.
+    #[test]
+    fn licensed_orgs_are_self_hosted_plans_and_current_ones_are_paid_through_now() {
+        use crate::server::billing::types::base::{BillingPlan, PlanConfig};
+        use crate::server::license::types::LicenseKeyType;
+
+        let now = Utc::now();
+        let org = |plan: BillingPlan, paid_through: Option<DateTime<Utc>>, key| {
+            let mut org = crate::tests::organization();
+            org.base.plan = Some(plan);
+            org.base.license_paid_through = paid_through;
+            org.base.license_key_type = key;
+            org
+        };
+        let later = Some(now + chrono::Duration::days(30));
+        let earlier = Some(now - chrono::Duration::days(1));
+        let online = org(
+            BillingPlan::SelfHostedStandard(PlanConfig::default()),
+            later,
+            None,
+        );
+        let offline = org(
+            BillingPlan::SelfHostedPlus(PlanConfig::default()),
+            later,
+            Some(LicenseKeyType::Offline),
+        );
+        let lapsed = org(
+            BillingPlan::SelfHostedStandard(PlanConfig::default()),
+            earlier,
+            None,
+        );
+        let hand_issued = org(
+            BillingPlan::CommercialSelfHosted(PlanConfig::default()),
+            later,
+            None,
+        );
+        let cloud = org(BillingPlan::Pro(PlanConfig::default()), later, None);
+
+        let (locked, current) = licensed_orgs(
+            &[
+                online.clone(),
+                offline.clone(),
+                lapsed.clone(),
+                hand_issued,
+                cloud,
+            ],
+            now,
+        );
+        assert_eq!(locked, [online.id, offline.id, lapsed.id].into());
+        assert_eq!(current, [online.id, offline.id]);
+    }
+
+    fn service(storage: &StorageFactory, running: &str, cloud: bool) -> ReleaseNotesService {
+        let event_bus = Arc::new(crate::server::shared::events::bus::EventBus::new());
         let user_service = Arc::new(UserService::new(
             storage.users.clone(),
             storage.user_site_access.clone(),
-            Arc::new(crate::server::shared::events::bus::EventBus::new()),
+            event_bus.clone(),
         ));
+        let organization_service = cloud.then(|| {
+            Arc::new(OrganizationService::new(
+                storage.organizations.clone(),
+                event_bus,
+            ))
+        });
         ReleaseNotesService::with_catalog(
             storage.release_announcements.clone(),
             user_service,
             None,
+            organization_service,
             rate_limit::per_second(1000),
             catalog(),
             v(running),
@@ -467,7 +700,7 @@ mod tests {
             .await
             .unwrap();
 
-        let services: Vec<_> = (0..8).map(|_| service(&storage, "0.19.0")).collect();
+        let services: Vec<_> = (0..8).map(|_| service(&storage, "0.19.0", false)).collect();
         let claims =
             futures::future::join_all(services.iter().map(|s| s.claim(EmailReadiness::Ready)))
                 .await;
@@ -486,7 +719,7 @@ mod tests {
         assert_eq!(recorded.len(), 2);
 
         assert!(
-            service(&storage, "0.19.0")
+            service(&storage, "0.19.0", false)
                 .claim(EmailReadiness::Ready)
                 .await
                 .unwrap()
@@ -505,7 +738,7 @@ mod tests {
             .create(&row("0.18.0", true))
             .await
             .unwrap();
-        let service = service(&storage, "0.19.0");
+        let service = service(&storage, "0.19.0", false);
 
         for readiness in [EmailReadiness::NotConfigured, EmailReadiness::Held] {
             assert!(service.claim(readiness).await.unwrap().is_none());
@@ -526,12 +759,57 @@ mod tests {
         );
     }
 
+    /// On Cloud, a release that emails licence owners only claims them once:
+    /// the start that records it gets the licence org's owner, and a restart
+    /// on the same version gets nothing.
+    #[tokio::test]
+    async fn a_licensed_only_release_claims_its_owners_once() {
+        use crate::server::billing::types::base::{BillingPlan, PlanConfig};
+        use crate::server::users::r#impl::permissions::UserOrgPermissions;
+
+        let (storage, _container) = test_storage().await;
+        storage
+            .release_announcements
+            .create(&row("0.18.4", false))
+            .await
+            .unwrap();
+        let mut organization = crate::tests::organization();
+        organization.base.plan = Some(BillingPlan::SelfHostedStandard(PlanConfig::default()));
+        organization.base.license_paid_through = Some(Utc::now() + chrono::Duration::days(30));
+        let organization = storage.organizations.create(&organization).await.unwrap();
+        let mut owner = user_in(organization.id, true);
+        owner.base.permissions = UserOrgPermissions::Owner;
+        let owner = storage.users.create(&owner).await.unwrap();
+        let mut member = user_in(organization.id, true);
+        member.base.permissions = UserOrgPermissions::Member;
+        let member = storage.users.create(&member).await.unwrap();
+
+        let (_, mailing, licensed) = service(&storage, "0.18.5", true)
+            .claim(EmailReadiness::Ready)
+            .await
+            .unwrap()
+            .expect("the first start claims the release");
+        assert_eq!(mailing.audience, Audience::LicensedOwners);
+        // The test database's seed holds other orgs, so only this org's users are checked.
+        assert!(licensed.owners.contains(&owner.id));
+        assert!(!licensed.owners.contains(&member.id));
+        assert!(licensed.locked_orgs.contains(&organization.id));
+
+        assert!(
+            service(&storage, "0.18.5", true)
+                .claim(EmailReadiness::Ready)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
     /// Dismissing advances the user to the running version, and the stored
     /// value survives the reload a second device would do.
     #[tokio::test]
     async fn unseen_spans_the_seen_version_to_the_running_one() {
         let (storage, _container) = test_storage().await;
-        let service = service(&storage, "0.18.6");
+        let service = service(&storage, "0.18.6", false);
         let versions = |user: &User| -> Vec<String> {
             let unseen = service.unseen(user);
             unseen

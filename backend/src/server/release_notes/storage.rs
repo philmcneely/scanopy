@@ -21,8 +21,8 @@ pub struct ReleaseAnnouncement {
 pub struct ReleaseAnnouncementBase {
     /// The server version, as semver text. Unique.
     pub version: String,
-    /// When the release email for this version went out. `None` when this
-    /// version sent none.
+    /// When the release email for this version went out, to everyone or to
+    /// licence owners only. `None` when this version sent none.
     pub email_sent_at: Option<DateTime<Utc>>,
 }
 

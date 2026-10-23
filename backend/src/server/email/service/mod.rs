@@ -12,13 +12,14 @@ use super::messages::{
     AirgapExpiring, AirgapRenewal, CancellationInitiated, CheckoutCompleted, DaemonStandby,
     DaemonSunset, DaemonUnreachable, DiscoveryDigest, DiscoveryGuide, Email, EmailAttachment,
     EmailCategory, EmailChangedOld, InstallCommand, Invite, InvoiceCredited,
-    InvoiceFinalizationFailed, InvoiceIssued, InvoiceOverdue, OidcLinked, OidcUnlinked,
-    OrganizationDeleted, PasswordChanged, PasswordReset, PaymentActionRequired, PaymentFailed,
-    PaymentMethodAdded, PaymentMethodRemoved, PaymentRecovered, PlanChanged, PlanLimitApproaching,
-    PlanLimitReached, ReleaseNotes, SelfHostedLicenseEnded, SelfHostedLicenseResumed,
-    SelfHostedPaymentFailed, SelfHostedPlanChanged, SelfHostedTrialEnding, SelfHostedWelcome,
-    SubscriptionCancelled, SubscriptionPaused, SubscriptionReactivated, SubscriptionResumed,
-    TrialConverted, TrialEnding, TrialExpired, TrialStarted, UsageSummary, Verification, links,
+    InvoiceFinalizationFailed, InvoiceIssued, InvoiceOverdue, LicensedServerUpgrade, OidcLinked,
+    OidcUnlinked, OrganizationDeleted, PasswordChanged, PasswordReset, PaymentActionRequired,
+    PaymentFailed, PaymentMethodAdded, PaymentMethodRemoved, PaymentRecovered, PlanChanged,
+    PlanLimitApproaching, PlanLimitReached, ReleaseNotes, SelfHostedLicenseEnded,
+    SelfHostedLicenseResumed, SelfHostedPaymentFailed, SelfHostedPlanChanged,
+    SelfHostedTrialEnding, SelfHostedWelcome, SubscriptionCancelled, SubscriptionPaused,
+    SubscriptionReactivated, SubscriptionResumed, TrialConverted, TrialEnding, TrialExpired,
+    TrialStarted, UsageSummary, Verification, links,
 };
 use super::transport::{EmailTransport, ses_message_tags};
 use crate::server::{
@@ -302,6 +303,14 @@ impl EmailService {
         &self,
         to: EmailAddress,
         email: &ReleaseNotes<'_>,
+    ) -> Result<()> {
+        self.dispatch(to, email).await
+    }
+
+    pub async fn send_licensed_server_upgrade(
+        &self,
+        to: EmailAddress,
+        email: &LicensedServerUpgrade<'_>,
     ) -> Result<()> {
         self.dispatch(to, email).await
     }

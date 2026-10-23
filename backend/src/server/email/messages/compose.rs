@@ -83,6 +83,14 @@ impl Content {
         ))
     }
 
+    /// Left-aligned outlined link button, quieter than the section-level
+    /// [`Body::cta`].
+    pub fn secondary_cta(self, href: &str, label: &str) -> Self {
+        self.child(&format!(
+            r#"<p style="margin: 0 0 24px 0;"><a href="{href}" style="display: inline-block; padding: 8px 20px; border: 1px solid #2563eb; color: #2563eb; background-color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">{label}</a></p>"#
+        ))
+    }
+
     /// Append a fully-formed, already-indented inline block verbatim — for
     /// bespoke content (lists, tables, code blocks) the typed helpers don't
     /// cover. The caller supplies exact 28-space indentation and a trailing
