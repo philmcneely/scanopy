@@ -57,6 +57,9 @@
 		common_description,
 		common_details,
 		common_name,
+		common_stepNumber,
+		daemons_credentialWizardStepConfigure,
+		daemons_credentialWizardStepSelectTarget,
 		common_options,
 		credentials_credentialType,
 		credentials_daemonOs,
@@ -317,6 +320,12 @@
 	// Track target IPs as local $state for reactivity (TanStack Form doesn't drive Svelte 5 reactivity)
 	let targetIpValues = $state<string[]>(['']);
 	let hasDaemonHostTarget = $derived(targetIpValues.some(isDaemonHostValue));
+	// Wizard cards that show both targets and fields number them: pick a target, then configure.
+	let showSteps = $derived(compact && !hideTargets && !hideFields);
+	// Until a target is entered, the add-target buttons are the card's primary action.
+	let targetCtaClass = $derived(
+		`${targetIpValues.some((ip) => (ip?.trim() ?? '') !== '') ? 'btn-secondary' : 'btn-primary'} px-3 py-1.5 text-sm`
+	);
 
 	// --- Secret/file field mode tracking ---
 	let secretFieldModes = $state<Record<string, 'inline' | 'filepath'>>({});
@@ -884,11 +893,21 @@
 	{/if}
 {/snippet}
 
+{#snippet stepHeading(number: number, label: string)}
+	{#if showSteps}
+		<h3 class="text-sm font-semibold text-primary">
+			{common_stepNumber({ number: String(number) })}
+			{label}
+		</h3>
+	{/if}
+{/snippet}
+
 {#if compact}
 	<div class="space-y-4">
 		{@render integrationDocsHint()}
 
 		{#if !hideTargets}
+			{@render stepHeading(1, daemons_credentialWizardStepSelectTarget())}
 			<!-- Hosts this credential already reaches through the host/credential junction.
 			     Informational, like the site-wide credential line in the wizard — these are
 			     owned elsewhere, so they are listed rather than offered as editable rows.
@@ -974,34 +993,26 @@
 								})}
 								use:tooltip
 							>
-								<button type="button" class="btn-secondary px-3 py-1.5 text-sm" disabled>
+								<button type="button" class={targetCtaClass} disabled>
 									<Plus size={14} />
 									{daemons_credentialWizardAddDaemonHostTarget()}
 								</button>
 							</span>
 						{:else if hasDaemonHostTarget}
 							<!-- Already added: disabled -->
-							<button type="button" class="btn-secondary px-3 py-1.5 text-sm" disabled>
+							<button type="button" class={targetCtaClass} disabled>
 								<Plus size={14} />
 								{daemons_credentialWizardAddDaemonHostTarget()}
 							</button>
 						{:else}
-							<button
-								type="button"
-								class="btn-secondary px-3 py-1.5 text-sm"
-								onclick={handleAddDaemonHostTarget}
-							>
+							<button type="button" class={targetCtaClass} onclick={handleAddDaemonHostTarget}>
 								<Plus size={14} />
 								{daemons_credentialWizardAddDaemonHostTarget()}
 							</button>
 						{/if}
 					{/if}
 					{#if supportsRemoteHosts}
-						<button
-							type="button"
-							class="btn-secondary px-3 py-1.5 text-sm"
-							onclick={handleAddIpTarget}
-						>
+						<button type="button" class={targetCtaClass} onclick={handleAddIpTarget}>
 							<Plus size={14} />
 							{daemons_credentialWizardAddRemoteHostTarget()}
 						</button>
@@ -1014,6 +1025,7 @@
 		<!-- Name + fields. `disabled` shows them read-only (vs `hideFields` which hides them);
 		     a disabled <fieldset> disables every descendant control, including SegmentedControls. -->
 		{#if !hideFields}
+			{@render stepHeading(2, daemons_credentialWizardStepConfigure())}
 			<fieldset {disabled} class="m-0 min-w-0 space-y-4 border-0 p-0">
 				<form.Field
 					name={nameFieldName}
