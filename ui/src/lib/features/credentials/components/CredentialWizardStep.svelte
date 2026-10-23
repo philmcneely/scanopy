@@ -144,10 +144,11 @@
 	 * Whether a pending credential claims its integration's daemon host: a daemon-host-only
 	 * type (the local socket) always does; a configurable cred does when it targets a loopback.
 	 * The daemon host is a single endpoint per `single_endpoint_per_host` integration, so only
-	 * one credential may hold it.
+	 * one credential may hold it. Existing rows count too (the seeded socket is one); a row
+	 * listed only for its assigned hosts targets nothing here, so it claims nothing.
 	 */
 	function claimsDaemonHost(p: PendingCredential): boolean {
-		if (p.isExisting) return false;
+		if (isLockedOnly(p)) return false;
 		const meta = credentialTypes.getMetadata(p.credential.credential_type.type);
 		if (!meta?.single_endpoint_per_host) return false;
 		return isDaemonHostOnlyTargets(meta.targets) || p.targetIps.some(isLoopback);
@@ -174,7 +175,7 @@
 	 *  already claimed elsewhere — used to disable the "Add daemon host" action. */
 	function daemonHostUnavailableFor(index: number): boolean {
 		const p = pendingCredentials[index];
-		if (!p || p.isExisting) return false;
+		if (!p) return false;
 		const meta = credentialTypes.getMetadata(p.credential.credential_type.type);
 		if (!meta?.single_endpoint_per_host || !meta.associated_service) return false;
 		return integrationClaimsDaemonHost(meta.associated_service, index);
