@@ -34,7 +34,7 @@
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import RadioGroup from '$lib/shared/components/forms/input/RadioGroup.svelte';
 	import type { FieldDefinition, FieldType } from '$lib/shared/stores/metadata';
-	import { Eye, EyeOff, Plus } from 'lucide-svelte';
+	import { Eye, EyeOff, HelpCircle, Plus } from 'lucide-svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import { docsUrl } from '$lib/shared/utils/docs';
 	import {
@@ -899,11 +899,22 @@
 	{/if}
 {/snippet}
 
-{#snippet stepHeading(number: number, label: string)}
+{#snippet stepHeading(number: number, label: string, help?: string)}
 	{#if showSteps}
-		<h3 class="border-b border-(--color-border) pb-2 text-sm font-semibold text-primary">
+		<h3
+			class="flex items-center gap-1 border-b border-(--color-border) pb-2 text-sm font-semibold text-primary"
+		>
 			{common_stepNumber({ number: String(number) })}
 			{label}
+			{#if help}
+				<span
+					use:tooltip
+					data-tooltip={help}
+					aria-label={help}
+					class="inline-flex shrink-0 items-center p-0.5 text-tertiary"
+					><HelpCircle class="h-3.5 w-3.5" /></span
+				>
+			{/if}
 		</h3>
 	{/if}
 {/snippet}
@@ -913,7 +924,11 @@
 		{@render integrationDocsHint()}
 
 		{#if !hideTargets}
-			{@render stepHeading(1, daemons_credentialWizardStepSelectTarget())}
+			{@render stepHeading(
+				1,
+				daemons_credentialWizardStepSelectTarget(),
+				daemons_credentialWizardTargetIpHelp()
+			)}
 			<!-- Hosts this credential already reaches through the host/credential junction.
 			     Informational, like the site-wide credential line in the wizard — these are
 			     owned elsewhere, so they are listed rather than offered as editable rows.
@@ -1024,7 +1039,6 @@
 						</button>
 					{/if}
 				</div>
-				<p class="text-xs text-muted">{daemons_credentialWizardTargetIpHelp()}</p>
 			{/if}
 		{/if}
 
