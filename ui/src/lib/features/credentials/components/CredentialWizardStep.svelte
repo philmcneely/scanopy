@@ -29,10 +29,7 @@
 		credentialFieldValues,
 		defaultFieldValue
 	} from '$lib/features/credentials/utils/fieldValues';
-	import {
-		DAEMON_HOST_IP,
-		hasExplicitTarget
-	} from '$lib/features/credentials/utils/credentialTargets';
+	import { DAEMON_HOST_IP, isLockedOnly } from '$lib/features/credentials/utils/credentialTargets';
 	import { v4 as uuidv4 } from 'uuid';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import { pushError } from '$lib/shared/stores/feedback';
@@ -120,11 +117,6 @@
 
 	// Local items array for ListConfigEditor display
 	let items = $derived(pendingCredentials.map((p) => p.credential));
-	/** A row listed only because the credential is assigned elsewhere — the user has not
-	 *  pointed it at anything on this discovery. It contributes no target. */
-	function isLockedOnly(p: PendingCredential): boolean {
-		return !!p.lockedHosts?.length && !hasExplicitTarget(p.scope, p.targetIps);
-	}
 
 	// A credential assigned through the junction is never removable from this list: the
 	// assignment lives on the host/credential, so the trash would either do nothing or

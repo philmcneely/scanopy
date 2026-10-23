@@ -1,5 +1,6 @@
 import type { components } from '$lib/api/schema';
-import type { IntegrationTarget } from '../types/base';
+import type { Credential, IntegrationTarget } from '../types/base';
+import type { Host } from '$lib/features/hosts/types/base';
 import { isDaemonHostOnly } from '../types/base';
 
 /**
@@ -128,4 +129,43 @@ export function integrationTargetFor(
 	}
 
 	return supportsTarget(targets, 'Site') ? { credential_id: credentialId, scope: 'Site' } : null;
+}
+
+/** Every host a credential is assigned to through the host/credential junction, deduplicated. */
+export function junctionHostIds(credentials: Credential[]): string[] {
+	return [...new Set(credentials.flatMap((c) => (c.host_assignments ?? []).map((a) => a.host_id)))];
+}
+
+/**
+ * Credential id → the hosts on `siteId` it is already assigned to through the junction.
+ *
+ * A scan runs all of these (the server builds host-level mappings for every host on the site,
+ * independent of a wizard's targets), so a credential card lists them as locked hosts.
+ * `hosts` only needs to cover `junctionHostIds(credentials)`; hosts off the site are ignored.
+ */
+export function junctionHostsOnSite(
+	credentials: Credential[],
+	hosts: Host[],
+	siteId: string
+): Map<string, Host[]> {
+	const onSite = new Map(hosts.filter((h) => h.site_id === siteId).map((h) => [h.id, h]));
+	return new Map(
+		credentials.flatMap((c) => {
+			// The junction holds a row per host+IP-scope, so a host id can repeat.
+			const assigned = [...new Set((c.host_assignments ?? []).map((a) => a.host_id))]
+				.map((id) => onSite.get(id))
+				.filter((h): h is Host => !!h);
+			return assigned.length > 0 ? [[c.id, assigned] as const] : [];
+		})
+	);
+}
+
+/** A wizard row listed only because the credential is assigned to hosts elsewhere: nothing on
+ *  this daemon or discovery points it anywhere, so it contributes no target. */
+export function isLockedOnly(row: {
+	lockedHosts?: Host[];
+	scope?: 'broadcast' | 'per_host';
+	targetIps: string[];
+}): boolean {
+	return !!row.lockedHosts?.length && !hasExplicitTarget(row.scope, row.targetIps);
 }
