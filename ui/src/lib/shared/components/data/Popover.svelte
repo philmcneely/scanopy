@@ -193,7 +193,8 @@
 
 {#if isOpen && portalContainer}
 	<!-- The surface clips to its radius; the inner box scrolls, so the scrollbar meets the border.
-	     A child that should scroll on its own, below controls that stay put, takes `min-h-0`. -->
+	     A child that should scroll on its own, below controls that stay put, takes `min-h-0` and
+	     `overscroll-contain`, or a scroll that reaches its end carries on into this box. -->
 	<div
 		use:portal
 		bind:this={popoverEl}
@@ -209,7 +210,7 @@
 		onmouseenter={onMouseEnter}
 		onmouseleave={onMouseLeave}
 	>
-		<div bind:this={contentEl} class="flex min-h-0 flex-col overflow-y-auto p-2">
+		<div bind:this={contentEl} class="flex min-h-0 flex-col overflow-y-auto overscroll-contain p-2">
 			{@render children()}
 		</div>
 	</div>

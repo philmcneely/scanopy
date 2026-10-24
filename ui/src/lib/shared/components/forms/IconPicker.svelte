@@ -141,7 +141,7 @@
 			{:else}
 				<div
 					bind:this={scroller}
-					class="overflow-y-auto"
+					class="overflow-y-auto overscroll-contain"
 					style="height: {VIEW_HEIGHT}px;"
 					onscroll={(e) => (scrollTop = e.currentTarget.scrollTop)}
 				>
