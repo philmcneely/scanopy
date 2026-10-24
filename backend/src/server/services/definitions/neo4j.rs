@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Neo4j;
@@ -25,8 +26,8 @@ impl ServiceDefinition for Neo4j {
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Endpoint(PortType::new_tcp(7474), "/", "neo4j_version", None)
     }
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/neo4j.png"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Neo4j)
     }
 }
 

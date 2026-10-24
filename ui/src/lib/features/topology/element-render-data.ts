@@ -589,10 +589,9 @@ function buildIconCard(
 	const meta = (s: Service) =>
 		serviceDefinitions.getMetadata(s.service_definition) as {
 			device_type?: string | null;
-			has_logo?: boolean;
+			logo?: string | null;
 		} | null;
-	const rank = (s: Service) =>
-		meta(s)?.device_type === deviceType ? 0 : meta(s)?.has_logo ? 1 : 2;
+	const rank = (s: Service) => (meta(s)?.device_type === deviceType ? 0 : meta(s)?.logo ? 1 : 2);
 	const badgeDefinitions = [
 		...new Set(
 			[...data.services].sort((a, b) => rank(a) - rank(b)).map((s) => s.service_definition)
@@ -608,16 +607,19 @@ function buildIconCard(
 		label: address ?? hostName,
 		sublabel: address && host.hostname && host.hostname !== address ? host.hostname : null,
 		os: host.os ?? null,
-		tooltip: () => hostTooltip(host, {
-			name: hostName,
-			address,
-			addressName: ipAddress?.name,
-			deviceType,
-			services: data.services,
-			status: marks.Status,
-			// On an address card, each service with the ports it listens on there.
-			serviceItem: ipAddress ? (s) => serviceWithPorts(s, ipAddress.id, inputs.topology) : undefined
-		}),
+		tooltip: () =>
+			hostTooltip(host, {
+				name: hostName,
+				address,
+				addressName: ipAddress?.name,
+				deviceType,
+				services: data.services,
+				status: marks.Status,
+				// On an address card, each service with the ports it listens on there.
+				serviceItem: ipAddress
+					? (s) => serviceWithPorts(s, ipAddress.id, inputs.topology)
+					: undefined
+			}),
 		groups: data.inlineGroups.map((g) => iconCardGroup(inputs, g))
 	};
 }
@@ -649,11 +651,12 @@ function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): 
 			glyph,
 			label: hostDisplayName(host),
 			status,
-			tooltip: () => hostTooltip(host, {
-				deviceType: glyph.type === 'device' ? glyph.deviceType : null,
-				services: hostServices,
-				status
-			})
+			tooltip: () =>
+				hostTooltip(host, {
+					deviceType: glyph.type === 'device' ? glyph.deviceType : null,
+					services: hostServices,
+					status
+				})
 		};
 	});
 	return {

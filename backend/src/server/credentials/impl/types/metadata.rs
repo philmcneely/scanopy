@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::server::{
     daemons::r#impl::version::last_without_credential_wire,
-    services::r#impl::definitions::{ServiceDefinition, ServiceDefinitionExt},
+    services::r#impl::definitions::ServiceDefinition,
     shared::types::{
         Color, Icon,
         metadata::{EntityMetadataProvider, HasId, MetadataProvider, TypeMetadata},
@@ -464,9 +464,7 @@ impl CredentialTypeDiscriminants {
             // surfaces (the type dropdown) use the full `description`.
             "transport_note": self.transport_note(),
             "associated_service": ServiceDefinition::name(&*service),
-            "has_logo": service.has_logo(),
-            "logo_ext": integration.logo_ext(),
-            "logo_needs_white_background": service.logo_needs_white_background(),
+            "logo": service.logo(),
         })
     }
 }

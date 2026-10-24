@@ -4,6 +4,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::shared::logos::Logo;
 
 /// Beszel Agent — lightweight server monitoring agent.
 ///
@@ -36,8 +37,8 @@ impl ServiceDefinition for BeszelAgent {
         vec![Box::new(BeszelAgentProbe)]
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/beszel.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Beszel)
     }
 }
 

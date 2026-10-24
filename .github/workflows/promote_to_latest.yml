@@ -148,12 +148,15 @@ jobs:
           cp ui/src/lib/data/warning-codes.json website/src/lib/fixtures/
           cp ui/src/lib/data/warning-remedies.json website/src/lib/fixtures/
           cp ui/src/lib/data/identity-provider-logos.json website/src/lib/fixtures/
+          cp ui/src/lib/data/logos.json website/src/lib/fixtures/
           cp ui/static/openapi-public.json website/src/lib/fixtures/openapi.json
           cp ui/static/schema.mermaid website/src/lib/fixtures/schema.mermaid
           cp ui/static/schema-er.mermaid website/src/lib/fixtures/schema-er.mermaid
           cp ui/static/entity-metadata.json website/src/lib/fixtures/entity-metadata.json
-          mkdir -p website/static/logos/services/
-          cp -r ui/static/logos/services/ website/static/logos/services/
+          # Replaced whole, so a logo dropped from the catalog leaves the site too.
+          mkdir -p website/static/logos/
+          rm -rf website/static/logos/catalog
+          cp -r ui/static/logos/catalog website/static/logos/catalog
 
       - name: Generate daemon config fixture
         run: |
@@ -408,7 +411,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/lib/fixtures/ static/logos/services/
+          git add -A src/lib/fixtures/ static/logos/catalog/
           if git diff --staged --quiet; then
             echo "No fixture changes to commit"
           else

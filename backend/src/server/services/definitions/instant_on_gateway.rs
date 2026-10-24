@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{InstantOnDeviceType, Pattern};
+use crate::server::shared::logos::Logo;
 
 /// An Instant On gateway/router, as reported by the site inventory.
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
@@ -26,8 +27,8 @@ impl ServiceDefinition for InstantOnGateway {
         Pattern::ManagedDeviceType(InstantOnDeviceType::GATEWAY)
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/hpe.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Hpe)
     }
 }
 

@@ -4,6 +4,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::shared::logos::Logo;
 
 /// CheckMK Agent - Monitoring agent for CheckMK server
 ///
@@ -37,8 +38,8 @@ impl ServiceDefinition for CheckmkAgent {
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(CheckMkAgentProbe)]
     }
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/checkmk.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Checkmk)
     }
 }
 
