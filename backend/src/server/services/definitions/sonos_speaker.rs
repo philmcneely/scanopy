@@ -41,7 +41,7 @@ impl ServiceDefinition for SonosSpeaker {
                 Pattern::Port(PortType::new_tcp(3500)),
                 // The HTTPS API on 1443 presents a certificate under `Sonos Device Authentication
                 // Root CA`.
-                Pattern::CertificateIssuer("O=Sonos"),
+                Pattern::CertificateIssuer("O=Sonos", &[1443]),
             ]),
         ])
     }

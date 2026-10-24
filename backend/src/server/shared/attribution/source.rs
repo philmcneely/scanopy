@@ -821,6 +821,7 @@ impl TypeMetadataProvider for ClientProbe {
             Self::Ipp => "IPP",
             Self::SpotifyConnect => "Spotify Connect",
             Self::Vnc => "VNC",
+            Self::AppleLockdown => "Apple lockdown",
         }
     }
 }

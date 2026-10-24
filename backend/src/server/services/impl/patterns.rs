@@ -310,6 +310,9 @@ pub enum ClientProbe {
     /// The port opened with an RFB protocol version, `RFB 003.008` and similar: a VNC server's
     /// greeting.
     Vnc,
+    /// The port answered a lockdown `QueryType` with `com.apple.mobile.lockdown`: the pairing and
+    /// sync service on iPhones and iPads.
+    AppleLockdown,
 }
 
 impl ClientProbe {
@@ -375,7 +378,8 @@ impl ClientProbe {
             | Self::PodmanPing
             | Self::Ipp
             | Self::SpotifyConnect
-            | Self::Vnc => M::Native,
+            | Self::Vnc
+            | Self::AppleLockdown => M::Native,
         }
     }
 }
@@ -543,7 +547,11 @@ pub enum Pattern<'a> {
     /// every certificate the host presented, whichever service holds the port, so the answer does
     /// not depend on match order and `Not(CertificateIssuer(..))` asks about the host. Binds the
     /// ports with a matching certificate that are still unbound.
-    CertificateIssuer(&'a str),
+    ///
+    /// The ports are where this issuer's certificates are known to appear. They are scanned, so a
+    /// light scan reaches them, and are not evidence: the certificate is. A certificate on a port
+    /// not listed still matches when a full scan finds it.
+    CertificateIssuer(&'a str, &'static [u16]),
 
     /// Whether a management controller reported this device as the given device class.
     /// Takes a vendor-specific class string (see [`UnifiDeviceType`]), mirroring how
@@ -619,7 +627,9 @@ impl PartialEq for Pattern<'_> {
             (Pattern::ContainerVirtualization, Pattern::ContainerVirtualization) => true,
             (Pattern::ManagedDeviceType(a), Pattern::ManagedDeviceType(b)) => a == b,
             (Pattern::DnsSd(a, a_txt), Pattern::DnsSd(b, b_txt)) => a == b && a_txt == b_txt,
-            (Pattern::CertificateIssuer(a), Pattern::CertificateIssuer(b)) => a == b,
+            (Pattern::CertificateIssuer(a, a_ports), Pattern::CertificateIssuer(b, b_ports)) => {
+                a == b && a_ports == b_ports
+            }
             (Pattern::None, Pattern::None) => true,
             _ => false,
         }
@@ -704,7 +714,7 @@ impl Display for Pattern<'_> {
                 ),
                 None => write!(f, "Host advertises '{}' over mDNS", service_type),
             },
-            Pattern::CertificateIssuer(issuer) => {
+            Pattern::CertificateIssuer(issuer, _) => {
                 write!(
                     f,
                     "A TLS certificate on the host was issued by '{}'",
@@ -1378,7 +1388,7 @@ impl Pattern<'_> {
             // A vendor CA signing the device's certificate is the vendor's own statement, made
             // before the device shipped, so `High`. The evidence is read across every certificate
             // on the host; only the ports still unbound are bound.
-            Pattern::CertificateIssuer(expected) => {
+            Pattern::CertificateIssuer(expected, _) => {
                 let expected_lower = expected.to_lowercase();
                 let matching: Vec<_> = certificates
                     .iter()
@@ -1419,6 +1429,9 @@ impl Pattern<'_> {
             Pattern::Port(port) => vec![*port],
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
                 patterns.iter().flat_map(|p| p.ports().to_vec()).collect()
+            }
+            Pattern::CertificateIssuer(_, ports) => {
+                ports.iter().map(|port| PortType::new_tcp(*port)).collect()
             }
             _ => vec![],
         }

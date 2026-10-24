@@ -368,6 +368,7 @@ pub mod workstation;
 
 // Mobile
 pub mod client;
+pub mod apple_mobile_device;
 pub mod ipad;
 pub mod iphone;
 

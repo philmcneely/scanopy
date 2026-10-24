@@ -21,6 +21,7 @@
 //! a second exchange.
 
 pub mod amqp;
+pub mod apple_lockdown;
 pub mod bacula;
 pub mod beszel_agent;
 pub mod cassandra;
