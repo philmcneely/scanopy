@@ -32,10 +32,6 @@ impl ServiceDefinition for UpnpIgd {
             Some(200..500),
         )
     }
-
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/router.svg"
-    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<UpnpIgd>));

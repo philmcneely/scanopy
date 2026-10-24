@@ -870,6 +870,9 @@ fn test_service_definition_ids_are_stable() {
         ("Dhcp Server", "DHCP Server"),
         ("Dns Server", "DNS Server"),
         ("Hp Printer", "HP Printer"),
+        // 20261024120001_google_nest_capitalization.sql
+        ("Google Nest router", "Google Nest Router"),
+        ("Google Nest repeater", "Google Nest Repeater"),
     ]
     .into_iter()
     .collect();
@@ -1270,5 +1273,35 @@ fn only_a_container_placeholder_is_replaced_and_anything_specific_replaces_it() 
     assert!(
         !in_container(Box::new(PostgreSQL), "c1")
             .is_placeholder_for(&in_container(Box::new(Ssh), "c1"))
+    );
+}
+
+/// Every word of a definition's name is capitalized, so "Google Nest Router" sits beside
+/// "DNS Server" and "HP Printer". A brand's own styling passes: a word with a capital anywhere in it
+/// (iPad, myQ, pfSense) is spelled as the brand spells it. Brands styled all lowercase are listed.
+#[test]
+fn every_word_of_a_definition_name_is_capitalized() {
+    const LOWERCASE_BRANDS: &[&str] = &["libvirt", "mailcow", "n8n"];
+
+    let offenders: Vec<&'static str> = ServiceDefinitionRegistry::all_service_definitions()
+        .iter()
+        .map(|definition| definition.name())
+        .filter(|name| {
+            name.split_whitespace().any(|word| {
+                let word = word.trim_start_matches(|c: char| !c.is_alphanumeric());
+                let Some(first) = word.chars().next() else {
+                    return false;
+                };
+                !(first.is_uppercase()
+                    || first.is_ascii_digit()
+                    || word.chars().any(char::is_uppercase)
+                    || LOWERCASE_BRANDS.contains(&word))
+            })
+        })
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "definition names with an uncapitalized word: {offenders:?}"
     );
 }

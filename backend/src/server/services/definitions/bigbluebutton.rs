@@ -18,7 +18,13 @@ impl ServiceDefinition for BigBlueButton {
         ServiceCategory::Conferencing
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Endpoint(PortType::Http, "/bigbluebutton/api", "", Some(200..300))
+        // Every API reply is `<response><returncode>…`, the index included.
+        Pattern::Endpoint(
+            PortType::Http,
+            "/bigbluebutton/api",
+            "<returncode>",
+            Some(200..300),
+        )
     }
     fn logo_url(&self) -> &'static str {
         "https://simpleicons.org/icons/bigbluebutton.svg"

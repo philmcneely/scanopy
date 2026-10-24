@@ -18,7 +18,8 @@ impl ServiceDefinition for Zipkin {
         ServiceCategory::Monitoring
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Endpoint(PortType::new_tcp(9411), "/api/v2/services", "", None)
+        // `/health` nests component health under a `zipkin` object (`ZipkinHealthController`).
+        Pattern::Endpoint(PortType::new_tcp(9411), "/health", "\"zipkin\"", None)
     }
 }
 

@@ -418,6 +418,31 @@ impl PortType {
         (9100..=9107).contains(&self.number())
     }
 
+    /// Print submission: IPP, LPD and raw-socket (JetDirect) printing.
+    pub fn is_printing(&self) -> bool {
+        matches!(self, PortType::Ipp | PortType::LdpTcp | PortType::LdpUdp) || self.is_raw_socket()
+    }
+
+    /// Live audio and video streams, as IP cameras and NVRs serve them.
+    pub fn is_media_streaming(&self) -> bool {
+        matches!(self, PortType::Rtsp)
+    }
+
+    /// Voice-over-IP signalling, on desk phones, ATAs and PBXs.
+    pub fn is_voip(&self) -> bool {
+        matches!(self, PortType::Sip | PortType::SipTls)
+    }
+
+    /// Network file shares, on NAS units, file servers and workstations.
+    pub fn is_file_sharing(&self) -> bool {
+        matches!(self, PortType::Samba | PortType::Nfs)
+    }
+
+    /// Graphical remote desktop.
+    pub fn is_remote_desktop(&self) -> bool {
+        matches!(self, PortType::Rdp)
+    }
+
     pub fn config(&self) -> PortConfig {
         match &self {
             PortType::Ssh => PortConfig {

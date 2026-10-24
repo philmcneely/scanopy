@@ -18,7 +18,13 @@ impl ServiceDefinition for Mattermost {
         ServiceCategory::Messaging
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Endpoint(PortType::new_tcp(8065), "/api/v4/system/ping", "", None)
+        // The ping reply is JSON whose `status` reads `OK` (`api4/system.go`).
+        Pattern::Endpoint(
+            PortType::new_tcp(8065),
+            "/api/v4/system/ping",
+            "\"status\":\"OK\"",
+            None,
+        )
     }
     fn logo_url(&self) -> &'static str {
         "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/mattermost.svg"

@@ -18,7 +18,8 @@ impl ServiceDefinition for Nomad {
         ServiceCategory::Orchestrator
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Endpoint(PortType::new_tcp(4646), "/v1/status/leader", "", None)
+        // The leader endpoint returns the leader's RPC address, on 4647 unless reconfigured.
+        Pattern::Endpoint(PortType::new_tcp(4646), "/v1/status/leader", ":4647", None)
     }
     fn logo_url(&self) -> &'static str {
         "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/nomad.svg"
