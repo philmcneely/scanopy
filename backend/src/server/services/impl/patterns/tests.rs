@@ -1765,3 +1765,27 @@ fn no_definition_matches_a_catch_all_web_server() {
         "definitions matching a catch-all web server: {false_positives:?}"
     );
 }
+
+/// A Pulse hub's HomeKit advertisement names its model; another HomeKit bridge's does not.
+#[test]
+fn a_pulse_hub_is_identified_by_its_homekit_model() {
+    use crate::server::services::definitions::rollease_acmeda_pulse::RolleaseAcmedaPulse;
+
+    let matches_with = |txt: &[&str]| {
+        let mut ctx = TestContext::new();
+        ctx.dns_sd = Some(announcing_on(super::DnsSdServiceType::HOMEKIT, txt, 80));
+        let ports = vec![PortType::Http];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
+        RolleaseAcmedaPulse
+            .discovery_pattern()
+            .matches(&params)
+            .ok()
+    };
+
+    // The TXT record a Pulse 2 hub advertised.
+    let matched = matches_with(&["ci=2", "md=MT02-0401-067001", "pv=1.1"])
+        .expect("the Pulse model string identifies the hub");
+    assert_eq!(matched.ports, vec![PortType::Http]);
+    assert!(matches_with(&["ci=2", "md=Hue Bridge"]).is_none());
+}
