@@ -1550,6 +1550,19 @@ impl Pattern<'_> {
 }
 
 impl<'a> Pattern<'a> {
+    /// The DNS-SD service types this pattern reads, so the mDNS browse can ask for each by name
+    /// rather than rely on another device's enumeration reply to mention it.
+    pub fn dns_sd_types(&self) -> Vec<&'a str> {
+        match self {
+            Pattern::DnsSd(service_type, _) => vec![*service_type],
+            Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
+                patterns.iter().flat_map(|p| p.dns_sd_types()).collect()
+            }
+            Pattern::Not(pattern) => pattern.dns_sd_types(),
+            _ => vec![],
+        }
+    }
+
     /// Matches when `self` does, and also binds what `extra` matches when it matches too. For
     /// ports a device opens only sometimes, or on numbers that vary by unit: they are claimed
     /// alongside the evidence, never instead of it. `AnyOf` binds the ports of every arm that
