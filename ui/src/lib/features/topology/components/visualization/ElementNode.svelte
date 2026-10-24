@@ -431,18 +431,19 @@
 							'h-12 w-12 rounded-lg border-2 border-gray-200 bg-gray-200 text-secondary dark:border-gray-700 dark:bg-gray-700'
 						)}
 					{/if}
+					{#if marks.Status}
+						<!-- A guest's run state or a port's link state, from the view's Status mark: a dot
+						     in the state's colour, centred on the tile's top-left corner. The tooltip's
+						     Status row names it. Drawn whenever the card shows detail, so leaving the
+						     state-coloured box shows the state again at once. -->
+						<span
+							class="card-status-dot absolute -top-2 -left-2 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
+							style="background: var(--color-topology-node-bg); --dot: {createColorHelper(
+								marks.Status.color
+							).rgb};"
+						></span>
+					{/if}
 					{#if !badgesHidden}
-						{#if marks.Status}
-							<!-- A guest's run state or a port's link state, from the view's Status mark: a dot
-							     in the state's colour, centred on the tile's top-left corner. The tooltip's
-							     Status row names it. -->
-							<span
-								class="card-status-dot absolute -top-2 -left-2 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
-								style="background: var(--color-topology-node-bg); --dot: {createColorHelper(
-									marks.Status.color
-								).rgb};"
-							></span>
-						{/if}
 						{#if iconCard.os && iconCard.glyph.type === 'device'}
 							<!-- The host's OS, centred on the tile's bottom-left corner, the size of a service
 							     badge. Fanned service badges spread under the whole tile, so it fades out while

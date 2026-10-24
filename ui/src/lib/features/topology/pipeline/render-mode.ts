@@ -147,7 +147,8 @@ function reducedDetailAllowed({ nodeCount, measuring, exporting }: SimplifyCondi
 }
 
 /**
- * Zoom below which a card's badges are dropped: its service badges, OS badge and status dot.
+ * Zoom below which a card's badges are dropped: its service badges and OS badge. The status dot
+ * stays with the rest of the detail, so leaving the state-coloured box is one transition.
  *
  * A badge is 24px, so at 0.5 it is 12px on screen, the floor the text thresholds above use, and a
  * logo that size no longer reads as which service it is. The tile's glyph and the card's text stay
