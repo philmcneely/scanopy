@@ -335,9 +335,9 @@
 			</button>
 		</p>
 		{#if creditsOpen}
-			<ul class="flex flex-col gap-2 pl-3">
+			<ul class="flex flex-col divide-y divide-gray-200 pl-3 dark:divide-gray-700">
 				{#each logoCredits as credit (credit.name)}
-					<li class="flex flex-col gap-0.5 text-xs">
+					<li class="flex flex-col gap-0.5 py-2 text-xs">
 						<span>
 							<a
 								href={credit.homepage}
@@ -359,7 +359,7 @@
 								{/if}
 							</span>
 						</span>
-						<span class="line-clamp-2 text-tertiary" title={credit.used_for.join(', ')}>
+						<span class="text-tertiary">
 							{credit.used_for.join(', ')}
 						</span>
 					</li>
