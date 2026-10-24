@@ -1618,6 +1618,7 @@
 	"meta_client_probes_Tls_name": "TLS",
 	"meta_client_probes_UnifiController_name": "UniFi controller",
 	"meta_client_probes_Vnc_name": "VNC",
+	"meta_client_probes_AppleLockdown_name": "Apple lockdown",
 	"meta_client_probes_ZabbixAgent_name": "Zabbix agent",
 	"meta_client_probes_Zmtp_name": "ZeroMQ",
 	"meta_container_network_types_IpVlan_description": "Container on an ipvlan network, with its own IP on the LAN",

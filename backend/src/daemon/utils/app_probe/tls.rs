@@ -32,7 +32,7 @@ use x509_cert::Certificate;
 use x509_cert::der::Decode;
 
 use crate::daemon::utils::app_probe::ProbeContext;
-use crate::daemon::utils::scanner::{SCAN_TIMEOUT, batch_scan};
+use crate::daemon::utils::scanner::batch_scan;
 use crate::server::ports::r#impl::base::PortType;
 
 /// A verifier whose only job is to keep the certificate it is shown.
@@ -94,6 +94,11 @@ impl ServerCertVerifier for CapturingVerifier {
         ]
     }
 }
+
+/// How long a handshake has to reach the server's certificate. Longer than the scan's 800 ms
+/// request budget: the certificate comes with the server's first flight, after its key exchange,
+/// and a myQ hub's Marvell MCU took 0.69-1.04 s to finish the handshake when idle.
+const HANDSHAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(1500);
 
 /// What a TLS handshake against a port established.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,7 +167,7 @@ pub(crate) async fn capture_certificate(ctx: &ProbeContext, port: PortType) -> T
 
     // This is expected to fail: the verifier refuses by design, and a mutual-TLS server would
     // refuse us in turn. The certificate, if there was one, is already captured.
-    let _ = tokio::time::timeout(SCAN_TIMEOUT, connector.connect(server_name, stream)).await;
+    let _ = tokio::time::timeout(HANDSHAKE_TIMEOUT, connector.connect(server_name, stream)).await;
 
     match captured.lock() {
         Ok(slot) => match slot.clone() {
