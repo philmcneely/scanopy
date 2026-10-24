@@ -25,8 +25,11 @@
 	} = $props();
 
 	// 70% of the frame is the largest square that sits inside the circle, so a square logo fits as
-	// well as a round one; the 1px ring takes the rest.
-	let logoSize = $derived(!framed ? size : round ? size - 2 : Math.round(size * 0.7));
+	// well as a round one; the 1px ring takes the rest. Unframed, a logo with a background colour
+	// sits on a small rounded square of it, 2px in from each side.
+	let logoSize = $derived(
+		!framed ? (fill ? size - 4 : size) : round ? size - 2 : Math.round(size * 0.7)
+	);
 
 	const fallbackIcon =
 		'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjIiLz4KPHA=';
@@ -43,10 +46,12 @@
 <div
 	class="inline-flex shrink-0 items-center justify-center {framed
 		? 'overflow-hidden rounded-full border border-gray-300 dark:border-gray-600'
-		: ''} {className}"
+		: fill
+			? 'rounded-sm'
+			: ''} {className}"
 	data-logo-fill={fill ?? undefined}
 	data-logo-round={round ? '' : undefined}
-	style="width: {size}px; height: {size}px; {framed
+	style="width: {size}px; height: {size}px; {framed || fill
 		? `background: ${fill ?? 'var(--color-topology-node-bg)'};`
 		: ''}"
 >
