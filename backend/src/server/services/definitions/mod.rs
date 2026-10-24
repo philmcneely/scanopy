@@ -367,8 +367,8 @@ pub mod sip_server;
 pub mod workstation;
 
 // Mobile
-pub mod client;
 pub mod apple_mobile_device;
+pub mod client;
 pub mod ipad;
 pub mod iphone;
 

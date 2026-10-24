@@ -1572,6 +1572,7 @@
 	"meta_claim_sources_LldpLocalIdentity_name": "an LLDP chassis ID of its own",
 	"meta_claim_sources_SysServicesBridgeBit_name": "its sysServices bridge bit",
 	"meta_client_probes_Amqp_name": "AMQP",
+	"meta_client_probes_AppleLockdown_name": "Apple lockdown",
 	"meta_client_probes_Bacula_name": "Bacula",
 	"meta_client_probes_BeszelAgent_name": "Beszel agent",
 	"meta_client_probes_Cassandra_name": "Cassandra",

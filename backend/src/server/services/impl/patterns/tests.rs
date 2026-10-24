@@ -1525,7 +1525,11 @@ fn a_certificate_issuer_is_host_evidence_and_binds_only_unbound_ports() {
             .matches(&params)
             .is_err()
     );
-    assert!(Pattern::CertificateIssuer("Bose", &[]).matches(&params).is_err());
+    assert!(
+        Pattern::CertificateIssuer("Bose", &[])
+            .matches(&params)
+            .is_err()
+    );
 }
 
 /// macOS's AirPlay Receiver and MiniUPnPd both answer `/` on 5000 with an error status, and the
