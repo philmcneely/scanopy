@@ -2,12 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
 	shouldCull,
 	shouldSimplify,
-	shouldDropBadges,
 	nodeDetail,
 	BOX_MIN_PX,
 	LOD_MIN_NODES,
-	DETAIL_ZOOM,
-	BADGE_ZOOM
+	DETAIL_ZOOM
 } from '$lib/features/topology/pipeline/render-mode';
 
 /**
@@ -107,30 +105,5 @@ describe('shouldSimplify', () => {
 		// pinned heights, and an export would rasterise a page of empty boxes.
 		expect(shouldSimplify({ ...big, measuring: true })).toBe(false);
 		expect(shouldSimplify({ ...big, exporting: true })).toBe(false);
-	});
-});
-
-describe('shouldDropBadges', () => {
-	const big = {
-		zoom: BADGE_ZOOM - 0.01,
-		nodeCount: LOD_MIN_NODES,
-		measuring: false,
-		exporting: false
-	};
-
-	it('drops badges on a large graph between the badge and detail thresholds', () => {
-		// Above DETAIL_ZOOM the card still draws its glyph and text; only the badges go.
-		expect(shouldSimplify(big)).toBe(false);
-		expect(shouldDropBadges(big)).toBe(true);
-	});
-
-	it('keeps badges at the badge threshold and on a small graph at any zoom', () => {
-		expect(shouldDropBadges({ ...big, zoom: BADGE_ZOOM })).toBe(false);
-		expect(shouldDropBadges({ ...big, zoom: 0.01, nodeCount: LOD_MIN_NODES - 1 })).toBe(false);
-	});
-
-	it('keeps badges while measuring and exporting', () => {
-		expect(shouldDropBadges({ ...big, measuring: true })).toBe(false);
-		expect(shouldDropBadges({ ...big, exporting: true })).toBe(false);
 	});
 });

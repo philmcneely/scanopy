@@ -37,7 +37,6 @@ import {
 	isExporting,
 	isMeasuring,
 	detailSimplified,
-	badgesDropped,
 	newNodeIds,
 	searchHiddenNodeIds,
 	searchMatchContainerMap,
@@ -57,7 +56,6 @@ export const edgeHandles = fromStore(
 export const exporting = fromStore(isExporting);
 export const measuring = fromStore(isMeasuring);
 export const simplified = fromStore(detailSimplified);
-export const dropBadges = fromStore(badgesDropped);
 export const searchHiddenNodes = fromStore(searchHiddenNodeIds);
 export const searchContainerMatches = fromStore(searchMatchContainerMap);
 export const hiddenEntities = fromStore(hiddenEntityIds);
