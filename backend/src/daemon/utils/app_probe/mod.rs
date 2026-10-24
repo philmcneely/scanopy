@@ -59,6 +59,7 @@ pub mod rtsp;
 pub mod sip;
 pub mod smb;
 pub mod snmp_engine;
+pub mod spotify_connect;
 pub mod ssh;
 pub mod telnet;
 pub mod tftp;

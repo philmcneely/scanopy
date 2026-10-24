@@ -27,7 +27,18 @@ impl ServiceDefinition for GoogleHome {
                 Pattern::MacVendor(Vendor::GOOGLE),
             ]),
             Pattern::Not(Box::new(Pattern::IsGateway)),
-            Pattern::Endpoint(PortType::Http, "/", "Nest Wifi", None),
+            // Only the mesh's root unit serves the "Nest Wifi" page on `/`; a point answers `/`
+            // with a 404. Every unit serves the status API, where a point reports itself `leaf`
+            // (seen on a Google Wifi point, `hardwareId` GALE).
+            Pattern::AnyOf(vec![
+                Pattern::Endpoint(PortType::Http, "/", "Nest Wifi", None),
+                Pattern::Endpoint(
+                    PortType::Http,
+                    "/api/v1/status",
+                    "\"groupRole\": \"leaf\"",
+                    None,
+                ),
+            ]),
         ])
     }
 

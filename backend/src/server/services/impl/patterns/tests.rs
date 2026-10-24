@@ -1177,3 +1177,167 @@ fn a_claimed_advertised_port_is_not_bound_twice() {
             .is_err()
     );
 }
+
+/// One response a host gave during the scan: port, path, status, headers, body.
+type Response<'a> = (PortType, &'a str, u16, &'a [(&'a str, &'a str)], &'a str);
+
+/// Whether the registered definition `id` matches a host with `mac`, open `ports`, and these
+/// `responses`.
+fn definition_matches_host(
+    id: &str,
+    mac: &str,
+    ports: &[PortType],
+    responses: &[Response],
+) -> bool {
+    let mut ctx = TestContext::new();
+    ctx.ip_address.base.mac_address = Some(MacEvidence::new(
+        MacEvidenceValue(mac.parse().expect("valid MAC")),
+        AttributeSource::ArpReply,
+    ));
+    ctx.pi =
+        ServiceDefinitionRegistry::find_by_id(id).unwrap_or_else(|| panic!("{id} is registered"));
+    ctx.endpoint_responses = responses
+        .iter()
+        .map(|(port, path, status, headers, body)| EndpointResponse {
+            endpoint: Endpoint::for_pattern(*port, path).use_ip(ctx.ip_address.base.ip_address),
+            body: body.to_string(),
+            headers: headers
+                .iter()
+                .map(|(name, value)| (name.to_string(), value.to_string()))
+                .collect(),
+            status: *status,
+        })
+        .collect();
+    let ports = ports.to_vec();
+    let baseline = ctx.create_baseline_params(&ports);
+    let params = ctx.create_params_with_ports(&baseline, &ports);
+    ctx.pi.discovery_pattern().matches(&params).is_ok()
+}
+
+/// TP-Link's newer OUI, on a Kasa HS103.
+const TPLINK_SYSTEMS_MAC: &str = "8C:86:DD:00:00:01";
+/// A Sonos OUI, standing in for any vendor the definitions do not name.
+const OTHER_MAC: &str = "B8:E9:37:00:00:01";
+
+/// What a Kasa plug sends on 80: the `SHIP 2.0` server header and a bare page.
+#[test]
+fn a_kasa_plug_is_identified_by_its_server_header_on_a_tp_link_mac() {
+    let ship: Response = (
+        PortType::Http,
+        "/",
+        200,
+        &[("server", "SHIP 2.0")],
+        "<html><body><center>200 OK</center></body></html>",
+    );
+    let ports = [PortType::Http];
+    assert!(definition_matches_host(
+        "TP-Link Kasa",
+        TPLINK_SYSTEMS_MAC,
+        &ports,
+        &[ship]
+    ));
+    // The older TP-Link OUI ships on earlier Kasa hardware.
+    assert!(definition_matches_host(
+        "TP-Link Kasa",
+        "50:C7:BF:00:00:01",
+        &ports,
+        &[ship]
+    ));
+    assert!(!definition_matches_host(
+        "TP-Link Kasa",
+        OTHER_MAC,
+        &ports,
+        &[ship]
+    ));
+    let plain: Response = (PortType::Http, "/", 200, &[("server", "nginx")], "200 OK");
+    assert!(!definition_matches_host(
+        "TP-Link Kasa",
+        TPLINK_SYSTEMS_MAC,
+        &ports,
+        &[plain]
+    ));
+}
+
+/// A Google Wifi point answers `/` with a 404 and reports itself `leaf` on its status API; the
+/// mesh root reports `root` there and is the router's.
+#[test]
+fn a_mesh_point_is_identified_by_its_status_api_role() {
+    let google_mac = "B0:2A:43:00:00:01";
+    let ports = [PortType::Http];
+    let status = |role: &'static str| -> String {
+        format!(
+            "{{\n   \"setupState\": \"GWIFI_OOBE_COMPLETE\",\n   \"system\": {{\n      \
+             \"groupRole\": \"{role}\",\n      \"hardwareId\": \"GALE\"\n   }}\n}}"
+        )
+    };
+    let leaf = status("leaf");
+    let root = status("root");
+    assert!(definition_matches_host(
+        "Google Nest repeater",
+        google_mac,
+        &ports,
+        &[(PortType::Http, "/api/v1/status", 200, &[], &leaf)]
+    ));
+    assert!(!definition_matches_host(
+        "Google Nest repeater",
+        google_mac,
+        &ports,
+        &[(PortType::Http, "/api/v1/status", 200, &[], &root)]
+    ));
+    // The page the root serves still identifies a unit that serves it.
+    assert!(definition_matches_host(
+        "Google Nest repeater",
+        google_mac,
+        &ports,
+        &[(PortType::Http, "/", 200, &[], "<title>Nest Wifi</title>")]
+    ));
+}
+
+/// Where the response identifies only a generic embedded web server, the OUI identifies the
+/// product, and an open port gives the service something to bind.
+#[test]
+fn appliances_with_generic_web_servers_are_identified_by_their_oui() {
+    let http = [PortType::Http];
+    for (id, mac) in [
+        ("Home Connect Appliance", "68:A4:0E:00:00:01"),
+        ("myQ", "64:52:99:00:00:01"),
+        ("Bose Speaker", "C8:7B:23:00:00:01"),
+    ] {
+        assert!(definition_matches_host(id, mac, &http, &[]), "{id}");
+        assert!(
+            !definition_matches_host(id, OTHER_MAC, &http, &[]),
+            "{id} on another vendor's MAC"
+        );
+        assert!(
+            !definition_matches_host(id, mac, &[], &[]),
+            "{id} with nothing open"
+        );
+    }
+    assert!(definition_matches_host(
+        "Bose Speaker",
+        "C8:7B:23:00:00:01",
+        &[PortType::new_tcp(8091)],
+        &[]
+    ));
+}
+
+/// Spotify Connect binds the port its advertisement names, whatever the vendor chose.
+#[test]
+fn spotify_connect_binds_its_advertised_port() {
+    use crate::server::services::definitions::spotify_connect::SpotifyConnect;
+
+    let mut ctx = TestContext::new();
+    ctx.dns_sd = Some(announcing_on(
+        super::DnsSdServiceType::SPOTIFY_CONNECT,
+        &["cpath=/zc"],
+        8200,
+    ));
+    let none = vec![];
+    let baseline = ctx.create_baseline_params(&none);
+    let params = ctx.create_params_with_ports(&baseline, &none);
+    let matched = SpotifyConnect
+        .discovery_pattern()
+        .matches(&params)
+        .expect("an advertised receiver matches");
+    assert_eq!(matched.ports, vec![PortType::new_tcp(8200)]);
+}

@@ -20,7 +20,10 @@ impl ServiceDefinition for TpLinkEap {
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
-            Pattern::MacVendor(Vendor::TPLINK),
+            Pattern::AnyOf(vec![
+                Pattern::MacVendor(Vendor::TPLINK),
+                Pattern::MacVendor(Vendor::TPLINK_SYSTEMS),
+            ]),
             Pattern::Endpoint(PortType::Http, "/", "tp-link", None),
         ])
     }
