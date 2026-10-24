@@ -60,14 +60,6 @@ export function shouldCull({ renderedCount, measuring, exporting }: CullingCondi
 }
 
 /**
- * Zoom at or below which a node draws as its box rather than its contents.
- *
- * At 0.25 a 12px label renders at 3px and a 20px icon at 5px, so nothing inside a card is legible
- * — and on a large estate a fitted graph sits far below this anyway: the 5,936-node reproduction
- * fits at 0.0108, where a 250px card is under three pixels wide and every one of the ~5 DOM
- * elements inside it is laid out to draw nothing anyone can see.
- */
-/**
  * Zoom below which a node stops rendering its contents.
  *
  * A card mixes four type sizes, so there is no single point where "the text" stops being readable.
@@ -90,6 +82,9 @@ export function shouldCull({ renderedCount, measuring, exporting }: CullingCondi
  *
  * The trade is stated rather than hidden: below this the graph is boxes, and the indicator in the
  * viewer says so, because a view that silently drops what it was showing reads as a bug.
+ *
+ * It is the only zoom transition: a card goes from its state-coloured box straight to full detail,
+ * its status dot and badges included.
  */
 export const DETAIL_ZOOM = 0.35;
 
@@ -144,25 +139,6 @@ export function shouldSimplify(conditions: SimplifyConditions): boolean {
 function reducedDetailAllowed({ nodeCount, measuring, exporting }: SimplifyConditions): boolean {
 	if (measuring || exporting || cullingDisabledForTooling()) return false;
 	return nodeCount >= LOD_MIN_NODES;
-}
-
-/**
- * Zoom below which a card's badges are dropped: its service badges and OS badge. The status dot
- * stays with the rest of the detail, so leaving the state-coloured box is one transition.
- *
- * A badge is 24px, so at 0.5 it is 12px on screen, the floor the text thresholds above use, and a
- * logo that size no longer reads as which service it is. The tile's glyph and the card's text stay
- * down to `DETAIL_ZOOM`. Every badge is absolutely positioned on the tile, so dropping them leaves
- * the card's size and the layout as they were.
- */
-export const BADGE_ZOOM = 0.5;
-
-/**
- * Whether cards should drop their badges: the same graph-size gate and suspensions as
- * `shouldSimplify`, at `BADGE_ZOOM`. A graph under `LOD_MIN_NODES` keeps them at every zoom.
- */
-export function shouldDropBadges(conditions: SimplifyConditions): boolean {
-	return reducedDetailAllowed(conditions) && conditions.zoom < BADGE_ZOOM;
 }
 
 /**

@@ -64,8 +64,6 @@
 	 * see, and one refcounted subscription is cheaper than a viewport read per node.
 	 */
 	let simplified = $derived(sharedStores.simplified.current);
-	// Past `BADGE_ZOOM` on a large graph the badges are too small to read, so they are not drawn.
-	let badgesHidden = $derived(sharedStores.dropBadges.current);
 
 	/**
 	 * The height a simplified card has to hold, taken from what SvelteFlow measured.
@@ -443,7 +441,7 @@
 							).rgb};"
 						></span>
 					{/if}
-					{#if !badgesHidden}
+					{#if iconCard.os || iconCard.badgeDefinitions.length > 0}
 						{#if iconCard.os && iconCard.glyph.type === 'device'}
 							<!-- The host's OS, centred on the tile's bottom-left corner, the size of a service
 							     badge. Fanned service badges spread under the whole tile, so it fades out while

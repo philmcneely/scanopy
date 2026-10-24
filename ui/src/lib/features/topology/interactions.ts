@@ -53,9 +53,6 @@ export const isMeasuring = writable(false);
  */
 export const detailSimplified = writable(false);
 
-/** Cards draw without their badges (`shouldDropBadges`), decided and published like the above. */
-export const badgesDropped = writable(false);
-
 /**
  * A pipeline run is in flight — layout, measurement, the lot.
  *
