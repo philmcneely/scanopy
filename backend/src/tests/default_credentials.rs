@@ -66,13 +66,20 @@ fn error_code(result: Result<impl std::fmt::Debug, anyhow::Error>) -> ErrorCode 
         .unwrap_or_else(|| panic!("not a coded error: {err}"))
 }
 
+/// An organization with the setup every new one gets.
 async fn new_org(services: &ServiceFactory) -> Uuid {
-    services
+    let id = services
         .organization_service
         .create(organization(), AuthenticatedEntity::System)
         .await
         .unwrap()
-        .id
+        .id;
+    services
+        .org_setup_service
+        .seed_organization(id, AuthenticatedEntity::System)
+        .await
+        .unwrap();
+    id
 }
 
 #[tokio::test]
