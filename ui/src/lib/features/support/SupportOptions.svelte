@@ -87,7 +87,7 @@
 				<div class="flex items-center gap-3">
 					<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {colors.bg}">
 						{#if typeof option.icon === 'string'}
-							<img src={option.icon} alt={option.title} class="h-5 w-5" />
+							<img src={option.icon} alt={option.title} class="h-5 w-5 object-contain" />
 						{:else}
 							<option.icon class="h-5 w-5 {colors.icon}" />
 						{/if}
