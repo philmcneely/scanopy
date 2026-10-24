@@ -1532,7 +1532,10 @@ fn every_endpoint_pattern_schedules_its_own_request() {
 /// `/bigbluebutton/api` and `/ipa/ui` with its one page; an SPA serves its shell; some servers echo
 /// the path they did not find, with a 200.
 const CATCH_ALL_BODIES: &[(&str, &str)] = &[
-    ("Kasa page", "<html><body><center>200 OK</center></body></html>"),
+    (
+        "Kasa page",
+        "<html><body><center>200 OK</center></body></html>",
+    ),
     ("empty body", ""),
     (
         "SPA shell",
