@@ -1457,12 +1457,22 @@ fn an_esp_idf_web_server_is_identified_by_its_default_404() {
     let espressif_mac = "0C:B8:15:00:00:01";
     let ports = [PortType::Http];
     let not_found: Response = (PortType::Http, "/", 404, &[], "This URI does not exist");
-    assert!(definition_matches_host(
-        "Espressif Device",
-        espressif_mac,
-        &ports,
-        &[not_found]
-    ));
+    // ESP-IDF v5.0 reworded the default 404.
+    let not_found_v5: Response = (
+        PortType::Http,
+        "/",
+        404,
+        &[],
+        "Nothing matches the given URI",
+    );
+    for response in [not_found, not_found_v5] {
+        assert!(definition_matches_host(
+            "Espressif Device",
+            espressif_mac,
+            &ports,
+            &[response]
+        ));
+    }
     assert!(!definition_matches_host(
         "Espressif Device",
         OTHER_MAC,

@@ -23,18 +23,27 @@ impl ServiceDefinition for EspressifDevice {
         true
     }
 
-    // ESP-IDF's `esp_http_server` answers a path with no handler with a 404 whose body is
-    // "This URI does not exist", and sends no `Server` header. Vendor firmware that registers
-    // only its own API paths leaves `/` to that default.
+    // ESP-IDF's `esp_http_server` answers a path with no handler with a 404 whose body is its
+    // default message (`httpd_resp_send_err` in `httpd_txrx.c`), and sends no `Server` header.
+    // The message is "This URI does not exist" through v4.4 and "Nothing matches the given URI"
+    // from v5.0. Vendor firmware that registers only its own API paths leaves `/` to that default.
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::ESPRESSIF),
-            Pattern::Endpoint(
-                PortType::Http,
-                "/",
-                "This URI does not exist",
-                Some(404..405),
-            ),
+            Pattern::AnyOf(vec![
+                Pattern::Endpoint(
+                    PortType::Http,
+                    "/",
+                    "This URI does not exist",
+                    Some(404..405),
+                ),
+                Pattern::Endpoint(
+                    PortType::Http,
+                    "/",
+                    "Nothing matches the given URI",
+                    Some(404..405),
+                ),
+            ]),
         ])
     }
 
