@@ -66,6 +66,7 @@ pub mod tftp;
 pub mod tls;
 pub mod udp;
 pub mod unbound_control;
+pub mod vnc;
 pub mod zabbix;
 pub mod zmtp;
 
@@ -321,16 +322,9 @@ pub(crate) async fn read_greeting(ctx: &ProbeContext, port: PortType, buf_len: u
         return Vec::new();
     };
 
-    let mut buf = vec![0u8; buf_len];
-    match tokio::time::timeout(SCAN_TIMEOUT, stream.read(&mut buf)).await {
-        Ok(Ok(read)) => {
-            buf.truncate(read);
-            buf
-        }
-        // A listener that accepts and then says nothing is the middlebox shape, and it is why this
-        // returns empty rather than erroring: silence is a legitimate answer meaning "not this".
-        _ => Vec::new(),
-    }
+    // A listener that accepts and then says nothing is the middlebox shape, and it is why this
+    // returns empty rather than erroring: silence is a legitimate answer meaning "not this".
+    read_reply(&mut stream, buf_len).await
 }
 
 /// Connect to `port`, send `request`, and read the reply.
@@ -354,15 +348,34 @@ pub(crate) async fn request_response(
         return Vec::new();
     }
 
-    let mut buf = vec![0u8; buf_len];
-    match tokio::time::timeout(SCAN_TIMEOUT, stream.read(&mut buf)).await {
-        Ok(Ok(read)) => {
-            buf.truncate(read);
-            buf
-        }
-        _ => Vec::new(),
-    }
+    read_reply(&mut stream, buf_len).await
 }
+
+/// Read what the peer sends, up to `buf_len` bytes: the first segment within [`SCAN_TIMEOUT`],
+/// then any further segments that follow within [`REPLY_CONTINUATION`] of each other.
+///
+/// TCP carries a stream, not messages, and one `read` returns whatever segment arrived first. A
+/// Google Nest router's DNS server writes its 2-byte length prefix and the message as two
+/// segments, and a Brother print server writes a screen clear and then its Telnet negotiation, so
+/// a single read handed DnsTcp the prefix alone and Telnet the escape codes alone.
+async fn read_reply(stream: &mut (impl AsyncRead + Unpin), buf_len: usize) -> Vec<u8> {
+    let mut buf = vec![0u8; buf_len];
+    let mut filled = match tokio::time::timeout(SCAN_TIMEOUT, stream.read(&mut buf)).await {
+        Ok(Ok(read)) => read,
+        _ => return Vec::new(),
+    };
+    while filled > 0 && filled < buf_len {
+        match tokio::time::timeout(REPLY_CONTINUATION, stream.read(&mut buf[filled..])).await {
+            Ok(Ok(read)) if read > 0 => filled += read,
+            _ => break,
+        }
+    }
+    buf.truncate(filled);
+    buf
+}
+
+/// How long [`read_reply`] waits for the next segment of a reply that has started arriving.
+const REPLY_CONTINUATION: std::time::Duration = std::time::Duration::from_millis(100);
 
 /// Connect to `port`, send `request`, and read until `want` bytes have arrived.
 ///
@@ -633,6 +646,100 @@ mod tests {
 
         let exact = request_exact(&ctx, PortType::MongoDB, b"ping", 6).await;
         assert_eq!(exact, reply);
+    }
+
+    /// A peer that answers in two segments with a pause between them, as a Google Nest router's
+    /// DNS server sends its length prefix and then the message.
+    #[derive(Debug)]
+    struct SegmentedTunnel {
+        first: &'static [u8],
+        rest: &'static [u8],
+    }
+
+    #[async_trait]
+    impl ProbeTunnel for SegmentedTunnel {
+        async fn open(&self, _port: u16) -> std::io::Result<Box<dyn ProbeStream>> {
+            let (first, rest) = (self.first, self.rest);
+            let (ours, mut theirs) = tokio::io::duplex(1024);
+            tokio::spawn(async move {
+                let mut request = [0u8; 64];
+                if theirs.read(&mut request).await.is_ok() {
+                    let _ = theirs.write_all(first).await;
+                    let _ = theirs.flush().await;
+                    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                    let _ = theirs.write_all(rest).await;
+                }
+            });
+            Ok(Box::new(ours))
+        }
+    }
+
+    /// The router's reply to DnsTcp's root NS query: the prefix, then a SERVFAIL response echoing
+    /// the transaction id. A single read saw only the prefix and reported no answer.
+    #[tokio::test]
+    async fn a_reply_split_across_segments_is_read_whole() {
+        use crate::daemon::utils::app_probe::dns_tcp::DnsTcpProbe;
+
+        let ctx = ProbeContext {
+            tunnel: Some(Arc::new(SegmentedTunnel {
+                first: &[0x00, 0x11],
+                rest: &[
+                    0x5C, 0xA1, 0x80, 0x82, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x02, 0x00, 0x01,
+                ],
+            })),
+            ..tunnelled(None)
+        };
+        let reply = request_response(&ctx, PortType::DnsTcp, b"query", 1024).await;
+        assert_eq!(reply.len(), 19, "prefix and message both read");
+        assert_eq!(
+            DnsTcpProbe.run(&ctx).await.expect("probe runs"),
+            AppProbeOutcome::Answered { identity: None }
+        );
+    }
+
+    /// A Brother HL-2270DW's Telnet greeting: a screen clear, then the option negotiation in a
+    /// second segment. A single read saw only the escape codes.
+    #[tokio::test]
+    async fn a_greeting_split_across_segments_is_read_whole() {
+        use crate::daemon::utils::app_probe::telnet::TelnetProbe;
+
+        let ctx = ProbeContext {
+            tunnel: Some(Arc::new(GreetingTunnel {
+                first: b"\x1b[2J\x1b[1;1f",
+                rest: &[0xFF, 0xFB, 0x01, 0xFF, 0xFB, 0x03, 0xFF, 0xFD, 0x03],
+            })),
+            ..tunnelled(None)
+        };
+        assert_eq!(
+            TelnetProbe.run(&ctx).await.expect("probe runs"),
+            AppProbeOutcome::Answered { identity: None }
+        );
+    }
+
+    /// A server that speaks first, in two segments with a pause between.
+    #[derive(Debug)]
+    struct GreetingTunnel {
+        first: &'static [u8],
+        rest: &'static [u8],
+    }
+
+    #[async_trait]
+    impl ProbeTunnel for GreetingTunnel {
+        async fn open(&self, _port: u16) -> std::io::Result<Box<dyn ProbeStream>> {
+            let (first, rest) = (self.first, self.rest);
+            let (ours, mut theirs) = tokio::io::duplex(1024);
+            tokio::spawn(async move {
+                let _ = theirs.write_all(first).await;
+                let _ = theirs.flush().await;
+                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                let _ = theirs.write_all(rest).await;
+                // Hold the connection open, as a real server does, until the probe hangs up.
+                let mut drain = [0u8; 64];
+                let _ = theirs.read(&mut drain).await;
+            });
+            Ok(Box::new(ours))
+        }
     }
 
     #[tokio::test]

@@ -438,6 +438,19 @@ impl PortType {
         matches!(self, PortType::Samba | PortType::Nfs)
     }
 
+    /// Industrial control protocols, on PLCs, RTUs and building controllers, which may act on bytes
+    /// they are sent: Modbus, EtherNet/IP, OPC UA, BACnet, S7 (102), IEC 60870-5-104 (2404), DNP3
+    /// (20000), EPICS Channel Access (5064-5065), GE SRTP (18245) and Omron FINS (9600).
+    pub fn is_industrial(&self) -> bool {
+        matches!(
+            self,
+            PortType::ModbusTcp | PortType::EtherNetIp | PortType::OpcUa | PortType::BACnet
+        ) || matches!(
+            self.number(),
+            102 | 2404 | 20000 | 5064 | 5065 | 18245 | 9600
+        )
+    }
+
     /// Graphical remote desktop.
     pub fn is_remote_desktop(&self) -> bool {
         matches!(self, PortType::Rdp)

@@ -22,14 +22,14 @@ impl ServiceDefinition for AirPlayReceiver {
         true
     }
 
-    // macOS's AirPlay Receiver listens on 5000 and answers a plain GET with 403 and
-    // `Server: AirTunes/<version>`.
+    // An AirPlay receiver answers a plain GET with an error status and `Server: AirTunes/<version>`:
+    // on 7000 for AirPlay 2 (Macs, Sonos and Bose speakers), and on 5000 too on macOS.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Header(
-            Some(PortType::Http5000),
-            "server",
-            "AirTunes",
-            Some(200..500),
+        Pattern::AnyOf(
+            [PortType::Http5000, PortType::new_tcp(7000)]
+                .into_iter()
+                .map(|port| Pattern::Header(Some(port), "server", "AirTunes", Some(200..500)))
+                .collect(),
         )
     }
 }

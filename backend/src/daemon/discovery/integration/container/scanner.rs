@@ -405,6 +405,7 @@ impl<'a> ContainerScanner<'a> {
                 managed_device: &None,
                 // ...and not swept over multicast either.
                 dns_sd: &None,
+                certificates: &[],
             };
 
             if let Ok(Some(mut host_data)) = self
@@ -597,6 +598,7 @@ impl<'a> ContainerScanner<'a> {
                         managed_device: &None,
                         // ...and not swept over multicast either.
                         dns_sd: &None,
+                        certificates: &[],
                     },
                     None,
                     self.host_naming_fallback,

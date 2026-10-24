@@ -100,6 +100,7 @@ pub mod termix;
 pub mod tftp;
 pub mod unifi_gateway;
 pub mod unifi_switch;
+pub mod vnc;
 pub mod wake_on_lan;
 
 // NetworkAccess
@@ -389,6 +390,7 @@ pub mod nest_thermostat;
 pub mod ring_doorbell;
 pub mod roborock_vacuum;
 pub mod roku;
+pub mod rollease_acmeda_pulse;
 pub mod sonos_speaker;
 pub mod tasmota;
 pub mod tp_link_kasa;

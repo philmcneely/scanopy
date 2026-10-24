@@ -30,15 +30,23 @@ impl ServiceDefinition for ChromecastDevice {
         // service type only a Cast receiver advertises. Kept as an alternative rather than a
         // requirement so a Chromecast on a routed subnet, where multicast never reaches, is still
         // found by its ports.
+        //
+        // A Cast receiver's certificates settle what the ports cannot: the device CA names the
+        // product line, so an `Audio Assist` CA (a Nest Mini or Nest Audio) is Google Home's, not
+        // this definition's. Every TLS port signed under Google's Cast CAs is the receiver's, on
+        // whatever numbers this unit opened.
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::GOOGLE),
-            cast_with_optional_tls(Pattern::AnyOf(vec![
+            Pattern::Not(Box::new(Pattern::CertificateIssuer(CAST_AUDIO_CA))),
+            Pattern::AnyOf(vec![
                 Pattern::DnsSd(DnsSdServiceType::GOOGLE_CAST, None),
                 Pattern::AllOf(vec![
                     Pattern::Port(PortType::new_tcp(8008)),
                     Pattern::Port(PortType::new_tcp(8009)),
                 ]),
-            ])),
+                Pattern::CertificateIssuer(CAST_DEVICE_CA),
+            ])
+            .also_binding(Pattern::CertificateIssuer(CAST_CA)),
         ])
     }
 
@@ -50,15 +58,15 @@ impl ServiceDefinition for ChromecastDevice {
     }
 }
 
-/// `cast`, also claiming 8443 when it is open. Cast receivers serve their TLS endpoint there (the
-/// certificate reads `OU=Cast`), but not every receiver opens it, so it is never required: the
-/// second arm matches only alongside `cast`, and `AnyOf` binds the ports of every arm that matches.
-pub(crate) fn cast_with_optional_tls(cast: Pattern<'_>) -> Pattern<'_> {
-    Pattern::AnyOf(vec![
-        cast.clone(),
-        Pattern::AllOf(vec![cast, Pattern::Port(PortType::Https8443)]),
-    ])
-}
+/// The organizational unit of Google's Cast CAs, which sign every TLS port on a Cast receiver and
+/// on Nest devices: `Chromecast ICA …` for the device's own identity, `Usonia …` for the Home
+/// services it runs (8012, 10101 and others).
+pub(crate) const CAST_CA: &str = "OU=Cast";
+/// The CA that signs a Cast receiver's device certificate, e.g. `Chromecast ICA 5 (4K)`.
+pub(crate) const CAST_DEVICE_CA: &str = "Chromecast ICA";
+/// The device CA of audio-only Cast receivers, e.g. `Chromecast ICA 16 (Audio Assist 4)` on a
+/// Nest Mini.
+pub(crate) const CAST_AUDIO_CA: &str = "Audio Assist";
 
 inventory::submit!(ServiceDefinitionFactory::new(
     create_service::<ChromecastDevice>

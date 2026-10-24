@@ -35,6 +35,9 @@ impl ServiceDefinition for BoseSpeaker {
                 Pattern::Port(PortType::new_tcp(8085)),
                 Pattern::Port(PortType::new_tcp(8091)),
                 Pattern::Port(PortType::Https8443),
+                // Every TLS port is signed by a Bose CA (`Bose CEPD Device CA` on the Wi-Fi setup
+                // pages at 8082/8083 and on 8087, `Bose CAST CA` on 8443 and 10003).
+                Pattern::CertificateIssuer("O=Bose Corporation"),
             ]),
         ])
     }

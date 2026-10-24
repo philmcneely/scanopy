@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
 
+use crate::daemon::utils::app_probe::tls::PortCertificate;
 use crate::server::credentials::r#impl::mapping::SnmpCredentialMapping;
 use crate::server::discovery::r#impl::types::{DiscoveryType, HostNamingFallback};
 use crate::server::ip_addresses::r#impl::base::{MacEvidence, MacEvidenceValue};
@@ -47,6 +48,7 @@ struct TestContext {
     client_responses: std::collections::HashMap<super::ClientProbe, Vec<PortType>>,
     managed_device: Option<super::ManagedDevice>,
     dns_sd: Option<crate::daemon::discovery::service::network::mdns::DnsSdHost>,
+    certificates: Vec<crate::daemon::utils::app_probe::tls::PortCertificate>,
 }
 
 impl TestContext {
@@ -85,6 +87,7 @@ impl TestContext {
             client_responses: std::collections::HashMap::new(),
             managed_device: None,
             dns_sd: None,
+            certificates: Vec::new(),
         }
     }
 
@@ -123,6 +126,7 @@ impl TestContext {
             client_responses: &self.client_responses,
             managed_device: &self.managed_device,
             dns_sd: &self.dns_sd,
+            certificates: &self.certificates,
         }
     }
 }
@@ -345,6 +349,7 @@ fn definition_matches_status(
         client_responses: &client_responses,
         managed_device: &None,
         dns_sd: &None,
+        certificates: &[],
     };
     let params = DiscoverySessionServiceMatchParams {
         host_id: &ctx.host_id,
@@ -622,6 +627,7 @@ fn test_jenkins_https_header_detection() {
         client_responses: &client_responses,
         managed_device: &None,
         dns_sd: &None,
+        certificates: &[],
     };
     let params = DiscoverySessionServiceMatchParams {
         host_id: &ctx.host_id,
@@ -670,6 +676,7 @@ fn test_jenkins_http8080_body_detection() {
         client_responses: &client_responses,
         managed_device: &None,
         dns_sd: &None,
+        certificates: &[],
     };
     let params = DiscoverySessionServiceMatchParams {
         host_id: &ctx.host_id,
@@ -1199,7 +1206,26 @@ fn definition_binds_on_host(
     ports: &[PortType],
     responses: &[Response],
 ) -> Option<Vec<PortType>> {
+    definition_binds_with_certificates(id, mac, ports, responses, &[])
+}
+
+/// [`definition_binds_on_host`] for a host whose TLS ports presented `(port, issuer)` certificates.
+fn definition_binds_with_certificates(
+    id: &str,
+    mac: &str,
+    ports: &[PortType],
+    responses: &[Response],
+    certificates: &[(PortType, &str)],
+) -> Option<Vec<PortType>> {
     let mut ctx = TestContext::new();
+    ctx.certificates = certificates
+        .iter()
+        .map(|(port, issuer)| PortCertificate {
+            port: *port,
+            subject: "CN=device".to_string(),
+            issuer: issuer.to_string(),
+        })
+        .collect();
     ctx.ip_address.base.mac_address = Some(MacEvidence::new(
         MacEvidenceValue(mac.parse().expect("valid MAC")),
         AttributeSource::ArpReply,
@@ -1356,26 +1382,150 @@ fn spotify_connect_binds_its_advertised_port() {
     assert_eq!(matched.ports, vec![PortType::new_tcp(8200)]);
 }
 
-/// A Cast receiver binds 8443 when it has it open and still matches without it.
+/// Issuers as a live Chromecast Ultra, Nest Mini, Bose amp and Sonos presented them.
+const CAST_VIDEO_ISSUER: &str =
+    "CN=Chromecast ICA 5 (4K),OU=Cast,O=Google Inc,L=Mountain View,ST=California,C=US";
+const CAST_AUDIO_ISSUER: &str =
+    "CN=Chromecast ICA 16 (Audio Assist 4),OU=Cast,O=Google Inc,L=Mountain View,ST=California,C=US";
+const CAST_HOME_ISSUER: &str =
+    "CN=Usonia us-east1 ICA,OU=Cast,O=Google Inc,L=Mountain View,ST=California,C=US";
+
+/// The Cast device certificate routes a receiver: a video CA to Chromecast, an `Audio Assist` CA to
+/// Google Home. Each binds every port signed under Google's Cast CAs, on whatever numbers the unit
+/// opened, and still matches on its ports alone when no certificate was read.
 #[test]
-fn cast_receivers_bind_their_tls_port_when_open() {
+fn cast_receivers_are_told_apart_and_bound_by_their_certificates() {
     let google_mac = "7C:D9:5C:00:00:01";
     let cast = [PortType::new_tcp(8008), PortType::new_tcp(8009)];
-    let with_tls = [cast[0], cast[1], PortType::Https8443];
-    for id in ["Chromecast", "Google Home"] {
-        let bound = definition_binds_on_host(id, google_mac, &with_tls, &[])
-            .unwrap_or_else(|| panic!("{id} matches with 8443 open"));
-        assert!(bound.contains(&PortType::Https8443), "{id} binds 8443");
+    let with_tls = |extra: &[u16]| {
+        let mut ports = cast.to_vec();
+        ports.extend(extra.iter().map(|p| PortType::new_tcp(*p)));
+        ports
+    };
+
+    // Den TV: 4K Chromecast.
+    let den_tv_ports = with_tls(&[9000, 10001, 10101]);
+    let den_tv = [
+        (PortType::new_tcp(9000), CAST_VIDEO_ISSUER),
+        (PortType::new_tcp(10001), CAST_VIDEO_ISSUER),
+        (PortType::new_tcp(10101), CAST_HOME_ISSUER),
+    ];
+    let bound =
+        definition_binds_with_certificates("Chromecast", google_mac, &den_tv_ports, &[], &den_tv)
+            .expect("a video Cast receiver is a Chromecast");
+    for port in [9000, 10001, 10101] {
         assert!(
-            definition_matches_host(id, google_mac, &cast, &[]),
-            "{id} without 8443"
-        );
-        // 8443 alone is no Cast evidence.
-        assert!(
-            !definition_matches_host(id, google_mac, &[PortType::Https8443], &[]),
-            "{id} on 8443 alone"
+            bound.contains(&PortType::new_tcp(port)),
+            "Chromecast binds {port}"
         );
     }
+    assert!(
+        definition_binds_with_certificates("Google Home", google_mac, &den_tv_ports, &[], &den_tv)
+            .is_none(),
+        "a video Cast receiver is no Google Home"
+    );
+
+    // Dining Room speaker: Nest Mini.
+    let mini_ports = with_tls(&[11101, 10005]);
+    let mini = [
+        (PortType::new_tcp(11101), CAST_AUDIO_ISSUER),
+        (PortType::new_tcp(10005), CAST_HOME_ISSUER),
+    ];
+    let bound =
+        definition_binds_with_certificates("Google Home", google_mac, &mini_ports, &[], &mini)
+            .expect("an audio Cast receiver is a Google Home");
+    assert!(bound.contains(&PortType::new_tcp(11101)) && bound.contains(&PortType::new_tcp(10005)));
+    assert!(
+        definition_binds_with_certificates("Chromecast", google_mac, &mini_ports, &[], &mini)
+            .is_none(),
+        "an audio Cast receiver is no Chromecast"
+    );
+
+    // No certificate read: the port pair still identifies both, as before.
+    for id in ["Chromecast", "Google Home"] {
+        assert!(definition_matches_host(id, google_mac, &cast, &[]), "{id}");
+    }
+}
+
+/// Bose and Sonos sign their TLS ports with their own CAs, which binds ports their port lists do
+/// not name.
+#[test]
+fn speaker_vendors_bind_ports_their_certificates_sign() {
+    let bose_mac = "C8:7B:23:00:00:01";
+    let bose_ports: Vec<PortType> = [80, 8082, 8087, 10003]
+        .into_iter()
+        .map(PortType::new_tcp)
+        .collect();
+    let bose_issuer = "CN=Bose CEPD Device CA - PSE2,OU=Consumer Electronics Product Division,O=Bose Corporation,C=US";
+    let bound = definition_binds_with_certificates(
+        "Bose Speaker",
+        bose_mac,
+        &bose_ports,
+        &[],
+        &[
+            (PortType::new_tcp(8082), bose_issuer),
+            (PortType::new_tcp(8087), bose_issuer),
+            (PortType::new_tcp(10003), bose_issuer),
+        ],
+    )
+    .expect("a Bose speaker matches");
+    for port in [8082, 8087, 10003] {
+        assert!(
+            bound.contains(&PortType::new_tcp(port)),
+            "Bose binds {port}"
+        );
+    }
+
+    let sonos_mac = "B8:E9:37:00:00:01";
+    let sonos_ports = [PortType::new_tcp(1400), PortType::new_tcp(1443)];
+    let bound = definition_binds_with_certificates(
+        "Sonos Speaker",
+        sonos_mac,
+        &sonos_ports,
+        &[],
+        &[(
+            PortType::new_tcp(1443),
+            "CN=Sonos Device Authentication Root CA,OU=Sonos Devices,O=Sonos\\, Inc,L=Santa Barbara,ST=California,C=US",
+        )],
+    )
+    .expect("a Sonos speaker matches");
+    assert!(bound.contains(&PortType::new_tcp(1443)));
+}
+
+/// `CertificateIssuer` holds as evidence whichever service took the port, binds only ports still
+/// unbound, and `Not` of it asks about the host.
+#[test]
+fn a_certificate_issuer_is_host_evidence_and_binds_only_unbound_ports() {
+    let mut ctx = TestContext::new();
+    ctx.certificates = vec![
+        PortCertificate {
+            port: PortType::new_tcp(9000),
+            subject: "CN=a".to_string(),
+            issuer: CAST_VIDEO_ISSUER.to_string(),
+        },
+        PortCertificate {
+            port: PortType::new_tcp(10001),
+            subject: "CN=b".to_string(),
+            issuer: CAST_VIDEO_ISSUER.to_string(),
+        },
+    ];
+    let all = vec![PortType::new_tcp(9000), PortType::new_tcp(10001)];
+    // 9000 is already held by another service.
+    let unbound = vec![PortType::new_tcp(10001)];
+    let baseline = ctx.create_baseline_params(&all);
+    let params = ctx.create_params_with_ports(&baseline, &unbound);
+
+    let matched = Pattern::CertificateIssuer("ou=cast")
+        .matches(&params)
+        .expect("case-insensitive issuer match");
+    assert_eq!(matched.ports, vec![PortType::new_tcp(10001)]);
+
+    assert!(
+        Pattern::Not(Box::new(Pattern::CertificateIssuer("Chromecast ICA")))
+            .matches(&params)
+            .is_err()
+    );
+    assert!(Pattern::CertificateIssuer("Bose").matches(&params).is_err());
 }
 
 /// macOS's AirPlay Receiver and MiniUPnPd both answer `/` on 5000 with an error status, and the
@@ -1408,6 +1558,20 @@ fn port_5000_is_identified_by_its_server_header_on_an_error_response() {
         OTHER_MAC,
         &ports,
         &[miniupnpd]
+    ));
+    // AirPlay 2 receivers (Sonos, Bose, Macs) answer the same way on 7000.
+    let airplay_2: Response = (
+        PortType::new_tcp(7000),
+        "/",
+        404,
+        &[("server", "AirTunes/366.0")],
+        "",
+    );
+    assert!(definition_matches_host(
+        "AirPlay Receiver",
+        OTHER_MAC,
+        &[PortType::new_tcp(7000)],
+        &[airplay_2]
     ));
     assert!(definition_matches_host(
         "UPnP IGD",
@@ -1600,4 +1764,28 @@ fn no_definition_matches_a_catch_all_web_server() {
         false_positives.is_empty(),
         "definitions matching a catch-all web server: {false_positives:?}"
     );
+}
+
+/// A Pulse hub's HomeKit advertisement names its model; another HomeKit bridge's does not.
+#[test]
+fn a_pulse_hub_is_identified_by_its_homekit_model() {
+    use crate::server::services::definitions::rollease_acmeda_pulse::RolleaseAcmedaPulse;
+
+    let matches_with = |txt: &[&str]| {
+        let mut ctx = TestContext::new();
+        ctx.dns_sd = Some(announcing_on(super::DnsSdServiceType::HOMEKIT, txt, 80));
+        let ports = vec![PortType::Http];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
+        RolleaseAcmedaPulse
+            .discovery_pattern()
+            .matches(&params)
+            .ok()
+    };
+
+    // The TXT record a Pulse 2 hub advertised.
+    let matched = matches_with(&["ci=2", "md=MT02-0401-067001", "pv=1.1"])
+        .expect("the Pulse model string identifies the hub");
+    assert_eq!(matched.ports, vec![PortType::Http]);
+    assert!(matches_with(&["ci=2", "md=Hue Bridge"]).is_none());
 }
