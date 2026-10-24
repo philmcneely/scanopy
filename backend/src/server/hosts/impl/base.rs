@@ -392,6 +392,7 @@ impl HostBase {
                     let v = v.as_ref()?;
                     let id = match v {
                         HostVirtualization::Proxmox(p) => p.vm_id.as_ref(),
+                        HostVirtualization::Libvirt(l) => l.vm_id.as_ref(),
                         HostVirtualization::Docker(c) | HostVirtualization::Podman(c) => {
                             c.container_id.as_ref()
                         }

@@ -38276,6 +38276,25 @@
           },
           {
             "type": "object",
+            "title": "Libvirt",
+            "required": [
+              "details",
+              "type"
+            ],
+            "properties": {
+              "details": {
+                "$ref": "#/components/schemas/LibvirtVirtualization"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Libvirt"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "Docker",
             "required": [
               "details",
@@ -39959,6 +39978,29 @@
               "format": "uuid"
             },
             "description": "Subnets the daemon has an interface on, as reported by older daemons."
+          }
+        }
+      },
+      "LibvirtVirtualization": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/GuestState",
+            "description": "Whether the domain was running at the last scan. Hand-assigned guests read as running."
+          },
+          "vm_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "libvirt domain UUID of the guest."
+          },
+          "vm_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Domain name as configured in libvirt."
           }
         }
       },

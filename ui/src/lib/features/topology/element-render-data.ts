@@ -304,6 +304,8 @@ function hostGuestRows(
 				statusRow(state, status)
 			];
 		}
+		case 'Libvirt':
+			return [manager, statusRow(virtualization.details.state, status)];
 		case 'VCenter':
 		case 'ESXi':
 			return [manager];
