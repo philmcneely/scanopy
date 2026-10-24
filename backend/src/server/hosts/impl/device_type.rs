@@ -274,6 +274,9 @@ fn device_type_from_label(label: &str) -> Option<DeviceType> {
                 Some(DeviceType::Tablet)
             }
             "doorbell" => Some(DeviceType::Camera),
+            // A Schlage Wi-Fi lock's default DHCP name. It sleeps between cloud check-ins and opens
+            // no ports, so the name is the only evidence a scan gets.
+            "schlage" => Some(DeviceType::IoT),
             "macbook" | "macbookpro" | "macbookair" | "imac" | "imacpro" | "macmini" | "macpro"
             | "macstudio" => Some(DeviceType::Workstation),
             "mac"
@@ -482,6 +485,7 @@ mod tests {
             named("nest-doorbell-battery.lan").device_type(&[], []),
             DeviceType::Camera
         );
+        assert_eq!(named("schlage.lan").device_type(&[], []), DeviceType::IoT);
         // A desk phone and a bare "pad" name no handheld.
         assert_eq!(
             named("lobby-ip-phone").device_type(&[], []),
