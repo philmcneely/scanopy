@@ -6,7 +6,8 @@ use uuid::Uuid;
 use crate::server::{
     hosts::r#impl::{base::Host, name_ladder::HostNameRung},
     ip_addresses::r#impl::base::IPAddress,
-    shared::entities::EntityDiscriminants,
+    services::r#impl::definitions::ServiceDefinitionExt,
+    shared::{entities::EntityDiscriminants, types::metadata::HasId},
     subnets::r#impl::types::{SubnetType, SubnetTypeDiscriminants},
     topology::{
         service::{
@@ -390,6 +391,35 @@ impl SubnetGraphBuilder {
         apply_stack_runtime_logos(child_nodes, ctx.services);
     }
 
+    /// Service definition whose logo marks a container-bridge subnet container: the
+    /// definition of the runtime service each bridge reports through
+    /// `virtualization_service_id`. A merged container gets it only when every merged
+    /// bridge resolves to the same definition; a bridge with no runtime service, a
+    /// service missing from the context, or a definition without a logo yields `None`,
+    /// leaving the subnet type's icon.
+    fn bridge_runtime_definition(
+        &self,
+        ctx: &TopologyContext,
+        subnet_id: Uuid,
+    ) -> Option<&'static str> {
+        let members = self
+            .consolidated_container_bridge_subnets
+            .get(&subnet_id)
+            .map(Vec::as_slice)
+            .unwrap_or(std::slice::from_ref(&subnet_id));
+        let mut definitions = members.iter().map(|member_id| {
+            let subnet = ctx.get_subnet_by_id(*member_id)?;
+            if !subnet.base.subnet_type().is_container_bridge() {
+                return None;
+            }
+            let service = ctx.get_service_by_id(subnet.base.virtualization_service_id?)?;
+            let definition = &service.base.service_definition;
+            definition.has_logo().then(|| definition.id())
+        });
+        let first = definitions.next()??;
+        definitions.all(|d| d == Some(first)).then_some(first)
+    }
+
     /// Create subnet container nodes
     /// Positions and sizes are zeroed — the frontend computes layout via elkjs
     pub fn create_subnet_nodes(
@@ -458,7 +488,9 @@ impl SubnetGraphBuilder {
                         entity_id: Some(*subnet_id),
                         icon: None,
                         color: None,
-                        associated_service_definition: None,
+                        associated_service_definition: self
+                            .bridge_runtime_definition(ctx, *subnet_id)
+                            .map(str::to_string),
                         element_rule_id: None,
                         will_accept_edges,
                     },
