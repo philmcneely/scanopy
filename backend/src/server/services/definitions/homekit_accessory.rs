@@ -38,8 +38,8 @@ impl ServiceDefinition for HomeKitAccessory {
     }
 
     fn logo_url(&self) -> &'static str {
-        // The icon set has no HomeKit mark of its own; Apple's is the closest true thing.
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/apple.svg"
+        // Apple Home's house mark, from selfh.st/icons: Dashboard Icons has no HomeKit icon.
+        "https://cdn.jsdelivr.net/gh/selfhst/icons/svg/apple-homekit.svg"
     }
 }
 

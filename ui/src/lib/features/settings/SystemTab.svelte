@@ -16,6 +16,7 @@
 	import SelectInput from '$lib/shared/components/forms/input/SelectInput.svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import CollapsibleCard from '$lib/shared/components/data/CollapsibleCard.svelte';
+	import logoCredits from '$lib/data/logo-credits.json';
 	import type { Snippet } from 'svelte';
 	import type { components } from '$lib/api/schema';
 	import {
@@ -27,7 +28,6 @@
 		common_license,
 		common_dark,
 		common_monday,
-		common_source,
 		common_sunday,
 		common_clock,
 		common_12Hour,
@@ -36,19 +36,19 @@
 		common_compact,
 		common_tables,
 		settings_system_copyright,
-		settings_system_dashboardIconsAttribution,
 		settings_system_dateAndTime,
 		settings_system_dateOrder,
 		settings_system_dateOrderDayFirst,
 		settings_system_dateOrderIso,
 		settings_system_dateOrderMonthFirst,
 		settings_system_displayUpdated,
+		settings_system_iconCredits,
+		settings_system_iconCreditsDescription,
+		settings_system_iconCreditsTrademark,
 		settings_system_license,
 		settings_system_licenseLinkText,
-		settings_system_libvirtAttribution,
 		settings_system_preview,
 		settings_system_recogAttribution,
-		settings_system_simpleIconsAttribution,
 		settings_system_tablesDesc,
 		settings_system_tablesUpdated,
 		settings_system_themeDesc,
@@ -56,8 +56,6 @@
 		settings_system_timestamps,
 		settings_system_timestampsAbsolute,
 		settings_system_timestampsRelative,
-		settings_system_tuxAttribution,
-		settings_system_windowsAttribution,
 		settings_system_version,
 		settings_system_weekStart
 	} from '$lib/paraglide/messages';
@@ -194,7 +192,7 @@
 	labelFor: string | null,
 	control: Snippet
 )}
-	<div class="card-static flex flex-col gap-3 card sm:flex-row sm:items-center sm:justify-between">
+	<div class="card-static card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<div class="min-w-0">
 			{#if labelFor}
 				<label for={labelFor} class="text-sm font-semibold text-primary">{title}</label>
@@ -308,6 +306,44 @@
 		</div>
 	</CollapsibleCard>
 
+	<!-- Every logo source and its terms, from the backend's `logo_credits.rs`. -->
+	<CollapsibleCard
+		title={settings_system_iconCredits()}
+		description={settings_system_iconCreditsDescription()}
+		expanded={false}
+	>
+		<ul class="flex flex-col gap-3">
+			{#each logoCredits as credit (credit.name)}
+				<li class="flex flex-col gap-0.5 text-xs">
+					<span>
+						<a
+							href={credit.homepage}
+							target="_blank"
+							rel="external noopener noreferrer"
+							class="font-medium text-blue-500 hover:underline">{credit.name}</a
+						>
+						<span class="text-tertiary">
+							· {credit.copyright} ·
+							{#if credit.license && credit.license_url}
+								<a
+									href={credit.license_url}
+									target="_blank"
+									rel="external noopener noreferrer"
+									class="text-blue-500 hover:underline">{credit.license}</a
+								>
+							{:else}
+								{credit.license ?? settings_system_iconCreditsTrademark()}
+							{/if}
+						</span>
+					</span>
+					<span class="line-clamp-2 text-tertiary" title={credit.used_for.join(', ')}>
+						{credit.used_for.join(', ')}
+					</span>
+				</li>
+			{/each}
+		</ul>
+	</CollapsibleCard>
+
 	<div class="mt-auto flex flex-col gap-1">
 		<p class="text-xs text-tertiary">{settings_system_version({ version: VERSION })}</p>
 		<p class="text-xs text-tertiary">{settings_system_copyright({ year: copyrightYear })}</p>
@@ -317,33 +353,8 @@
 			linkText={settings_system_licenseLinkText()}
 		/>
 		<DocsHint
-			text={settings_system_tuxAttribution()}
-			href="https://commons.wikimedia.org/wiki/File:Tux.svg"
-			linkText={common_source()}
-		/>
-		<DocsHint
-			text={settings_system_windowsAttribution()}
-			href="https://commons.wikimedia.org/wiki/File:Windows_logo_-_2021.svg"
-			linkText={common_source()}
-		/>
-		<DocsHint
 			text={settings_system_recogAttribution()}
 			href="https://github.com/scanopy/scanopy/blob/main/backend/assets/recog/LICENSE"
-			linkText={common_license()}
-		/>
-		<DocsHint
-			text={settings_system_dashboardIconsAttribution()}
-			href="https://github.com/scanopy/scanopy/blob/main/backend/assets/dashboard-icons/LICENSE"
-			linkText={common_license()}
-		/>
-		<DocsHint
-			text={settings_system_libvirtAttribution()}
-			href="https://github.com/scanopy/scanopy/blob/main/backend/assets/libvirt/LICENSE"
-			linkText={common_license()}
-		/>
-		<DocsHint
-			text={settings_system_simpleIconsAttribution()}
-			href="https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md"
 			linkText={common_license()}
 		/>
 	</div>

@@ -155,6 +155,13 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
         "identity-provider-logos.json",
     );
 
+    // Where each logo above comes from and on what terms, for Settings > System.
+    write_fixture(
+        &crate::server::shared::logo_credits::logo_credits(),
+        output_dir,
+        "logo-credits.json",
+    );
+
     let subnet_types: Vec<TypeMetadata> = SubnetType::iter().map(|t| t.to_metadata()).collect();
     write_fixture(&subnet_types, output_dir, "subnet-types.json");
 
