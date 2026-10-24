@@ -202,6 +202,7 @@ pub mod plex;
 pub mod sabnzbd;
 pub mod serviio;
 pub mod slskd;
+pub mod spotify_connect;
 pub mod tautulli;
 
 // HomeAutomation
@@ -370,13 +371,16 @@ pub mod iphone;
 // IoT
 pub mod amazon_echo;
 pub mod apple_tv;
+pub mod bose_speaker;
 pub mod camera;
 pub mod chromecast;
 pub mod frigate;
 pub mod google_home;
+pub mod home_connect;
 pub mod homekit_accessory;
 pub mod homepod;
 pub mod iot;
+pub mod myq;
 pub mod nest_protect;
 pub mod nest_thermostat;
 pub mod ring_doorbell;
@@ -384,6 +388,7 @@ pub mod roborock_vacuum;
 pub mod roku;
 pub mod sonos_speaker;
 pub mod tasmota;
+pub mod tp_link_kasa;
 pub mod tuyasmart;
 pub mod wiz;
 

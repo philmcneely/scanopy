@@ -303,6 +303,10 @@ pub enum ClientProbe {
     /// A `Get-Printer-Attributes` request came back as an `application/ipp` message, whatever its
     /// status.
     Ipp,
+    /// A Spotify Connect receiver answered `getInfo` on the port and path its mDNS advertisement
+    /// names, with the JSON every Spotify Connect implementation returns. The reply states the
+    /// device's brand and model.
+    SpotifyConnect,
 }
 
 impl ClientProbe {
@@ -366,7 +370,8 @@ impl ClientProbe {
             | Self::SnmpEngine
             | Self::DockerPing
             | Self::PodmanPing
-            | Self::Ipp => M::Native,
+            | Self::Ipp
+            | Self::SpotifyConnect => M::Native,
         }
     }
 }
@@ -442,6 +447,9 @@ impl DnsSdServiceType {
     pub const HUE: &'static str = "_hue._tcp";
     /// Home Assistant.
     pub const HOME_ASSISTANT: &'static str = "_home-assistant._tcp";
+    /// Spotify Connect receivers. The SRV record names the port and TXT `CPath` the path of the
+    /// `getInfo` endpoint; both differ by vendor (Bose `8200` `/zc`, Sonos `1400` `/spotifyzc`).
+    pub const SPOTIFY_CONNECT: &'static str = "_spotify-connect._tcp";
 }
 
 #[derive(Debug, Clone, EnumDiscriminants)]
@@ -550,6 +558,13 @@ impl Vendor {
     pub const ROBOROCK: &'static str = "Beijing Roborock Technology Co., Ltd.";
     pub const WIZ: &'static str = "WiZ";
     pub const TUYASMART: &'static str = "Tuya Smart Inc.";
+    /// The registrant on TP-Link's newer OUIs, which Kasa plugs and switches ship with.
+    pub const TPLINK_SYSTEMS: &'static str = "TP-Link Systems Inc.";
+    /// Bosch, Siemens, Neff, Gaggenau and Thermador appliances.
+    pub const BSH: &'static str = "BSH Hausgeräte GmbH";
+    /// Chamberlain and LiftMaster, including myQ.
+    pub const CHAMBERLAIN: &'static str = "The Chamberlain Group, Inc";
+    pub const BOSE: &'static str = "Bose Corporation";
 }
 
 impl PartialEq for Pattern<'_> {

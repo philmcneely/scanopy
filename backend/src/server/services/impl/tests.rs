@@ -1090,6 +1090,9 @@ fn every_client_probe_variant_has_a_producer() {
         ClientProbe::Proxmox,
         ClientProbe::Gnmi,
     ];
+    // Probes whose port comes from the host's mDNS advertisement, so they cannot be registry
+    // `AppProbe`s with a fixed `port()`; run directly by the network scan.
+    let from_advertised_probes = [ClientProbe::SpotifyConnect];
 
     let from_app_probes: HashSet<ClientProbe> = all_app_probes()
         .iter()
@@ -1099,6 +1102,7 @@ fn every_client_probe_variant_has_a_producer() {
     let orphans: Vec<ClientProbe> = ClientProbe::iter()
         .filter(|c| !from_app_probes.contains(c))
         .filter(|c| !from_integrations.contains(c))
+        .filter(|c| !from_advertised_probes.contains(c))
         .collect();
 
     assert!(

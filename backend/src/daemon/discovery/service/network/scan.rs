@@ -8,7 +8,7 @@ use crate::daemon::discovery::service::warnings::{
 };
 use crate::daemon::discovery::types::base::DiscoveryCriticalError;
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
-use crate::daemon::utils::app_probe::{ProbeContext, scan_app_probes};
+use crate::daemon::utils::app_probe::{ProbeContext, scan_app_probes, spotify_connect};
 use crate::daemon::utils::base::{DaemonUtils, PlatformDaemonUtils, filtered_own_nics};
 use crate::daemon::utils::scanner::{
     ScanConcurrencyController, can_arp_scan, scan_endpoints, scan_tcp_ports,
@@ -1662,7 +1662,7 @@ impl NetworkScan {
             port_map: Default::default(),
             tunnel: None,
         };
-        let app_probe_results = scan_app_probes(
+        let mut app_probe_results = scan_app_probes(
             &probe_ctx,
             &open_ports,
             effective_batch_size,
@@ -1670,6 +1670,13 @@ impl NetworkScan {
             true,
         )
         .await;
+        // A probe whose port only the host's mDNS advertisement names, so it runs only where the
+        // browse reached this address.
+        if let Some(dns_sd) = mdns_hosts.get(&ip)
+            && let Some(result) = spotify_connect::probe_advertised(&probe_ctx, dns_sd).await
+        {
+            app_probe_results.push(result);
+        }
         for result in &app_probe_results {
             if !open_ports.contains(&result.port) {
                 open_ports.push(result.port);

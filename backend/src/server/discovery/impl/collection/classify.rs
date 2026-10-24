@@ -116,6 +116,8 @@ impl ClientProbe {
             Self::ModbusTcp | Self::EtherNetIp => {
                 C::CredentialFree(&[PortsAndServices, DeviceDetails])
             }
+            // Spotify Connect's `getInfo` names the brand and model.
+            Self::SpotifyConnect => C::CredentialFree(&[PortsAndServices, DeviceDetails]),
             // The SMB negotiation states the Windows release.
             Self::Smb => C::CredentialFree(&[PortsAndServices, OperatingSystem]),
             // Presence probes: the protocol answered on the port, which identifies the service.
