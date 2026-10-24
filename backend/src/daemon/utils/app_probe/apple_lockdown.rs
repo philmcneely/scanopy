@@ -13,10 +13,13 @@
 use anyhow::Error;
 use async_trait::async_trait;
 
+use tokio::io::AsyncWriteExt;
+
 use crate::daemon::utils::app_probe::{
-    AppProbe, AppProbeOutcome, DeviceIdentity, ProbeContext, identity_field, presence,
-    request_response,
+    AppProbe, AppProbeOutcome, DeviceIdentity, ProbeContext, ProbeStream, identity_field, presence,
+    read_reply,
 };
+use crate::daemon::utils::scanner::SCAN_TIMEOUT;
 use crate::server::hosts::r#impl::attributes::HostOsValue;
 use crate::server::hosts::r#impl::os::{HostOs, HostOsFamily};
 use crate::server::ports::r#impl::base::PortType;
@@ -41,26 +44,36 @@ impl AppProbe for AppleLockdownProbe {
         Some(ClientProbe::AppleLockdown)
     }
 
+    /// All three requests on one connection. An iPhone in Wi-Fi power save answers in short waking
+    /// windows: in a live scan it answered `QueryType` and slept through the `GetValue`
+    /// connections that followed, so the reads ride the connection that already got an answer.
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply =
-            request_response(ctx, self.port(), &request("QueryType", None), MAX_REPLY).await;
+        let Some(mut stream) = ctx.connect(self.port().number()).await else {
+            return Ok(AppProbeOutcome::NoAnswer);
+        };
+        let reply = exchange(&mut stream, &request("QueryType", None)).await;
         if parse_query_type(&reply) == AppProbeOutcome::NoAnswer {
             return Ok(AppProbeOutcome::NoAnswer);
         }
-        let product_type = self.get_value(ctx, "ProductType").await;
-        let product_version = self.get_value(ctx, "ProductVersion").await;
+        let product_type =
+            string_value(&exchange(&mut stream, &request("GetValue", Some("ProductType"))).await);
+        let product_version =
+            string_value(&exchange(&mut stream, &request("GetValue", Some("ProductVersion"))).await);
         Ok(AppProbeOutcome::Answered {
             identity: identity(product_type, product_version),
         })
     }
 }
 
-impl AppleLockdownProbe {
-    async fn get_value(&self, ctx: &ProbeContext, key: &str) -> Option<String> {
-        let reply =
-            request_response(ctx, self.port(), &request("GetValue", Some(key)), MAX_REPLY).await;
-        string_value(&reply)
+/// Send one request on an open lockdown connection and read its reply.
+async fn exchange(stream: &mut Box<dyn ProbeStream>, request: &[u8]) -> Vec<u8> {
+    if tokio::time::timeout(SCAN_TIMEOUT, stream.write_all(request))
+        .await
+        .is_err()
+    {
+        return Vec::new();
     }
+    read_reply(stream, MAX_REPLY).await
 }
 
 /// A lockdown request, framed by its length.
