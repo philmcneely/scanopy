@@ -1,6 +1,6 @@
 use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
-use crate::server::services::definitions::chromecast::cast_with_optional_tls;
+use crate::server::services::definitions::chromecast::{CAST_AUDIO_CA, CAST_CA, CAST_DEVICE_CA};
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -35,13 +35,22 @@ impl ServiceDefinition for GoogleHome {
             // these two definitions are indistinguishable. The mDNS TXT `md=` model string is what
             // tells them apart in practice; until a pattern can read TXT values, the port pair
             // stays the primary signal and the service type only widens reach.
-            cast_with_optional_tls(Pattern::AnyOf(vec![
+            //
+            // The Cast device certificate does tell them apart: an `Audio Assist` CA is a speaker,
+            // and a device CA without it is a video receiver, which is Chromecast's.
+            Pattern::Not(Box::new(Pattern::AllOf(vec![
+                Pattern::CertificateIssuer(CAST_DEVICE_CA),
+                Pattern::Not(Box::new(Pattern::CertificateIssuer(CAST_AUDIO_CA))),
+            ]))),
+            Pattern::AnyOf(vec![
                 Pattern::AllOf(vec![
                     Pattern::Port(PortType::new_tcp(8008)),
                     Pattern::Port(PortType::new_tcp(8009)),
                 ]),
                 Pattern::DnsSd(DnsSdServiceType::GOOGLE_CAST, None),
-            ])),
+                Pattern::CertificateIssuer(CAST_AUDIO_CA),
+            ])
+            .also_binding(Pattern::CertificateIssuer(CAST_CA)),
         ])
     }
 

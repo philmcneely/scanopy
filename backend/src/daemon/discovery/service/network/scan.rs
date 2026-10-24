@@ -8,6 +8,7 @@ use crate::daemon::discovery::service::warnings::{
 };
 use crate::daemon::discovery::types::base::DiscoveryCriticalError;
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
+use crate::daemon::utils::app_probe::tls::scan_certificates;
 use crate::daemon::utils::app_probe::{ProbeContext, scan_app_probes, spotify_connect};
 use crate::daemon::utils::base::{DaemonUtils, PlatformDaemonUtils, filtered_own_nics};
 use crate::daemon::utils::scanner::{
@@ -1682,6 +1683,8 @@ impl NetworkScan {
                 open_ports.push(result.port);
             }
         }
+        let certificates =
+            scan_certificates(&probe_ctx, &open_ports, effective_batch_size, scan_rate_pps).await;
 
         // Read once here rather than at the endpoint scan below: integration probes make their
         // own TLS calls and need the same policy.
@@ -1900,6 +1903,7 @@ impl NetworkScan {
                     // mDNS is link-local, so a routed subnet yields `None` however live the
                     // host is.
                     dns_sd: &dns_sd,
+                    certificates: &certificates,
                 },
                 hostname,
                 self.host_naming_fallback,

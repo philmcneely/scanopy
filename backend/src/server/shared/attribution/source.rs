@@ -820,6 +820,7 @@ impl TypeMetadataProvider for ClientProbe {
             Self::PodmanPing => "Podman",
             Self::Ipp => "IPP",
             Self::SpotifyConnect => "Spotify Connect",
+            Self::Vnc => "VNC",
         }
     }
 }

@@ -27019,7 +27019,8 @@
           "SnmpEngine",
           "DockerPing",
           "PodmanPing",
-          "SpotifyConnect"
+          "SpotifyConnect",
+          "Vnc"
         ]
       },
       "ClockFormat": {

@@ -407,6 +407,7 @@ impl DiscoveryRunner {
             managed_device: &None,
             // Probed locally over loopback; multicast browsing does not apply.
             dns_sd: &None,
+            certificates: &[],
         };
 
         // Every port here is one a daemon-host integration's probe answered on, and records that
