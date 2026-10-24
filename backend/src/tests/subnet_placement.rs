@@ -47,8 +47,8 @@ async fn site_holding(
     storage.sites.create(&net).await.unwrap();
 
     services
-        .site_service
-        .create_organizational_subnets(net.id, AuthenticatedEntity::System)
+        .org_setup_service
+        .seed_site(net.id, AuthenticatedEntity::System)
         .await
         .unwrap();
 

@@ -79,8 +79,11 @@ pub enum LockKey {
     TagGroups { organization_id: Uuid },
     /// Serialize an organization's cloud setup (site, system subnets, live topology, starter
     /// tags), so registration and a billing event landing together can't both create a site.
-    /// Taken before `TagGroups`, never after.
+    /// Taken before `SiteSetup` and `TagGroups`, never after.
     CloudSetup { organization_id: Uuid },
+    /// Serialize filling in one site's system subnets and live topology, so the org's cloud
+    /// setup and the site's Created event can't both create them.
+    SiteSetup { site_id: Uuid },
     /// Serialize the once-per-version release announcement across containers
     /// starting at the same time. One server-wide key.
     ReleaseAnnouncement,
@@ -117,6 +120,7 @@ impl LockKey {
             LockKey::Organization(id) => format!("organization:{id}"),
             LockKey::TagGroups { organization_id } => format!("tag-groups:{organization_id}"),
             LockKey::CloudSetup { organization_id } => format!("cloud-setup:{organization_id}"),
+            LockKey::SiteSetup { site_id } => format!("site-setup:{site_id}"),
             LockKey::ReleaseAnnouncement => "release-announcement".to_string(),
             LockKey::ServerInstance => "server-instance".to_string(),
             LockKey::TermsNotice => "terms-notice".to_string(),
@@ -315,6 +319,7 @@ mod tests {
                 organization_id: uuid_a(),
             }
             .pg_key(),
+            LockKey::SiteSetup { site_id: uuid_a() }.pg_key(),
         ];
         let unique: std::collections::HashSet<i64> = keys.iter().copied().collect();
         assert_eq!(unique.len(), keys.len(), "lock key collision: {keys:?}");
