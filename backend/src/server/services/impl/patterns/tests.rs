@@ -1515,17 +1515,17 @@ fn a_certificate_issuer_is_host_evidence_and_binds_only_unbound_ports() {
     let baseline = ctx.create_baseline_params(&all);
     let params = ctx.create_params_with_ports(&baseline, &unbound);
 
-    let matched = Pattern::CertificateIssuer("ou=cast")
+    let matched = Pattern::CertificateIssuer("ou=cast", &[])
         .matches(&params)
         .expect("case-insensitive issuer match");
     assert_eq!(matched.ports, vec![PortType::new_tcp(10001)]);
 
     assert!(
-        Pattern::Not(Box::new(Pattern::CertificateIssuer("Chromecast ICA")))
+        Pattern::Not(Box::new(Pattern::CertificateIssuer("Chromecast ICA", &[])))
             .matches(&params)
             .is_err()
     );
-    assert!(Pattern::CertificateIssuer("Bose").matches(&params).is_err());
+    assert!(Pattern::CertificateIssuer("Bose", &[]).matches(&params).is_err());
 }
 
 /// macOS's AirPlay Receiver and MiniUPnPd both answer `/` on 5000 with an error status, and the
@@ -1788,4 +1788,46 @@ fn a_pulse_hub_is_identified_by_its_homekit_model() {
         .expect("the Pulse model string identifies the hub");
     assert_eq!(matched.ports, vec![PortType::Http]);
     assert!(matches_with(&["ci=2", "md=Hue Bridge"]).is_none());
+}
+
+/// A certificate issuer's ports go into the light scan, and an open one is still not evidence:
+/// only a certificate from that issuer is.
+#[test]
+fn certificate_issuer_ports_are_scanned_but_are_not_evidence() {
+    let pattern = Pattern::CertificateIssuer("O=Sonos", &[1443]);
+    assert_eq!(pattern.ports(), vec![PortType::new_tcp(1443)]);
+
+    let ctx = TestContext::new();
+    let open = vec![PortType::new_tcp(1443)];
+    let baseline = ctx.create_baseline_params(&open);
+    let params = ctx.create_params_with_ports(&baseline, &open);
+    assert!(
+        pattern.matches(&params).is_err(),
+        "an open port without a certificate is no match"
+    );
+
+    // And every definition that lists ports for an issuer puts them into the scan.
+    let chromecast =
+        ServiceDefinitionRegistry::find_by_id("Chromecast").expect("Chromecast is registered");
+    assert!(
+        chromecast
+            .discovery_pattern()
+            .ports()
+            .contains(&PortType::new_tcp(10101))
+    );
+}
+
+/// A myQ hub's setup server on 443 presents its own `setup.myqdevice.com` certificate.
+#[test]
+fn a_myq_hub_binds_its_setup_server_by_its_certificate() {
+    let chamberlain_mac = "64:52:99:00:00:01";
+    let bound = definition_binds_with_certificates(
+        "myQ",
+        chamberlain_mac,
+        &[PortType::Http, PortType::Https],
+        &[],
+        &[(PortType::Https, "CN=setup.myqdevice.com,O=CGI,C=US")],
+    )
+    .expect("a myQ hub matches");
+    assert!(bound.contains(&PortType::Http) && bound.contains(&PortType::Https));
 }

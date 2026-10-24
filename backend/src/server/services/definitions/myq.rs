@@ -22,11 +22,14 @@ impl ServiceDefinition for MyQ {
     // The web server on 80 is Marvell's Wi-Fi microcontroller SDK (`Server: Marvell-WM`), which
     // other vendors' devices run too, so the response identifies the chip rather than the product.
     // The Chamberlain OUI identifies the product.
+    // Its setup server on 443 presents a self-signed certificate for `setup.myqdevice.com`, issued
+    // by `O=CGI` (The Chamberlain Group).
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::CHAMBERLAIN),
             Pattern::Port(PortType::Http),
         ])
+        .also_binding(Pattern::CertificateIssuer("CN=setup.myqdevice.com", &[443]))
     }
 
     fn logo(&self) -> Option<Logo> {

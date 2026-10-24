@@ -38,16 +38,16 @@ impl ServiceDefinition for ChromecastDevice {
         // whatever numbers this unit opened.
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::GOOGLE),
-            Pattern::Not(Box::new(Pattern::CertificateIssuer(CAST_AUDIO_CA))),
+            Pattern::Not(Box::new(Pattern::CertificateIssuer(CAST_AUDIO_CA, &[]))),
             Pattern::AnyOf(vec![
                 Pattern::DnsSd(DnsSdServiceType::GOOGLE_CAST, None),
                 Pattern::AllOf(vec![
                     Pattern::Port(PortType::new_tcp(8008)),
                     Pattern::Port(PortType::new_tcp(8009)),
                 ]),
-                Pattern::CertificateIssuer(CAST_DEVICE_CA),
+                Pattern::CertificateIssuer(CAST_DEVICE_CA, CAST_DEVICE_PORTS),
             ])
-            .also_binding(Pattern::CertificateIssuer(CAST_CA)),
+            .also_binding(Pattern::CertificateIssuer(CAST_CA, CAST_PORTS)),
         ])
     }
 
@@ -65,6 +65,13 @@ pub(crate) const CAST_DEVICE_CA: &str = "Chromecast ICA";
 /// The device CA of audio-only Cast receivers, e.g. `Chromecast ICA 16 (Audio Assist 4)` on a
 /// Nest Mini.
 pub(crate) const CAST_AUDIO_CA: &str = "Audio Assist";
+
+/// Where Cast-signed certificates appeared on a Chromecast Ultra and a Nest Mini, each seen on both.
+/// The Mini's 10005, 10007 and 11101 are left to a full scan: one unit, unknown stability.
+pub(crate) const CAST_PORTS: &[u16] = &[8443, 8012, 9000, 10001, 10101];
+/// Where the Cast device certificate itself appeared: 8443 on both, 9000 and 10001 on the
+/// Chromecast, 11101 on the Nest Mini.
+pub(crate) const CAST_DEVICE_PORTS: &[u16] = &[8443, 9000, 10001, 11101];
 
 inventory::submit!(ServiceDefinitionFactory::new(
     create_service::<ChromecastDevice>

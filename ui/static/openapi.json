@@ -30275,7 +30275,8 @@
           "DockerPing",
           "PodmanPing",
           "SpotifyConnect",
-          "Vnc"
+          "Vnc",
+          "AppleLockdown"
         ]
       },
       "ClockFormat": {

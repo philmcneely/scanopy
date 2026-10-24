@@ -1,6 +1,8 @@
 use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
-use crate::server::services::definitions::chromecast::{CAST_AUDIO_CA, CAST_CA, CAST_DEVICE_CA};
+use crate::server::services::definitions::chromecast::{
+    CAST_AUDIO_CA, CAST_CA, CAST_DEVICE_CA, CAST_DEVICE_PORTS, CAST_PORTS,
+};
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -40,8 +42,8 @@ impl ServiceDefinition for GoogleHome {
             // The Cast device certificate does tell them apart: an `Audio Assist` CA is a speaker,
             // and a device CA without it is a video receiver, which is Chromecast's.
             Pattern::Not(Box::new(Pattern::AllOf(vec![
-                Pattern::CertificateIssuer(CAST_DEVICE_CA),
-                Pattern::Not(Box::new(Pattern::CertificateIssuer(CAST_AUDIO_CA))),
+                Pattern::CertificateIssuer(CAST_DEVICE_CA, CAST_DEVICE_PORTS),
+                Pattern::Not(Box::new(Pattern::CertificateIssuer(CAST_AUDIO_CA, &[]))),
             ]))),
             Pattern::AnyOf(vec![
                 Pattern::AllOf(vec![
@@ -49,9 +51,9 @@ impl ServiceDefinition for GoogleHome {
                     Pattern::Port(PortType::new_tcp(8009)),
                 ]),
                 Pattern::DnsSd(DnsSdServiceType::GOOGLE_CAST, None),
-                Pattern::CertificateIssuer(CAST_AUDIO_CA),
+                Pattern::CertificateIssuer(CAST_AUDIO_CA, CAST_DEVICE_PORTS),
             ])
-            .also_binding(Pattern::CertificateIssuer(CAST_CA)),
+            .also_binding(Pattern::CertificateIssuer(CAST_CA, CAST_PORTS)),
         ])
     }
 
