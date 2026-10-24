@@ -30273,7 +30273,8 @@
           "H323",
           "SnmpEngine",
           "DockerPing",
-          "PodmanPing"
+          "PodmanPing",
+          "SpotifyConnect"
         ]
       },
       "ClockFormat": {

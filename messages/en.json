@@ -1612,6 +1612,7 @@
 	"meta_client_probes_Smb_name": "SMB",
 	"meta_client_probes_SnmpEngine_name": "SNMP",
 	"meta_client_probes_Snmp_name": "SNMP",
+	"meta_client_probes_SpotifyConnect_name": "Spotify Connect",
 	"meta_client_probes_Ssh_name": "SSH",
 	"meta_client_probes_Telnet_name": "Telnet",
 	"meta_client_probes_Tls_name": "TLS",
