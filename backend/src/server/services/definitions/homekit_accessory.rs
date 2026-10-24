@@ -2,6 +2,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{DnsSdServiceType, Pattern};
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct HomeKitAccessory;
@@ -37,9 +38,8 @@ impl ServiceDefinition for HomeKitAccessory {
         true
     }
 
-    fn logo_url(&self) -> &'static str {
-        // Apple Home's house mark, from selfh.st/icons: Dashboard Icons has no HomeKit icon.
-        "https://cdn.jsdelivr.net/gh/selfhst/icons/svg/apple-homekit.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::HomeKit)
     }
 }
 

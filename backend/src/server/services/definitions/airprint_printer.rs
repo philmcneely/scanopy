@@ -2,6 +2,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{DnsSdServiceType, Pattern};
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct AirPrintPrinter;
@@ -35,8 +36,8 @@ impl ServiceDefinition for AirPrintPrinter {
         true
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/printer.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Printer)
     }
 }
 

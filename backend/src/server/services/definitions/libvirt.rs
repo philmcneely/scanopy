@@ -2,6 +2,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Libvirt;
@@ -25,10 +26,8 @@ impl ServiceDefinition for Libvirt {
         Pattern::None
     }
 
-    /// LGPL-2.1+; the licence ships as `backend/assets/libvirt/LICENSE` and is credited in
-    /// Settings → System. Remove both if this logo is replaced.
-    fn logo_url(&self) -> &'static str {
-        "https://libvirt.org/logos/logo-square.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Libvirt)
     }
 }
 

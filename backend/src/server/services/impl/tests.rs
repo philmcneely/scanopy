@@ -624,45 +624,6 @@ fn a_virtualizer_definition_is_never_generic() {
     );
 }
 
-#[test]
-fn test_service_definition_logo_urls_valid() {
-    use crate::server::services::r#impl::definitions::ServiceDefinitionExt;
-
-    let registry = ServiceDefinitionRegistry::all_service_definitions();
-
-    for service in &registry {
-        let logo_url = service.logo_url();
-
-        if logo_url.is_empty() {
-            assert!(
-                !ServiceDefinitionExt::has_logo(service),
-                "Service '{}' has has_logo=true but empty logo_url()",
-                ServiceDefinition::name(service),
-            );
-            continue;
-        }
-
-        // Local paths must start with /logos/
-        if logo_url.starts_with('/') {
-            assert!(
-                logo_url.starts_with("/logos/"),
-                "Service '{}' has local logo URL '{}' that doesn't start with /logos/",
-                ServiceDefinition::name(service),
-                logo_url
-            );
-            continue;
-        }
-
-        // External URLs must be parseable
-        assert!(
-            reqwest::Url::parse(logo_url).is_ok(),
-            "Service '{}' has invalid logo URL '{}'",
-            ServiceDefinition::name(service),
-            logo_url
-        );
-    }
-}
-
 #[tokio::test]
 async fn test_service_definition_logo_urls_resolve() {
     use backon::{ExponentialBuilder, Retryable};
@@ -677,11 +638,8 @@ async fn test_service_definition_logo_urls_resolve() {
     let services_to_check: Vec<_> = registry
         .into_iter()
         .filter_map(|service| {
-            let logo_url = service.logo_url();
-            if logo_url.is_empty() || logo_url.starts_with('/') {
-                return None;
-            }
-            Some((service.name().to_string(), logo_url.to_string()))
+            let logo_url = service.logo()?.url();
+            Some((ServiceDefinition::name(&service).to_string(), logo_url))
         })
         .collect();
 

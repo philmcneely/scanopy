@@ -1,3 +1,4 @@
+use crate::server::shared::logos::Logo;
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use openidconnect::{
@@ -126,10 +127,6 @@ fn is_servable_logo(logo: &str) -> bool {
     url::Url::parse(logo).is_ok_and(|url| url.scheme() == "https" && url.host_str().is_some())
 }
 
-/// Where Dashboard Icons serves its colored icons. Apache-2.0; its license ships with the server
-/// (`assets/dashboard-icons/LICENSE`).
-const DASHBOARD_ICONS: &str = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/";
-
 /// Identity provider logos bundled with the UI, so `oidc.toml` can point a provider's `logo` at
 /// `/logos/identity-providers/<id>.<ext>` and load it from this server. `generate-fixtures`
 /// downloads them beside the service logos.
@@ -169,22 +166,20 @@ impl IdentityProviderLogo {
         }
     }
 
-    pub fn logo_url(&self) -> &'static str {
-        use const_format::concatcp;
+    pub fn logo(&self) -> Logo {
         match self {
-            Self::Authelia => concatcp!(DASHBOARD_ICONS, "svg/authelia.svg"),
-            Self::Authentik => concatcp!(DASHBOARD_ICONS, "svg/authentik.svg"),
-            Self::Github => concatcp!(DASHBOARD_ICONS, "svg/github.svg"),
-            Self::Gitlab => concatcp!(DASHBOARD_ICONS, "svg/gitlab.svg"),
-            Self::Google => concatcp!(DASHBOARD_ICONS, "svg/google.svg"),
-            Self::Kanidm => concatcp!(DASHBOARD_ICONS, "svg/kanidm.svg"),
-            Self::Keycloak => concatcp!(DASHBOARD_ICONS, "svg/keycloak.svg"),
-            Self::Microsoft => concatcp!(DASHBOARD_ICONS, "svg/microsoft.svg"),
-            Self::MicrosoftEntraId => concatcp!(DASHBOARD_ICONS, "svg/entra-id.svg"),
-            Self::Okta => concatcp!(DASHBOARD_ICONS, "svg/okta.svg"),
-            Self::PocketId => concatcp!(DASHBOARD_ICONS, "svg/pocket-id.svg"),
-            // jsDelivr refuses the SVG; the PNG is the same icon.
-            Self::Zitadel => concatcp!(DASHBOARD_ICONS, "png/zitadel.png"),
+            Self::Authelia => Logo::Authelia,
+            Self::Authentik => Logo::Authentik,
+            Self::Github => Logo::GitHub,
+            Self::Gitlab => Logo::GitLab,
+            Self::Google => Logo::Google,
+            Self::Kanidm => Logo::Kanidm,
+            Self::Keycloak => Logo::Keycloak,
+            Self::Microsoft => Logo::Microsoft,
+            Self::MicrosoftEntraId => Logo::EntraId,
+            Self::Okta => Logo::Okta,
+            Self::PocketId => Logo::PocketId,
+            Self::Zitadel => Logo::Zitadel,
         }
     }
 }

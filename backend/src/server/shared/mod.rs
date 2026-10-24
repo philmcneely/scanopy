@@ -10,7 +10,7 @@ pub mod extractors;
 pub mod fixtures;
 pub mod handlers;
 pub mod legacy;
-pub mod logo_credits;
+pub mod logos;
 pub mod oui;
 pub mod position;
 pub mod services;

@@ -57,6 +57,7 @@ mod trial_started;
 mod usage_summary;
 mod verification;
 
+use crate::server::shared::logos::Logo;
 use strum::{EnumIter, IntoStaticStr};
 
 use crate::server::shared::types::{
@@ -340,6 +341,10 @@ pub trait Email: Send + Sync {
             FOOTER_LEGAL_CLOUD
         };
         format!("{}{}{}", EMAIL_HEADER, self.body_html(), EMAIL_FOOTER)
+            // The logos come from the list the credits read (`shared/logos.rs`).
+            .replace("{scanopy_logo}", &Logo::Scanopy.url())
+            .replace("{discord_logo}", &Logo::Discord.url())
+            .replace("{github_logo}", &Logo::GitHub.url())
             .replace("{footer_legal}", footer_legal)
             // Before the two tokens below, which the link itself contains.
             .replace("{preferences_url}", links::SETTINGS_EMAIL)
@@ -389,7 +394,7 @@ pub const EMAIL_HEADER: &str = r#"<!DOCTYPE html>
                     <!-- Header with Logo -->
                     <tr>
                         <td align="center" style="padding: 40px 40px 30px 40px;">
-                            <img src="https://cdn.jsdelivr.net/gh/scanopy/scanopy@main/media/logo.png" alt="Scanopy" style="width: 80px; height: 80px; display: block;">
+                            <img src="{scanopy_logo}" alt="Scanopy" style="width: 80px; height: 80px; display: block;">
                         </td>
                     </tr>
 "#;
@@ -402,12 +407,12 @@ pub const EMAIL_FOOTER: &str = r#"                    <!-- Footer -->
                                 <tr>
                                     <td style="padding: 0 10px;">
                                         <a href="https://discord.com/invite/b7ffQr8AcZ" style="display: inline-block;">
-                                            <img src="https://cdn.jsdelivr.net/gh/selfhst/icons@master/png/discord.png" alt="Discord" style="width: 24px; height: 24px; display: block;">
+                                            <img src="{discord_logo}" alt="Discord" style="width: 24px; height: 24px; display: block;">
                                         </a>
                                     </td>
                                     <td style="padding: 0 10px;">
                                         <a href="https://github.com/scanopy/scanopy" style="display: inline-block;">
-                                            <img src="https://cdn.jsdelivr.net/gh/selfhst/icons@master/png/github.png" alt="GitHub" style="width: 24px; height: 24px; display: block;">
+                                            <img src="{github_logo}" alt="GitHub" style="width: 24px; height: 24px; display: block;">
                                         </a>
                                     </td>
                                 </tr>

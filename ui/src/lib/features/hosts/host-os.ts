@@ -7,12 +7,12 @@
 import type { components } from '$lib/api/schema';
 import hostOsFamilies from '$lib/data/host-os-families.json';
 import type { DaemonOS } from '$lib/features/daemons/utils';
-import OsIcon from '$lib/features/daemons/components/OsIcon.svelte';
 import {
 	attributeSourceExplanation,
 	type AttributeSource
 } from '$lib/shared/utils/attribute-source';
-import { createIconComponent, createLogoIconComponent } from '$lib/shared/utils/styling';
+import { createIconComponent } from '$lib/shared/utils/styling';
+import { logoIcon } from '$lib/shared/utils/logos';
 import type { IconComponent } from '$lib/shared/utils/types';
 import type { TooltipContent, TooltipSection } from '$lib/shared/actions/tooltip';
 import { common_codename, common_edition, common_kernel } from '$lib/paraglide/messages';
@@ -32,28 +32,13 @@ export function hostOsLabel(os: HostOs): string {
 }
 
 /**
- * The icon for a family, from `host-os-families.json`; nothing here names a family. A family the
- * daemon also runs on draws the daemon OS icon, else the vendor's downloaded logo, else a glyph.
+ * The icon for a family, from `host-os-families.json`; nothing here names a family. The family's
+ * logo when it has one (a daemon OS family's too), else its glyph.
  */
 export function hostOsIcon(family: HostOsFamily): IconComponent {
 	const entry = hostOsFamilies.find((item) => item.id === family);
-	const meta = entry?.metadata as
-		| { daemon_os?: DaemonOS | null; logo_ext?: string; logo_needs_white_background?: boolean }
-		| undefined;
-	if (meta?.daemon_os) {
-		const os = meta.daemon_os;
-		// Pre-binds the OS, as `createLogoIconComponent` pre-binds the logo.
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		return ($$payload: any, $$props: any) => OsIcon($$payload, { os, ...$$props });
-	}
-	if (meta?.logo_ext) {
-		return createLogoIconComponent(
-			entry?.icon ?? null,
-			`/logos/os-families/${family}.${meta.logo_ext}`,
-			!!meta.logo_needs_white_background
-		);
-	}
-	return createIconComponent(entry?.icon ?? null);
+	const meta = entry?.metadata as { logo?: string | null } | undefined;
+	return logoIcon(meta?.logo, createIconComponent(entry?.icon ?? null));
 }
 
 /**

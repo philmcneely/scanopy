@@ -38,10 +38,10 @@ import deviceTypesJson from '$lib/data/device-types.json';
 import {
 	createColorHelper,
 	createIconComponent,
-	createLogoIconComponent,
 	createStyle,
 	type ColorStyle
 } from '../utils/styling';
+import { logoIcon } from '../utils/logos';
 import { metaName, metaDescription } from '$lib/i18n/metadata';
 import { joinList } from '$lib/i18n/list';
 import type { TagProps } from '$lib/shared/components/data/types';
@@ -103,10 +103,8 @@ export interface CredentialTypeMetadata {
 	/** Guide for this type's integration, root-relative and trailing-slashed
 	 *  (`/docs/guides/integrations/snmp/`). Compose onto the docs origin with `docsUrl`. */
 	docs_path?: string;
-	/** Whether the associated service has a logo */
-	has_logo?: boolean;
-	/** Whether the logo needs a white background */
-	logo_needs_white_background?: boolean;
+	/** The associated service's logo id (`logos.json`). */
+	logo?: string | null;
 }
 
 export interface MetadataRegistry {
@@ -204,9 +202,8 @@ export interface ServicedDefinitionMetadata {
 		| components['schemas']['HostVirtualization']['type']
 		| components['schemas']['ServiceVirtualization']['type']
 		| null;
-	has_logo: boolean;
-	logo_ext: string;
-	logo_needs_white_background: boolean;
+	/** The logo id (`logos.json`), or null for the category glyph. */
+	logo: string | null;
 	/** Whether `probe_raw_socket_ports` being off would stop this service being detected — it drops
 	 *  9100-9107 from the scan entirely, so it governs any definition referencing one, endpoint or
 	 *  bare port alike. */
@@ -411,23 +408,11 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys, M = unknown>(cate
 			const iconName = item?.icon || null;
 
 			const meta = item?.metadata;
-			if (meta && typeof meta === 'object' && 'has_logo' in meta && meta.has_logo) {
-				// For credential types, the logo is named after the associated service
-				const logoId =
-					'associated_service' in meta && typeof meta.associated_service === 'string'
-						? meta.associated_service
-						: id;
-				const ext = 'logo_ext' in meta && meta.logo_ext ? meta.logo_ext : 'svg';
-				if (logoId) {
-					const logoSlug = logoId.toLowerCase().replaceAll(' ', '-');
-					const logoUrl = `/logos/services/${logoSlug}.${ext}`;
-					const useWhiteBg =
-						'logo_needs_white_background' in meta && !!meta.logo_needs_white_background;
-					return createLogoIconComponent(iconName, logoUrl, useWhiteBg);
-				}
-			}
-
-			return createIconComponent(iconName);
+			const logo =
+				meta && typeof meta === 'object' && 'logo' in meta && typeof meta.logo === 'string'
+					? meta.logo
+					: null;
+			return logoIcon(logo, createIconComponent(iconName));
 		},
 
 		getItems: (): TypedTypeMetadata<M>[] => {
@@ -627,11 +612,10 @@ export const credentialTypes = createTypeMetadataHelpers<
 export interface CredentialIntegrationMetadata {
 	/** Guide for this integration, root-relative and trailing-slashed. */
 	docs_path?: string;
-	/** Service name the logo is named after (e.g. "UniFi Controller"). */
+	/** The integration's service (e.g. "UniFi Controller"). */
 	associated_service?: string;
-	has_logo?: boolean;
-	logo_ext?: string;
-	logo_needs_white_background?: boolean;
+	/** The service's logo id (`logos.json`). */
+	logo?: string | null;
 	/** Whether a successful collection adds interfaces to the hosts it reaches. */
 	reports_interfaces?: boolean;
 }

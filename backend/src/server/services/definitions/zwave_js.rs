@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct ZWaveJS;
@@ -22,8 +23,8 @@ impl ServiceDefinition for ZWaveJS {
         // titled "Z-Wave JS UI".
         Pattern::Endpoint(PortType::new_tcp(8091), "/", "Z-Wave JS UI", None)
     }
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/z-wave-js-ui.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::ZWaveJsUi)
     }
     fn is_generic(&self) -> bool {
         true

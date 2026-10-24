@@ -2,6 +2,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{DnsSdServiceType, Pattern};
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct SpotifyConnect;
@@ -28,8 +29,8 @@ impl ServiceDefinition for SpotifyConnect {
         Pattern::DnsSd(DnsSdServiceType::SPOTIFY_CONNECT, None)
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/spotify.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Spotify)
     }
 }
 

@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Sidekiq;
@@ -25,11 +26,8 @@ impl ServiceDefinition for Sidekiq {
             Pattern::Endpoint(PortType::Http, "/sidekiq", "sidekiq", Some(200..300)),
         ])
     }
-    fn logo_url(&self) -> &'static str {
-        "https://simpleicons.org/icons/sidekiq.svg"
-    }
-    fn logo_needs_white_background(&self) -> bool {
-        true
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Sidekiq)
     }
 }
 
