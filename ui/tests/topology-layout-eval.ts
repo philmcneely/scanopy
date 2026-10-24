@@ -25,6 +25,8 @@ import {
  *    length;
  *  - chord crossings: pairs of edges sharing no endpoint whose straight handle-to-handle chords
  *    cross, which counts what node and port order decide regardless of routing;
+ *  - self re-entries: drawn edges that leave an endpoint card and pass back through it, which
+ *    happens when an edge attaches to the side of a card facing away from the other end;
  *  - root containers: overlaps, bounding box, and the share of it no container covers;
  *  - ELK time per layout run.
  *
@@ -131,6 +133,7 @@ interface ViewMetrics {
 	crossEdges: number;
 	crossCrossings: number;
 	chordCrossings: number;
+	selfReentries: number;
 	crossLengthTotal: number;
 	crossLengthMax: number;
 	boundsWidth: number;
@@ -346,6 +349,22 @@ function computeMetrics(
 		}
 	}
 
+	// Drawn edges that leave an endpoint card and come back through it. The source is walked from
+	// the path's start and the target from its end, since each path starts on its source's edge.
+	const reenters = (points: Point[], box: Box): boolean => {
+		let left = false;
+		for (const p of points) {
+			if (!insideBox(p, box, 2)) left = true;
+			else if (left) return true;
+		}
+		return false;
+	};
+	const selfReentries = drawn.filter(
+		(e) =>
+			reenters(paths[e.id], absoluteOf(e.source)!) ||
+			reenters([...paths[e.id]].reverse(), absoluteOf(e.target)!)
+	).length;
+
 	const innerLengths = inner.map((e) => polylineLength(paths[e.id]));
 	const crossLengths = cross.map((e) => polylineLength(paths[e.id]));
 
@@ -392,6 +411,7 @@ function computeMetrics(
 		crossEdges: cross.length,
 		crossCrossings,
 		chordCrossings,
+		selfReentries,
 		crossLengthTotal: Math.round(sum(crossLengths)),
 		crossLengthMax: Math.round(max(crossLengths)),
 		boundsWidth: rootBoxes.length ? Math.round(maxX - minX) : 0,

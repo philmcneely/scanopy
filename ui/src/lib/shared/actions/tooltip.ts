@@ -157,7 +157,9 @@ export function renderTooltip(doc: TooltipDocument, content: string | TooltipCon
 					list.appendChild(el(doc, 'li', {}, typeof item === 'string' ? item : item.text));
 					continue;
 				}
-				// The detail sits right-aligned and muted, so it never reads as part of the name.
+				// The detail sits right-aligned and muted, so it never reads as part of the name. The name
+				// keeps its width and breaks only between words (its min-width stays at its longest word);
+				// a long detail such as a port list takes the rest of the row and wraps onto more lines.
 				const li = el(doc, 'li', {});
 				const line = el(doc, 'div', {
 					display: 'flex',
@@ -165,7 +167,7 @@ export function renderTooltip(doc: TooltipDocument, content: string | TooltipCon
 					alignItems: 'baseline',
 					gap: '12px'
 				});
-				line.appendChild(el(doc, 'span', { minWidth: '0' }, item.text));
+				line.appendChild(el(doc, 'span', { flex: '0 1 auto', maxWidth: '60%' }, item.text));
 				line.appendChild(
 					el(
 						doc,
@@ -175,7 +177,9 @@ export function renderTooltip(doc: TooltipDocument, content: string | TooltipCon
 							fontSize: '11px',
 							fontVariantNumeric: 'tabular-nums',
 							textAlign: 'right',
-							flexShrink: '0'
+							flex: '1 1 0',
+							minWidth: '0',
+							overflowWrap: 'anywhere'
 						},
 						item.detail
 					)
