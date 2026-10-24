@@ -30386,7 +30386,8 @@
           "Stack",
           "TrunkPort",
           "VLAN",
-          "PortOpStatus"
+          "PortOpStatus",
+          "DeviceType"
         ]
       },
       "CoveredPorts": {
@@ -38748,6 +38749,13 @@
                 "type": "string",
                 "enum": [
                   "ByStack"
+                ]
+              },
+              {
+                "type": "string",
+                "description": "Groups hosts by device type (servers, workstations, printers, …) into per-type\nsubcontainers. Hosts with no identified device type stay ungrouped.",
+                "enum": [
+                  "ByDeviceType"
                 ]
               },
               {
@@ -47823,15 +47831,19 @@
                 }
               },
               {
-                "id": "f61d5397-b585-4834-b712-1d6c80fb5232",
+                "id": "fa941699-7d1f-4471-9917-b62303442770",
+                "rule": "ByDeviceType"
+              },
+              {
+                "id": "ff18020a-634f-41aa-a84f-e50b8f697716",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "d60f75db-1e3d-438f-af5b-dad909acab79",
+                "id": "b83d3594-a11b-47e1-8219-40c56413875f",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "34dbdc76-1ca6-40db-a080-fa6f763b746d",
+                "id": "596b4839-b739-48e0-847c-1e6f6ca1e652",
                 "rule": "ByStack"
               }
             ]

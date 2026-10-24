@@ -7832,7 +7832,7 @@ export interface components {
          */
         ContainerNetworkType: "MacVlan" | "IpVlan";
         /** @enum {string} */
-        ContainerType: "Subnet" | "ServiceCategory" | "Application" | "ApplicationUngrouped" | "Root" | "Host" | "NestedTag" | "NestedServiceCategory" | "Hypervisor" | "ContainerRuntime" | "Stack" | "TrunkPort" | "VLAN" | "PortOpStatus";
+        ContainerType: "Subnet" | "ServiceCategory" | "Application" | "ApplicationUngrouped" | "Root" | "Host" | "NestedTag" | "NestedServiceCategory" | "Hypervisor" | "ContainerRuntime" | "Stack" | "TrunkPort" | "VLAN" | "PortOpStatus" | "DeviceType";
         /** @description The ports of one protocol a scan covered at one address. */
         CoveredPorts: {
             /**
@@ -8967,7 +8967,7 @@ export interface components {
          *     evidence names gets its own variant.
          * @enum {string}
          */
-        DeviceType: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Mobile" | "Industrial" | "IoT" | "Server" | "Unidentified";
+        DeviceType: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Tablet" | "Mobile" | "MediaPlayer" | "Speaker" | "Industrial" | "IoT" | "Server" | "Unidentified";
         Discovery: components["schemas"]["DiscoveryBase"] & {
             /**
              * Format: date-time
@@ -11413,7 +11413,7 @@ export interface components {
                     /** @description Heading for the subcontainer. Defaults to the tag name. */
                     title?: string | null;
                 };
-            } | "ByHypervisor" | "ByContainerRuntime" | "ByStack" | "ByTrunkPort" | "ByVLAN" | "ByPortOpStatus";
+            } | "ByHypervisor" | "ByContainerRuntime" | "ByStack" | "ByDeviceType" | "ByTrunkPort" | "ByVLAN" | "ByPortOpStatus";
         };
         /**
          * @description SNMP ifAdminStatus values per IF-MIB RFC 2863
@@ -15765,15 +15765,19 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "f61d5397-b585-4834-b712-1d6c80fb5232",
+             *         "id": "fa941699-7d1f-4471-9917-b62303442770",
+             *         "rule": "ByDeviceType"
+             *       },
+             *       {
+             *         "id": "ff18020a-634f-41aa-a84f-e50b8f697716",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "d60f75db-1e3d-438f-af5b-dad909acab79",
+             *         "id": "b83d3594-a11b-47e1-8219-40c56413875f",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "34dbdc76-1ca6-40db-a080-fa6f763b746d",
+             *         "id": "596b4839-b739-48e0-847c-1e6f6ca1e652",
              *         "rule": "ByStack"
              *       }
              *     ]
