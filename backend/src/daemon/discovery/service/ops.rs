@@ -1811,6 +1811,7 @@ impl DiscoveryOps {
         let mut services = Vec::new();
         let mut host_ports = Vec::new();
         let mut unbound_ports = all_ports.to_vec();
+        let mut claimed_ports: Vec<PortType> = Vec::new();
         let mut container_matched = false;
 
         let mut sorted_service_definitions: Vec<Box<dyn ServiceDefinition>> =
@@ -1838,6 +1839,7 @@ impl DiscoveryOps {
                 service_definition,
                 matched_services: &services,
                 unbound_ports: &unbound_ports,
+                claimed_ports: &claimed_ports,
             };
 
             let params: DiscoverySessionServiceMatchParams<'_> =
@@ -1870,6 +1872,7 @@ impl DiscoveryOps {
 
                 host_ports.append(&mut ports);
                 unbound_ports.retain(|p| !bound_port_types.contains(p));
+                claimed_ports.extend(bound_port_types);
                 services.push(service);
             }
         }
@@ -1890,6 +1893,17 @@ impl DiscoveryOps {
 
         host_ports.extend(unbound_ports.into_iter().map(Port::new_hostless));
         for port in &mut host_ports {
+            // A port no scan found reached the host from an mDNS advertisement.
+            let advertised_only = !all_ports.contains(&port.base.port_type)
+                && baseline_params
+                    .dns_sd
+                    .as_ref()
+                    .is_some_and(|h| h.advertised_ports().any(|p| p == port.base.port_type));
+            let found_by = if advertised_only {
+                AttributeSource::DnsSdServicePort
+            } else {
+                port_source
+            };
             // The map has no order, so where two probes answered on one port the choice is made
             // by name to keep it stable across scans.
             port.base.port_source = baseline_params
@@ -1898,7 +1912,7 @@ impl DiscoveryOps {
                 .filter(|(_, ports)| ports.contains(&port.base.port_type))
                 .map(|(probe, _)| *probe)
                 .min_by_key(|probe| probe.id())
-                .map_or(port_source, AttributeSource::Probe);
+                .map_or(found_by, AttributeSource::Probe);
         }
 
         Ok((services, host_ports))

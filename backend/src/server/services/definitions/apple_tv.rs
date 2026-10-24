@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -15,6 +16,9 @@ impl ServiceDefinition for AppleTv {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Media
+    }
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::MediaPlayer)
     }
 
     /// mDNS is the only signal that reaches this device. It exposes no TCP port worth scanning —

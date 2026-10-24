@@ -43,6 +43,7 @@ struct TestContext {
     endpoint_responses: Vec<EndpointResponse>,
     virtualization: Option<ServiceVirtualization>,
     matched_services: Vec<Service>,
+    claimed_ports: Vec<PortType>,
     client_responses: std::collections::HashMap<super::ClientProbe, Vec<PortType>>,
     managed_device: Option<super::ManagedDevice>,
     dns_sd: Option<crate::daemon::discovery::service::network::mdns::DnsSdHost>,
@@ -80,6 +81,7 @@ impl TestContext {
             endpoint_responses,
             virtualization: None,
             matched_services: vec![],
+            claimed_ports: vec![],
             client_responses: std::collections::HashMap::new(),
             managed_device: None,
             dns_sd: None,
@@ -101,6 +103,7 @@ impl TestContext {
             service_params: ServiceMatchServiceParams {
                 service_definition: self.pi.clone(),
                 matched_services: &self.matched_services,
+                claimed_ports: &self.claimed_ports,
                 unbound_ports,
             },
         }
@@ -353,6 +356,7 @@ fn definition_matches_status(
         service_params: ServiceMatchServiceParams {
             service_definition: service.clone(),
             matched_services: &ctx.matched_services,
+            claimed_ports: &ctx.claimed_ports,
             unbound_ports: &ports,
         },
     };
@@ -629,6 +633,7 @@ fn test_jenkins_https_header_detection() {
         service_params: ServiceMatchServiceParams {
             service_definition: service.clone(),
             matched_services: &ctx.matched_services,
+            claimed_ports: &ctx.claimed_ports,
             unbound_ports: &ports,
         },
     };
@@ -676,6 +681,7 @@ fn test_jenkins_http8080_body_detection() {
         service_params: ServiceMatchServiceParams {
             service_definition: service.clone(),
             matched_services: &ctx.matched_services,
+            claimed_ports: &ctx.claimed_ports,
             unbound_ports: &ports,
         },
     };
@@ -1073,4 +1079,101 @@ fn a_loopback_address_is_never_a_gateway() {
     assert!(matches_gateway("192.168.1.1", vec![]));
     // The routing-table rule.
     assert!(!matches_gateway("127.0.0.1", vec![ip("127.0.0.1")]));
+}
+
+/// A host announcing `service_type` with `txt`, on `port` in its SRV record.
+fn announcing_on(
+    service_type: &str,
+    txt: &[&str],
+    port: u16,
+) -> crate::daemon::discovery::service::network::mdns::DnsSdHost {
+    let mut host = announcing(&[(service_type, txt)]);
+    host.ports.insert(service_type.to_string(), port);
+    host
+}
+
+/// A DnsSd match binds the port the SRV record names: the scanned port when the scan found it, a
+/// port from the advertisement when the scan did not cover it, and none for a TXT-only service.
+#[test]
+fn a_dns_sd_match_binds_the_advertised_port() {
+    use crate::server::services::definitions::{
+        airprint_printer::AirPrintPrinter, homepod::HomePod, iphone::IPhone,
+    };
+
+    let mut ctx = TestContext::new();
+    let scanned = vec![PortType::Ipp];
+    ctx.dns_sd = Some(announcing_on("_ipp._tcp", &[], 631));
+    let baseline = ctx.create_baseline_params(&scanned);
+    let params = ctx.create_params_with_ports(&baseline, &scanned);
+    let printer = AirPrintPrinter
+        .discovery_pattern()
+        .matches(&params)
+        .expect("an advertised printer matches");
+    assert_eq!(printer.ports, vec![PortType::Ipp]);
+
+    // AirPlay's 7000 is not in the scan list; the speaker said it listens there.
+    let none = vec![];
+    ctx.dns_sd = Some(announcing_on(
+        "_airplay._tcp",
+        &["model=AudioAccessory5,1"],
+        7000,
+    ));
+    let baseline = ctx.create_baseline_params(&none);
+    let params = ctx.create_params_with_ports(&baseline, &none);
+    let pod = HomePod
+        .discovery_pattern()
+        .matches(&params)
+        .expect("a HomePod matches");
+    assert_eq!(pod.ports, vec![PortType::new_tcp(7000)]);
+
+    // `_device-info` advertises port 0, so the wire parser records no port for it.
+    ctx.dns_sd = Some(announcing(&[("_device-info._tcp", &["model=iPhone17,1"])]));
+    let baseline = ctx.create_baseline_params(&none);
+    let params = ctx.create_params_with_ports(&baseline, &none);
+    let phone = IPhone
+        .discovery_pattern()
+        .matches(&params)
+        .expect("an iPhone matches");
+    assert!(phone.ports.is_empty());
+}
+
+/// A port a service matched earlier this round holds is not bound a second time, and that claim
+/// does not make `Not(DnsSd(..))` read as the host not advertising the service.
+#[test]
+fn a_claimed_advertised_port_is_not_bound_twice() {
+    use crate::server::services::definitions::{
+        airprint_printer::AirPrintPrinter, homekit_accessory::HomeKitAccessory,
+    };
+
+    let mut ctx = TestContext::new();
+    let scanned = vec![PortType::Ipp];
+    ctx.dns_sd = Some(announcing_on("_ipp._tcp", &[], 631));
+    ctx.claimed_ports = vec![PortType::Ipp];
+    let unbound = vec![];
+    let baseline = ctx.create_baseline_params(&scanned);
+    let params = ctx.create_params_with_ports(&baseline, &unbound);
+    assert!(
+        AirPrintPrinter
+            .discovery_pattern()
+            .matches(&params)
+            .is_err(),
+        "CUPS already holds 631"
+    );
+
+    // An Apple hub advertises HAP and AirPlay. With its AirPlay port held by the Apple TV
+    // service, it still advertises AirPlay, so it is still not a HomeKit accessory.
+    let mut hub = announcing_on("_airplay._tcp", &["model=AppleTV14,1"], 7000);
+    hub.services
+        .insert("_hap._tcp".to_string(), Default::default());
+    ctx.dns_sd = Some(hub);
+    ctx.claimed_ports = vec![PortType::new_tcp(7000)];
+    let none = vec![];
+    let baseline = ctx.create_baseline_params(&none);
+    let params = ctx.create_params_with_ports(&baseline, &none);
+    assert!(
+        HomeKitAccessory
+            .discovery_pattern()
+            .matches(&params)
+            .is_err()
+    );
 }

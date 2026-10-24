@@ -192,6 +192,10 @@ pub struct ServiceMatchServiceParams<'a> {
     pub service_definition: Box<dyn ServiceDefinition>,
     pub matched_services: &'a Vec<Service>,
     pub unbound_ports: &'a Vec<PortType>,
+    /// The ports services matched earlier this round bound, including ports no scan found that a
+    /// match took from an mDNS advertisement. Read by [`Pattern::DnsSd`], which must not bind one
+    /// twice.
+    pub claimed_ports: &'a Vec<PortType>,
 }
 
 impl PartialEq for Service {

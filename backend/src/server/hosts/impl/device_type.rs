@@ -48,6 +48,8 @@ pub enum DeviceType {
     Workstation,
     Tablet,
     Mobile,
+    MediaPlayer,
+    Speaker,
     Industrial,
     IoT,
     Server,
@@ -85,6 +87,8 @@ impl EntityMetadataProvider for DeviceType {
             DeviceType::Workstation => Icon::Laptop,
             DeviceType::Tablet => Icon::Tablet,
             DeviceType::Mobile => Icon::Smartphone,
+            DeviceType::MediaPlayer => Icon::Tv,
+            DeviceType::Speaker => Icon::Speaker,
             DeviceType::Industrial => Icon::Factory,
             DeviceType::IoT => Icon::CircuitBoard,
             DeviceType::Server => Icon::Server,
@@ -110,6 +114,8 @@ impl TypeMetadataProvider for DeviceType {
             DeviceType::Workstation => "Workstation",
             DeviceType::Tablet => "Tablet",
             DeviceType::Mobile => "Mobile device",
+            DeviceType::MediaPlayer => "Media player",
+            DeviceType::Speaker => "Speaker",
             DeviceType::Industrial => "Industrial controller",
             DeviceType::IoT => "IoT device",
             DeviceType::Server => "Server",
@@ -131,6 +137,8 @@ impl TypeMetadataProvider for DeviceType {
             DeviceType::Workstation => "A computer a person works at",
             DeviceType::Tablet => "A tablet",
             DeviceType::Mobile => "A phone or other handheld device",
+            DeviceType::MediaPlayer => "Plays video to a screen",
+            DeviceType::Speaker => "Plays audio",
             DeviceType::Industrial => "Controls building or industrial equipment",
             DeviceType::IoT => "A smart-home or embedded device",
             DeviceType::Server => "Runs applications for other hosts",
@@ -143,18 +151,21 @@ impl Host {
     /// The device type this host's icon shows.
     ///
     /// The ladder, first answer wins:
-    /// 1. The highest-precedence device type the host's own services declare. A matched definition names
-    ///    the product the host runs, so it outranks the OS.
+    /// 1. The highest-precedence device type the host's own services declare, other than `Server`.
+    ///    A matched definition names the product the host runs, so it outranks the OS.
     /// 2. The device type its OS family implies.
-    /// 3. The device type its hostname or name implies: iOS names a device after its product
-    ///    ("Maya's iPhone"), and that name reaches us through PTR, mDNS and controller DHCP leases.
-    /// 4. `Server`, when the host runs containers: a container runtime, or software inside one.
-    /// 5. `Unidentified`.
+    /// 3. The device type its hostname or name implies: Apple names a device after its product
+    ///    ("Maya's iPhone", "Mayas-MacBook-Pro"), and that name reaches us through PTR, mDNS and
+    ///    controller DHCP leases.
+    /// 4. `Server`, when one of its services implies it.
+    /// 5. `Server`, when the host runs containers: a container runtime, or software inside one.
+    /// 6. `Unidentified`.
     ///
-    /// A name sits below services and the OS because anyone can type one. Containerized software
-    /// sits below the OS because it says what the container does, not what the machine is: a laptop
-    /// running Postgres in Docker is still a laptop. A Linux host gives no OS device type, so the
-    /// same containers still make it a server.
+    /// `Server` is what any application implies, so it yields to an OS or a name that says what
+    /// the machine is: a Mac sharing files over SMB, or running Postgres, is still a workstation.
+    /// A name sits below the OS because anyone can type one. Containerized software says what the
+    /// container does, not what the machine is, so it ranks with the weakest evidence. A Linux host
+    /// gives no OS device type, so its applications or containers still make it a server.
     pub fn device_type<'a>(&self, services: impl IntoIterator<Item = &'a Service>) -> DeviceType {
         let (containerized, own): (Vec<&Service>, Vec<&Service>) = services
             .into_iter()
@@ -167,8 +178,15 @@ impl Host {
                 )
             });
 
-        own.iter()
+        let declared: Vec<DeviceType> = own
+            .iter()
             .filter_map(|s| s.base.service_definition.device_type())
+            .collect();
+        let implies_server = declared.contains(&DeviceType::Server);
+
+        declared
+            .into_iter()
+            .filter(|device_type| *device_type != DeviceType::Server)
             .min()
             .or_else(|| {
                 self.base
@@ -177,7 +195,7 @@ impl Host {
                     .and_then(|os| os.value().0.device_type())
             })
             .or_else(|| self.named_device_type())
-            .or(runs_containers.then_some(DeviceType::Server))
+            .or((implies_server || runs_containers).then_some(DeviceType::Server))
             .unwrap_or_default()
     }
 
@@ -192,20 +210,34 @@ impl Host {
     }
 }
 
-/// `"Mayas-iPhone"`, `"Maya's iPad"` and `"iphone15"` name a product; `"iphoneclone"` does not. A
-/// word matches when it is the product name, optionally followed by a model number.
+/// `"Mayas-iPhone"`, `"Maya's iPad"`, `"iphone15"` and `"FB-Macbook"` name a product;
+/// `"iphoneclone"` does not. A word matches when it is the product name, optionally followed by a
+/// model number. A Mac name split in two (`"mac-mini"`, `"Mac Studio"`) matches as the pair; a bare
+/// `"mac"` names nothing.
 fn device_type_from_label(label: &str) -> Option<DeviceType> {
-    label
+    let words: Vec<String> = label
         .split(|c: char| !c.is_ascii_alphanumeric())
-        .find_map(|word| {
-            let word = word.to_ascii_lowercase();
-            let product = word.trim_end_matches(|c: char| c.is_ascii_digit());
-            match product {
-                "iphone" => Some(DeviceType::Mobile),
-                "ipad" => Some(DeviceType::Tablet),
-                _ => None,
+        .filter(|word| !word.is_empty())
+        .map(str::to_ascii_lowercase)
+        .collect();
+    words.iter().enumerate().find_map(|(i, word)| {
+        let product = word.trim_end_matches(|c: char| c.is_ascii_digit());
+        match product {
+            "iphone" => Some(DeviceType::Mobile),
+            "ipad" => Some(DeviceType::Tablet),
+            "macbook" | "macbookpro" | "macbookair" | "imac" | "imacpro" | "macmini" | "macpro"
+            | "macstudio" => Some(DeviceType::Workstation),
+            "mac"
+                if matches!(
+                    words.get(i + 1).map(String::as_str),
+                    Some("mini" | "pro" | "studio")
+                ) =>
+            {
+                Some(DeviceType::Workstation)
             }
-        })
+            _ => None,
+        }
+    })
 }
 
 #[cfg(test)]
@@ -214,8 +246,8 @@ mod tests {
     use crate::server::hosts::r#impl::attributes::{HostHostnameValue, HostOsValue};
     use crate::server::hosts::r#impl::os::{HostOs, HostOsFamily};
     use crate::server::services::definitions::{
-        docker_daemon::Docker, pf_sense::PfSense, postgresql::PostgreSQL, proxmox::Proxmox,
-        samba::Samba, snmp::Snmp, true_nas::TrueNAS,
+        docker_daemon::Docker, kerberos::Kerberos, pf_sense::PfSense, postgresql::PostgreSQL,
+        proxmox::Proxmox, samba::Samba, snmp::Snmp, true_nas::TrueNAS,
     };
     use crate::server::services::r#impl::base::ServiceBase;
     use crate::server::services::r#impl::virtualization::{
@@ -277,10 +309,10 @@ mod tests {
             host_with_os(os(HostOsFamily::Linux)).device_type(&db_in_docker[..1]),
             DeviceType::Server
         );
-        // Software installed on the host itself still outranks the OS.
+        // Software installed on the host itself implies only `Server`, which yields to the OS too.
         assert_eq!(
             host_with_os(os(HostOsFamily::MacOs)).device_type(&[service(Box::new(PostgreSQL))]),
-            DeviceType::Server
+            DeviceType::Workstation
         );
         // And a host's own device type outranks its containers.
         let nas_with_containers = [
@@ -293,8 +325,8 @@ mod tests {
         );
     }
 
-    /// The ladder from most specific evidence to none: a service's device type beats every lower-ranked
-    /// service device type and the OS, and `Server` never hides a device type.
+    /// The ladder from most specific evidence to none: a service's specific device type beats every
+    /// lower-ranked one and the OS, and the `Server` a service implies yields to the OS.
     #[test]
     fn services_outrank_each_other_by_precedence_then_the_os() {
         let macos = Some(HostOs::family_only(HostOsFamily::MacOs));
@@ -311,14 +343,14 @@ mod tests {
             DeviceType::Hypervisor
         );
 
-        // A service device type wins over the OS device type, even when the service's device type ranks lower.
-        let db = [service(Box::new(PostgreSQL))];
+        // A service's specific device type wins over the OS device type.
+        let nas = [service(Box::new(TrueNAS))];
         assert_eq!(
-            host_with_os(macos.clone()).device_type(&db),
-            DeviceType::Server
+            host_with_os(macos.clone()).device_type(&nas),
+            DeviceType::Storage
         );
 
-        // Software any host runs implies nothing, so the OS decides.
+        // `Server` from a service yields to the OS: a Mac sharing files over SMB is a workstation.
         let plumbing = [service(Box::new(Snmp)), service(Box::new(Samba))];
         assert_eq!(
             host_with_os(macos.clone()).device_type(&plumbing[..1]),
@@ -326,6 +358,22 @@ mod tests {
         );
         assert_eq!(
             host_with_os(macos).device_type(&plumbing),
+            DeviceType::Workstation
+        );
+        // With no OS or name to yield to, the same service still makes it a server.
+        assert_eq!(
+            host_with_os(None).device_type(&plumbing),
+            DeviceType::Server
+        );
+
+        // The SMB probe's Windows reading names no edition, so it implies nothing, and a Windows
+        // server's applications still make it a server.
+        let windows_by_version = Some(HostOs {
+            version: Some("10.0.17763".to_string()),
+            ..HostOs::family_only(HostOsFamily::Windows)
+        });
+        assert_eq!(
+            host_with_os(windows_by_version).device_type(&[service(Box::new(PostgreSQL))]),
             DeviceType::Server
         );
     }
@@ -365,6 +413,22 @@ mod tests {
             named("iphoneclone.lan").device_type(&[]),
             DeviceType::Unidentified
         );
+        assert_eq!(named("mac.lan").device_type(&[]), DeviceType::Unidentified);
+
+        // The two Macs from a live scan, each sharing files and running macOS's local Kerberos KDC,
+        // with no OS reading.
+        let mac_services = [service(Box::new(Samba)), service(Box::new(Kerberos))];
+        for hostname in [
+            "mac-mini.lan",
+            "FB-Macbook.local",
+            "Mayas-MacBook-Pro.local",
+        ] {
+            assert_eq!(
+                named(hostname).device_type(&mac_services),
+                DeviceType::Workstation,
+                "{hostname}"
+            );
+        }
 
         // The OS and services both outrank the name.
         let mut mac = named("Mayas-iPhone");
@@ -394,5 +458,6 @@ mod tests {
             windows(Some("Windows 11"), Some("Pro")).device_type(),
             Some(DeviceType::Workstation)
         );
+        assert_eq!(windows(None, None).device_type(), None);
     }
 }

@@ -1,13 +1,14 @@
 //! IPP detection with a `Get-Printer-Attributes` request (RFC 8011 §4.2.5).
 //!
 //! `Get-Printer-Attributes` is the read-only query every IPP printer answers: it submits no job,
-//! needs no credentials, and asks only for `printer-state`. The request goes to `/ipp/print`, the
-//! path IPP Everywhere and AirPrint fix for a printer's default queue.
+//! needs no credentials, and asks only for `printer-state`. The request goes to each of [`PATHS`]
+//! in turn until one answers in IPP.
 //!
-//! Any HTTP reply whose `Content-Type` is `application/ipp` counts, whatever its HTTP or IPP status.
-//! A printer that answers `client-error-not-found` because it serves a different path still encoded
-//! an IPP response to say so, which is the claim being made. A middlebox completing the handshake, or
-//! a web server answering with an HTML 404, does not produce that media type.
+//! Any HTTP reply whose `Content-Type` is `application/ipp` counts, whatever its HTTP or IPP status:
+//! an IPP error is still an IPP response, which is the claim being made. A middlebox completing the
+//! handshake, or a web server answering with an HTML 404, does not produce that media type. A
+//! printer serving IPP on another path answers that HTML 404 too, which is why one path is not
+//! enough.
 
 use std::net::SocketAddr;
 
@@ -19,6 +20,11 @@ use crate::daemon::utils::app_probe::{
 };
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::r#impl::patterns::ClientProbe;
+
+/// Where printers serve IPP, in the order tried. `/ipp/print` is the default queue IPP Everywhere
+/// and AirPrint fix. `/ipp` is where printers older than both serve it: a Brother HL-2270DW answers
+/// `/ipp/print` with an HTML 404 and `/ipp` in IPP.
+const PATHS: [&str; 2] = ["/ipp/print", "/ipp"];
 
 /// IPP 1.1, the version every IPP printer accepts; 2.0 printers answer 1.1 requests too.
 const VERSION: [u8; 2] = [0x01, 0x01];
@@ -41,7 +47,7 @@ fn attribute(out: &mut Vec<u8>, tag: u8, name: &str, value: &str) {
 
 /// The IPP operation for `printer`, with the three operation attributes RFC 8011 §4.1.4 requires
 /// in that order, then `requested-attributes` to keep the reply to one attribute.
-fn ipp_body(printer: SocketAddr) -> Vec<u8> {
+fn ipp_body(printer: SocketAddr, path: &str) -> Vec<u8> {
     let mut body = Vec::new();
     body.extend_from_slice(&VERSION);
     body.extend_from_slice(&GET_PRINTER_ATTRIBUTES);
@@ -58,7 +64,7 @@ fn ipp_body(printer: SocketAddr) -> Vec<u8> {
         &mut body,
         URI,
         "printer-uri",
-        &format!("ipp://{printer}/ipp/print"),
+        &format!("ipp://{printer}{path}"),
     );
     attribute(&mut body, KEYWORD, "requested-attributes", "printer-state");
     body.push(END_OF_ATTRIBUTES_TAG);
@@ -67,10 +73,10 @@ fn ipp_body(printer: SocketAddr) -> Vec<u8> {
 
 /// The HTTP request carrying the operation. `Connection: close` so the printer ends the reply
 /// rather than holding the socket for another request.
-fn request(printer: SocketAddr) -> Vec<u8> {
-    let body = ipp_body(printer);
+fn request(printer: SocketAddr, path: &str) -> Vec<u8> {
+    let body = ipp_body(printer, path);
     let mut out = format!(
-        "POST /ipp/print HTTP/1.1\r\nHost: {printer}\r\nContent-Type: application/ipp\r\n\
+        "POST {path} HTTP/1.1\r\nHost: {printer}\r\nContent-Type: application/ipp\r\n\
          Content-Length: {}\r\nConnection: close\r\n\r\n",
         body.len()
     )
@@ -94,8 +100,14 @@ impl AppProbe for IppProbe {
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
         // The address the printer is reached at, which is what it expects in `printer-uri`.
         let printer = SocketAddr::new(ctx.ip, self.port().number());
-        let reply = request_response(ctx, self.port(), &request(printer), 2048).await;
-        Ok(presence(is_ipp_response(&reply)))
+        // One connection per path: the request asks the printer to close after its reply.
+        for path in PATHS {
+            let reply = request_response(ctx, self.port(), &request(printer, path), 2048).await;
+            if is_ipp_response(&reply) {
+                return Ok(presence(true));
+            }
+        }
+        Ok(presence(false))
     }
 }
 
@@ -154,7 +166,7 @@ mod tests {
     #[test]
     fn the_request_is_one_complete_get_printer_attributes() {
         let printer: SocketAddr = "[fd00::5]:631".parse().unwrap();
-        let bytes = request(printer);
+        let bytes = request(printer, "/ipp/print");
         let mut headers = [httparse::EMPTY_HEADER; 16];
         let mut parsed = httparse::Request::new(&mut headers);
         let httparse::Status::Complete(head_len) = parsed.parse(&bytes).unwrap() else {
@@ -175,5 +187,65 @@ mod tests {
             String::from_utf8_lossy(body).contains("ipp://[fd00::5]:631/ipp/print"),
             "an IPv6 printer-uri is bracketed"
         );
+    }
+
+    /// A printer that answers IPP on `ipp_path` and an HTML 404 everywhere else, as the Brother
+    /// HL-2270DW does with `/ipp`. Each connection reads one request and closes after its reply.
+    #[derive(Debug)]
+    struct PathPrinter {
+        ipp_path: Option<&'static str>,
+    }
+
+    #[async_trait]
+    impl crate::daemon::utils::app_probe::ProbeTunnel for PathPrinter {
+        async fn open(
+            &self,
+            _port: u16,
+        ) -> std::io::Result<Box<dyn crate::daemon::utils::app_probe::ProbeStream>> {
+            use tokio::io::{AsyncReadExt, AsyncWriteExt};
+            let ipp_path = self.ipp_path;
+            let (ours, mut theirs) = tokio::io::duplex(4096);
+            tokio::spawn(async move {
+                let mut request = [0u8; 1024];
+                let Ok(n) = theirs.read(&mut request).await else {
+                    return;
+                };
+                let line = String::from_utf8_lossy(&request[..n]);
+                let path = line.split(' ').nth(1).unwrap_or_default().to_string();
+                let reply: &[u8] = if Some(path.as_str()) == ipp_path {
+                    b"HTTP/1.0 200 OK\r\nContent-Type: application/ipp\r\n\r\n\x01\x00\x00\x00"
+                } else {
+                    b"HTTP/1.0 404 Not Found\r\nContent-Type: text/html\r\n\r\n<HTML></HTML>"
+                };
+                let _ = theirs.write_all(reply).await;
+            });
+            Ok(Box::new(ours))
+        }
+    }
+
+    fn context(ipp_path: Option<&'static str>) -> ProbeContext {
+        ProbeContext {
+            ip: "192.0.2.1".parse().unwrap(),
+            subnet_cidr: "192.0.2.0/24".parse().unwrap(),
+            is_gateway: false,
+            cancel: tokio_util::sync::CancellationToken::new(),
+            scan_controller: crate::daemon::utils::scanner::ScanConcurrencyController::new(1),
+            probe_raw_socket_ports: false,
+            port_map: Default::default(),
+            tunnel: Some(std::sync::Arc::new(PathPrinter { ipp_path })),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_printer_serving_ipp_on_any_known_path_answers() {
+        for path in PATHS {
+            let outcome = IppProbe.run(&context(Some(path))).await.unwrap();
+            assert!(
+                matches!(outcome, AppProbeOutcome::Answered { .. }),
+                "IPP served at {path}"
+            );
+        }
+        let outcome = IppProbe.run(&context(None)).await.unwrap();
+        assert!(matches!(outcome, AppProbeOutcome::NoAnswer));
     }
 }

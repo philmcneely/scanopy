@@ -217,6 +217,7 @@ pub fn is_identifier_copy(source: AttributeSource) -> bool {
         | S::ArpReply
         | S::IcmpEcho
         | S::PortScan
+        | S::DnsSdServicePort
         | S::SshScript => false,
     }
 }
