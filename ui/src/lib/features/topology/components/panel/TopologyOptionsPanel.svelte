@@ -125,9 +125,11 @@
 			<!-- Content area -->
 			<div
 				class="overflow-y-auto p-3"
-				style="max-height: calc(100vh - {isTutorial || !$topologyOptions.local.show_minimap
+				style="max-height: calc(100vh - {isTutorial
 					? 180
-					: 350}px);"
+					: $topologyOptions.local.show_minimap
+						? 350
+						: 230}px);"
 			>
 				{#if multiSelectedNodes.length >= 2 || $editingDependencyId}
 					{@const editingDep = $editingDependencyId
