@@ -211,6 +211,8 @@
 
 		{#if deviceType}
 			<DeviceGlyph {deviceType} />
+		{:else if logoDefinition}
+			<SoftwareGlyph definition={logoDefinition} framed={false} />
 		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<IconComp class={`h-5 w-5 ${colorHelper.icon}`} fill={fillIcon ? 'currentColor' : 'none'} />
