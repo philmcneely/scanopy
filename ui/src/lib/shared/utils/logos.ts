@@ -9,6 +9,11 @@ import type { IconComponent } from '$lib/shared/utils/types';
 
 const byId = new Map(logos.map((logo) => [logo.id, logo]));
 
+/** Where the UI serves the logo with this id, for an `<img>`; null when there is none. */
+export function logoPath(id: string): string | null {
+	return byId.get(id)?.path ?? null;
+}
+
 /** The logo with this id as an icon component, or `fallback` when there is none. */
 export function logoIcon(id: string | null | undefined, fallback: IconComponent): IconComponent {
 	const logo = id ? byId.get(id) : undefined;
