@@ -10066,6 +10066,12 @@ export interface components {
         } | {
             /** @description Whether ELK should use this edge for layout positioning */
             affects_layout: boolean;
+            /**
+             * @description Whether ELK should use this edge to place its endpoints next to each other inside the
+             *     container they share, without it moving any container. Implied by `affects_layout`.
+             *     Defaulted so edges persisted before the field existed still deserialize.
+             */
+            affects_layout_within_container?: boolean;
             /** @description Whether the edge is shown by default or hidden behind a toggle */
             default_visibility: components["schemas"]["EdgeDefaultVisibility"];
             /** @description When this edge contributes to node highlighting on selection */

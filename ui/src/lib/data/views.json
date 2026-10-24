@@ -19,6 +19,7 @@
         },
         "NeighborLink": {
           "affects_layout": true,
+          "affects_layout_within_container": false,
           "default_visibility": "visible",
           "highlight_behavior": "when_visible",
           "show_directionality": false,
@@ -31,6 +32,7 @@
         },
         "PhysicalLink": {
           "affects_layout": true,
+          "affects_layout_within_container": false,
           "default_visibility": "visible",
           "highlight_behavior": "when_visible",
           "show_directionality": false,
@@ -46,6 +48,7 @@
         },
         "SameHost": {
           "affects_layout": false,
+          "affects_layout_within_container": false,
           "default_visibility": "hidden",
           "highlight_behavior": "when_visible",
           "show_directionality": false,
@@ -299,6 +302,7 @@
       "edge_view_configs": {
         "ContainerRuntime": {
           "affects_layout": true,
+          "affects_layout_within_container": false,
           "default_visibility": "visible",
           "highlight_behavior": "when_visible",
           "show_directionality": false,
@@ -308,6 +312,7 @@
         },
         "HubAndSpoke": {
           "affects_layout": false,
+          "affects_layout_within_container": true,
           "default_visibility": "visible",
           "highlight_behavior": "when_visible",
           "show_directionality": true,
@@ -317,6 +322,7 @@
         },
         "Hypervisor": {
           "affects_layout": false,
+          "affects_layout_within_container": false,
           "default_visibility": "hidden",
           "highlight_behavior": "when_visible",
           "show_directionality": false,
@@ -329,6 +335,7 @@
         },
         "NetworkIdentity": {
           "affects_layout": false,
+          "affects_layout_within_container": false,
           "default_visibility": "visible",
           "highlight_behavior": "when_visible",
           "show_directionality": false,
@@ -341,6 +348,7 @@
         },
         "RequestPath": {
           "affects_layout": false,
+          "affects_layout_within_container": true,
           "default_visibility": "visible",
           "highlight_behavior": "when_visible",
           "show_directionality": true,
@@ -350,6 +358,7 @@
         },
         "SameContainer": {
           "affects_layout": false,
+          "affects_layout_within_container": false,
           "default_visibility": "hidden",
           "highlight_behavior": "when_visible",
           "show_directionality": false,
@@ -359,6 +368,7 @@
         },
         "SameHost": {
           "affects_layout": true,
+          "affects_layout_within_container": false,
           "default_visibility": "visible",
           "highlight_behavior": "when_visible",
           "show_directionality": false,
@@ -753,6 +763,7 @@
         },
         "HubAndSpoke": {
           "affects_layout": false,
+          "affects_layout_within_container": false,
           "default_visibility": "hidden",
           "highlight_behavior": "when_visible",
           "show_directionality": true,
@@ -765,6 +776,7 @@
         },
         "NeighborLink": {
           "affects_layout": false,
+          "affects_layout_within_container": false,
           "default_visibility": "hidden",
           "highlight_behavior": "when_visible",
           "show_directionality": false,
@@ -777,6 +789,7 @@
         },
         "PhysicalLink": {
           "affects_layout": false,
+          "affects_layout_within_container": false,
           "default_visibility": "hidden",
           "highlight_behavior": "when_visible",
           "show_directionality": false,
@@ -786,6 +799,7 @@
         },
         "RequestPath": {
           "affects_layout": false,
+          "affects_layout_within_container": false,
           "default_visibility": "hidden",
           "highlight_behavior": "when_visible",
           "show_directionality": true,
@@ -1291,6 +1305,7 @@
       "edge_view_configs": {
         "ContainerRuntime": {
           "affects_layout": true,
+          "affects_layout_within_container": false,
           "default_visibility": "hidden",
           "highlight_behavior": "always",
           "show_directionality": false,
@@ -1300,6 +1315,7 @@
         },
         "HubAndSpoke": {
           "affects_layout": true,
+          "affects_layout_within_container": false,
           "default_visibility": "visible",
           "highlight_behavior": "when_visible",
           "show_directionality": true,
@@ -1321,6 +1337,7 @@
         },
         "RequestPath": {
           "affects_layout": true,
+          "affects_layout_within_container": false,
           "default_visibility": "visible",
           "highlight_behavior": "when_visible",
           "show_directionality": true,

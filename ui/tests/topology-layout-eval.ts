@@ -17,6 +17,8 @@ import {
  * Metrics, per view:
  *  - inner edges (both endpoints inside one root container): crossings between them, how many pass
  *    through a card that is not an endpoint, and their total and longest drawn length;
+ *  - behind cards: for every drawn edge, the cards it passes through that are neither endpoint nor
+ *    an endpoint's container, one count per edge and card;
  *  - dependency order: share of inner dependency edges whose target reads after its source (a
  *    lower row, or the same row to the right);
  *  - edges between root containers: crossings between them as drawn, and total and longest drawn
@@ -33,13 +35,16 @@ import {
  * Run:
  *   SESSION_ID=<session> npx playwright test tests/topology-layout-eval.ts --project=chromium
  *
- * `EVAL_VIEWS=L2Physical` limits the run to the listed views. L2Physical is scored at every
- * collapse level, as `<site> L2Physical L<level>`.
+ * `EVAL_VIEWS=L2Physical` limits the run to the listed views. L3Logical and L2Physical are also
+ * scored at every collapse level, as `<site> <view> L<level>`.
  *
  * Writes `tests/screenshots/layout-eval.json` and one screenshot per view.
  */
 
 const VIEWS = ['L3Logical', 'Application', 'Workloads', 'L2Physical'] as const;
+
+/** Views also scored at every collapse level, as `<site> <view> L<level>`. */
+const LADDER_VIEWS = new Set<(typeof VIEWS)[number]>(['L3Logical', 'L2Physical']);
 
 /** Dependency edge types, whose direction is the dependency's member order. */
 const DEPENDENCY_EDGE_TYPES = new Set(['RequestPath', 'HubAndSpoke']);
@@ -118,6 +123,7 @@ interface ViewMetrics {
 	innerEdges: number;
 	innerCrossings: number;
 	innerBehindCards: number;
+	behindCards: number;
 	innerLengthTotal: number;
 	innerLengthMax: number;
 	dependencyEdges: number;
@@ -327,6 +333,19 @@ function computeMetrics(
 		if (hit) innerBehindCards++;
 	}
 
+	// Every drawn edge, inner or between containers, against every card it passes behind that is
+	// neither endpoint nor an endpoint's ancestor: one count per edge and card.
+	let behindCards = 0;
+	for (const e of drawn) {
+		const skip = new Set([e.source, e.target, ...ancestors(e.source), ...ancestors(e.target)]);
+		const points = paths[e.id];
+		for (const card of elements) {
+			if (skip.has(card.id)) continue;
+			const box = absoluteOf(card.id)!;
+			if (points.some((p) => insideBox(p, box, 2))) behindCards++;
+		}
+	}
+
 	const innerLengths = inner.map((e) => polylineLength(paths[e.id]));
 	const crossLengths = cross.map((e) => polylineLength(paths[e.id]));
 
@@ -363,6 +382,7 @@ function computeMetrics(
 		innerEdges: inner.length,
 		innerCrossings,
 		innerBehindCards,
+		behindCards,
 		innerLengthTotal: Math.round(sum(innerLengths)),
 		innerLengthMax: Math.round(max(innerLengths)),
 		dependencyEdges: dependencyEdges.length,
@@ -449,12 +469,10 @@ test('topology layout quality evaluation', async ({ context }) => {
 			await page.goto(`/?view=${view}#topology`);
 			await page.waitForSelector('.svelte-flow__node', { timeout: 60_000 });
 			await waitForStableLayout(page);
-			if (view !== 'L2Physical') {
-				await measure(`${site} ${view}`);
-				continue;
-			}
+			await measure(`${site} ${view}`);
+			if (!LADDER_VIEWS.has(view)) continue;
 
-			// L2 at every collapse level: walk to the most collapsed, then expand one level at a time.
+			// Every collapse level: walk to the most collapsed, then expand one level at a time.
 			await page.locator('.svelte-flow').click({ position: { x: 5, y: 5 } });
 			const step = async (key: '[' | ']') => {
 				const before = await collapseLevel(page);
