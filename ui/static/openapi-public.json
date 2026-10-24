@@ -34231,6 +34231,7 @@
           "Windows",
           "MacOs",
           "Ios",
+          "IpadOs",
           "TvOs",
           "AudioOs",
           "FreeBsd",

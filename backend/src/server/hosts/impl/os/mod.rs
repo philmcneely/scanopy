@@ -155,6 +155,7 @@ pub enum HostOsFamily {
     Windows,
     MacOs,
     Ios,
+    IpadOs,
     TvOs,
     AudioOs,
     FreeBsd,
@@ -229,6 +230,7 @@ impl HostOsFamily {
             DataOntap => Some(DeviceType::Storage),
             MacOs => Some(DeviceType::Workstation),
             Ios | PalmOs => Some(DeviceType::Mobile),
+            IpadOs => Some(DeviceType::Tablet),
             TvOs => Some(DeviceType::MediaPlayer),
             AudioOs => Some(DeviceType::Speaker),
             Solaris | Aix | HpUx | Irix | Tru64 | OpenVms | ZOs | IbmI | UnixWare | OpenServer
@@ -269,7 +271,9 @@ impl HostOsFamily {
         use const_format::concatcp;
         match self {
             Self::Linux | Self::Windows | Self::MacOs | Self::FreeBsd => "",
-            Self::Ios | Self::TvOs | Self::AudioOs => concatcp!(SIMPLE_ICONS, "apple.svg"),
+            Self::Ios | Self::IpadOs | Self::TvOs | Self::AudioOs => {
+                concatcp!(SIMPLE_ICONS, "apple.svg")
+            }
             Self::OpenBsd => concatcp!(SIMPLE_ICONS, "openbsd.svg"),
             Self::NetBsd => concatcp!(SIMPLE_ICONS, "netbsd.svg"),
             Self::HpUx | Self::Tru64 | Self::OpenVms | Self::ProCurve => {
@@ -351,6 +355,7 @@ impl TypeMetadataProvider for HostOsFamily {
             Self::Windows => "Windows",
             Self::MacOs => "macOS",
             Self::Ios => "iOS",
+            Self::IpadOs => "iPadOS",
             Self::TvOs => "tvOS",
             Self::AudioOs => "audioOS",
             Self::FreeBsd => "FreeBSD",

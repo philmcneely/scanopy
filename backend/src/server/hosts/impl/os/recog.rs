@@ -214,6 +214,7 @@ fn classify(family: &str, product: Option<&str>) -> RecogFamily {
         "Windows" => F::Windows,
         "Mac OS X" => F::MacOs,
         "iOS" => F::Ios,
+        "iPadOS" => F::IpadOs,
         "tvOS" => F::TvOs,
         "audioOS" => F::AudioOs,
         "FreeBSD" => F::FreeBsd,
