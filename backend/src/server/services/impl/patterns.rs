@@ -565,6 +565,9 @@ impl Vendor {
     /// Chamberlain and LiftMaster, including myQ.
     pub const CHAMBERLAIN: &'static str = "The Chamberlain Group, Inc";
     pub const BOSE: &'static str = "Bose Corporation";
+    /// ESP8266 and ESP32 Wi-Fi chips, inside most hobbyist and many commercial IoT devices.
+    pub const ESPRESSIF: &'static str = "Espressif Inc.";
+    pub const BROTHER: &'static str = "Brother industries, LTD.";
 }
 
 impl PartialEq for Pattern<'_> {
@@ -1369,7 +1372,7 @@ impl Pattern<'_> {
     /// Get all endpoints which need to be scanned for a given service's match pattern
     pub fn endpoints(&self) -> Vec<Endpoint> {
         match self {
-            Pattern::Endpoint(port_base, path, .., None) => {
+            Pattern::Endpoint(port_base, path, ..) => {
                 vec![Endpoint::for_pattern(*port_base, path)]
             }
             Pattern::Header(port_base_opt, ..) => {

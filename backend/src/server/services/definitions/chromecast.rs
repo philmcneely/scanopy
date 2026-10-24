@@ -32,13 +32,13 @@ impl ServiceDefinition for ChromecastDevice {
         // found by its ports.
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::GOOGLE),
-            Pattern::AnyOf(vec![
+            cast_with_optional_tls(Pattern::AnyOf(vec![
                 Pattern::DnsSd(DnsSdServiceType::GOOGLE_CAST, None),
                 Pattern::AllOf(vec![
                     Pattern::Port(PortType::new_tcp(8008)),
                     Pattern::Port(PortType::new_tcp(8009)),
                 ]),
-            ]),
+            ])),
         ])
     }
 
@@ -48,6 +48,16 @@ impl ServiceDefinition for ChromecastDevice {
     fn logo_needs_white_background(&self) -> bool {
         true
     }
+}
+
+/// `cast`, also claiming 8443 when it is open. Cast receivers serve their TLS endpoint there (the
+/// certificate reads `OU=Cast`), but not every receiver opens it, so it is never required: the
+/// second arm matches only alongside `cast`, and `AnyOf` binds the ports of every arm that matches.
+pub(crate) fn cast_with_optional_tls(cast: Pattern<'_>) -> Pattern<'_> {
+    Pattern::AnyOf(vec![
+        cast.clone(),
+        Pattern::AllOf(vec![cast, Pattern::Port(PortType::Https8443)]),
+    ])
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(

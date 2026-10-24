@@ -198,7 +198,8 @@ impl HostService {
                 .iter()
                 .map(|h| {
                     let services = services_for_device_types.get(&h.id).into_iter().flatten();
-                    (h.id, h.device_type(services))
+                    let ip_addresses = ip_addresses_map.get(&h.id).into_iter().flatten();
+                    (h.id, h.device_type(services, ip_addresses))
                 })
                 .collect()
         };

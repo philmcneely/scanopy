@@ -119,6 +119,7 @@ pub mod tp_link_eap;
 pub mod ubiquiti_discovery;
 pub mod unifi_access_point;
 pub mod unifi_controller;
+pub mod upnp_igd;
 
 // NetworkSecurity
 pub mod crowdsec;
@@ -208,6 +209,7 @@ pub mod tautulli;
 // HomeAutomation
 pub mod domoticz;
 pub mod esphome;
+pub mod espressif_device;
 pub mod home_assistant;
 pub mod openhab;
 pub mod philips_hue_bridge;
@@ -369,6 +371,7 @@ pub mod ipad;
 pub mod iphone;
 
 // IoT
+pub mod airplay_receiver;
 pub mod amazon_echo;
 pub mod apple_tv;
 pub mod bose_speaker;
@@ -401,6 +404,7 @@ pub mod opc_ua;
 
 // Printer
 pub mod airprint_printer;
+pub mod brother_printer;
 pub mod cups;
 pub mod hp_printer;
 pub mod ipp_printer;
