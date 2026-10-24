@@ -1287,20 +1287,20 @@ fn a_mesh_point_is_identified_by_its_status_api_role() {
     let leaf = status("leaf");
     let root = status("root");
     assert!(definition_matches_host(
-        "Google Nest repeater",
+        "Google Nest Repeater",
         google_mac,
         &ports,
         &[(PortType::Http, "/api/v1/status", 200, &[], &leaf)]
     ));
     assert!(!definition_matches_host(
-        "Google Nest repeater",
+        "Google Nest Repeater",
         google_mac,
         &ports,
         &[(PortType::Http, "/api/v1/status", 200, &[], &root)]
     ));
     // The page the root serves still identifies a unit that serves it.
     assert!(definition_matches_host(
-        "Google Nest repeater",
+        "Google Nest Repeater",
         google_mac,
         &ports,
         &[(PortType::Http, "/", 200, &[], "<title>Nest Wifi</title>")]
@@ -1423,32 +1423,65 @@ fn port_5000_is_identified_by_its_server_header_on_an_error_response() {
     ));
 }
 
-/// A Brother printer's web server names itself `debut`; LPD is bound only alongside it.
+/// The Brother OUI names the printer without any HTTP response, and it binds the web and LPD ports
+/// it finds open.
 #[test]
-fn a_brother_printer_is_identified_by_its_server_header_on_a_brother_mac() {
+fn a_brother_printer_is_identified_by_its_oui_and_binds_web_and_lpd() {
     let brother_mac = "30:05:5C:00:00:01";
-    let debut: Response = (PortType::Http, "/", 200, &[("server", "debut/1.20")], "");
     let bound = definition_binds_on_host(
         "Brother Printer",
         brother_mac,
         &[PortType::Http, PortType::LdpTcp],
-        &[debut],
+        &[],
     )
     .expect("a Brother printer matches");
     assert!(bound.contains(&PortType::Http) && bound.contains(&PortType::LdpTcp));
     assert!(!definition_matches_host(
         "Brother Printer",
         OTHER_MAC,
-        &[PortType::Http],
-        &[debut]
+        &[PortType::Http, PortType::LdpTcp],
+        &[]
     ));
-    // LPD alone on a Brother MAC is not the printer's web server.
     assert!(!definition_matches_host(
         "Brother Printer",
         brother_mac,
-        &[PortType::LdpTcp],
+        &[],
         &[]
     ));
+}
+
+/// A web page and a Telnet console make a Switch only on a host with no port that names another
+/// kind of device. The Brother HL-2270DW shows both, alongside its print ports.
+#[test]
+fn a_host_with_an_end_device_port_is_no_switch() {
+    use crate::server::services::definitions::switch::Switch;
+
+    let switch_matches = |extra: Option<PortType>| {
+        let mut ctx = TestContext::new();
+        ctx.client_responses
+            .insert(super::ClientProbe::Telnet, vec![PortType::Telnet]);
+        let mut ports = vec![PortType::Http, PortType::Telnet];
+        ports.extend(extra);
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
+        Switch.discovery_pattern().matches(&params).is_ok()
+    };
+
+    assert!(switch_matches(None), "web + Telnet alone is a switch");
+    for port in [
+        PortType::Ipp,
+        PortType::LdpTcp,
+        PortType::JetDirect,
+        PortType::Rtsp,
+        PortType::Sip,
+        PortType::Samba,
+        PortType::Nfs,
+        PortType::Rdp,
+    ] {
+        assert!(!switch_matches(Some(port)), "{port} rules out a switch");
+    }
+    // A managed industrial switch serves EtherNet/IP itself.
+    assert!(switch_matches(Some(PortType::EtherNetIp)));
 }
 
 /// ESP-IDF's default 404 on an Espressif MAC; the same body elsewhere, or a 200, is not it.
@@ -1493,4 +1526,75 @@ fn an_esp_idf_web_server_is_identified_by_its_default_404() {
 fn every_endpoint_pattern_schedules_its_own_request() {
     let pattern = Pattern::Endpoint(PortType::Http, "/only-here", "x", Some(404..405));
     assert!(pattern.endpoints().iter().any(|e| e.path == "/only-here"));
+}
+
+/// Bodies a device sends for every path it is asked for, whatever the path. A Kasa plug answers
+/// `/bigbluebutton/api` and `/ipa/ui` with its one page; an SPA serves its shell; some servers echo
+/// the path they did not find, with a 200.
+const CATCH_ALL_BODIES: &[(&str, &str)] = &[
+    ("Kasa page", "<html><body><center>200 OK</center></body></html>"),
+    ("empty body", ""),
+    (
+        "SPA shell",
+        "<!doctype html><html><head><title>App</title></head><body><div id=\"app\"></div></body></html>",
+    ),
+    ("path echo", "<html><body>No page at {path}</body></html>"),
+];
+
+/// No definition matches on what a catch-all web server says for every path. Each definition is
+/// put to a host that has open exactly the ports its endpoints use and answers each request with
+/// one catch-all body at 200. A match there that the same host does not give with no responses at
+/// all came from the endpoint text alone, which a catch-all server cannot be trusted to mean.
+#[test]
+fn no_definition_matches_a_catch_all_web_server() {
+    // Nokia Shanghai Bell: a vendor no definition names.
+    let unlisted_mac = "28:6F:B9:00:00:01";
+    let mut false_positives = Vec::new();
+
+    for definition in ServiceDefinitionRegistry::all_service_definitions() {
+        let endpoints = definition.discovery_pattern().endpoints();
+        if endpoints.is_empty() {
+            continue;
+        }
+        let mut ports: Vec<PortType> = endpoints.iter().map(|e| e.port_type).collect();
+        ports.sort_by_key(|p| (p.number(), p.protocol()));
+        ports.dedup();
+
+        let matches_with = |body: Option<&str>| {
+            let mut ctx = TestContext::new();
+            ctx.ip_address.base.mac_address = Some(MacEvidence::new(
+                MacEvidenceValue(unlisted_mac.parse().expect("valid MAC")),
+                AttributeSource::ArpReply,
+            ));
+            ctx.pi = definition.clone();
+            if let Some(body) = body {
+                ctx.endpoint_responses = endpoints
+                    .iter()
+                    .map(|endpoint| EndpointResponse {
+                        endpoint: endpoint.use_ip(ctx.ip_address.base.ip_address),
+                        body: body.replace("{path}", &endpoint.path),
+                        headers: HashMap::new(),
+                        status: 200,
+                    })
+                    .collect();
+            }
+            let baseline = ctx.create_baseline_params(&ports);
+            let params = ctx.create_params_with_ports(&baseline, &ports);
+            ctx.pi.discovery_pattern().matches(&params).is_ok()
+        };
+
+        if matches_with(None) {
+            continue;
+        }
+        for (shape, body) in CATCH_ALL_BODIES {
+            if matches_with(Some(body)) {
+                false_positives.push(format!("{} ({shape})", definition.name()));
+            }
+        }
+    }
+
+    assert!(
+        false_positives.is_empty(),
+        "definitions matching a catch-all web server: {false_positives:?}"
+    );
 }

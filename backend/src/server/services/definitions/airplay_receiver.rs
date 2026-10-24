@@ -32,10 +32,6 @@ impl ServiceDefinition for AirPlayReceiver {
             Some(200..500),
         )
     }
-
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/apple.svg"
-    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(

@@ -18,7 +18,8 @@ impl ServiceDefinition for NATS {
         ServiceCategory::MessageQueue
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Endpoint(PortType::new_tcp(8222), "/varz", "", None)
+        // `/varz` is the server's JSON stats, keyed by its `server_id` (`server/monitor.go`).
+        Pattern::Endpoint(PortType::new_tcp(8222), "/varz", "\"server_id\"", None)
     }
     fn logo_url(&self) -> &'static str {
         "https://simpleicons.org/icons/natsdotio.svg"

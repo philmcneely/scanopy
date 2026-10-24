@@ -12,29 +12,28 @@ impl ServiceDefinition for BrotherPrinter {
         "Brother Printer"
     }
     fn description(&self) -> &'static str {
-        "A Brother printer's embedded web server"
+        "A Brother printer: its web admin page and LPD queue"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Printer
     }
 
-    // Brother's embedded web server answers with `Server: debut/<version>` (an HL-2270DW redirects
-    // `/` to `/printer/main.html`). LPD on 515 is claimed alongside, the way HP Printer does: a
-    // bare connect proves nothing, but on a host already identified as the printer it is the
-    // printer's queue.
+    // Brother's network products are printers, multifunctions and scanners, so the OUI names the
+    // product and an open port gives the service something to bind, as for myQ and Bose. The web
+    // server's `Server: debut` header would say the same, but `/` redirects to a page an HL-2270DW
+    // took ~470 ms to serve when idle, too close to the scan's 800 ms request budget to rely on.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        let identified = Pattern::AllOf(vec![
+        Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::BROTHER),
-            Pattern::Header(Some(PortType::Http), "server", "debut", None),
-        ]);
-        Pattern::AnyOf(vec![
-            identified.clone(),
-            Pattern::AllOf(vec![identified, Pattern::Port(PortType::LdpTcp)]),
+            Pattern::AnyOf(vec![
+                Pattern::Port(PortType::Http),
+                Pattern::Port(PortType::LdpTcp),
+            ]),
         ])
     }
 
     fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/printer.svg"
+        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/brother.svg"
     }
 }
 

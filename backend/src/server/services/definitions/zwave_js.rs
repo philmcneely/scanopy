@@ -18,7 +18,9 @@ impl ServiceDefinition for ZWaveJS {
         ServiceCategory::HomeAutomation
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Endpoint(PortType::new_tcp(8091), "/health", "", None)
+        // `/health` answers a bare `Ok`, which any catch-all page can contain; the UI's own page is
+        // titled "Z-Wave JS UI".
+        Pattern::Endpoint(PortType::new_tcp(8091), "/", "Z-Wave JS UI", None)
     }
     fn logo_url(&self) -> &'static str {
         "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/z-wave-js-ui.svg"
