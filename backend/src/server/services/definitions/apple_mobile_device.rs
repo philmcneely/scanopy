@@ -19,8 +19,9 @@ impl ServiceDefinition for AppleMobileDevice {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Mobile
     }
-    // iPhones and iPads both run it, so it says "an Apple mobile device" and not which. The
-    // hostname rung tells a phone from a tablet, and a service device type would outrank it.
+    // iPhones, iPads and Apple TVs all run it, so the service says "an Apple device" and not which.
+    // The probe reads the product type, whose OS (iOS, iPadOS, tvOS) types the host; a service
+    // device type would outrank that.
     fn device_type(&self) -> Option<DeviceType> {
         None
     }

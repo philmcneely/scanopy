@@ -120,6 +120,10 @@ impl ClientProbe {
             Self::SpotifyConnect => C::CredentialFree(&[PortsAndServices, DeviceDetails]),
             // The SMB negotiation states the Windows release.
             Self::Smb => C::CredentialFree(&[PortsAndServices, OperatingSystem]),
+            // Lockdown's `GetValue` names the product type and OS version.
+            Self::AppleLockdown => {
+                C::CredentialFree(&[PortsAndServices, DeviceDetails, OperatingSystem])
+            }
             // Presence probes: the protocol answered on the port, which identifies the service.
             Self::OpcUa
             | Self::Sip
@@ -127,7 +131,6 @@ impl ClientProbe {
             | Self::Ftp
             | Self::Telnet
             | Self::Vnc
-            | Self::AppleLockdown
             | Self::Rtsp
             | Self::Nut
             | Self::EpicsCa

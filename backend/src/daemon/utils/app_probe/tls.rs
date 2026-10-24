@@ -219,6 +219,13 @@ pub async fn scan_certificates(
             let ctx = ctx.clone();
             async move {
                 let handshake = capture_certificate(&ctx, port).await;
+                tracing::debug!(
+                    ip = %ctx.ip,
+                    port = %port.number(),
+                    spoke_tls = handshake.spoke_tls(),
+                    issuer = ?handshake.issuer(),
+                    "Certificate capture"
+                );
                 Some(PortCertificate {
                     port,
                     subject: handshake.subject()?,

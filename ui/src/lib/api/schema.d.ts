@@ -10763,7 +10763,7 @@ export interface components {
          *     with the distribution as the name; variants exist for families, not distributions.
          * @enum {string}
          */
-        HostOsFamily: "Linux" | "Windows" | "MacOs" | "Ios" | "TvOs" | "AudioOs" | "FreeBsd" | "OpenBsd" | "NetBsd" | "Solaris" | "Aix" | "HpUx" | "Irix" | "Tru64" | "OpenVms" | "ZOs" | "IbmI" | "UnixWare" | "OpenServer" | "NetWare" | "PalmOs" | "Esxi" | "CiscoIos" | "CiscoIosXe" | "CiscoIosXr" | "CiscoNxOs" | "CiscoCatOs" | "CiscoAsa" | "CiscoFtd" | "Junos" | "ScreenOs" | "ArubaOs" | "Comware" | "ProCurve" | "AristaEos" | "RouterOs" | "HuaweiVrp" | "IronWare" | "BrocadeNetworkOs" | "BayRs" | "PanOs" | "FortiOs" | "SonicOs" | "GaiaOs" | "Ipso" | "DataOntap" | "Ecos";
+        HostOsFamily: "Linux" | "Windows" | "MacOs" | "Ios" | "IpadOs" | "TvOs" | "AudioOs" | "FreeBsd" | "OpenBsd" | "NetBsd" | "Solaris" | "Aix" | "HpUx" | "Irix" | "Tru64" | "OpenVms" | "ZOs" | "IbmI" | "UnixWare" | "OpenServer" | "NetWare" | "PalmOs" | "Esxi" | "CiscoIos" | "CiscoIosXe" | "CiscoIosXr" | "CiscoNxOs" | "CiscoCatOs" | "CiscoAsa" | "CiscoFtd" | "Junos" | "ScreenOs" | "ArubaOs" | "Comware" | "ProCurve" | "AristaEos" | "RouterOs" | "HuaweiVrp" | "IronWare" | "BrocadeNetworkOs" | "BayRs" | "PanOs" | "FortiOs" | "SonicOs" | "GaiaOs" | "Ipso" | "DataOntap" | "Ecos";
         /** @description A file on the scanned host, executed there over SSH. Never read by the daemon. */
         HostPath: string;
         /**
