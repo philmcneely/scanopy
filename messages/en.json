@@ -2869,7 +2869,7 @@
 	"settings_system_dateOrderMonthFirst": "Month first",
 	"settings_system_displayUpdated": "Date and time settings saved",
 	"settings_system_iconCredits": "Icon credits",
-	"settings_system_iconCreditsDescription": "Where each logo comes from and its terms. Product names and logos are trademarks of their respective owners.",
+	"settings_system_iconCreditsDescription": "Product names and logos are trademarks of their respective owners.",
 	"settings_system_iconCreditsTrademark": "Trademark of its owner",
 	"settings_system_license": "Licensed under AGPL-3.0, or a %link% for organizations that need one.",
 	"settings_system_licenseLinkText": "commercial license",
