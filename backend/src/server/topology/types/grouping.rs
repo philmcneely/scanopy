@@ -391,6 +391,9 @@ pub enum ElementRule {
     ByHypervisor,
     ByContainerRuntime,
     ByStack,
+    /// Groups hosts by device type (servers, workstations, printers, …) into per-type
+    /// subcontainers. Hosts with no identified device type stay ungrouped.
+    ByDeviceType,
     /// Groups trunk ports (ports with tagged VLANs) into a "Trunk Ports" subcontainer.
     /// Higher priority than ByVLAN — prevents trunk ports from being grouped by VLAN.
     ByTrunkPort,
@@ -409,6 +412,7 @@ impl GraphRule for ElementRule {
             ElementRule::ByServiceCategory { .. }
             | ElementRule::ByTag { .. }
             | ElementRule::ByTrunkPort
+            | ElementRule::ByDeviceType
             | ElementRule::ByVLAN
             | ElementRule::ByPortOpStatus => false,
         }
@@ -416,7 +420,9 @@ impl GraphRule for ElementRule {
 
     fn is_removable(&self) -> bool {
         match self {
-            ElementRule::ByServiceCategory { .. } | ElementRule::ByTag { .. } => true,
+            ElementRule::ByServiceCategory { .. }
+            | ElementRule::ByTag { .. }
+            | ElementRule::ByDeviceType => true,
             ElementRule::ByHypervisor
             | ElementRule::ByContainerRuntime
             | ElementRule::ByStack
@@ -432,7 +438,8 @@ impl GraphRule for ElementRule {
             | ElementRule::ByTag { .. }
             | ElementRule::ByHypervisor
             | ElementRule::ByContainerRuntime
-            | ElementRule::ByStack => true,
+            | ElementRule::ByStack
+            | ElementRule::ByDeviceType => true,
             ElementRule::ByTrunkPort | ElementRule::ByVLAN | ElementRule::ByPortOpStatus => false,
         }
     }
@@ -443,6 +450,7 @@ impl GraphRule for ElementRule {
             ElementRule::ByHypervisor
             | ElementRule::ByContainerRuntime
             | ElementRule::ByStack
+            | ElementRule::ByDeviceType
             | ElementRule::ByTrunkPort
             | ElementRule::ByVLAN
             | ElementRule::ByPortOpStatus => false,
@@ -455,6 +463,7 @@ impl GraphRule for ElementRule {
             ElementRule::ByHypervisor
             | ElementRule::ByContainerRuntime
             | ElementRule::ByStack
+            | ElementRule::ByDeviceType
             | ElementRule::ByTrunkPort
             | ElementRule::ByVLAN
             | ElementRule::ByPortOpStatus => false,
@@ -475,6 +484,7 @@ impl GraphRule for ElementRule {
             ElementRule::ByHypervisor => &[TopologyView::Workloads],
             ElementRule::ByContainerRuntime => &[TopologyView::Workloads],
             ElementRule::ByStack => &[TopologyView::L3Logical, TopologyView::Application],
+            ElementRule::ByDeviceType => &[TopologyView::L3Logical],
             ElementRule::ByTrunkPort => &[TopologyView::L2Physical],
             ElementRule::ByVLAN => &[TopologyView::L2Physical],
             ElementRule::ByPortOpStatus => &[TopologyView::L2Physical],
@@ -499,6 +509,7 @@ impl ElementRule {
             ElementRule::ByHypervisor => ElementRule::ByHypervisor,
             ElementRule::ByContainerRuntime => ElementRule::ByContainerRuntime,
             ElementRule::ByStack => ElementRule::ByStack,
+            ElementRule::ByDeviceType => ElementRule::ByDeviceType,
             ElementRule::ByTrunkPort => ElementRule::ByTrunkPort,
             ElementRule::ByVLAN => ElementRule::ByVLAN,
             ElementRule::ByPortOpStatus => ElementRule::ByPortOpStatus,
@@ -520,6 +531,7 @@ impl EntityMetadataProvider for ElementRule {
             ElementRule::ByHypervisor => Concept::Virtualization.color(),
             ElementRule::ByContainerRuntime => Concept::Containerization.color(),
             ElementRule::ByStack => Concept::Containerization.color(),
+            ElementRule::ByDeviceType => EntityDiscriminants::Host.color(),
             ElementRule::ByTrunkPort => Color::Amber,
             ElementRule::ByVLAN => Color::Teal,
             ElementRule::ByPortOpStatus => Color::Gray,
@@ -533,6 +545,7 @@ impl EntityMetadataProvider for ElementRule {
             ElementRule::ByHypervisor => Concept::Virtualization.icon(),
             ElementRule::ByContainerRuntime => Concept::Containerization.icon(),
             ElementRule::ByStack => Concept::Containerization.icon(),
+            ElementRule::ByDeviceType => EntityDiscriminants::Host.icon(),
             ElementRule::ByTrunkPort => Icon::Network,
             ElementRule::ByVLAN => Icon::Network,
             ElementRule::ByPortOpStatus => Icon::Circle,
@@ -548,6 +561,7 @@ impl TypeMetadataProvider for ElementRule {
             ElementRule::ByHypervisor => "Hypervisor",
             ElementRule::ByContainerRuntime => "Container Runtime",
             ElementRule::ByStack => "Stack",
+            ElementRule::ByDeviceType => "Device Type",
             ElementRule::ByTrunkPort => "Trunk Ports",
             ElementRule::ByVLAN => "VLAN",
             ElementRule::ByPortOpStatus => "Port Status",
@@ -563,6 +577,7 @@ impl TypeMetadataProvider for ElementRule {
             ElementRule::ByStack => {
                 "Group containers deployed together as a stack (e.g., Docker Compose, Podman Compose)"
             }
+            ElementRule::ByDeviceType => "Group hosts by device type",
             ElementRule::ByTrunkPort => "Group trunk ports (ports carrying multiple VLANs)",
             ElementRule::ByVLAN => "Group access ports by native VLAN ID",
             ElementRule::ByPortOpStatus => "Group ports by operational status",

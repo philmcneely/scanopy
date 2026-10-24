@@ -273,6 +273,7 @@ impl ViewBuilder for WorkloadsBuilder {
                         vlan_name: None,
                         is_trunk_port: false,
                         oper_status: None,
+                        device_type: None,
                     })
                 }
                 NodeType::Element {
@@ -301,6 +302,7 @@ impl ViewBuilder for WorkloadsBuilder {
                         vlan_name: None,
                         is_trunk_port: false,
                         oper_status: None,
+                        device_type: None,
                     })
                 }
                 _ => None,
