@@ -23,6 +23,11 @@ impl ServiceDefinition for RolleaseAcmedaPulse {
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::DnsSd(DnsSdServiceType::HOMEKIT, Some(("md", "MT02-0401")))
     }
+
+    fn logo_url(&self) -> &'static str {
+        // The company's own mark, from its site.
+        "https://www.rolleaseacmeda.com/icon0.svg"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(

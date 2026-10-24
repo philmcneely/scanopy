@@ -261,6 +261,22 @@ impl HostOsFamily {
         DaemonOs::iter().find(|os| HostOsFamily::from(*os) == *self)
     }
 
+    /// Where the icon this family draws comes from, for the logo credits (`logo_credits.rs`): its
+    /// downloaded logo, or for a daemon OS the origin of the icon `OsIcon.svelte` draws in its place.
+    /// Empty for a family that draws only a lucide glyph.
+    pub fn icon_origin_url(&self) -> &'static str {
+        use const_format::concatcp;
+        match self.daemon_os() {
+            Some(DaemonOs::Linux) => "https://commons.wikimedia.org/wiki/File:Tux.svg",
+            Some(DaemonOs::Windows) => {
+                "https://commons.wikimedia.org/wiki/File:Windows_logo_-_2021.svg"
+            }
+            Some(DaemonOs::MacOS) => concatcp!(SIMPLE_ICONS, "apple.svg"),
+            Some(DaemonOs::FreeBsd) => concatcp!(SIMPLE_ICONS, "freebsd.svg"),
+            None => self.logo_url(),
+        }
+    }
+
     /// The vendor's logo, downloaded with the service logos by `generate-fixtures`. Empty for the
     /// daemon OS families, which draw the daemon's own icon, and for families whose vendor neither
     /// Simple Icons nor Dashboard Icons carries (IBM, SGI, SCO, Novell, Palm, Arista, H3C, Nortel,
