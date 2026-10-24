@@ -40,6 +40,8 @@ use tokio::net::UdpSocket;
 pub use types::DnsSdHost;
 use wire::{Accumulator, SERVICE_ENUMERATION};
 
+use crate::server::services::definitions::ServiceDefinitionRegistry;
+
 /// The mDNS group and port (RFC 6762).
 const MDNS_GROUP: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
 const MDNS_PORT: u16 = 5353;
@@ -83,11 +85,7 @@ const WELL_KNOWN_SERVICE_TYPES: [&str; 12] = [
 pub async fn browse(interface_addresses: &[Ipv4Addr]) -> HashMap<IpAddr, DnsSdHost> {
     let mut accumulator = Accumulator::default();
 
-    let well_known: Vec<Name> = WELL_KNOWN_SERVICE_TYPES
-        .iter()
-        .chain(std::iter::once(&SERVICE_ENUMERATION))
-        .filter_map(|name| Name::from_ascii(name).ok())
-        .collect();
+    let well_known = first_burst_names();
 
     for address in interface_addresses {
         if let Err(e) = browse_interface(*address, &well_known, &mut accumulator).await {
@@ -133,6 +131,39 @@ pub async fn browse(interface_addresses: &[Ipv4Addr]) -> HashMap<IpAddr, DnsSdHo
 /// advertisement in two of three live scans. RFC 6762 §5.2 expects a querier to repeat itself for
 /// the same reason.
 const REQUERY_AFTER: Duration = Duration::from_millis(500);
+
+/// The first burst: the well-known types, every type a service definition matches on, and the
+/// enumeration query.
+///
+/// A type only the follow-up burst asks about depends on some device's enumeration reply naming
+/// it. A Bose amp's `_spotify-connect._tcp` went unasked that way in one of four live scans, so its
+/// Spotify Connect service and identity were lost for that scan. Every type a definition reads is
+/// asked for directly instead.
+fn first_burst_names() -> Vec<Name> {
+    let definition_types: Vec<String> = ServiceDefinitionRegistry::all_service_definitions()
+        .iter()
+        .flat_map(|definition| {
+            definition
+                .discovery_pattern()
+                .dns_sd_types()
+                .into_iter()
+                .map(|service_type| format!("{}.local.", service_type.to_ascii_lowercase()))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    let mut names: Vec<String> = WELL_KNOWN_SERVICE_TYPES
+        .iter()
+        .map(|name| name.to_string())
+        .chain(definition_types)
+        .chain(std::iter::once(SERVICE_ENUMERATION.to_string()))
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+        .iter()
+        .filter_map(|name| Name::from_ascii(name).ok())
+        .collect()
+}
 
 /// Send a query out `interface_address`, again after [`REQUERY_AFTER`], and fold everything that
 /// answers within the window into `accumulator`.
@@ -209,4 +240,30 @@ fn open_socket(interface_address: Ipv4Addr) -> Result<UdpSocket> {
     socket.join_multicast_v4(&MDNS_GROUP, &interface_address)?;
 
     UdpSocket::from_std(socket.into()).map_err(Error::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every service type a definition matches on is asked for in the first burst, so none waits
+    /// on another device's enumeration reply.
+    #[test]
+    fn the_first_burst_asks_for_every_type_a_definition_reads() {
+        let asked: Vec<String> = first_burst_names()
+            .iter()
+            .map(|name| name.to_ascii().to_ascii_lowercase())
+            .collect();
+        for definition in ServiceDefinitionRegistry::all_service_definitions() {
+            for service_type in definition.discovery_pattern().dns_sd_types() {
+                let wanted = format!("{}.local.", service_type.to_ascii_lowercase());
+                assert!(
+                    asked.contains(&wanted),
+                    "{} reads {service_type}, which the first burst does not ask for",
+                    definition.name()
+                );
+            }
+        }
+        assert!(asked.contains(&SERVICE_ENUMERATION.to_ascii_lowercase()));
+    }
 }
