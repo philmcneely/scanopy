@@ -119,7 +119,12 @@
 	{#if icon}
 		{@const Icon = icon}
 		<div class="flex h-7 w-7 shrink-0 items-center justify-center">
-			<Icon class="h-5 w-5 {displayComponent.getIconColor?.(item, context) || 'text-secondary'}" />
+			<!-- `size` sizes a logo's round frame to the slot, as a host's tile fills it; a lucide glyph
+			     keeps the 20px its classes give it. -->
+			<Icon
+				size={28}
+				class="h-5 w-5 {displayComponent.getIconColor?.(item, context) || 'text-secondary'}"
+			/>
 		</div>
 	{/if}
 

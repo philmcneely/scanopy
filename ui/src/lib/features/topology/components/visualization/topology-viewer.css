@@ -127,8 +127,8 @@
 
 /* An icon on a topology card, drawn on the element's own ::before so the icon costs one element
  * (`card-glyph.ts`). `--glyph` is the icon as a CSS url and `--glyph-size` the icon's box. A
- * monochrome icon is a mask filled with the text colour; a logo is a background image, on a white
- * frame when the logo is dark (`logos.json` background). */
+ * monochrome icon is a mask filled with the text colour; a logo is a background image, on the
+ * frame colour `logos.json` gives it. */
 .card-glyph {
 	display: inline-flex;
 	flex-shrink: 0;
@@ -150,12 +150,6 @@
 
 .card-glyph[data-glyph-type='image']::before {
 	background: var(--glyph) center / contain no-repeat;
-}
-
-/* A dark logo fills its whole frame with white, so the round badge or tile reads as one white
- * disc rather than a white square inside a dark ring. Overrides the frame's inline card fill. */
-.card-glyph[data-glyph-type='image'][data-glyph-white] {
-	background: white !important;
 }
 
 /* A state dot centred in its ring, as one element. */
