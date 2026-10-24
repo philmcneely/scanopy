@@ -22,8 +22,8 @@ impl ServiceDefinition for BoseSpeaker {
         Some(DeviceType::Speaker)
     }
 
-    // The ports a Bose Music Amplifier listens on: 80, Cast built-in on 8008/8009, and 8085 and
-    // 8091 from Bose's own platform. Spotify Connect's port is left to that definition, which binds
+    // The ports a Bose Music Amplifier listens on: 80, Cast built-in on 8008/8009/8443 (the 8443
+    // certificate is issued by "Bose CAST CA"), and 8085 and 8091 from Bose's own platform. Spotify Connect's port is left to that definition, which binds
     // it from the mDNS advertisement.
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
@@ -34,6 +34,7 @@ impl ServiceDefinition for BoseSpeaker {
                 Pattern::Port(PortType::new_tcp(8009)),
                 Pattern::Port(PortType::new_tcp(8085)),
                 Pattern::Port(PortType::new_tcp(8091)),
+                Pattern::Port(PortType::Https8443),
             ]),
         ])
     }

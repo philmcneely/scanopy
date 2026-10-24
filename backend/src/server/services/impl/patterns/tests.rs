@@ -1189,6 +1189,16 @@ fn definition_matches_host(
     ports: &[PortType],
     responses: &[Response],
 ) -> bool {
+    definition_binds_on_host(id, mac, ports, responses).is_some()
+}
+
+/// The ports the registered definition `id` binds on that host, if it matches.
+fn definition_binds_on_host(
+    id: &str,
+    mac: &str,
+    ports: &[PortType],
+    responses: &[Response],
+) -> Option<Vec<PortType>> {
     let mut ctx = TestContext::new();
     ctx.ip_address.base.mac_address = Some(MacEvidence::new(
         MacEvidenceValue(mac.parse().expect("valid MAC")),
@@ -1211,7 +1221,11 @@ fn definition_matches_host(
     let ports = ports.to_vec();
     let baseline = ctx.create_baseline_params(&ports);
     let params = ctx.create_params_with_ports(&baseline, &ports);
-    ctx.pi.discovery_pattern().matches(&params).is_ok()
+    ctx.pi
+        .discovery_pattern()
+        .matches(&params)
+        .ok()
+        .map(|matched| matched.ports)
 }
 
 /// TP-Link's newer OUI, on a Kasa HS103.
@@ -1340,4 +1354,143 @@ fn spotify_connect_binds_its_advertised_port() {
         .matches(&params)
         .expect("an advertised receiver matches");
     assert_eq!(matched.ports, vec![PortType::new_tcp(8200)]);
+}
+
+/// A Cast receiver binds 8443 when it has it open and still matches without it.
+#[test]
+fn cast_receivers_bind_their_tls_port_when_open() {
+    let google_mac = "7C:D9:5C:00:00:01";
+    let cast = [PortType::new_tcp(8008), PortType::new_tcp(8009)];
+    let with_tls = [cast[0], cast[1], PortType::Https8443];
+    for id in ["Chromecast", "Google Home"] {
+        let bound = definition_binds_on_host(id, google_mac, &with_tls, &[])
+            .unwrap_or_else(|| panic!("{id} matches with 8443 open"));
+        assert!(bound.contains(&PortType::Https8443), "{id} binds 8443");
+        assert!(
+            definition_matches_host(id, google_mac, &cast, &[]),
+            "{id} without 8443"
+        );
+        // 8443 alone is no Cast evidence.
+        assert!(
+            !definition_matches_host(id, google_mac, &[PortType::Https8443], &[]),
+            "{id} on 8443 alone"
+        );
+    }
+}
+
+/// macOS's AirPlay Receiver and MiniUPnPd both answer `/` on 5000 with an error status, and the
+/// `Server` header is what names them.
+#[test]
+fn port_5000_is_identified_by_its_server_header_on_an_error_response() {
+    let ports = [PortType::Http5000];
+    let airtunes: Response = (
+        PortType::Http5000,
+        "/",
+        403,
+        &[("server", "AirTunes/980.77.5")],
+        "",
+    );
+    let miniupnpd: Response = (
+        PortType::Http5000,
+        "/",
+        404,
+        &[("server", "Linux/5.4.0-122-generic UPnP/1.1 MiniUPnPd/1.9")],
+        "",
+    );
+    assert!(definition_matches_host(
+        "AirPlay Receiver",
+        OTHER_MAC,
+        &ports,
+        &[airtunes]
+    ));
+    assert!(!definition_matches_host(
+        "AirPlay Receiver",
+        OTHER_MAC,
+        &ports,
+        &[miniupnpd]
+    ));
+    assert!(definition_matches_host(
+        "UPnP IGD",
+        OTHER_MAC,
+        &ports,
+        &[miniupnpd]
+    ));
+    assert!(!definition_matches_host(
+        "UPnP IGD",
+        OTHER_MAC,
+        &ports,
+        &[airtunes]
+    ));
+}
+
+/// A Brother printer's web server names itself `debut`; LPD is bound only alongside it.
+#[test]
+fn a_brother_printer_is_identified_by_its_server_header_on_a_brother_mac() {
+    let brother_mac = "30:05:5C:00:00:01";
+    let debut: Response = (PortType::Http, "/", 200, &[("server", "debut/1.20")], "");
+    let bound = definition_binds_on_host(
+        "Brother Printer",
+        brother_mac,
+        &[PortType::Http, PortType::LdpTcp],
+        &[debut],
+    )
+    .expect("a Brother printer matches");
+    assert!(bound.contains(&PortType::Http) && bound.contains(&PortType::LdpTcp));
+    assert!(!definition_matches_host(
+        "Brother Printer",
+        OTHER_MAC,
+        &[PortType::Http],
+        &[debut]
+    ));
+    // LPD alone on a Brother MAC is not the printer's web server.
+    assert!(!definition_matches_host(
+        "Brother Printer",
+        brother_mac,
+        &[PortType::LdpTcp],
+        &[]
+    ));
+}
+
+/// ESP-IDF's default 404 on an Espressif MAC; the same body elsewhere, or a 200, is not it.
+#[test]
+fn an_esp_idf_web_server_is_identified_by_its_default_404() {
+    let espressif_mac = "0C:B8:15:00:00:01";
+    let ports = [PortType::Http];
+    let not_found: Response = (PortType::Http, "/", 404, &[], "This URI does not exist");
+    // ESP-IDF v5.0 reworded the default 404.
+    let not_found_v5: Response = (
+        PortType::Http,
+        "/",
+        404,
+        &[],
+        "Nothing matches the given URI",
+    );
+    for response in [not_found, not_found_v5] {
+        assert!(definition_matches_host(
+            "Espressif Device",
+            espressif_mac,
+            &ports,
+            &[response]
+        ));
+    }
+    assert!(!definition_matches_host(
+        "Espressif Device",
+        OTHER_MAC,
+        &ports,
+        &[not_found]
+    ));
+    assert!(!definition_matches_host(
+        "Espressif Device",
+        espressif_mac,
+        &ports,
+        &[(PortType::Http, "/", 200, &[], "<title>WLED</title>")]
+    ));
+}
+
+/// Every `Endpoint` pattern schedules its own request, whatever status range it accepts: a ranged
+/// endpoint that waits on another definition to request the same path never matches.
+#[test]
+fn every_endpoint_pattern_schedules_its_own_request() {
+    let pattern = Pattern::Endpoint(PortType::Http, "/only-here", "x", Some(404..405));
+    assert!(pattern.endpoints().iter().any(|e| e.path == "/only-here"));
 }

@@ -1,10 +1,13 @@
 use crate::server::hosts::r#impl::base::Host;
+use crate::server::ip_addresses::r#impl::base::{IPAddress, mac_of};
 use crate::server::services::r#impl::base::Service;
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::{
     ServiceDefinition, ServiceDefinitionExt, VirtualizationRole,
 };
+use crate::server::services::r#impl::patterns::Vendor;
 use crate::server::shared::entities::EntityDiscriminants;
+use crate::server::shared::oui;
 use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider};
 use crate::server::shared::types::{Color, Icon};
 use serde::{Deserialize, Serialize};
@@ -157,16 +160,22 @@ impl Host {
     /// 3. The device type its hostname or name implies: Apple names a device after its product
     ///    ("Maya's iPhone", "Mayas-MacBook-Pro"), and that name reaches us through PTR, mDNS and
     ///    controller DHCP leases.
-    /// 4. `Server`, when one of its services implies it.
-    /// 5. `Server`, when the host runs containers: a container runtime, or software inside one.
-    /// 6. `Unidentified`.
+    /// 4. The device type its MAC vendor implies, for vendors whose every product is one class of
+    ///    device: Espressif sells only embedded Wi-Fi chips.
+    /// 5. `Server`, when one of its services implies it.
+    /// 6. `Server`, when the host runs containers: a container runtime, or software inside one.
+    /// 7. `Unidentified`.
     ///
     /// `Server` is what any application implies, so it yields to an OS or a name that says what
     /// the machine is: a Mac sharing files over SMB, or running Postgres, is still a workstation.
     /// A name sits below the OS because anyone can type one. Containerized software says what the
     /// container does, not what the machine is, so it ranks with the weakest evidence. A Linux host
     /// gives no OS device type, so its applications or containers still make it a server.
-    pub fn device_type<'a>(&self, services: impl IntoIterator<Item = &'a Service>) -> DeviceType {
+    pub fn device_type<'a, 'b>(
+        &self,
+        services: impl IntoIterator<Item = &'a Service>,
+        ip_addresses: impl IntoIterator<Item = &'b IPAddress>,
+    ) -> DeviceType {
         let (containerized, own): (Vec<&Service>, Vec<&Service>) = services
             .into_iter()
             .partition(|s| s.base.virtualization_metadata.is_some());
@@ -195,6 +204,12 @@ impl Host {
                     .and_then(|os| os.value().0.device_type())
             })
             .or_else(|| self.named_device_type())
+            .or_else(|| {
+                ip_addresses
+                    .into_iter()
+                    .filter_map(|ip| mac_of(&ip.base.mac_address))
+                    .find_map(|mac| device_type_from_mac(&mac.to_string()))
+            })
             .or((implies_server || runs_containers).then_some(DeviceType::Server))
             .unwrap_or_default()
     }
@@ -210,10 +225,21 @@ impl Host {
     }
 }
 
+/// The device type a MAC's vendor implies. Only vendors that make one class of device are listed:
+/// Google's OUI covers phones, laptops and speakers alike, so it implies nothing. A randomized
+/// (locally administered) MAC has no vendor and implies nothing either.
+fn device_type_from_mac(mac: &str) -> Option<DeviceType> {
+    match oui::lookup_by_mac(mac)?.company_name.as_str() {
+        Vendor::ESPRESSIF | Vendor::NEST => Some(DeviceType::IoT),
+        _ => None,
+    }
+}
+
 /// `"Mayas-iPhone"`, `"Maya's iPad"`, `"iphone15"` and `"FB-Macbook"` name a product;
 /// `"iphoneclone"` does not. A word matches when it is the product name, optionally followed by a
 /// model number. A Mac name split in two (`"mac-mini"`, `"Mac Studio"`) matches as the pair; a bare
-/// `"mac"` names nothing.
+/// `"mac"` names nothing. A brand's tablet (`"xiaomi-pad-mini"`) matches as the pair; a bare `"pad"`
+/// names nothing.
 fn device_type_from_label(label: &str) -> Option<DeviceType> {
     let words: Vec<String> = label
         .split(|c: char| !c.is_ascii_alphanumeric())
@@ -224,7 +250,30 @@ fn device_type_from_label(label: &str) -> Option<DeviceType> {
         let product = word.trim_end_matches(|c: char| c.is_ascii_digit());
         match product {
             "iphone" => Some(DeviceType::Mobile),
+            // Android's default device name is "<Owner>'s Phone". A desk phone calls itself an IP
+            // or SIP phone, so those pairs stay unmatched.
+            "phone"
+                if !matches!(
+                    i.checked_sub(1)
+                        .and_then(|p| words.get(p))
+                        .map(String::as_str),
+                    Some("ip" | "voip" | "sip")
+                ) =>
+            {
+                Some(DeviceType::Mobile)
+            }
             "ipad" => Some(DeviceType::Tablet),
+            "pad"
+                if matches!(
+                    i.checked_sub(1)
+                        .and_then(|p| words.get(p))
+                        .map(String::as_str),
+                    Some("xiaomi" | "redmi")
+                ) =>
+            {
+                Some(DeviceType::Tablet)
+            }
+            "doorbell" => Some(DeviceType::Camera),
             "macbook" | "macbookpro" | "macbookair" | "imac" | "imacpro" | "macmini" | "macpro"
             | "macstudio" => Some(DeviceType::Workstation),
             "mac"
@@ -245,6 +294,7 @@ mod tests {
     use super::*;
     use crate::server::hosts::r#impl::attributes::{HostHostnameValue, HostOsValue};
     use crate::server::hosts::r#impl::os::{HostOs, HostOsFamily};
+    use crate::server::ip_addresses::r#impl::base::{MacEvidence, MacEvidenceValue};
     use crate::server::services::definitions::{
         docker_daemon::Docker, kerberos::Kerberos, pf_sense::PfSense, postgresql::PostgreSQL,
         proxmox::Proxmox, samba::Samba, snmp::Snmp, true_nas::TrueNAS,
@@ -254,6 +304,8 @@ mod tests {
         DockerVirtualization, ServiceVirtualization,
     };
     use crate::server::shared::attribution::{AttributeSource, Attributed};
+    use crate::tests::ip_address;
+    use uuid::Uuid;
 
     fn host_with_os(os: Option<HostOs>) -> Host {
         let mut host = crate::server::shared::types::examples::host();
@@ -296,22 +348,22 @@ mod tests {
 
         // A Mac running Postgres in Docker is a workstation.
         assert_eq!(
-            host_with_os(os(HostOsFamily::MacOs)).device_type(&db_in_docker),
+            host_with_os(os(HostOsFamily::MacOs)).device_type(&db_in_docker, []),
             DeviceType::Workstation
         );
         // A Linux host gives no OS device type, so the same containers make it a server, and so does the
         // runtime alone.
         assert_eq!(
-            host_with_os(os(HostOsFamily::Linux)).device_type(&db_in_docker),
+            host_with_os(os(HostOsFamily::Linux)).device_type(&db_in_docker, []),
             DeviceType::Server
         );
         assert_eq!(
-            host_with_os(os(HostOsFamily::Linux)).device_type(&db_in_docker[..1]),
+            host_with_os(os(HostOsFamily::Linux)).device_type(&db_in_docker[..1], []),
             DeviceType::Server
         );
         // Software installed on the host itself implies only `Server`, which yields to the OS too.
         assert_eq!(
-            host_with_os(os(HostOsFamily::MacOs)).device_type(&[service(Box::new(PostgreSQL))]),
+            host_with_os(os(HostOsFamily::MacOs)).device_type(&[service(Box::new(PostgreSQL))], []),
             DeviceType::Workstation
         );
         // And a host's own device type outranks its containers.
@@ -320,7 +372,7 @@ mod tests {
             containerized(Box::new(PostgreSQL)),
         ];
         assert_eq!(
-            host_with_os(os(HostOsFamily::Linux)).device_type(&nas_with_containers),
+            host_with_os(os(HostOsFamily::Linux)).device_type(&nas_with_containers, []),
             DeviceType::Storage
         );
     }
@@ -333,36 +385,36 @@ mod tests {
 
         let firewall_and_nas = [service(Box::new(TrueNAS)), service(Box::new(PfSense))];
         assert_eq!(
-            host_with_os(None).device_type(&firewall_and_nas),
+            host_with_os(None).device_type(&firewall_and_nas, []),
             DeviceType::Firewall
         );
 
         let hypervisor_with_db = [service(Box::new(PostgreSQL)), service(Box::new(Proxmox))];
         assert_eq!(
-            host_with_os(None).device_type(&hypervisor_with_db),
+            host_with_os(None).device_type(&hypervisor_with_db, []),
             DeviceType::Hypervisor
         );
 
         // A service's specific device type wins over the OS device type.
         let nas = [service(Box::new(TrueNAS))];
         assert_eq!(
-            host_with_os(macos.clone()).device_type(&nas),
+            host_with_os(macos.clone()).device_type(&nas, []),
             DeviceType::Storage
         );
 
         // `Server` from a service yields to the OS: a Mac sharing files over SMB is a workstation.
         let plumbing = [service(Box::new(Snmp)), service(Box::new(Samba))];
         assert_eq!(
-            host_with_os(macos.clone()).device_type(&plumbing[..1]),
+            host_with_os(macos.clone()).device_type(&plumbing[..1], []),
             DeviceType::Workstation
         );
         assert_eq!(
-            host_with_os(macos).device_type(&plumbing),
+            host_with_os(macos).device_type(&plumbing, []),
             DeviceType::Workstation
         );
         // With no OS or name to yield to, the same service still makes it a server.
         assert_eq!(
-            host_with_os(None).device_type(&plumbing),
+            host_with_os(None).device_type(&plumbing, []),
             DeviceType::Server
         );
 
@@ -373,7 +425,7 @@ mod tests {
             ..HostOs::family_only(HostOsFamily::Windows)
         });
         assert_eq!(
-            host_with_os(windows_by_version).device_type(&[service(Box::new(PostgreSQL))]),
+            host_with_os(windows_by_version).device_type(&[service(Box::new(PostgreSQL))], []),
             DeviceType::Server
         );
     }
@@ -383,11 +435,11 @@ mod tests {
         let linux = Some(HostOs::family_only(HostOsFamily::Linux));
         let snmp = [service(Box::new(Snmp))];
         assert_eq!(
-            host_with_os(linux).device_type(&snmp),
+            host_with_os(linux).device_type(&snmp, []),
             DeviceType::Unidentified
         );
         assert_eq!(
-            host_with_os(None).device_type(&[]),
+            host_with_os(None).device_type(&[], []),
             DeviceType::Unidentified
         );
     }
@@ -405,15 +457,40 @@ mod tests {
             host
         };
         assert_eq!(
-            named("Mayas-iPhone.local").device_type(&[]),
+            named("Mayas-iPhone.local").device_type(&[], []),
             DeviceType::Mobile
         );
-        assert_eq!(named("ipad13.lan").device_type(&[]), DeviceType::Tablet);
+        assert_eq!(named("ipad13.lan").device_type(&[], []), DeviceType::Tablet);
         assert_eq!(
-            named("iphoneclone.lan").device_type(&[]),
+            named("iphoneclone.lan").device_type(&[], []),
             DeviceType::Unidentified
         );
-        assert_eq!(named("mac.lan").device_type(&[]), DeviceType::Unidentified);
+        assert_eq!(
+            named("mac.lan").device_type(&[], []),
+            DeviceType::Unidentified
+        );
+        // Hostnames from a live scan with randomized MACs, where the name is the only evidence.
+        assert_eq!(
+            named("josep-s-phone.lan").device_type(&[], []),
+            DeviceType::Mobile
+        );
+        assert_eq!(
+            named("xiaomi-pad-mini.lan").device_type(&[], []),
+            DeviceType::Tablet
+        );
+        assert_eq!(
+            named("nest-doorbell-battery.lan").device_type(&[], []),
+            DeviceType::Camera
+        );
+        // A desk phone and a bare "pad" name no handheld.
+        assert_eq!(
+            named("lobby-ip-phone").device_type(&[], []),
+            DeviceType::Unidentified
+        );
+        assert_eq!(
+            named("pad.lan").device_type(&[], []),
+            DeviceType::Unidentified
+        );
 
         // The two Macs from a live scan, each sharing files and running macOS's local Kerberos KDC,
         // with no OS reading.
@@ -424,7 +501,7 @@ mod tests {
             "Mayas-MacBook-Pro.local",
         ] {
             assert_eq!(
-                named(hostname).device_type(&mac_services),
+                named(hostname).device_type(&mac_services, []),
                 DeviceType::Workstation,
                 "{hostname}"
             );
@@ -436,11 +513,58 @@ mod tests {
             HostOsValue(HostOs::family_only(HostOsFamily::MacOs)),
             AttributeSource::SshBannerMatch,
         ));
-        assert_eq!(mac.device_type(&[]), DeviceType::Workstation);
+        assert_eq!(mac.device_type(&[], []), DeviceType::Workstation);
         assert_eq!(
-            named("ipad").device_type(&[service(Box::new(TrueNAS))]),
+            named("ipad").device_type(&[service(Box::new(TrueNAS))], []),
             DeviceType::Storage
         );
+    }
+
+    /// A single-purpose vendor's MAC types a host nothing else names, below the OS and the name and
+    /// above the `Server` an application implies.
+    #[test]
+    fn a_single_purpose_mac_vendor_ranks_below_the_name_and_above_server() {
+        let with_mac = |mac: &str| {
+            let mut ip = ip_address(&Uuid::new_v4(), &Uuid::new_v4());
+            ip.base.mac_address = Some(MacEvidence::new(
+                MacEvidenceValue(mac.parse().expect("valid MAC")),
+                AttributeSource::ArpReply,
+            ));
+            ip
+        };
+        // Espressif and Nest Labs OUIs from a live scan.
+        let espressif = [with_mac("0C:B8:15:01:44:10")];
+        let nest = [with_mac("18:B4:30:CF:84:53")];
+        assert_eq!(
+            host_with_os(None).device_type(&[], &espressif),
+            DeviceType::IoT
+        );
+        assert_eq!(host_with_os(None).device_type(&[], &nest), DeviceType::IoT);
+
+        // Above `Server`: an application that implies a server does not outrank the chip vendor.
+        assert_eq!(
+            host_with_os(None).device_type(&[service(Box::new(PostgreSQL))], &espressif),
+            DeviceType::IoT
+        );
+        // Below the OS and services.
+        assert_eq!(
+            host_with_os(Some(HostOs::family_only(HostOsFamily::MacOs)))
+                .device_type(&[], &espressif),
+            DeviceType::Workstation
+        );
+        assert_eq!(
+            host_with_os(None).device_type(&[service(Box::new(TrueNAS))], &espressif),
+            DeviceType::Storage
+        );
+
+        // A multi-product vendor (Google) and a randomized MAC imply nothing.
+        for mac in ["B4:23:A2:59:5B:2C", "AA:26:68:D2:1D:1C"] {
+            assert_eq!(
+                host_with_os(None).device_type(&[], &[with_mac(mac)]),
+                DeviceType::Unidentified,
+                "{mac}"
+            );
+        }
     }
 
     #[test]

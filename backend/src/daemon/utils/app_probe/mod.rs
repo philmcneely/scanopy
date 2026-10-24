@@ -519,8 +519,23 @@ pub async fn scan_app_probes(
                             identity,
                         })
                     }
-                    Ok(AppProbeOutcome::NoAnswer) => None,
+                    Ok(AppProbeOutcome::NoAnswer) => {
+                        tracing::debug!(
+                            ip = %ctx.ip,
+                            port = %port.number(),
+                            client_probe = ?probe.client_probe(),
+                            "Application probe got no answer"
+                        );
+                        None
+                    }
                     Err(e) => {
+                        tracing::debug!(
+                            ip = %ctx.ip,
+                            port = %port.number(),
+                            client_probe = ?probe.client_probe(),
+                            error = %e,
+                            "Application probe failed"
+                        );
                         if DiscoveryCriticalError::is_critical_error(e.to_string()) {
                             tracing::error!(
                                 "Critical error running application probe {}:{}: {}",

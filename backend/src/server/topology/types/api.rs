@@ -145,6 +145,7 @@ impl TopologyHost {
                         .into_iter()
                         .flatten()
                         .copied(),
+                    by_host.get(&host.id).into_iter().flatten().copied(),
                 );
                 Self {
                     host,
