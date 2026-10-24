@@ -32,7 +32,7 @@ use x509_cert::Certificate;
 use x509_cert::der::Decode;
 
 use crate::daemon::utils::app_probe::ProbeContext;
-use crate::daemon::utils::scanner::SCAN_TIMEOUT;
+use crate::daemon::utils::scanner::{SCAN_TIMEOUT, batch_scan};
 use crate::server::ports::r#impl::base::PortType;
 
 /// A verifier whose only job is to keep the certificate it is shown.
@@ -120,6 +120,18 @@ impl TlsHandshake {
         }
     }
 
+    /// The certificate's issuer as an RFC 4514 string, e.g.
+    /// `CN=Chromecast ICA 5 (4K),OU=Cast,O=Google Inc,…`. `None` under the same conditions as
+    /// [`Self::subject`].
+    pub fn issuer(&self) -> Option<String> {
+        match self {
+            Self::Certificate(der) => Certificate::from_der(der)
+                .ok()
+                .map(|cert| cert.tbs_certificate().issuer().to_string()),
+            Self::NotTls => None,
+        }
+    }
+
     /// Whether the peer spoke TLS at all, whatever its certificate said.
     pub fn spoke_tls(&self) -> bool {
         matches!(self, Self::Certificate(_))
@@ -159,6 +171,58 @@ pub(crate) async fn capture_certificate(ctx: &ProbeContext, port: PortType) -> T
         },
         Err(_) => TlsHandshake::NotTls,
     }
+}
+
+/// The certificate a port presented, reduced to the names a pattern reads.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PortCertificate {
+    pub port: PortType,
+    pub subject: String,
+    pub issuer: String,
+}
+
+/// The certificate on every open TCP port of the host that presents one. Read by
+/// `Pattern::CertificateIssuer`.
+///
+/// Devices whose ports move between units still sign every one of them with the vendor's CA (a
+/// Chromecast's 9000 and 10001 with "Chromecast ICA", a Bose amp's 8082 and 10003 with Bose's), so
+/// the issuer names the product where the port number cannot.
+///
+/// A ClientHello is bytes written to the port, so this skips the ports nothing should write
+/// unasked: raw-socket printing, which prints what it is sent, and industrial control protocols.
+pub async fn scan_certificates(
+    ctx: &ProbeContext,
+    open_ports: &[PortType],
+    batch_size: usize,
+    scan_rate_pps: u32,
+) -> Vec<PortCertificate> {
+    let ports: Vec<PortType> = open_ports
+        .iter()
+        .copied()
+        .filter(|p| p.is_tcp() && !p.is_raw_socket() && !p.is_industrial())
+        .collect();
+    if ports.is_empty() {
+        return Vec::new();
+    }
+    let ctx = ctx.clone();
+    batch_scan(
+        ports,
+        batch_size,
+        scan_rate_pps,
+        ctx.cancel.clone(),
+        move |port| {
+            let ctx = ctx.clone();
+            async move {
+                let handshake = capture_certificate(&ctx, port).await;
+                Some(PortCertificate {
+                    port,
+                    subject: handshake.subject()?,
+                    issuer: handshake.issuer()?,
+                })
+            }
+        },
+    )
+    .await
 }
 
 #[cfg(test)]

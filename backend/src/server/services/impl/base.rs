@@ -185,6 +185,10 @@ pub struct ServiceMatchBaselineParams<'a> {
     /// subnet, a container on bridge networking, or a host discovered by an integration rather
     /// than by a link-local sweep.
     pub dns_sd: &'a Option<crate::daemon::discovery::service::network::mdns::DnsSdHost>,
+    /// The certificates the host's open TCP ports presented. Read by
+    /// [`Pattern::CertificateIssuer`]. Empty on every path that did not scan the host's ports
+    /// itself.
+    pub certificates: &'a [crate::daemon::utils::app_probe::tls::PortCertificate],
 }
 
 #[derive(Debug, Clone)]

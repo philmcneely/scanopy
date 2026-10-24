@@ -126,6 +126,7 @@ impl ClientProbe {
             | Self::Ssh
             | Self::Ftp
             | Self::Telnet
+            | Self::Vnc
             | Self::Rtsp
             | Self::Nut
             | Self::EpicsCa

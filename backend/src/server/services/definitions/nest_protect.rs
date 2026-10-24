@@ -1,4 +1,5 @@
 use crate::server::ports::r#impl::base::PortType;
+use crate::server::services::definitions::chromecast::CAST_CA;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -28,6 +29,8 @@ impl ServiceDefinition for NestProtect {
             ]),
             Pattern::Port(PortType::new_tcp(11095)),
         ])
+        // Its Home services on 8012 and 10101 present certificates under Google's Cast CAs.
+        .also_binding(Pattern::CertificateIssuer(CAST_CA))
     }
 
     fn logo_url(&self) -> &'static str {
