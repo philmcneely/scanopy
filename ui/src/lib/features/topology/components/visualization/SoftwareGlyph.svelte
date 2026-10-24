@@ -24,10 +24,13 @@
 		!!(serviceDefinitions.getMetadata(definition) as { logo?: string | null } | null)?.logo
 	);
 	let framePx = $derived(size === 'lg' ? 48 : 20);
+	// A logo's `LogoIcon` takes `framed`; a lucide glyph ignores it. Spread, since the icon type is
+	// lucide's and does not declare it.
+	const bare = { framed: false };
 </script>
 
 {#if !framed}
-	<Logo size={16} framed={false} class="text-primary" />
+	<Logo size={16} {...bare} class="text-primary" />
 {:else if hasLogo}
 	<Logo size={framePx} class="align-top" />
 {:else}

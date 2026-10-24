@@ -111,7 +111,12 @@ describe('shouldSimplify', () => {
 });
 
 describe('shouldDropBadges', () => {
-	const big = { zoom: BADGE_ZOOM - 0.01, nodeCount: LOD_MIN_NODES, measuring: false, exporting: false };
+	const big = {
+		zoom: BADGE_ZOOM - 0.01,
+		nodeCount: LOD_MIN_NODES,
+		measuring: false,
+		exporting: false
+	};
 
 	it('drops badges on a large graph between the badge and detail thresholds', () => {
 		// Above DETAIL_ZOOM the card still draws its glyph and text; only the badges go.
