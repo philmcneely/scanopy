@@ -418,7 +418,7 @@
                 "label": "Network Core"
               },
               {
-                "color": "Green",
+                "color": "Yellow",
                 "icon": "router",
                 "id": "NetworkAccess",
                 "label": "Network Access"
@@ -430,7 +430,7 @@
                 "label": "Network Appliance"
               },
               {
-                "color": "Amber",
+                "color": "Rose",
                 "icon": "terminal",
                 "id": "RemoteAccess",
                 "label": "Remote Access"
@@ -442,19 +442,19 @@
                 "label": "Storage"
               },
               {
-                "color": "Gray",
+                "color": "Green",
                 "icon": "database-backup",
                 "id": "Backup",
                 "label": "Backup"
               },
               {
-                "color": "Blue",
+                "color": "Fuchsia",
                 "icon": "circle-play",
                 "id": "Media",
                 "label": "Media"
               },
               {
-                "color": "Blue",
+                "color": "Lime",
                 "icon": "house",
                 "id": "HomeAutomation",
                 "label": "Home Automation"
@@ -466,31 +466,31 @@
                 "label": "Hypervisor"
               },
               {
-                "color": "Blue",
+                "color": "Indigo",
                 "icon": "box",
                 "id": "ContainerRuntime",
                 "label": "Container Runtime"
               },
               {
-                "color": "Blue",
+                "color": "Indigo",
                 "icon": "box",
                 "id": "Container",
                 "label": "Container"
               },
               {
-                "color": "Purple",
+                "color": "Indigo",
                 "icon": "layers",
                 "id": "Orchestrator",
                 "label": "Orchestrator"
               },
               {
-                "color": "Emerald",
+                "color": "Cyan",
                 "icon": "search",
                 "id": "DNS",
                 "label": "DNS"
               },
               {
-                "color": "Green",
+                "color": "Rose",
                 "icon": "venetian-mask",
                 "id": "VPN",
                 "label": "VPN"
@@ -502,7 +502,7 @@
                 "label": "Monitoring"
               },
               {
-                "color": "Emerald",
+                "color": "Cyan",
                 "icon": "shield-check",
                 "id": "AdBlock",
                 "label": "Ad Blocking"
@@ -514,7 +514,7 @@
                 "label": "Reverse Proxy"
               },
               {
-                "color": "Green",
+                "color": "Blue",
                 "icon": "laptop",
                 "id": "Workstation",
                 "label": "Workstation"
@@ -526,55 +526,55 @@
                 "label": "Mobile"
               },
               {
-                "color": "Yellow",
+                "color": "Lime",
                 "icon": "circuit-board",
                 "id": "IoT",
                 "label": "IoT"
               },
               {
-                "color": "Orange",
+                "color": "Lime",
                 "icon": "factory",
                 "id": "Industrial",
                 "label": "Industrial Control"
               },
               {
-                "color": "Gray",
+                "color": "Pink",
                 "icon": "printer",
                 "id": "Printer",
                 "label": "Printer"
               },
               {
-                "color": "Gray",
+                "color": "Violet",
                 "icon": "database",
                 "id": "Database",
                 "label": "Database"
               },
               {
-                "color": "Red",
+                "color": "Violet",
                 "icon": "code",
                 "id": "Development",
                 "label": "Development"
               },
               {
-                "color": "Purple",
+                "color": "Orange",
                 "icon": "layout-dashboard",
                 "id": "Dashboard",
                 "label": "Dashboard"
               },
               {
-                "color": "Green",
+                "color": "Violet",
                 "icon": "message-square-code",
                 "id": "MessageQueue",
                 "label": "Message Queue"
               },
               {
-                "color": "Yellow",
+                "color": "Red",
                 "icon": "key-round",
                 "id": "IdentityAndAccess",
                 "label": "Identity & Access"
               },
               {
-                "color": "Cyan",
+                "color": "Violet",
                 "icon": "workflow",
                 "id": "Integration",
                 "label": "Integration"
@@ -586,13 +586,13 @@
                 "label": "Office"
               },
               {
-                "color": "Indigo",
+                "color": "Blue",
                 "icon": "square-kanban",
                 "id": "ProjectManagement",
                 "label": "Project Management"
               },
               {
-                "color": "Green",
+                "color": "Teal",
                 "icon": "message-circle",
                 "id": "Messaging",
                 "label": "Messaging"
@@ -604,19 +604,19 @@
                 "label": "Conferencing"
               },
               {
-                "color": "Orange",
+                "color": "Teal",
                 "icon": "phone",
                 "id": "Telephony",
                 "label": "Telephony"
               },
               {
-                "color": "Rose",
+                "color": "Teal",
                 "icon": "mail",
                 "id": "Email",
                 "label": "Email"
               },
               {
-                "color": "Purple",
+                "color": "Fuchsia",
                 "icon": "pen-line",
                 "id": "Publishing",
                 "label": "Publishing"
@@ -914,7 +914,7 @@
                 "label": "Network Core"
               },
               {
-                "color": "Green",
+                "color": "Yellow",
                 "icon": "router",
                 "id": "NetworkAccess",
                 "label": "Network Access"
@@ -926,7 +926,7 @@
                 "label": "Network Appliance"
               },
               {
-                "color": "Amber",
+                "color": "Rose",
                 "icon": "terminal",
                 "id": "RemoteAccess",
                 "label": "Remote Access"
@@ -938,19 +938,19 @@
                 "label": "Storage"
               },
               {
-                "color": "Gray",
+                "color": "Green",
                 "icon": "database-backup",
                 "id": "Backup",
                 "label": "Backup"
               },
               {
-                "color": "Blue",
+                "color": "Fuchsia",
                 "icon": "circle-play",
                 "id": "Media",
                 "label": "Media"
               },
               {
-                "color": "Blue",
+                "color": "Lime",
                 "icon": "house",
                 "id": "HomeAutomation",
                 "label": "Home Automation"
@@ -962,31 +962,31 @@
                 "label": "Hypervisor"
               },
               {
-                "color": "Blue",
+                "color": "Indigo",
                 "icon": "box",
                 "id": "ContainerRuntime",
                 "label": "Container Runtime"
               },
               {
-                "color": "Blue",
+                "color": "Indigo",
                 "icon": "box",
                 "id": "Container",
                 "label": "Container"
               },
               {
-                "color": "Purple",
+                "color": "Indigo",
                 "icon": "layers",
                 "id": "Orchestrator",
                 "label": "Orchestrator"
               },
               {
-                "color": "Emerald",
+                "color": "Cyan",
                 "icon": "search",
                 "id": "DNS",
                 "label": "DNS"
               },
               {
-                "color": "Green",
+                "color": "Rose",
                 "icon": "venetian-mask",
                 "id": "VPN",
                 "label": "VPN"
@@ -998,7 +998,7 @@
                 "label": "Monitoring"
               },
               {
-                "color": "Emerald",
+                "color": "Cyan",
                 "icon": "shield-check",
                 "id": "AdBlock",
                 "label": "Ad Blocking"
@@ -1010,7 +1010,7 @@
                 "label": "Reverse Proxy"
               },
               {
-                "color": "Green",
+                "color": "Blue",
                 "icon": "laptop",
                 "id": "Workstation",
                 "label": "Workstation"
@@ -1022,55 +1022,55 @@
                 "label": "Mobile"
               },
               {
-                "color": "Yellow",
+                "color": "Lime",
                 "icon": "circuit-board",
                 "id": "IoT",
                 "label": "IoT"
               },
               {
-                "color": "Orange",
+                "color": "Lime",
                 "icon": "factory",
                 "id": "Industrial",
                 "label": "Industrial Control"
               },
               {
-                "color": "Gray",
+                "color": "Pink",
                 "icon": "printer",
                 "id": "Printer",
                 "label": "Printer"
               },
               {
-                "color": "Gray",
+                "color": "Violet",
                 "icon": "database",
                 "id": "Database",
                 "label": "Database"
               },
               {
-                "color": "Red",
+                "color": "Violet",
                 "icon": "code",
                 "id": "Development",
                 "label": "Development"
               },
               {
-                "color": "Purple",
+                "color": "Orange",
                 "icon": "layout-dashboard",
                 "id": "Dashboard",
                 "label": "Dashboard"
               },
               {
-                "color": "Green",
+                "color": "Violet",
                 "icon": "message-square-code",
                 "id": "MessageQueue",
                 "label": "Message Queue"
               },
               {
-                "color": "Yellow",
+                "color": "Red",
                 "icon": "key-round",
                 "id": "IdentityAndAccess",
                 "label": "Identity & Access"
               },
               {
-                "color": "Cyan",
+                "color": "Violet",
                 "icon": "workflow",
                 "id": "Integration",
                 "label": "Integration"
@@ -1082,13 +1082,13 @@
                 "label": "Office"
               },
               {
-                "color": "Indigo",
+                "color": "Blue",
                 "icon": "square-kanban",
                 "id": "ProjectManagement",
                 "label": "Project Management"
               },
               {
-                "color": "Green",
+                "color": "Teal",
                 "icon": "message-circle",
                 "id": "Messaging",
                 "label": "Messaging"
@@ -1100,19 +1100,19 @@
                 "label": "Conferencing"
               },
               {
-                "color": "Orange",
+                "color": "Teal",
                 "icon": "phone",
                 "id": "Telephony",
                 "label": "Telephony"
               },
               {
-                "color": "Rose",
+                "color": "Teal",
                 "icon": "mail",
                 "id": "Email",
                 "label": "Email"
               },
               {
-                "color": "Purple",
+                "color": "Fuchsia",
                 "icon": "pen-line",
                 "id": "Publishing",
                 "label": "Publishing"
@@ -1165,7 +1165,7 @@
                 "label": "Virtualized"
               },
               {
-                "color": "Blue",
+                "color": "Indigo",
                 "icon": "box",
                 "id": "Containerized",
                 "label": "Containerized"
@@ -1415,7 +1415,7 @@
                 "label": "Network Core"
               },
               {
-                "color": "Green",
+                "color": "Yellow",
                 "icon": "router",
                 "id": "NetworkAccess",
                 "label": "Network Access"
@@ -1427,7 +1427,7 @@
                 "label": "Network Appliance"
               },
               {
-                "color": "Amber",
+                "color": "Rose",
                 "icon": "terminal",
                 "id": "RemoteAccess",
                 "label": "Remote Access"
@@ -1439,19 +1439,19 @@
                 "label": "Storage"
               },
               {
-                "color": "Gray",
+                "color": "Green",
                 "icon": "database-backup",
                 "id": "Backup",
                 "label": "Backup"
               },
               {
-                "color": "Blue",
+                "color": "Fuchsia",
                 "icon": "circle-play",
                 "id": "Media",
                 "label": "Media"
               },
               {
-                "color": "Blue",
+                "color": "Lime",
                 "icon": "house",
                 "id": "HomeAutomation",
                 "label": "Home Automation"
@@ -1463,31 +1463,31 @@
                 "label": "Hypervisor"
               },
               {
-                "color": "Blue",
+                "color": "Indigo",
                 "icon": "box",
                 "id": "ContainerRuntime",
                 "label": "Container Runtime"
               },
               {
-                "color": "Blue",
+                "color": "Indigo",
                 "icon": "box",
                 "id": "Container",
                 "label": "Container"
               },
               {
-                "color": "Purple",
+                "color": "Indigo",
                 "icon": "layers",
                 "id": "Orchestrator",
                 "label": "Orchestrator"
               },
               {
-                "color": "Emerald",
+                "color": "Cyan",
                 "icon": "search",
                 "id": "DNS",
                 "label": "DNS"
               },
               {
-                "color": "Green",
+                "color": "Rose",
                 "icon": "venetian-mask",
                 "id": "VPN",
                 "label": "VPN"
@@ -1499,7 +1499,7 @@
                 "label": "Monitoring"
               },
               {
-                "color": "Emerald",
+                "color": "Cyan",
                 "icon": "shield-check",
                 "id": "AdBlock",
                 "label": "Ad Blocking"
@@ -1511,7 +1511,7 @@
                 "label": "Reverse Proxy"
               },
               {
-                "color": "Green",
+                "color": "Blue",
                 "icon": "laptop",
                 "id": "Workstation",
                 "label": "Workstation"
@@ -1523,55 +1523,55 @@
                 "label": "Mobile"
               },
               {
-                "color": "Yellow",
+                "color": "Lime",
                 "icon": "circuit-board",
                 "id": "IoT",
                 "label": "IoT"
               },
               {
-                "color": "Orange",
+                "color": "Lime",
                 "icon": "factory",
                 "id": "Industrial",
                 "label": "Industrial Control"
               },
               {
-                "color": "Gray",
+                "color": "Pink",
                 "icon": "printer",
                 "id": "Printer",
                 "label": "Printer"
               },
               {
-                "color": "Gray",
+                "color": "Violet",
                 "icon": "database",
                 "id": "Database",
                 "label": "Database"
               },
               {
-                "color": "Red",
+                "color": "Violet",
                 "icon": "code",
                 "id": "Development",
                 "label": "Development"
               },
               {
-                "color": "Purple",
+                "color": "Orange",
                 "icon": "layout-dashboard",
                 "id": "Dashboard",
                 "label": "Dashboard"
               },
               {
-                "color": "Green",
+                "color": "Violet",
                 "icon": "message-square-code",
                 "id": "MessageQueue",
                 "label": "Message Queue"
               },
               {
-                "color": "Yellow",
+                "color": "Red",
                 "icon": "key-round",
                 "id": "IdentityAndAccess",
                 "label": "Identity & Access"
               },
               {
-                "color": "Cyan",
+                "color": "Violet",
                 "icon": "workflow",
                 "id": "Integration",
                 "label": "Integration"
@@ -1583,13 +1583,13 @@
                 "label": "Office"
               },
               {
-                "color": "Indigo",
+                "color": "Blue",
                 "icon": "square-kanban",
                 "id": "ProjectManagement",
                 "label": "Project Management"
               },
               {
-                "color": "Green",
+                "color": "Teal",
                 "icon": "message-circle",
                 "id": "Messaging",
                 "label": "Messaging"
@@ -1601,19 +1601,19 @@
                 "label": "Conferencing"
               },
               {
-                "color": "Orange",
+                "color": "Teal",
                 "icon": "phone",
                 "id": "Telephony",
                 "label": "Telephony"
               },
               {
-                "color": "Rose",
+                "color": "Teal",
                 "icon": "mail",
                 "id": "Email",
                 "label": "Email"
               },
               {
-                "color": "Purple",
+                "color": "Fuchsia",
                 "icon": "pen-line",
                 "id": "Publishing",
                 "label": "Publishing"

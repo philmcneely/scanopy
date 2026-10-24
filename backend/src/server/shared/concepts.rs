@@ -48,11 +48,11 @@ impl HasId for Concept {
 impl EntityMetadataProvider for Concept {
     fn color(&self) -> Color {
         match self {
-            Concept::Dns => Color::Emerald,
-            Concept::Vpn => Color::Green,
+            Concept::Dns => Color::Cyan,
+            Concept::Vpn => Color::Rose,
             Concept::Gateway => Color::Teal,
             Concept::ReverseProxy => Color::Cyan,
-            Concept::IoT => Color::Yellow,
+            Concept::IoT => Color::Lime,
             Concept::Storage => Color::Green,
             Concept::SNMP => Color::Pink,
 
@@ -61,7 +61,7 @@ impl EntityMetadataProvider for Concept {
 
             Concept::Workloads => Color::Orange,
             Concept::Virtualization => Color::Amber,
-            Concept::Containerization => Color::Blue,
+            Concept::Containerization => Color::Indigo,
 
             Concept::Application => Color::Purple,
             Concept::Status => Color::Blue,
