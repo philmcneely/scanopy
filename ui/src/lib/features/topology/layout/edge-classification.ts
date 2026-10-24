@@ -34,6 +34,15 @@ export function affectsLayout(edge: TopologyEdge): boolean {
 	return vc.type === 'active' && vc.affects_layout;
 }
 
+/**
+ * Whether this edge places its endpoints next to each other inside the container they share. Every
+ * edge that affects layout does; some affect only this.
+ */
+export function affectsLayoutWithinContainer(edge: TopologyEdge): boolean {
+	const vc = getViewConfig(edge);
+	return vc.type === 'active' && (vc.affects_layout || vc.affects_layout_within_container === true);
+}
+
 /** Whether this edge is hidden by default (togglable). */
 export function isHiddenByDefault(edge: TopologyEdge): boolean {
 	const vc = getViewConfig(edge);

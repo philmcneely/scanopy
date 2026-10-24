@@ -35758,6 +35758,10 @@
                 "type": "boolean",
                 "description": "Whether ELK should use this edge for layout positioning"
               },
+              "affects_layout_within_container": {
+                "type": "boolean",
+                "description": "Whether ELK should use this edge to place its endpoints next to each other inside the\ncontainer they share, without it moving any container. Implied by `affects_layout`.\nDefaulted so edges persisted before the field existed still deserialize."
+              },
               "default_visibility": {
                 "$ref": "#/components/schemas/EdgeDefaultVisibility",
                 "description": "Whether the edge is shown by default or hidden behind a toggle"
