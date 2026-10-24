@@ -325,17 +325,22 @@
 </script>
 
 <!-- An icon as one element: the frame's classes and style on it, the icon on its ::before at
-     `size` px. A logo with no white backdrop is drawn 2px smaller, as `LogoIcon` draws it. -->
-{#snippet glyph(source: CardGlyph, size: number, frameClass: string, frameStyle = '')}
+     `size` px. A logo's frame takes the colour `logos.json` gives it, and a round logo is drawn at
+     the frame's inner size (`frame` px) so it fills the circle; a free-standing logo is drawn 2px
+     smaller, as `LogoIcon` draws it. -->
+{#snippet glyph(source: CardGlyph, size: number, frameClass: string, frameStyle = '', frame = size)}
+	{@const logo = source.type === 'image' ? source : null}
 	<span
 		class="card-glyph {frameClass}"
 		data-glyph={source.key}
 		data-glyph-type={source.type}
-		data-glyph-white={source.type === 'image' && source.whiteBackground ? '' : undefined}
-		style="{frameStyle} --glyph: {source.css}; --glyph-size: {source.type === 'image' &&
-		!source.whiteBackground
-			? size - 2
-			: size}px;"
+		style="{frameStyle} {logo?.fill
+			? `background: ${logo.fill};`
+			: ''} --glyph: {source.css}; --glyph-size: {logo?.round
+			? frame
+			: logo && !logo.fill
+				? size - 2
+				: size}px;"
 	></span>
 {/snippet}
 
@@ -401,7 +406,8 @@
 							serviceGlyph(iconCard.glyph.definition),
 							28,
 							'h-12 w-12 overflow-hidden rounded-full border-2 border-gray-300 text-primary dark:border-gray-600',
-							'background: var(--color-topology-node-bg);'
+							'background: var(--color-topology-node-bg);',
+							44
 						)}
 					{:else}
 						{@render glyph(
@@ -433,7 +439,8 @@
 								`absolute -bottom-3 -left-3 h-6 w-6 overflow-hidden rounded-full border border-gray-300 text-primary transition-opacity duration-150 dark:border-gray-600 ${
 									iconCard.badgeDefinitions.length > 1 ? 'group-hover/icon-card:opacity-0' : ''
 								}`,
-								'background: var(--color-topology-node-bg);'
+								'background: var(--color-topology-node-bg);',
+								22
 							)}
 						{/if}
 						<!-- Round like every software glyph: this device, running these. The top badge is
@@ -454,7 +461,8 @@
 								'absolute top-[calc(100%-12px+var(--stack-y))] left-[calc(50%+var(--stack-x))] h-6 w-6 overflow-hidden rounded-full border border-gray-300 text-primary transition-[left,top] duration-150 group-hover/icon-card:top-[calc(100%-12px)] group-hover/icon-card:left-[calc(50%+var(--fan-x))] dark:border-gray-600',
 								`background: var(--color-topology-node-bg); --stack-x: ${pileX - layer}px; --stack-y: ${-layer}px; --fan-x: ${
 									count > 1 ? (i - (count - 1) / 2) * fanStep - BADGE_PX / 2 : pileX
-								}px; z-index: ${count - i};`
+								}px; z-index: ${count - i};`,
+								22
 							)}
 						{/each}
 					{/if}

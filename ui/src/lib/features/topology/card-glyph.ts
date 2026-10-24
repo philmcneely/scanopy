@@ -17,7 +17,16 @@ import type { IconComponent } from '$lib/shared/utils/types';
 
 export type CardGlyph =
 	| { type: 'mask'; key: string; svg: string; css: string }
-	| { type: 'image'; key: string; src: string; whiteBackground: boolean; css: string };
+	| {
+			type: 'image';
+			key: string;
+			src: string;
+			/** The colour that fills the frame behind the logo (`logos.json` `Solid`), if any. */
+			fill: string | null;
+			/** The logo is a disc, drawn at the frame's size (`logos.json` `Round`). */
+			round: boolean;
+			css: string;
+	  };
 
 const glyphs = new Map<string, CardGlyph>();
 
@@ -52,8 +61,9 @@ export function cardGlyph(key: string, Icon: IconComponent): CardGlyph {
 			type: 'image',
 			key,
 			src,
-			// `LogoIcon` puts a logo that needs it on a white square.
-			whiteBackground: !!target.querySelector('.bg-white'),
+			// `LogoIcon` marks what fills the logo's frame.
+			fill: target.querySelector<HTMLElement>('[data-logo-fill]')?.dataset.logoFill ?? null,
+			round: !!target.querySelector('[data-logo-round]'),
 			css: cssUrl(src)
 		};
 	} else if (svg) {
@@ -67,7 +77,8 @@ export function cardGlyph(key: string, Icon: IconComponent): CardGlyph {
 					type: 'image',
 					key,
 					src: svgDataUri(markup),
-					whiteBackground: false,
+					fill: null,
+					round: false,
 					css: cssUrl(svgDataUri(markup))
 				};
 	} else {
