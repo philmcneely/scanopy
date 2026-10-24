@@ -29,6 +29,8 @@ function iconCard(overrides: Partial<ElementIconCard> = {}): ElementIconCard {
 		glyph: { type: 'device', deviceType: 'Server' },
 		badgeDefinitions: [],
 		label: 'web-01',
+		sublabel: null,
+		os: null,
 		tooltip: { title: 'web-01', sections: [] },
 		groups: [],
 		...overrides
@@ -87,6 +89,12 @@ describe('elementShapeKey', () => {
 	it('separates a label long enough to wrap from one that fits', () => {
 		expect(elementShapeKey(result(iconCard({ label: 'web-01' })))).not.toBe(
 			elementShapeKey(result(iconCard({ label: 'a-hostname-long-enough-to-wrap' })))
+		);
+	});
+
+	it('separates an address card with a hostname line from one without', () => {
+		expect(elementShapeKey(result(iconCard({ label: '192.168.1.10' })))).not.toBe(
+			elementShapeKey(result(iconCard({ label: '192.168.1.10', sublabel: 'web-01.lan' })))
 		);
 	});
 

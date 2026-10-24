@@ -40,6 +40,7 @@ import { elementMarks, entityMark, type ElementMarks, type MarkValue } from './e
 import type { Host, HostVirtualization } from '$lib/features/hosts/types/base';
 import type { ServiceVirtualization } from '$lib/features/services/types/base';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+import { hostOsLabel, type HostOs } from '$lib/features/hosts/host-os';
 import { getTopologyIndex } from './entity-index';
 import {
 	containerNetworkTypes,
@@ -79,6 +80,7 @@ import {
 	common_containers,
 	common_host,
 	common_ipAddress,
+	common_operatingSystem,
 	common_manager,
 	common_name,
 	common_services,
@@ -140,6 +142,13 @@ export interface ElementIconCard {
 	 */
 	badgeDefinitions: string[];
 	label: string;
+	/**
+	 * A second, quieter line under the label: the host's hostname on an address card, so the card names
+	 * the device as well as the address. Null when there is none or it repeats the label.
+	 */
+	sublabel: string | null;
+	/** The host's operating system, drawn as a badge on the device glyph's bottom-left corner. */
+	os: HostOs | null;
 	/** Hover content: the card's name, labelled rows for what the card no longer shows, then its services. */
 	tooltip: TooltipContent;
 	/**
@@ -408,6 +417,7 @@ export function hostTooltip(
 			{ label: common_ipAddress(), value: address },
 			{ label: common_name(), value: addressName },
 			{ label: hosts_deviceType(), value: deviceType ? deviceTypes.getName(deviceType) : null },
+			{ label: common_operatingSystem(), value: host.os ? hostOsLabel(host.os) : null },
 			...hostGuestRows(host.virtualization_metadata, status)
 		],
 		services.map(serviceItem)
@@ -550,6 +560,8 @@ function buildIconCard(
 			glyph,
 			badgeDefinitions: [],
 			label,
+			sublabel: null,
+			os: null,
 			tooltip: interfaceTooltip(iface, label, marks.Status),
 			groups: []
 		};
@@ -562,6 +574,8 @@ function buildIconCard(
 			glyph,
 			badgeDefinitions: [],
 			label: service.name,
+			sublabel: null,
+			os: null,
 			tooltip: serviceTooltip(service, { host, status: marks.Status }),
 			groups: []
 		};
@@ -592,6 +606,8 @@ function buildIconCard(
 		glyph,
 		badgeDefinitions,
 		label: address ?? hostName,
+		sublabel: address && host.hostname && host.hostname !== address ? host.hostname : null,
+		os: host.os ?? null,
 		tooltip: hostTooltip(host, {
 			name: hostName,
 			address,
@@ -909,13 +925,14 @@ export function elementShapeKey(result: ElementRenderResult): string {
 	if (!d) return 'null';
 
 	const icon = result.iconCard;
-	// An icon card renders only the glyph, an optional stale pill and a label clamped to two
-	// lines of ~14 characters.
+	// An icon card renders only the glyph, an optional stale pill, a label clamped to two lines of
+	// ~14 characters and an optional one-line sublabel.
 	if (icon) {
 		return [
 			'icon',
 			d.elementType,
 			Math.min(2, Math.ceil(icon.label.length / 14)),
+			icon.sublabel ? 1 : 0,
 			result.staleTag ? 1 : 0,
 			// Each group box adds a heading, and one single-line row per member while it is open.
 			icon.groups.map((g) => (g.collapsed ? 'c' : g.members.length)).join(',')

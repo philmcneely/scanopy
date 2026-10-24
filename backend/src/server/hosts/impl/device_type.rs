@@ -108,7 +108,7 @@ impl TypeMetadataProvider for DeviceType {
             DeviceType::Firewall => "Firewall",
             DeviceType::Router => "Router",
             DeviceType::Switch => "Switch",
-            DeviceType::AccessPoint => "Access point",
+            DeviceType::AccessPoint => "Access Point",
             DeviceType::Hypervisor => "Hypervisor",
             DeviceType::Storage => "Storage",
             DeviceType::Printer => "Printer",
@@ -116,11 +116,11 @@ impl TypeMetadataProvider for DeviceType {
             DeviceType::Phone => "Phone",
             DeviceType::Workstation => "Workstation",
             DeviceType::Tablet => "Tablet",
-            DeviceType::Mobile => "Mobile device",
-            DeviceType::MediaPlayer => "Media player",
+            DeviceType::Mobile => "Mobile Device",
+            DeviceType::MediaPlayer => "Media Player",
             DeviceType::Speaker => "Speaker",
-            DeviceType::Industrial => "Industrial controller",
-            DeviceType::IoT => "IoT device",
+            DeviceType::Industrial => "Industrial Controller",
+            DeviceType::IoT => "IoT Device",
             DeviceType::Server => "Server",
             DeviceType::Unidentified => "Unidentified",
         }
@@ -583,5 +583,30 @@ mod tests {
             Some(DeviceType::Workstation)
         );
         assert_eq!(windows(None, None).device_type(), None);
+    }
+
+    /// Every word of a device type's name is capitalized, matching service definition names, so
+    /// an L3 group reads "Access Point" beside "Google Nest Router". A word with a capital anywhere
+    /// in it (IoT) is spelled as written.
+    #[test]
+    fn every_word_of_a_device_type_name_is_capitalized() {
+        use strum::IntoEnumIterator;
+
+        let offenders: Vec<&'static str> = DeviceType::iter()
+            .map(|device_type| device_type.name())
+            .filter(|name| {
+                name.split_whitespace().any(|word| {
+                    let Some(first) = word.chars().next() else {
+                        return false;
+                    };
+                    !(first.is_uppercase() || word.chars().any(char::is_uppercase))
+                })
+            })
+            .collect();
+
+        assert!(
+            offenders.is_empty(),
+            "device type names with an uncapitalized word: {offenders:?}"
+        );
     }
 }

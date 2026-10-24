@@ -34,12 +34,13 @@
 	import type { Node, Edge } from '@xyflow/svelte';
 	import { common_collapse, common_expand } from '$lib/paraglide/messages';
 	import { tooltip } from '$lib/shared/actions/tooltip';
+	import { hostOsIcon } from '$lib/features/hosts/host-os';
 	import { ChevronDown, ChevronRight } from 'lucide-svelte';
 	import { ELEMENT_HANDLE_SIZE_PX, ICON_ELEMENT_WIDTH_PX } from '../../pipeline/build-flow-nodes';
 
 	// A service badge's size, and the icon card's width inside its px-2 padding: the badge fan
 	// spreads within it.
-	const BADGE_PX = 20;
+	const BADGE_PX = 24;
 	// The large device tile. The top service badge is centred on its bottom-right corner.
 	const TILE_PX = 48;
 	const CARD_INNER_PX = ICON_ELEMENT_WIDTH_PX - 16;
@@ -361,10 +362,10 @@
 					class="flex w-full flex-col items-center gap-1.5"
 					use:tooltip={{ anchorClosest: '.svelte-flow__node', content: iconCard.tooltip }}
 				>
-					<!-- my-1: the service badges (bottom-right) and the status dot (top-left) are
+					<!-- my-1.5: the service badges (bottom-right), OS badge (bottom-left) and status dot (top-left) are
 					     centred on the tile's corners and overhang it by half their size, more than the card's
 					     gap and padding. On every icon card, so heights match. -->
-					<div class="relative my-1">
+					<div class="relative my-1.5">
 						{#if iconCard.glyph.type === 'device'}
 							<DeviceGlyph deviceType={iconCard.glyph.deviceType} size="lg" />
 						{:else if iconCard.glyph.type === 'software'}
@@ -386,6 +387,22 @@
 								></span>
 							</span>
 						{/if}
+						{#if iconCard.os && iconCard.glyph.type === 'device'}
+							<!-- The host's OS, centred on the tile's bottom-left corner, the size of a service
+							     badge. Fanned service badges spread under the whole tile, so it fades out while
+							     they do; a lone service badge stays on its corner and leaves it in place. The
+							     tooltip's Operating system row names it. -->
+							{@const OsLogo = hostOsIcon(iconCard.os.family)}
+							<span
+								class="absolute -bottom-3 -left-3 flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-gray-300 transition-opacity duration-150 dark:border-gray-600 {iconCard
+									.badgeDefinitions.length > 1
+									? 'group-hover/icon-card:opacity-0'
+									: ''}"
+								style="background: var(--color-topology-node-bg);"
+							>
+								<OsLogo size={15} class="text-primary" />
+							</span>
+						{/if}
 						{#if iconCard.badgeDefinitions.length > 0}
 							<!-- Round like every software glyph: this device, running these. The top badge is
 							     centred on the tile's bottom-right corner; each one behind it steps up and left,
@@ -399,7 +416,7 @@
 								count > 1 ? Math.min(BADGE_PX + 2, (CARD_INNER_PX - BADGE_PX) / (count - 1)) : 0}
 							<!-- Every badge is a flex box, off the text baseline: an <img> logo and an <svg> glyph sit on a
 							     baseline at different heights, which bent the fanned row into a descending curve. -->
-							<span class="absolute -bottom-2.5 left-1/2 flex h-5 w-0">
+							<span class="absolute -bottom-3 left-1/2 flex h-6 w-0">
 								{#each iconCard.badgeDefinitions as definition, i (definition)}
 									{@const layer = Math.min(i, 2) * 3}
 									<span
@@ -408,7 +425,7 @@
 											? (i - (count - 1) / 2) * fanStep - BADGE_PX / 2
 											: pileX}px; z-index: {count - i};"
 									>
-										<SoftwareGlyph {definition} />
+										<SoftwareGlyph {definition} size="md" />
 									</span>
 								{/each}
 							</span>
@@ -425,6 +442,14 @@
 					>
 						{iconCard.label}
 					</div>
+					{#if iconCard.sublabel}
+						<div
+							class="-mt-1 w-full truncate text-center text-xs leading-tight text-tertiary"
+							title={iconCard.sublabel}
+						>
+							{iconCard.sublabel}
+						</div>
+					{/if}
 				</div>
 				<!-- Manager groups inlined on a guest, each in a dashed box. The heading and every member
 				     row share three columns: a 20px glyph, the name, and a trailing slot that holds the

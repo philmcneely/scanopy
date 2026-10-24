@@ -464,8 +464,8 @@ fn by_device_type_groups_each_device_type_present() {
 
     assert_eq!(
         containers.len(),
-        2,
-        "one subcontainer per device type present"
+        3,
+        "one subcontainer per device type present, Unidentified included"
     );
     let container_for = |device_type: DeviceType| {
         containers
@@ -475,6 +475,7 @@ fn by_device_type_groups_each_device_type_present() {
     };
     let mobile = container_for(DeviceType::Mobile);
     let workstation = container_for(DeviceType::Workstation);
+    let unidentified = container_for(DeviceType::Unidentified);
     let NodeType::Container {
         container_type,
         icon,
@@ -495,8 +496,8 @@ fn by_device_type_groups_each_device_type_present() {
     assert_eq!(placement[&children[1].id], workstation.id);
     assert_eq!(placement[&children[2].id], workstation.id);
     assert_eq!(
-        placement[&children[3].id], subnet_id,
-        "a host with no device type stays in the subnet"
+        placement[&children[3].id], unidentified.id,
+        "a host with no evidence gets the Unidentified group"
     );
 }
 

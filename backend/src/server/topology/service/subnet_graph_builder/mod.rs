@@ -369,10 +369,7 @@ impl SubnetGraphBuilder {
                 let device_type = if is_container_subnet {
                     None
                 } else {
-                    device_types
-                        .get(&child.host_id)
-                        .copied()
-                        .filter(|d| *d != DeviceType::Unidentified)
+                    device_types.get(&child.host_id).copied()
                 };
                 let deployment_group = if !is_container_subnet {
                     None
