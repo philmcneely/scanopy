@@ -42,7 +42,8 @@ impl AppProbe for AppleLockdownProbe {
     }
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &request("QueryType", None), MAX_REPLY).await;
+        let reply =
+            request_response(ctx, self.port(), &request("QueryType", None), MAX_REPLY).await;
         if parse_query_type(&reply) == AppProbeOutcome::NoAnswer {
             return Ok(AppProbeOutcome::NoAnswer);
         }
@@ -113,7 +114,10 @@ fn os_family(product_type: &str) -> Option<HostOsFamily> {
     .find_map(|(prefix, family)| product_type.starts_with(prefix).then_some(family))
 }
 
-fn identity(product_type: Option<String>, product_version: Option<String>) -> Option<DeviceIdentity> {
+fn identity(
+    product_type: Option<String>,
+    product_version: Option<String>,
+) -> Option<DeviceIdentity> {
     let source = AttributeSource::Probe(ClientProbe::AppleLockdown);
     let os = product_type.as_deref().and_then(os_family).map(|family| {
         Box::new(Attributed::new(
@@ -217,7 +221,10 @@ mod tests {
 
     #[test]
     fn requests_are_framed_by_their_length() {
-        for framed in [request("QueryType", None), request("GetValue", Some("ProductType"))] {
+        for framed in [
+            request("QueryType", None),
+            request("GetValue", Some("ProductType")),
+        ] {
             let declared = u32::from_be_bytes(framed[..4].try_into().unwrap()) as usize;
             assert_eq!(declared, framed.len() - 4);
         }
