@@ -57,8 +57,9 @@ impl AppProbe for AppleLockdownProbe {
         }
         let product_type =
             string_value(&exchange(&mut stream, &request("GetValue", Some("ProductType"))).await);
-        let product_version =
-            string_value(&exchange(&mut stream, &request("GetValue", Some("ProductVersion"))).await);
+        let product_version = string_value(
+            &exchange(&mut stream, &request("GetValue", Some("ProductVersion"))).await,
+        );
         Ok(AppProbeOutcome::Answered {
             identity: identity(product_type, product_version),
         })
