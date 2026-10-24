@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Monitor, Sun, Moon } from 'lucide-svelte';
+	import { Monitor, Sun, Moon, ChevronRight } from 'lucide-svelte';
 	import { createForm } from '@tanstack/svelte-form';
 	import { themeStore } from '$lib/shared/stores/theme.svelte';
 	import { VERSION } from '$lib/version';
@@ -74,6 +74,7 @@
 	];
 
 	const copyrightYear = new Date().getFullYear();
+	let creditsOpen = $state(false);
 
 	// Option values are the generated enum types, so a renamed backend variant fails `npm run check`.
 	const dateOrderOptions: { value: DateOrder; label: string }[] = [
@@ -306,44 +307,6 @@
 		</div>
 	</CollapsibleCard>
 
-	<!-- Every logo source and its terms, from the backend's `logo_credits.rs`. -->
-	<CollapsibleCard
-		title={settings_system_iconCredits()}
-		description={settings_system_iconCreditsDescription()}
-		expanded={false}
-	>
-		<ul class="flex flex-col gap-3">
-			{#each logoCredits as credit (credit.name)}
-				<li class="flex flex-col gap-0.5 text-xs">
-					<span>
-						<a
-							href={credit.homepage}
-							target="_blank"
-							rel="external noopener noreferrer"
-							class="font-medium text-blue-500 hover:underline">{credit.name}</a
-						>
-						<span class="text-tertiary">
-							· {credit.copyright} ·
-							{#if credit.license && credit.license_url}
-								<a
-									href={credit.license_url}
-									target="_blank"
-									rel="external noopener noreferrer"
-									class="text-blue-500 hover:underline">{credit.license}</a
-								>
-							{:else}
-								{credit.license ?? settings_system_iconCreditsTrademark()}
-							{/if}
-						</span>
-					</span>
-					<span class="line-clamp-2 text-tertiary" title={credit.used_for.join(', ')}>
-						{credit.used_for.join(', ')}
-					</span>
-				</li>
-			{/each}
-		</ul>
-	</CollapsibleCard>
-
 	<div class="mt-auto flex flex-col gap-1">
 		<p class="text-xs text-tertiary">{settings_system_version({ version: VERSION })}</p>
 		<p class="text-xs text-tertiary">{settings_system_copyright({ year: copyrightYear })}</p>
@@ -357,5 +320,51 @@
 			href="https://github.com/scanopy/scanopy/blob/main/backend/assets/recog/LICENSE"
 			linkText={common_license()}
 		/>
+		<!-- Every logo source and its terms, from the backend's `logos.rs`. -->
+		<p class="text-xs text-tertiary">
+			{settings_system_iconCreditsDescription()}
+			<button
+				type="button"
+				class="inline-flex items-center text-blue-500 hover:underline"
+				aria-expanded={creditsOpen}
+				onclick={() => (creditsOpen = !creditsOpen)}
+			>
+				{settings_system_iconCredits()}<ChevronRight
+					class="ml-0.5 h-3 w-3 transition-transform {creditsOpen ? 'rotate-90' : ''}"
+				/>
+			</button>
+		</p>
+		{#if creditsOpen}
+			<ul class="flex flex-col gap-2 pl-3">
+				{#each logoCredits as credit (credit.name)}
+					<li class="flex flex-col gap-0.5 text-xs">
+						<span>
+							<a
+								href={credit.homepage}
+								target="_blank"
+								rel="external noopener noreferrer"
+								class="font-medium text-blue-500 hover:underline">{credit.name}</a
+							>
+							<span class="text-tertiary">
+								· {credit.copyright} ·
+								{#if credit.license && credit.license_url}
+									<a
+										href={credit.license_url}
+										target="_blank"
+										rel="external noopener noreferrer"
+										class="text-blue-500 hover:underline">{credit.license}</a
+									>
+								{:else}
+									{credit.license ?? settings_system_iconCreditsTrademark()}
+								{/if}
+							</span>
+						</span>
+						<span class="line-clamp-2 text-tertiary" title={credit.used_for.join(', ')}>
+							{credit.used_for.join(', ')}
+						</span>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	</div>
 </div>

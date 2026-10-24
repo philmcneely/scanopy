@@ -407,12 +407,12 @@ pub const EMAIL_FOOTER: &str = r#"                    <!-- Footer -->
                                 <tr>
                                     <td style="padding: 0 10px;">
                                         <a href="https://discord.com/invite/b7ffQr8AcZ" style="display: inline-block;">
-                                            <img src="{discord_logo}" alt="Discord" style="width: 24px; height: 24px; display: block;">
+                                            <img src="{discord_logo}" alt="Discord" style="height: 24px; width: auto; display: block;">
                                         </a>
                                     </td>
                                     <td style="padding: 0 10px;">
                                         <a href="https://github.com/scanopy/scanopy" style="display: inline-block;">
-                                            <img src="{github_logo}" alt="GitHub" style="width: 24px; height: 24px; display: block;">
+                                            <img src="{github_logo}" alt="GitHub" style="height: 24px; width: auto; display: block;">
                                         </a>
                                     </td>
                                 </tr>

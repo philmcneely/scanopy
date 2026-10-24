@@ -272,6 +272,9 @@ enum LogoSource {
     SelfhstIcons(&'static str),
     /// A Simple Icons icon, by its slug.
     SimpleIcons(&'static str),
+    /// A Simple Icons icon in its brand colour, by its slug: the set's own CDN colours it, where
+    /// `SimpleIcons` files are black. Served by slug with no extension; always SVG.
+    SimpleIconsBrand(&'static str),
     /// A VectorLogoZone file, by its path under `/logos/`.
     VectorLogoZone(&'static str),
     /// A file under libvirt.org/logos/.
@@ -400,7 +403,8 @@ impl Logo {
             Self::FireflyIii => (DashboardIcons("svg/firefly-iii.svg"), Clear),
             Self::Forgejo => (DashboardIcons("svg/forgejo.svg"), Clear),
             Self::Fortinet => (DashboardIcons("svg/fortinet.svg"), Solid("#ffffff")),
-            Self::FreeBsd => (SimpleIcons("freebsd"), Solid("#ffffff")),
+            // FreeBSD's red mark, as the daemon OS icon drew it before logos were downloaded.
+            Self::FreeBsd => (SimpleIconsBrand("freebsd"), Clear),
             Self::FreeIpa => (DashboardIcons("svg/freeipa.svg"), Clear),
             Self::FreePbx => (DashboardIcons("svg/freepbx.svg"), Clear),
             Self::FreshRss => (DashboardIcons("svg/freshrss.svg"), Clear),
@@ -636,6 +640,7 @@ impl Logo {
                 format!("https://cdn.jsdelivr.net/gh/selfhst/icons/{path}")
             }
             LogoSource::SimpleIcons(slug) => format!("https://simpleicons.org/icons/{slug}.svg"),
+            LogoSource::SimpleIconsBrand(slug) => format!("https://cdn.simpleicons.org/{slug}"),
             LogoSource::VectorLogoZone(path) => format!("https://www.vectorlogo.zone/logos/{path}"),
             LogoSource::Libvirt(path) => format!("https://libvirt.org/logos/{path}"),
             LogoSource::Wikimedia { path, .. } => {
@@ -690,7 +695,7 @@ impl Logo {
                 license: Some("CC BY 4.0"),
                 license_url: Some("https://github.com/selfhst/icons/blob/main/LICENSE"),
             },
-            LogoSource::SimpleIcons(_) => Credit {
+            LogoSource::SimpleIcons(_) | LogoSource::SimpleIconsBrand(_) => Credit {
                 name: "Simple Icons",
                 homepage: "https://github.com/simple-icons/simple-icons",
                 copyright: "Simple Icons contributors",
@@ -837,6 +842,8 @@ mod tests {
     #[test]
     fn every_logo_builds_a_url_to_an_image_file() {
         let bad: Vec<(Logo, String)> = Logo::iter()
+            // A slug-addressed source has no file path to get wrong.
+            .filter(|logo| !matches!(logo.spec().0, LogoSource::SimpleIconsBrand(_)))
             .map(|logo| (logo, logo.url()))
             .filter(|(_, url)| {
                 !reqwest::Url::parse(url).is_ok_and(|u| {
