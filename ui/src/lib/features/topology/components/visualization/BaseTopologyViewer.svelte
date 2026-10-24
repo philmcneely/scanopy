@@ -29,7 +29,7 @@
 	} from '$lib/paraglide/messages';
 	import { type Node, type Edge } from '@xyflow/svelte';
 	import { getViewportForBounds, type Rect } from '@xyflow/system';
-	import { shouldSimplify } from '../../pipeline/render-mode';
+	import { shouldDropBadges, shouldSimplify } from '../../pipeline/render-mode';
 	import {
 		ABSOLUTE_MIN_ZOOM,
 		DEFAULT_MIN_ZOOM,
@@ -68,6 +68,7 @@
 		isExporting,
 		isMeasuring,
 		detailSimplified,
+		badgesDropped,
 		isRenderingTopology
 	} from '../../interactions';
 
@@ -528,6 +529,17 @@
 	// Publish rather than let each node decide: the size term above is not visible to a node, and
 	// one refcounted subscription beats a viewport read per node. See `detailSimplified`.
 	$effect(() => detailSimplified.set(detailHidden));
+
+	// Badges drop at a higher zoom than the rest of the card, under the same gates (`shouldDropBadges`).
+	let badgesHidden = $derived(
+		shouldDropBadges({
+			zoom: viewerViewport.current.zoom,
+			nodeCount: $nodes.length,
+			measuring: measurePassActive,
+			exporting: $isExporting
+		})
+	);
+	$effect(() => badgesDropped.set(badgesHidden));
 
 	let cullOffscreen = $derived(
 		shouldCull({

@@ -31,7 +31,7 @@ function iconCard(overrides: Partial<ElementIconCard> = {}): ElementIconCard {
 		label: 'web-01',
 		sublabel: null,
 		os: null,
-		tooltip: { title: 'web-01', sections: [] },
+		tooltip: () => ({ title: 'web-01', sections: [] }),
 		groups: [],
 		...overrides
 	};
@@ -72,7 +72,7 @@ function group(collapsed: boolean, members: number): IconCardGroup {
 			glyph: { type: 'software', definition: 'Nginx' },
 			label: `container-${i}`,
 			status: undefined,
-			tooltip: { title: `container-${i}`, sections: [] }
+			tooltip: () => ({ title: `container-${i}`, sections: [] })
 		}))
 	};
 }

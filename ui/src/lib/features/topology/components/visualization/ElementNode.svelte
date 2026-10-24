@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { type NodeProps, useInternalNode } from '@xyflow/svelte';
 	import NodeHandles from './NodeHandles.svelte';
-	import { entities } from '$lib/shared/stores/metadata';
+	import { deviceTypes, entities, serviceDefinitions } from '$lib/shared/stores/metadata';
+	import { cardGlyph, type CardGlyph } from '../../card-glyph';
 	import DeviceGlyph from '$lib/features/hosts/components/DeviceGlyph.svelte';
 	import SoftwareGlyph from './SoftwareGlyph.svelte';
 	import PortGlyph from './PortGlyph.svelte';
@@ -63,6 +64,8 @@
 	 * see, and one refcounted subscription is cheaper than a viewport read per node.
 	 */
 	let simplified = $derived(sharedStores.simplified.current);
+	// Past `BADGE_ZOOM` on a large graph the badges are too small to read, so they are not drawn.
+	let badgesHidden = $derived(sharedStores.dropBadges.current);
 
 	/**
 	 * The height a simplified card has to hold, taken from what SvelteFlow measured.
@@ -314,8 +317,27 @@
 
 	let cardClass = $derived(`card ${isNodeSelected ? 'card-selected' : ''}`);
 
+	// A service definition's logo, or its glyph when it has none.
+	const serviceGlyph = (definition: string) =>
+		cardGlyph(`service:${definition}`, serviceDefinitions.getIconComponent(definition));
+
 	// Handle styling lived here; `NodeHandles` now renders the geometry statically.
 </script>
+
+<!-- An icon as one element: the frame's classes and style on it, the icon on its ::before at
+     `size` px. A logo with no white backdrop is drawn 2px smaller, as `LogoIcon` draws it. -->
+{#snippet glyph(source: CardGlyph, size: number, frameClass: string, frameStyle = '')}
+	<span
+		class="card-glyph {frameClass}"
+		data-glyph={source.key}
+		data-glyph-type={source.type}
+		data-glyph-white={source.type === 'image' && source.whiteBackground ? '' : undefined}
+		style="{frameStyle} --glyph: {source.css}; --glyph-size: {source.type === 'image' &&
+		!source.whiteBackground
+			? size - 2
+			: size}px;"
+	></span>
+{/snippet}
 
 <!-- One row's three cells, for a grid of a 20px glyph, the name and a trailing status dot (in the
      colour of the view's Status mark, when it paints one): a member of a manager box. -->
@@ -354,103 +376,108 @@
 		{#if !simplified && iconCard}
 			<!-- Icon card. The glyph comes first in DOM order: the diagram exports take each
 			     node's first icon as its shape icon. -->
-			<div class="group/icon-card flex flex-col items-center gap-1.5 px-2 py-2">
-				<!-- The card's tooltip sits on the tile and label only: a group member below carries its
-				     own, and nested tooltips would show both at once. It shows above the whole card, so
-				     it never covers the status indicator. -->
-				<div
-					class="flex w-full flex-col items-center gap-1.5"
-					use:tooltip={{ anchorClosest: '.svelte-flow__node', content: iconCard.tooltip }}
-				>
-					<!-- my-1.5: the service badges (bottom-right), OS badge (bottom-left) and status dot (top-left) are
-					     centred on the tile's corners and overhang it by half their size, more than the card's
-					     gap and padding. On every icon card, so heights match. -->
-					<div class="relative my-1.5">
-						{#if iconCard.glyph.type === 'device'}
-							<DeviceGlyph deviceType={iconCard.glyph.deviceType} size="lg" />
-						{:else if iconCard.glyph.type === 'software'}
-							<SoftwareGlyph definition={iconCard.glyph.definition} size="lg" />
-						{:else}
-							<PortGlyph size="lg" />
-						{/if}
+			<!-- The card's tooltip shows above the whole card, so it never covers the status dot. A
+			     group member row below carries its own, which wins as the nearer one. -->
+			<div
+				class="group/icon-card flex flex-col items-center gap-1.5 px-2 py-2"
+				use:tooltip={{ anchorClosest: '.svelte-flow__node', content: iconCard.tooltip }}
+			>
+				<!-- my-1.5: the service badges (bottom-right), OS badge (bottom-left) and status dot
+				     (top-left) are centred on the tile's corners and overhang it by half their size, more
+				     than the card's gap and padding. On every icon card, so heights match. Each icon is one
+				     element (`card-glyph.ts`). -->
+				<div class="relative my-1.5">
+					{#if iconCard.glyph.type === 'device'}
+						{@render glyph(
+							cardGlyph(
+								`device:${iconCard.glyph.deviceType}`,
+								deviceTypes.getIconComponent(iconCard.glyph.deviceType)
+							),
+							28,
+							'h-12 w-12 rounded-lg border-2 border-gray-200 bg-gray-200 text-primary dark:border-gray-700 dark:bg-gray-700'
+						)}
+					{:else if iconCard.glyph.type === 'software'}
+						{@render glyph(
+							serviceGlyph(iconCard.glyph.definition),
+							28,
+							'h-12 w-12 overflow-hidden rounded-full border-2 border-gray-300 text-primary dark:border-gray-600',
+							'background: var(--color-topology-node-bg);'
+						)}
+					{:else}
+						{@render glyph(
+							cardGlyph('entity:Interface', entities.getIconComponent('Interface')),
+							28,
+							'h-12 w-12 rounded-lg border-2 border-gray-200 bg-gray-200 text-secondary dark:border-gray-700 dark:bg-gray-700'
+						)}
+					{/if}
+					{#if !badgesHidden}
 						{#if marks.Status}
 							<!-- A guest's run state or a port's link state, from the view's Status mark: a dot
 							     in the state's colour, centred on the tile's top-left corner. The tooltip's
 							     Status row names it. -->
 							<span
-								class="absolute -top-2 -left-2 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
-								style="background: var(--color-topology-node-bg);"
-							>
-								<span
-									class="h-2.5 w-2.5 rounded-full"
-									style="background: {createColorHelper(marks.Status.color).rgb};"
-								></span>
-							</span>
+								class="card-status-dot absolute -top-2 -left-2 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
+								style="background: var(--color-topology-node-bg); --dot: {createColorHelper(
+									marks.Status.color
+								).rgb};"
+							></span>
 						{/if}
 						{#if iconCard.os && iconCard.glyph.type === 'device'}
 							<!-- The host's OS, centred on the tile's bottom-left corner, the size of a service
 							     badge. Fanned service badges spread under the whole tile, so it fades out while
 							     they do; a lone service badge stays on its corner and leaves it in place. The
 							     tooltip's Operating system row names it. -->
-							{@const OsLogo = hostOsIcon(iconCard.os.family)}
-							<span
-								class="absolute -bottom-3 -left-3 flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-gray-300 transition-opacity duration-150 dark:border-gray-600 {iconCard
-									.badgeDefinitions.length > 1
-									? 'group-hover/icon-card:opacity-0'
-									: ''}"
-								style="background: var(--color-topology-node-bg);"
-							>
-								<OsLogo size={15} class="text-primary" />
-							</span>
+							{@render glyph(
+								cardGlyph(`os:${iconCard.os.family}`, hostOsIcon(iconCard.os.family)),
+								15,
+								`absolute -bottom-3 -left-3 h-6 w-6 overflow-hidden rounded-full border border-gray-300 text-primary transition-opacity duration-150 dark:border-gray-600 ${
+									iconCard.badgeDefinitions.length > 1 ? 'group-hover/icon-card:opacity-0' : ''
+								}`,
+								'background: var(--color-topology-node-bg);'
+							)}
 						{/if}
-						{#if iconCard.badgeDefinitions.length > 0}
-							<!-- Round like every software glyph: this device, running these. The top badge is
-							     centred on the tile's bottom-right corner; each one behind it steps up and left,
-							     two layers at most, so more than one service reads as a stack. Hovering the
-							     card fans them into a row centred under the tile, spaced to fit inside the
-							     card. Offsets are from the tile's centre to each badge's left edge. -->
-							{@const count = iconCard.badgeDefinitions.length}
-							{@const pileX = TILE_PX / 2 - BADGE_PX / 2}
-							<!-- A lone badge has nothing to fan out from: it stays on the corner on hover. -->
-							{@const fanStep =
-								count > 1 ? Math.min(BADGE_PX + 2, (CARD_INNER_PX - BADGE_PX) / (count - 1)) : 0}
-							<!-- Every badge is a flex box, off the text baseline: an <img> logo and an <svg> glyph sit on a
-							     baseline at different heights, which bent the fanned row into a descending curve. -->
-							<span class="absolute -bottom-3 left-1/2 flex h-6 w-0">
-								{#each iconCard.badgeDefinitions as definition, i (definition)}
-									{@const layer = Math.min(i, 2) * 3}
-									<span
-										class="absolute top-(--stack-y) left-(--stack-x) flex leading-none transition-[left,top] duration-150 group-hover/icon-card:top-0 group-hover/icon-card:left-(--fan-x)"
-										style="--stack-x: {pileX - layer}px; --stack-y: {-layer}px; --fan-x: {count > 1
-											? (i - (count - 1) / 2) * fanStep - BADGE_PX / 2
-											: pileX}px; z-index: {count - i};"
-									>
-										<SoftwareGlyph {definition} size="md" />
-									</span>
-								{/each}
-							</span>
-						{/if}
-					</div>
-					{#if staleTag}
-						<div class="scale-90">
-							<Tag {...staleTag} pill />
-						</div>
-					{/if}
-					<div
-						data-entity-header
-						class="line-clamp-2 w-full text-center text-xs leading-tight font-medium wrap-break-word text-primary"
-					>
-						{iconCard.label}
-					</div>
-					{#if iconCard.sublabel}
-						<div
-							class="-mt-1 w-full truncate text-center text-xs leading-tight text-tertiary"
-							title={iconCard.sublabel}
-						>
-							{iconCard.sublabel}
-						</div>
+						<!-- Round like every software glyph: this device, running these. The top badge is
+						     centred on the tile's bottom-right corner; each one behind it steps up and left,
+						     two layers at most, so more than one service reads as a stack. Hovering the card
+						     fans them into a row centred under the tile, spaced to fit inside the card.
+						     Offsets are from the tile's centre to each badge's left edge; a lone badge has
+						     nothing to fan out from and stays on the corner. -->
+						{@const count = iconCard.badgeDefinitions.length}
+						{@const pileX = TILE_PX / 2 - BADGE_PX / 2}
+						{@const fanStep =
+							count > 1 ? Math.min(BADGE_PX + 2, (CARD_INNER_PX - BADGE_PX) / (count - 1)) : 0}
+						{#each iconCard.badgeDefinitions as definition, i (definition)}
+							{@const layer = Math.min(i, 2) * 3}
+							{@render glyph(
+								serviceGlyph(definition),
+								17,
+								'absolute top-[calc(100%-12px+var(--stack-y))] left-[calc(50%+var(--stack-x))] h-6 w-6 overflow-hidden rounded-full border border-gray-300 text-primary transition-[left,top] duration-150 group-hover/icon-card:top-[calc(100%-12px)] group-hover/icon-card:left-[calc(50%+var(--fan-x))] dark:border-gray-600',
+								`background: var(--color-topology-node-bg); --stack-x: ${pileX - layer}px; --stack-y: ${-layer}px; --fan-x: ${
+									count > 1 ? (i - (count - 1) / 2) * fanStep - BADGE_PX / 2 : pileX
+								}px; z-index: ${count - i};`
+							)}
+						{/each}
 					{/if}
 				</div>
+				{#if staleTag}
+					<div class="scale-90">
+						<Tag {...staleTag} pill />
+					</div>
+				{/if}
+				<div
+					data-entity-header
+					class="line-clamp-2 w-full text-center text-xs leading-tight font-medium wrap-break-word text-primary"
+				>
+					{iconCard.label}
+				</div>
+				{#if iconCard.sublabel}
+					<div
+						class="-mt-1 w-full truncate text-center text-xs leading-tight text-tertiary"
+						title={iconCard.sublabel}
+					>
+						{iconCard.sublabel}
+					</div>
+				{/if}
 				<!-- Manager groups inlined on a guest, each in a dashed box. The heading and every member
 				     row share three columns: a 20px glyph, the name, and a trailing slot that holds the
 				     heading's member count and each row's run-state dot, so glyphs, names and dots line

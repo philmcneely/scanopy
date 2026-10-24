@@ -14,7 +14,7 @@
 		framed = true
 	}: {
 		definition: string;
-		size?: 'sm' | 'md' | 'lg';
+		size?: 'sm' | 'lg';
 		/** False inside a container header, whose own frame is already the shape. */
 		framed?: boolean;
 	} = $props();
@@ -23,7 +23,7 @@
 	// Pixel size, passed explicitly: `LogoIcon` sizes its image from `size` and ignores a height
 	// class. 70% of the frame is the largest square that sits inside the circle, so a square logo
 	// (pfSense) fits as well as a round one (UniFi).
-	let logoPx = $derived(size === 'lg' ? 28 : size === 'md' ? 17 : 14);
+	let logoPx = $derived(size === 'lg' ? 28 : 14);
 </script>
 
 {#if !framed}
@@ -33,9 +33,7 @@
 		class="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-300 align-top dark:border-gray-600 {size ===
 		'lg'
 			? 'h-12 w-12 border-2'
-			: size === 'md'
-				? 'h-6 w-6'
-				: 'h-5 w-5'}"
+			: 'h-5 w-5'}"
 		style="background: var(--color-topology-node-bg);"
 	>
 		<!-- A logo draws in its own colours; a definition with no logo falls back to a glyph, drawn in the
