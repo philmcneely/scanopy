@@ -90,6 +90,11 @@ fn request(ctx: &ProbeContext, port: PortType, path: &str) -> Vec<u8> {
 }
 
 /// The `getInfo` document in a complete `200` reply.
+///
+/// The body ends where `Content-Length` says, not where the read did. A Bose amp's eSDK ignores
+/// `Connection: close`: it holds the socket for a second request, gives up after half a second, and
+/// appends an `HTTP/1.1 408 Request Timeout` response before closing, which a parse of everything
+/// after the header block rejected as trailing characters.
 fn parse_reply(bytes: &[u8]) -> Option<GetInfo> {
     let mut headers = [httparse::EMPTY_HEADER; 32];
     let mut response = httparse::Response::new(&mut headers);
@@ -99,7 +104,25 @@ fn parse_reply(bytes: &[u8]) -> Option<GetInfo> {
     if response.code != Some(200) {
         return None;
     }
-    serde_json::from_slice(&bytes[head_len..]).ok()
+    let rest = &bytes[head_len..];
+    let declared = response
+        .headers
+        .iter()
+        .find(|h| h.name.eq_ignore_ascii_case("content-length"))
+        .map(|h| {
+            std::str::from_utf8(h.value)
+                .ok()?
+                .trim()
+                .parse::<usize>()
+                .ok()
+        });
+    let body = match declared {
+        Some(Some(len)) => rest.get(..len)?,
+        // A header that does not parse as a length is a malformed reply.
+        Some(None) => return None,
+        None => rest,
+    };
+    serde_json::from_slice(body).ok()
 }
 
 #[cfg(test)]
@@ -138,6 +161,36 @@ Connection: close\r\n\r\n\
             assert_eq!(info.brand_display_name.as_deref(), Some(brand));
             assert_eq!(info.model_display_name.as_deref(), Some(model));
         }
+    }
+
+    /// What a Bose amp actually sends down the socket: the reply with its `Content-Length`, then,
+    /// half a second later, a 408 for the second request it waited for.
+    #[test]
+    fn the_body_ends_at_its_declared_length() {
+        let body = br#"{"spotifyError":0,"deviceID":"0000000000000000000000000000000000000001","brandDisplayName":"Bose","modelDisplayName":"Bose_Music_Amplifier"}"#;
+        let mut stream = format!(
+            "HTTP/1.1 200 OK\r\nServer: eSDK\r\nContent-Type: application/json\r\n\
+             Content-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        )
+        .into_bytes();
+        stream.extend_from_slice(body);
+        stream.extend_from_slice(
+            b"HTTP/1.1 408 Request Timeout\r\nServer: eSDK\r\n\
+              Content-Security-Policy: frame-ancestors 'none';\r\nContent-Length: 0\r\n\
+              Connection: close\r\n\r\n",
+        );
+
+        let info = parse_reply(&stream).expect("the first reply parses");
+        assert_eq!(info.brand_display_name.as_deref(), Some("Bose"));
+        assert_eq!(
+            info.model_display_name.as_deref(),
+            Some("Bose_Music_Amplifier")
+        );
+
+        // A read that ended before the declared body did is incomplete.
+        let cut = stream.len() - 200;
+        assert!(parse_reply(&stream[..cut]).is_none());
     }
 
     #[test]
