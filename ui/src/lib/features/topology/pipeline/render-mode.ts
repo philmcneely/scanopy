@@ -136,15 +136,32 @@ export interface SimplifyConditions {
  * Tooling shares `__topoNoCull` rather than getting a second flag: anything reading the graph out
  * of the DOM wants it whole and detailed, which is the same thing that switch already means.
  */
-export function shouldSimplify({
-	zoom,
-	nodeCount,
-	measuring,
-	exporting
-}: SimplifyConditions): boolean {
+export function shouldSimplify(conditions: SimplifyConditions): boolean {
+	return reducedDetailAllowed(conditions) && conditions.zoom < DETAIL_ZOOM;
+}
+
+/** The gates every reduction shares: no measure pass, export or tooling, and a large graph. */
+function reducedDetailAllowed({ nodeCount, measuring, exporting }: SimplifyConditions): boolean {
 	if (measuring || exporting || cullingDisabledForTooling()) return false;
-	if (nodeCount < LOD_MIN_NODES) return false;
-	return zoom < DETAIL_ZOOM;
+	return nodeCount >= LOD_MIN_NODES;
+}
+
+/**
+ * Zoom below which a card's badges are dropped: its service badges, OS badge and status dot.
+ *
+ * A badge is 24px, so at 0.5 it is 12px on screen, the floor the text thresholds above use, and a
+ * logo that size no longer reads as which service it is. The tile's glyph and the card's text stay
+ * down to `DETAIL_ZOOM`. Every badge is absolutely positioned on the tile, so dropping them leaves
+ * the card's size and the layout as they were.
+ */
+export const BADGE_ZOOM = 0.5;
+
+/**
+ * Whether cards should drop their badges: the same graph-size gate and suspensions as
+ * `shouldSimplify`, at `BADGE_ZOOM`. A graph under `LOD_MIN_NODES` keeps them at every zoom.
+ */
+export function shouldDropBadges(conditions: SimplifyConditions): boolean {
+	return reducedDetailAllowed(conditions) && conditions.zoom < BADGE_ZOOM;
 }
 
 /**

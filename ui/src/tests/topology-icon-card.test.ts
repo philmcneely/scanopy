@@ -169,9 +169,9 @@ describe('a port draws as an icon card', () => {
 		expect(result.iconCard?.glyph.type).toBe('port');
 		expect(result.iconCard?.label).toBe('Gi1/0/1');
 		expect(result.marks.Status?.id).toBe('Up');
-		const rows = result.iconCard!.tooltip.sections.flatMap((s) => ('rows' in s ? s.rows : []));
+		const rows = result.iconCard!.tooltip().sections.flatMap((s) => ('rows' in s ? s.rows : []));
 		expect(rows.some((r) => r?.dot)).toBe(true);
-		expect(rowValues(result.iconCard!.tooltip)).toContain(formatBitsPerSecond(1_000_000_000));
+		expect(rowValues(result.iconCard!.tooltip())).toContain(formatBitsPerSecond(1_000_000_000));
 	});
 });
 
@@ -191,11 +191,11 @@ describe('a manager box opens and closes', () => {
 describe('facts the detailed card printed reach the tooltip', () => {
 	it("names an address card's address", () => {
 		const result = render(addressNode, 'L3Logical');
-		expect(rowValues(result.iconCard!.tooltip)).toContain('mgmt');
+		expect(rowValues(result.iconCard!.tooltip())).toContain('mgmt');
 	});
 
 	it('lists each service with the ports it listens on at this address only, set apart', () => {
-		const items = listItems(render(addressNode, 'L3Logical').iconCard!.tooltip);
+		const items = listItems(render(addressNode, 'L3Logical').iconCard!.tooltip());
 		const web = items.find((i) => typeof i !== 'string' && i.text === 'web');
 		const detail = typeof web === 'string' ? undefined : web?.detail;
 		expect(detail).toContain(formatPort({ number: 80, protocol: 'Tcp' } as never));

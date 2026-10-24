@@ -150,7 +150,7 @@ export interface ElementIconCard {
 	/** The host's operating system, drawn as a badge on the device glyph's bottom-left corner. */
 	os: HostOs | null;
 	/** Hover content: the card's name, labelled rows for what the card no longer shows, then its services. */
-	tooltip: TooltipContent;
+	tooltip: () => TooltipContent;
 	/**
 	 * The manager groups inlined on a guest's card (a Docker engine on a VM with its containers),
 	 * each drawn under the label in a dashed box with a row per member.
@@ -178,7 +178,7 @@ export interface IconCardMember {
 	/** Its run state, from the view's Status mark; absent when the view paints none on it. */
 	status: MarkValue | undefined;
 	/** Hover content, as the card's own. */
-	tooltip: TooltipContent;
+	tooltip: () => TooltipContent;
 }
 
 export interface ElementRenderInputs {
@@ -562,7 +562,7 @@ function buildIconCard(
 			label,
 			sublabel: null,
 			os: null,
-			tooltip: interfaceTooltip(iface, label, marks.Status),
+			tooltip: () => interfaceTooltip(iface, label, marks.Status),
 			groups: []
 		};
 	}
@@ -576,7 +576,7 @@ function buildIconCard(
 			label: service.name,
 			sublabel: null,
 			os: null,
-			tooltip: serviceTooltip(service, { host, status: marks.Status }),
+			tooltip: () => serviceTooltip(service, { host, status: marks.Status }),
 			groups: []
 		};
 	}
@@ -608,7 +608,7 @@ function buildIconCard(
 		label: address ?? hostName,
 		sublabel: address && host.hostname && host.hostname !== address ? host.hostname : null,
 		os: host.os ?? null,
-		tooltip: hostTooltip(host, {
+		tooltip: () => hostTooltip(host, {
 			name: hostName,
 			address,
 			addressName: ipAddress?.name,
@@ -635,7 +635,7 @@ function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): 
 			glyph: { type: 'software', definition: service.service_definition },
 			label: service.name,
 			status,
-			tooltip: serviceTooltip(service, { status })
+			tooltip: () => serviceTooltip(service, { status })
 		};
 	});
 	const hosts: IconCardMember[] = group.hosts.map(({ host, services: hostServices }) => {
@@ -649,7 +649,7 @@ function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): 
 			glyph,
 			label: hostDisplayName(host),
 			status,
-			tooltip: hostTooltip(host, {
+			tooltip: () => hostTooltip(host, {
 				deviceType: glyph.type === 'device' ? glyph.deviceType : null,
 				services: hostServices,
 				status
