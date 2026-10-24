@@ -57,6 +57,8 @@ impl AttributeSource {
             Self::ReverseDns | Self::DnsSdInstanceName => C::CredentialFree(&[Hostnames]),
             // An mDNS answer names the host and also proves the address is live.
             Self::DnsSdHostname => C::CredentialFree(&[Addresses, Hostnames]),
+            // A port a device advertised, which names the service listening on it.
+            Self::DnsSdServicePort => C::CredentialFree(&[PortsAndServices]),
             Self::ArpReply | Self::IcmpEcho => C::CredentialFree(&[Addresses]),
             // A port that answered, and the address of a host found only by its open ports.
             Self::PortScan => C::CredentialFree(&[Addresses, PortsAndServices]),

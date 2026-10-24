@@ -732,6 +732,7 @@ impl Pattern<'_> {
 
         let ServiceMatchServiceParams {
             unbound_ports,
+            claimed_ports,
             service_definition,
             ..
         } = service_params;
@@ -972,8 +973,25 @@ impl Pattern<'_> {
                 }
             }
 
-            Pattern::Not(pattern) => match pattern.matches(params) {
-                Ok(result) => Err(anyhow!("{}", result.details.reason)),
+            // `Not(DnsSd(..))` asks whether the host advertises the service at all, so it reads
+            // the advertisement directly: a DnsSd match can stand down because another service
+            // holds its port, and that must not read as the host not advertising it.
+            Pattern::Not(pattern) => match match pattern.as_ref() {
+                Pattern::DnsSd(expected, txt) => {
+                    if dns_sd
+                        .as_ref()
+                        .is_some_and(|h| h.advertises(expected, *txt))
+                    {
+                        Ok(format!("Host advertises '{expected}' over mDNS"))
+                    } else {
+                        Err(anyhow!("Host did not advertise '{expected}' over mDNS"))
+                    }
+                }
+                other => other
+                    .matches(params)
+                    .map(|result| result.details.reason.to_string()),
+            } {
+                Ok(reason) => Err(anyhow!("{reason}")),
                 Err(e) => Ok(MatchResult {
                     ports: vec![],
                     endpoint: None,
@@ -1276,9 +1294,28 @@ impl Pattern<'_> {
             // unauthenticated and trivially spoofable by anything on the link. `High` rather than
             // the `Certain` that `ManagedDeviceType` earns, and definitions AND it with a vendor
             // or port arm where one exists.
+            // Binds the port the advertisement's SRV record names: the scanned port when the scan
+            // found it, otherwise a port taken from the advertisement itself. A port a service
+            // matched earlier this round already holds is that service's, and the earlier match
+            // is the more specific one (non-generic definitions run first), so this one stands
+            // down rather than add a second service on the same port.
             Pattern::DnsSd(expected, txt) => match dns_sd {
                 Some(host) if host.advertises(expected, *txt) => Ok(MatchResult {
-                    ports: vec![],
+                    ports: match host.advertised_port(expected) {
+                        None => vec![],
+                        Some(port) if claimed_ports.contains(&port) => {
+                            return Err(anyhow!(
+                                "Host advertises '{expected}' on {port}, which another service holds"
+                            ));
+                        }
+                        Some(port) => vec![
+                            unbound_ports
+                                .iter()
+                                .find(|p| **p == port)
+                                .copied()
+                                .unwrap_or(port),
+                        ],
+                    },
                     endpoint: None,
                     mac_vendor: None,
                     details: MatchDetails {

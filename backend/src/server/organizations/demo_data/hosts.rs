@@ -193,7 +193,7 @@ pub(super) fn generate_hosts_and_services(
     let pve_dc_svc_id = Uuid::new_v4(); // Proxmox VE on dc-proxmox-hv01
 
     // ========================================================================
-    // HEADQUARTERS SITE — 31 hosts
+    // HEADQUARTERS SITE — 34 hosts
     // ========================================================================
     let hq = find_site("Headquarters");
     let hq_mgmt = find_subnet("HQ Management");
@@ -1865,6 +1865,32 @@ pub(super) fn generate_hosts_and_services(
         ),
         now,
         ("Bind9", "Bind9", Some(PortType::DnsUdp), vec![]),
+    ));
+
+    // 33. Boardroom Apple TV. Found by its AirPlay advertisement, which also names the port.
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "boardroom-appletv",
+                Some("Boardroom.local"),
+                Some("Boardroom Apple TV for screen sharing"),
+                hq,
+                hq_iot,
+                Ipv4Addr::new(10, 0, 30, 80),
+                iot_tag.into_iter().collect(),
+                None,
+                None,
+                now
+            ),
+            [0xf0, 0x18, 0x98, 0x30, 0x33, 0x01],
+        ),
+        now,
+        (
+            "Apple TV",
+            "Apple TV",
+            Some(PortType::new_tcp(7000)),
+            iot_tag.into_iter().collect()
+        ),
     ));
 
     // -- Annex (10.0.50.x) — known only via an LLDP neighbor advertisement from the HQ core

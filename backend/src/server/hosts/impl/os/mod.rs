@@ -48,13 +48,14 @@ impl HostOs {
     /// The device type this reading implies on its own, for a host no service identifies.
     ///
     /// Windows is the one family that needs more than the family: a server edition or product
-    /// name makes it a server, anything else a workstation.
+    /// name makes it a server, any other name or edition a workstation. A reading with neither
+    /// implies nothing. The SMB probe states only a version, and Windows Server 2019 shares
+    /// build 17763 with Windows 10.
     pub fn device_type(&self) -> Option<DeviceType> {
         if self.family == HostOsFamily::Windows {
-            let names_server = [&self.name, &self.edition]
-                .into_iter()
-                .flatten()
-                .any(|s| s.to_ascii_lowercase().contains("server"));
+            let mut labels = [&self.name, &self.edition].into_iter().flatten().peekable();
+            labels.peek()?;
+            let names_server = labels.any(|s| s.to_ascii_lowercase().contains("server"));
             return Some(if names_server {
                 DeviceType::Server
             } else {
@@ -228,7 +229,8 @@ impl HostOsFamily {
             DataOntap => Some(DeviceType::Storage),
             MacOs => Some(DeviceType::Workstation),
             Ios | PalmOs => Some(DeviceType::Mobile),
-            TvOs | AudioOs => Some(DeviceType::IoT),
+            TvOs => Some(DeviceType::MediaPlayer),
+            AudioOs => Some(DeviceType::Speaker),
             Solaris | Aix | HpUx | Irix | Tru64 | OpenVms | ZOs | IbmI | UnixWare | OpenServer
             | NetWare => Some(DeviceType::Server),
             // Decided from the edition in `HostOs::device_type`.

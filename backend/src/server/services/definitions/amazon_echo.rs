@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 // backend/src/server/services/definitions/amazon_echo.rs
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
@@ -19,6 +20,9 @@ impl ServiceDefinition for AmazonEcho {
 
     fn category(&self) -> ServiceCategory {
         ServiceCategory::IoT
+    }
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::Speaker)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {

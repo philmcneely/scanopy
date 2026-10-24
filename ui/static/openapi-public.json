@@ -26032,6 +26032,13 @@
           },
           {
             "type": "string",
+            "description": "A port a device advertised for one of its services in an mDNS SRV record, such as 631 for\n`_ipp._tcp`. Recorded where the port scan did not cover that port.",
+            "enum": [
+              "DnsSdServicePort"
+            ]
+          },
+          {
+            "type": "string",
             "description": "A chassis ID a neighbour advertised for itself.",
             "enum": [
               "LldpChassisId"
@@ -29674,6 +29681,8 @@
           "Workstation",
           "Tablet",
           "Mobile",
+          "MediaPlayer",
+          "Speaker",
           "Industrial",
           "IoT",
           "Server",
