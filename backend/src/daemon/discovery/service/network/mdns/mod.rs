@@ -111,6 +111,13 @@ pub async fn browse(interface_addresses: &[Ipv4Addr]) -> HashMap<IpAddr, DnsSdHo
     }
 
     let hosts = accumulator.resolve();
+    for (address, host) in &hosts {
+        tracing::debug!(
+            %address,
+            services = ?host.services.keys().collect::<Vec<_>>(),
+            "mDNS services the host advertised"
+        );
+    }
     tracing::info!(
         hosts = hosts.len(),
         interfaces = interface_addresses.len(),
@@ -119,7 +126,16 @@ pub async fn browse(interface_addresses: &[Ipv4Addr]) -> HashMap<IpAddr, DnsSdHo
     hosts
 }
 
-/// Send one query out `interface_address` and fold everything that answers into `accumulator`.
+/// When, after the first, the query goes out again within the same window.
+///
+/// Responders drop queries: a Bose amp answered a lone `_spotify-connect._tcp` query 9 times in 10
+/// and every query repeated half a second later, and the browse missed its Spotify Connect
+/// advertisement in two of three live scans. RFC 6762 §5.2 expects a querier to repeat itself for
+/// the same reason.
+const REQUERY_AFTER: Duration = Duration::from_millis(500);
+
+/// Send a query out `interface_address`, again after [`REQUERY_AFTER`], and fold everything that
+/// answers within the window into `accumulator`.
 async fn browse_interface(
     interface_address: Ipv4Addr,
     names: &[Name],
@@ -131,24 +147,33 @@ async fn browse_interface(
 
     let socket = open_socket(interface_address)?;
     let query = wire::build_query(names)?;
-    socket
-        .send_to(
-            &query,
-            SocketAddr::V4(SocketAddrV4::new(MDNS_GROUP, MDNS_PORT)),
-        )
-        .await?;
+    let group = SocketAddr::V4(SocketAddrV4::new(MDNS_GROUP, MDNS_PORT));
+    socket.send_to(&query, group).await?;
 
-    let deadline = tokio::time::Instant::now() + COLLECT_WINDOW;
+    let start = tokio::time::Instant::now();
+    let deadline = start + COLLECT_WINDOW;
+    let mut requery_at = Some(start + REQUERY_AFTER);
     let mut buffer = vec![0u8; RECV_BUFFER];
     loop {
-        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-        if remaining.is_zero() {
+        let now = tokio::time::Instant::now();
+        if let Some(at) = requery_at
+            && now >= at
+        {
+            requery_at = None;
+            if let Err(e) = socket.send_to(&query, group).await {
+                tracing::trace!(error = %e, "mDNS re-query failed");
+            }
+        }
+        // Wake for the re-query as well as for the end of the window.
+        let wake = requery_at.map_or(deadline, |at| at.min(deadline));
+        let remaining = wake.saturating_duration_since(now);
+        if deadline.saturating_duration_since(now).is_zero() {
             break;
         }
         match tokio::time::timeout(remaining, socket.recv_from(&mut buffer)).await {
             Ok(Ok((len, _from))) => accumulator.absorb(&buffer[..len]),
-            // The window elapsed, which is the normal way a browse ends.
-            Err(_) => break,
+            // The re-query is due or the window elapsed; the top of the loop tells which.
+            Err(_) => continue,
             // A receive error on a multicast socket is per-packet, not fatal; keep listening
             // until the window closes rather than abandoning the whole interface.
             Ok(Err(e)) => {
