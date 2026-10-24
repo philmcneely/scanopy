@@ -7,6 +7,8 @@ fn main() {
     // file added to the folder would otherwise ship in no build until something
     // else changed. A directory here is rescanned for any change inside it.
     println!("cargo:rerun-if-changed=release-notes");
+    // Migrations are embedded the same way (`migration_runner::EmbeddedMigrations`).
+    println!("cargo:rerun-if-changed=migrations");
 
     // Windows: delay-load the Npcap runtime (packet.dll). pnet links Packet.lib, which makes
     // packet.dll a load-time import, so without Npcap installed an exe fails to even start
