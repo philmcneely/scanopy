@@ -330,18 +330,33 @@
      smaller, as `LogoIcon` draws it. -->
 {#snippet glyph(source: CardGlyph, size: number, frameClass: string, frameStyle = '', frame = size)}
 	{@const logo = source.type === 'image' ? source : null}
-	<span
-		class="card-glyph {frameClass}"
-		data-glyph={source.key}
-		data-glyph-type={source.type}
-		style="{frameStyle} {logo?.fill
-			? `background: ${logo.fill};`
-			: ''} --glyph: {source.css}; --glyph-size: {logo?.round
-			? frame
-			: logo && !logo.fill
-				? size - 2
-				: size}px;"
-	></span>
+	{@const logoPx = logo?.round ? frame : logo && !logo.fill ? size - 2 : size}
+	{#if logo && isExportingValue}
+		<!-- While exporting, a logo is a real <img>: the raster export inlines image sources but
+		     not a url() on a pseudo-element, which would leave the frame empty. -->
+		<span
+			class="inline-flex shrink-0 items-center justify-center {frameClass}"
+			data-glyph={source.key}
+			data-glyph-type={source.type}
+			style="{frameStyle} {logo.fill ? `background: ${logo.fill};` : ''}"
+		>
+			<img
+				src={logo.src}
+				alt=""
+				class="block object-contain"
+				style="width: {logoPx}px; height: {logoPx}px;"
+			/>
+		</span>
+	{:else}
+		<span
+			class="card-glyph {frameClass}"
+			data-glyph={source.key}
+			data-glyph-type={source.type}
+			style="{frameStyle} {logo?.fill
+				? `background: ${logo.fill};`
+				: ''} --glyph: {source.css}; --glyph-size: {logo ? logoPx : size}px;"
+		></span>
+	{/if}
 {/snippet}
 
 <!-- One row's three cells, for a grid of a 20px glyph, the name and a trailing status dot (in the

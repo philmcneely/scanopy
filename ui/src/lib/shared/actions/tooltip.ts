@@ -250,19 +250,16 @@ function contentOf(node: HTMLElement): string | TooltipContent | null {
 	return given ?? node.getAttribute('data-tooltip');
 }
 
-const tracker = new TooltipTracker<HTMLElement>(
-	(node) => {
-		const content = contentOf(node);
-		if (!content) {
-			hideTooltipPopover();
-			return;
-		}
-		const anchorClosest = sources.get(node)?.anchorClosest;
-		const anchor = (anchorClosest && node.closest<HTMLElement>(anchorClosest)) || node;
-		showTooltipPopover(anchor, content, (c) => renderTooltip(document, c));
-	},
-	hideTooltipPopover
-);
+const tracker = new TooltipTracker<HTMLElement>((node) => {
+	const content = contentOf(node);
+	if (!content) {
+		hideTooltipPopover();
+		return;
+	}
+	const anchorClosest = sources.get(node)?.anchorClosest;
+	const anchor = (anchorClosest && node.closest<HTMLElement>(anchorClosest)) || node;
+	showTooltipPopover(anchor, content, (c) => renderTooltip(document, c));
+}, hideTooltipPopover);
 
 let listening = false;
 
