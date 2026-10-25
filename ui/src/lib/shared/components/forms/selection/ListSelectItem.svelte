@@ -89,9 +89,18 @@
 
 	onMount(() => {
 		calculateVisibleTags();
-		const observer = new ResizeObserver(() => calculateVisibleTags());
+		// Recount on the next frame, not inside the delivery: hiding a tag can unwrap the label and
+		// change the row's height, which inside the callback raises the ResizeObserver loop error.
+		let frame = 0;
+		const observer = new ResizeObserver(() => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(calculateVisibleTags);
+		});
 		if (containerEl) observer.observe(containerEl);
-		return () => observer.disconnect();
+		return () => {
+			observer.disconnect();
+			cancelAnimationFrame(frame);
+		};
 	});
 
 	// Recalculate when the tags or the label change
@@ -110,7 +119,12 @@
 	{#if icon}
 		{@const Icon = icon}
 		<div class="flex h-7 w-7 shrink-0 items-center justify-center">
-			<Icon class="h-5 w-5 {displayComponent.getIconColor?.(item, context) || 'text-secondary'}" />
+			<!-- `size` sizes a logo's round frame to the slot, as a host's tile fills it; a lucide glyph
+			     keeps the 20px its classes give it. -->
+			<Icon
+				size={28}
+				class="h-5 w-5 {displayComponent.getIconColor?.(item, context) || 'text-secondary'}"
+			/>
 		</div>
 	{/if}
 

@@ -14,16 +14,19 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-access-01",
         ip: Ipv4Addr::UNSPECIFIED,
         purpose: Purpose::Control {
-            role: "a far end named by switch-core-01's Gi0/1, and the lab's only stacked chassis — the one entPhysicalTable serving several chassis rows, which is what the collapse's index tiebreak is selecting between",
+            role: "a far end named by switch-core-01's Gi0/1, and the lab's only stacked chassis — the one entPhysicalTable serving several chassis rows, which is what the collapse's index tiebreak is selecting between. Also the lab's v2c-only agent: the `netdefault` community that reaches legacy-switch-01 over v1 must reach it over v2c",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::V2cOnly,
         system: SystemInfo {
             sys_descr: Some(
                 "Cisco IOS Software, C3750 Software (C3750-IPSERVICESK9-M), Version 15.0(2)SE11"

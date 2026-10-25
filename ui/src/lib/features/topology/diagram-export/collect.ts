@@ -6,6 +6,7 @@
 
 import type { InternalNode, Node } from '@xyflow/svelte';
 import type { DiagramIcon, DiagramSourceNode } from './model';
+import { knownCardGlyph } from '../card-glyph';
 
 /**
  * Absolute position and measured size of every node. `getNodes()` carries neither: positions are
@@ -112,14 +113,24 @@ export async function captureNodeIcons(
 	for (const el of flowElement.querySelectorAll<HTMLElement>('.svelte-flow__node[data-id]')) {
 		const id = el.dataset.id;
 		if (!id || !nodeIds.has(id)) continue;
-		const icon = el.querySelector<HTMLImageElement | SVGElement>('img, svg.lucide-icon');
+		const icon = el.querySelector<HTMLElement | SVGElement>('img, svg.lucide-icon, [data-glyph]');
 		if (!icon) continue;
-		if (icon instanceof HTMLImageElement) {
+		// A card icon drawn on one element (`card-glyph.ts`): its source by the key it carries.
+		const glyph = icon.dataset.glyph ? knownCardGlyph(icon.dataset.glyph) : undefined;
+		if (glyph?.type === 'image') {
+			iconKeys.set(id, glyph.src);
+			sources.set(glyph.src, { src: glyph.src });
+		} else if (glyph?.type === 'mask') {
+			const color = getComputedStyle(icon).color || '#64748b';
+			const svg = glyph.svg.replaceAll('currentColor', color);
+			iconKeys.set(id, svg);
+			sources.set(svg, { svg });
+		} else if (icon instanceof HTMLImageElement) {
 			const src = icon.currentSrc || icon.src;
 			if (!src) continue;
 			iconKeys.set(id, src);
 			sources.set(src, { src });
-		} else {
+		} else if (icon instanceof SVGElement) {
 			const svg = serializeInlineSvg(icon);
 			iconKeys.set(id, svg);
 			sources.set(svg, { svg });

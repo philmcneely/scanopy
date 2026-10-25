@@ -248,7 +248,7 @@
     "description": "Containers grouped by runtime",
     "category": null,
     "icon": "box",
-    "color": "Blue",
+    "color": "Indigo",
     "metadata": {
       "collapsed_by_default": false,
       "collapsed_size": {
@@ -275,7 +275,7 @@
     "description": "Workloads deployed together as one unit",
     "category": null,
     "icon": "box",
-    "color": "Blue",
+    "color": "Indigo",
     "metadata": {
       "collapsed_by_default": false,
       "collapsed_size": {
@@ -365,6 +365,33 @@
       },
       "entity_type": null,
       "fill_icon": true,
+      "has_border": true,
+      "is_collapsible": true,
+      "is_subcontainer": true,
+      "padding": {
+        "bottom": 25,
+        "left": 25,
+        "right": 25,
+        "top": 50
+      },
+      "title_style": "Inline"
+    }
+  },
+  {
+    "id": "DeviceType",
+    "name": "Device type",
+    "description": "Hosts grouped by device type",
+    "category": null,
+    "icon": "server",
+    "color": "Amber",
+    "metadata": {
+      "collapsed_by_default": false,
+      "collapsed_size": {
+        "height": 40,
+        "width": 250
+      },
+      "entity_type": null,
+      "fill_icon": false,
       "has_border": true,
       "is_collapsible": true,
       "is_subcontainer": true,

@@ -215,7 +215,7 @@
 	>
 		<!-- Same layout as the global search palette: the shared search box, then a hint footer. -->
 		<div
-			class="card-static pointer-events-auto w-[42rem] max-w-full overflow-hidden card p-0 shadow-lg"
+			class="card-static card pointer-events-auto w-[42rem] max-w-full overflow-hidden p-0 shadow-lg"
 		>
 			<form.Field name="query">
 				{#snippet children(field)}

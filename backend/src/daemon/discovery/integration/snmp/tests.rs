@@ -740,3 +740,66 @@ mod reported_range {
         ));
     }
 }
+
+/// One community credential, tried over v2c and v1 at once on each port.
+mod community_version_fallback {
+    use super::super::sim::{self, udp::UdpAgent};
+    use super::super::*;
+    use crate::server::credentials::r#impl::mapping::ResolvableSecret;
+    use std::time::Instant;
+
+    /// The lab's shared community, as the server sends it: v2c on the wire.
+    fn netdefault() -> SnmpQueryCredential {
+        SnmpQueryCredential {
+            version: SnmpVersion::V2c,
+            community: ResolvableSecret::Value {
+                value: "netdefault".to_string(),
+            },
+            v3: None,
+        }
+    }
+
+    /// The version the credential answered on, against `device` served over UDP.
+    async fn answered_version(device: &str) -> Result<SnmpVersion, PortFailure> {
+        let agent = UdpAgent::start(&sim::device(device)).await;
+        probe_port(agent.ip(), &netdefault(), agent.port())
+            .await
+            .map(|answered| answered.version)
+    }
+
+    /// The same credential reaches a device locked to v1 through the fallback, a device locked to
+    /// v2c without it, and a device answering both over v2c, which has GETBULK.
+    #[tokio::test]
+    async fn one_credential_reaches_v1_only_v2c_only_and_dual_devices() {
+        assert_eq!(
+            answered_version("legacy-switch-01").await.ok(),
+            Some(SnmpVersion::V1)
+        );
+        assert_eq!(
+            answered_version("switch-access-01").await.ok(),
+            Some(SnmpVersion::V2c)
+        );
+        assert_eq!(
+            answered_version("switch-core-01").await.ok(),
+            Some(SnmpVersion::V2c)
+        );
+    }
+
+    /// A host that answers neither version costs one probe cap, not one per version.
+    #[tokio::test]
+    async fn a_silent_port_costs_one_probe_cap() {
+        let agent = UdpAgent::start(&sim::device("switch-core-01")).await;
+        let wrong = SnmpQueryCredential {
+            community: ResolvableSecret::Value {
+                value: "not-the-community".to_string(),
+            },
+            ..netdefault()
+        };
+
+        let started = Instant::now();
+        let failure = probe_port(agent.ip(), &wrong, agent.port()).await;
+
+        assert!(matches!(failure, Err((AttemptOutcome::TimedOut, _))));
+        assert!(started.elapsed() < SNMP_PROBE_TIMEOUT * 3 / 2);
+    }
+}

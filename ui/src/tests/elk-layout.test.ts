@@ -66,8 +66,10 @@ function makeEdge(
 	edgeType: string = 'SameHost',
 	viewConfig?: {
 		affects_layout: boolean;
+		affects_layout_within_container?: boolean;
 		default_visibility?: 'visible' | 'hidden';
 		stroke?: EdgeStroke;
+		will_target_container?: boolean;
 	}
 ): TopologyEdge {
 	return {
@@ -80,10 +82,11 @@ function makeEdge(
 			? {
 					type: 'active' as const,
 					affects_layout: viewConfig.affects_layout,
+					affects_layout_within_container: viewConfig.affects_layout_within_container ?? false,
 					default_visibility: viewConfig.default_visibility ?? 'visible',
 					stroke: viewConfig.stroke ?? 'solid',
 					highlight_behavior: 'when_visible',
-					will_target_container: false
+					will_target_container: viewConfig.will_target_container ?? false
 				}
 			: { type: 'disabled' as const }
 	} as TopologyEdge;
@@ -884,6 +887,79 @@ describe('computeElkLayout', () => {
 });
 
 // --- computeOptimalHandles: crossing-aware handle selection ---
+
+describe('placement inside an L3 subnet', () => {
+	beforeEach(() => resetIds());
+
+	/**
+	 * A Docker host's address among five others in a servers subnet, with its runtime edge to the
+	 * bridge subnet. The edge goes host -> bridge, so the bridge is laid out below the servers.
+	 */
+	function dockerHostInput(withInnerEdge: boolean) {
+		const servers = uuid();
+		const bridge = uuid();
+		const docker = uuid();
+		const sibling = uuid();
+		const others = Array.from({ length: 5 }, () => uuid());
+		const nodes = [
+			makeContainer(servers),
+			makeContainer(bridge),
+			makeElement(docker, servers),
+			makeElement(sibling, servers),
+			...others.map((id) => makeElement(id, servers)),
+			makeElement(uuid(), bridge)
+		];
+		const edges = [
+			makeEdge(docker, bridge, 'ContainerRuntime', {
+				affects_layout: true,
+				will_target_container: true
+			})
+		];
+		// The host's other runtime edge, to an address beside it, lays the subnet out layered.
+		if (withInnerEdge) edges.push(primaryEdge(docker, sibling, 'ContainerRuntime'));
+		const input = makeTopology(nodes, edges, [
+			makeSubnet(servers, 'Lan'),
+			makeSubnet(bridge, 'DockerBridge')
+		]);
+		input.elementNodeSizes = new Map(
+			nodes.filter((n) => n.node_type === 'Element').map((n) => [n.id, { x: 120, y: 90 }])
+		);
+		return { input, servers, docker, siblings: [sibling, ...others] };
+	}
+
+	it.each([
+		['box-packed', false],
+		['laid out layered', true]
+	])(
+		'puts an address whose runtime edge leaves downward on its subnet bottom row, %s',
+		async (_, withInnerEdge) => {
+			const { input, servers, docker, siblings } = dockerHostInput(withInnerEdge);
+			const result = await computeElkLayout(input);
+			const y = (id: string) => result.nodePositions.get(id)!.y;
+			expect(result.nodePositions.get(servers)).toBeDefined();
+			expect(y(docker)).toBeGreaterThanOrEqual(Math.max(...siblings.map(y)));
+		}
+	);
+
+	it('puts the two ends of a dependency inside one subnet next to each other', async () => {
+		const subnet = uuid();
+		const ids = Array.from({ length: 9 }, () => uuid());
+		const nodes = [makeContainer(subnet), ...ids.map((id) => makeElement(id, subnet))];
+		// First and last in packing order, so without the edge they sit at opposite corners.
+		const dependency = makeEdge(ids[0], ids[8], 'RequestPath', {
+			affects_layout: false,
+			affects_layout_within_container: true,
+			stroke: 'dashed'
+		});
+		const input = makeTopology(nodes, [dependency], [makeSubnet(subnet, 'Lan')]);
+		input.elementNodeSizes = new Map(ids.map((id) => [id, { x: 120, y: 90 }]));
+		const result = await computeElkLayout(input);
+		const a = result.nodePositions.get(ids[0])!;
+		const b = result.nodePositions.get(ids[8])!;
+		// Adjacent: one card and one gap apart on either axis, never two.
+		expect(Math.abs(a.x - b.x) + Math.abs(a.y - b.y)).toBeLessThanOrEqual(120 + 50);
+	});
+});
 
 describe('computeOptimalHandles', () => {
 	it('picks shortest-distance handles when no obstacles are supplied', () => {

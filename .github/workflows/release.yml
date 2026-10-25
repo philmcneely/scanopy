@@ -111,15 +111,12 @@ jobs:
       # The Docker build gets them by running the generator inside its own
       # rust-builder stage; the standalone UI build (build-ui) has no Rust
       # toolchain, so it needs them as an artifact.
-      - name: Upload generated service logos
+      - name: Upload generated logos
         uses: actions/upload-artifact@v7
         with:
           name: ui-logos
-          # Several paths upload relative to their common parent, ui/static/logos/.
-          path: |
-            ui/static/logos/services/
-            ui/static/logos/os-families/
-            ui/static/logos/identity-providers/
+          # A single path uploads relative to itself, so the download restores into the same dir.
+          path: ui/static/logos/catalog/
           retention-days: 1
 
   migration-branch-test:
@@ -338,11 +335,11 @@ jobs:
           name: ui-fixtures
           path: ui/src/lib/data/
 
-      - name: Download generated service logos
+      - name: Download generated logos
         uses: actions/download-artifact@v8
         with:
           name: ui-logos
-          path: ui/static/logos/
+          path: ui/static/logos/catalog/
 
       - uses: actions/setup-node@v7
         with:

@@ -235,6 +235,148 @@ describe('L2 Physical with a physical-link ring', () => {
 	});
 });
 
+/**
+ * One switch with a VLAN group whose ports run TrueNAS, HV01, HV02 uplink top to bottom, linked to
+ * three hosts given in the order HV02, TrueNAS, HV01. Host ids sort the switch's ports into that
+ * order. Laid out in model order, every edge crosses another; ordering the hosts by their port
+ * removes every crossing.
+ */
+function switchUplinksInput(): ElkLayoutInput {
+	const input = mixedCollapseInput();
+	const hosts = ['h-c-hv02', 'h-a-truenas', 'h-b-hv01'];
+	const nodes: TopologyNode[] = [
+		hostContainer('switch'),
+		portStatusSubcontainer('vlan-20', 'switch'),
+		...hosts.map((host) => interfaceElement(`switch-${host}`, 'vlan-20', 'switch'))
+	];
+	const edges: TopologyEdge[] = [];
+	for (const host of hosts) {
+		nodes.push(hostContainer(host), interfaceElement(`${host}-if`, host, host));
+		edges.push(physicalLink(`switch-${host}`, `${host}-if`));
+	}
+	return {
+		...input,
+		nodes,
+		edges,
+		collapsedContainers: new Set(),
+		parentIndex: buildTopologyParentIndex(nodes),
+		elementNodeSizes: new Map(
+			nodes.filter((n) => n.node_type === 'Element').map((n) => [n.id, { x: 120, y: 90 }])
+		),
+		topology: { ...input.topology, nodes, edges }
+	};
+}
+
+/** Edge pairs whose endpoints are in opposite vertical order at each end. */
+function chordCrossings(input: ElkLayoutInput, positions: Map<string, { x: number; y: number }>) {
+	const byId = new Map(input.nodes.map((n) => [n.id, n]));
+	const sizeOf = (id: string) => input.elementNodeSizes?.get(id)?.y ?? 0;
+	const absoluteY = (id: string): number => {
+		const node = byId.get(id) as Record<string, unknown> | undefined;
+		const parent = (node?.container_id ?? node?.parent_container_id) as string | undefined;
+		return (positions.get(id)?.y ?? 0) + (parent ? absoluteY(parent) : 0);
+	};
+	const ends = input.edges.map((e) => [
+		absoluteY(e.source) + sizeOf(e.source) / 2,
+		absoluteY(e.target) + sizeOf(e.target) / 2
+	]);
+	let crossings = 0;
+	for (let i = 0; i < ends.length; i++) {
+		for (let j = i + 1; j < ends.length; j++) {
+			if ((ends[i][0] - ends[j][0]) * (ends[i][1] - ends[j][1]) < 0) crossings++;
+		}
+	}
+	return crossings;
+}
+
+/**
+ * Collapse level 2: every port group is closed. The switch's Trunk group sits above its VLAN 20
+ * group; `docker` links to VLAN 20 and comes first in the model, `ap` and `fw` link to Trunk.
+ */
+function collapsedGroupsInput(): ElkLayoutInput {
+	const input = mixedCollapseInput();
+	const nodes: TopologyNode[] = [
+		hostContainer('switch'),
+		portStatusSubcontainer('switch-a-trunk', 'switch'),
+		portStatusSubcontainer('switch-b-vlan', 'switch'),
+		interfaceElement('switch-ap', 'switch-a-trunk', 'switch'),
+		interfaceElement('switch-fw', 'switch-a-trunk', 'switch'),
+		interfaceElement('switch-docker', 'switch-b-vlan', 'switch')
+	];
+	const edges: TopologyEdge[] = [];
+	for (const host of ['docker', 'ap', 'fw']) {
+		nodes.push(
+			hostContainer(host),
+			portStatusSubcontainer(`${host}-sub`, host),
+			interfaceElement(`${host}-if`, `${host}-sub`, host)
+		);
+		edges.push(physicalLink(`${host}-if`, `switch-${host}`));
+	}
+	// The switch's other VLAN 20 ports, linked out to hosts on its far side.
+	for (const host of ['hv01', 'hv02', 'nas']) {
+		nodes.push(
+			interfaceElement(`switch-${host}`, 'switch-b-vlan', 'switch'),
+			hostContainer(host),
+			portStatusSubcontainer(`${host}-sub`, host),
+			interfaceElement(`${host}-if`, `${host}-sub`, host)
+		);
+		edges.push(physicalLink(`switch-${host}`, `${host}-if`));
+	}
+	const subs = nodes.filter((n) => (n as Record<string, unknown>).parent_container_id);
+	return {
+		...input,
+		nodes,
+		edges,
+		collapsedContainers: new Set(subs.map((n) => n.id)),
+		parentIndex: buildTopologyParentIndex(nodes),
+		elementNodeSizes: new Map(subs.map((n) => [n.id, { x: 250, y: 40 }])),
+		topology: { ...input.topology, nodes, edges }
+	};
+}
+
+describe('L2 Physical edge crossings', () => {
+	it('orders hosts by the switch ports they link to', async () => {
+		const input = switchUplinksInput();
+		const result = await computeElkLayout(input);
+		expect(chordCrossings(input, result.nodePositions)).toBe(0);
+	});
+
+	it('orders hosts by the closed port group they link to', async () => {
+		const input = collapsedGroupsInput();
+		const result = await computeElkLayout(input);
+		const y = (id: string) => result.nodePositions.get(id)!.y;
+		// Trunk is above VLAN 20 inside the switch, so docker's host goes below both Trunk hosts.
+		expect(y('switch-a-trunk')).toBeLessThan(y('switch-b-vlan'));
+		expect(y('docker')).toBeGreaterThan(Math.max(y('ap'), y('fw')));
+	});
+});
+
+describe('an open container holding one card', () => {
+	it.each(['L2Physical', 'L3Logical'] as const)(
+		'is as wide as the card and its padding in %s',
+		async (view) => {
+			const nodes: TopologyNode[] = [
+				hostContainer('host'),
+				portStatusSubcontainer('group', 'host'),
+				interfaceElement('card', 'group', 'host')
+			];
+			const input: ElkLayoutInput = {
+				...mixedCollapseInput(),
+				nodes,
+				edges: [],
+				view,
+				collapsedContainers: new Set(),
+				parentIndex: buildTopologyParentIndex(nodes),
+				elementNodeSizes: new Map([['card', { x: 120, y: 90 }]])
+			};
+			const result = await computeElkLayout(input);
+			// 25px padding either side, from the container types' metadata.
+			expect(result.containerSizes.get('group')?.width).toBe(170);
+			expect(result.containerSizes.get('host')?.width).toBe(220);
+		}
+	);
+});
+
 describe('portConstraintFor', () => {
 	it('fixes positions only when every port on the container has them', () => {
 		expect(

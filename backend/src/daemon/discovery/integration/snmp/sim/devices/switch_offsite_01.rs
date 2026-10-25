@@ -34,6 +34,8 @@ const ADDRESSED_NEIGHBOUR: &str = "10.20.30.40";
 /// declines, because resolving it means deleting rows — cannot be reached in the lab at all.
 const BRANCH_NEIGHBOUR: &str = "10.20.31.9";
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-offsite-01",
@@ -44,9 +46,10 @@ pub fn device() -> SimDevice {
                      holds, so before the address tier every one of them resolved to nothing and \
                      the ports drew as unconnected",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Offsite aggregation switch, 8-port".into()),
             sys_object_id: Some("1.3.6.1.4.1.99999.3.1".into()),

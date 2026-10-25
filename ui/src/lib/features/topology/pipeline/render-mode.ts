@@ -60,14 +60,6 @@ export function shouldCull({ renderedCount, measuring, exporting }: CullingCondi
 }
 
 /**
- * Zoom at or below which a node draws as its box rather than its contents.
- *
- * At 0.25 a 12px label renders at 3px and a 20px icon at 5px, so nothing inside a card is legible
- * — and on a large estate a fitted graph sits far below this anyway: the 5,936-node reproduction
- * fits at 0.0108, where a 250px card is under three pixels wide and every one of the ~5 DOM
- * elements inside it is laid out to draw nothing anyone can see.
- */
-/**
  * Zoom below which a node stops rendering its contents.
  *
  * A card mixes four type sizes, so there is no single point where "the text" stops being readable.
@@ -90,6 +82,9 @@ export function shouldCull({ renderedCount, measuring, exporting }: CullingCondi
  *
  * The trade is stated rather than hidden: below this the graph is boxes, and the indicator in the
  * viewer says so, because a view that silently drops what it was showing reads as a bug.
+ *
+ * It is the only zoom transition: a card goes from its state-coloured box straight to full detail,
+ * its status dot and badges included.
  */
 export const DETAIL_ZOOM = 0.35;
 
@@ -136,15 +131,14 @@ export interface SimplifyConditions {
  * Tooling shares `__topoNoCull` rather than getting a second flag: anything reading the graph out
  * of the DOM wants it whole and detailed, which is the same thing that switch already means.
  */
-export function shouldSimplify({
-	zoom,
-	nodeCount,
-	measuring,
-	exporting
-}: SimplifyConditions): boolean {
+export function shouldSimplify(conditions: SimplifyConditions): boolean {
+	return reducedDetailAllowed(conditions) && conditions.zoom < DETAIL_ZOOM;
+}
+
+/** The gates every reduction shares: no measure pass, export or tooling, and a large graph. */
+function reducedDetailAllowed({ nodeCount, measuring, exporting }: SimplifyConditions): boolean {
 	if (measuring || exporting || cullingDisabledForTooling()) return false;
-	if (nodeCount < LOD_MIN_NODES) return false;
-	return zoom < DETAIL_ZOOM;
+	return nodeCount >= LOD_MIN_NODES;
 }
 
 /**

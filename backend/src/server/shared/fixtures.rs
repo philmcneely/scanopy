@@ -30,6 +30,7 @@ use crate::server::shared::attribution::{AttributeMethod, AttributeSourceDiscrim
 use crate::server::shared::concepts::Concept;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::entity_metadata::EntityCategory;
+use crate::server::shared::logos::{Logo, logo_credits, logo_entries};
 use crate::server::shared::types::entities::EntitySourceDiscriminants;
 use crate::server::shared::types::entity_field::FieldGroup;
 use crate::server::shared::types::metadata::{
@@ -95,14 +96,13 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
         .filter(|s| s.can_be_manually_added())
         .map(|s| {
             serde_json::json!({
-                "logo_url": s.logo_url(),
+                "logo": s.logo(),
                 "name": s.name(),
                 "description": s.description(),
                 "discovery_pattern": s.discovery_pattern().to_string(),
                 "category": s.category(),
                 "color": s.color(),
                 "icon": s.icon(),
-                "logo_needs_white_background": s.logo_needs_white_background(),
                 "integration_docs_path": CredentialIntegration::for_service(&**s)
                     .map(|i| i.docs_path()),
             })
@@ -110,42 +110,32 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
         .collect();
     write_fixture(&services_catalog, output_dir, "services.json");
 
-    // Download service logos to static directory for local serving
-    // output_dir is ui/src/lib/data, static dir is ui/static/logos/services
-    let static_dir = output_dir.join("../../../static/logos/services");
-    let service_logos: Vec<(String, &str)> = all_services
-        .iter()
-        .map(|s| (logo_slug(s.name()), s.logo_url()))
+    // Every logo, once, into ui/static/logos/catalog/<id>.<ext> (output_dir is ui/src/lib/data),
+    // and logos.json, which every logo consumer looks a logo id up in.
+    let urls: Vec<(String, String)> = Logo::iter()
+        .filter(Logo::is_downloaded)
+        .map(|logo| (<&'static str>::from(logo).to_string(), logo.url()))
         .collect();
-    download_logos(&service_logos, &static_dir, force_logos);
-
-    // Host OS family logos, beside the service logos and fetched the same way. The UI reads them
-    // from /logos/os-families/<family id>.<logo_ext>.
-    let os_family_dir = output_dir.join("../../../static/logos/os-families");
-    let os_family_logos: Vec<(String, &str)> =
-        crate::server::hosts::r#impl::os::HostOsFamily::iter()
-            .map(|f| (<&'static str>::from(f).to_string(), f.logo_url()))
-            .collect();
-    download_logos(&os_family_logos, &os_family_dir, force_logos);
-
-    // Identity provider logos that oidc.toml can name as /logos/identity-providers/<id>.<ext>.
-    // The website's OIDC guide lists them from identity-provider-logos.json.
-    let identity_provider_dir = output_dir.join("../../../static/logos/identity-providers");
-    let identity_provider_logos: Vec<(String, &str)> = IdentityProviderLogo::iter()
-        .map(|p| (<&'static str>::from(p).to_string(), p.logo_url()))
+    let wanted: Vec<(String, &str)> = urls
+        .iter()
+        .map(|(stem, url)| (stem.clone(), url.as_str()))
         .collect();
     download_logos(
-        &identity_provider_logos,
-        &identity_provider_dir,
+        &wanted,
+        &output_dir.join("../../../static/logos/catalog"),
         force_logos,
     );
+    write_fixture(&logo_entries(), output_dir, "logos.json");
+
+    // The website's OIDC guide lists these from identity-provider-logos.json, as paths oidc.toml
+    // can name for a provider's logo.
     let identity_provider_logo_paths: Vec<serde_json::Value> = IdentityProviderLogo::iter()
         .map(|p| {
             let id: &'static str = p.into();
             serde_json::json!({
                 "id": id,
                 "name": p.name(),
-                "path": format!("/logos/identity-providers/{id}.{}", logo_ext(p.logo_url())),
+                "path": p.logo().path(),
             })
         })
         .collect();
@@ -154,6 +144,9 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
         output_dir,
         "identity-provider-logos.json",
     );
+
+    // Where each logo comes from and on what terms, for Settings > System.
+    write_fixture(&logo_credits(), output_dir, "logo-credits.json");
 
     let subnet_types: Vec<TypeMetadata> = SubnetType::iter().map(|t| t.to_metadata()).collect();
     write_fixture(&subnet_types, output_dir, "subnet-types.json");
@@ -600,6 +593,8 @@ fn download_logos(logos: &[(String, &str)], static_dir: &Path, force: bool) {
 
     if !download.is_empty() {
         let client = reqwest::blocking::Client::builder()
+            // Wikimedia refuses requests without a User-Agent.
+            .user_agent("scanopy-fixtures (https://scanopy.net)")
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .expect("Failed to create HTTP client");

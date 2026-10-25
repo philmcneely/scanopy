@@ -18,11 +18,14 @@
 	import { getSuggestions } from '../suggestions';
 	import { concepts } from '$lib/shared/stores/metadata';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
+	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import {
 		appWizard_convertExisting,
 		appWizard_createYourOwn,
 		appWizard_defineGroupsDescription_convert,
 		appWizard_defineGroupsDescription_create,
+		appWizard_docsHint,
+		appWizard_docsHintLinkText,
 		appWizard_membershipFootnote,
 		appWizard_noGroupsYet,
 		appWizard_suggestedGroups,
@@ -115,11 +118,18 @@
 </script>
 
 <div class="space-y-6">
-	<p class="text-sm text-secondary">
-		{ungroupedTags.length > 0
-			? appWizard_defineGroupsDescription_convert()
-			: appWizard_defineGroupsDescription_create()}
-	</p>
+	<div class="space-y-2">
+		<p class="text-sm text-secondary">
+			{ungroupedTags.length > 0
+				? appWizard_defineGroupsDescription_convert()
+				: appWizard_defineGroupsDescription_create()}
+		</p>
+		<DocsHint
+			text={appWizard_docsHint()}
+			href="https://scanopy.net/docs/guides/operations/mapping-applications/"
+			linkText={appWizard_docsHintLinkText()}
+		/>
+	</div>
 
 	<!-- MSP callout -->
 	{#if isMsp}

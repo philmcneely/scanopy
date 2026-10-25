@@ -551,6 +551,7 @@ async fn fetch_endpoint(
                     headers,
                     body,
                     status,
+                    over_tls: url.starts_with("https://"),
                 };
                 if status == reqwest::StatusCode::BAD_REQUEST.as_u16()
                     && bad_request.is_none()

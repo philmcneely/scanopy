@@ -885,7 +885,7 @@
 				{@const nonAppCommon = group.commonTags.filter((id) => !appTagSet.has(id))}
 				<div class="space-y-2">
 					<span class="block text-sm font-medium text-secondary">{group.label}</span>
-					<div class="card-static space-y-2 card p-2">
+					<div class="card-static card space-y-2 p-2">
 						{#if nonAppCommon.length === 0 && group.entities.length > 1}
 							<p class="text-xs text-tertiary italic">
 								{noCommonTagsHintText(group.entityType)}
@@ -927,7 +927,7 @@
 				<!-- App-group tag picker — with cross-group and inheritance awareness -->
 				<div class="space-y-2">
 					<span class="block text-sm font-medium text-secondary">{common_application()}</span>
-					<div class="card-static space-y-2 card p-2">
+					<div class="card-static card space-y-2 p-2">
 						{#if appState.type === 'cross-group'}
 							<p class="text-xs text-tertiary">{tags_crossGroupSelectionHint()}</p>
 						{:else}
@@ -999,7 +999,7 @@
 								>{dependencyTypes.getName(field.state.value)}</span
 							>
 							<button
-								class="ml-auto btn-secondary flex items-center gap-1 p-1.5 text-xs"
+								class="btn-secondary ml-auto flex items-center gap-1 p-1.5 text-xs"
 								onclick={togglePreview}
 								title={showPreview ? topology_hidePreview() : topology_showPreview()}
 							>

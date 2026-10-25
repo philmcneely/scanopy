@@ -300,6 +300,19 @@ pub enum ClientProbe {
     /// Podman's API service answered `GET /_ping` with its `Server: Libpod/` token, before any
     /// auth. Not [`Self::Podman`], which means a credential reached it.
     PodmanPing,
+    /// A `Get-Printer-Attributes` request came back as an `application/ipp` message, whatever its
+    /// status.
+    Ipp,
+    /// A Spotify Connect receiver answered `getInfo` on the port and path its mDNS advertisement
+    /// names, with the JSON every Spotify Connect implementation returns. The reply states the
+    /// device's brand and model.
+    SpotifyConnect,
+    /// The port opened with an RFB protocol version, `RFB 003.008` and similar: a VNC server's
+    /// greeting.
+    Vnc,
+    /// The port answered a lockdown `QueryType` with `com.apple.mobile.lockdown`: the pairing and
+    /// sync service on iPhones and iPads.
+    AppleLockdown,
 }
 
 impl ClientProbe {
@@ -362,7 +375,11 @@ impl ClientProbe {
             | Self::H323
             | Self::SnmpEngine
             | Self::DockerPing
-            | Self::PodmanPing => M::Native,
+            | Self::PodmanPing
+            | Self::Ipp
+            | Self::SpotifyConnect
+            | Self::Vnc
+            | Self::AppleLockdown => M::Native,
         }
     }
 }
@@ -438,6 +455,9 @@ impl DnsSdServiceType {
     pub const HUE: &'static str = "_hue._tcp";
     /// Home Assistant.
     pub const HOME_ASSISTANT: &'static str = "_home-assistant._tcp";
+    /// Spotify Connect receivers. The SRV record names the port and TXT `CPath` the path of the
+    /// `getInfo` endpoint; both differ by vendor (Bose `8200` `/zc`, Sonos `1400` `/spotifyzc`).
+    pub const SPOTIFY_CONNECT: &'static str = "_spotify-connect._tcp";
 }
 
 #[derive(Debug, Clone, EnumDiscriminants)]
@@ -519,6 +539,20 @@ pub enum Pattern<'a> {
     /// so this is evidence a daemon can only gather about the segments it sits on.
     DnsSd(&'a str, Option<(&'a str, &'a str)>),
 
+    /// Whether a certificate on any of the host's TLS ports was issued by a CA whose name contains
+    /// the string (case-insensitive), e.g. `OU=Cast` or `O=Bose Corporation`.
+    ///
+    /// A vendor's devices sign every TLS port with the vendor's CA, including ports whose numbers
+    /// differ between units, so the issuer names the product where a port list cannot. Read across
+    /// every certificate the host presented, whichever service holds the port, so the answer does
+    /// not depend on match order and `Not(CertificateIssuer(..))` asks about the host. Binds the
+    /// ports with a matching certificate that are still unbound.
+    ///
+    /// The ports are where this issuer's certificates are known to appear. They are scanned, so a
+    /// light scan reaches them, and are not evidence: the certificate is. A certificate on a port
+    /// not listed still matches when a full scan finds it.
+    CertificateIssuer(&'a str, &'static [u16]),
+
     /// Whether a management controller reported this device as the given device class.
     /// Takes a vendor-specific class string (see [`UnifiDeviceType`]), mirroring how
     /// [`Pattern::MacVendor`] takes a vendor string. Only matches when the host was
@@ -546,6 +580,16 @@ impl Vendor {
     pub const ROBOROCK: &'static str = "Beijing Roborock Technology Co., Ltd.";
     pub const WIZ: &'static str = "WiZ";
     pub const TUYASMART: &'static str = "Tuya Smart Inc.";
+    /// The registrant on TP-Link's newer OUIs, which Kasa plugs and switches ship with.
+    pub const TPLINK_SYSTEMS: &'static str = "TP-Link Systems Inc.";
+    /// Bosch, Siemens, Neff, Gaggenau and Thermador appliances.
+    pub const BSH: &'static str = "BSH Hausgeräte GmbH";
+    /// Chamberlain and LiftMaster, including myQ.
+    pub const CHAMBERLAIN: &'static str = "The Chamberlain Group, Inc";
+    pub const BOSE: &'static str = "Bose Corporation";
+    /// ESP8266 and ESP32 Wi-Fi chips, inside most hobbyist and many commercial IoT devices.
+    pub const ESPRESSIF: &'static str = "Espressif Inc.";
+    pub const BROTHER: &'static str = "Brother industries, LTD.";
 }
 
 impl PartialEq for Pattern<'_> {
@@ -583,6 +627,9 @@ impl PartialEq for Pattern<'_> {
             (Pattern::ContainerVirtualization, Pattern::ContainerVirtualization) => true,
             (Pattern::ManagedDeviceType(a), Pattern::ManagedDeviceType(b)) => a == b,
             (Pattern::DnsSd(a, a_txt), Pattern::DnsSd(b, b_txt)) => a == b && a_txt == b_txt,
+            (Pattern::CertificateIssuer(a, a_ports), Pattern::CertificateIssuer(b, b_ports)) => {
+                a == b && a_ports == b_ports
+            }
             (Pattern::None, Pattern::None) => true,
             _ => false,
         }
@@ -667,6 +714,13 @@ impl Display for Pattern<'_> {
                 ),
                 None => write!(f, "Host advertises '{}' over mDNS", service_type),
             },
+            Pattern::CertificateIssuer(issuer, _) => {
+                write!(
+                    f,
+                    "A TLS certificate on the host was issued by '{}'",
+                    issuer
+                )
+            }
             Pattern::None => write!(f, "No match pattern provided"),
         }
     }
@@ -723,11 +777,13 @@ impl Pattern<'_> {
             virtualization_metadata,
             managed_device,
             dns_sd,
+            certificates,
             ..
         } = baseline_params;
 
         let ServiceMatchServiceParams {
             unbound_ports,
+            claimed_ports,
             service_definition,
             ..
         } = service_params;
@@ -968,8 +1024,25 @@ impl Pattern<'_> {
                 }
             }
 
-            Pattern::Not(pattern) => match pattern.matches(params) {
-                Ok(result) => Err(anyhow!("{}", result.details.reason)),
+            // `Not(DnsSd(..))` asks whether the host advertises the service at all, so it reads
+            // the advertisement directly: a DnsSd match can stand down because another service
+            // holds its port, and that must not read as the host not advertising it.
+            Pattern::Not(pattern) => match match pattern.as_ref() {
+                Pattern::DnsSd(expected, txt) => {
+                    if dns_sd
+                        .as_ref()
+                        .is_some_and(|h| h.advertises(expected, *txt))
+                    {
+                        Ok(format!("Host advertises '{expected}' over mDNS"))
+                    } else {
+                        Err(anyhow!("Host did not advertise '{expected}' over mDNS"))
+                    }
+                }
+                other => other
+                    .matches(params)
+                    .map(|result| result.details.reason.to_string()),
+            } {
+                Ok(reason) => Err(anyhow!("{reason}")),
                 Err(e) => Ok(MatchResult {
                     ports: vec![],
                     endpoint: None,
@@ -1272,9 +1345,28 @@ impl Pattern<'_> {
             // unauthenticated and trivially spoofable by anything on the link. `High` rather than
             // the `Certain` that `ManagedDeviceType` earns, and definitions AND it with a vendor
             // or port arm where one exists.
+            // Binds the port the advertisement's SRV record names: the scanned port when the scan
+            // found it, otherwise a port taken from the advertisement itself. A port a service
+            // matched earlier this round already holds is that service's, and the earlier match
+            // is the more specific one (non-generic definitions run first), so this one stands
+            // down rather than add a second service on the same port.
             Pattern::DnsSd(expected, txt) => match dns_sd {
                 Some(host) if host.advertises(expected, *txt) => Ok(MatchResult {
-                    ports: vec![],
+                    ports: match host.advertised_port(expected) {
+                        None => vec![],
+                        Some(port) if claimed_ports.contains(&port) => {
+                            return Err(anyhow!(
+                                "Host advertises '{expected}' on {port}, which another service holds"
+                            ));
+                        }
+                        Some(port) => vec![
+                            unbound_ports
+                                .iter()
+                                .find(|p| **p == port)
+                                .copied()
+                                .unwrap_or(port),
+                        ],
+                    },
                     endpoint: None,
                     mac_vendor: None,
                     details: MatchDetails {
@@ -1293,6 +1385,38 @@ impl Pattern<'_> {
                 None => Err(anyhow!("No mDNS response was collected for this host")),
             },
 
+            // A vendor CA signing the device's certificate is the vendor's own statement, made
+            // before the device shipped, so `High`. The evidence is read across every certificate
+            // on the host; only the ports still unbound are bound.
+            Pattern::CertificateIssuer(expected, _) => {
+                let expected_lower = expected.to_lowercase();
+                let matching: Vec<_> = certificates
+                    .iter()
+                    .filter(|cert| cert.issuer.to_lowercase().contains(&expected_lower))
+                    .collect();
+                let Some(first) = matching.first() else {
+                    return Err(anyhow!(
+                        "No TLS certificate on the host was issued by '{expected}'"
+                    ));
+                };
+                Ok(MatchResult {
+                    ports: matching
+                        .iter()
+                        .map(|cert| cert.port)
+                        .filter(|port| unbound_ports.contains(port))
+                        .collect(),
+                    endpoint: None,
+                    mac_vendor: None,
+                    details: MatchDetails {
+                        reason: MatchReason::Reason(format!(
+                            "TLS certificate on {} issued by {}",
+                            first.port, first.issuer
+                        )),
+                        confidence: MatchConfidence::High,
+                    },
+                })
+            }
+
             Pattern::None => Err(anyhow!("No match pattern provided")),
         }
     }
@@ -1306,6 +1430,9 @@ impl Pattern<'_> {
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
                 patterns.iter().flat_map(|p| p.ports().to_vec()).collect()
             }
+            Pattern::CertificateIssuer(_, ports) => {
+                ports.iter().map(|port| PortType::new_tcp(*port)).collect()
+            }
             _ => vec![],
         }
     }
@@ -1313,7 +1440,7 @@ impl Pattern<'_> {
     /// Get all endpoints which need to be scanned for a given service's match pattern
     pub fn endpoints(&self) -> Vec<Endpoint> {
         match self {
-            Pattern::Endpoint(port_base, path, .., None) => {
+            Pattern::Endpoint(port_base, path, ..) => {
                 vec![Endpoint::for_pattern(*port_base, path)]
             }
             Pattern::Header(port_base_opt, ..) => {
@@ -1419,6 +1546,29 @@ impl Pattern<'_> {
     /// Whether `port` appears anywhere in this pattern as a scanned port.
     fn references_port(&self, port: PortType) -> bool {
         self.ports().contains(&port)
+    }
+}
+
+impl<'a> Pattern<'a> {
+    /// The DNS-SD service types this pattern reads, so the mDNS browse can ask for each by name
+    /// rather than rely on another device's enumeration reply to mention it.
+    pub fn dns_sd_types(&self) -> Vec<&'a str> {
+        match self {
+            Pattern::DnsSd(service_type, _) => vec![*service_type],
+            Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
+                patterns.iter().flat_map(|p| p.dns_sd_types()).collect()
+            }
+            Pattern::Not(pattern) => pattern.dns_sd_types(),
+            _ => vec![],
+        }
+    }
+
+    /// Matches when `self` does, and also binds what `extra` matches when it matches too. For
+    /// ports a device opens only sometimes, or on numbers that vary by unit: they are claimed
+    /// alongside the evidence, never instead of it. `AnyOf` binds the ports of every arm that
+    /// matches, so the second arm adds `extra`'s ports only when both hold.
+    pub fn also_binding(self, extra: Pattern<'a>) -> Pattern<'a> {
+        Pattern::AnyOf(vec![self.clone(), Pattern::AllOf(vec![self, extra])])
     }
 }
 

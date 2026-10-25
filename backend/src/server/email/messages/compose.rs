@@ -83,6 +83,14 @@ impl Content {
         ))
     }
 
+    /// A text link on its own line, quieter than the section-level
+    /// [`Body::cta`] button.
+    pub fn link(self, href: &str, label: &str) -> Self {
+        self.child(&format!(
+            r#"<p style="margin: 0 0 24px 0; font-size: 14px; line-height: 20px;"><a href="{href}" style="color: #2563eb; font-weight: 500;">{label}</a></p>"#
+        ))
+    }
+
     /// Append a fully-formed, already-indented inline block verbatim — for
     /// bespoke content (lists, tables, code blocks) the typed helpers don't
     /// cover. The caller supplies exact 28-space indentation and a trailing

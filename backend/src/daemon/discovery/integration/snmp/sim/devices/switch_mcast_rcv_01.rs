@@ -16,6 +16,8 @@ use super::inline;
 
 /// GH #701: one of two hosts behind the shared bridge, alongside `switch-mcast-src-01` and
 /// `switch-segment-gw-01`. See `switch_segment_gw_01` for the shape this trio exercises.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-mcast-rcv-01",
@@ -26,9 +28,10 @@ pub fn device() -> SimDevice {
                      single-neighbour collection kept only the first and resolution could bind \
                      the far end to only one of them",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Multicast Receiver OS 1.4, simplified SNMP profile".into()),
             sys_object_id: Some("1.3.6.1.4.1.99999.1.1".into()),

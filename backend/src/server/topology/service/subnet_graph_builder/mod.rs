@@ -4,9 +4,10 @@ use strum::IntoDiscriminant;
 use uuid::Uuid;
 
 use crate::server::{
-    hosts::r#impl::{base::Host, name_ladder::HostNameRung},
+    hosts::r#impl::{base::Host, device_type::DeviceType, name_ladder::HostNameRung},
     ip_addresses::r#impl::base::IPAddress,
-    shared::entities::EntityDiscriminants,
+    services::r#impl::{base::Service, definitions::ServiceDefinitionExt},
+    shared::{entities::EntityDiscriminants, types::metadata::HasId},
     subnets::r#impl::types::{SubnetType, SubnetTypeDiscriminants},
     topology::{
         service::{
@@ -19,7 +20,7 @@ use crate::server::{
         },
         types::{
             edges::Edge,
-            grouping::GroupingConfig,
+            grouping::{ElementRule, GroupingConfig},
             nodes::{ContainerType, ElementEntityType, Node, NodeType},
         },
     },
@@ -302,6 +303,41 @@ impl SubnetGraphBuilder {
             services: None,
             subnets: None,
         };
+        // Resolving device types walks every service, so it runs only when a rule groups by them.
+        let device_types: HashMap<Uuid, DeviceType> = if grouping
+            .element_rules
+            .iter()
+            .any(|r| matches!(r.rule, ElementRule::ByDeviceType))
+        {
+            let mut services_by_host: HashMap<Uuid, Vec<&Service>> = HashMap::new();
+            for service in ctx.services {
+                services_by_host
+                    .entry(service.base.host_id)
+                    .or_default()
+                    .push(service);
+            }
+            let mut ip_addresses_by_host: HashMap<Uuid, Vec<&IPAddress>> = HashMap::new();
+            for ip_address in ctx.ip_addresses {
+                ip_addresses_by_host
+                    .entry(ip_address.base.host_id)
+                    .or_default()
+                    .push(ip_address);
+            }
+            ctx.hosts
+                .iter()
+                .map(|h| {
+                    let services = services_by_host.get(&h.id).into_iter().flatten().copied();
+                    let ip_addresses = ip_addresses_by_host
+                        .get(&h.id)
+                        .into_iter()
+                        .flatten()
+                        .copied();
+                    (h.id, h.device_type(services, ip_addresses))
+                })
+                .collect()
+        } else {
+            HashMap::new()
+        };
 
         let _ = apply_element_rules(
             child_nodes,
@@ -327,6 +363,14 @@ impl SubnetGraphBuilder {
                     .find(|s| s.id == _subnet_id)
                     .map(|s| s.base.subnet_type().is_container_network())
                     .unwrap_or(false);
+                // An address on a container subnet belongs to a container, and its host's device type
+                // (nearly always Server) says nothing about it. Leaving it out keeps it free for
+                // ByStack, which groups only container subnets, the inverse of this check.
+                let device_type = if is_container_subnet {
+                    None
+                } else {
+                    device_types.get(&child.host_id).copied()
+                };
                 let deployment_group = if !is_container_subnet {
                     None
                 } else {
@@ -379,6 +423,7 @@ impl SubnetGraphBuilder {
                     vlan_name: None,
                     is_trunk_port: false,
                     oper_status: None,
+                    device_type,
                 })
             },
             None,
@@ -388,6 +433,35 @@ impl SubnetGraphBuilder {
         // Post-process: stamp each Stack subcontainer's logo from the runtime of
         // the services in that deployment group (Docker, Podman, …).
         apply_stack_runtime_logos(child_nodes, ctx.services);
+    }
+
+    /// Service definition whose logo marks a container-bridge subnet container: the
+    /// definition of the runtime service each bridge reports through
+    /// `virtualization_service_id`. A merged container gets it only when every merged
+    /// bridge resolves to the same definition; a bridge with no runtime service, a
+    /// service missing from the context, or a definition without a logo yields `None`,
+    /// leaving the subnet type's icon.
+    fn bridge_runtime_definition(
+        &self,
+        ctx: &TopologyContext,
+        subnet_id: Uuid,
+    ) -> Option<&'static str> {
+        let members = self
+            .consolidated_container_bridge_subnets
+            .get(&subnet_id)
+            .map(Vec::as_slice)
+            .unwrap_or(std::slice::from_ref(&subnet_id));
+        let mut definitions = members.iter().map(|member_id| {
+            let subnet = ctx.get_subnet_by_id(*member_id)?;
+            if !subnet.base.subnet_type().is_container_bridge() {
+                return None;
+            }
+            let service = ctx.get_service_by_id(subnet.base.virtualization_service_id?)?;
+            let definition = &service.base.service_definition;
+            definition.has_logo().then(|| definition.id())
+        });
+        let first = definitions.next()??;
+        definitions.all(|d| d == Some(first)).then_some(first)
     }
 
     /// Create subnet container nodes
@@ -458,7 +532,9 @@ impl SubnetGraphBuilder {
                         entity_id: Some(*subnet_id),
                         icon: None,
                         color: None,
-                        associated_service_definition: None,
+                        associated_service_definition: self
+                            .bridge_runtime_definition(ctx, *subnet_id)
+                            .map(str::to_string),
                         element_rule_id: None,
                         will_accept_edges,
                     },
@@ -472,395 +548,4 @@ impl SubnetGraphBuilder {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::server::hosts::r#impl::base::{Host, HostBase};
-    use crate::server::hosts::r#impl::name::{HostName, HostNameSources};
-    use crate::server::services::r#impl::base::{Service, ServiceBase};
-    use crate::server::services::r#impl::categories::ServiceCategory;
-    use crate::server::services::r#impl::definitions::ServiceDefinition;
-    use crate::server::services::r#impl::patterns::Pattern;
-    use crate::server::shared::types::Color;
-    use crate::server::tags::r#impl::base::{Tag, TagBase};
-    use crate::server::topology::service::context::TopologyContext;
-    use crate::server::topology::types::base::TopologyOptions;
-    use crate::server::topology::types::grouping::{ElementRule, IdentifiedRule};
-    use chrono::Utc;
-
-    /// Test service definition that returns ReverseProxy category
-    #[derive(PartialEq, Eq, Hash, Clone)]
-    struct ReverseProxyServiceDef;
-
-    impl ServiceDefinition for ReverseProxyServiceDef {
-        fn name(&self) -> &'static str {
-            "TestReverseProxy"
-        }
-        fn description(&self) -> &'static str {
-            "Test"
-        }
-        fn category(&self) -> ServiceCategory {
-            ServiceCategory::ReverseProxy
-        }
-        fn discovery_pattern(&self) -> Pattern<'_> {
-            Pattern::None
-        }
-    }
-
-    fn make_host(name: &str, tags: Vec<Uuid>) -> Host {
-        Host {
-            id: Uuid::new_v4(),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            base: HostBase {
-                name: HostName::manual(name.to_string()),
-                tags,
-                ..Default::default()
-            },
-            ..Default::default()
-        }
-    }
-
-    fn make_service(host_id: Uuid, def: Box<dyn ServiceDefinition>) -> Service {
-        make_service_with_tags(host_id, def, vec![])
-    }
-
-    fn make_service_with_tags(
-        host_id: Uuid,
-        def: Box<dyn ServiceDefinition>,
-        tags: Vec<Uuid>,
-    ) -> Service {
-        Service {
-            id: Uuid::new_v4(),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            base: ServiceBase {
-                host_id,
-                service_definition: def,
-                tags,
-                ..Default::default()
-            },
-            ..Default::default()
-        }
-    }
-
-    fn make_tag(name: &str) -> Tag {
-        Tag {
-            id: Uuid::new_v4(),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            base: TagBase {
-                name: name.to_string(),
-                description: None,
-                color: Color::Yellow,
-                organization_id: Uuid::new_v4(),
-                tag_group_id: None,
-                position: None,
-                icon: None,
-            },
-            ..Default::default()
-        }
-    }
-
-    fn make_element_node(id: Uuid, host_id: Uuid, container_id: Uuid) -> Node {
-        Node::element(
-            id,
-            container_id,
-            host_id,
-            ElementEntityType::IPAddress {
-                subnet_id: container_id,
-                ip_address_id: Some(id),
-            },
-        )
-    }
-
-    fn make_subnet_child(id: Uuid, host_id: Uuid) -> SubnetChildData {
-        SubnetChildData {
-            id,
-            host_id,
-            ip_address_id: Some(id),
-            header: None,
-        }
-    }
-
-    #[test]
-    fn test_nested_group_first_match_wins() {
-        let tag = make_tag("MyTag");
-        // Host that matches both ByServiceCategory(ReverseProxy) AND ByTag(tag)
-        let host_both = make_host("host-both", vec![tag.id]);
-        // Host that only matches the tag
-        let host_tag_only = make_host("host-tag-only", vec![tag.id]);
-
-        let svc = make_service(host_both.id, Box::new(ReverseProxyServiceDef));
-
-        let subnet_id = Uuid::new_v4();
-        let child_both_id = Uuid::new_v4();
-        let child_tag_id = Uuid::new_v4();
-
-        let children = vec![
-            make_subnet_child(child_both_id, host_both.id),
-            make_subnet_child(child_tag_id, host_tag_only.id),
-        ];
-
-        let mut child_nodes = vec![
-            make_element_node(child_both_id, host_both.id, subnet_id),
-            make_element_node(child_tag_id, host_tag_only.id, subnet_id),
-        ];
-
-        // Rules: ByServiceCategory first, then ByTag
-        // Use Application view so ByServiceCategory is applicable
-        let mut options = TopologyOptions::default();
-        options.request.element_rules = vec![
-            IdentifiedRule::new(ElementRule::ByServiceCategory {
-                categories: vec![ServiceCategory::ReverseProxy],
-                title: Some("Infra".to_string()),
-                is_infra_rule: false,
-            }),
-            IdentifiedRule::new(ElementRule::ByTag {
-                tag_ids: vec![tag.id],
-                title: None,
-            }),
-        ];
-
-        let hosts = vec![host_both.clone(), host_tag_only.clone()];
-        let services = vec![svc];
-        let tags = vec![tag.clone()];
-
-        let ctx = TopologyContext::new(
-            &hosts,
-            &[],
-            &[],
-            &services,
-            &[],
-            &[],
-            &[],
-            &[],
-            &tags,
-            &[],
-            &options,
-            crate::server::topology::types::views::TopologyView::Application,
-        );
-
-        let planner = SubnetGraphBuilder::new();
-        planner.create_nested_group_containers(subnet_id, &children, &ctx, &mut child_nodes);
-
-        // Find group containers
-        let groups: Vec<&Node> = child_nodes
-            .iter()
-            .filter(|n| matches!(n.node_type, NodeType::Container { .. }))
-            .collect();
-        assert_eq!(groups.len(), 2, "Should create two group containers");
-
-        let cat_group = groups
-            .iter()
-            .find(|n| {
-                matches!(
-                    n.node_type,
-                    NodeType::Container {
-                        container_type: ContainerType::NestedServiceCategory,
-                        ..
-                    }
-                )
-            })
-            .expect("Should have NestedServiceCategory");
-
-        let tag_group = groups
-            .iter()
-            .find(|n| {
-                matches!(
-                    n.node_type,
-                    NodeType::Container {
-                        container_type: ContainerType::NestedTag,
-                        ..
-                    }
-                )
-            })
-            .expect("Should have NestedTag");
-
-        // First-match-wins: host_both should be in the category group (first rule)
-        let both_node = child_nodes.iter().find(|n| n.id == child_both_id).unwrap();
-        if let NodeType::Element { container_id, .. } = &both_node.node_type {
-            assert_eq!(
-                *container_id, cat_group.id,
-                "Overlapping host should be in first-match container (NestedServiceCategory)"
-            );
-        }
-
-        // host_tag_only should be in the tag group (only matches tag rule)
-        let tag_node = child_nodes.iter().find(|n| n.id == child_tag_id).unwrap();
-        if let NodeType::Element { container_id, .. } = &tag_node.node_type {
-            assert_eq!(
-                *container_id, tag_group.id,
-                "Tag-only host should be in NestedTag"
-            );
-        }
-
-        // Verify headers contain custom titles
-        assert_eq!(
-            cat_group.header.as_deref(),
-            Some("Infra"),
-            "Category group header should be custom title"
-        );
-        assert!(
-            tag_group.header.is_none(),
-            "Tag group with no custom title should have no header"
-        );
-
-        // Verify element_rule_id is set on the container
-        assert!(
-            matches!(&cat_group.node_type, NodeType::Container { element_rule_id, .. } if element_rule_id.is_some()),
-            "Category group should have element_rule_id"
-        );
-        assert!(
-            matches!(&tag_group.node_type, NodeType::Container { element_rule_id, .. } if element_rule_id.is_some()),
-            "Tag group should have element_rule_id"
-        );
-    }
-
-    #[test]
-    fn test_nested_group_reversed_order_flips_priority() {
-        let tag = make_tag("TestTag");
-        let host = make_host("overlap-host", vec![tag.id]);
-        let svc = make_service(host.id, Box::new(ReverseProxyServiceDef));
-
-        let subnet_id = Uuid::new_v4();
-        let child_id = Uuid::new_v4();
-
-        let children = vec![make_subnet_child(child_id, host.id)];
-
-        // This time: ByTag FIRST, then ByServiceCategory
-        let mut options = TopologyOptions::default();
-        options.request.element_rules = vec![
-            IdentifiedRule::new(ElementRule::ByTag {
-                tag_ids: vec![tag.id],
-                title: Some("Tagged".to_string()),
-            }),
-            IdentifiedRule::new(ElementRule::ByServiceCategory {
-                categories: vec![ServiceCategory::ReverseProxy],
-                title: Some("Infra".to_string()),
-                is_infra_rule: false,
-            }),
-        ];
-
-        let hosts = vec![host.clone()];
-        let services = vec![svc];
-        let tags = vec![tag.clone()];
-
-        let ctx = TopologyContext::new(
-            &hosts,
-            &[],
-            &[],
-            &services,
-            &[],
-            &[],
-            &[],
-            &[],
-            &tags,
-            &[],
-            &options,
-            crate::server::topology::types::views::TopologyView::L3Logical,
-        );
-
-        let mut child_nodes = vec![make_element_node(child_id, host.id, subnet_id)];
-
-        let planner = SubnetGraphBuilder::new();
-        planner.create_nested_group_containers(subnet_id, &children, &ctx, &mut child_nodes);
-
-        // Find the tag group (should be first match now)
-        let tag_group = child_nodes
-            .iter()
-            .find(|n| {
-                matches!(
-                    n.node_type,
-                    NodeType::Container {
-                        container_type: ContainerType::NestedTag,
-                        ..
-                    }
-                )
-            })
-            .expect("Should have NestedTag");
-
-        // Host should be in tag group (first rule wins)
-        let element = child_nodes.iter().find(|n| n.id == child_id).unwrap();
-        if let NodeType::Element { container_id, .. } = &element.node_type {
-            assert_eq!(
-                *container_id, tag_group.id,
-                "When ByTag is first, overlapping host should be in NestedTag"
-            );
-        }
-
-        // NestedServiceCategory should not be created when all its matches are already claimed
-        // (since the only matching host was claimed by tag rule)
-        let cat_group = child_nodes.iter().find(|n| {
-            matches!(
-                n.node_type,
-                NodeType::Container {
-                    container_type: ContainerType::NestedServiceCategory,
-                    ..
-                }
-            )
-        });
-        assert!(
-            cat_group.is_none(),
-            "NestedServiceCategory should not be created when all its matches are already claimed"
-        );
-    }
-
-    #[test]
-    fn test_bytag_does_not_match_on_service_tags_in_l3() {
-        // Regression: ByTag rules in L3 used to match IPAddress elements via
-        // service-tag inheritance (all service tags on the IP's host were unioned
-        // into the element's tag_ids). That conflated service tags with host tags.
-        // Now the element resolves only its taggable ancestor (Host), so a tag
-        // applied only to a service on the host should NOT match.
-        let tag = make_tag("ServiceTag");
-        let host = make_host("host-no-tags", vec![]); // Host has NO tags
-        let svc = make_service_with_tags(host.id, Box::new(ReverseProxyServiceDef), vec![tag.id]);
-
-        let subnet_id = Uuid::new_v4();
-        let child_id = Uuid::new_v4();
-
-        let children = vec![make_subnet_child(child_id, host.id)];
-        let mut child_nodes = vec![make_element_node(child_id, host.id, subnet_id)];
-
-        let mut options = TopologyOptions::default();
-        options.request.element_rules = vec![IdentifiedRule::new(ElementRule::ByTag {
-            tag_ids: vec![tag.id],
-            title: Some("ServiceTagGroup".to_string()),
-        })];
-
-        let hosts = vec![host.clone()];
-        let services = vec![svc];
-        let tags = vec![tag.clone()];
-
-        let ctx = TopologyContext::new(
-            &hosts,
-            &[],
-            &[],
-            &services,
-            &[],
-            &[],
-            &[],
-            &[],
-            &tags,
-            &[],
-            &options,
-            crate::server::topology::types::views::TopologyView::L3Logical,
-        );
-
-        let planner = SubnetGraphBuilder::new();
-        planner.create_nested_group_containers(subnet_id, &children, &ctx, &mut child_nodes);
-
-        // No NestedTag container should be created — the rule's tag is on the
-        // service, not the host, so the IP address does not match.
-        assert!(
-            !child_nodes.iter().any(|n| matches!(
-                n.node_type,
-                NodeType::Container {
-                    container_type: ContainerType::NestedTag,
-                    ..
-                }
-            )),
-            "ByTag should not match service-only tags via inheritance"
-        );
-    }
-}
+mod tests;

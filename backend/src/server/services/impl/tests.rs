@@ -624,45 +624,6 @@ fn a_virtualizer_definition_is_never_generic() {
     );
 }
 
-#[test]
-fn test_service_definition_logo_urls_valid() {
-    use crate::server::services::r#impl::definitions::ServiceDefinitionExt;
-
-    let registry = ServiceDefinitionRegistry::all_service_definitions();
-
-    for service in &registry {
-        let logo_url = service.logo_url();
-
-        if logo_url.is_empty() {
-            assert!(
-                !ServiceDefinitionExt::has_logo(service),
-                "Service '{}' has has_logo=true but empty logo_url()",
-                ServiceDefinition::name(service),
-            );
-            continue;
-        }
-
-        // Local paths must start with /logos/
-        if logo_url.starts_with('/') {
-            assert!(
-                logo_url.starts_with("/logos/"),
-                "Service '{}' has local logo URL '{}' that doesn't start with /logos/",
-                ServiceDefinition::name(service),
-                logo_url
-            );
-            continue;
-        }
-
-        // External URLs must be parseable
-        assert!(
-            reqwest::Url::parse(logo_url).is_ok(),
-            "Service '{}' has invalid logo URL '{}'",
-            ServiceDefinition::name(service),
-            logo_url
-        );
-    }
-}
-
 #[tokio::test]
 async fn test_service_definition_logo_urls_resolve() {
     use backon::{ExponentialBuilder, Retryable};
@@ -677,11 +638,8 @@ async fn test_service_definition_logo_urls_resolve() {
     let services_to_check: Vec<_> = registry
         .into_iter()
         .filter_map(|service| {
-            let logo_url = service.logo_url();
-            if logo_url.is_empty() || logo_url.starts_with('/') {
-                return None;
-            }
-            Some((service.name().to_string(), logo_url.to_string()))
+            let logo_url = service.logo()?.url();
+            Some((ServiceDefinition::name(&service).to_string(), logo_url))
         })
         .collect();
 
@@ -870,6 +828,9 @@ fn test_service_definition_ids_are_stable() {
         ("Dhcp Server", "DHCP Server"),
         ("Dns Server", "DNS Server"),
         ("Hp Printer", "HP Printer"),
+        // 20261024120001_google_nest_capitalization.sql
+        ("Google Nest router", "Google Nest Router"),
+        ("Google Nest repeater", "Google Nest Repeater"),
     ]
     .into_iter()
     .collect();
@@ -1090,6 +1051,9 @@ fn every_client_probe_variant_has_a_producer() {
         ClientProbe::Proxmox,
         ClientProbe::Gnmi,
     ];
+    // Probes whose port comes from the host's mDNS advertisement, so they cannot be registry
+    // `AppProbe`s with a fixed `port()`; run directly by the network scan.
+    let from_advertised_probes = [ClientProbe::SpotifyConnect];
 
     let from_app_probes: HashSet<ClientProbe> = all_app_probes()
         .iter()
@@ -1099,6 +1063,7 @@ fn every_client_probe_variant_has_a_producer() {
     let orphans: Vec<ClientProbe> = ClientProbe::iter()
         .filter(|c| !from_app_probes.contains(c))
         .filter(|c| !from_integrations.contains(c))
+        .filter(|c| !from_advertised_probes.contains(c))
         .collect();
 
     assert!(
@@ -1266,5 +1231,35 @@ fn only_a_container_placeholder_is_replaced_and_anything_specific_replaces_it() 
     assert!(
         !in_container(Box::new(PostgreSQL), "c1")
             .is_placeholder_for(&in_container(Box::new(Ssh), "c1"))
+    );
+}
+
+/// Every word of a definition's name is capitalized, so "Google Nest Router" sits beside
+/// "DNS Server" and "HP Printer". A brand's own styling passes: a word with a capital anywhere in it
+/// (iPad, myQ, pfSense) is spelled as the brand spells it. Brands styled all lowercase are listed.
+#[test]
+fn every_word_of_a_definition_name_is_capitalized() {
+    const LOWERCASE_BRANDS: &[&str] = &["libvirt", "mailcow", "n8n"];
+
+    let offenders: Vec<&'static str> = ServiceDefinitionRegistry::all_service_definitions()
+        .iter()
+        .map(|definition| definition.name())
+        .filter(|name| {
+            name.split_whitespace().any(|word| {
+                let word = word.trim_start_matches(|c: char| !c.is_alphanumeric());
+                let Some(first) = word.chars().next() else {
+                    return false;
+                };
+                !(first.is_uppercase()
+                    || first.is_ascii_digit()
+                    || word.chars().any(char::is_uppercase)
+                    || LOWERCASE_BRANDS.contains(&word))
+            })
+        })
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "definition names with an uncapitalized word: {offenders:?}"
     );
 }

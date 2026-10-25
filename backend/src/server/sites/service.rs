@@ -4,13 +4,9 @@ use crate::server::{
     shared::{
         events::bus::EventBus,
         services::traits::{CrudService, EventBusService},
-        storage::{
-            generic::GenericPostgresStorage,
-            seed_data::{create_remote_subnet, create_wan_subnet},
-        },
+        storage::generic::GenericPostgresStorage,
     },
     sites::r#impl::Site,
-    subnets::service::SubnetService,
     tags::entity_tags::EntityTagService,
 };
 use anyhow::Result;
@@ -20,7 +16,6 @@ use uuid::Uuid;
 
 pub struct SiteService {
     site_storage: Arc<GenericPostgresStorage<Site>>,
-    subnet_service: Arc<SubnetService>,
     event_bus: Arc<EventBus>,
     entity_tag_service: Arc<EntityTagService>,
     /// Assigns each new site its default credentials. Set after construction, since the
@@ -80,13 +75,11 @@ impl CrudService<Site> for SiteService {
 impl SiteService {
     pub fn new(
         site_storage: Arc<GenericPostgresStorage<Site>>,
-        subnet_service: Arc<SubnetService>,
         event_bus: Arc<EventBus>,
         entity_tag_service: Arc<EntityTagService>,
     ) -> Self {
         Self {
             site_storage,
-            subnet_service,
             event_bus,
             entity_tag_service,
             credential_service: OnceLock::new(),
@@ -125,56 +118,5 @@ impl SiteService {
             )
             .await?;
         Ok(sites.iter().map(|n| (n.id, n.stale_cutoff(now))).collect())
-    }
-
-    pub async fn create_organizational_subnets(
-        &self,
-        site_id: Uuid,
-        authenticated: AuthenticatedEntity,
-    ) -> Result<()> {
-        let wan_subnet = create_wan_subnet(site_id);
-        let remote_subnet = create_remote_subnet(site_id);
-        // let (dns_host, dns_interfaces, dns_ports, dns_service) =
-        //     create_public_dns_host(&wan_subnet, site_id);
-        // let (web_host, web_interfaces, web_ports, web_service) =
-        //     create_internet_connectivity_host(&wan_subnet, site_id);
-        // let (remote_host, remote_interfaces, remote_ports, client_service) =
-        //     create_remote_host(&remote_subnet, site_id);
-
-        self.subnet_service
-            .create(wan_subnet, authenticated.clone())
-            .await?;
-        self.subnet_service
-            .create(remote_subnet, authenticated.clone())
-            .await?;
-        // self.host_service
-        //     .discover_host(
-        //         dns_host,
-        //         dns_interfaces,
-        //         dns_ports,
-        //         vec![dns_service],
-        //         authenticated.clone(),
-        //     )
-        //     .await?;
-        // self.host_service
-        //     .discover_host(
-        //         web_host,
-        //         web_interfaces,
-        //         web_ports,
-        //         vec![web_service],
-        //         authenticated.clone(),
-        //     )
-        //     .await?;
-        // self.host_service
-        //     .discover_host(
-        //         remote_host,
-        //         remote_interfaces,
-        //         remote_ports,
-        //         vec![client_service],
-        //         authenticated.clone(),
-        //     )
-        //     .await?;
-
-        Ok(())
     }
 }

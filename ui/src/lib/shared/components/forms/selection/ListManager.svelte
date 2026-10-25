@@ -383,7 +383,7 @@
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
 					class="
-						flex flex-wrap items-center gap-3 card rounded-lg border p-3 transition-all
+						card flex flex-wrap items-center gap-3 rounded-lg border p-3 transition-all
 						{isHighlighted
 						? 'card-focused'
 						: selectionIndicator === 'highlight' && isItemSelected(item)
@@ -415,7 +415,7 @@
 								type="checkbox"
 								checked={isItemSelected(item)}
 								onclick={() => toggleItemSelection(item)}
-								class="h-4 w-4 checkbox-card"
+								class="checkbox-card h-4 w-4"
 							/>
 						</div>
 					{/if}
@@ -527,7 +527,7 @@
 									e.stopPropagation();
 									toggleItemSelection(item);
 								}}
-								class="h-4 w-4 checkbox-card"
+								class="checkbox-card h-4 w-4"
 							/>
 						</span>
 					{/if}

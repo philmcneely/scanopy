@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Jellyseerr;
@@ -22,8 +23,8 @@ impl ServiceDefinition for Jellyseerr {
         Pattern::Endpoint(PortType::new_tcp(5055), "/", "Jellyseerr", None)
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/jellyseerr.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Jellyseerr)
     }
 }
 

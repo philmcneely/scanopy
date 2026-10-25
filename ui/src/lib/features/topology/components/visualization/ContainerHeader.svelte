@@ -194,7 +194,7 @@
 {#if variant === 'external'}
 	<!-- External title pill: card above container -->
 	<div
-		class="nopan nodrag absolute left-0 z-100 flex cursor-pointer items-center gap-1 card px-2 py-1 text-secondary shadow-lg backdrop-blur-xs"
+		class="nopan nodrag card absolute left-0 z-100 flex max-w-full cursor-pointer items-center gap-1 px-2 py-1 text-secondary shadow-lg backdrop-blur-xs"
 		style:top="-{EXTERNAL_TITLE_OFFSET}px"
 		role="button"
 		tabindex={-1}
@@ -211,6 +211,8 @@
 
 		{#if deviceType}
 			<DeviceGlyph {deviceType} />
+		{:else if logoDefinition}
+			<SoftwareGlyph definition={logoDefinition} framed={false} />
 		{:else if iconComponent}
 			{@const IconComp = iconComponent}
 			<IconComp class={`h-5 w-5 ${colorHelper.icon}`} fill={fillIcon ? 'currentColor' : 'none'} />
@@ -219,7 +221,7 @@
 		{#if headerText}
 			<span
 				data-entity-header
-				class="text-s font-medium whitespace-nowrap text-secondary"
+				class="text-s min-w-0 truncate font-medium text-secondary"
 				use:tooltipAction={{ content: tooltip }}
 			>
 				{headerText}
@@ -249,7 +251,7 @@
 			<span
 				data-fixed
 				data-entity-header
-				class="shrink-0 text-xs font-medium whitespace-nowrap text-tertiary"
+				class="min-w-0 truncate text-xs font-medium text-tertiary"
 				use:tooltipAction={{ content: tooltip }}
 			>
 				{headerText}{groupLabels.length > 0 ? ':' : ''}

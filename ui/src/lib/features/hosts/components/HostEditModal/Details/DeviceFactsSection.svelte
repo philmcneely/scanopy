@@ -171,6 +171,7 @@
 			: sourceless(common_manager(), hostVirtualizations.getName(virtualization.type));
 		switch (virtualization.type) {
 			case 'Proxmox':
+			case 'Libvirt':
 			case 'VCenter':
 			case 'ESXi': {
 				const guestType =
@@ -184,7 +185,9 @@
 						hosts_deviceFacts_guestType(),
 						guestType ? proxmoxGuestTypes.getName(guestType) : null
 					),
-					...(virtualization.type === 'Proxmox' ? [stateFact(virtualization.details.state)] : [])
+					...(virtualization.type === 'Proxmox' || virtualization.type === 'Libvirt'
+						? [stateFact(virtualization.details.state)]
+						: [])
 				];
 			}
 			case 'Docker':

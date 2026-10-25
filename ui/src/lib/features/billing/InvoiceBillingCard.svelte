@@ -105,7 +105,7 @@
 {/if}
 
 {#if quote}
-	<div class="card-static space-y-3 card p-4">
+	<div class="card-static card space-y-3 p-4">
 		<h3 class="text-sm font-semibold text-primary">
 			{billing_invoice_quoteTitle({ number: quote.number ?? '' })}
 		</h3>

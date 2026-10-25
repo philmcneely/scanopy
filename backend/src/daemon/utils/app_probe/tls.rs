@@ -32,7 +32,7 @@ use x509_cert::Certificate;
 use x509_cert::der::Decode;
 
 use crate::daemon::utils::app_probe::ProbeContext;
-use crate::daemon::utils::scanner::SCAN_TIMEOUT;
+use crate::daemon::utils::scanner::batch_scan;
 use crate::server::ports::r#impl::base::PortType;
 
 /// A verifier whose only job is to keep the certificate it is shown.
@@ -95,6 +95,11 @@ impl ServerCertVerifier for CapturingVerifier {
     }
 }
 
+/// How long a handshake has to reach the server's certificate. Longer than the scan's 800 ms
+/// request budget: the certificate comes with the server's first flight, after its key exchange,
+/// and a myQ hub's Marvell MCU took 0.69-1.04 s to finish the handshake when idle.
+const HANDSHAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(1500);
+
 /// What a TLS handshake against a port established.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TlsHandshake {
@@ -116,6 +121,18 @@ impl TlsHandshake {
             Self::Certificate(der) => Certificate::from_der(der)
                 .ok()
                 .map(|cert| cert.tbs_certificate().subject().to_string()),
+            Self::NotTls => None,
+        }
+    }
+
+    /// The certificate's issuer as an RFC 4514 string, e.g.
+    /// `CN=Chromecast ICA 5 (4K),OU=Cast,O=Google Inc,…`. `None` under the same conditions as
+    /// [`Self::subject`].
+    pub fn issuer(&self) -> Option<String> {
+        match self {
+            Self::Certificate(der) => Certificate::from_der(der)
+                .ok()
+                .map(|cert| cert.tbs_certificate().issuer().to_string()),
             Self::NotTls => None,
         }
     }
@@ -150,7 +167,7 @@ pub(crate) async fn capture_certificate(ctx: &ProbeContext, port: PortType) -> T
 
     // This is expected to fail: the verifier refuses by design, and a mutual-TLS server would
     // refuse us in turn. The certificate, if there was one, is already captured.
-    let _ = tokio::time::timeout(SCAN_TIMEOUT, connector.connect(server_name, stream)).await;
+    let _ = tokio::time::timeout(HANDSHAKE_TIMEOUT, connector.connect(server_name, stream)).await;
 
     match captured.lock() {
         Ok(slot) => match slot.clone() {
@@ -159,6 +176,65 @@ pub(crate) async fn capture_certificate(ctx: &ProbeContext, port: PortType) -> T
         },
         Err(_) => TlsHandshake::NotTls,
     }
+}
+
+/// The certificate a port presented, reduced to the names a pattern reads.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PortCertificate {
+    pub port: PortType,
+    pub subject: String,
+    pub issuer: String,
+}
+
+/// The certificate on every open TCP port of the host that presents one. Read by
+/// `Pattern::CertificateIssuer`.
+///
+/// Devices whose ports move between units still sign every one of them with the vendor's CA (a
+/// Chromecast's 9000 and 10001 with "Chromecast ICA", a Bose amp's 8082 and 10003 with Bose's), so
+/// the issuer names the product where the port number cannot.
+///
+/// A ClientHello is bytes written to the port, so this skips the ports nothing should write
+/// unasked: raw-socket printing, which prints what it is sent, and industrial control protocols.
+pub async fn scan_certificates(
+    ctx: &ProbeContext,
+    open_ports: &[PortType],
+    batch_size: usize,
+    scan_rate_pps: u32,
+) -> Vec<PortCertificate> {
+    let ports: Vec<PortType> = open_ports
+        .iter()
+        .copied()
+        .filter(|p| p.is_tcp() && !p.is_raw_socket() && !p.is_industrial())
+        .collect();
+    if ports.is_empty() {
+        return Vec::new();
+    }
+    let ctx = ctx.clone();
+    batch_scan(
+        ports,
+        batch_size,
+        scan_rate_pps,
+        ctx.cancel.clone(),
+        move |port| {
+            let ctx = ctx.clone();
+            async move {
+                let handshake = capture_certificate(&ctx, port).await;
+                tracing::debug!(
+                    ip = %ctx.ip,
+                    port = %port.number(),
+                    spoke_tls = handshake.spoke_tls(),
+                    issuer = ?handshake.issuer(),
+                    "Certificate capture"
+                );
+                Some(PortCertificate {
+                    port,
+                    subject: handshake.subject()?,
+                    issuer: handshake.issuer()?,
+                })
+            }
+        },
+    )
+    .await
 }
 
 #[cfg(test)]

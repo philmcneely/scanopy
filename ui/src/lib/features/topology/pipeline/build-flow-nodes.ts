@@ -52,15 +52,14 @@ export const ELEMENT_WIDTH_PX = 250;
 export const ICON_ELEMENT_WIDTH_PX = 120;
 
 /**
- * Width of a card made of rows: an icon card that lists a guest's containers, or a port's row. Each
- * row holds a glyph, a name and a status dot, and at 120px a name kept six characters before
- * truncating.
+ * Width of an icon card that lists a guest's containers in rows. Each row holds a glyph, a name and
+ * a status dot, and at 120px a name kept six characters before truncating.
  */
 export const ICON_GROUP_ELEMENT_WIDTH_PX = 168;
 
 /**
- * The width an element card is built at, by its entity type's `glyph` metadata: a port is a row, a
- * device or software an icon card, wider when it carries inline groups.
+ * The width an element card is built at: an icon card when its entity type has `glyph` metadata,
+ * wider when it carries inline groups.
  */
 export function elementWidthPx(node: TopologyNode): number {
 	const glyph =
@@ -68,7 +67,6 @@ export function elementWidthPx(node: TopologyNode): number {
 			? (entities.getMetadata(node.element_type) as { glyph?: string } | null)?.glyph
 			: null;
 	if (!glyph) return ELEMENT_WIDTH_PX;
-	if (glyph === 'Port') return ICON_GROUP_ELEMENT_WIDTH_PX;
 	const groups = (node as { inline_groups?: unknown[] }).inline_groups ?? [];
 	return groups.length > 0 ? ICON_GROUP_ELEMENT_WIDTH_PX : ICON_ELEMENT_WIDTH_PX;
 }

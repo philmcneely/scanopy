@@ -18,6 +18,8 @@ use super::inline;
 /// and `switch-mcast-src-01`. The real report's router spoke gNMI/DriveNets, which is `roc-ops`'s
 /// side entirely — this device exists to exercise the *shape* (a shared L2 segment where every
 /// port hears more than one neighbour), not to reproduce DriveNets.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-segment-gw-01",
@@ -28,9 +30,10 @@ pub fn device() -> SimDevice {
                      single-neighbour collection kept only the first and resolution could bind \
                      the far end to only one of them",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Segment Gateway OS 3.2, simplified SNMP profile".into()),
             sys_object_id: Some("1.3.6.1.4.1.99999.1.3".into()),

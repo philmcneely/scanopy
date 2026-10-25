@@ -5,6 +5,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::shared::logos::Logo;
 
 /// Salt's publish port, a ZeroMQ PUB socket.
 pub(crate) const SALT_PUBLISH_PORT: u16 = 4505;
@@ -51,8 +52,8 @@ impl ServiceDefinition for SaltMaster {
         ]
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/salt-project.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::SaltProject)
     }
 }
 

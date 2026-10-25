@@ -23,6 +23,8 @@ use super::inline;
 /// other question: the walk re-asked twice and truncated every table with nothing, as
 /// `stop=StaleResponse detail="responded with [1, 3, 6, 1, 2, 1, 2, 2, 1, 1]" entries=0`.
 /// `snmpbulkwalk`, which asks for ten, read the same switch in full.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-hikvision-01",
@@ -31,9 +33,10 @@ pub fn device() -> SimDevice {
             issue: "#710",
             defect: "answers a getbulk above ten repetitions with genErr and the request echoed; the walk read the echo as a stale row and truncated every table with nothing",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Hikvision DS-3T1512HP-SI-8P4F, V3.3.3 build 260119".into()),
             sys_object_id: Some("1.3.6.1.4.1.39165.1.1".into()),

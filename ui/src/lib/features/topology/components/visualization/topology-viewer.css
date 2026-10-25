@@ -124,3 +124,39 @@
 		height 0.3s ease-in-out,
 		opacity 0.2s ease-in-out;
 }
+
+/* An icon on a topology card, drawn on the element's own ::before so the icon costs one element
+ * (`card-glyph.ts`). `--glyph` is the icon as a CSS url and `--glyph-size` the icon's box. A
+ * monochrome icon is a mask filled with the text colour; a logo is a background image, on the
+ * frame colour `logos.json` gives it. */
+.card-glyph {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+}
+
+.card-glyph::before {
+	content: '';
+	width: var(--glyph-size);
+	height: var(--glyph-size);
+}
+
+.card-glyph[data-glyph-type='mask']::before {
+	background: currentColor;
+	-webkit-mask: var(--glyph) center / contain no-repeat;
+	mask: var(--glyph) center / contain no-repeat;
+}
+
+.card-glyph[data-glyph-type='image']::before {
+	background: var(--glyph) center / contain no-repeat;
+}
+
+/* A state dot centred in its ring, as one element. */
+.card-status-dot::before {
+	content: '';
+	width: 0.625rem;
+	height: 0.625rem;
+	border-radius: 9999px;
+	background: var(--dot);
+}

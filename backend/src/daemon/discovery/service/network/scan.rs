@@ -8,7 +8,8 @@ use crate::daemon::discovery::service::warnings::{
 };
 use crate::daemon::discovery::types::base::DiscoveryCriticalError;
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
-use crate::daemon::utils::app_probe::{ProbeContext, scan_app_probes};
+use crate::daemon::utils::app_probe::tls::scan_certificates;
+use crate::daemon::utils::app_probe::{ProbeContext, scan_app_probes, spotify_connect};
 use crate::daemon::utils::base::{DaemonUtils, PlatformDaemonUtils, filtered_own_nics};
 use crate::daemon::utils::scanner::{
     ScanConcurrencyController, can_arp_scan, scan_endpoints, scan_tcp_ports,
@@ -1662,7 +1663,7 @@ impl NetworkScan {
             port_map: Default::default(),
             tunnel: None,
         };
-        let app_probe_results = scan_app_probes(
+        let mut app_probe_results = scan_app_probes(
             &probe_ctx,
             &open_ports,
             effective_batch_size,
@@ -1670,12 +1671,18 @@ impl NetworkScan {
             true,
         )
         .await;
+        // A probe whose port only the host's mDNS advertisement names, so it runs only where the
+        // browse reached this address.
+        if let Some(dns_sd) = mdns_hosts.get(&ip)
+            && let Some(result) = spotify_connect::probe_advertised(&probe_ctx, dns_sd).await
+        {
+            app_probe_results.push(result);
+        }
         for result in &app_probe_results {
             if !open_ports.contains(&result.port) {
                 open_ports.push(result.port);
             }
         }
-
         // Read once here rather than at the endpoint scan below: integration probes make their
         // own TLS calls and need the same policy.
         let accept_invalid_certs = ops.config_store.get_accept_invalid_scan_certs().await?;
@@ -1754,6 +1761,27 @@ impl NetworkScan {
                 open_ports.push(port);
             }
         }
+
+        // After the endpoint scan, so a port that already answered plain HTTP is not also sent a
+        // ClientHello. A myQ hub serves about one connection at a time: the hello its port 80 sat
+        // on held it while the one on 443 timed out.
+        let plaintext_ports: HashSet<u16> = endpoint_responses
+            .iter()
+            .filter(|response| !response.over_tls)
+            .map(|response| response.endpoint.port_type.number())
+            .collect();
+        let tls_candidates: Vec<PortType> = open_ports
+            .iter()
+            .copied()
+            .filter(|port| !plaintext_ports.contains(&port.number()))
+            .collect();
+        let certificates = scan_certificates(
+            &probe_ctx,
+            &tls_candidates,
+            effective_batch_size,
+            scan_rate_pps,
+        )
+        .await;
 
         // An address nothing answered for has to show evidence beyond the bare connect that got it
         // this far. Everything is in hand by now: the probes have spoken, the endpoints have
@@ -1893,6 +1921,7 @@ impl NetworkScan {
                     // mDNS is link-local, so a routed subnet yields `None` however live the
                     // host is.
                     dns_sd: &dns_sd,
+                    certificates: &certificates,
                 },
                 hostname,
                 self.host_naming_fallback,

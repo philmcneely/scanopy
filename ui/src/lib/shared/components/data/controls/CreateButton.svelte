@@ -29,7 +29,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<button class="btn-primary flex toolbar-control items-center gap-2" {onclick}>
+<button class="btn-primary toolbar-control flex items-center gap-2" {onclick}>
 	{label}
 	{#if shortcuts}
 		<span

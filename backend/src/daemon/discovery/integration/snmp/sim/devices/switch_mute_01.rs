@@ -12,6 +12,8 @@ use super::inline;
 /// `switch_offsite_01::lldp`.
 pub const NAME: &str = "switch-mute-01";
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: NAME,
@@ -20,9 +22,10 @@ pub fn device() -> SimDevice {
             issue: "the partial-failure reporting",
             defect: "answers the credential and serves nothing, which used to read to an operator as a clean scan",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Mute agent, system MIB only".into()),
             sys_object_id: Some("1.3.6.1.4.1.99999.2.1".into()),

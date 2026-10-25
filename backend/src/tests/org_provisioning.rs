@@ -11,16 +11,21 @@ use uuid::Uuid;
 
 use super::self_hosted_licensing::{cloud_test_state, test_state_from};
 use crate::server::{
-    auth::r#impl::base::{PendingSetup, PendingSiteSetup, ProvisionOrg, ProvisionUserParams},
+    auth::{
+        r#impl::base::{PendingSetup, PendingSiteSetup, ProvisionOrg, ProvisionUserParams},
+        middleware::auth::AuthenticatedEntity,
+    },
     billing::types::base::BillingPlan,
     config::{AppState, ServerConfig, get_deployment_type, get_public_config},
-    daemons::r#impl::install_artifacts::DownloadSource,
+    daemons::r#impl::{base::Daemon, install_artifacts::DownloadSource},
     organizations::r#impl::base::UseCase,
     shared::{
         handlers::cache::AppCache,
         services::traits::CrudService,
+        storage::filter::StorableFilter,
         types::{api::ApiError, error_codes::ErrorCode},
     },
+    sites::r#impl::Site,
 };
 
 /// Sign up a new owner with a new org, as registration does.
@@ -116,4 +121,46 @@ async fn cloud_leaves_new_orgs_without_a_plan_and_never_caps_them() {
         DownloadSource::for_server(&state).await,
         DownloadSource::Scarf
     );
+}
+
+/// On a server with an integrated daemon, a new org's site gets one provisioned daemon, and
+/// seeding it again provisions no second one.
+#[tokio::test]
+async fn a_new_orgs_site_gets_the_integrated_daemon_once() {
+    let (state, _container) = test_state_from(ServerConfig {
+        // Nothing listens here: initializing the daemon fails and is logged, provisioning stands.
+        integrated_daemon_url: Some("http://127.0.0.1:1".to_string()),
+        ..ServerConfig::default()
+    })
+    .await;
+    let org = sign_up(&state, "owner@example.com").await.unwrap();
+    state.services.event_bus.flush().await;
+
+    let site_ids: Vec<Uuid> = state
+        .services
+        .site_service
+        .get_all(StorableFilter::<Site>::new_from_org_id(&org))
+        .await
+        .unwrap()
+        .iter()
+        .map(|s| s.id)
+        .collect();
+    let daemons = || async {
+        state
+            .services
+            .daemon_service
+            .get_all(StorableFilter::<Daemon>::new_from_site_ids(&site_ids))
+            .await
+            .unwrap()
+            .len()
+    };
+    assert_eq!(daemons().await, 1);
+
+    state
+        .services
+        .org_setup_service
+        .seed_integrated_daemon(site_ids[0], AuthenticatedEntity::System)
+        .await
+        .unwrap();
+    assert_eq!(daemons().await, 1);
 }

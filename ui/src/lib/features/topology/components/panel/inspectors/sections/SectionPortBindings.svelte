@@ -36,7 +36,7 @@
 
 {#if portBindings.length > 0}
 	<InspectorSection id="PortBindings" section="PortBindings" count={portBindings.length}>
-		<div class="card-static space-y-1 card">
+		<div class="card-static card space-y-1">
 			{#each portBindings as { binding, port } (binding.id)}
 				<div class="flex items-center gap-2 text-sm">
 					<span class="font-mono text-primary">

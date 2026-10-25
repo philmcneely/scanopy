@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{ClientProbe, InstantOnDeviceType, Pattern};
+use crate::server::shared::logos::Logo;
 
 /// The management relationship, not a listening service: this host is administered through the
 /// Instant On cloud portal. It is the credential's `associated_service()`, so matching it is what
@@ -44,8 +45,8 @@ impl ServiceDefinition for InstantOn {
         ])
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/hpe.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Hpe)
     }
 }
 

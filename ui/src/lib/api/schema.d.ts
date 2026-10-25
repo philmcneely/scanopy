@@ -1237,7 +1237,7 @@ export interface paths {
         /**
          * List all Credentials
          * @description Returns all credentials in the authenticated user's organization.
-         *     Optionally filter by type (e.g. `?type=SnmpV2c`).
+         *     Optionally filter by type (e.g. `?type=SnmpCommunity`).
          */
         get: operations["get_all_credentials"];
         put?: never;
@@ -4552,6 +4552,8 @@ export interface components {
                 recent_discoveries: components["schemas"]["RecentDiscovery"][];
                 /** @description Per-site counts for every site the caller can see. */
                 sites: components["schemas"]["SiteSummary"][];
+                /** @description Credentials no scan will send to a daemon, by name. */
+                targetless_credentials: components["schemas"]["TargetlessCredential"][];
                 /** @description Integrations found on hosts with no credential of them, most hosts first. */
                 uncovered_integrations: components["schemas"]["UncoveredIntegration"][];
             };
@@ -7457,7 +7459,7 @@ export interface components {
          *     that do carry a [`ClientProbe`] keep it under their own name, `{"Probe":"Snmp"}`, which tells them
          *     apart from each other and from every bare name.
          */
-        AttributeSource: "Unspecified" | "OwnAddress" | "ServiceMatch" | "LldpNeighbourAddress" | "CipVendorId" | "SysDescrMatch" | "SysObjectIdMatch" | "LldpSysDescMatch" | "SshBannerMatch" | "HttpServerMatch" | "DnsSdDeviceInfoMatch" | "DnsSdAirPlayMatch" | "InterfaceNameMatch" | "DnsSdInstanceName" | "DnsSdHostname" | "LldpChassisId" | "Lldpd" | "ReverseDns" | "ForwardingTable" | "ArpReply" | "IcmpEcho" | "PortScan" | "DaemonSelfReport" | "ProfinetDcp" | "ContainerRuntimeInfo" | "HypervisorConfig" | "GuestAgent" | "SshScript" | {
+        AttributeSource: "Unspecified" | "OwnAddress" | "ServiceMatch" | "LldpNeighbourAddress" | "CipVendorId" | "SysDescrMatch" | "SysObjectIdMatch" | "LldpSysDescMatch" | "SshBannerMatch" | "HttpServerMatch" | "DnsSdDeviceInfoMatch" | "DnsSdAirPlayMatch" | "InterfaceNameMatch" | "DnsSdInstanceName" | "DnsSdHostname" | "DnsSdServicePort" | "LldpChassisId" | "Lldpd" | "ReverseDns" | "ForwardingTable" | "ArpReply" | "IcmpEcho" | "PortScan" | "DaemonSelfReport" | "ProfinetDcp" | "ContainerRuntimeInfo" | "HypervisorConfig" | "GuestAgent" | "SshScript" | {
             /** @description A value the thing emitted about itself, over whatever transport [`ClientProbe`] names. */
             Probe: components["schemas"]["ClientProbe"];
         } | {
@@ -7474,7 +7476,10 @@ export interface components {
              * @description That release's page on the public changelog.
              */
             release_notes_url: string;
-            /** @description Semver of the newest promoted release, without a leading `v`. */
+            /**
+             * @description Semver of the newest promoted release, without a leading `v`.
+             * @example 0.19.0
+             */
             version: string;
         };
         BillingPlan: (components["schemas"]["PlanConfig"] & {
@@ -7799,7 +7804,7 @@ export interface components {
          *     `every_client_probe_variant_has_a_producer` is what now says so.
          * @enum {string}
          */
-        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing";
+        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing" | "Ipp" | "SpotifyConnect" | "Vnc" | "AppleLockdown";
         /** @enum {string} */
         ClockFormat: "browser_default" | "twelve_hour" | "twenty_four_hour";
         /** @enum {string} */
@@ -7832,7 +7837,7 @@ export interface components {
          */
         ContainerNetworkType: "MacVlan" | "IpVlan";
         /** @enum {string} */
-        ContainerType: "Subnet" | "ServiceCategory" | "Application" | "ApplicationUngrouped" | "Root" | "Host" | "NestedTag" | "NestedServiceCategory" | "Hypervisor" | "ContainerRuntime" | "Stack" | "TrunkPort" | "VLAN" | "PortOpStatus";
+        ContainerType: "Subnet" | "ServiceCategory" | "Application" | "ApplicationUngrouped" | "Root" | "Host" | "NestedTag" | "NestedServiceCategory" | "Hypervisor" | "ContainerRuntime" | "Stack" | "TrunkPort" | "VLAN" | "PortOpStatus" | "DeviceType";
         /** @description The ports of one protocol a scan covered at one address. */
         CoveredPorts: {
             /**
@@ -8221,15 +8226,10 @@ export interface components {
          *     Each variant represents a different credential protocol/method.
          */
         CredentialType: {
-            /** @description SNMPv1 community string. */
+            /** @description SNMP community string. */
             community: components["schemas"]["SecretValue"];
             /** @enum {string} */
-            type: "SnmpV1";
-        } | {
-            /** @description SNMPv2c community string. */
-            community: components["schemas"]["SecretValue"];
-            /** @enum {string} */
-            type: "SnmpV2c";
+            type: "SnmpCommunity";
         } | (components["schemas"]["SnmpV3Security_SecretValue"] & {
             /** @description Optional context name (default/empty context used if unset). */
             context_name?: string | null;
@@ -8415,7 +8415,7 @@ export interface components {
             type: "ProxmoxApiToken";
         };
         /** @enum {string} */
-        CredentialTypeDiscriminants: "SnmpV1" | "SnmpV2c" | "SnmpV3" | "Gnmi" | "DockerProxy" | "DockerSocket" | "PodmanProxy" | "PodmanSocket" | "UnifiApiKey" | "UnifiLocalAdmin" | "InstantOnAccount" | "SshPassword" | "SshKey" | "WakeOnLan" | "ProxmoxApiToken";
+        CredentialTypeDiscriminants: "SnmpCommunity" | "SnmpV3" | "Gnmi" | "DockerProxy" | "DockerSocket" | "PodmanProxy" | "PodmanSocket" | "UnifiApiKey" | "UnifiLocalAdmin" | "InstantOnAccount" | "SshPassword" | "SshKey" | "WakeOnLan" | "ProxmoxApiToken";
         Daemon: components["schemas"]["DaemonBase"] & {
             /**
              * Format: date-time
@@ -8784,6 +8784,8 @@ export interface components {
             recent_discoveries: components["schemas"]["RecentDiscovery"][];
             /** @description Per-site counts for every site the caller can see. */
             sites: components["schemas"]["SiteSummary"][];
+            /** @description Credentials no scan will send to a daemon, by name. */
+            targetless_credentials: components["schemas"]["TargetlessCredential"][];
             /** @description Integrations found on hosts with no credential of them, most hosts first. */
             uncovered_integrations: components["schemas"]["UncoveredIntegration"][];
         };
@@ -8967,7 +8969,7 @@ export interface components {
          *     evidence names gets its own variant.
          * @enum {string}
          */
-        DeviceType: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Mobile" | "Industrial" | "IoT" | "Server" | "Unidentified";
+        DeviceType: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Tablet" | "Mobile" | "MediaPlayer" | "Speaker" | "Industrial" | "IoT" | "Server" | "Unidentified";
         Discovery: components["schemas"]["DiscoveryBase"] & {
             /**
              * Format: date-time
@@ -9284,6 +9286,7 @@ export interface components {
              * @description The stored credential the device was read with. `None` from a daemon that predates it.
              */
             credential_id: string | null;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device whose walk fell short. */
             address: string;
@@ -9299,6 +9302,7 @@ export interface components {
              * @description The stored credential the device was read with. `None` from a daemon that predates it.
              */
             credential_id: string | null;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9315,6 +9319,7 @@ export interface components {
              * @description Entries per table that collection stops at.
              */
             limit: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9326,6 +9331,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9337,6 +9343,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9348,6 +9355,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9359,6 +9367,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9370,6 +9379,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9381,6 +9391,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device this group was read from. */
             address: string;
@@ -9393,6 +9404,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device that published the count. */
             address: string;
@@ -9414,6 +9426,7 @@ export interface components {
              * @description Rows the read returned.
              */
             observed: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             source: components["schemas"]["ClaimSource"];
         } | {
             /** @description The device that published the count. */
@@ -9436,6 +9449,7 @@ export interface components {
              * @description Rows the read returned.
              */
             observed: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             source: components["schemas"]["ClaimSource"];
         } | {
             /** @description The device that declared the capability. */
@@ -9448,6 +9462,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             source: components["schemas"]["ClaimSource"];
         } | {
             /** @description The device that declared the capability. */
@@ -9460,6 +9475,7 @@ export interface components {
              */
             credential_id: string | null;
             group: components["schemas"]["SnmpWalkGroup"];
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             source: components["schemas"]["ClaimSource"];
         } | {
             /** @description The device that reported the neighbours. */
@@ -9476,6 +9492,7 @@ export interface components {
              * @description Neighbours discarded for want of a matching interface.
              */
             dropped: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             /**
              * Format: int32
              * @description Neighbours the device reported in all.
@@ -9496,6 +9513,7 @@ export interface components {
              * @description Neighbours discarded for want of a matching interface.
              */
             dropped: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
             /**
              * Format: int32
              * @description Neighbours the device reported in all.
@@ -9516,6 +9534,7 @@ export interface components {
              * @description Neighbours drawn against a port that may be the wrong one.
              */
             misplaced: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | (components["schemas"]["MalformedNeighbours"] & {
             /** @enum {string} */
             code: "MalformedNeighboursWalkCutShort";
@@ -9547,6 +9566,7 @@ export interface components {
              *     which recorded only that nothing came back.
              */
             failures: components["schemas"]["SnmpWalkFailure"][] | null;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         } | {
             /** @description The device whose VLANs could not be recorded. */
             address: string;
@@ -9618,6 +9638,15 @@ export interface components {
              * @example 0.18.0
              */
             last_unsupported_daemon_version: string;
+        } | {
+            /** @enum {string} */
+            code: "CredentialWithoutTarget";
+            /**
+             * Format: uuid
+             * @description The stored credential. `None` once it is deleted.
+             */
+            credential_id: string | null;
+            integration: components["schemas"]["CredentialQueryPayloadDiscriminants"];
         } | {
             /** @description The address the credential is bound to. */
             address: string;
@@ -10066,6 +10095,12 @@ export interface components {
         } | {
             /** @description Whether ELK should use this edge for layout positioning */
             affects_layout: boolean;
+            /**
+             * @description Whether ELK should use this edge to place its endpoints next to each other inside the
+             *     container they share, without it moving any container. Implied by `affects_layout`.
+             *     Defaulted so edges persisted before the field existed still deserialize.
+             */
+            affects_layout_within_container?: boolean;
             /** @description Whether the edge is shown by default or hidden behind a toggle */
             default_visibility: components["schemas"]["EdgeDefaultVisibility"];
             /** @description When this edge contributes to node highlighting on selection */
@@ -10757,7 +10792,7 @@ export interface components {
          *     with the distribution as the name; variants exist for families, not distributions.
          * @enum {string}
          */
-        HostOsFamily: "Linux" | "Windows" | "MacOs" | "Ios" | "TvOs" | "AudioOs" | "FreeBsd" | "OpenBsd" | "NetBsd" | "Solaris" | "Aix" | "HpUx" | "Irix" | "Tru64" | "OpenVms" | "ZOs" | "IbmI" | "UnixWare" | "OpenServer" | "NetWare" | "PalmOs" | "Esxi" | "CiscoIos" | "CiscoIosXe" | "CiscoIosXr" | "CiscoNxOs" | "CiscoCatOs" | "CiscoAsa" | "CiscoFtd" | "Junos" | "ScreenOs" | "ArubaOs" | "Comware" | "ProCurve" | "AristaEos" | "RouterOs" | "HuaweiVrp" | "IronWare" | "BrocadeNetworkOs" | "BayRs" | "PanOs" | "FortiOs" | "SonicOs" | "GaiaOs" | "Ipso" | "DataOntap" | "Ecos";
+        HostOsFamily: "Linux" | "Windows" | "MacOs" | "Ios" | "IpadOs" | "TvOs" | "AudioOs" | "FreeBsd" | "OpenBsd" | "NetBsd" | "Solaris" | "Aix" | "HpUx" | "Irix" | "Tru64" | "OpenVms" | "ZOs" | "IbmI" | "UnixWare" | "OpenServer" | "NetWare" | "PalmOs" | "Esxi" | "CiscoIos" | "CiscoIosXe" | "CiscoIosXr" | "CiscoNxOs" | "CiscoCatOs" | "CiscoAsa" | "CiscoFtd" | "Junos" | "ScreenOs" | "ArubaOs" | "Comware" | "ProCurve" | "AristaEos" | "RouterOs" | "HuaweiVrp" | "IronWare" | "BrocadeNetworkOs" | "BayRs" | "PanOs" | "FortiOs" | "SonicOs" | "GaiaOs" | "Ipso" | "DataOntap" | "Ecos";
         /** @description A file on the scanned host, executed there over SSH. Never read by the daemon. */
         HostPath: string;
         /**
@@ -11190,6 +11225,10 @@ export interface components {
             /** @enum {string} */
             type: "ESXi";
         } | {
+            details: components["schemas"]["LibvirtVirtualization"];
+            /** @enum {string} */
+            type: "Libvirt";
+        } | {
             details: components["schemas"]["ContainerHostVirtualization"];
             /** @enum {string} */
             type: "Docker";
@@ -11403,7 +11442,7 @@ export interface components {
                     /** @description Heading for the subcontainer. Defaults to the tag name. */
                     title?: string | null;
                 };
-            } | "ByHypervisor" | "ByContainerRuntime" | "ByStack" | "ByTrunkPort" | "ByVLAN" | "ByPortOpStatus";
+            } | "ByHypervisor" | "ByContainerRuntime" | "ByStack" | "ByDeviceType" | "ByTrunkPort" | "ByVLAN" | "ByPortOpStatus";
         };
         /**
          * @description SNMP ifAdminStatus values per IF-MIB RFC 2863
@@ -12066,6 +12105,14 @@ export interface components {
             /** @description Subnets the daemon has an interface on, as reported by older daemons. */
             interfaced_subnet_ids: string[];
         };
+        LibvirtVirtualization: {
+            /** @description Whether the domain was running at the last scan. Hand-assigned guests read as running. */
+            state?: components["schemas"]["GuestState"];
+            /** @description libvirt domain UUID of the guest. */
+            vm_id?: string | null;
+            /** @description Domain name as configured in libvirt. */
+            vm_name?: string | null;
+        };
         /**
          * @description A server instance that has checked in with an organization's online key,
          *     as the cloud records it.
@@ -12312,6 +12359,7 @@ export interface components {
              *     topology or all of it.
              */
             kept: number;
+            snmp_version: components["schemas"]["SnmpVersion"] | null;
         };
         /**
          * @description Where on an element card a mark paints.
@@ -14084,7 +14132,10 @@ export interface components {
             title: string;
             /** @description This release on the public changelog. */
             url: string;
-            /** @description The release, as semver (e.g. `0.18.0`). */
+            /**
+             * @description The release, as semver (e.g. `0.18.0`).
+             * @example 0.18.0
+             */
             version: string;
         };
         /** @description The number of a run's warnings on one [`WarningRemedy`] rung. */
@@ -15026,6 +15077,11 @@ export interface components {
             security_level: "AuthPriv";
         };
         /**
+         * @description SNMP protocol version
+         * @enum {string}
+         */
+        SnmpVersion: "V1" | "V2c" | "V3";
+        /**
          * @description How a read that returned nothing ended, as the daemon observed it.
          *
          *     Each value is something the daemon saw on the wire, never an inference about the device: a
@@ -15425,6 +15481,18 @@ export interface components {
         };
         /** @enum {string} */
         Target: "DaemonHost" | "Site" | "Hosts";
+        /** @description A credential with no site or host assignment that no discovery targets, so no daemon receives it. */
+        TargetlessCredential: {
+            /**
+             * Format: uuid
+             * @description The credential.
+             */
+            id: string;
+            /** @description The integration it authenticates. */
+            integration: components["schemas"]["CredentialIntegration"];
+            /** @description Its name. */
+            name: string;
+        };
         /** @description Request to test reachability of a daemon URL. */
         TestReachabilityRequest: {
             /** @description If true, also perform an HTTP GET to {url}/health after the TCP check */
@@ -15747,15 +15815,19 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "f61d5397-b585-4834-b712-1d6c80fb5232",
+             *         "id": "fa941699-7d1f-4471-9917-b62303442770",
+             *         "rule": "ByDeviceType"
+             *       },
+             *       {
+             *         "id": "ff18020a-634f-41aa-a84f-e50b8f697716",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "d60f75db-1e3d-438f-af5b-dad909acab79",
+             *         "id": "b83d3594-a11b-47e1-8219-40c56413875f",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "34dbdc76-1ca6-40db-a080-fa6f763b746d",
+             *         "id": "596b4839-b739-48e0-847c-1e6f6ca1e652",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -19200,7 +19272,7 @@ export interface operations {
     get_all_credentials: {
         parameters: {
             query?: {
-                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several. */
+                /** @description Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several. */
                 type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
                 /** @description Only credentials of one of these integrations. Repeat for several. */
                 integrations?: components["schemas"]["CredentialIntegration"][] | null;
@@ -19367,7 +19439,7 @@ export interface operations {
     export_credentials_csv: {
         parameters: {
             query?: {
-                /** @description Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several. */
+                /** @description Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several. */
                 type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
                 /** @description Only credentials of one of these integrations. Repeat for several. */
                 integrations?: components["schemas"]["CredentialIntegration"][] | null;

@@ -136,7 +136,7 @@
 						{/snippet}
 					</form.Field>
 				</div>
-				<button type="submit" class="mt-3 btn-primary text-sm">{common_submit()}</button>
+				<button type="submit" class="btn-primary mt-3 text-sm">{common_submit()}</button>
 			</form>
 		</div>
 	</section>

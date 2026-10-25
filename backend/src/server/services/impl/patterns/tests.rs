@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
 
+use crate::daemon::utils::app_probe::tls::PortCertificate;
 use crate::server::credentials::r#impl::mapping::SnmpCredentialMapping;
 use crate::server::discovery::r#impl::types::{DiscoveryType, HostNamingFallback};
 use crate::server::ip_addresses::r#impl::base::{MacEvidence, MacEvidenceValue};
@@ -43,9 +44,11 @@ struct TestContext {
     endpoint_responses: Vec<EndpointResponse>,
     virtualization: Option<ServiceVirtualization>,
     matched_services: Vec<Service>,
+    claimed_ports: Vec<PortType>,
     client_responses: std::collections::HashMap<super::ClientProbe, Vec<PortType>>,
     managed_device: Option<super::ManagedDevice>,
     dns_sd: Option<crate::daemon::discovery::service::network::mdns::DnsSdHost>,
+    certificates: Vec<crate::daemon::utils::app_probe::tls::PortCertificate>,
 }
 
 impl TestContext {
@@ -62,6 +65,7 @@ impl TestContext {
             body: "Pi-hole".to_string(),
             headers: HashMap::new(),
             status: 200,
+            over_tls: false,
         }];
 
         Self {
@@ -80,9 +84,11 @@ impl TestContext {
             endpoint_responses,
             virtualization: None,
             matched_services: vec![],
+            claimed_ports: vec![],
             client_responses: std::collections::HashMap::new(),
             managed_device: None,
             dns_sd: None,
+            certificates: Vec::new(),
         }
     }
 
@@ -101,6 +107,7 @@ impl TestContext {
             service_params: ServiceMatchServiceParams {
                 service_definition: self.pi.clone(),
                 matched_services: &self.matched_services,
+                claimed_ports: &self.claimed_ports,
                 unbound_ports,
             },
         }
@@ -120,6 +127,7 @@ impl TestContext {
             client_responses: &self.client_responses,
             managed_device: &self.managed_device,
             dns_sd: &self.dns_sd,
+            certificates: &self.certificates,
         }
     }
 }
@@ -330,6 +338,7 @@ fn definition_matches_status(
             .map(|(name, value)| (name.to_string(), value.to_string()))
             .collect(),
         status,
+        over_tls: false,
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -342,6 +351,7 @@ fn definition_matches_status(
         client_responses: &client_responses,
         managed_device: &None,
         dns_sd: &None,
+        certificates: &[],
     };
     let params = DiscoverySessionServiceMatchParams {
         host_id: &ctx.host_id,
@@ -353,6 +363,7 @@ fn definition_matches_status(
         service_params: ServiceMatchServiceParams {
             service_definition: service.clone(),
             matched_services: &ctx.matched_services,
+            claimed_ports: &ctx.claimed_ports,
             unbound_ports: &ports,
         },
     };
@@ -606,6 +617,7 @@ fn test_jenkins_https_header_detection() {
         body: "Authentication required".to_string(),
         headers: HashMap::from([("x-jenkins".to_string(), "2.541.3".to_string())]),
         status: 403,
+        over_tls: false,
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -618,6 +630,7 @@ fn test_jenkins_https_header_detection() {
         client_responses: &client_responses,
         managed_device: &None,
         dns_sd: &None,
+        certificates: &[],
     };
     let params = DiscoverySessionServiceMatchParams {
         host_id: &ctx.host_id,
@@ -629,6 +642,7 @@ fn test_jenkins_https_header_detection() {
         service_params: ServiceMatchServiceParams {
             service_definition: service.clone(),
             matched_services: &ctx.matched_services,
+            claimed_ports: &ctx.claimed_ports,
             unbound_ports: &ports,
         },
     };
@@ -653,6 +667,7 @@ fn test_jenkins_http8080_body_detection() {
         body: "powered by jenkins.io".to_string(),
         headers: HashMap::new(),
         status: 200,
+        over_tls: false,
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -665,6 +680,7 @@ fn test_jenkins_http8080_body_detection() {
         client_responses: &client_responses,
         managed_device: &None,
         dns_sd: &None,
+        certificates: &[],
     };
     let params = DiscoverySessionServiceMatchParams {
         host_id: &ctx.host_id,
@@ -676,6 +692,7 @@ fn test_jenkins_http8080_body_detection() {
         service_params: ServiceMatchServiceParams {
             service_definition: service.clone(),
             matched_services: &ctx.matched_services,
+            claimed_ports: &ctx.claimed_ports,
             unbound_ports: &ports,
         },
     };
@@ -939,6 +956,48 @@ fn an_apple_tv_is_identified_by_its_announcement_and_only_by_it() {
     }
 }
 
+/// iPhones and iPads are told apart by the `_device-info` model prefix, including models newer
+/// than any exact identifier Recog lists, and a Mac's model matches neither.
+#[test]
+fn iphones_and_ipads_are_identified_by_their_device_info_model() {
+    use crate::server::services::definitions::{ipad::IPad, iphone::IPhone};
+
+    let ports = vec![];
+    let phone_pattern = IPhone.discovery_pattern();
+    let tablet_pattern = IPad.discovery_pattern();
+
+    for (label, model, phone_matches, tablet_matches) in [
+        (
+            "an iPhone newer than Recog's list",
+            "model=iPhone17,1",
+            true,
+            false,
+        ),
+        (
+            "an iPad newer than Recog's list",
+            "model=iPad16,3",
+            false,
+            true,
+        ),
+        ("a MacBook", "model=Mac17,2", false, false),
+    ] {
+        let mut ctx = TestContext::new();
+        ctx.dns_sd = Some(announcing(&[(DnsSdServiceType::DEVICE_INFO, &[model][..])]));
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
+        assert_eq!(
+            phone_pattern.matches(&params).is_ok(),
+            phone_matches,
+            "{label} vs the iPhone definition"
+        );
+        assert_eq!(
+            tablet_pattern.matches(&params).is_ok(),
+            tablet_matches,
+            "{label} vs the iPad definition"
+        );
+    }
+}
+
 /// "The browse never reached this host" and "the host does not run this service" are different
 /// statements, and the difference is not cosmetic: mDNS is link-local, so a device on a routed
 /// subnet can run the service and never be asked. The reason text has to say which happened,
@@ -1031,4 +1090,754 @@ fn a_loopback_address_is_never_a_gateway() {
     assert!(matches_gateway("192.168.1.1", vec![]));
     // The routing-table rule.
     assert!(!matches_gateway("127.0.0.1", vec![ip("127.0.0.1")]));
+}
+
+/// A host announcing `service_type` with `txt`, on `port` in its SRV record.
+fn announcing_on(
+    service_type: &str,
+    txt: &[&str],
+    port: u16,
+) -> crate::daemon::discovery::service::network::mdns::DnsSdHost {
+    let mut host = announcing(&[(service_type, txt)]);
+    host.ports.insert(service_type.to_string(), port);
+    host
+}
+
+/// A DnsSd match binds the port the SRV record names: the scanned port when the scan found it, a
+/// port from the advertisement when the scan did not cover it, and none for a TXT-only service.
+#[test]
+fn a_dns_sd_match_binds_the_advertised_port() {
+    use crate::server::services::definitions::{
+        airprint_printer::AirPrintPrinter, homepod::HomePod, iphone::IPhone,
+    };
+
+    let mut ctx = TestContext::new();
+    let scanned = vec![PortType::Ipp];
+    ctx.dns_sd = Some(announcing_on("_ipp._tcp", &[], 631));
+    let baseline = ctx.create_baseline_params(&scanned);
+    let params = ctx.create_params_with_ports(&baseline, &scanned);
+    let printer = AirPrintPrinter
+        .discovery_pattern()
+        .matches(&params)
+        .expect("an advertised printer matches");
+    assert_eq!(printer.ports, vec![PortType::Ipp]);
+
+    // AirPlay's 7000 is not in the scan list; the speaker said it listens there.
+    let none = vec![];
+    ctx.dns_sd = Some(announcing_on(
+        "_airplay._tcp",
+        &["model=AudioAccessory5,1"],
+        7000,
+    ));
+    let baseline = ctx.create_baseline_params(&none);
+    let params = ctx.create_params_with_ports(&baseline, &none);
+    let pod = HomePod
+        .discovery_pattern()
+        .matches(&params)
+        .expect("a HomePod matches");
+    assert_eq!(pod.ports, vec![PortType::new_tcp(7000)]);
+
+    // `_device-info` advertises port 0, so the wire parser records no port for it.
+    ctx.dns_sd = Some(announcing(&[("_device-info._tcp", &["model=iPhone17,1"])]));
+    let baseline = ctx.create_baseline_params(&none);
+    let params = ctx.create_params_with_ports(&baseline, &none);
+    let phone = IPhone
+        .discovery_pattern()
+        .matches(&params)
+        .expect("an iPhone matches");
+    assert!(phone.ports.is_empty());
+}
+
+/// A port a service matched earlier this round holds is not bound a second time, and that claim
+/// does not make `Not(DnsSd(..))` read as the host not advertising the service.
+#[test]
+fn a_claimed_advertised_port_is_not_bound_twice() {
+    use crate::server::services::definitions::{
+        airprint_printer::AirPrintPrinter, homekit_accessory::HomeKitAccessory,
+    };
+
+    let mut ctx = TestContext::new();
+    let scanned = vec![PortType::Ipp];
+    ctx.dns_sd = Some(announcing_on("_ipp._tcp", &[], 631));
+    ctx.claimed_ports = vec![PortType::Ipp];
+    let unbound = vec![];
+    let baseline = ctx.create_baseline_params(&scanned);
+    let params = ctx.create_params_with_ports(&baseline, &unbound);
+    assert!(
+        AirPrintPrinter
+            .discovery_pattern()
+            .matches(&params)
+            .is_err(),
+        "CUPS already holds 631"
+    );
+
+    // An Apple hub advertises HAP and AirPlay. With its AirPlay port held by the Apple TV
+    // service, it still advertises AirPlay, so it is still not a HomeKit accessory.
+    let mut hub = announcing_on("_airplay._tcp", &["model=AppleTV14,1"], 7000);
+    hub.services
+        .insert("_hap._tcp".to_string(), Default::default());
+    ctx.dns_sd = Some(hub);
+    ctx.claimed_ports = vec![PortType::new_tcp(7000)];
+    let none = vec![];
+    let baseline = ctx.create_baseline_params(&none);
+    let params = ctx.create_params_with_ports(&baseline, &none);
+    assert!(
+        HomeKitAccessory
+            .discovery_pattern()
+            .matches(&params)
+            .is_err()
+    );
+}
+
+/// One response a host gave during the scan: port, path, status, headers, body.
+type Response<'a> = (PortType, &'a str, u16, &'a [(&'a str, &'a str)], &'a str);
+
+/// Whether the registered definition `id` matches a host with `mac`, open `ports`, and these
+/// `responses`.
+fn definition_matches_host(
+    id: &str,
+    mac: &str,
+    ports: &[PortType],
+    responses: &[Response],
+) -> bool {
+    definition_binds_on_host(id, mac, ports, responses).is_some()
+}
+
+/// The ports the registered definition `id` binds on that host, if it matches.
+fn definition_binds_on_host(
+    id: &str,
+    mac: &str,
+    ports: &[PortType],
+    responses: &[Response],
+) -> Option<Vec<PortType>> {
+    definition_binds_with_certificates(id, mac, ports, responses, &[])
+}
+
+/// [`definition_binds_on_host`] for a host whose TLS ports presented `(port, issuer)` certificates.
+fn definition_binds_with_certificates(
+    id: &str,
+    mac: &str,
+    ports: &[PortType],
+    responses: &[Response],
+    certificates: &[(PortType, &str)],
+) -> Option<Vec<PortType>> {
+    let mut ctx = TestContext::new();
+    ctx.certificates = certificates
+        .iter()
+        .map(|(port, issuer)| PortCertificate {
+            port: *port,
+            subject: "CN=device".to_string(),
+            issuer: issuer.to_string(),
+        })
+        .collect();
+    ctx.ip_address.base.mac_address = Some(MacEvidence::new(
+        MacEvidenceValue(mac.parse().expect("valid MAC")),
+        AttributeSource::ArpReply,
+    ));
+    ctx.pi =
+        ServiceDefinitionRegistry::find_by_id(id).unwrap_or_else(|| panic!("{id} is registered"));
+    ctx.endpoint_responses = responses
+        .iter()
+        .map(|(port, path, status, headers, body)| EndpointResponse {
+            endpoint: Endpoint::for_pattern(*port, path).use_ip(ctx.ip_address.base.ip_address),
+            body: body.to_string(),
+            headers: headers
+                .iter()
+                .map(|(name, value)| (name.to_string(), value.to_string()))
+                .collect(),
+            status: *status,
+            over_tls: false,
+        })
+        .collect();
+    let ports = ports.to_vec();
+    let baseline = ctx.create_baseline_params(&ports);
+    let params = ctx.create_params_with_ports(&baseline, &ports);
+    ctx.pi
+        .discovery_pattern()
+        .matches(&params)
+        .ok()
+        .map(|matched| matched.ports)
+}
+
+/// TP-Link's newer OUI, on a Kasa HS103.
+const TPLINK_SYSTEMS_MAC: &str = "8C:86:DD:00:00:01";
+/// A Sonos OUI, standing in for any vendor the definitions do not name.
+const OTHER_MAC: &str = "B8:E9:37:00:00:01";
+
+/// What a Kasa plug sends on 80: the `SHIP 2.0` server header and a bare page.
+#[test]
+fn a_kasa_plug_is_identified_by_its_server_header_on_a_tp_link_mac() {
+    let ship: Response = (
+        PortType::Http,
+        "/",
+        200,
+        &[("server", "SHIP 2.0")],
+        "<html><body><center>200 OK</center></body></html>",
+    );
+    let ports = [PortType::Http];
+    assert!(definition_matches_host(
+        "TP-Link Kasa",
+        TPLINK_SYSTEMS_MAC,
+        &ports,
+        &[ship]
+    ));
+    // The older TP-Link OUI ships on earlier Kasa hardware.
+    assert!(definition_matches_host(
+        "TP-Link Kasa",
+        "50:C7:BF:00:00:01",
+        &ports,
+        &[ship]
+    ));
+    assert!(!definition_matches_host(
+        "TP-Link Kasa",
+        OTHER_MAC,
+        &ports,
+        &[ship]
+    ));
+    let plain: Response = (PortType::Http, "/", 200, &[("server", "nginx")], "200 OK");
+    assert!(!definition_matches_host(
+        "TP-Link Kasa",
+        TPLINK_SYSTEMS_MAC,
+        &ports,
+        &[plain]
+    ));
+}
+
+/// A Google Wifi point answers `/` with a 404 and reports itself `leaf` on its status API; the
+/// mesh root reports `root` there and is the router's.
+#[test]
+fn a_mesh_point_is_identified_by_its_status_api_role() {
+    let google_mac = "B0:2A:43:00:00:01";
+    let ports = [PortType::Http];
+    let status = |role: &'static str| -> String {
+        format!(
+            "{{\n   \"setupState\": \"GWIFI_OOBE_COMPLETE\",\n   \"system\": {{\n      \
+             \"groupRole\": \"{role}\",\n      \"hardwareId\": \"GALE\"\n   }}\n}}"
+        )
+    };
+    let leaf = status("leaf");
+    let root = status("root");
+    assert!(definition_matches_host(
+        "Google Nest Repeater",
+        google_mac,
+        &ports,
+        &[(PortType::Http, "/api/v1/status", 200, &[], &leaf)]
+    ));
+    assert!(!definition_matches_host(
+        "Google Nest Repeater",
+        google_mac,
+        &ports,
+        &[(PortType::Http, "/api/v1/status", 200, &[], &root)]
+    ));
+    // The page the root serves still identifies a unit that serves it.
+    assert!(definition_matches_host(
+        "Google Nest Repeater",
+        google_mac,
+        &ports,
+        &[(PortType::Http, "/", 200, &[], "<title>Nest Wifi</title>")]
+    ));
+}
+
+/// Where the response identifies only a generic embedded web server, the OUI identifies the
+/// product, and an open port gives the service something to bind.
+#[test]
+fn appliances_with_generic_web_servers_are_identified_by_their_oui() {
+    let http = [PortType::Http];
+    for (id, mac) in [
+        ("Home Connect Appliance", "68:A4:0E:00:00:01"),
+        ("myQ", "64:52:99:00:00:01"),
+        ("Bose Speaker", "C8:7B:23:00:00:01"),
+    ] {
+        assert!(definition_matches_host(id, mac, &http, &[]), "{id}");
+        assert!(
+            !definition_matches_host(id, OTHER_MAC, &http, &[]),
+            "{id} on another vendor's MAC"
+        );
+        assert!(
+            !definition_matches_host(id, mac, &[], &[]),
+            "{id} with nothing open"
+        );
+    }
+    assert!(definition_matches_host(
+        "Bose Speaker",
+        "C8:7B:23:00:00:01",
+        &[PortType::new_tcp(8091)],
+        &[]
+    ));
+}
+
+/// Spotify Connect binds the port its advertisement names, whatever the vendor chose.
+#[test]
+fn spotify_connect_binds_its_advertised_port() {
+    use crate::server::services::definitions::spotify_connect::SpotifyConnect;
+
+    let mut ctx = TestContext::new();
+    ctx.dns_sd = Some(announcing_on(
+        super::DnsSdServiceType::SPOTIFY_CONNECT,
+        &["cpath=/zc"],
+        8200,
+    ));
+    let none = vec![];
+    let baseline = ctx.create_baseline_params(&none);
+    let params = ctx.create_params_with_ports(&baseline, &none);
+    let matched = SpotifyConnect
+        .discovery_pattern()
+        .matches(&params)
+        .expect("an advertised receiver matches");
+    assert_eq!(matched.ports, vec![PortType::new_tcp(8200)]);
+}
+
+/// Issuers as a live Chromecast Ultra, Nest Mini, Bose amp and Sonos presented them.
+const CAST_VIDEO_ISSUER: &str =
+    "CN=Chromecast ICA 5 (4K),OU=Cast,O=Google Inc,L=Mountain View,ST=California,C=US";
+const CAST_AUDIO_ISSUER: &str =
+    "CN=Chromecast ICA 16 (Audio Assist 4),OU=Cast,O=Google Inc,L=Mountain View,ST=California,C=US";
+const CAST_HOME_ISSUER: &str =
+    "CN=Usonia us-east1 ICA,OU=Cast,O=Google Inc,L=Mountain View,ST=California,C=US";
+
+/// The Cast device certificate routes a receiver: a video CA to Chromecast, an `Audio Assist` CA to
+/// Google Home. Each binds every port signed under Google's Cast CAs, on whatever numbers the unit
+/// opened, and still matches on its ports alone when no certificate was read.
+#[test]
+fn cast_receivers_are_told_apart_and_bound_by_their_certificates() {
+    let google_mac = "7C:D9:5C:00:00:01";
+    let cast = [PortType::new_tcp(8008), PortType::new_tcp(8009)];
+    let with_tls = |extra: &[u16]| {
+        let mut ports = cast.to_vec();
+        ports.extend(extra.iter().map(|p| PortType::new_tcp(*p)));
+        ports
+    };
+
+    // Den TV: 4K Chromecast.
+    let den_tv_ports = with_tls(&[9000, 10001, 10101]);
+    let den_tv = [
+        (PortType::new_tcp(9000), CAST_VIDEO_ISSUER),
+        (PortType::new_tcp(10001), CAST_VIDEO_ISSUER),
+        (PortType::new_tcp(10101), CAST_HOME_ISSUER),
+    ];
+    let bound =
+        definition_binds_with_certificates("Chromecast", google_mac, &den_tv_ports, &[], &den_tv)
+            .expect("a video Cast receiver is a Chromecast");
+    for port in [9000, 10001, 10101] {
+        assert!(
+            bound.contains(&PortType::new_tcp(port)),
+            "Chromecast binds {port}"
+        );
+    }
+    assert!(
+        definition_binds_with_certificates("Google Home", google_mac, &den_tv_ports, &[], &den_tv)
+            .is_none(),
+        "a video Cast receiver is no Google Home"
+    );
+
+    // Dining Room speaker: Nest Mini.
+    let mini_ports = with_tls(&[11101, 10005]);
+    let mini = [
+        (PortType::new_tcp(11101), CAST_AUDIO_ISSUER),
+        (PortType::new_tcp(10005), CAST_HOME_ISSUER),
+    ];
+    let bound =
+        definition_binds_with_certificates("Google Home", google_mac, &mini_ports, &[], &mini)
+            .expect("an audio Cast receiver is a Google Home");
+    assert!(bound.contains(&PortType::new_tcp(11101)) && bound.contains(&PortType::new_tcp(10005)));
+    assert!(
+        definition_binds_with_certificates("Chromecast", google_mac, &mini_ports, &[], &mini)
+            .is_none(),
+        "an audio Cast receiver is no Chromecast"
+    );
+
+    // No certificate read: the port pair still identifies both, as before.
+    for id in ["Chromecast", "Google Home"] {
+        assert!(definition_matches_host(id, google_mac, &cast, &[]), "{id}");
+    }
+}
+
+/// Bose and Sonos sign their TLS ports with their own CAs, which binds ports their port lists do
+/// not name.
+#[test]
+fn speaker_vendors_bind_ports_their_certificates_sign() {
+    let bose_mac = "C8:7B:23:00:00:01";
+    let bose_ports: Vec<PortType> = [80, 8082, 8087, 10003]
+        .into_iter()
+        .map(PortType::new_tcp)
+        .collect();
+    let bose_issuer = "CN=Bose CEPD Device CA - PSE2,OU=Consumer Electronics Product Division,O=Bose Corporation,C=US";
+    let bound = definition_binds_with_certificates(
+        "Bose Speaker",
+        bose_mac,
+        &bose_ports,
+        &[],
+        &[
+            (PortType::new_tcp(8082), bose_issuer),
+            (PortType::new_tcp(8087), bose_issuer),
+            (PortType::new_tcp(10003), bose_issuer),
+        ],
+    )
+    .expect("a Bose speaker matches");
+    for port in [8082, 8087, 10003] {
+        assert!(
+            bound.contains(&PortType::new_tcp(port)),
+            "Bose binds {port}"
+        );
+    }
+
+    let sonos_mac = "B8:E9:37:00:00:01";
+    let sonos_ports = [PortType::new_tcp(1400), PortType::new_tcp(1443)];
+    let bound = definition_binds_with_certificates(
+        "Sonos Speaker",
+        sonos_mac,
+        &sonos_ports,
+        &[],
+        &[(
+            PortType::new_tcp(1443),
+            "CN=Sonos Device Authentication Root CA,OU=Sonos Devices,O=Sonos\\, Inc,L=Santa Barbara,ST=California,C=US",
+        )],
+    )
+    .expect("a Sonos speaker matches");
+    assert!(bound.contains(&PortType::new_tcp(1443)));
+}
+
+/// `CertificateIssuer` holds as evidence whichever service took the port, binds only ports still
+/// unbound, and `Not` of it asks about the host.
+#[test]
+fn a_certificate_issuer_is_host_evidence_and_binds_only_unbound_ports() {
+    let mut ctx = TestContext::new();
+    ctx.certificates = vec![
+        PortCertificate {
+            port: PortType::new_tcp(9000),
+            subject: "CN=a".to_string(),
+            issuer: CAST_VIDEO_ISSUER.to_string(),
+        },
+        PortCertificate {
+            port: PortType::new_tcp(10001),
+            subject: "CN=b".to_string(),
+            issuer: CAST_VIDEO_ISSUER.to_string(),
+        },
+    ];
+    let all = vec![PortType::new_tcp(9000), PortType::new_tcp(10001)];
+    // 9000 is already held by another service.
+    let unbound = vec![PortType::new_tcp(10001)];
+    let baseline = ctx.create_baseline_params(&all);
+    let params = ctx.create_params_with_ports(&baseline, &unbound);
+
+    let matched = Pattern::CertificateIssuer("ou=cast", &[])
+        .matches(&params)
+        .expect("case-insensitive issuer match");
+    assert_eq!(matched.ports, vec![PortType::new_tcp(10001)]);
+
+    assert!(
+        Pattern::Not(Box::new(Pattern::CertificateIssuer("Chromecast ICA", &[])))
+            .matches(&params)
+            .is_err()
+    );
+    assert!(
+        Pattern::CertificateIssuer("Bose", &[])
+            .matches(&params)
+            .is_err()
+    );
+}
+
+/// macOS's AirPlay Receiver and MiniUPnPd both answer `/` on 5000 with an error status, and the
+/// `Server` header is what names them.
+#[test]
+fn port_5000_is_identified_by_its_server_header_on_an_error_response() {
+    let ports = [PortType::Http5000];
+    let airtunes: Response = (
+        PortType::Http5000,
+        "/",
+        403,
+        &[("server", "AirTunes/980.77.5")],
+        "",
+    );
+    let miniupnpd: Response = (
+        PortType::Http5000,
+        "/",
+        404,
+        &[("server", "Linux/5.4.0-122-generic UPnP/1.1 MiniUPnPd/1.9")],
+        "",
+    );
+    assert!(definition_matches_host(
+        "AirPlay Receiver",
+        OTHER_MAC,
+        &ports,
+        &[airtunes]
+    ));
+    assert!(!definition_matches_host(
+        "AirPlay Receiver",
+        OTHER_MAC,
+        &ports,
+        &[miniupnpd]
+    ));
+    // AirPlay 2 receivers (Sonos, Bose, Macs) answer the same way on 7000.
+    let airplay_2: Response = (
+        PortType::new_tcp(7000),
+        "/",
+        404,
+        &[("server", "AirTunes/366.0")],
+        "",
+    );
+    assert!(definition_matches_host(
+        "AirPlay Receiver",
+        OTHER_MAC,
+        &[PortType::new_tcp(7000)],
+        &[airplay_2]
+    ));
+    assert!(definition_matches_host(
+        "UPnP IGD",
+        OTHER_MAC,
+        &ports,
+        &[miniupnpd]
+    ));
+    assert!(!definition_matches_host(
+        "UPnP IGD",
+        OTHER_MAC,
+        &ports,
+        &[airtunes]
+    ));
+}
+
+/// The Brother OUI names the printer without any HTTP response, and it binds the web and LPD ports
+/// it finds open.
+#[test]
+fn a_brother_printer_is_identified_by_its_oui_and_binds_web_and_lpd() {
+    let brother_mac = "30:05:5C:00:00:01";
+    let bound = definition_binds_on_host(
+        "Brother Printer",
+        brother_mac,
+        &[PortType::Http, PortType::LdpTcp],
+        &[],
+    )
+    .expect("a Brother printer matches");
+    assert!(bound.contains(&PortType::Http) && bound.contains(&PortType::LdpTcp));
+    assert!(!definition_matches_host(
+        "Brother Printer",
+        OTHER_MAC,
+        &[PortType::Http, PortType::LdpTcp],
+        &[]
+    ));
+    assert!(!definition_matches_host(
+        "Brother Printer",
+        brother_mac,
+        &[],
+        &[]
+    ));
+}
+
+/// A web page and a Telnet console make a Switch only on a host with no port that names another
+/// kind of device. The Brother HL-2270DW shows both, alongside its print ports.
+#[test]
+fn a_host_with_an_end_device_port_is_no_switch() {
+    use crate::server::services::definitions::switch::Switch;
+
+    let switch_matches = |extra: Option<PortType>| {
+        let mut ctx = TestContext::new();
+        ctx.client_responses
+            .insert(super::ClientProbe::Telnet, vec![PortType::Telnet]);
+        let mut ports = vec![PortType::Http, PortType::Telnet];
+        ports.extend(extra);
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
+        Switch.discovery_pattern().matches(&params).is_ok()
+    };
+
+    assert!(switch_matches(None), "web + Telnet alone is a switch");
+    for port in [
+        PortType::Ipp,
+        PortType::LdpTcp,
+        PortType::JetDirect,
+        PortType::Rtsp,
+        PortType::Sip,
+        PortType::Samba,
+        PortType::Nfs,
+        PortType::Rdp,
+    ] {
+        assert!(!switch_matches(Some(port)), "{port} rules out a switch");
+    }
+    // A managed industrial switch serves EtherNet/IP itself.
+    assert!(switch_matches(Some(PortType::EtherNetIp)));
+}
+
+/// ESP-IDF's default 404 on an Espressif MAC; the same body elsewhere, or a 200, is not it.
+#[test]
+fn an_esp_idf_web_server_is_identified_by_its_default_404() {
+    let espressif_mac = "0C:B8:15:00:00:01";
+    let ports = [PortType::Http];
+    let not_found: Response = (PortType::Http, "/", 404, &[], "This URI does not exist");
+    // ESP-IDF v5.0 reworded the default 404.
+    let not_found_v5: Response = (
+        PortType::Http,
+        "/",
+        404,
+        &[],
+        "Nothing matches the given URI",
+    );
+    for response in [not_found, not_found_v5] {
+        assert!(definition_matches_host(
+            "Espressif Device",
+            espressif_mac,
+            &ports,
+            &[response]
+        ));
+    }
+    assert!(!definition_matches_host(
+        "Espressif Device",
+        OTHER_MAC,
+        &ports,
+        &[not_found]
+    ));
+    assert!(!definition_matches_host(
+        "Espressif Device",
+        espressif_mac,
+        &ports,
+        &[(PortType::Http, "/", 200, &[], "<title>WLED</title>")]
+    ));
+}
+
+/// Every `Endpoint` pattern schedules its own request, whatever status range it accepts: a ranged
+/// endpoint that waits on another definition to request the same path never matches.
+#[test]
+fn every_endpoint_pattern_schedules_its_own_request() {
+    let pattern = Pattern::Endpoint(PortType::Http, "/only-here", "x", Some(404..405));
+    assert!(pattern.endpoints().iter().any(|e| e.path == "/only-here"));
+}
+
+/// Bodies a device sends for every path it is asked for, whatever the path. A Kasa plug answers
+/// `/bigbluebutton/api` and `/ipa/ui` with its one page; an SPA serves its shell; some servers echo
+/// the path they did not find, with a 200.
+const CATCH_ALL_BODIES: &[(&str, &str)] = &[
+    (
+        "Kasa page",
+        "<html><body><center>200 OK</center></body></html>",
+    ),
+    ("empty body", ""),
+    (
+        "SPA shell",
+        "<!doctype html><html><head><title>App</title></head><body><div id=\"app\"></div></body></html>",
+    ),
+    ("path echo", "<html><body>No page at {path}</body></html>"),
+];
+
+/// No definition matches on what a catch-all web server says for every path. Each definition is
+/// put to a host that has open exactly the ports its endpoints use and answers each request with
+/// one catch-all body at 200. A match there that the same host does not give with no responses at
+/// all came from the endpoint text alone, which a catch-all server cannot be trusted to mean.
+#[test]
+fn no_definition_matches_a_catch_all_web_server() {
+    // Nokia Shanghai Bell: a vendor no definition names.
+    let unlisted_mac = "28:6F:B9:00:00:01";
+    let mut false_positives = Vec::new();
+
+    for definition in ServiceDefinitionRegistry::all_service_definitions() {
+        let endpoints = definition.discovery_pattern().endpoints();
+        if endpoints.is_empty() {
+            continue;
+        }
+        let mut ports: Vec<PortType> = endpoints.iter().map(|e| e.port_type).collect();
+        ports.sort_by_key(|p| (p.number(), p.protocol()));
+        ports.dedup();
+
+        let matches_with = |body: Option<&str>| {
+            let mut ctx = TestContext::new();
+            ctx.ip_address.base.mac_address = Some(MacEvidence::new(
+                MacEvidenceValue(unlisted_mac.parse().expect("valid MAC")),
+                AttributeSource::ArpReply,
+            ));
+            ctx.pi = definition.clone();
+            if let Some(body) = body {
+                ctx.endpoint_responses = endpoints
+                    .iter()
+                    .map(|endpoint| EndpointResponse {
+                        endpoint: endpoint.use_ip(ctx.ip_address.base.ip_address),
+                        body: body.replace("{path}", &endpoint.path),
+                        headers: HashMap::new(),
+                        status: 200,
+                        over_tls: false,
+                    })
+                    .collect();
+            }
+            let baseline = ctx.create_baseline_params(&ports);
+            let params = ctx.create_params_with_ports(&baseline, &ports);
+            ctx.pi.discovery_pattern().matches(&params).is_ok()
+        };
+
+        if matches_with(None) {
+            continue;
+        }
+        for (shape, body) in CATCH_ALL_BODIES {
+            if matches_with(Some(body)) {
+                false_positives.push(format!("{} ({shape})", definition.name()));
+            }
+        }
+    }
+
+    assert!(
+        false_positives.is_empty(),
+        "definitions matching a catch-all web server: {false_positives:?}"
+    );
+}
+
+/// A Pulse hub's HomeKit advertisement names its model; another HomeKit bridge's does not.
+#[test]
+fn a_pulse_hub_is_identified_by_its_homekit_model() {
+    use crate::server::services::definitions::rollease_acmeda_pulse::RolleaseAcmedaPulse;
+
+    let matches_with = |txt: &[&str]| {
+        let mut ctx = TestContext::new();
+        ctx.dns_sd = Some(announcing_on(super::DnsSdServiceType::HOMEKIT, txt, 80));
+        let ports = vec![PortType::Http];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
+        RolleaseAcmedaPulse
+            .discovery_pattern()
+            .matches(&params)
+            .ok()
+    };
+
+    // The TXT record a Pulse 2 hub advertised.
+    let matched = matches_with(&["ci=2", "md=MT02-0401-067001", "pv=1.1"])
+        .expect("the Pulse model string identifies the hub");
+    assert_eq!(matched.ports, vec![PortType::Http]);
+    assert!(matches_with(&["ci=2", "md=Hue Bridge"]).is_none());
+}
+
+/// A certificate issuer's ports go into the light scan, and an open one is still not evidence:
+/// only a certificate from that issuer is.
+#[test]
+fn certificate_issuer_ports_are_scanned_but_are_not_evidence() {
+    let pattern = Pattern::CertificateIssuer("O=Sonos", &[1443]);
+    assert_eq!(pattern.ports(), vec![PortType::new_tcp(1443)]);
+
+    let ctx = TestContext::new();
+    let open = vec![PortType::new_tcp(1443)];
+    let baseline = ctx.create_baseline_params(&open);
+    let params = ctx.create_params_with_ports(&baseline, &open);
+    assert!(
+        pattern.matches(&params).is_err(),
+        "an open port without a certificate is no match"
+    );
+
+    // And every definition that lists ports for an issuer puts them into the scan.
+    let chromecast =
+        ServiceDefinitionRegistry::find_by_id("Chromecast").expect("Chromecast is registered");
+    assert!(
+        chromecast
+            .discovery_pattern()
+            .ports()
+            .contains(&PortType::new_tcp(10101))
+    );
+}
+
+/// A myQ hub's setup server on 443 presents its own `setup.myqdevice.com` certificate.
+#[test]
+fn a_myq_hub_binds_its_setup_server_by_its_certificate() {
+    let chamberlain_mac = "64:52:99:00:00:01";
+    let bound = definition_binds_with_certificates(
+        "myQ",
+        chamberlain_mac,
+        &[PortType::Http, PortType::Https],
+        &[],
+        &[(PortType::Https, "CN=setup.myqdevice.com,O=CGI,C=US")],
+    )
+    .expect("a myQ hub matches");
+    assert!(bound.contains(&PortType::Http) && bound.contains(&PortType::Https));
 }

@@ -267,6 +267,7 @@ impl ViewBuilder for L2Builder {
                             .and_then(|e| e.base.vlan_ids.as_ref())
                             .is_some_and(|v| !v.is_empty()),
                         oper_status: interface.and_then(|e| e.base.oper_status),
+                        device_type: None,
                     })
                 } else {
                     None

@@ -1,10 +1,14 @@
-import { createRawSnippet, mount, unmount } from 'svelte';
-import Popover from '$lib/shared/components/data/Popover.svelte';
+import { hideTooltipPopover, showTooltipPopover } from './tooltip-popover.svelte';
 
 /**
  * Svelte action that shows a tooltip on hover.
  * Shows `content` when given, otherwise the plain text of the element's data-tooltip attribute.
  * Rendered in a `Popover`, so it places, sizes and looks the same as every other popover.
+ *
+ * The app has one tooltip. The action only registers its element; one pair of pointer listeners on
+ * the document finds the nearest registered element under the pointer and moves the tooltip there,
+ * so a page of a few thousand topology cards carries no listener per card. Nested registered
+ * elements show the innermost one.
  *
  * `anchorClosest` places the tooltip against the nearest ancestor matching that selector instead
  * of the node itself, so a tooltip on part of a card clears the whole card.
@@ -45,7 +49,8 @@ export function tooltipLabel(content: string | TooltipContent | null | undefined
 }
 
 export interface TooltipOptions {
-	content?: TooltipContent | null;
+	/** The content, or a function that builds it when the tooltip opens. */
+	content?: TooltipContent | null | (() => TooltipContent | null);
 	anchorClosest?: string;
 }
 
@@ -157,7 +162,9 @@ export function renderTooltip(doc: TooltipDocument, content: string | TooltipCon
 					list.appendChild(el(doc, 'li', {}, typeof item === 'string' ? item : item.text));
 					continue;
 				}
-				// The detail sits right-aligned and muted, so it never reads as part of the name.
+				// The detail sits right-aligned and muted, so it never reads as part of the name. The name
+				// keeps its width and breaks only between words (its min-width stays at its longest word);
+				// a long detail such as a port list takes the rest of the row and wraps onto more lines.
 				const li = el(doc, 'li', {});
 				const line = el(doc, 'div', {
 					display: 'flex',
@@ -165,7 +172,7 @@ export function renderTooltip(doc: TooltipDocument, content: string | TooltipCon
 					alignItems: 'baseline',
 					gap: '12px'
 				});
-				line.appendChild(el(doc, 'span', { minWidth: '0' }, item.text));
+				line.appendChild(el(doc, 'span', { flex: '0 1 auto', maxWidth: '60%' }, item.text));
 				line.appendChild(
 					el(
 						doc,
@@ -175,7 +182,9 @@ export function renderTooltip(doc: TooltipDocument, content: string | TooltipCon
 							fontSize: '11px',
 							fontVariantNumeric: 'tabular-nums',
 							textAlign: 'right',
-							flexShrink: '0'
+							flex: '1 1 0',
+							minWidth: '0',
+							overflowWrap: 'anywhere'
 						},
 						item.detail
 					)
@@ -190,63 +199,95 @@ export function renderTooltip(doc: TooltipDocument, content: string | TooltipCon
 	return root;
 }
 
+/** The part of an element the hover tracking reads, so it runs the same against any tree. */
+export interface TooltipTarget {
+	closest(selector: string): TooltipTarget | null;
+}
+
+/** Marks a registered element, so the nearest one under the pointer is a `closest` away. */
+const SOURCE_ATTRIBUTE = 'data-tooltip-source';
+
+/**
+ * Which registered element the tooltip is on, as the pointer moves. `pointerover` and `pointerout`
+ * both name where the pointer went; the tooltip follows to the nearest registered element there,
+ * or closes when there is none. Moving between two registered elements switches straight from one
+ * to the other, so the one tooltip moves rather than closing and reopening.
+ */
+export class TooltipTracker<T extends TooltipTarget> {
+	current: T | null = null;
+
+	constructor(
+		private readonly onShow: (source: T) => void,
+		private readonly onHide: () => void
+	) {}
+
+	/** The pointer is now over `target` (null: it left the document). */
+	moveTo(target: T | null) {
+		const source = (target?.closest(`[${SOURCE_ATTRIBUTE}]`) as T | null) ?? null;
+		if (source === this.current) return;
+		this.current = source;
+		if (source) this.onShow(source);
+		else this.onHide();
+	}
+
+	/** A registered element is going away or changed: close or redraw if it is the one shown. */
+	refresh(source: T, removed: boolean) {
+		if (source !== this.current) return;
+		if (removed) {
+			this.current = null;
+			this.onHide();
+		} else {
+			this.onShow(source);
+		}
+	}
+}
+
+const sources = new WeakMap<HTMLElement, TooltipOptions>();
+
+function contentOf(node: HTMLElement): string | TooltipContent | null {
+	const options = sources.get(node);
+	const given = typeof options?.content === 'function' ? options.content() : options?.content;
+	return given ?? node.getAttribute('data-tooltip');
+}
+
+const tracker = new TooltipTracker<HTMLElement>((node) => {
+	const content = contentOf(node);
+	if (!content) {
+		hideTooltipPopover();
+		return;
+	}
+	const anchorClosest = sources.get(node)?.anchorClosest;
+	const anchor = (anchorClosest && node.closest<HTMLElement>(anchorClosest)) || node;
+	showTooltipPopover(anchor, content, (c) => renderTooltip(document, c));
+}, hideTooltipPopover);
+
+let listening = false;
+
+function listen() {
+	if (listening) return;
+	listening = true;
+	document.addEventListener('pointerover', (e) => tracker.moveTo(e.target as HTMLElement));
+	document.addEventListener('pointerout', (e) => {
+		// Leaving the window has no related target: the tooltip closes.
+		tracker.moveTo((e.relatedTarget as HTMLElement | null) ?? null);
+	});
+}
+
 export function tooltip(node: HTMLElement, options: TooltipOptions = {}) {
-	let host: HTMLDivElement | null = null;
-	let popover: ReturnType<typeof mount> | null = null;
-
-	function show() {
-		const content = options.content ?? node.getAttribute('data-tooltip');
-		if (!content) return;
-
-		const anchor =
-			(options.anchorClosest && node.closest<HTMLElement>(options.anchorClosest)) || node;
-		const body = createRawSnippet(() => ({
-			render: () => '<div class="text-secondary wrap-break-word text-xs leading-tight"></div>',
-			setup(el: Element) {
-				el.appendChild(renderTooltip(document, content));
-			}
-		}));
-
-		host = document.createElement('div');
-		document.body.appendChild(host);
-		popover = mount(Popover, {
-			target: host,
-			props: {
-				triggerElement: anchor,
-				isOpen: true,
-				role: 'tooltip',
-				prefer: 'above',
-				minWidth: '0',
-				maxWidth: options.content ? '300px' : '250px',
-				onClose: hide,
-				children: body
-			}
-		});
-	}
-
-	function hide() {
-		if (popover) unmount(popover);
-		popover = null;
-		host?.remove();
-		host = null;
-	}
-
-	node.addEventListener('mouseenter', show);
-	node.addEventListener('mouseleave', hide);
+	sources.set(node, options);
+	node.setAttribute(SOURCE_ATTRIBUTE, '');
+	listen();
 
 	return {
 		update(next: TooltipOptions = {}) {
-			options = next;
+			sources.set(node, next);
 			// A tooltip open while its content changes redraws with the new content.
-			if (popover) {
-				hide();
-				show();
-			}
+			tracker.refresh(node, false);
 		},
 		destroy() {
-			node.removeEventListener('mouseenter', show);
-			node.removeEventListener('mouseleave', hide);
-			hide();
+			sources.delete(node);
+			node.removeAttribute(SOURCE_ATTRIBUTE);
+			tracker.refresh(node, true);
 		}
 	};
 }

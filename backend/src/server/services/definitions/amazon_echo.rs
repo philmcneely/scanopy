@@ -1,3 +1,5 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
+use crate::server::shared::logos::Logo;
 // backend/src/server/services/definitions/amazon_echo.rs
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
@@ -20,6 +22,9 @@ impl ServiceDefinition for AmazonEcho {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::IoT
     }
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::Speaker)
+    }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
@@ -28,8 +33,8 @@ impl ServiceDefinition for AmazonEcho {
         ])
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/alexa.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Alexa)
     }
 }
 

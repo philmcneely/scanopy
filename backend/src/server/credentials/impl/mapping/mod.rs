@@ -299,7 +299,7 @@ impl Default for CredentialQueryPayload {
 impl From<CredentialQueryPayloadDiscriminants> for super::types::CredentialTypeDiscriminants {
     fn from(d: CredentialQueryPayloadDiscriminants) -> Self {
         match d {
-            CredentialQueryPayloadDiscriminants::Snmp => Self::SnmpV2c,
+            CredentialQueryPayloadDiscriminants::Snmp => Self::SnmpCommunity,
             CredentialQueryPayloadDiscriminants::DockerProxy => Self::DockerProxy,
             CredentialQueryPayloadDiscriminants::DockerSocket => Self::DockerSocket,
             CredentialQueryPayloadDiscriminants::PodmanProxy => Self::PodmanProxy,
@@ -316,7 +316,7 @@ impl From<CredentialQueryPayloadDiscriminants> for super::types::CredentialTypeD
             // ever builds `CredentialQueryPayload` from a known `CredentialType`, so
             // this reverse conversion never sees it. Fall back to the SNMP default to
             // keep the mapping total (unreachable server-side).
-            CredentialQueryPayloadDiscriminants::Unknown => Self::SnmpV2c,
+            CredentialQueryPayloadDiscriminants::Unknown => Self::SnmpCommunity,
         }
     }
 }
@@ -418,7 +418,7 @@ impl CredentialQueryPayload {
 /// The discriminant is what a coded scan warning carries, and it needs a name an operator
 /// recognises — "SNMP", not `Snmp`. Distinct from `integrations.json`, which is keyed by display
 /// name and covers the five *integrations*, and from `credential-types.json`, which is keyed by
-/// `CredentialType` (ten variants: SnmpV1/V2c/V3, UnifiApiKey/UnifiLocalAdmin, …). Neither is keyed
+/// `CredentialType` (SnmpCommunity/SnmpV3, UnifiApiKey/UnifiLocalAdmin, …). Neither is keyed
 /// by these eight values, so neither can resolve them: reusing the credential-type fixture happened
 /// to work for `DockerProxy` and silently rendered `Snmp`, `UnifiController` and `InstantOn` as
 /// their raw discriminants.

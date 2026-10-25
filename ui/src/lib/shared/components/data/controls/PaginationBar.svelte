@@ -284,7 +284,7 @@
 				<select
 					value={pageSize}
 					onchange={(e) => onPageSizeChange(parseInt(e.currentTarget.value) as PageSizeOption)}
-					class="mx-0 summary-control input-field py-0! pr-6! pl-2!"
+					class="summary-control input-field mx-0 py-0! pr-6! pl-2!"
 				>
 					{#each PAGE_SIZE_OPTIONS as size (size)}
 						<option value={size}>{size}</option>

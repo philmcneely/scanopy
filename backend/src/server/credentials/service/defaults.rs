@@ -164,7 +164,7 @@ mod tests {
     }
 
     fn community(value: &str) -> CredentialType {
-        CredentialType::SnmpV2c {
+        CredentialType::SnmpCommunity {
             community: SecretValue::Inline {
                 value: SecretString::from(value.to_string()),
             },
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn a_default_keeps_its_settings_but_can_be_renamed() {
-        let current = default_of(CredentialTypeDiscriminants::SnmpV2c);
+        let current = default_of(CredentialTypeDiscriminants::SnmpCommunity);
 
         let mut renamed = current.clone();
         renamed.base.name = "Factory community".to_string();

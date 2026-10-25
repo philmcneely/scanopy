@@ -768,14 +768,7 @@ fn service_summary(
     status: EntityFreshness,
     is_fresh: bool,
 ) -> ServiceSummary {
-    let logo_url = {
-        let url = s.base.service_definition.logo_url();
-        if url.is_empty() {
-            None
-        } else {
-            Some(url.to_string())
-        }
-    };
+    let logo_url = s.base.service_definition.logo().map(|logo| logo.url());
     // Any container runtime, not just Docker: matching one variant left Podman containers
     // uncounted in the digest.
     let is_container = s.base.virtualization_metadata.is_some();

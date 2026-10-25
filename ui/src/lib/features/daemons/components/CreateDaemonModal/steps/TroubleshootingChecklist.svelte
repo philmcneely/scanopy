@@ -209,7 +209,7 @@
 	});
 </script>
 
-<div class="card-static divide-y divide-gray-200 card dark:divide-gray-700">
+<div class="card-static card divide-y divide-gray-200 dark:divide-gray-700">
 	<p class="pb-3 text-sm text-secondary">{daemons_troubleshoot_followSteps()}</p>
 
 	{#if isServerPoll}

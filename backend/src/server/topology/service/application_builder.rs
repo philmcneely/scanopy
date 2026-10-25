@@ -211,6 +211,7 @@ impl ViewBuilder for ApplicationBuilder {
                     vlan_name: None,
                     is_trunk_port: false,
                     oper_status: None,
+                    device_type: None,
                 })
             },
             None,

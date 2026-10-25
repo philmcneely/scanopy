@@ -44,7 +44,8 @@ struct GitHubRelease {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct AvailableUpgrade {
     /// Semver of the newest promoted release, without a leading `v`.
-    pub version: String,
+    #[schema(value_type = String, example = "0.19.0")]
+    pub version: Version,
     /// That release's page on the public changelog.
     #[schema(format = "uri")]
     pub release_notes_url: String,
@@ -99,7 +100,7 @@ pub async fn available_upgrade(cache: &AppCache) -> Option<AvailableUpgrade> {
     let running = Version::parse(SERVER_VERSION).expect("CARGO_PKG_VERSION is semver");
     upgrade_available(&running, &latest).then(|| AvailableUpgrade {
         release_notes_url: format!("{CHANGELOG_URL}/v{latest}"),
-        version: latest.to_string(),
+        version: latest,
     })
 }
 
@@ -161,7 +162,7 @@ mod tests {
         assert_eq!(cached(&cache).await, Some(v("99.0.0")));
         assert_eq!(
             available_upgrade(&cache).await.map(|u| u.version),
-            Some("99.0.0".to_string())
+            Some(v("99.0.0"))
         );
     }
 

@@ -125,6 +125,8 @@ export function useCreateDiscoveryMutation() {
 			// The history tab reads a paginated key under this prefix, which
 			// setQueryData above doesn't touch.
 			queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+			// A discovery's integration targets give a credential a target, which home's nudges re-check.
+			queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
 		}
 	}));
 }
@@ -150,6 +152,7 @@ export function useUpdateDiscoveryMutation() {
 				(old) => old?.map((d) => (d.id === updatedDiscovery.id ? updatedDiscovery : d)) ?? []
 			);
 			queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+			queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
 		}
 	}));
 }
@@ -198,6 +201,7 @@ export function useDeleteDiscoveryMutation() {
 				(old) => old?.filter((d) => d.id !== id) ?? []
 			);
 			queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+			queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
 		}
 	}));
 }
@@ -219,6 +223,7 @@ export function useBulkDeleteDiscoveriesMutation() {
 				(old) => old?.filter((d) => !ids.includes(d.id)) ?? []
 			);
 			queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+			queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
 		}
 	}));
 }

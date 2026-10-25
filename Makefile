@@ -432,7 +432,7 @@ generate-messages:
 # missing logo cache record. The stamp is taken before the run, so an input edited mid-run
 # triggers one more run next time.
 FIXTURE_STAMP := ui/src/lib/data/.fixtures-stamp
-LOGO_CACHE_RECORDS := ui/static/logos/services/.logo-cache.json ui/static/logos/os-families/.logo-cache.json ui/static/logos/identity-providers/.logo-cache.json
+LOGO_CACHE_RECORDS := ui/static/logos/catalog/.logo-cache.json
 FIXTURE_INPUTS = $(shell find backend -path backend/target -prune -o -type f -print) \
 	ui/scripts/generate-meta-messages.js messages/en.json
 

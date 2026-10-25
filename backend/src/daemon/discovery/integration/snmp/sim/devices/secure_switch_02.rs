@@ -11,6 +11,8 @@ use crate::server::credentials::r#impl::types::{
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "secure-switch-02",
@@ -27,6 +29,7 @@ pub fn device() -> SimDevice {
             },
             context_name: None,
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("HPE OfficeConnect Switch 1820 24G J9980A, PT.02.11".into()),
             sys_object_id: Some("1.3.6.1.4.1.11.2.3.7.11.181".into()),

@@ -138,6 +138,10 @@ impl Lint {
 
     /// A bare string named after an enum that already exists in the spec is almost
     /// always a field that should have been typed with it.
+    ///
+    /// The name matches an enum it equals, or one it ends with when the name has more than one
+    /// word: `os_family` names `HostOsFamily`. A one-word name says too little to pick an enum
+    /// by suffix: `version` is a release version, not an `SnmpVersion`.
     fn check_stringly_typed(&mut self, path: &str, name: &str, prop: &Value) {
         let is_bare_string = prop.get("type").and_then(Value::as_str) == Some("string")
             && prop.get("enum").is_none()
@@ -149,7 +153,7 @@ impl Lint {
         if let Some(matched) = self
             .enum_names
             .iter()
-            .find(|e| **e == flat || e.ends_with(&flat) && flat.len() > 3)
+            .find(|e| **e == flat || name.contains('_') && e.ends_with(&flat))
         {
             self.failures.push(format!(
                 "{path}.{name}: free-form string, but a `{matched}` enum exists"

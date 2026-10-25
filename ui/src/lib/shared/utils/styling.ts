@@ -240,14 +240,14 @@ export function createIconComponent(iconName: string | null): IconComponent {
 export function createLogoIconComponent(
 	iconName: string | null,
 	iconUrl: string,
-	useWhiteBackground: boolean = false
+	{ fill = null, round = false }: { fill?: string | null; round?: boolean } = {}
 ): IconComponent {
 	if (!iconName || iconName == null) return LucideIcons.HelpCircle;
 
 	// Create a wrapper component that pre-binds the iconName
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const BoundLogoIcon = ($$payload: any, $$props: Omit<any, 'iconName'>) => {
-		return LogoIcon($$payload, { iconName, iconUrl, useWhiteBackground, ...$$props });
+		return LogoIcon($$payload, { iconName, iconUrl, fill, round, ...$$props });
 	};
 
 	return BoundLogoIcon;

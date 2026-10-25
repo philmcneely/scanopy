@@ -35,7 +35,7 @@ impl CredentialType {
     /// adding a field to the enum variant without updating this method causes a compile error.
     pub fn field_definitions(&self) -> Vec<FieldDefinition> {
         match self {
-            Self::SnmpV1 { community: _ } | Self::SnmpV2c { community: _ } => {
+            Self::SnmpCommunity { community: _ } => {
                 vec![FieldDefinition {
                     id: "community",
                     label: "Community String",

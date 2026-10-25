@@ -57,7 +57,13 @@
 		type IntegrationTarget
 	} from '$lib/features/credentials/types/base';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
-	import { integrationTargetFor } from '$lib/features/credentials/utils/credentialTargets';
+	import {
+		integrationTargetFor,
+		isLockedOnly,
+		junctionHostIds,
+		junctionHostsOnSite
+	} from '$lib/features/credentials/utils/credentialTargets';
+	import { useHostsByIds } from '$lib/features/hosts/queries';
 	import { useDiscoveriesQuery, useUpdateDiscoveryMutation } from '$lib/features/discovery/queries';
 	import {
 		common_close,
@@ -145,6 +151,28 @@
 				isDaemonHostOnlyTargets(credentialTypes.getMetadata(c.credential_type.type)?.targets)
 		);
 	}
+	// Hosts on the selected site each existing credential is already assigned to through the
+	// host/credential junction, listed on its card as in the discovery modal.
+	const assignedHostsQuery = useHostsByIds(() => junctionHostIds(credentialsQuery.data ?? []));
+	let junctionHostsByCredential = $derived(
+		junctionHostsOnSite(credentialsQuery.data ?? [], assignedHostsQuery.data ?? [], selectedSiteId)
+	);
+	// Rows are added after the hosts resolve, and the site can change, so this re-applies on
+	// both. It writes only when a row's hosts differ, so it settles after one pass.
+	$effect(() => {
+		const byCredential = junctionHostsByCredential;
+		const hostKey = (hosts?: { id: string }[]) => (hosts ?? []).map((h) => h.id).join(',');
+		let changed = false;
+		const next = pendingCredentials.map((p) => {
+			if (!p.isExisting) return p;
+			const assigned = byCredential.get(p.credential.id);
+			if (hostKey(p.lockedHosts) === hostKey(assigned)) return p;
+			changed = true;
+			return { ...p, lockedHosts: assigned };
+		});
+		if (changed) pendingCredentials = next;
+	});
+
 	// Real new credentials being created. Drives the CTA count. Existing rows, the default
 	// sockets among them, are not created and not counted; this matches the creation filter (see
 	// getCredentialsForCreate / collectCredentialIds).
@@ -300,7 +328,8 @@
 	let seedCredentialRefs = $derived(
 		pendingCredentials.flatMap((p): IntegrationTarget[] => {
 			// Only persisted credentials can be referenced: existing ones, and new ones once created.
-			if (!credentialIds.includes(p.credential.id)) return [];
+			// A row listed only for its assigned hosts already runs on them; nothing to seed.
+			if (!credentialIds.includes(p.credential.id) || isLockedOnly(p)) return [];
 			const target = integrationTargetFor(
 				p.credential.id,
 				credentialTypes.getMetadata(p.credential.credential_type.type)?.targets,
@@ -317,6 +346,7 @@
 			.filter(
 				(p) =>
 					credentialIds.includes(p.credential.id) &&
+					!isLockedOnly(p) &&
 					integrationTargetFor(
 						p.credential.id,
 						credentialTypes.getMetadata(p.credential.credential_type.type)?.targets,
@@ -858,6 +888,7 @@
 				bind:credentialIds
 				daemonOs={selectedOS}
 				daemonName={String(formValues.name ?? '')}
+				assignedRowsRemovable
 			/>
 		{:else}
 			<div class="flex-1 overflow-auto p-4 sm:p-6">

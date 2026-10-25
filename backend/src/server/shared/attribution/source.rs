@@ -179,6 +179,9 @@ pub enum AttributeSource {
     /// A hostname a device announced for itself over mDNS: the SRV target, such as
     /// `chromecast-a1b2c3.local`. Machine-generated, unlike the instance label beside it.
     DnsSdHostname,
+    /// A port a device advertised for one of its services in an mDNS SRV record, such as 631 for
+    /// `_ipp._tcp`. Recorded where the port scan did not cover that port.
+    DnsSdServicePort,
     /// A chassis ID a neighbour advertised for itself.
     LldpChassisId,
     /// An LLDP neighbour the `lldpd` service on the daemon's own host heard on one of its ports.
@@ -276,9 +279,11 @@ impl AttributeSource {
             | Self::DnsSdAirPlayMatch
             | Self::InterfaceNameMatch => M::Inferred,
 
-            Self::DnsSdInstanceName | Self::DnsSdHostname | Self::LldpChassisId | Self::Lldpd => {
-                M::Announced
-            }
+            Self::DnsSdInstanceName
+            | Self::DnsSdHostname
+            | Self::DnsSdServicePort
+            | Self::LldpChassisId
+            | Self::Lldpd => M::Announced,
 
             Self::ReverseDns | Self::ForwardingTable => M::Reported,
 
@@ -325,6 +330,7 @@ impl AttributeSource {
             | Self::DnsSdAirPlayMatch
             | Self::InterfaceNameMatch
             | Self::DnsSdHostname
+            | Self::DnsSdServicePort
             | Self::LldpChassisId
             | Self::Lldpd
             | Self::ReverseDns
@@ -447,6 +453,7 @@ impl AttributeSource {
                 AttributeSourceDiscriminants::InterfaceNameMatch => vec![Self::InterfaceNameMatch],
                 AttributeSourceDiscriminants::DnsSdInstanceName => vec![Self::DnsSdInstanceName],
                 AttributeSourceDiscriminants::DnsSdHostname => vec![Self::DnsSdHostname],
+                AttributeSourceDiscriminants::DnsSdServicePort => vec![Self::DnsSdServicePort],
                 AttributeSourceDiscriminants::LldpChassisId => vec![Self::LldpChassisId],
                 AttributeSourceDiscriminants::Lldpd => vec![Self::Lldpd],
                 AttributeSourceDiscriminants::ReverseDns => vec![Self::ReverseDns],
@@ -518,6 +525,7 @@ impl AttributeSource {
             AttributeSourceDiscriminants::InterfaceNameMatch => Self::InterfaceNameMatch,
             AttributeSourceDiscriminants::DnsSdInstanceName => Self::DnsSdInstanceName,
             AttributeSourceDiscriminants::DnsSdHostname => Self::DnsSdHostname,
+            AttributeSourceDiscriminants::DnsSdServicePort => Self::DnsSdServicePort,
             AttributeSourceDiscriminants::LldpChassisId => Self::LldpChassisId,
             AttributeSourceDiscriminants::Lldpd => Self::Lldpd,
             AttributeSourceDiscriminants::ReverseDns => Self::ReverseDns,
@@ -643,6 +651,7 @@ impl TypeMetadataProvider for AttributeSourceDiscriminants {
             Self::InterfaceNameMatch => "Interface name",
             Self::DnsSdInstanceName => "mDNS name",
             Self::DnsSdHostname => "mDNS",
+            Self::DnsSdServicePort => "mDNS service",
             Self::LldpChassisId => "LLDP",
             Self::Lldpd => "lldpd",
             Self::ReverseDns => "Reverse DNS",
@@ -701,6 +710,9 @@ impl TypeMetadataProvider for AttributeSourceDiscriminants {
                 "The device announced this name over mDNS. A person usually sets it during setup."
             }
             Self::DnsSdHostname => "The device announced this hostname for itself over mDNS.",
+            Self::DnsSdServicePort => {
+                "The device announced this port for one of its services over mDNS."
+            }
             Self::LldpChassisId => "The device advertised this about itself over LLDP.",
             Self::Lldpd => {
                 "The lldpd service on the daemon's host heard this neighbour advertise itself over LLDP."
@@ -806,6 +818,10 @@ impl TypeMetadataProvider for ClientProbe {
             Self::SnmpEngine => "SNMP",
             Self::DockerPing => "Docker",
             Self::PodmanPing => "Podman",
+            Self::Ipp => "IPP",
+            Self::SpotifyConnect => "Spotify Connect",
+            Self::Vnc => "VNC",
+            Self::AppleLockdown => "Apple lockdown",
         }
     }
 }

@@ -3,6 +3,7 @@
 	import {
 		SvelteFlow,
 		MiniMap,
+		Panel,
 		Background,
 		BackgroundVariant,
 		useNodesInitialized,
@@ -22,7 +23,9 @@
 		topology_detailSimplified,
 		topology_updatedDuringScan,
 		common_refresh,
-		common_rendering
+		common_rendering,
+		topology_minimizeMinimap,
+		topology_expandMinimap
 	} from '$lib/paraglide/messages';
 	import { type Node, type Edge } from '@xyflow/svelte';
 	import { getViewportForBounds, type Rect } from '@xyflow/system';
@@ -36,6 +39,8 @@
 	} from '../../viewport-fit';
 	import '@xyflow/svelte/dist/style.css';
 	import './topology-viewer.css';
+	import { Minimize2, Map as MapIcon } from 'lucide-svelte';
+	import TopologySidebarButton from './TopologySidebarButton.svelte';
 	import { pushError } from '$lib/shared/stores/feedback';
 	import {
 		baseFlowEdges,
@@ -44,6 +49,7 @@
 		selectedNode as selectedNodeStore,
 		topologyOptions,
 		optionsPanelExpanded,
+		updateTopologyOptions,
 		editingDependencyId,
 		OPTIONS_PANEL_FITVIEW_PADDING_PX,
 		MINIMAP_WIDTH_PX,
@@ -266,6 +272,11 @@
 		const paneHeight = containerElement?.clientHeight ?? 0;
 		if (paneWidth <= 0 || paneHeight <= 0) return null;
 		return viewportFor(bounds, ABSOLUTE_MIN_ZOOM).zoom;
+	}
+
+	/** Show or minimize the minimap: the option the options panel's minimap toggle sets. */
+	function setMinimapShown(shown: boolean) {
+		updateTopologyOptions((opts) => ({ ...opts, local: { ...opts.local, show_minimap: shown } }));
 	}
 
 	/**
@@ -1666,6 +1677,33 @@
 					: 'rgba(243, 244, 246, 0.7)'}
 				maskStrokeColor={themeStore.resolvedTheme === 'dark' ? '#374151' : '#d1d5db'}
 			/>
+		{/if}
+
+		{#if showMinimap === undefined && !$isExporting}
+			<!-- Minimize and expand write the same option as the options panel's minimap toggle. While
+			     minimized the minimap is a single button in its corner; while shown, the minimize
+			     button sits inside its top-right corner. -->
+			<Panel position="bottom-left">
+				{#if $topologyOptions.local.show_minimap}
+					<button
+						type="button"
+						class="minimap-minimize flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+						style="transform: translate({MINIMAP_WIDTH_PX - 28}px, {-(MINIMAP_HEIGHT_PX - 28)}px);"
+						title={topology_minimizeMinimap()}
+						aria-label={topology_minimizeMinimap()}
+						onclick={() => setMinimapShown(false)}
+					>
+						<Minimize2 class="h-3.5 w-3.5" />
+					</button>
+				{:else}
+					<TopologySidebarButton
+						title={topology_expandMinimap()}
+						onclick={() => setMinimapShown(true)}
+					>
+						{#snippet icon()}<MapIcon class="h-4 w-4" />{/snippet}
+					</TopologySidebarButton>
+				{/if}
+			</Panel>
 		{/if}
 
 		{#if $isRenderingTopology || detailHidden || heldUpdatePending}

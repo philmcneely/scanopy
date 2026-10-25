@@ -27,6 +27,8 @@ use super::inline;
 /// its LLDP port ids are a numbering of their own that matches no ifIndex; and what is left is
 /// `lldpLocPortDesc`, matched against `ifDescr`. That is the column the read loses, so losing it
 /// loses the placement.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-shortports-01",
@@ -35,9 +37,10 @@ pub fn device() -> SimDevice {
             issue: "#668",
             defect: "the lldpLocPortTable read stops part way, so neighbours cannot be placed — and the operator is told the device numbers its LLDP ports separately, which is a different fault with a different fix",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("D-Link DGS-1510-52X Gigabit Ethernet SmartPro Switch".into()),
             sys_object_id: Some("1.3.6.1.4.1.171.10.137.8.1".into()),

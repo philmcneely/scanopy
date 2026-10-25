@@ -347,17 +347,7 @@ pub async fn reset(
         return Err(ApiError::permission_denied());
     }
 
-    let entity: AuthenticatedEntity = auth.into_entity();
-
-    reset_organization_data(&state, &org.id, entity.clone()).await?;
-
-    // Recreate the default site, its subnets and topology so the org always has one
-    state
-        .services
-        .topology_service
-        .ensure_cloud_setup(org.id, None, entity)
-        .await
-        .map_err(|e| ApiError::internal_error(&format!("Failed to set up site: {}", e)))?;
+    reset_organization(&state, org.id, auth.into_entity()).await?;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -623,6 +613,36 @@ async fn run_populate_demo(
     seed_demo_data(&state.services, id, user_id, org.base.use_case, entity).await
 }
 
+/// Delete the org's data, then publish `OrganizationReset`: `OrgSetupService` gives it back the
+/// setup data it started with.
+pub(crate) async fn reset_organization(
+    state: &Arc<AppState>,
+    organization_id: Uuid,
+    authentication: AuthenticatedEntity,
+) -> Result<(), ApiError> {
+    // Read before the delete: an org that hasn't picked a plan gets its site back only if it had one.
+    let had_sites = !state
+        .services
+        .site_service
+        .get_all(StorableFilter::<Site>::new_from_org_id(&organization_id))
+        .await?
+        .is_empty();
+
+    reset_organization_data(state, &organization_id, authentication.clone()).await?;
+
+    state
+        .services
+        .organization_service
+        .modify(
+            organization_id,
+            authentication,
+            UpdateReason::OrganizationReset { had_sites },
+            |_| {},
+        )
+        .await?;
+    Ok(())
+}
+
 /// Internal function to reset organization data (reused by populate_demo_data).
 ///
 /// Uses direct storage-level bulk deletes instead of service-level `delete_all_for_org`
@@ -655,7 +675,8 @@ async fn reset_organization_data(
         .storage()
         .delete_by_filter(StorableFilter::<Tag>::new_from_org_id(organization_id))
         .await?;
-    // Then the groups those tags were in, system groups included: the caller recreates them.
+    // Then the groups those tags were in, system groups included: a reset gets them back from
+    // `OrgSetupService`, and demo data seeds its own.
     state
         .services
         .tag_group_service

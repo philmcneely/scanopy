@@ -257,13 +257,6 @@ async fn create_site(
     if let Some(site) = response.data() {
         let service = Site::get_service(&state);
 
-        // System subnets + live-view topology row for this site.
-        state
-            .services
-            .topology_service
-            .ensure_site_setup(site.id, entity.clone())
-            .await?;
-
         // Emit SecondSiteCreated telemetry event
         if let Some(organization_id) = organization_id {
             // Count sites to confirm this is actually the second+

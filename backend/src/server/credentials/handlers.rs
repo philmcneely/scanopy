@@ -83,7 +83,7 @@ pub enum CredentialOrderField {
     CreatedAt,
     Name,
     UpdatedAt,
-    /// The credential type, e.g. `SnmpV2c`.
+    /// The credential type, e.g. `SnmpCommunity`.
     CredentialType,
     /// The integration the type is a transport of, e.g. `Docker` for its socket and its proxy.
     Integration,
@@ -121,7 +121,7 @@ impl OrderField for CredentialOrderField {
 
 #[derive(Deserialize, Default, Debug, Clone, IntoParams)]
 pub struct CredentialFilterQuery {
-    /// Filter by credential type (e.g. `SnmpV2c`, `DockerProxy`). Repeat for several.
+    /// Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several.
     #[serde(rename = "type")]
     pub credential_type: Option<Vec<CredentialTypeDiscriminants>>,
     /// Only credentials of one of these integrations. Repeat for several.
@@ -635,7 +635,7 @@ async fn bulk_delete_credentials(
 /// List all Credentials
 ///
 /// Returns all credentials in the authenticated user's organization.
-/// Optionally filter by type (e.g. `?type=SnmpV2c`).
+/// Optionally filter by type (e.g. `?type=SnmpCommunity`).
 #[utoipa::path(
     get,
     path = "",

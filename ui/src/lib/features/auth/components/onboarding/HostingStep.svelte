@@ -99,7 +99,7 @@
 						{@const Icon = option.icon}
 						<button
 							type="button"
-							class="flex items-center gap-4 card p-4 text-left transition-all {isSelected
+							class="card flex items-center gap-4 p-4 text-left transition-all {isSelected
 								? 'ring-2 ring-blue-500'
 								: 'hover:bg-gray-100 dark:hover:bg-gray-800'}"
 							onclick={() => select(option.id)}

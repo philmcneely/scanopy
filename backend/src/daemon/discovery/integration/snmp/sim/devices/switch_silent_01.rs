@@ -19,6 +19,8 @@ use super::inline;
 ///
 /// `sysServices` has no bridge bit, as on a router or firewall. A switch that sets it gets one more
 /// line, saying it advertised a bridge and served no bridge-port table.
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-silent-01",
@@ -27,9 +29,10 @@ pub fn device() -> SimDevice {
             issue: "the silent-devices customer report",
             defect: "every table read timed out, and the warnings said each table stopped answering, left out the interfaces, and repeated the device eight times",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: system("switch-silent-01"),
         tables: Tables {
             faults: AgentFaults {

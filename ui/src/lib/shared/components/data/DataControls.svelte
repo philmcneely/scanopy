@@ -1120,7 +1120,7 @@
 			data-tooltip={resolveTooltip(action)}
 			class="{toolbarButtonClass(
 				action.tone
-			)} flex toolbar-control items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+			)} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{action.label}
 			{#if key}
@@ -1253,7 +1253,7 @@
 				onfocusout={(e) => {
 					if (!e.currentTarget.contains(e.relatedTarget as Node | null)) editingTags = false;
 				}}
-				class="card-static pointer-events-auto flex max-w-full items-center gap-2 card px-4! py-2! shadow-[0_10px_40px_rgba(0,0,0,0.25)]! ring-1 ring-black/5 dark:border-gray-600! dark:bg-gray-800! dark:shadow-[0_10px_40px_rgba(0,0,0,0.7)]! dark:ring-white/10"
+				class="card-static card pointer-events-auto flex max-w-full items-center gap-2 px-4! py-2! shadow-[0_10px_40px_rgba(0,0,0,0.25)]! ring-1 ring-black/5 dark:border-gray-600! dark:bg-gray-800! dark:shadow-[0_10px_40px_rgba(0,0,0,0.7)]! dark:ring-white/10"
 			>
 				<span class="text-sm whitespace-nowrap text-secondary"
 					>{selectedIds.size > 1 ? common_commonTags() : common_tags()}</span

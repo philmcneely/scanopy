@@ -1,8 +1,10 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{DnsSdServiceType, Pattern, Vendor};
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct SonosSpeaker;
@@ -18,6 +20,9 @@ impl ServiceDefinition for SonosSpeaker {
 
     fn category(&self) -> ServiceCategory {
         ServiceCategory::IoT
+    }
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::Speaker)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
@@ -35,16 +40,15 @@ impl ServiceDefinition for SonosSpeaker {
                 Pattern::Port(PortType::new_tcp(3400)),
                 Pattern::Port(PortType::new_tcp(3401)),
                 Pattern::Port(PortType::new_tcp(3500)),
+                // The HTTPS API on 1443 presents a certificate under `Sonos Device Authentication
+                // Root CA`.
+                Pattern::CertificateIssuer("O=Sonos", &[1443]),
             ]),
         ])
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://simpleicons.org/icons/sonos.svg"
-    }
-
-    fn logo_needs_white_background(&self) -> bool {
-        true
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Sonos)
     }
 }
 

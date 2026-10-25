@@ -96,6 +96,8 @@ pub enum ContainerType {
     TrunkPort,
     VLAN,
     PortOpStatus,
+    /// Hosts of one device type. The node carries that device type's own icon and colour.
+    DeviceType,
 }
 
 impl HasId for ContainerType {
@@ -122,6 +124,7 @@ impl EntityMetadataProvider for ContainerType {
             ContainerType::TrunkPort => Color::Amber,
             ContainerType::VLAN => Color::Teal,
             ContainerType::PortOpStatus => Color::Gray,
+            ContainerType::DeviceType => EntityDiscriminants::Host.color(),
         }
     }
 
@@ -142,6 +145,7 @@ impl EntityMetadataProvider for ContainerType {
             ContainerType::TrunkPort => Icon::Network,
             ContainerType::VLAN => Icon::Network,
             ContainerType::PortOpStatus => Icon::Circle,
+            ContainerType::DeviceType => EntityDiscriminants::Host.icon(),
         }
     }
 }
@@ -163,6 +167,7 @@ impl TypeMetadataProvider for ContainerType {
             ContainerType::TrunkPort => "Trunk ports",
             ContainerType::VLAN => "VLAN",
             ContainerType::PortOpStatus => "Port status",
+            ContainerType::DeviceType => "Device type",
         }
     }
 
@@ -182,6 +187,7 @@ impl TypeMetadataProvider for ContainerType {
             ContainerType::TrunkPort => "Trunk ports carrying multiple VLANs",
             ContainerType::VLAN => "Access ports grouped by native VLAN",
             ContainerType::PortOpStatus => "Ports grouped by operational status",
+            ContainerType::DeviceType => "Hosts grouped by device type",
         }
     }
 
@@ -196,6 +202,7 @@ impl TypeMetadataProvider for ContainerType {
                 | ContainerType::TrunkPort
                 | ContainerType::VLAN
                 | ContainerType::PortOpStatus
+                | ContainerType::DeviceType
         );
         let title_style = if is_subcontainer {
             TitleStyle::Inline
@@ -246,7 +253,8 @@ impl ContainerType {
             | ContainerType::NestedServiceCategory
             | ContainerType::Stack
             | ContainerType::TrunkPort
-            | ContainerType::PortOpStatus => None,
+            | ContainerType::PortOpStatus
+            | ContainerType::DeviceType => None,
         }
     }
 }

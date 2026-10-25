@@ -431,7 +431,7 @@
 							onchange={onToggleAll}
 							aria-label={allSelected ? common_deselectAll() : common_selectAllOnPage()}
 							title="{common_selectAllOnPage()} ({shortcutLabel('A')})"
-							class="h-4 w-4 checkbox-card"
+							class="checkbox-card h-4 w-4"
 						/>
 					</th>
 				{/if}
@@ -700,7 +700,7 @@
 						e.currentTarget.checked = selectedIds.has(itemId);
 					}}
 					aria-label={common_selectRow({ name: rowLabel(item) })}
-					class="h-4 w-4 checkbox-card"
+					class="checkbox-card h-4 w-4"
 				/>
 			</td>
 		{/if}

@@ -17,9 +17,16 @@ import {
  * Metrics, per view:
  *  - inner edges (both endpoints inside one root container): crossings between them, how many pass
  *    through a card that is not an endpoint, and their total and longest drawn length;
+ *  - behind cards: for every drawn edge, the cards it passes through that are neither endpoint nor
+ *    an endpoint's container, one count per edge and card;
  *  - dependency order: share of inner dependency edges whose target reads after its source (a
  *    lower row, or the same row to the right);
- *  - edges between root containers: total and longest drawn length;
+ *  - edges between root containers: crossings between them as drawn, and total and longest drawn
+ *    length;
+ *  - chord crossings: pairs of edges sharing no endpoint whose straight handle-to-handle chords
+ *    cross, which counts what node and port order decide regardless of routing;
+ *  - self re-entries: drawn edges that leave an endpoint card and pass back through it, which
+ *    happens when an edge attaches to the side of a card facing away from the other end;
  *  - root containers: overlaps, bounding box, and the share of it no container covers;
  *  - ELK time per layout run.
  *
@@ -30,10 +37,16 @@ import {
  * Run:
  *   SESSION_ID=<session> npx playwright test tests/topology-layout-eval.ts --project=chromium
  *
+ * `EVAL_VIEWS=L2Physical` limits the run to the listed views. L3Logical and L2Physical are also
+ * scored at every collapse level, as `<site> <view> L<level>`.
+ *
  * Writes `tests/screenshots/layout-eval.json` and one screenshot per view.
  */
 
 const VIEWS = ['L3Logical', 'Application', 'Workloads', 'L2Physical'] as const;
+
+/** Views also scored at every collapse level, as `<site> <view> L<level>`. */
+const LADDER_VIEWS = new Set<(typeof VIEWS)[number]>(['L3Logical', 'L2Physical']);
 
 /** Dependency edge types, whose direction is the dependency's member order. */
 const DEPENDENCY_EDGE_TYPES = new Set(['RequestPath', 'HubAndSpoke']);
@@ -112,11 +125,15 @@ interface ViewMetrics {
 	innerEdges: number;
 	innerCrossings: number;
 	innerBehindCards: number;
+	behindCards: number;
 	innerLengthTotal: number;
 	innerLengthMax: number;
 	dependencyEdges: number;
 	dependencyInOrderPct: number;
 	crossEdges: number;
+	crossCrossings: number;
+	chordCrossings: number;
+	selfReentries: number;
 	crossLengthTotal: number;
 	crossLengthMax: number;
 	boundsWidth: number;
@@ -275,6 +292,35 @@ function computeMetrics(
 		}
 	}
 
+	const shareEndpoint = (a: SnapshotEdge, b: SnapshotEdge) =>
+		a.source === b.source ||
+		a.source === b.target ||
+		a.target === b.source ||
+		a.target === b.target;
+
+	// Crossings between edges joining different root containers, as drawn, and as straight chords
+	// between each edge's handle endpoints, which ignores routing and counts what an order decides.
+	let crossCrossings = 0;
+	for (let i = 0; i < cross.length; i++) {
+		for (let j = i + 1; j < cross.length; j++) {
+			if (shareEndpoint(cross[i], cross[j])) continue;
+			if (polylinesCross(paths[cross[i].id], paths[cross[j].id])) crossCrossings++;
+		}
+	}
+	const chord = (e: SnapshotEdge) => {
+		const p = paths[e.id];
+		return [p[0], p[p.length - 1]] as const;
+	};
+	let chordCrossings = 0;
+	for (let i = 0; i < drawn.length; i++) {
+		for (let j = i + 1; j < drawn.length; j++) {
+			if (shareEndpoint(drawn[i], drawn[j])) continue;
+			const [a, b] = chord(drawn[i]);
+			const [c, d] = chord(drawn[j]);
+			if (segmentsCross(a, b, c, d)) chordCrossings++;
+		}
+	}
+
 	// Inner edges whose drawn path enters a card that is neither endpoint nor an endpoint's ancestor.
 	const elements = nodes.filter((n) => n.type === 'Element' && n.width > 0 && n.height > 0);
 	let innerBehindCards = 0;
@@ -289,6 +335,35 @@ function computeMetrics(
 		});
 		if (hit) innerBehindCards++;
 	}
+
+	// Every drawn edge, inner or between containers, against every card it passes behind that is
+	// neither endpoint nor an endpoint's ancestor: one count per edge and card.
+	let behindCards = 0;
+	for (const e of drawn) {
+		const skip = new Set([e.source, e.target, ...ancestors(e.source), ...ancestors(e.target)]);
+		const points = paths[e.id];
+		for (const card of elements) {
+			if (skip.has(card.id)) continue;
+			const box = absoluteOf(card.id)!;
+			if (points.some((p) => insideBox(p, box, 2))) behindCards++;
+		}
+	}
+
+	// Drawn edges that leave an endpoint card and come back through it. The source is walked from
+	// the path's start and the target from its end, since each path starts on its source's edge.
+	const reenters = (points: Point[], box: Box): boolean => {
+		let left = false;
+		for (const p of points) {
+			if (!insideBox(p, box, 2)) left = true;
+			else if (left) return true;
+		}
+		return false;
+	};
+	const selfReentries = drawn.filter(
+		(e) =>
+			reenters(paths[e.id], absoluteOf(e.source)!) ||
+			reenters([...paths[e.id]].reverse(), absoluteOf(e.target)!)
+	).length;
 
 	const innerLengths = inner.map((e) => polylineLength(paths[e.id]));
 	const crossLengths = cross.map((e) => polylineLength(paths[e.id]));
@@ -326,6 +401,7 @@ function computeMetrics(
 		innerEdges: inner.length,
 		innerCrossings,
 		innerBehindCards,
+		behindCards,
 		innerLengthTotal: Math.round(sum(innerLengths)),
 		innerLengthMax: Math.round(max(innerLengths)),
 		dependencyEdges: dependencyEdges.length,
@@ -333,6 +409,9 @@ function computeMetrics(
 			? Math.round((100 * inOrder.length) / dependencyEdges.length)
 			: 100,
 		crossEdges: cross.length,
+		crossCrossings,
+		chordCrossings,
+		selfReentries,
 		crossLengthTotal: Math.round(sum(crossLengths)),
 		crossLengthMax: Math.round(max(crossLengths)),
 		boundsWidth: rootBoxes.length ? Math.round(maxX - minX) : 0,
@@ -344,6 +423,11 @@ function computeMetrics(
 
 /** The topology page picks its site from this key, not from the URL. */
 const SELECTED_SITE_KEY = 'scanopy_topology_selected_site_id';
+
+/** The collapse level the viewer last applied, as `collapse.ts` persists it. */
+async function collapseLevel(page: Page): Promise<string | null> {
+	return page.evaluate(() => localStorage.getItem('scanopy_topology_collapse_level'));
+}
 
 test('topology layout quality evaluation', async ({ context }) => {
 	test.setTimeout(600_000);
@@ -373,12 +457,7 @@ test('topology layout quality evaluation', async ({ context }) => {
 			},
 			[SELECTED_SITE_KEY, siteId]
 		);
-		for (const view of VIEWS) {
-			const name = `${site} ${view}`;
-			await page.goto(`/?view=${view}#topology`);
-			await page.waitForSelector('.svelte-flow__node', { timeout: 60_000 });
-			await waitForStableLayout(page);
-
+		const measure = async (name: string) => {
 			const perf = await readPipelinePerf(page);
 			const elkRuns = perf.counts['layout.elk-compute'] ?? 0;
 			const elkMs = elkRuns ? (perf.durations['layout.elk-compute'] ?? 0) / elkRuns : 0;
@@ -403,6 +482,30 @@ test('topology layout quality evaluation', async ({ context }) => {
 					failures.push(`${name}: ${key} ${value} < ${bound.min}`);
 				}
 			}
+		};
+
+		const only = process.env.EVAL_VIEWS?.split(',');
+		for (const view of VIEWS.filter((v) => !only || only.includes(v))) {
+			await page.goto(`/?view=${view}#topology`);
+			await page.waitForSelector('.svelte-flow__node', { timeout: 60_000 });
+			await waitForStableLayout(page);
+			await measure(`${site} ${view}`);
+			if (!LADDER_VIEWS.has(view)) continue;
+
+			// Every collapse level: walk to the most collapsed, then expand one level at a time.
+			await page.locator('.svelte-flow').click({ position: { x: 5, y: 5 } });
+			const step = async (key: '[' | ']') => {
+				const before = await collapseLevel(page);
+				await page.keyboard.press(key);
+				await waitForStableLayout(page);
+				return (await collapseLevel(page)) !== before;
+			};
+			while (await step('[')) {
+				/* collapse fully */
+			}
+			do {
+				await measure(`${site} ${view} L${await collapseLevel(page)}`);
+			} while (await step(']'));
 		}
 		await page.close();
 	}

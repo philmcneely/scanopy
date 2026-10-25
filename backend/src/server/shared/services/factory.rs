@@ -29,7 +29,7 @@ use crate::server::{
     ip_addresses::service::IPAddressService,
     logging::service::LoggingService,
     metrics::service::MetricsService,
-    organizations::service::OrganizationService,
+    organizations::{service::OrganizationService, setup::OrgSetupService},
     ports::service::PortService,
     posthog::PosthogService,
     services::service::ServiceService,
@@ -68,6 +68,7 @@ pub struct ServiceFactory {
     pub subnet_service: Arc<SubnetService>,
     pub daemon_service: Arc<DaemonService>,
     pub topology_service: Arc<TopologyService>,
+    pub org_setup_service: Arc<OrgSetupService>,
     pub snapshot_service: Arc<SnapshotService>,
     pub service_service: Arc<ServiceService>,
     pub discovery_service: Arc<DiscoveryService>,
@@ -277,7 +278,6 @@ impl ServiceFactory {
 
         let site_service = Arc::new(SiteService::new(
             storage.sites.clone(),
-            subnet_service.clone(),
             event_bus.clone(),
             entity_tag_service.clone(),
         ));
@@ -438,7 +438,6 @@ impl ServiceFactory {
         let _ = service_service.set_host_service(host_service.clone());
         let _ = daemon_service.set_host_service(host_service.clone());
         let _ = credential_service.set_host_service(host_service.clone());
-        let _ = organization_service.set_credential_service(credential_service.clone());
         let _ = site_service.set_credential_service(credential_service.clone());
         let _ = discovery_service.set_daemon_service(daemon_service.clone());
         let _ = discovery_service.set_host_service(host_service.clone());
@@ -517,6 +516,8 @@ impl ServiceFactory {
             storage.release_announcements.clone(),
             user_service.clone(),
             email_service.clone(),
+            (deployment_type == crate::server::config::DeploymentType::Cloud)
+                .then(|| organization_service.clone()),
             bulk_email_quota,
             config.hold_release_email,
         ));
@@ -545,14 +546,25 @@ impl ServiceFactory {
             None
         };
 
+        let org_setup_service = Arc::new(OrgSetupService::new(
+            organization_service.clone(),
+            credential_service.clone(),
+            tag_service.clone(),
+            tag_group_service.clone(),
+            site_service.clone(),
+            subnet_service.clone(),
+            topology_service.clone(),
+            daemon_service.clone(),
+            deployment_type,
+            config.integrated_daemon_url.clone(),
+        ));
+
         let auth_service = Arc::new(AuthService::new(
             user_service.clone(),
             organization_service.clone(),
             has_email_service,
             event_bus.clone(),
             license_service.clone(),
-            tag_group_service.clone(),
-            topology_service.clone(),
         ));
 
         let posthog_service = if let Some(api_key) = config.posthog_key {
@@ -600,6 +612,7 @@ impl ServiceFactory {
             subnet_service,
             daemon_service,
             topology_service,
+            org_setup_service,
             snapshot_service,
             service_service,
             discovery_service,
@@ -661,6 +674,7 @@ impl ServiceFactory {
             subnet_service,
             daemon_service,
             topology_service,
+            org_setup_service,
             snapshot_service,
             service_service,
             discovery_service,
@@ -704,6 +718,7 @@ impl ServiceFactory {
             .with(subnet_service.clone())
             .with(daemon_service.clone())
             .with(topology_service.clone())
+            .with(org_setup_service.clone())
             .with(snapshot_service.clone())
             .with(service_service.clone())
             .with(discovery_service.clone())

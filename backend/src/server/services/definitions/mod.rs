@@ -100,6 +100,7 @@ pub mod termix;
 pub mod tftp;
 pub mod unifi_gateway;
 pub mod unifi_switch;
+pub mod vnc;
 pub mod wake_on_lan;
 
 // NetworkAccess
@@ -119,6 +120,7 @@ pub mod tp_link_eap;
 pub mod ubiquiti_discovery;
 pub mod unifi_access_point;
 pub mod unifi_controller;
+pub mod upnp_igd;
 
 // NetworkSecurity
 pub mod crowdsec;
@@ -202,11 +204,13 @@ pub mod plex;
 pub mod sabnzbd;
 pub mod serviio;
 pub mod slskd;
+pub mod spotify_connect;
 pub mod tautulli;
 
 // HomeAutomation
 pub mod domoticz;
 pub mod esphome;
+pub mod espressif_device;
 pub mod home_assistant;
 pub mod openhab;
 pub mod philips_hue_bridge;
@@ -222,6 +226,7 @@ pub mod docker_swarm;
 pub mod dockge;
 pub mod esxi;
 pub mod kubernetes;
+pub mod libvirt;
 pub mod nomad;
 pub mod openshift;
 pub mod podman;
@@ -362,25 +367,34 @@ pub mod sip_server;
 pub mod workstation;
 
 // Mobile
+pub mod apple_mobile_device;
 pub mod client;
+pub mod ipad;
+pub mod iphone;
 
 // IoT
+pub mod airplay_receiver;
 pub mod amazon_echo;
 pub mod apple_tv;
+pub mod bose_speaker;
 pub mod camera;
 pub mod chromecast;
 pub mod frigate;
 pub mod google_home;
+pub mod home_connect;
 pub mod homekit_accessory;
 pub mod homepod;
 pub mod iot;
+pub mod myq;
 pub mod nest_protect;
 pub mod nest_thermostat;
 pub mod ring_doorbell;
 pub mod roborock_vacuum;
 pub mod roku;
+pub mod rollease_acmeda_pulse;
 pub mod sonos_speaker;
 pub mod tasmota;
+pub mod tp_link_kasa;
 pub mod tuyasmart;
 pub mod wiz;
 
@@ -393,8 +407,10 @@ pub mod opc_ua;
 
 // Printer
 pub mod airprint_printer;
+pub mod brother_printer;
 pub mod cups;
 pub mod hp_printer;
+pub mod ipp_printer;
 pub mod jetdirect;
 pub mod print_server;
 

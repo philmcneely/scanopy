@@ -222,7 +222,7 @@
 				{#if demoMode}
 					<div class="mb-6">
 						<InlineInfo title={auth_demoModeTitle()} body={auth_demoModeBody()} />
-						<div class="mt-3 card rounded-md! p-3! font-mono text-sm">
+						<div class="card mt-3 rounded-md! p-3! font-mono text-sm">
 							<div class="text-secondary">
 								<span class="text-tertiary">{common_email()}:</span>
 								<span class="ml-2 text-primary">demo@scanopy.net</span>

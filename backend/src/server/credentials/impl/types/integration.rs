@@ -13,10 +13,7 @@ use crate::server::{
             proxmox::Proxmox, snmp::Snmp, ssh::Ssh, unifi_controller::UnifiController,
             wake_on_lan::WakeOnLan,
         },
-        r#impl::{
-            definitions::{ServiceDefinition, ServiceDefinitionExt},
-            patterns::ClientProbe,
-        },
+        r#impl::{definitions::ServiceDefinition, patterns::ClientProbe},
     },
     shared::{
         attribution::AttributeSource,
@@ -92,7 +89,7 @@ impl CredentialTypeDiscriminants {
     /// credential variant cannot compile until it names its integration.
     pub fn integration(&self) -> CredentialIntegration {
         match self {
-            Self::SnmpV1 | Self::SnmpV2c | Self::SnmpV3 => CredentialIntegration::Snmp,
+            Self::SnmpCommunity | Self::SnmpV3 => CredentialIntegration::Snmp,
             Self::Gnmi => CredentialIntegration::Gnmi,
             Self::DockerProxy | Self::DockerSocket => CredentialIntegration::Docker,
             Self::PodmanProxy | Self::PodmanSocket => CredentialIntegration::Podman,
@@ -467,20 +464,6 @@ impl CredentialIntegration {
             Self::Proxmox => "/docs/guides/integrations/proxmox/",
         }
     }
-
-    /// File extension of the service logo, matching the downloaded
-    /// `logos/services/{slug}.{ext}`. Empty when the logo is missing or served locally.
-    pub fn logo_ext(&self) -> &'static str {
-        let url = self.service().logo_url();
-        if url.is_empty() || url.starts_with('/') {
-            return "";
-        }
-        url.rsplit('.')
-            .next()
-            .and_then(|e| e.split('?').next())
-            .filter(|e| matches!(*e, "svg" | "png" | "webp"))
-            .unwrap_or("svg")
-    }
 }
 
 impl HasId for CredentialIntegration {
@@ -525,11 +508,8 @@ impl TypeMetadataProvider for CredentialIntegration {
         serde_json::json!({
             "docs_path": self.docs_path(),
             "reports_interfaces": self.reports_interfaces(),
-            // The logo is named after the service, as for credential types.
             "associated_service": ServiceDefinition::name(&*service),
-            "has_logo": service.has_logo(),
-            "logo_ext": self.logo_ext(),
-            "logo_needs_white_background": service.logo_needs_white_background(),
+            "logo": service.logo(),
         })
     }
 }

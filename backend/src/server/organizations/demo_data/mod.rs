@@ -39,7 +39,7 @@ use crate::server::{
         os::{HostOs, HostOsFamily},
         virtualization::{
             ContainerHostVirtualization, ContainerNetworkType, HostVirtualization,
-            ProxmoxGuestType, ProxmoxVirtualization,
+            LibvirtVirtualization, ProxmoxGuestType, ProxmoxVirtualization,
         },
     },
     interfaces::r#impl::base::{

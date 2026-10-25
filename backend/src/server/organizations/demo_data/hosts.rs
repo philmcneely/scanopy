@@ -191,9 +191,10 @@ pub(super) fn generate_hosts_and_services(
     let pve_hq1_svc_id = Uuid::new_v4(); // Proxmox VE on proxmox-hv01
     let pve_hq2_svc_id = Uuid::new_v4(); // Proxmox VE on proxmox-hv02
     let pve_dc_svc_id = Uuid::new_v4(); // Proxmox VE on dc-proxmox-hv01
+    let libvirt_dc_svc_id = Uuid::new_v4(); // libvirt (KVM) on dc-kvm01
 
     // ========================================================================
-    // HEADQUARTERS SITE — 31 hosts
+    // HEADQUARTERS SITE — 34 hosts
     // ========================================================================
     let hq = find_site("Headquarters");
     let hq_mgmt = find_subnet("HQ Management");
@@ -1867,6 +1868,32 @@ pub(super) fn generate_hosts_and_services(
         ("Bind9", "Bind9", Some(PortType::DnsUdp), vec![]),
     ));
 
+    // 33. Boardroom Apple TV. Found by its AirPlay advertisement, which also names the port.
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "boardroom-appletv",
+                Some("Boardroom.local"),
+                Some("Boardroom Apple TV for screen sharing"),
+                hq,
+                hq_iot,
+                Ipv4Addr::new(10, 0, 30, 80),
+                iot_tag.into_iter().collect(),
+                None,
+                None,
+                now
+            ),
+            [0xf0, 0x18, 0x98, 0x30, 0x33, 0x01],
+        ),
+        now,
+        (
+            "Apple TV",
+            "Apple TV",
+            Some(PortType::new_tcp(7000)),
+            iot_tag.into_iter().collect()
+        ),
+    ));
+
     // -- Annex (10.0.50.x) — known only via an LLDP neighbor advertisement from the HQ core
     // switch; nothing here has been scanned directly, so this host is EntitySource::Inferred
     // rather than Manual, and its subnet (see generate_subnets) carries a provisional
@@ -1949,7 +1976,7 @@ pub(super) fn generate_hosts_and_services(
     }
 
     // ========================================================================
-    // DATA CENTER SITE — 21 hosts
+    // DATA CENTER SITE — 24 hosts
     // ========================================================================
     let dc = find_site("Data Center");
     let dc_mgmt = find_subnet("DC Management");
@@ -2400,6 +2427,152 @@ pub(super) fn generate_hosts_and_services(
             services,
         });
     }
+
+    // 10b. dc-kvm01 — a plain Ubuntu KVM host managed with libvirt (pre-generated libvirt service
+    // ID). Nothing discovers libvirt guests yet, so its two VMs were assigned to it by hand.
+    {
+        let (host, ip_address) = with_snmp(
+            with_mac(
+                create_host(
+                    "dc-kvm01",
+                    Some("kvm01.dc.acme.io"),
+                    Some("Data center KVM host (libvirt)"),
+                    dc,
+                    dc_compute,
+                    Ipv4Addr::new(172, 16, 10, 6),
+                    production_tag.into_iter().collect(),
+                    None,
+                    None,
+                    now,
+                ),
+                [0x3c, 0xec, 0xef, 0xdc, 0x0a, 0x01],
+            ),
+            Some("Linux dc-kvm01 6.8.0-45-generic #45-Ubuntu SMP x86_64"),
+            Some("1.3.6.1.4.1.8072.3.2.10"),
+            Some("DC-East, Cage 4, Rack 3"),
+            Some("sysadmin@acme-corp.com"),
+            None,
+            Some("Supermicro"),
+            Some("SYS-1029P-WTR"),
+            Some("S41208KVM0110"),
+        );
+        let ip_addresses = vec![ip_address];
+        let mut ports = Vec::new();
+        let mut services = Vec::new();
+        if let Some((svc, port)) = create_service_with_id(
+            libvirt_dc_svc_id,
+            "libvirt (KVM)",
+            "libvirt (KVM)",
+            &host,
+            &ip_addresses[0],
+            None,
+            production_tag.into_iter().collect(),
+            now,
+        ) {
+            if let Some(p) = port {
+                ports.push(p);
+            }
+            services.push(svc);
+        }
+        if let Some((svc, port)) = create_service(
+            "SSH",
+            "SSH",
+            &host,
+            &ip_addresses[0],
+            Some(PortType::Ssh),
+            vec![],
+            now,
+        ) {
+            if let Some(p) = port {
+                ports.push(p);
+            }
+            services.push(svc);
+        }
+        result.push(HostWithServices {
+            host,
+            ip_addresses,
+            ports,
+            services,
+        });
+    }
+
+    // 10c. vault-vm — libvirt domain on dc-kvm01
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "vault-vm",
+                Some("vault.dc.acme.io"),
+                Some("HashiCorp Vault (VM on dc-kvm01)"),
+                dc,
+                dc_compute,
+                Ipv4Addr::new(172, 16, 10, 12),
+                [production_tag, identity_tag]
+                    .into_iter()
+                    .flatten()
+                    .collect(),
+                None,
+                Some((
+                    HostVirtualization::Libvirt(LibvirtVirtualization {
+                        vm_name: Some("vault-vm".to_string()),
+                        vm_id: Some("6f1c2a8e-4b7d-4e3a-9c15-2d8e0b7a4f61".to_string()),
+                        state: GuestState::Running,
+                    }),
+                    libvirt_dc_svc_id,
+                )),
+                now
+            ),
+            [0x52, 0x54, 0x00, 0xdc, 0x0c, 0x01],
+        ),
+        now,
+        (
+            "Vault",
+            "Vault",
+            Some(PortType::new_tcp(8200)),
+            [production_tag, identity_tag]
+                .into_iter()
+                .flatten()
+                .collect()
+        ),
+    ));
+
+    // 10d. minio-vm — libvirt domain on dc-kvm01, object storage for backups
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "minio-vm",
+                Some("minio.dc.acme.io"),
+                Some("MinIO object storage (VM on dc-kvm01)"),
+                dc,
+                dc_compute,
+                Ipv4Addr::new(172, 16, 10, 13),
+                [production_tag, backups_tag]
+                    .into_iter()
+                    .flatten()
+                    .collect(),
+                None,
+                Some((
+                    HostVirtualization::Libvirt(LibvirtVirtualization {
+                        vm_name: Some("minio-vm".to_string()),
+                        vm_id: Some("a93e5d07-81c2-4f6b-b0d4-7e2f19c3a855".to_string()),
+                        state: GuestState::Running,
+                    }),
+                    libvirt_dc_svc_id,
+                )),
+                now
+            ),
+            [0x52, 0x54, 0x00, 0xdc, 0x0d, 0x01],
+        ),
+        now,
+        (
+            "MinIO",
+            "MinIO",
+            Some(PortType::Http9000),
+            [production_tag, backups_tag]
+                .into_iter()
+                .flatten()
+                .collect()
+        ),
+    ));
 
     // 11. dc-docker01 — Docker host (2 ip_addresses: eth0 on Compute, docker0 on DC Docker Bridge)
     {

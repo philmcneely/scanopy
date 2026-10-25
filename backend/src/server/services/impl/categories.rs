@@ -213,20 +213,22 @@ impl EntityMetadataProvider for ServiceCategory {
     fn color(&self) -> Color {
         match self {
             // Infrastructure (always-on, core network services)
+            // The most common categories each get their own color. Less common ones
+            // reuse the color of the category they most resemble.
             ServiceCategory::NetworkCore => Color::Yellow,
-            ServiceCategory::NetworkAccess => Color::Green,
-            ServiceCategory::NetworkAppliance => Color::Red,
-            ServiceCategory::RemoteAccess => Color::Amber,
+            ServiceCategory::NetworkAccess => ServiceCategory::NetworkCore.color(),
+            ServiceCategory::NetworkAppliance => ServiceCategory::IdentityAndAccess.color(),
+            ServiceCategory::RemoteAccess => Color::Rose,
 
             // Server Services
-            ServiceCategory::Storage => Color::Green,
-            ServiceCategory::Media => Color::Blue,
-            ServiceCategory::HomeAutomation => Color::Blue,
+            ServiceCategory::Storage => Concept::Storage.color(),
+            ServiceCategory::Media => Color::Fuchsia,
+            ServiceCategory::HomeAutomation => ServiceCategory::IoT.color(),
             ServiceCategory::Hypervisor => Concept::Virtualization.color(),
             ServiceCategory::ContainerRuntime => Concept::Containerization.color(),
             ServiceCategory::Container => Concept::Containerization.color(),
-            ServiceCategory::Orchestrator => Color::Purple,
-            ServiceCategory::Backup => Color::Gray,
+            ServiceCategory::Orchestrator => Concept::Containerization.color(),
+            ServiceCategory::Backup => ServiceCategory::Storage.color(),
 
             // Network Services
             ServiceCategory::DNS => Concept::Dns.color(),
@@ -236,32 +238,32 @@ impl EntityMetadataProvider for ServiceCategory {
             ServiceCategory::ReverseProxy => Concept::ReverseProxy.color(),
 
             // End devices
-            ServiceCategory::Workstation => Color::Green,
-            ServiceCategory::Mobile => Color::Blue,
+            ServiceCategory::Workstation => Color::Blue,
+            ServiceCategory::Mobile => ServiceCategory::Workstation.color(),
             ServiceCategory::IoT => Concept::IoT.color(),
-            ServiceCategory::Industrial => Color::Orange,
-            ServiceCategory::Printer => Color::Gray,
+            ServiceCategory::Industrial => ServiceCategory::IoT.color(),
+            ServiceCategory::Printer => Color::Pink,
 
             // Applications
-            ServiceCategory::Database => Color::Gray,
-            ServiceCategory::Development => Color::Red,
-            ServiceCategory::Dashboard => Color::Purple,
-            ServiceCategory::MessageQueue => Color::Green,
-            ServiceCategory::IdentityAndAccess => Color::Yellow,
-            ServiceCategory::Integration => Color::Cyan,
+            ServiceCategory::Database => Color::Violet,
+            ServiceCategory::Development => ServiceCategory::Database.color(),
+            ServiceCategory::Dashboard => ServiceCategory::Monitoring.color(),
+            ServiceCategory::MessageQueue => ServiceCategory::Database.color(),
+            ServiceCategory::IdentityAndAccess => Color::Red,
+            ServiceCategory::Integration => ServiceCategory::Database.color(),
 
             // Office & Productivity
-            ServiceCategory::Office => Color::Blue,
-            ServiceCategory::ProjectManagement => Color::Indigo,
+            ServiceCategory::Office => ServiceCategory::Workstation.color(),
+            ServiceCategory::ProjectManagement => ServiceCategory::Workstation.color(),
 
             // Communication
-            ServiceCategory::Messaging => Color::Green,
-            ServiceCategory::Conferencing => Color::Teal,
-            ServiceCategory::Telephony => Color::Orange,
-            ServiceCategory::Email => Color::Rose,
+            ServiceCategory::Messaging => Color::Teal,
+            ServiceCategory::Conferencing => ServiceCategory::Messaging.color(),
+            ServiceCategory::Telephony => ServiceCategory::Messaging.color(),
+            ServiceCategory::Email => ServiceCategory::Messaging.color(),
 
             // Content
-            ServiceCategory::Publishing => Color::Purple, // was "violet", mapped to purple
+            ServiceCategory::Publishing => ServiceCategory::Media.color(),
 
             // Special
             ServiceCategory::Scanopy => Color::Purple,

@@ -110,7 +110,7 @@
 
 {#if entityId}
 	<InspectorSection id="Application" section="Application">
-		<div class="card-static space-y-2 card p-2">
+		<div class="card-static card space-y-2 p-2">
 			{#if hasAppTag && currentAppTag}
 				<div class="flex flex-wrap items-center gap-1">
 					<Tag

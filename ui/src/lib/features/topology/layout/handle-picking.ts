@@ -257,6 +257,35 @@ export function computeOptimalHandles(
 						return n;
 					}
 				: null;
+	// A chord that leaves a side heading back into its own card passes through that card, which the
+	// obstacle count never sees because endpoints are excluded from it. The drawn edge leaves the
+	// side outward and doubles back across the card, so it counts as one crossing. When one card
+	// contains the other, every side of the outer card faces inward, so the check is skipped.
+	const contains = (
+		outer: { x: number; y: number },
+		outerSize: { w: number; h: number },
+		inner: { x: number; y: number },
+		innerSize: { w: number; h: number }
+	) =>
+		inner.x >= outer.x &&
+		inner.y >= outer.y &&
+		inner.x + innerSize.w <= outer.x + outerSize.w &&
+		inner.y + innerSize.h <= outer.y + outerSize.h;
+	const nested =
+		contains(srcPos, srcSize, tgtPos, tgtSize) || contains(tgtPos, tgtSize, srcPos, srcSize);
+	const facesAway = (side: HandleSide, dx: number, dy: number): boolean => {
+		switch (side) {
+			case 'Top':
+				return dy > 0;
+			case 'Bottom':
+				return dy < 0;
+			case 'Left':
+				return dx > 0;
+			case 'Right':
+				return dx < 0;
+		}
+	};
+
 	let best: EdgeHandles = { sourceHandle: 'Bottom', targetHandle: 'Top' };
 	let bestScore = Infinity;
 	for (const sourceHandle of SIDES) {
@@ -266,7 +295,11 @@ export function computeOptimalHandles(
 			const dx = tp.x - sp.x;
 			const dy = tp.y - sp.y;
 			const distSq = dx * dx + dy * dy;
-			const crossings = countCrossings ? countCrossings(sp.x, sp.y, tp.x, tp.y) : 0;
+			let crossings = countCrossings ? countCrossings(sp.x, sp.y, tp.x, tp.y) : 0;
+			if (!nested) {
+				if (facesAway(sourceHandle, dx, dy)) crossings += 1;
+				if (facesAway(targetHandle, -dx, -dy)) crossings += 1;
+			}
 			const score = distSq * (1 + CROSSING_PENALTY * crossings);
 			if (score < bestScore) {
 				bestScore = score;

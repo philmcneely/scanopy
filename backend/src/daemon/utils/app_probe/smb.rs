@@ -8,7 +8,7 @@
 //! On an SMB2 reply the same connection sends a SESSION_SETUP carrying an NTLMSSP NEGOTIATE that asks
 //! for the server's version. The CHALLENGE that comes back states it (major, minor, build) before any
 //! credential is involved, which is how `smb-os-discovery` reads it. Windows fills it with its own
-//! release; Samba fills a build of 0, which writes no OS.
+//! release. Samba fills a build of 0 and macOS a fixed 6.1.7600, and neither writes an OS.
 
 use anyhow::Error;
 use async_trait::async_trait;
@@ -221,12 +221,18 @@ fn session_setup_request() -> Vec<u8> {
     packet
 }
 
+/// The version macOS's SMB server states: 6.1.7600, Windows 7 as first released. Two Macs on a
+/// live network both read as Windows 7 from it. A host that runs Windows 7 without its 2011
+/// service pack (7601) states it too, and loses its OS reading to this.
+const MACOS_SMB_VERSION: (u8, u8, u16) = (6, 1, 7600);
+
 /// The Windows release an NTLMSSP CHALLENGE in `reply` states, if it states one.
 ///
 /// Found by its signature rather than by walking the SPNEGO wrapper: the CHALLENGE is the only
 /// NTLMSSP message in the reply, and its layout is fixed (MS-NLMP 2.2.1.2). The version sits at
-/// offset 48 and is meaningful only when the server set `NEGOTIATE_VERSION`. A build of 0 is not
-/// a Windows release; Samba sends it.
+/// offset 48 and is meaningful only when the server set `NEGOTIATE_VERSION`. Two versions name no
+/// host, because the server writes them whatever it runs on: a build of 0, which Samba sends, and
+/// [`MACOS_SMB_VERSION`].
 fn windows_version(reply: &[u8]) -> Option<HostOs> {
     let start = reply
         .windows(NTLMSSP_SIGNATURE.len())
@@ -243,7 +249,7 @@ fn windows_version(reply: &[u8]) -> Option<HostOs> {
     let version = challenge.get(48..56)?;
     let (major, minor) = (version[0], version[1]);
     let build = u16::from_le_bytes([version[2], version[3]]);
-    if build == 0 {
+    if build == 0 || (major, minor, build) == MACOS_SMB_VERSION {
         return None;
     }
     Some(HostOs {
@@ -329,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    fn samba_or_a_challenge_without_a_version_names_no_os() {
+    fn samba_macos_or_a_challenge_without_a_version_names_no_os() {
         assert_eq!(
             windows_version(&challenge(
                 NTLMSSP_NEGOTIATE_FLAGS,
@@ -341,6 +347,14 @@ mod tests {
             windows_version(&challenge(
                 NTLMSSP_NEGOTIATE_FLAGS & !NTLMSSP_NEGOTIATE_VERSION,
                 [10, 0, 0x7C, 0x4F, 0, 0, 0, 0x0F],
+            )),
+            None
+        );
+        // macOS: 6.1.7600 (0x1DB0).
+        assert_eq!(
+            windows_version(&challenge(
+                NTLMSSP_NEGOTIATE_FLAGS,
+                [6, 1, 0xB0, 0x1D, 0, 0, 0, 0x0F]
             )),
             None
         );

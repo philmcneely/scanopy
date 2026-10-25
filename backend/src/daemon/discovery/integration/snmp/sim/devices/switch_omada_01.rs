@@ -13,6 +13,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-omada-01",
@@ -21,9 +23,10 @@ pub fn device() -> SimDevice {
             issue: "#614",
             defect: "16 ports at ifIndex 49153+ with no ifName and one shared chassis MAC; all 17 interfaces must persist rather than collapsing via the MAC tier",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("public"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some(
                 "TP-Link Omada TL-SG3216 JetStream 16-Port Gigabit L2 Managed Switch".into(),

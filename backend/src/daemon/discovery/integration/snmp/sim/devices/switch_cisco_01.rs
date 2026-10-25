@@ -12,6 +12,8 @@ use crate::server::interfaces::r#impl::base::if_type;
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-cisco-01",
@@ -30,6 +32,7 @@ pub fn device() -> SimDevice {
             },
             context_name: Some("vlan-20".into()),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Cisco IOS Software [Fuji], Catalyst L3 Switch Software (CAT3K_CAA-UNIVERSALK9-M), Version 16.9.5".into()),
             sys_object_id: Some("1.3.6.1.4.1.9.1.1745".into()),

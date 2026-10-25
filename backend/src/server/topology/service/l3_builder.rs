@@ -9,7 +9,7 @@ use crate::server::shared::types::metadata::EntityMetadataProvider;
 use crate::server::topology::types::{
     edges::Edge,
     grouping::GroupingConfig,
-    nodes::{Node, NodeType},
+    nodes::{ContainerType, Node, NodeType},
 };
 
 pub struct L3Builder;
@@ -30,7 +30,7 @@ impl ViewBuilder for L3Builder {
 
         // Create nodes (positions zeroed — frontend computes layout via elkjs)
         let mut subnet_builder = SubnetGraphBuilder::new();
-        let (subnet_ids, child_nodes) =
+        let (subnet_ids, mut child_nodes) =
             subnet_builder.create_subnet_child_nodes(ctx, &mut all_edges, grouping);
 
         let mut subnet_nodes = subnet_builder.create_subnet_nodes(ctx, &subnet_ids);
@@ -54,8 +54,38 @@ impl ViewBuilder for L3Builder {
             }
         }
 
+        clear_stack_logos_repeating_bridge(&subnet_nodes, &mut child_nodes);
+
         let all_nodes: Vec<Node> = subnet_nodes.into_iter().chain(child_nodes).collect();
         (all_nodes, all_edges)
+    }
+}
+
+/// Drop a Stack subcontainer's runtime logo when the bridge subnet it sits in already shows
+/// the same one: every stack inside a Docker bridge is a Docker stack. A stack on any other
+/// subnet, or inside a bridge whose runtime didn't resolve, keeps its logo.
+fn clear_stack_logos_repeating_bridge(subnet_nodes: &[Node], child_nodes: &mut [Node]) {
+    let subnet_logos: HashMap<Uuid, &str> = subnet_nodes
+        .iter()
+        .filter_map(|node| match &node.node_type {
+            NodeType::Container {
+                associated_service_definition: Some(definition),
+                ..
+            } => Some((node.id, definition.as_str())),
+            _ => None,
+        })
+        .collect();
+    for node in child_nodes.iter_mut() {
+        if let NodeType::Container {
+            container_type: ContainerType::Stack,
+            parent_container_id: Some(parent_id),
+            associated_service_definition,
+            ..
+        } = &mut node.node_type
+            && associated_service_definition.as_deref() == subnet_logos.get(parent_id).copied()
+        {
+            *associated_service_definition = None;
+        }
     }
 }
 
@@ -496,6 +526,302 @@ mod tests {
                 link.source,
                 link.target
             );
+        }
+    }
+
+    mod bridge_runtime_logo {
+        use super::*;
+        use crate::server::bindings::r#impl::base::Binding;
+        use crate::server::services::definitions::docker_daemon::Docker;
+        use crate::server::services::definitions::podman::Podman;
+        use crate::server::services::r#impl::virtualization::{
+            DockerVirtualization, ServiceVirtualization,
+        };
+        use crate::server::subnets::r#impl::types::SubnetType;
+        use crate::server::topology::types::grouping::ContainerRule;
+        use crate::server::topology::types::views::TopologyView;
+
+        fn host() -> Host {
+            Host {
+                id: Uuid::new_v4(),
+                base: HostBase {
+                    name: HostName::manual("container-host".to_string()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        }
+
+        fn subnet(subnet_type: SubnetType, runtime: Option<Uuid>, second_octet: u8) -> Subnet {
+            Subnet {
+                id: Uuid::new_v4(),
+                base: SubnetBase {
+                    cidr: SubnetCidr::new(
+                        SubnetCidrValue(IpCidr::V4(
+                            Ipv4Cidr::new(Ipv4Addr::new(172, second_octet, 0, 0), 16).unwrap(),
+                        )),
+                        AttributeSource::DaemonSelfReport,
+                    ),
+                    name: SubnetName::unattributed(format!("net{second_octet}")),
+                    subnet_type: SubnetTypeAttributed::unattributed(subnet_type),
+                    virtualization_service_id: runtime,
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        }
+
+        /// The host's address on `subnet`. The builder groups by `subnet_id`, so the
+        /// address value itself doesn't need to fall inside the CIDR.
+        fn ip(host: &Host, subnet: &Subnet) -> IPAddress {
+            IPAddress {
+                id: Uuid::new_v4(),
+                base: IPAddressBase {
+                    host_id: host.id,
+                    subnet_id: subnet.id,
+                    ip_address: std::net::IpAddr::V4(Ipv4Addr::new(172, 16, 0, 2)),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        }
+
+        fn service(host: &Host, definition: Box<dyn ServiceDefinition>) -> Service {
+            Service {
+                id: Uuid::new_v4(),
+                base: ServiceBase {
+                    host_id: host.id,
+                    service_definition: definition,
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        }
+
+        /// A container in compose project "media", bound to `ip`, so ByStack groups it.
+        fn stack_member(host: &Host, ip: &IPAddress, runtime_id: Uuid) -> Service {
+            let mut svc = service(host, Box::new(TestServiceDef));
+            svc.base.bindings = vec![Binding::new_ip_address_serviceless(ip.id)];
+            svc.base.virtualization_service_id = Some(runtime_id);
+            svc.base.virtualization_metadata =
+                Some(ServiceVirtualization::Docker(DockerVirtualization {
+                    state: Default::default(),
+                    container_name: Some("jellyfin".to_string()),
+                    container_id: Some("abc123".to_string()),
+                    compose_project: Some("media".to_string()),
+                }));
+            svc
+        }
+
+        fn build(
+            hosts: &[Host],
+            subnets: &[Subnet],
+            ip_addresses: &[IPAddress],
+            services: &[Service],
+            by_stack: bool,
+        ) -> Vec<Node> {
+            let mut options = TopologyOptions::default();
+            options.request.container_rules.insert(
+                TopologyView::L3Logical,
+                vec![
+                    IdentifiedRule::new(ContainerRule::BySubnet),
+                    IdentifiedRule::new(ContainerRule::MergeContainerBridges),
+                ],
+            );
+            options.request.element_rules = if by_stack {
+                vec![IdentifiedRule::new(ElementRule::ByStack)]
+            } else {
+                vec![]
+            };
+            let ctx = TopologyContext::new(
+                hosts,
+                ip_addresses,
+                subnets,
+                services,
+                &[],
+                &[],
+                &[],
+                &[],
+                &[],
+                &[],
+                &options,
+                TopologyView::L3Logical,
+            );
+            let grouping =
+                GroupingConfig::from_request_options(&ctx.options.request, TopologyView::L3Logical);
+            L3Builder.build(&ctx, &grouping).0
+        }
+
+        fn container(nodes: &[Node], id: Uuid) -> &NodeType {
+            &nodes
+                .iter()
+                .find(|n| n.id == id)
+                .expect("container node")
+                .node_type
+        }
+
+        fn logo(nodes: &[Node], id: Uuid) -> Option<&str> {
+            match container(nodes, id) {
+                NodeType::Container {
+                    associated_service_definition,
+                    ..
+                } => associated_service_definition.as_deref(),
+                _ => panic!("expected container"),
+            }
+        }
+
+        fn stack_logo_in(nodes: &[Node], subnet_id: Uuid) -> Option<&str> {
+            nodes
+                .iter()
+                .find_map(|n| match &n.node_type {
+                    NodeType::Container {
+                        container_type: ContainerType::Stack,
+                        parent_container_id: Some(parent),
+                        associated_service_definition,
+                        ..
+                    } if *parent == subnet_id => Some(associated_service_definition.as_deref()),
+                    _ => None,
+                })
+                .expect("stack subcontainer in subnet")
+        }
+
+        #[test]
+        fn bridges_take_their_runtime_logo_and_other_subnets_do_not() {
+            let h = host();
+            let docker = service(&h, Box::new(Docker));
+            let podman = service(&h, Box::new(Podman));
+            let docker_bridge = subnet(SubnetType::DockerBridge, Some(docker.id), 17);
+            let podman_bridge = subnet(SubnetType::PodmanBridge, Some(podman.id), 88);
+            // A non-bridge subnet linked to a runtime still keeps its own icon.
+            let macvlan = subnet(SubnetType::MacVlan, Some(docker.id), 30);
+            let ips = [
+                ip(&h, &docker_bridge),
+                ip(&h, &podman_bridge),
+                ip(&h, &macvlan),
+            ];
+
+            let nodes = build(
+                &[h],
+                &[
+                    docker_bridge.clone(),
+                    podman_bridge.clone(),
+                    macvlan.clone(),
+                ],
+                &ips,
+                &[docker, podman],
+                false,
+            );
+
+            assert_eq!(logo(&nodes, docker_bridge.id), Some("Docker"));
+            assert_eq!(logo(&nodes, podman_bridge.id), Some("Podman"));
+            assert_eq!(logo(&nodes, macvlan.id), None);
+        }
+
+        #[test]
+        fn bridge_without_resolvable_runtime_keeps_icon() {
+            let (h1, h2, h3) = (host(), host(), host());
+            let no_logo_runtime = service(&h3, Box::new(TestServiceDef));
+            let unlinked = subnet(SubnetType::DockerBridge, None, 17);
+            let missing_service = subnet(SubnetType::DockerBridge, Some(Uuid::new_v4()), 18);
+            let logoless = subnet(SubnetType::DockerBridge, Some(no_logo_runtime.id), 19);
+            let ips = [
+                ip(&h1, &unlinked),
+                ip(&h2, &missing_service),
+                ip(&h3, &logoless),
+            ];
+
+            let nodes = build(
+                &[h1, h2, h3],
+                &[unlinked.clone(), missing_service.clone(), logoless.clone()],
+                &ips,
+                &[no_logo_runtime],
+                false,
+            );
+
+            for bridge in [&unlinked, &missing_service, &logoless] {
+                assert_eq!(logo(&nodes, bridge.id), None);
+                assert!(matches!(
+                    container(&nodes, bridge.id),
+                    NodeType::Container { icon: Some(i), .. }
+                        if *i == SubnetType::DockerBridge.icon().to_string()
+                ));
+            }
+        }
+
+        #[test]
+        fn merged_bridges_show_logo_only_when_every_bridge_resolves_to_one_runtime() {
+            let (shared, partial) = (host(), host());
+            let docker_a = service(&shared, Box::new(Docker));
+            let docker_b = service(&shared, Box::new(Docker));
+            let docker_c = service(&partial, Box::new(Docker));
+            // Two Docker daemons on one host still name one runtime.
+            let shared_0 = subnet(SubnetType::DockerBridge, Some(docker_a.id), 17);
+            let shared_1 = subnet(SubnetType::DockerBridge, Some(docker_b.id), 18);
+            let partial_0 = subnet(SubnetType::DockerBridge, Some(docker_c.id), 19);
+            let partial_1 = subnet(SubnetType::DockerBridge, None, 20);
+            let ips = [
+                ip(&shared, &shared_0),
+                ip(&shared, &shared_1),
+                ip(&partial, &partial_0),
+                ip(&partial, &partial_1),
+            ];
+            let subnets = [shared_0, shared_1, partial_0, partial_1];
+
+            let nodes = build(
+                &[shared, partial],
+                &subnets,
+                &ips,
+                &[docker_a, docker_b, docker_c],
+                false,
+            );
+
+            let merged_logos: Vec<Option<&str>> = nodes
+                .iter()
+                .filter(|n| {
+                    n.header
+                        .as_deref()
+                        .is_some_and(|h| h.starts_with("Docker Bridge:") && h.contains(", "))
+                })
+                .map(|n| logo(&nodes, n.id))
+                .collect();
+            assert_eq!(merged_logos.len(), 2, "one merged container per host");
+            assert!(merged_logos.contains(&Some("Docker")));
+            assert!(merged_logos.contains(&None));
+        }
+
+        #[test]
+        fn stack_logo_drops_only_where_its_bridge_already_shows_it() {
+            let (in_bridge, on_macvlan, in_unresolved) = (host(), host(), host());
+            let docker_1 = service(&in_bridge, Box::new(Docker));
+            let docker_2 = service(&on_macvlan, Box::new(Docker));
+            let docker_3 = service(&in_unresolved, Box::new(Docker));
+            let bridge = subnet(SubnetType::DockerBridge, Some(docker_1.id), 17);
+            let macvlan = subnet(SubnetType::MacVlan, None, 30);
+            let unresolved = subnet(SubnetType::DockerBridge, None, 18);
+            let bridge_ip = ip(&in_bridge, &bridge);
+            let macvlan_ip = ip(&on_macvlan, &macvlan);
+            let unresolved_ip = ip(&in_unresolved, &unresolved);
+            let services = [
+                stack_member(&in_bridge, &bridge_ip, docker_1.id),
+                stack_member(&on_macvlan, &macvlan_ip, docker_2.id),
+                stack_member(&in_unresolved, &unresolved_ip, docker_3.id),
+                docker_1,
+                docker_2,
+                docker_3,
+            ];
+
+            let nodes = build(
+                &[in_bridge, on_macvlan, in_unresolved],
+                &[bridge.clone(), macvlan.clone(), unresolved.clone()],
+                &[bridge_ip, macvlan_ip, unresolved_ip],
+                &services,
+                true,
+            );
+
+            assert_eq!(logo(&nodes, bridge.id), Some("Docker"));
+            assert_eq!(stack_logo_in(&nodes, bridge.id), None);
+            assert_eq!(stack_logo_in(&nodes, macvlan.id), Some("Docker"));
+            assert_eq!(stack_logo_in(&nodes, unresolved.id), Some("Docker"));
         }
     }
 }

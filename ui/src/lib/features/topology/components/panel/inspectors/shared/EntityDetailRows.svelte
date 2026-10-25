@@ -9,6 +9,7 @@
 		entityFieldLabel,
 		entityFields,
 		fieldEntityType,
+		fieldSource,
 		formatFieldValue,
 		resolveField,
 		type EntityField
@@ -18,6 +19,9 @@
 	import InfoRow from '$lib/shared/components/data/InfoRow.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import CopyableValue from '$lib/shared/components/data/CopyableValue.svelte';
+	import OsTag from '$lib/features/hosts/components/OsTag.svelte';
+	import type { HostOs } from '$lib/features/hosts/host-os';
+	import type { AttributeSource } from '$lib/shared/utils/attribute-source';
 	import type { InspectorSection } from '../view-config';
 
 	type Entity = components['schemas']['EntityDiscriminants'];
@@ -62,6 +66,13 @@
 				items: { id: string; label: string; data: object }[];
 		  }
 		| { field: EntityField; label: string; type: 'identifiers'; values: string[] }
+		| {
+				field: EntityField;
+				label: string;
+				type: 'os';
+				os: HostOs;
+				source: AttributeSource | null | undefined;
+		  }
 		| { field: EntityField; label: string; type: 'text'; text: string };
 
 	let resolved = $derived(nodeEntity(node.data as TopologyNode, topology));
@@ -99,6 +110,14 @@
 						: [];
 				});
 				if (items.length) out.push({ field, label, type: 'entities', items });
+			} else if (field.format.type === 'OperatingSystem' && typeof values[0] === 'object') {
+				out.push({
+					field,
+					label,
+					type: 'os',
+					os: values[0] as HostOs,
+					source: fieldSource(field, entity)
+				});
 			} else if (field.format.type === 'Identifier') {
 				out.push({
 					field,
@@ -119,7 +138,7 @@
 </script>
 
 {#if rows.length > 0 || children}
-	<div class="card-static space-y-1.5 card">
+	<div class="card-static card space-y-1.5">
 		{#each rows as row (row.field.id)}
 			<InfoRow label={row.label}>
 				<span class="inline-flex flex-wrap items-center justify-end gap-1">
@@ -132,6 +151,8 @@
 								color={entities.getColorHelper(target).color}
 							/>
 						{/each}
+					{:else if row.type === 'os'}
+						<OsTag os={row.os} source={row.source} />
 					{:else if row.type === 'identifiers'}
 						{#each row.values as value (value)}
 							<CopyableValue {value} variant="inline" />

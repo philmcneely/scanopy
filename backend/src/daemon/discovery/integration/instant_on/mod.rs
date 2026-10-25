@@ -434,6 +434,7 @@ async fn create_device_host(
             managed_device: &managed_device,
             // Reported by a controller, not swept over multicast.
             dns_sd: &None,
+            certificates: &[],
         },
         &[],
         &daemon_id,

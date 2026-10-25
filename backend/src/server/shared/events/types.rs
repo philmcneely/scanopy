@@ -376,6 +376,9 @@ pub enum UpdateReason {
     OrganizationOnboardingMilestone,
     /// Demo data was seeded into it.
     OrganizationDemoPopulated,
+    /// Its owner reset it: everything but the organization and its owner was deleted, and it
+    /// gets back the setup data it started with. `had_sites` says whether it had a site before.
+    OrganizationReset { had_sites: bool },
     /// A notification was sent, and recorded so it isn't sent again.
     OrganizationNotificationRecorded,
     /// It turned off one email category from an unsubscribe link. `category` is the category's
@@ -500,6 +503,7 @@ impl UpdateReason {
             Self::OrganizationLicenseKeyChanged => "its licence key changed".to_string(),
             Self::OrganizationOnboardingMilestone => "it reached a milestone".to_string(),
             Self::OrganizationDemoPopulated => "demo data was seeded".to_string(),
+            Self::OrganizationReset { .. } => "its data was reset".to_string(),
             Self::OrganizationNotificationRecorded => "a notification was recorded".to_string(),
             Self::UserUnsubscribed { category } => {
                 format!("it unsubscribed from {category} emails")

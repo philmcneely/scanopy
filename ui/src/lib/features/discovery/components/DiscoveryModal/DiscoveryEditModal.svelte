@@ -11,6 +11,8 @@
 		DAEMON_HOST_IP,
 		hasExplicitTarget,
 		integrationTargetFor,
+		junctionHostIds,
+		junctionHostsOnSite,
 		supportsTarget
 	} from '$lib/features/credentials/utils/credentialTargets';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
@@ -242,13 +244,7 @@
 	// by id. The `hosts` prop is whatever the parent happened to load (in practice only the
 	// daemons' own hosts), which is why assignments to any other host went unseen — and
 	// pulling every host just to resolve a handful of ids would be wasteful.
-	let assignedHostIds = $derived([
-		...new Set(
-			(allCredentialsQuery.data ?? []).flatMap((c) =>
-				(c.host_assignments ?? []).map((a) => a.host_id)
-			)
-		)
-	]);
+	let assignedHostIds = $derived(junctionHostIds(allCredentialsQuery.data ?? []));
 	const assignedHostsQuery = useHostsByIds(() => assignedHostIds);
 
 	/**
@@ -262,22 +258,13 @@
 	 * endpoint blocking, and generalizing it in place would let another host's credential type
 	 * falsely claim the daemon host.
 	 */
-	let junctionHostsByCredential = $derived.by(() => {
-		const onSite = new Map(
-			(assignedHostsQuery.data ?? [])
-				.filter((h) => h.site_id === formData.site_id)
-				.map((h) => [h.id, h])
-		);
-		return new Map(
-			(allCredentialsQuery.data ?? []).flatMap((c) => {
-				// The junction holds a row per host+IP-scope, so a host id can repeat.
-				const assigned = [...new Set((c.host_assignments ?? []).map((a) => a.host_id))]
-					.map((id) => onSite.get(id))
-					.filter((h): h is Host => !!h);
-				return assigned.length > 0 ? [[c.id, assigned] as const] : [];
-			})
-		);
-	});
+	let junctionHostsByCredential = $derived(
+		junctionHostsOnSite(
+			allCredentialsQuery.data ?? [],
+			assignedHostsQuery.data ?? [],
+			formData.site_id
+		)
+	);
 
 	// Identity of the map above, so the effect that applies it runs once per real change
 	// rather than on every re-derivation (it both reads and writes `pendingCredentials`).

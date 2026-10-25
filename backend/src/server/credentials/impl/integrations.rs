@@ -12,8 +12,8 @@
 use serde::Serialize;
 use strum::IntoEnumIterator;
 
-use crate::server::services::r#impl::definitions::{ServiceDefinition, ServiceDefinitionExt};
-use crate::server::shared::fixtures::logo_slug;
+use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::shared::logos::Logo;
 use crate::server::shared::types::field_definition::FieldDefinition;
 use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider};
 use crate::server::shared::types::{Color, Icon};
@@ -37,17 +37,12 @@ pub struct Integration {
     pub name: String,
     /// Credential category grouping (e.g. "Container & Virtualization").
     pub category: String,
-    pub has_logo: bool,
-    /// File extension of the service logo (matches the downloaded
-    /// `logos/services/{logo_slug}.{logo_ext}`). Empty when there is no logo.
-    pub logo_ext: String,
-    /// Filename stem of the service logo under `logos/services/`.
-    pub logo_slug: String,
-    pub logo_needs_white_background: bool,
+    /// The service's logo, by its id in `logos.json`.
+    pub logo: Option<Logo>,
     /// Whether the service is a protocol rather than a vendor's product (SNMP, SSH).
     /// Generic integrations sort after vendor ones.
     pub is_generic: bool,
-    /// Lucide icon shown in place of the logo when `has_logo` is false.
+    /// Lucide icon shown in place of the logo when there is none.
     pub icon: Icon,
     /// Colour the app tints that fallback icon with.
     pub color: Color,
@@ -151,10 +146,7 @@ pub fn all_integrations() -> Vec<Integration> {
             id: service_id,
             name: ServiceDefinition::name(&*service).to_string(),
             category: <&'static str>::from(ct.credential_category()).to_string(),
-            has_logo: service.has_logo(),
-            logo_ext: disc.integration().logo_ext().to_string(),
-            logo_slug: logo_slug(ServiceDefinition::name(&*service)),
-            logo_needs_white_background: service.logo_needs_white_background(),
+            logo: service.logo(),
             is_generic: ServiceDefinition::is_generic(&*service),
             icon: disc.integration().icon(),
             color: disc.integration().color(),

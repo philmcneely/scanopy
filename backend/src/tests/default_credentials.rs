@@ -24,7 +24,7 @@ use crate::server::{
 };
 
 fn community(value: &str) -> CredentialType {
-    CredentialType::SnmpV2c {
+    CredentialType::SnmpCommunity {
         community: SecretValue::Inline {
             value: SecretString::from(value.to_string()),
         },
@@ -52,7 +52,7 @@ async fn org_credentials(services: &ServiceFactory, organization_id: Uuid) -> Ve
 async fn snmp_default(services: &ServiceFactory, organization_id: Uuid) -> Credential {
     services
         .credential_service
-        .find_default(organization_id, CredentialTypeDiscriminants::SnmpV2c)
+        .find_default(organization_id, CredentialTypeDiscriminants::SnmpCommunity)
         .await
         .unwrap()
         .expect("the organization has an SNMP default")
@@ -66,13 +66,20 @@ fn error_code(result: Result<impl std::fmt::Debug, anyhow::Error>) -> ErrorCode 
         .unwrap_or_else(|| panic!("not a coded error: {err}"))
 }
 
+/// An organization with the setup every new one gets.
 async fn new_org(services: &ServiceFactory) -> Uuid {
-    services
+    let id = services
         .organization_service
         .create(organization(), AuthenticatedEntity::System)
         .await
         .unwrap()
-        .id
+        .id;
+    services
+        .org_setup_service
+        .seed_organization(id, AuthenticatedEntity::System)
+        .await
+        .unwrap();
+    id
 }
 
 #[tokio::test]

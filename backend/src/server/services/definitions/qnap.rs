@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct QNAP;
@@ -33,8 +34,8 @@ impl ServiceDefinition for QNAP {
         ])
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/qnap.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Qnap)
     }
 }
 

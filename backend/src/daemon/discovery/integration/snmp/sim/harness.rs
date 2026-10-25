@@ -257,8 +257,12 @@ pub async fn scan(name: &str) -> Collected {
 pub async fn walk_warnings(name: &str) -> Vec<DiscoveryWarning> {
     let device = super::device(name);
     let collected = collect(&device).await;
-    let (shortfalls, collected_nothing) =
-        snmp_device_findings(device.ip.into(), Default::default(), collected.outcome);
+    let (shortfalls, collected_nothing) = snmp_device_findings(
+        device.ip.into(),
+        Default::default(),
+        Default::default(),
+        collected.outcome,
+    );
     let mut warnings = warn_incomplete_snmp_walks(&shortfalls);
     warnings.extend(warn_snmp_collected_nothing(collected_nothing.as_slice()));
     warnings

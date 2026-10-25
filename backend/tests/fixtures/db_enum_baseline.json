@@ -145,10 +145,9 @@
     "Proxmox"
   ],
   "CredentialType": [
-    "SnmpV2c",
+    "SnmpCommunity",
     "DockerProxy",
     "DockerSocket",
-    "SnmpV1",
     "SnmpV3",
     "PodmanProxy",
     "PodmanSocket",
@@ -281,6 +280,7 @@
     "Windows",
     "MacOs",
     "Ios",
+    "IpadOs",
     "TvOs",
     "AudioOs",
     "FreeBsd",
@@ -331,7 +331,8 @@
     "ESXi",
     "Docker",
     "Podman",
-    "NetworkIdentity"
+    "NetworkIdentity",
+    "Libvirt"
   ],
   "IntegrationTarget": [
     "DaemonHost",

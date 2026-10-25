@@ -2,6 +2,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 /// A container serving the Podman API on a TCP port in front of the runtime's socket (a socket
 /// proxy such as `tecnativa/docker-socket-proxy`, or socat).
@@ -27,8 +28,8 @@ impl ServiceDefinition for PodmanApiProxy {
         Pattern::None
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/podman.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Podman)
     }
 }
 

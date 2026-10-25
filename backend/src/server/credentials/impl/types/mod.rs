@@ -92,16 +92,11 @@ pub(crate) fn default_gnmi_port() -> u16 {
 ))]
 #[serde(tag = "type")]
 pub enum CredentialType {
-    /// SNMPv1 community string — for legacy devices that only speak v1.
-    #[schema(title = "SnmpV1")]
-    SnmpV1 {
-        /// SNMPv1 community string.
-        community: SecretValue,
-    },
-    /// SNMPv2c community string for querying network devices
-    #[schema(title = "SnmpV2c")]
-    SnmpV2c {
-        /// SNMPv2c community string.
+    /// SNMP community string, tried over SNMPv2c and then SNMPv1, so one credential also reaches
+    /// devices that only answer v1.
+    #[schema(title = "SnmpCommunity")]
+    SnmpCommunity {
+        /// SNMP community string.
         community: SecretValue,
     },
     /// SNMPv3 USM — security name, plus the authentication and privacy material its security
@@ -386,14 +381,8 @@ impl CredentialType {
     pub fn merge_redacted_secrets(&mut self, existing: &CredentialType) {
         match (self, existing) {
             (
-                Self::SnmpV1 { community },
-                Self::SnmpV1 {
-                    community: existing_community,
-                },
-            )
-            | (
-                Self::SnmpV2c { community },
-                Self::SnmpV2c {
+                Self::SnmpCommunity { community },
+                Self::SnmpCommunity {
                     community: existing_community,
                 },
             ) => {
@@ -544,8 +533,7 @@ impl CredentialType {
             // between a redacted round-trip and destroying a stored secret — a `_ => {}` lets a
             // newly added variant compile clean and silently persist the literal "********",
             // which then fails every probe with the real secret already gone.
-            (Self::SnmpV1 { .. }, _)
-            | (Self::SnmpV2c { .. }, _)
+            (Self::SnmpCommunity { .. }, _)
             | (Self::SnmpV3 { .. }, _)
             | (Self::DockerProxy { .. }, _)
             | (Self::DockerSocket { .. }, _)
@@ -574,7 +562,7 @@ impl CredentialType {
         match self {
             // SNMP can target the daemon's own host too (a 127.0.0.1 IP-override),
             // specific hosts, or a whole site.
-            Self::SnmpV1 { .. } | Self::SnmpV2c { .. } | Self::SnmpV3 { .. } => {
+            Self::SnmpCommunity { .. } | Self::SnmpV3 { .. } => {
                 vec![Target::DaemonHost, Target::Hosts, Target::Site]
             }
             // gNMI behaves like SNMP: broadcastable, and a device credential.
@@ -643,7 +631,7 @@ impl CredentialType {
             | Self::InstantOnAccount { .. }
             // One Proxmox VE API per node, with one way in.
             | Self::ProxmoxApiToken { .. } => true,
-            Self::SnmpV1 { .. } | Self::SnmpV2c { .. } | Self::SnmpV3 { .. } => false,
+            Self::SnmpCommunity { .. } | Self::SnmpV3 { .. } => false,
             // Try-many like SNMP: two gNMI credentials (Arista on 6030, ArcOS on 9339) must be
             // broadcastable on one site, which `true` would forbid.
             Self::Gnmi { .. } => false,
@@ -659,7 +647,7 @@ impl CredentialType {
     /// Returns None for FilePath mode, None fields, or redacted sentinels.
     fn get_inline_value(&self, field_id: &str) -> Option<String> {
         match self {
-            Self::SnmpV1 { community } | Self::SnmpV2c { community } => match field_id {
+            Self::SnmpCommunity { community } => match field_id {
                 "community" => inline_secret(community),
                 _ => None,
             },
@@ -772,7 +760,7 @@ impl CredentialType {
             }
         }
         let paths: Vec<Option<(&'static str, CredentialPath<'_>)>> = match self {
-            Self::SnmpV1 { community } | Self::SnmpV2c { community } => {
+            Self::SnmpCommunity { community } => {
                 vec![secret("community", community)]
             }
             Self::SnmpV3 { security, .. } => security
@@ -912,14 +900,9 @@ impl CredentialType {
             GnmiQueryCredential, SnmpQueryCredential, SnmpV3Params,
         };
         match self {
-            CredentialType::SnmpV1 { community } => {
-                CredentialQueryPayload::Snmp(SnmpQueryCredential {
-                    version: SnmpVersion::V1,
-                    community: secret_to_resolvable(community),
-                    v3: None,
-                })
-            }
-            CredentialType::SnmpV2c { community } => {
+            // V2c on the wire for every daemon. From 0.19.1 the daemon also tries v1 on each port;
+            // an older one tries v2c only.
+            CredentialType::SnmpCommunity { community } => {
                 CredentialQueryPayload::Snmp(SnmpQueryCredential {
                     version: SnmpVersion::V2c,
                     community: secret_to_resolvable(community),
@@ -1149,7 +1132,7 @@ mod tests {
     }
 
     fn snmp_cred(community: &str) -> CredentialType {
-        CredentialType::SnmpV2c {
+        CredentialType::SnmpCommunity {
             community: SecretValue::Inline {
                 value: SecretString::from(community.to_string()),
             },
@@ -1159,12 +1142,6 @@ mod tests {
     fn inline(value: &str) -> SecretValue {
         SecretValue::Inline {
             value: SecretString::from(value.to_string()),
-        }
-    }
-
-    fn snmpv1_cred(community: &str) -> CredentialType {
-        CredentialType::SnmpV1 {
-            community: inline(community),
         }
     }
 
@@ -1215,7 +1192,7 @@ mod tests {
         let mut updated = snmp_cred(REDACTED_SECRET_SENTINEL);
         updated.merge_redacted_secrets(&existing);
 
-        if let CredentialType::SnmpV2c { community } = &updated {
+        if let CredentialType::SnmpCommunity { community } = &updated {
             if let SecretValue::Inline { value } = community {
                 assert_eq!(value.expose_secret(), "my-secret-community");
             } else {
@@ -1359,7 +1336,7 @@ mod tests {
         let mut updated = snmp_cred("new-community");
         updated.merge_redacted_secrets(&existing);
 
-        if let CredentialType::SnmpV2c { community } = &updated {
+        if let CredentialType::SnmpCommunity { community } = &updated {
             if let SecretValue::Inline { value } = community {
                 assert_eq!(value.expose_secret(), "new-community");
             } else {
@@ -1476,19 +1453,6 @@ mod tests {
     }
 
     #[test]
-    fn merge_redacted_secrets_snmpv1_preserves_original() {
-        let existing = snmpv1_cred("legacy-community");
-        let mut updated = snmpv1_cred(REDACTED_SECRET_SENTINEL);
-        updated.merge_redacted_secrets(&existing);
-        match &updated {
-            CredentialType::SnmpV1 {
-                community: SecretValue::Inline { value },
-            } => assert_eq!(value.expose_secret(), "legacy-community"),
-            _ => panic!("expected SnmpV1 inline"),
-        }
-    }
-
-    #[test]
     fn merge_redacted_secrets_snmpv3_preserves_both_passwords_when_sentinel() {
         let existing = snmpv3_cred("auth-real", "priv-real");
         let mut updated = snmpv3_cred(REDACTED_SECRET_SENTINEL, REDACTED_SECRET_SENTINEL);
@@ -1512,10 +1476,10 @@ mod tests {
     }
 
     #[test]
-    fn to_query_payload_snmpv1_sets_version_and_community() {
-        match snmpv1_cred("comm").to_query_payload() {
+    fn to_query_payload_community_sets_version_and_community() {
+        match snmp_cred("comm").to_query_payload() {
             CredentialQueryPayload::Snmp(s) => {
-                assert_eq!(s.version, SnmpVersion::V1);
+                assert_eq!(s.version, SnmpVersion::V2c);
                 assert!(s.v3.is_none());
                 assert_eq!(
                     s.community,
@@ -1750,11 +1714,10 @@ mod tests {
             seen.insert(CredentialTypeDiscriminants::from(&parsed));
         }
 
-        // The sim deliberately spreads devices across all three SNMP versions so a scan
+        // The sim deliberately spreads devices across community and v3 credentials so a scan
         // exercises each negotiation path; losing one silently narrows what the env tests.
         for expected in [
-            CredentialTypeDiscriminants::SnmpV1,
-            CredentialTypeDiscriminants::SnmpV2c,
+            CredentialTypeDiscriminants::SnmpCommunity,
             CredentialTypeDiscriminants::SnmpV3,
         ] {
             assert!(
@@ -1903,7 +1866,7 @@ mod tests {
             UpstreamSupport::Undocumented
         );
         assert_eq!(
-            CredentialTypeDiscriminants::SnmpV2c.upstream_support(),
+            CredentialTypeDiscriminants::SnmpCommunity.upstream_support(),
             UpstreamSupport::Vendor
         );
     }
