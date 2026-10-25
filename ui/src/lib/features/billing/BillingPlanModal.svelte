@@ -13,7 +13,7 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { trackEvent } from '$lib/shared/utils/analytics';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
-	import type { PaymentFormSource, SetupPaymentSource } from '$lib/shared/billing/setup-payment';
+	import type { PaymentFormSource } from '$lib/shared/billing/setup-payment';
 	import { isPlanLapsed, isBillingPlanActive } from '$lib/features/organizations/types';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { isLicenseSigningAvailable, useConfigQuery } from '$lib/shared/stores/config-query';
@@ -134,37 +134,7 @@
 			: (requestedHosting ?? planHosting ?? $onboardingStore.hosting ?? 'cloud')
 	);
 
-	// Set when a trial nudge opened the picker: the user confirms or changes the
-	// trial plan here, and the payment-method dialog follows with the nudge's source.
-	let payAfterSelect = $derived(
-		$modalState.name === name
-			? (($modalState.entityData?.payAfterSelect as SetupPaymentSource | undefined) ?? null)
-			: null
-	);
-	let confirmCurrentPlan = $derived(
-		payAfterSelect != null && isCurrentlyTrialing && !canPay(organization)
-	);
-
-	function openPaymentAfterSelect(source: SetupPaymentSource) {
-		openModal('payment-method', {
-			entityData: { source: source satisfies PaymentFormSource }
-		});
-	}
-
 	async function handlePlanSelect(plan: BillingPlan) {
-		// Captured before onClose clears the modal state it is read from.
-		const paySource = confirmCurrentPlan ? payAfterSelect : null;
-		// Keeping the trial plan changes nothing on the subscription; only the card is left.
-		if (
-			paySource &&
-			plan.type === organization?.plan?.type &&
-			plan.rate === organization?.plan?.rate
-		) {
-			onClose();
-			openPaymentAfterSelect(paySource);
-			return;
-		}
-
 		// A paid plan with no trial left and no way to pay on file would otherwise
 		// go to Stripe Checkout. The payment-method dialog collects the card here
 		// instead (and offers invoice billing on self-hosted plans), then the
@@ -226,7 +196,6 @@
 				// Direct activation needs no Stripe tab.
 				stripeTab?.close();
 				onClose(plan);
-				if (paySource) openPaymentAfterSelect(paySource);
 				// Plan activated directly (Free or trial) is still webhook-driven, so a
 				// single refetch races the webhook and reads stale state (e.g. plan_status
 				// still null, so NoPaymentMethodBanner never appears until a reload). Poll
@@ -270,7 +239,6 @@
 			{isCurrentlyTrialing}
 			currentPlanType={organization?.plan?.type ?? null}
 			currentPlanLapsed={organization != null && isPlanLapsed(organization)}
-			{confirmCurrentPlan}
 		/>
 	</div>
 </GenericModal>

@@ -49,25 +49,11 @@ export function startSetupPayment({
 		trial_days_left: trialDaysLeft,
 		has_payment_method: org?.has_payment_method ?? false
 	});
-	// A trial starts on a default plan at signup, so the trial nudges have the
-	// user confirm or change the plan first; the plan picker then opens this
-	// dialog with the same source.
-	if (!plan && org?.plan_status === 'trialing' && CONFIRMS_PLAN_FIRST.includes(source)) {
-		openModal('billing-plan', { entityData: { payAfterSelect: source } });
-		return;
-	}
 	// The License tab lives inside Settings, which this modal replaces in the
 	// registry. Record where to go back to so the two match again afterwards.
 	reopenSettingsTabAfterPayment.set(source === 'license_tab' ? 'license' : null);
 	openModal('payment-method', { entityData: plan ? { plan, source } : { source } });
 }
-
-/** The trial nudges, which confirm the trial plan before asking for a card. */
-const CONFIRMS_PLAN_FIRST: SetupPaymentSource[] = [
-	'trial_banner',
-	'trial_modal',
-	'sidebar_trial_pill'
-];
 
 /** Where in the payment-method dialog a failure happened. */
 export type PaymentFormStage = 'setup_intent' | 'confirm' | 'finalize';

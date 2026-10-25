@@ -8,7 +8,7 @@
 	import { trackOncePerSession } from '$lib/shared/utils/analytics';
 	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
 	import {
-		billing_choosePlan,
+		billing_addPaymentMethod,
 		billing_trialBannerBody,
 		billing_trialBannerBodyOneDay,
 		billing_trialBannerBodyToday
@@ -57,7 +57,7 @@
 				onclick={handleCta}
 				class="ml-2 rounded-sm px-2 py-0.5 text-xs font-medium underline hover:no-underline disabled:opacity-50"
 			>
-				{billing_choosePlan()}
+				{billing_addPaymentMethod()}
 			</button>
 		{/snippet}
 	</AppBanner>

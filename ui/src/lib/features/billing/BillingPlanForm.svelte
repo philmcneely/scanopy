@@ -108,11 +108,6 @@
 		 * new subscription, not a no-op.
 		 */
 		currentPlanLapsed?: boolean;
-		/**
-		 * The trial plan is offered as a choice ("Continue on …"), for a trial nudge
-		 * that confirms the plan before asking for a card.
-		 */
-		confirmCurrentPlan?: boolean;
 	}
 
 	// eslint-disable-next-line svelte/no-unused-props
@@ -128,8 +123,7 @@
 		isReturningCustomer = false,
 		isCurrentlyTrialing = false,
 		currentPlanType = null,
-		currentPlanLapsed = false,
-		confirmCurrentPlan = false
+		currentPlanLapsed = false
 	}: Props = $props();
 
 	let loadingPlanType = $state<string | null>(null);
@@ -569,7 +563,7 @@
 						<div class="py-4" style="border-color: var(--color-border)">
 							{#if metadata?.purchase_flow === 'stripe' || metadata?.is_free}
 								<!-- Free has purchase_flow 'none' but activates in-app like a Stripe plan -->
-								{#if plan.type === currentPlanType && !currentPlanLapsed && !confirmCurrentPlan}
+								{#if plan.type === currentPlanType && !currentPlanLapsed}
 									<InlineInfo title="" body={billing_yourCurrentPlan()} />
 								{:else}
 									<button

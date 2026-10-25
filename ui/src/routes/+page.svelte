@@ -15,11 +15,9 @@
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import BillingPlanModal from '$lib/features/billing/BillingPlanModal.svelte';
 	import CloudPlanRequired from '$lib/features/billing/CloudPlanRequired.svelte';
-	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { useStartDefaultTrialMutation } from '$lib/features/billing/queries';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
 	import { TAB_LABELS } from '$lib/shared/entity-ui-config';
-	import { billing_settingUpOrganization } from '$lib/paraglide/messages';
 	import DaemonPromptModal from '$lib/features/daemons/components/DaemonPromptModal.svelte';
 	import ReleaseNotesModal from '$lib/features/release-notes/ReleaseNotesModal.svelte';
 	import TermsAcceptanceModal from '$lib/features/auth/components/TermsAcceptanceModal.svelte';
@@ -147,6 +145,7 @@
 	// here, and the plan picker and Settings lock wait for it. They are the
 	// fallback when it fails or the plan doesn't land.
 	const startDefaultTrialMutation = useStartDefaultTrialMutation();
+	const FRESH_SIGNUP_MS = 60_000;
 	let defaultTrialAttempted = $state(false);
 	let defaultTrialFailed = $state(false);
 	let defaultTrialPending = $derived(planUnchosen && isOwner && !defaultTrialFailed);
@@ -160,8 +159,11 @@
 		// A fresh signup's trial is already on its way from the signup itself, and
 		// its first site may still be being created, which is what the server reads
 		// to pick the plan. Asking only once that window has passed keeps the two
-		// from naming different plans.
-		if (await planLanded()) return;
+		// from naming different plans. An older org has nothing in flight.
+		const freshSignup =
+			organization != null &&
+			Date.now() - new Date(organization.created_at).getTime() < FRESH_SIGNUP_MS;
+		if (freshSignup && (await planLanded())) return;
 		try {
 			await startDefaultTrialMutation.mutateAsync();
 			if (!(await planLanded())) defaultTrialFailed = true;
@@ -246,9 +248,15 @@
 
 	// Auto-open settings modal to billing tab when past_due, paused, or with no
 	// plan — each requires owner action before normal use. A sign-up whose plan
-	// picker shows sees it first, and Settings opens once it closes.
+	// picker shows sees it first, and Settings opens once it closes. A plan picked
+	// there may need a card first, and that dialog stays until it closes.
 	$effect(() => {
-		if (isBillingBlocking && appInitialized && !showBillingModal) {
+		if (
+			isBillingBlocking &&
+			appInitialized &&
+			!showBillingModal &&
+			$modalState.name !== 'payment-method'
+		) {
 			openModal('settings', { tab: billingBlockingTab });
 		}
 	});
@@ -448,7 +456,7 @@
 						: 'account'}
 				settingsDismissible={!isBillingBlocking}
 				mainAppLocked={isMainAppLocked}
-				showLockedMainNav={isSelfHostedPlanLocked}
+				showLockedMainNav={isSelfHostedPlanLocked || defaultTrialPending}
 				{mainAppAvailable}
 				licensedPlanPending={licensedPlanJustPicked}
 			/>
@@ -525,6 +533,9 @@
 					{/each}
 				{:else if isSelfHostedPlanLocked}
 					<CloudPlanRequired page={TAB_LABELS[activeTab] ?? TAB_LABELS.home} />
+				{:else if defaultTrialPending}
+					<!-- The trial is starting; the pages mount once its plan lands. -->
+					<Loading />
 				{/if}
 			</div>
 
@@ -597,18 +608,6 @@
 		}}
 	/>
 
-	<!-- Signup and an older plan-less org's next visit both wait here for the trial. -->
-	<GenericModal
-		isOpen={defaultTrialPending}
-		title={billing_settingUpOrganization()}
-		size="sm"
-		onClose={null}
-		showCloseButton={false}
-		showTitleRow={false}
-		preventCloseOnClickOutside={true}
-	>
-		<Loading message={billing_settingUpOrganization()} />
-	</GenericModal>
 
 	<ReleaseNotesModal
 		isOpen={showReleaseNotes}

@@ -176,21 +176,28 @@ impl DiscoveryService {
                     // automatically
                     if let Ok(Some(site)) =
                         service.site_service.get_by_id(&fresh.base.site_id).await
-                        && service
+                        && let Some(reason) = match service
                             .organization_service
                             .get_by_id(&site.base.organization_id)
                             .await
                             .ok()
                             .flatten()
-                            .map(|o| {
-                                o.discovery_paused(service.deployment_type)
-                                    || o.base.plan.is_none_or(|p| p.is_free())
-                            })
-                            .unwrap_or(true)
+                        {
+                            None => Some("organization not found"),
+                            Some(o) if o.is_lapsed() => Some("subscription has lapsed"),
+                            Some(o) if o.discovery_paused(service.deployment_type) => {
+                                Some("cloud organization is on a self-hosted license plan")
+                            }
+                            Some(o) if o.base.plan.is_none_or(|p| p.is_free()) => {
+                                Some("organization has no paid plan")
+                            }
+                            Some(_) => None,
+                        }
                     {
                         tracing::debug!(
                             discovery_id = %discovery_id,
-                            "Skipping scheduled discovery — org is on Free plan or has discovery paused"
+                            reason,
+                            "Skipping scheduled discovery"
                         );
                         return;
                     }

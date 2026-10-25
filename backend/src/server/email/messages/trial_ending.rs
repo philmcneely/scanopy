@@ -45,7 +45,7 @@ impl Email for TrialEnding<'_> {
                 .heading("Your Trial Ends Soon")
                 .paragraph("Hi there,")
                 .paragraph(&format!(
-                    "Your {} {} trial ends in 3 days. To keep all your features and data, choose your plan and add a payment method before the trial expires.",
+                    "Your {} {} trial ends in 3 days. To keep all your features and data, add a payment method before the trial expires.",
                     self.plan_name, self.billing_period
                 ))
                 .paragraph("If no payment method is added, your account becomes read-only when the trial ends until you choose a paid plan.")
@@ -77,7 +77,7 @@ impl Email for TrialEnding<'_> {
         let (cta_href, cta_label) = if self.has_payment {
             (links::SETTINGS_BILLING, "View Billing")
         } else {
-            (links::PLAN_PICKER, "Choose Your Plan")
+            (links::ADD_PAYMENT_METHOD, "Add Payment Method")
         };
 
         Body::new()
