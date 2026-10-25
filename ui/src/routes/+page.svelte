@@ -14,14 +14,12 @@
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import BillingPlanModal from '$lib/features/billing/BillingPlanModal.svelte';
-	import SwitchToCloudModal from '$lib/features/billing/SwitchToCloudModal.svelte';
+	import CloudPlanRequired from '$lib/features/billing/CloudPlanRequired.svelte';
+	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { useStartDefaultTrialMutation } from '$lib/features/billing/queries';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
-	import {
-		billing_startingTrial,
-		settings_billing_license_cloudAppNeedsCloudPlan,
-		settings_billing_license_openSettings
-	} from '$lib/paraglide/messages';
+	import { TAB_LABELS } from '$lib/shared/entity-ui-config';
+	import { billing_settingUpOrganization } from '$lib/paraglide/messages';
 	import DaemonPromptModal from '$lib/features/daemons/components/DaemonPromptModal.svelte';
 	import ReleaseNotesModal from '$lib/features/release-notes/ReleaseNotesModal.svelte';
 	import TermsAcceptanceModal from '$lib/features/auth/components/TermsAcceptanceModal.svelte';
@@ -200,8 +198,8 @@
 		billingPlans.getMetadata(organization?.plan?.type ?? null).is_demo === true
 	);
 	// An org on a licensed self-hosted plan gets Settings on the License tab when
-	// the page loads, and can close it: the sidebar stays, and SwitchToCloudModal
-	// says what the cloud app needs. An owner whose License tab is hidden (a server
+	// the page loads, and can close it: the sidebar stays, and each page says it
+	// needs a cloud plan. An owner whose License tab is hidden (a server
 	// that lost its signing key, a demo org) gets Billing; everyone else Account.
 	let licenseLockTab = $derived(
 		licenseTabVisible({
@@ -215,7 +213,6 @@
 				? 'billing'
 				: 'account'
 	);
-	let showSwitchToCloud = $state(false);
 	let allTabs = $state<
 		Array<{
 			id: string;
@@ -257,17 +254,19 @@
 	});
 
 	// An org on a licensed self-hosted plan gets Settings on the License tab once
-	// it lands there (on load, or right after picking such a plan); closing it
-	// leaves the sidebar. Cleared when the org leaves the plan.
-	let licenseSettingsOpened = $state(false);
+	// per plan it lands on (on load, or after moving onto it by any path); closing
+	// it leaves the sidebar. Cleared when the org leaves the plan.
+	let licenseSettingsOpenedFor = $state<string | null>(null);
 	$effect(() => {
 		if (!isSelfHostedPlanLocked) {
-			licenseSettingsOpened = false;
+			licenseSettingsOpenedFor = null;
 			return;
 		}
-		if (licenseSettingsOpened || !appInitialized || showBillingModal) return;
+		const planType = organization?.plan?.type ?? null;
+		if (planType == null || licenseSettingsOpenedFor === planType) return;
+		if (!appInitialized || showBillingModal) return;
 		if ($modalState.name !== null && $modalState.name !== 'settings') return;
-		licenseSettingsOpened = true;
+		licenseSettingsOpenedFor = planType;
 		openModal('settings', { tab: licenseLockTab });
 	});
 
@@ -449,7 +448,7 @@
 						: 'account'}
 				settingsDismissible={!isBillingBlocking}
 				mainAppLocked={isMainAppLocked}
-				onLockedNavClick={isSelfHostedPlanLocked ? () => (showSwitchToCloud = true) : null}
+				showLockedMainNav={isSelfHostedPlanLocked}
 				{mainAppAvailable}
 				licensedPlanPending={licensedPlanJustPicked}
 			/>
@@ -475,11 +474,12 @@
 			class:ml-16={sidebarCollapsed}
 			class:ml-48={!sidebarCollapsed}
 		>
-			<!-- Only while the main app is reachable. When it is gated, the Settings
-			     modal carries the same stack in its frame instead, so exactly one copy
-			     is ever mounted: AppBanner holds its dismissed state locally, and a
-			     second copy behind the overlay would not follow a dismissal. -->
-			{#if !isBillingBlocking}
+			<!-- Only while the main app is reachable. When it is gated, or the org is on
+			     a licensed plan, the Settings modal carries the same stack in its frame
+			     instead, so exactly one copy is ever mounted: AppBanner holds its
+			     dismissed state locally, and a second copy behind the overlay would not
+			     follow a dismissal. -->
+			{#if !isBillingBlocking && !isSelfHostedPlanLocked}
 				<AppBanners />
 			{/if}
 			<div class="p-4 [&_.sticky]:sticky [&_.sticky]:top-0">
@@ -524,20 +524,7 @@
 						{/if}
 					{/each}
 				{:else if isSelfHostedPlanLocked}
-					<div class="flex flex-col items-center gap-3 py-24 text-center">
-						<p class="text-sm text-secondary">
-							{settings_billing_license_cloudAppNeedsCloudPlan()}
-						</p>
-						<button
-							type="button"
-							class="btn-secondary"
-							onclick={() => openModal('settings', { tab: licenseLockTab })}
-						>
-							{settings_billing_license_openSettings()}
-						</button>
-					</div>
-				{:else if defaultTrialPending}
-					<p class="py-24 text-center text-sm text-secondary">{billing_startingTrial()}</p>
+					<CloudPlanRequired page={TAB_LABELS[activeTab] ?? TAB_LABELS.home} />
 				{/if}
 			</div>
 
@@ -565,18 +552,20 @@
 			// Key the licensed check off the plan the user just picked: `organization`
 			// still holds the previous plan at this point, which is how the daemon
 			// prompt used to win the race and ask a self-hosted buyer to install a
-			// daemon they can't reach. The lock effect opens Settings on the License
-			// tab as soon as the org query catches up.
+			// daemon they can't reach.
 			const licensed =
 				selectedPlan != null && billingPlans.getMetadata(selectedPlan.type).license_plan != null;
 			if (selectedPlan != null && !licensed) cloudPlanJustPicked = true;
 			closeModal();
 			if (licensed) {
 				// Locks the app and opens Settings on the License tab now, rather than
-				// when the webhook lands the plan on the org.
+				// when the webhook lands the plan on the org, whether the org was on a
+				// cloud plan or another licensed one.
 				licensedPlanJustPicked = true;
 				daemonPromptShown = true;
 				reopenSettingsAfterBilling.set(false);
+				licenseSettingsOpenedFor = selectedPlan.type;
+				openModal('settings', { tab: licenseLockTab });
 			} else if ($reopenSettingsAfterBilling) {
 				reopenSettingsAfterBilling.set(false);
 				openModal('settings', { tab: 'billing' });
@@ -608,7 +597,18 @@
 		}}
 	/>
 
-	<SwitchToCloudModal isOpen={showSwitchToCloud} onClose={() => (showSwitchToCloud = false)} />
+	<!-- Signup and an older plan-less org's next visit both wait here for the trial. -->
+	<GenericModal
+		isOpen={defaultTrialPending}
+		title={billing_settingUpOrganization()}
+		size="sm"
+		onClose={null}
+		showCloseButton={false}
+		showTitleRow={false}
+		preventCloseOnClickOutside={true}
+	>
+		<Loading message={billing_settingUpOrganization()} />
+	</GenericModal>
 
 	<ReleaseNotesModal
 		isOpen={showReleaseNotes}

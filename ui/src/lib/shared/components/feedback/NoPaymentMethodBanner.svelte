@@ -13,7 +13,6 @@
 	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
 	import {
 		billing_addPaymentMethod,
-		billing_choosePlan,
 		billing_noPaymentMethodBannerBody
 	} from '$lib/paraglide/messages';
 
@@ -61,7 +60,7 @@
 				onclick={handleCta}
 				class="ml-2 rounded-sm px-2 py-0.5 text-xs font-medium underline hover:no-underline disabled:opacity-50"
 			>
-				{org?.plan_status === 'trialing' ? billing_choosePlan() : billing_addPaymentMethod()}
+				{billing_addPaymentMethod()}
 			</button>
 		{/snippet}
 	</AppBanner>
