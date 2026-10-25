@@ -1,8 +1,10 @@
+use crate::daemon::utils::app_probe::AppProbe;
+use crate::daemon::utils::app_probe::google_wifi::GoogleWifiProbe;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, Vendor};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern, Vendor};
 use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
@@ -29,18 +31,18 @@ impl ServiceDefinition for GoogleHome {
             ]),
             Pattern::Not(Box::new(Pattern::IsGateway)),
             // Only the mesh's root unit serves the "Nest Wifi" page on `/`; a point answers `/`
-            // with a 404. Every unit serves the status API, where a point reports itself `leaf`
-            // (seen on a Google Wifi point, `hardwareId` GALE).
+            // with a 404. Every unit serves the status API, which the Google Wifi probe reads for
+            // the unit's board and firmware (seen on a Google Wifi point, `hardwareId` GALE); the
+            // outer `Not(IsGateway)` keeps the gateway root out of this definition.
             Pattern::AnyOf(vec![
                 Pattern::Endpoint(PortType::Http, "/", "Nest Wifi", None),
-                Pattern::Endpoint(
-                    PortType::Http,
-                    "/api/v1/status",
-                    "\"groupRole\": \"leaf\"",
-                    None,
-                ),
+                Pattern::ClientResponse(ClientProbe::GoogleWifi),
             ]),
         ])
+    }
+
+    fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
+        vec![Box::new(GoogleWifiProbe)]
     }
 
     fn logo(&self) -> Option<Logo> {

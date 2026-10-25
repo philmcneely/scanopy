@@ -325,6 +325,10 @@ pub enum ClientProbe {
     Tftp,
     /// An MGCP `AUEP` came back as a response line carrying our transaction id.
     Mgcp,
+    /// `/api/v1/status` returned the Google Wifi private API shape — `setupState`,
+    /// `software.softwareVersion`, `system` — from which the probe reads the unit's board and
+    /// firmware. Router and mesh point both answer; `Not(IsGateway)` separates them.
+    GoogleWifi,
 }
 
 impl ClientProbe {
@@ -397,7 +401,8 @@ impl ClientProbe {
             | Self::Dhcp
             | Self::Bacnet
             | Self::Tftp
-            | Self::Mgcp => M::Native,
+            | Self::Mgcp
+            | Self::GoogleWifi => M::Native,
         }
     }
 }

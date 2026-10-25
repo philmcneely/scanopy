@@ -32,6 +32,7 @@ pub mod docker_swarm;
 pub mod epics_ca;
 pub mod ethernet_ip;
 pub mod ftp;
+pub mod google_wifi;
 pub mod h323;
 pub mod ike;
 pub mod ipp;

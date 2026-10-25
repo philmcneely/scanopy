@@ -1587,6 +1587,7 @@
 	"meta_client_probes_EtherNetIp_name": "EtherNet/IP",
 	"meta_client_probes_Ftp_name": "FTP",
 	"meta_client_probes_Gnmi_name": "gNMI",
+	"meta_client_probes_GoogleWifi_name": "Google Wifi",
 	"meta_client_probes_H323_name": "H.323",
 	"meta_client_probes_Ike_name": "IKE",
 	"meta_client_probes_InstantOn_name": "HPE Instant On",

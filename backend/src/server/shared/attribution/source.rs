@@ -828,6 +828,7 @@ impl TypeMetadataProvider for ClientProbe {
             Self::Bacnet => "BACnet",
             Self::Tftp => "TFTP",
             Self::Mgcp => "MGCP",
+            Self::GoogleWifi => "Google Wifi",
         }
     }
 }
