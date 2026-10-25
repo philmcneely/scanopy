@@ -63,7 +63,9 @@
 		portalContainer.style.left = '0';
 		portalContainer.style.width = '0';
 		portalContainer.style.height = '0';
-		portalContainer.style.zIndex = '9999';
+		// A tooltip is mounted once and kept, so a dropdown opened later sits after it in the body;
+		// the higher layer keeps a tooltip on a dropdown row above the dropdown.
+		portalContainer.style.zIndex = role === 'tooltip' ? '10000' : '9999';
 		document.body.appendChild(portalContainer);
 
 		return () => {
