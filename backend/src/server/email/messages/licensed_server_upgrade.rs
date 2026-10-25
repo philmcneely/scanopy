@@ -29,7 +29,7 @@ impl Email for LicensedServerUpgrade<'_> {
         Body::new()
             .content(release_notes::note_content(
                 self.note,
-                (UPGRADE_DOCS, "Upgrade to get this"),
+                (UPGRADE_DOCS, "Upgrade your server"),
             ))
             .cta(UPGRADE_DOCS, "Upgrade your server")
             .alt_link(UPGRADE_DOCS)

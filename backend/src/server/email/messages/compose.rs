@@ -83,11 +83,11 @@ impl Content {
         ))
     }
 
-    /// Left-aligned outlined link button, quieter than the section-level
-    /// [`Body::cta`].
-    pub fn secondary_cta(self, href: &str, label: &str) -> Self {
+    /// A text link on its own line, quieter than the section-level
+    /// [`Body::cta`] button.
+    pub fn link(self, href: &str, label: &str) -> Self {
         self.child(&format!(
-            r#"<p style="margin: 0 0 24px 0;"><a href="{href}" style="display: inline-block; padding: 8px 20px; border: 1px solid #2563eb; color: #2563eb; background-color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">{label}</a></p>"#
+            r#"<p style="margin: 0 0 24px 0; font-size: 14px; line-height: 20px;"><a href="{href}" style="color: #2563eb; font-weight: 500;">{label}</a></p>"#
         ))
     }
 
