@@ -13,7 +13,6 @@
 		Settings,
 		Terminal,
 		Loader2,
-		ArrowRight,
 		ArrowLeft,
 		Mail,
 		Copy,
@@ -784,9 +783,7 @@
 							? daemons_credentialWizardReturn({ count: unsavedCredentialCount })
 							: daemons_credentialWizardReturnToInstall(),
 					onClick: handleCredentialsContinue,
-					disabled: credentialsStep?.busy || isProvisioning,
-					icon: ArrowRight,
-					iconAfter: true
+					disabled: credentialsStep?.busy || isProvisioning
 				}
 			];
 		}
@@ -813,9 +810,7 @@
 					onClick: handleNext,
 					disabled: isTestingReachability || provisionNeedsVerification,
 					large: true,
-					busy: isTestingReachability,
-					icon: ArrowRight,
-					iconAfter: !isTestingReachability
+					busy: isTestingReachability
 				}
 			];
 		}

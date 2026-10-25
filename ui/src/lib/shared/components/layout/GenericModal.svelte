@@ -706,13 +706,10 @@
 			? 'flex-1'
 			: ''} flex items-center gap-2"
 	>
-		{#if Icon && !action.iconAfter}
+		{#if Icon}
 			<Icon class="h-4 w-4 {action.busy ? 'animate-spin' : ''}" />
 		{/if}
 		{action.label}
-		{#if Icon && action.iconAfter}
-			<Icon class="h-4 w-4 {action.busy ? 'animate-spin' : ''}" />
-		{/if}
 		{#if key}
 			<span
 				class="inline-flex transition-opacity {paused ? 'opacity-40' : ''}"
