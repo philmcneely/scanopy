@@ -1683,9 +1683,6 @@ impl NetworkScan {
                 open_ports.push(result.port);
             }
         }
-        let certificates =
-            scan_certificates(&probe_ctx, &open_ports, effective_batch_size, scan_rate_pps).await;
-
         // Read once here rather than at the endpoint scan below: integration probes make their
         // own TLS calls and need the same policy.
         let accept_invalid_certs = ops.config_store.get_accept_invalid_scan_certs().await?;
@@ -1764,6 +1761,27 @@ impl NetworkScan {
                 open_ports.push(port);
             }
         }
+
+        // After the endpoint scan, so a port that already answered plain HTTP is not also sent a
+        // ClientHello. A myQ hub serves about one connection at a time: the hello its port 80 sat
+        // on held it while the one on 443 timed out.
+        let plaintext_ports: HashSet<u16> = endpoint_responses
+            .iter()
+            .filter(|response| !response.over_tls)
+            .map(|response| response.endpoint.port_type.number())
+            .collect();
+        let tls_candidates: Vec<PortType> = open_ports
+            .iter()
+            .copied()
+            .filter(|port| !plaintext_ports.contains(&port.number()))
+            .collect();
+        let certificates = scan_certificates(
+            &probe_ctx,
+            &tls_candidates,
+            effective_batch_size,
+            scan_rate_pps,
+        )
+        .await;
 
         // An address nothing answered for has to show evidence beyond the bare connect that got it
         // this far. Everything is in hand by now: the probes have spoken, the endpoints have

@@ -51,6 +51,9 @@ pub struct EndpointResponse {
     pub body: String,
     pub headers: HashMap<String, String>,
     pub status: u16,
+    /// Whether the response came over HTTPS. `endpoint.protocol` is the pattern's, not the
+    /// scheme that answered, since the scanner tries both.
+    pub over_tls: bool,
 }
 
 impl EndpointResponse {

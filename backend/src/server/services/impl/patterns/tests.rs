@@ -65,6 +65,7 @@ impl TestContext {
             body: "Pi-hole".to_string(),
             headers: HashMap::new(),
             status: 200,
+            over_tls: false,
         }];
 
         Self {
@@ -337,6 +338,7 @@ fn definition_matches_status(
             .map(|(name, value)| (name.to_string(), value.to_string()))
             .collect(),
         status,
+        over_tls: false,
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -615,6 +617,7 @@ fn test_jenkins_https_header_detection() {
         body: "Authentication required".to_string(),
         headers: HashMap::from([("x-jenkins".to_string(), "2.541.3".to_string())]),
         status: 403,
+        over_tls: false,
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -664,6 +667,7 @@ fn test_jenkins_http8080_body_detection() {
         body: "powered by jenkins.io".to_string(),
         headers: HashMap::new(),
         status: 200,
+        over_tls: false,
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -1242,6 +1246,7 @@ fn definition_binds_with_certificates(
                 .map(|(name, value)| (name.to_string(), value.to_string()))
                 .collect(),
             status: *status,
+            over_tls: false,
         })
         .collect();
     let ports = ports.to_vec();
@@ -1746,6 +1751,7 @@ fn no_definition_matches_a_catch_all_web_server() {
                         body: body.replace("{path}", &endpoint.path),
                         headers: HashMap::new(),
                         status: 200,
+                        over_tls: false,
                     })
                     .collect();
             }

@@ -124,6 +124,7 @@ mod tests {
                 path: "/".to_string(),
             },
             body: String::new(),
+            over_tls: false,
             headers: HashMap::from([("server".to_string(), value.to_string())]),
             status: 200,
         }
