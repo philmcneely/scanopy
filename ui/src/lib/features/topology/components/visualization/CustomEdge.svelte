@@ -452,7 +452,7 @@
 				style="background: none; pointer-events: none;"
 			>
 				<div
-					class="nopan flex items-center gap-2 card text-secondary"
+					class="nopan card flex items-center gap-2 text-secondary"
 					style="font-size: 12px; font-weight: 500; padding: 0.5rem 0.75rem; border-color: var(--color-border); cursor: {isDragging
 						? 'grabbing'
 						: 'grab'}; pointer-events: auto; opacity: {labelOpacity}; transition: opacity 0.2s ease-in-out;"

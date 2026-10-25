@@ -117,7 +117,7 @@
 						{@const Icon = useCaseIcons[useCaseId]}
 						<button
 							type="button"
-							class="flex items-center gap-4 card p-4 text-left transition-all {isSelected
+							class="card flex items-center gap-4 p-4 text-left transition-all {isSelected
 								? `ring-2 ${useCaseConfig.colors.ring}`
 								: 'hover:bg-gray-100 dark:hover:bg-gray-800'}"
 							onclick={() => selectUseCase(useCaseId)}
@@ -143,7 +143,7 @@
 						title={onboarding_commercialNoticeTitle()}
 						body={onboarding_commercialNoticeBody()}
 					/>
-					<button type="button" class="mt-4 btn-primary" onclick={handleLicenseAcknowledge}>
+					<button type="button" class="btn-primary mt-4" onclick={handleLicenseAcknowledge}>
 						{onboarding_understandContinue()}
 					</button>
 				{/if}

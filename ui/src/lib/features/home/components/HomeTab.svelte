@@ -128,7 +128,7 @@
 		<!-- Demo Topology Embed — shown before first topology rebuild -->
 		{#if configData && isCloud(configData) && !has('FirstDiscoveryCompleted') && !demoTopologyDismissed}
 			<section>
-				<div class="card-static overflow-hidden card p-0!">
+				<div class="card-static card overflow-hidden p-0!">
 					<div class="flex items-center justify-between px-4 pt-3">
 						<h3 class="text-base font-semibold text-primary">{home_demoEmbedTitle()}</h3>
 						<div class="flex items-center gap-3">

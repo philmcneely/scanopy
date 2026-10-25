@@ -109,7 +109,7 @@
 		{#if chips}
 			<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 			<div
-				class="flex input-field flex-wrap items-center gap-1.5 pl-10 text-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 {rightPadding}"
+				class="input-field flex flex-wrap items-center gap-1.5 pl-10 text-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 {rightPadding}"
 				onclick={() => inputEl?.focus()}
 			>
 				{@render chips()}

@@ -347,7 +347,7 @@
 									type="checkbox"
 									checked={visibility[column.id] !== false}
 									onchange={() => onToggle(column.id)}
-									class="h-4 w-4 checkbox-card rounded-sm"
+									class="checkbox-card h-4 w-4 rounded-sm"
 								/>
 								<span class="truncate text-sm text-secondary" title={column.label}
 									>{column.label}</span

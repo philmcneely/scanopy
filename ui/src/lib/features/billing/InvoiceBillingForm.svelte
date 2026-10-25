@@ -259,7 +259,7 @@
 						{@const selected = selectedPlan?.type === licensed.type}
 						<button
 							type="button"
-							class="flex-1 card p-3 text-left transition-all {selected
+							class="card flex-1 p-3 text-left transition-all {selected
 								? 'ring-2 ring-primary-500'
 								: 'hover:bg-gray-100 dark:hover:bg-gray-800'}"
 							aria-pressed={selected}

@@ -68,7 +68,7 @@
 </script>
 
 <InspectorSection id="ElementSummary" section="ElementSummary">
-	<div class="card-static space-y-1 card text-sm">
+	<div class="card-static card space-y-1 text-sm">
 		{#if elementConfig.collective_noun}
 			<div class="border-border mb-1 flex justify-between border-b pb-1 font-medium">
 				<span class="text-secondary">{titleCase(elementConfig.collective_noun)}s</span>

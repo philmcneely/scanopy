@@ -44,7 +44,7 @@
 	<label
 		class="flex items-center gap-2 {disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}"
 	>
-		<input type="checkbox" class="h-4 w-4 checkbox-card" {checked} {disabled} onchange={toggle} />
+		<input type="checkbox" class="checkbox-card h-4 w-4" {checked} {disabled} onchange={toggle} />
 		<span class="text-sm text-secondary">{label}</span>
 	</label>
 	{#if helpText}

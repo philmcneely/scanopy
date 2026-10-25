@@ -114,7 +114,7 @@
 					checked={!!getScanValue(field.id)}
 					disabled={readOnly}
 					onchange={(e) => updateScanSetting(field.id, e.currentTarget.checked)}
-					class="h-4 w-4 checkbox-card focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+					class="checkbox-card h-4 w-4 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
 				/>
 				<div>{field.label}</div>
 			</label>
@@ -168,7 +168,7 @@
 						onchange={(e) => {
 							formData.force_full_scan = e.currentTarget.checked;
 						}}
-						class="h-4 w-4 checkbox-card focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+						class="checkbox-card h-4 w-4 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
 					/>
 					<div>{discovery_forceFullScan()}</div>
 				</label>

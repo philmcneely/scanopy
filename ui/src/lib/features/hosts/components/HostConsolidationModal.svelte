@@ -236,7 +236,7 @@
 			<!-- Step 1: Target Selection -->
 			<div>
 				<!-- Source host info -->
-				<div class="card-static mb-6 card">
+				<div class="card-static card mb-6">
 					<EntityDisplay
 						context={hostDisplayContext(ipAddressesData, otherHostServices.services)}
 						item={otherHost}

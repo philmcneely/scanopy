@@ -86,7 +86,7 @@
 			type="button"
 			aria-haspopup="dialog"
 			aria-expanded={open}
-			class="flex input-field w-40 items-center justify-between gap-2"
+			class="input-field flex w-40 items-center justify-between gap-2"
 			{disabled}
 			onclick={() => (open = !open)}
 		>

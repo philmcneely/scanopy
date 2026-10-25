@@ -36,7 +36,7 @@
 		<div class="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4">
 			{#each runs as run (run.discovery.id)}
 				<button
-					class="card-static cursor-pointer card text-left"
+					class="card-static card cursor-pointer text-left"
 					onclick={() => onOpenRun?.(run.discovery)}
 				>
 					<HomeDiscoveryDisplay item={run} context={{ daemons, sites }} />

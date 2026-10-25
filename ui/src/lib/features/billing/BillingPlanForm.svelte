@@ -486,7 +486,7 @@
 							: incrementalFeatures
 					)}
 
-					<div class="plan-card card-static flex flex-col card">
+					<div class="plan-card card-static card flex flex-col">
 						<!-- Plan Header -->
 						<div class="flex flex-col items-center gap-2 pb-4">
 							<div class="flex items-center gap-2">
@@ -786,7 +786,7 @@
 
 		<!-- Full Comparison Grid (expandable) -->
 		{#if showFullComparison}
-			<div class="mx-4 overflow-auto card p-0 lg:mx-10">
+			<div class="card mx-4 overflow-auto p-0 lg:mx-10">
 				<!-- Plan Name Headers -->
 				<div
 					class="comparison-row comparison-header-row"

@@ -836,10 +836,10 @@
 
 			{#if selectedFormatDef?.supportsHeader}
 				<!-- One block: the checkbox and the header it adds, so the preview reads as its result. -->
-				<label class="card-static flex cursor-pointer items-start gap-2 card px-3 py-2">
+				<label class="card-static card flex cursor-pointer items-start gap-2 px-3 py-2">
 					<input
 						type="checkbox"
-						class="mt-0.5 h-4 w-4 checkbox-card"
+						class="checkbox-card mt-0.5 h-4 w-4"
 						bind:checked={includeHeader}
 					/>
 					<span class="min-w-0 space-y-1">

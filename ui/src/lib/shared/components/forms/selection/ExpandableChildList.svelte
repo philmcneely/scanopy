@@ -93,7 +93,7 @@
 							</div>
 							<input
 								type="checkbox"
-								class="h-4 w-4 shrink-0 checkbox-card"
+								class="checkbox-card h-4 w-4 shrink-0"
 								checked={selection.isSelected(child)}
 								disabled={reason !== null}
 								onchange={() => selection.onToggle(child)}

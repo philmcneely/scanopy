@@ -401,7 +401,7 @@
 			<div class="space-y-4">
 				{#each offersForReason as offerId (offerId)}
 					{#if offerId === 'pause'}
-						<div class="card-static space-y-3 card p-4">
+						<div class="card-static card space-y-3 p-4">
 							<div>
 								<h4 class="text-base font-semibold text-primary">
 									{metaName(
@@ -460,7 +460,7 @@
 							{/if}
 						</div>
 					{:else if offerId === 'discount'}
-						<div class="card-static space-y-3 card p-4">
+						<div class="card-static card space-y-3 p-4">
 							<div>
 								<h4 class="text-base font-semibold text-primary">
 									{metaName(
@@ -494,7 +494,7 @@
 						</div>
 					{/if}
 				{/each}
-				<div class="card-static space-y-3 card p-4">
+				<div class="card-static card space-y-3 p-4">
 					<div>
 						<h4 class="text-base font-semibold text-primary">
 							{settings_billing_cancelModal_confirmHeading()}

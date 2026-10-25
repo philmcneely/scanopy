@@ -753,7 +753,7 @@
 					onclick={() => globalSearchOpen.set(true)}
 					class="{collapsed
 						? `${inactiveButtonClass} justify-center rounded-lg`
-						: 'input-field text-muted hover:border-gray-400 dark:hover:border-gray-500'} mt-2 flex toolbar-control w-full items-center gap-2 px-3"
+						: 'input-field text-muted hover:border-gray-400 dark:hover:border-gray-500'} toolbar-control mt-2 flex w-full items-center gap-2 px-3"
 					title={collapsed ? globalSearch_openWithShortcut({ shortcut: searchShortcut }) : ''}
 					aria-label={globalSearch_placeholder()}
 					aria-keyshortcuts={searchShortcut}
