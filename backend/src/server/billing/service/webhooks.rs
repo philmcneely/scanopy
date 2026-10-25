@@ -156,7 +156,7 @@ impl BillingService {
     /// subscription as fetched, carried the customer's cancellation feedback.
     /// See `StripeEnvelope::carries_cancellation_feedback`. `event_created` is
     /// the event's unix timestamp, which redeliveries repeat.
-    async fn handle_subscription_update(
+    pub(crate) async fn handle_subscription_update(
         &self,
         sub: Subscription,
         feedback_in_event: bool,

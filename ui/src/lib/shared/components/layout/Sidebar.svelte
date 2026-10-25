@@ -126,8 +126,8 @@
 		/** Passed through to the Settings modal, which shows the License tab on it
 		 * while the just-picked licensed plan is still in flight. */
 		licensedPlanPending?: boolean;
-		/** A locked org whose main navigation still shows (a licensed self-hosted
-		 * plan): each page says it needs a cloud plan. */
+		/** A locked org whose main navigation still shows: a licensed self-hosted
+		 * plan, where each page says it needs a cloud plan, or a trial still starting. */
 		showLockedMainNav?: boolean;
 	} = $props();
 

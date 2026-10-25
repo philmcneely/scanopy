@@ -269,11 +269,27 @@ impl BillingService {
                     has_trial: true,
                     auto_started,
                     stripe_id: subscription.id.to_string(),
-                    subscription_status: Some(subscription.status),
+                    subscription_status: Some(subscription.status.clone()),
                 },
                 auth_for_event,
             ))
             .await;
+
+        // Write the trial onto the org now, through the handler the
+        // subscription webhook runs, so the app unlocks when this returns
+        // rather than when the webhook arrives. The webhook then finds the org
+        // already trialing and announces nothing twice. If this fails, the
+        // webhook still lands the plan.
+        if let Err(e) = self
+            .handle_subscription_update(subscription, false, Utc::now().timestamp())
+            .await
+        {
+            tracing::warn!(
+                organization_id = %organization_id,
+                error = %e,
+                "Could not record the new trial ahead of its webhook"
+            );
+        }
 
         Ok(format!("Your {} trial has started!", plan.name()))
     }
