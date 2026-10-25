@@ -9,9 +9,7 @@ class FakeTarget implements TooltipTarget {
 		readonly registered = false
 	) {}
 	closest(): FakeTarget | null {
-		let node: FakeTarget | null = this;
-		while (node && !node.registered) node = node.parent;
-		return node;
+		return this.registered ? this : (this.parent?.closest() ?? null);
 	}
 }
 

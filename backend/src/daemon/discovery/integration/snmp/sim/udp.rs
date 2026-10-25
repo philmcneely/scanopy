@@ -60,7 +60,7 @@ impl UdpAgent {
                 community: exposed(community).into_bytes(),
                 versions: device.community_versions,
             },
-            CredentialType::SnmpV3 { .. } => Front::Usm(agent_security(device)),
+            CredentialType::SnmpV3 { .. } => Front::Usm(Box::new(agent_security(device))),
             other => panic!("{} has a non-SNMP credential: {other:?}", device.name),
         };
         let responder = Responder {
@@ -155,8 +155,8 @@ struct Request {
 
 /// How the device authenticates a request.
 enum Front {
-    /// The device's v3 user.
-    Usm(Security),
+    /// The device's v3 user. Boxed: `Security` is ten times the size of the community variant.
+    Usm(Box<Security>),
     /// The device's community, over the versions it answers.
     Community {
         community: Vec<u8>,
