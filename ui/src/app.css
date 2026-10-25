@@ -7,11 +7,11 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-	/* Tailwind 3's default ring colour, blue-500 at 50%. Tailwind 4 defaults to currentColor,
-	   which turned every ring that names no colour (`ring-2`, `ring-primary ring-2`) gray. A
-	   literal: Tailwind emits only the theme variables utilities use, so `var(--color-blue-500)`
-	   is undefined here and the ring isn't drawn at all. */
-	--default-ring-color: rgb(59 130 246 / 0.5);
+	/* Blue-500, the colour `.input-field`'s focus ring names, so a selected button and a focused
+	   input ring alike. Tailwind 4 defaults to currentColor, which turned every ring that names no
+	   colour (`ring-2`, `ring-primary ring-2`) gray. A literal: Tailwind emits only the theme
+	   variables utilities use, so `var(--color-blue-500)` is undefined here and no ring is drawn. */
+	--default-ring-color: oklch(62.3% 0.214 259.815);
 	--color-primary-50: #f0f9ff;
 	--color-primary-500: #0ea5e9;
 	--color-primary-600: #0284c7;
