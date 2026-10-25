@@ -7,6 +7,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
+	/* Tailwind 3's default ring colour, blue-500 at 50%. Tailwind 4 defaults to currentColor,
+	   which turned every ring that names no colour (`ring-2`, `ring-primary ring-2`) gray. */
+	--default-ring-color: color-mix(in oklab, var(--color-blue-500) 50%, transparent);
 	--color-primary-50: #f0f9ff;
 	--color-primary-500: #0ea5e9;
 	--color-primary-600: #0284c7;
