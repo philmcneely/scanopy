@@ -530,6 +530,8 @@
 		isOpen={showDaemonPrompt}
 		onInstall={() => {
 			daemonPromptResponseMutation.mutate('accepted');
+			// CreateDaemonModal lives in DaemonTab; the prompt usually opens over Home.
+			activeTab = 'daemons';
 			openModal('create-daemon');
 		}}
 		onSkip={() => {

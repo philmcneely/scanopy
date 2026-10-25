@@ -87,7 +87,7 @@
 	<!-- Background image with overlay -->
 	<div class="absolute inset-0 z-0">
 		<div
-			class="h-full w-full bg-cover bg-center bg-no-repeat blur-[2px]"
+			class="h-full w-full bg-cover bg-center bg-no-repeat blur-xs"
 			style="background-image: url('/images/background-{themeStore.resolvedTheme}.webp')"
 		></div>
 		<div
