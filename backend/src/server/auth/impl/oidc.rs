@@ -100,7 +100,7 @@ impl OidcProviderConfig {
     }
 
     /// The configured logo, when it is an https URL or a path on this server such as
-    /// `/logos/identity-providers/authentik.svg`. Any other value is dropped with a warning
+    /// `/logos/catalog/Authentik.svg`. Any other value is dropped with a warning
     /// naming the provider, and its button renders without a logo.
     pub fn servable_logo(&self) -> Option<String> {
         let logo = self.logo.as_deref().filter(|l| !l.is_empty())?;
@@ -111,7 +111,7 @@ impl OidcProviderConfig {
             provider = %self.slug,
             logo = %logo,
             "OIDC provider `{}` has logo `{logo}`, which is neither an https URL nor a path on \
-             this server such as /logos/identity-providers/authentik.svg. Showing its button \
+             this server such as /logos/catalog/Authentik.svg. Showing its button \
              without a logo.",
             self.slug,
         );
@@ -128,8 +128,8 @@ fn is_servable_logo(logo: &str) -> bool {
 }
 
 /// Identity provider logos bundled with the UI, so `oidc.toml` can point a provider's `logo` at
-/// `/logos/identity-providers/<id>.<ext>` and load it from this server. `generate-fixtures`
-/// downloads them beside the service logos.
+/// `/logos/catalog/<Logo>.<ext>`, named after its [`Logo`] variant (`/logos/catalog/Authentik.svg`),
+/// and load it from this server. `generate-fixtures` downloads them with every other logo.
 #[derive(Debug, Clone, Copy, strum::EnumIter, strum::IntoStaticStr)]
 #[strum(serialize_all = "kebab-case")]
 pub enum IdentityProviderLogo {
@@ -687,7 +687,7 @@ mod tests {
     fn https_urls_and_paths_on_this_server_are_kept() {
         for logo in [
             "https://cdn.example.com/authentik.svg",
-            "/logos/identity-providers/authentik.svg",
+            "/logos/catalog/Authentik.svg",
             "/logos/custom/acme logo.png",
         ] {
             assert_eq!(servable_logo(logo).as_deref(), Some(logo));
