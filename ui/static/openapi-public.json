@@ -26181,7 +26181,8 @@
           },
           "version": {
             "type": "string",
-            "description": "Semver of the newest promoted release, without a leading `v`."
+            "description": "Semver of the newest promoted release, without a leading `v`.",
+            "example": "0.19.0"
           }
         }
       },
@@ -41453,7 +41454,8 @@
           },
           "version": {
             "type": "string",
-            "description": "The release, as semver (e.g. `0.18.0`)."
+            "description": "The release, as semver (e.g. `0.18.0`).",
+            "example": "0.18.0"
           }
         }
       },

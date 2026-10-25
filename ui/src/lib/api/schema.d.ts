@@ -7476,7 +7476,10 @@ export interface components {
              * @description That release's page on the public changelog.
              */
             release_notes_url: string;
-            /** @description Semver of the newest promoted release, without a leading `v`. */
+            /**
+             * @description Semver of the newest promoted release, without a leading `v`.
+             * @example 0.19.0
+             */
             version: string;
         };
         BillingPlan: (components["schemas"]["PlanConfig"] & {
@@ -14129,7 +14132,10 @@ export interface components {
             title: string;
             /** @description This release on the public changelog. */
             url: string;
-            /** @description The release, as semver (e.g. `0.18.0`). */
+            /**
+             * @description The release, as semver (e.g. `0.18.0`).
+             * @example 0.18.0
+             */
             version: string;
         };
         /** @description The number of a run's warnings on one [`WarningRemedy`] rung. */
