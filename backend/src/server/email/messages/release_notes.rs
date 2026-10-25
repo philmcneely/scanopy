@@ -94,7 +94,10 @@ mod tests {
                 Some(at)
             })
             .count();
-        assert_eq!(found, 7, "sections and links interleave, then the button: {html}");
+        assert_eq!(
+            found, 7,
+            "sections and links interleave, then the button: {html}"
+        );
         assert_eq!(html.matches(link).count(), 4);
     }
 
