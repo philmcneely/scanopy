@@ -23,8 +23,8 @@ impl ServiceDefinition for StrongSwan {
     /// responder answers it; a listener that does not is not claimed as IPsec.
     ///
     /// One port here rather than the two the pattern used to name: the probe itself tries 500 and
-    /// then 4500, and a pattern arm for 4500 with no probe behind it would be a UDP port nothing
-    /// ever reports open.
+    /// then 4500, and a pattern arm for 4500 with no probe behind it would be a UDP port with no
+    /// answer to back it.
     fn discovery_pattern(&self) -> Pattern<'_> {
         probe_pattern(&IkeProbe)
     }

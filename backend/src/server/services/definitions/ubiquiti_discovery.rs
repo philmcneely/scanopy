@@ -23,9 +23,9 @@ impl ServiceDefinition for UbiquitiDiscovery {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        // The port arm is gone: 10001/udp has no probe, so nothing ever reported it open and this
-        // definition could never match. The OUI is the evidence that remains, and it is real — a
-        // Ubiquiti MAC is read from an ARP reply on the host's own segment.
+        // The port arm is gone: 10001/udp has no probe, so the network scan never reports it and a
+        // declared container port is not evidence. The OUI is the evidence that remains, and it is
+        // real — a Ubiquiti MAC is read from an ARP reply on the host's own segment.
         Pattern::MacVendor(Vendor::UBIQUITI)
     }
 

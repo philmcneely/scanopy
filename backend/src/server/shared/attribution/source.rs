@@ -822,6 +822,12 @@ impl TypeMetadataProvider for ClientProbe {
             Self::SpotifyConnect => "Spotify Connect",
             Self::Vnc => "VNC",
             Self::AppleLockdown => "Apple lockdown",
+            Self::DnsUdp => "DNS",
+            Self::Ntp => "NTP",
+            Self::Dhcp => "DHCP",
+            Self::Bacnet => "BACnet",
+            Self::Tftp => "TFTP",
+            Self::Mgcp => "MGCP",
         }
     }
 }

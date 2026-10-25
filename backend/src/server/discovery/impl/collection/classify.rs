@@ -162,7 +162,13 @@ impl ClientProbe {
             | Self::SnmpEngine
             | Self::DockerPing
             | Self::PodmanPing
-            | Self::Ipp => C::CredentialFree(&[PortsAndServices]),
+            | Self::Ipp
+            | Self::DnsUdp
+            | Self::Ntp
+            | Self::Dhcp
+            | Self::Bacnet
+            | Self::Tftp
+            | Self::Mgcp => C::CredentialFree(&[PortsAndServices]),
         }
     }
 }
