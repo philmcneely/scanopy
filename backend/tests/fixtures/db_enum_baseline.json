@@ -30,7 +30,8 @@
     "Lldpd",
     "IcmpEcho",
     "PortScan",
-    "InterfaceNameMatch"
+    "InterfaceNameMatch",
+    "DnsSdServicePort"
   ],
   "AuthenticatedEntity": [
     "User",
@@ -124,7 +125,11 @@
     "SnmpEngine",
     "DockerPing",
     "PodmanPing",
-    "EpicsCa"
+    "EpicsCa",
+    "Ipp",
+    "SpotifyConnect",
+    "Vnc",
+    "AppleLockdown"
   ],
   "ContainerNetworkType": [
     "MacVlan",
@@ -234,7 +239,8 @@
     "CredentialDaemonTooOld",
     "IntegrationWithoutCredential",
     "SnmpWalkFailed",
-    "CredentialNeedsNewerDaemon"
+    "CredentialNeedsNewerDaemon",
+    "CredentialWithoutTarget"
   ],
   "EdgeStyle": [
     "Straight",
