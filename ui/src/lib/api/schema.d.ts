@@ -654,6 +654,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/start-trial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start the default trial for an org that has no plan
+         * @description Signup starts it on its own; this covers orgs created before that, and a signup whose start
+         *     failed. A cloud org without a site is a self-hosted license buyer's, so it gets the license
+         *     trial. Returns `null` when the org already has a plan.
+         */
+        post: operations["start_default_trial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/billing/webhooks": {
         parameters: {
             query?: never;
@@ -5662,6 +5684,23 @@ export interface components {
                  */
                 percent_off: number;
             };
+            /**
+             * @description Not sent on a successful response. Failure messages arrive in an
+             *     `ApiErrorResponse`.
+             */
+            error?: string | null;
+            /** @description API and server version metadata. */
+            meta: components["schemas"]["ApiMeta"];
+            /** @description Always `true` on a successful response. */
+            success: boolean;
+        };
+        /**
+         * @description Envelope for a successful response. Failures are sent with a non-2xx status
+         *     and an `ApiErrorResponse` body instead.
+         */
+        ApiResponse_Option_String: {
+            /** @description The result payload. Omitted on failure. */
+            data?: null | string;
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
              *     `ApiErrorResponse`.
@@ -17771,6 +17810,35 @@ export interface operations {
                 };
             };
             /** @description Billing not enabled */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    start_default_trial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trial started, or `null` when the org already has a plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Option_String"];
+                };
+            };
+            /** @description Trial already used or billing not enabled */
             400: {
                 headers: {
                     [name: string]: unknown;

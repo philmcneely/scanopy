@@ -170,9 +170,9 @@ impl DiscoveryService {
                         }
                     };
 
-                    // Skip scheduled runs for Free plan orgs and for lapsed orgs
-                    // (subscription ended, no paid plan chosen since) — preserves
-                    // schedule config so choosing a paid plan resumes runs
+                    // Skip scheduled runs for Free plan orgs and for orgs with discovery
+                    // paused (lapsed, or a cloud org on a license plan) — preserves
+                    // schedule config so landing on a live cloud plan resumes runs
                     // automatically
                     if let Ok(Some(site)) =
                         service.site_service.get_by_id(&fresh.base.site_id).await
@@ -182,12 +182,15 @@ impl DiscoveryService {
                             .await
                             .ok()
                             .flatten()
-                            .map(|o| o.is_lapsed() || o.base.plan.is_none_or(|p| p.is_free()))
+                            .map(|o| {
+                                o.discovery_paused(service.deployment_type)
+                                    || o.base.plan.is_none_or(|p| p.is_free())
+                            })
                             .unwrap_or(true)
                     {
                         tracing::debug!(
                             discovery_id = %discovery_id,
-                            "Skipping scheduled discovery — org is on Free plan or lapsed"
+                            "Skipping scheduled discovery — org is on Free plan or has discovery paused"
                         );
                         return;
                     }

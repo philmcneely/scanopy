@@ -1,7 +1,7 @@
-//! Billing subscriber for Site/User Created/Deleted entity events.
+//! Billing subscribers: Site/User Created/Deleted entity events, and `OrgCreated`.
 //!
 //! Drives billing-side bookkeeping when tenant resources change: seat counts,
-//! Stripe metered usage, plan-limit enforcement.
+//! Stripe metered usage, plan-limit enforcement. Starts a new cloud org's trial.
 
 use anyhow::Error;
 use async_trait::async_trait;
@@ -13,8 +13,13 @@ use crate::server::{
         entities::EntityDiscriminants,
         events::{
             registry::SubscriberRegistration,
-            traits::{EntityEventFilter, Event, EventScope, ScopeOrganization, Subscriber},
-            types::{EntityOperation, EntityOperationDiscriminants},
+            traits::{
+                EntityEventFilter, Event, EventFilter, EventScope, ScopeOrganization, Subscriber,
+            },
+            types::{
+                EntityOperation, EntityOperationDiscriminants, OnboardingOperation,
+                OnboardingOperationDiscriminants,
+            },
         },
         services::traits::CrudService,
         storage::filter::StorableFilter,
@@ -87,3 +92,44 @@ impl Subscriber<EntityOperation> for BillingService {
     }
 }
 inventory::submit!(SubscriberRegistration::new::<BillingService, EntityOperation>());
+
+/// Starts a new cloud org's trial at signup, so the user reaches the app without picking a plan.
+/// Only cloud runs a `BillingService`, and a self-hosted server's org already carries its license
+/// plan. A failure leaves the org without a plan, on the plan picker the app shows for that case.
+#[async_trait]
+impl Subscriber<OnboardingOperation> for BillingService {
+    fn filter(&self) -> EventFilter<OnboardingOperation> {
+        EventFilter::ops(vec![OnboardingOperationDiscriminants::OrgCreated])
+    }
+
+    async fn handle(&self, events: Vec<Event<OnboardingOperation>>) -> Result<(), Error> {
+        for event in events {
+            let OnboardingOperation::OrgCreated {
+                plan: None, site, ..
+            } = &event.operation
+            else {
+                continue;
+            };
+            let organization_id = event.scope.organization_id;
+            if let Err(e) = self
+                .start_default_trial(
+                    organization_id,
+                    site.is_none(),
+                    event.authentication.clone(),
+                )
+                .await
+            {
+                tracing::warn!(
+                    %organization_id,
+                    error = %e,
+                    "Could not start the default trial at signup; the org stays on the plan picker"
+                );
+            }
+        }
+        Ok(())
+    }
+}
+inventory::submit!(SubscriberRegistration::new::<
+    BillingService,
+    OnboardingOperation,
+>());

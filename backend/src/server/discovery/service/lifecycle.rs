@@ -10,6 +10,7 @@ impl DiscoveryService {
         site_service: Arc<SiteService>,
         organization_service: Arc<OrganizationService>,
         warning_service: Arc<DiscoveryWarningService>,
+        deployment_type: DeploymentType,
     ) -> Result<Arc<Self>> {
         let (tx, _rx) = broadcast::channel(100); // Buffer 100 messages
         let scheduler = JobScheduler::new().await?;
@@ -36,6 +37,7 @@ impl DiscoveryService {
             site_service,
             organization_service,
             warning_service,
+            deployment_type,
             daemon_service: std::sync::OnceLock::new(),
             host_service: std::sync::OnceLock::new(),
             digest_service: std::sync::OnceLock::new(),

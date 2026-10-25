@@ -1,5 +1,6 @@
 //! Pause/resume, trial extension, cancellation/reactivation, save offers, and invoice-paid handling.
 use super::*;
+use crate::server::billing::plans::TRIAL_EXTENSION_DAYS;
 use crate::server::billing::service::invoicing::resumed_term_end;
 use crate::server::billing::types::base::ts_to_chrono;
 
@@ -269,11 +270,11 @@ impl BillingService {
             .trial_end_date
             .ok_or_else(|| anyhow!("Organization has no trial end date"))?;
 
-        let new_trial_end = current_trial_end + chrono::Duration::days(7);
+        let new_trial_end = current_trial_end + chrono::Duration::days(TRIAL_EXTENSION_DAYS.into());
         let sub = self.find_current_subscription(&organization).await?;
 
         let meta = StripeSubscriptionMetadata {
-            scanopy_trial_extended_days: Some(7),
+            scanopy_trial_extended_days: Some(TRIAL_EXTENSION_DAYS),
             ..Default::default()
         };
 

@@ -350,7 +350,14 @@ impl BillingService {
                 false
             };
 
-            let proration = if sub.status == SubscriptionStatus::Trialing || voided_unpaid {
+            // The air-gapped key keeps the license term on the customer's server, so the move
+            // credits none of it and the cloud plan bills from now on a fresh term.
+            let keeps_air_gapped_term = organization.keeps_air_gapped_term_on_move(target_plan);
+
+            let proration = if sub.status == SubscriptionStatus::Trialing
+                || voided_unpaid
+                || keeps_air_gapped_term
+            {
                 UpdateSubscriptionProrationBehavior::None
             } else {
                 UpdateSubscriptionProrationBehavior::AlwaysInvoice
@@ -383,9 +390,10 @@ impl BillingService {
             }
 
             let mut update = UpdateSubscription::new(&sub.id);
-            if voided_unpaid {
-                // Nothing was paid for the old term, so the new plan starts a
-                // fresh one rather than inheriting its stub.
+            if voided_unpaid || keeps_air_gapped_term {
+                // Nothing was paid for the old term, or the air-gapped key keeps
+                // it, so the new plan starts a fresh one rather than inheriting
+                // its stub.
                 update = update.billing_cycle_anchor(UpdateSubscriptionBillingCycleAnchor::Now);
             }
             let updated = update

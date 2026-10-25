@@ -14,6 +14,14 @@
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import BillingPlanModal from '$lib/features/billing/BillingPlanModal.svelte';
+	import SwitchToCloudModal from '$lib/features/billing/SwitchToCloudModal.svelte';
+	import { useStartDefaultTrialMutation } from '$lib/features/billing/queries';
+	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
+	import {
+		billing_startingTrial,
+		settings_billing_license_cloudAppNeedsCloudPlan,
+		settings_billing_license_openSettings
+	} from '$lib/paraglide/messages';
 	import DaemonPromptModal from '$lib/features/daemons/components/DaemonPromptModal.svelte';
 	import ReleaseNotesModal from '$lib/features/release-notes/ReleaseNotesModal.svelte';
 	import TermsAcceptanceModal from '$lib/features/auth/components/TermsAcceptanceModal.svelte';
@@ -115,10 +123,6 @@
 	// also covers a plan selection before the org query reactively updates: without
 	// it, closeModal() clears $modalState but needsPlanSelection keeps showBillingModal true.
 	let planJustActivated = $state(false);
-	let showBillingModal = $derived(
-		isCloudDeployment &&
-			((needsPlanSelection && !planJustActivated) || $modalState.name === 'billing-plan')
-	);
 
 	// A self-hosted signup that picks a cloud plan gets its site from the plan
 	// webhook, so the daemon prompt waits (polling) until that site exists.
@@ -140,6 +144,40 @@
 			(organization?.onboarding?.includes('DaemonPromptAccepted') ?? false)
 	);
 
+	// Signup starts a trial on the default plan. An owner whose org still has no
+	// plan (created before that, or a signup whose start failed) gets it started
+	// here, and the plan picker and Settings lock wait for it. They are the
+	// fallback when it fails or the plan doesn't land.
+	const startDefaultTrialMutation = useStartDefaultTrialMutation();
+	let defaultTrialAttempted = $state(false);
+	let defaultTrialFailed = $state(false);
+	let defaultTrialPending = $derived(planUnchosen && isOwner && !defaultTrialFailed);
+	$effect(() => {
+		if (!appInitialized || !planUnchosen || !isOwner || defaultTrialAttempted) return;
+		defaultTrialAttempted = true;
+		void startDefaultTrial();
+	});
+	async function startDefaultTrial() {
+		const planLanded = () => waitForOrgUpdate((org) => org.plan != null, { intervalMs: 500 });
+		// A fresh signup's trial is already on its way from the signup itself, and
+		// its first site may still be being created, which is what the server reads
+		// to pick the plan. Asking only once that window has passed keeps the two
+		// from naming different plans.
+		if (await planLanded()) return;
+		try {
+			await startDefaultTrialMutation.mutateAsync();
+			if (!(await planLanded())) defaultTrialFailed = true;
+		} catch {
+			// The API client toasts the error.
+			defaultTrialFailed = true;
+		}
+	}
+	let showBillingModal = $derived(
+		isCloudDeployment &&
+			((needsPlanSelection && !planJustActivated && !defaultTrialPending) ||
+				$modalState.name === 'billing-plan')
+	);
+
 	let activeTab = $state(initialHash || 'home');
 	let appInitialized = $state(false);
 	let sidebarCollapsed = $state(false);
@@ -147,41 +185,37 @@
 	let showSettings = $state(false);
 	// Billing-blocking states force the Settings modal open and make it
 	// non-dismissible. Past-due users have to update payment; paused users have to
-	// click Resume Now before they can navigate elsewhere; orgs on a licensed
-	// self-hosted plan manage their license and card on the License tab; an org
-	// with no plan can change its account and choose a plan from the Billing tab.
+	// click Resume Now before they can navigate elsewhere; an org with no plan can
+	// change its account and choose a plan from the Billing tab.
 	// The inline alerts in BillingTab carry the matching urgent copy.
 	let isBillingBlocking = $derived(
 		(isCloudDeployment &&
 			(organization?.plan_status === 'past_due' || organization?.plan_status === 'paused')) ||
-			isSelfHostedPlanLocked ||
-			(planUnchosen && !cloudPlanJustPicked)
+			(planUnchosen && !cloudPlanJustPicked && !defaultTrialPending)
 	);
 	// Only owners can see the Billing tab; everyone else is held on Account,
-	// where SettingsModal explains that an owner has to resolve billing. An owner on
-	// a licensed self-hosted plan is held on License instead — the key is what that
-	// org came for, and Billing has nothing it must act on.
-	// This modal can't be dismissed, so the forced tab has to be one SettingsModal
-	// shows. Both read licenseTabVisible with the same inputs: an owner whose License
-	// tab is hidden (a server that lost its signing key, a demo org) goes to Billing.
-	// A true result already implies isSelfHostedPlanLocked and isOwner.
+	// where SettingsModal explains that an owner has to resolve billing.
+	let billingBlockingTab = $derived(isOwner ? 'billing' : 'account');
 	let isDemoOrg = $derived(
 		billingPlans.getMetadata(organization?.plan?.type ?? null).is_demo === true
 	);
-	let billingBlockingTab = $derived(
+	// An org on a licensed self-hosted plan gets Settings on the License tab when
+	// the page loads, and can close it: the sidebar stays, and SwitchToCloudModal
+	// says what the cloud app needs. An owner whose License tab is hidden (a server
+	// that lost its signing key, a demo org) gets Billing; everyone else Account.
+	let licenseLockTab = $derived(
 		licenseTabVisible({
 			isOwner,
 			isDemoOrg,
 			isCloudDeployment,
-			signingAvailable: licenseSigningAvailable,
-			hasLicensedPlan: organization != null && hasLicensedPlan(organization),
-			licensedPlanPending: licensedPlanJustPicked
+			signingAvailable: licenseSigningAvailable
 		})
 			? 'license'
 			: isOwner
 				? 'billing'
 				: 'account'
 	);
+	let showSwitchToCloud = $state(false);
 	let allTabs = $state<
 		Array<{
 			id: string;
@@ -213,14 +247,28 @@
 		}
 	});
 
-	// Auto-open settings modal to billing tab when past_due, paused, on a
-	// licensed self-hosted plan, or with no plan — each requires owner action
-	// before normal use. A new sign-up sees the plan picker first, and Settings
-	// opens once it closes.
+	// Auto-open settings modal to billing tab when past_due, paused, or with no
+	// plan — each requires owner action before normal use. A sign-up whose plan
+	// picker shows sees it first, and Settings opens once it closes.
 	$effect(() => {
 		if (isBillingBlocking && appInitialized && !showBillingModal) {
 			openModal('settings', { tab: billingBlockingTab });
 		}
+	});
+
+	// An org on a licensed self-hosted plan gets Settings on the License tab once
+	// it lands there (on load, or right after picking such a plan); closing it
+	// leaves the sidebar. Cleared when the org leaves the plan.
+	let licenseSettingsOpened = $state(false);
+	$effect(() => {
+		if (!isSelfHostedPlanLocked) {
+			licenseSettingsOpened = false;
+			return;
+		}
+		if (licenseSettingsOpened || !appInitialized || showBillingModal) return;
+		if ($modalState.name !== null && $modalState.name !== 'settings') return;
+		licenseSettingsOpened = true;
+		openModal('settings', { tab: licenseLockTab });
 	});
 
 	// A URL deep link (initModalFromUrl) can name a main-app modal, and the org may
@@ -394,9 +442,14 @@
 				bind:collapsed={sidebarCollapsed}
 				bind:allTabs
 				bind:showSettings
-				settingsInitialTab={isBillingBlocking ? billingBlockingTab : 'account'}
+				settingsInitialTab={isBillingBlocking
+					? billingBlockingTab
+					: isSelfHostedPlanLocked
+						? licenseLockTab
+						: 'account'}
 				settingsDismissible={!isBillingBlocking}
 				mainAppLocked={isMainAppLocked}
+				onLockedNavClick={isSelfHostedPlanLocked ? () => (showSwitchToCloud = true) : null}
 				{mainAppAvailable}
 				licensedPlanPending={licensedPlanJustPicked}
 			/>
@@ -470,6 +523,21 @@
 							</div>
 						{/if}
 					{/each}
+				{:else if isSelfHostedPlanLocked}
+					<div class="flex flex-col items-center gap-3 py-24 text-center">
+						<p class="text-sm text-secondary">
+							{settings_billing_license_cloudAppNeedsCloudPlan()}
+						</p>
+						<button
+							type="button"
+							class="btn-secondary"
+							onclick={() => openModal('settings', { tab: licenseLockTab })}
+						>
+							{settings_billing_license_openSettings()}
+						</button>
+					</div>
+				{:else if defaultTrialPending}
+					<p class="py-24 text-center text-sm text-secondary">{billing_startingTrial()}</p>
 				{/if}
 			</div>
 
@@ -539,6 +607,8 @@
 			closeModal();
 		}}
 	/>
+
+	<SwitchToCloudModal isOpen={showSwitchToCloud} onClose={() => (showSwitchToCloud = false)} />
 
 	<ReleaseNotesModal
 		isOpen={showReleaseNotes}

@@ -317,6 +317,7 @@ impl ServiceFactory {
             site_service.clone(),
             organization_service.clone(),
             discovery_warning_service,
+            crate::server::config::get_deployment_type(&config),
         )
         .await?;
 

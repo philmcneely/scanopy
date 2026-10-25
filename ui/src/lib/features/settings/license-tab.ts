@@ -1,17 +1,17 @@
 /**
  * Whether Settings shows the License tab. SettingsModal filters its tab list with
- * this, and the billing lock in routes/+page.svelte uses it to pick the tab a
- * non-dismissible Settings modal opens on, so the two can't disagree.
+ * this, and the billing lock in routes/+page.svelte uses it to pick the tab the
+ * Settings modal opens on for a licensed org, so the two can't disagree.
+ *
+ * An owner on a cloud plan sees it too: the tab previews the license key and
+ * points them at the self-hosted plans.
  *
  * - `isOwner`: license keys and the card behind them are owner-only.
- * - `isDemoOrg`: a demo org never holds a license. Its owner can still open the
- *   plan picker, so the pending window below needs this gate too.
+ * - `isDemoOrg`: a demo org never holds a license.
  * - `isCloudDeployment`: only Scanopy Cloud sells licenses through Stripe; a
  *   self-hosted server has nothing to show.
- * - `signingAvailable`: no signing key means the mint endpoints fail, so the tab
- *   would only produce an error toast.
- * - `licensedPlanPending`: covers the gap between picking a licensed plan and the
- *   Stripe webhook landing, when `hasLicensedPlan` is still false.
+ * - `signingAvailable`: no signing key means the mint endpoints fail and no
+ *   self-hosted plan can be bought, so the tab would only produce an error toast.
  *
  * Takes booleans so it can be tested without the metadata store.
  */
@@ -20,14 +20,6 @@ export function licenseTabVisible(s: {
 	isDemoOrg: boolean;
 	isCloudDeployment: boolean;
 	signingAvailable: boolean;
-	hasLicensedPlan: boolean;
-	licensedPlanPending: boolean;
 }): boolean {
-	return (
-		s.isOwner &&
-		!s.isDemoOrg &&
-		s.isCloudDeployment &&
-		s.signingAvailable &&
-		(s.licensedPlanPending || s.hasLicensedPlan)
-	);
+	return s.isOwner && !s.isDemoOrg && s.isCloudDeployment && s.signingAvailable;
 }
