@@ -289,17 +289,65 @@ impl Organization {
                 == Some(crate::server::billing::types::base::PlanStatus::Cancelled)
     }
 
+    /// When the org's trial began, worked back from its end date, the plan's trial length and any
+    /// extension. `None` when the org has never trialed. An org's trial can start well after the
+    /// org was created (one created before signup started trials begins at the owner's next visit).
+    pub fn trial_started_at(&self) -> Option<DateTime<Utc>> {
+        let trial_end = self.base.trial_end_date?;
+        let mut days = i64::from(self.base.plan?.config().trial_days);
+        if self.base.trial_extended_used {
+            days += i64::from(crate::server::billing::plans::TRIAL_EXTENSION_DAYS);
+        }
+        Some(trial_end - chrono::Duration::days(days))
+    }
+
+    /// Whether the org gets no new discovery: it is lapsed, or it is a Scanopy Cloud org on a
+    /// self-hosted license plan, whose app is closed beyond Settings and whose scans belong on
+    /// its own server. Schedules and daemons stay configured, so landing on a live cloud plan
+    /// resumes them. The discovery scheduler and daemon work handout both read this.
+    pub fn discovery_paused(&self, deployment_type: crate::server::config::DeploymentType) -> bool {
+        self.is_lapsed()
+            || (!deployment_type.is_self_hosted()
+                && self
+                    .base
+                    .plan
+                    .is_some_and(|plan| plan.license_plan().is_some()))
+    }
+
     /// The date an air-gapped key stays current until, when the org holds one.
     ///
     /// An air-gapped key validates offline and carries its own expiry, so
     /// while this is `Some` the organization is committed to the plan it
-    /// bought: it cannot switch back to an online key, and it cannot change
-    /// plan. Both refusals read this, so the two rules cannot drift apart.
+    /// bought: it cannot switch back to an online key, and it cannot move to
+    /// another license plan ([`Self::air_gapped_plan_change_blocked_until`]).
+    /// Both refusals read this, so the two rules cannot drift apart.
     pub fn air_gapped_key_current_until(&self) -> Option<DateTime<Utc>> {
         let paid_through = self.base.license_paid_through?;
         (self.base.license_key_type == Some(crate::server::license::types::LicenseKeyType::Offline)
             && Utc::now() < paid_through)
             .then_some(paid_through)
+    }
+
+    /// The date a move to `target` waits for, when the org's air-gapped key forbids it. The key
+    /// holds the org to its license tier, so another license plan waits for the key to run out. A
+    /// cloud plan does not: the key keeps working to the expiry it carries, and the cloud plan
+    /// bills from the switch with no credit for the license time (`change_plan`).
+    pub fn air_gapped_plan_change_blocked_until(
+        &self,
+        target: crate::server::billing::types::base::BillingPlan,
+    ) -> Option<DateTime<Utc>> {
+        self.air_gapped_key_current_until()
+            .filter(|_| target.license_plan().is_some())
+    }
+
+    /// Whether a move to `target` leaves a current air-gapped key running on the customer's
+    /// server: a move to a cloud plan. The key keeps the license term it was paid for, so the
+    /// move credits none of it.
+    pub fn keeps_air_gapped_term_on_move(
+        &self,
+        target: crate::server::billing::types::base::BillingPlan,
+    ) -> bool {
+        self.air_gapped_key_current_until().is_some() && target.license_plan().is_none()
     }
 
     /// Record a successful check-in at `at` from a server reporting
@@ -517,6 +565,101 @@ mod tests {
             org(Some(LicenseKeyType::Offline), None).air_gapped_key_current_until(),
             None
         );
+    }
+
+    /// A current air-gapped key holds the org to its license tier, but a move to
+    /// a cloud plan goes through and keeps the license term on the customer's
+    /// server rather than crediting it.
+    #[test]
+    fn a_current_air_gapped_key_blocks_license_moves_but_not_cloud_ones() {
+        use crate::server::billing::plans::{get_purchasable_plans, get_self_hosted_plus_plan};
+
+        let until = Utc::now() + chrono::Duration::days(30);
+        let mut holder = org(Some(LicenseKeyType::Offline), Some(until));
+        holder.base.plan = Some(get_self_hosted_plus_plan());
+
+        for target in get_purchasable_plans() {
+            let license_target = target.license_plan().is_some();
+            assert_eq!(
+                holder.air_gapped_plan_change_blocked_until(target),
+                license_target.then_some(until),
+                "{target:?}"
+            );
+            assert_eq!(
+                holder.keeps_air_gapped_term_on_move(target),
+                !license_target,
+                "{target:?}"
+            );
+        }
+
+        // An online key blocks nothing and keeps nothing.
+        let mut online = org(Some(LicenseKeyType::Online), Some(until));
+        online.base.plan = Some(get_self_hosted_plus_plan());
+        for target in get_purchasable_plans() {
+            assert_eq!(online.air_gapped_plan_change_blocked_until(target), None);
+            assert!(!online.keeps_air_gapped_term_on_move(target));
+        }
+    }
+
+    /// A lapsed org and a cloud org on a license plan get no new discovery; a
+    /// self-hosted server's org on its license plan scans as usual.
+    #[test]
+    fn discovery_pauses_for_lapsed_orgs_and_cloud_orgs_on_a_license_plan() {
+        use crate::server::billing::plans::{get_purchasable_plans, get_self_hosted_standard_plan};
+        use crate::server::billing::types::base::PlanStatus;
+        use crate::server::config::DeploymentType;
+
+        let on = |plan: BillingPlan, status: Option<PlanStatus>| {
+            let mut org = Organization::default();
+            org.base.plan = Some(plan);
+            org.base.plan_status = status;
+            org
+        };
+
+        for plan in get_purchasable_plans() {
+            let active = on(plan, Some(PlanStatus::Active));
+            assert_eq!(
+                active.discovery_paused(DeploymentType::Cloud),
+                plan.license_plan().is_some(),
+                "{plan:?}"
+            );
+        }
+        let licensed = on(get_self_hosted_standard_plan(), None);
+        assert!(!licensed.discovery_paused(DeploymentType::Commercial));
+        assert!(!licensed.discovery_paused(DeploymentType::Community));
+
+        let lapsed = on(get_self_hosted_standard_plan(), Some(PlanStatus::Cancelled));
+        assert!(lapsed.discovery_paused(DeploymentType::Cloud));
+        assert!(!Organization::default().discovery_paused(DeploymentType::Cloud));
+    }
+
+    /// The trial can start long after the org was created, so its start is
+    /// worked back from the end date, counting a used extension.
+    #[test]
+    fn trial_start_is_worked_back_from_its_end() {
+        use crate::server::billing::plans::{TRIAL_EXTENSION_DAYS, get_purchasable_plans};
+
+        let end = at(100);
+        for plan in get_purchasable_plans()
+            .into_iter()
+            .filter(|plan| plan.config().trial_days > 0)
+        {
+            let days = i64::from(plan.config().trial_days);
+            let mut org = Organization::default();
+            org.base.plan = Some(plan);
+            org.base.trial_end_date = Some(end);
+            assert_eq!(
+                org.trial_started_at(),
+                Some(end - chrono::Duration::days(days))
+            );
+
+            org.base.trial_extended_used = true;
+            assert_eq!(
+                org.trial_started_at(),
+                Some(end - chrono::Duration::days(days + i64::from(TRIAL_EXTENSION_DAYS)))
+            );
+        }
+        assert_eq!(Organization::default().trial_started_at(), None);
     }
 
     fn at(day: i64) -> DateTime<Utc> {

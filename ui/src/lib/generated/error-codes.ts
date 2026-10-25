@@ -108,7 +108,7 @@ export const ERROR_CODES = {
 	billing_air_gapped_key_still_current:
 		'Your air-gapped key is still valid. You can switch back to an online key once the current license period ends.',
 	billing_air_gapped_plan_change_blocked:
-		'Your air-gapped key covers the plan you have until {date}. You can cancel now, or change plan from that date.',
+		'Your air-gapped key covers the plan you have until {date}. You can cancel or move to a cloud plan now, or change license plan from that date.',
 	rate_limit_exceeded: 'Too many requests, please try again later',
 	external_service_error: 'Error from {service}: {reason}',
 	database_error: 'A database error occurred',

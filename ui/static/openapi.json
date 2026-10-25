@@ -1628,6 +1628,47 @@
         ]
       }
     },
+    "/api/billing/start-trial": {
+      "post": {
+        "tags": [
+          "billing",
+          "internal"
+        ],
+        "summary": "Start the default trial for an org that has no plan",
+        "description": "Signup starts it on its own; this covers orgs created before that, and a signup whose start\nfailed. A cloud org without a site is a self-hosted license buyer's, so it gets the license\ntrial. Returns `null` when the org already has a plan.",
+        "operationId": "start_default_trial",
+        "responses": {
+          "200": {
+            "description": "Trial started, or `null` when the org already has a plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_Option_String"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Trial already used or billing not enabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/billing/webhooks": {
       "post": {
         "tags": [
@@ -25892,6 +25933,42 @@
                     "description": "Discount applied by the retention offer."
                   }
                 }
+              }
+            ],
+            "description": "The result payload. Omitted on failure."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Not sent on a successful response. Failure messages arrive in an\n`ApiErrorResponse`."
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ApiMeta",
+            "description": "API and server version metadata."
+          },
+          "success": {
+            "type": "boolean",
+            "description": "Always `true` on a successful response."
+          }
+        }
+      },
+      "ApiResponse_Option_String": {
+        "type": "object",
+        "description": "Envelope for a successful response. Failures are sent with a non-2xx status\nand an `ApiErrorResponse` body instead.",
+        "required": [
+          "success",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
               }
             ],
             "description": "The result payload. Omitted on failure."

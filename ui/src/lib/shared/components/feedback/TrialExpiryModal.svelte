@@ -11,7 +11,7 @@
 	import { trackEvent } from '$lib/shared/utils/analytics';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
-		billing_addPaymentMethod,
+		billing_choosePlan,
 		billing_remindMeLater,
 		billing_trialModalBody,
 		billing_trialModalBodyLicense,
@@ -86,7 +86,7 @@
 
 	let actions = $derived<ModalAction[]>([
 		{ role: 'cancel', label: billing_remindMeLater(), onClick: handleDismiss },
-		{ role: 'primary', label: billing_addPaymentMethod(), icon: CreditCard, onClick: handleCta }
+		{ role: 'primary', label: billing_choosePlan(), icon: CreditCard, onClick: handleCta }
 	]);
 </script>
 

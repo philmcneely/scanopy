@@ -13,7 +13,7 @@
 	} from 'lucide-svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import { hasLicensedPlan } from '$lib/features/organizations/types';
+	import { hasLicensedPlan, isSelfHostedPlanLocked } from '$lib/features/organizations/types';
 	import {
 		isCloud,
 		isLicenseSigningAvailable,
@@ -60,8 +60,8 @@
 		dismissible?: boolean;
 		name?: string;
 		/** A licensed self-hosted plan was just picked and the organization query
-		 * hasn't caught up. The License tab is where that user is being sent, so it
-		 * exists from the moment this modal opens rather than one webhook later. */
+		 * hasn't caught up. The License tab shows the key rather than the cloud-plan
+		 * preview from the moment this modal opens rather than one webhook later. */
 		licensedPlanPending?: boolean;
 	} = $props();
 
@@ -128,9 +128,7 @@
 					isOwner,
 					isDemoOrg,
 					isCloudDeployment,
-					signingAvailable: isLicenseSigningOn,
-					hasLicensedPlan: org != null && hasLicensedPlan(org),
-					licensedPlanPending
+					signingAvailable: isLicenseSigningOn
 				});
 			return true;
 		})
@@ -205,9 +203,9 @@
 	<!-- flex-1 min-h-0, not a fixed height: the panel is a flex column, and a
 	     hardcoded height would not absorb the banners above the title. -->
 	<div class="flex min-h-0 flex-1 flex-col">
-		{#if !dismissible && !isOwner}
-			<!-- Billing-blocked org (past_due / paused / self-hosted plan): only an
-			     owner can see the Billing tab, so tell everyone else why they're held here. -->
+		{#if (!dismissible || isSelfHostedPlanLocked(org, isCloudDeployment)) && !isOwner}
+			<!-- Billing-blocked org (past_due / paused), or one on a self-hosted plan: only
+			     an owner can see the Billing and License tabs, so tell everyone else why. -->
 			<div class="shrink-0 px-6 pt-6">
 				<InlineWarning
 					title=""
@@ -226,7 +224,7 @@
 		{:else if activeTab === 'billing'}
 			<BillingTab {isOpen} onClose={handleClose} />
 		{:else if activeTab === 'license'}
-			<LicenseTab onClose={handleClose} />
+			<LicenseTab onClose={handleClose} {licensedPlanPending} />
 		{:else if activeTab === 'system'}
 			<SystemTab />
 		{:else if activeTab === 'support'}

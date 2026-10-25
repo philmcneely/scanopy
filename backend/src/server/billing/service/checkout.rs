@@ -108,6 +108,7 @@ impl BillingService {
                 BillingOperation::CheckoutStarted {
                     plan,
                     has_trial: plan.config().trial_days > 0,
+                    auto_started: false,
                     stripe_id: session.id.to_string(),
                     subscription_status: None,
                 },
@@ -169,6 +170,44 @@ impl BillingService {
         plan: BillingPlan,
         authentication: AuthenticatedEntity,
     ) -> Result<String, Error> {
+        self.start_trial(organization_id, plan, authentication, false)
+            .await
+    }
+
+    /// Start a plan-less org's trial on its default plan ([`default_trial_plan`]), so a new
+    /// user reaches the app without picking one. `license` picks the self-hosted tier: signup
+    /// names no site only for a self-hosted license buyer. Returns `Ok(None)` when the org
+    /// already has a plan. A repeat before the webhook writes the plan reaches Stripe with the
+    /// same per-org idempotency key and gets the first subscription back.
+    pub async fn start_default_trial(
+        &self,
+        organization_id: Uuid,
+        license: bool,
+        authentication: AuthenticatedEntity,
+    ) -> Result<Option<String>, Error> {
+        if self
+            .get_organization(organization_id)
+            .await?
+            .base
+            .plan
+            .is_some()
+        {
+            return Ok(None);
+        }
+        let plan = default_trial_plan(&self.get_plans(), license)
+            .ok_or_else(|| anyhow!("No default trial plan is configured"))?;
+        self.start_trial(organization_id, plan, authentication, true)
+            .await
+            .map(Some)
+    }
+
+    async fn start_trial(
+        &self,
+        organization_id: Uuid,
+        plan: BillingPlan,
+        authentication: AuthenticatedEntity,
+        auto_started: bool,
+    ) -> Result<String, Error> {
         // Guard: prevent trial reuse — org can only trial once.
         // `trial_end_date` is set when a trial starts and never cleared.
         let has_ever_trialed = self
@@ -228,6 +267,7 @@ impl BillingService {
                 BillingOperation::CheckoutStarted {
                     plan,
                     has_trial: true,
+                    auto_started,
                     stripe_id: subscription.id.to_string(),
                     subscription_status: Some(subscription.status),
                 },
@@ -282,6 +322,7 @@ impl BillingService {
                 BillingOperation::CheckoutStarted {
                     plan,
                     has_trial: false,
+                    auto_started: false,
                     stripe_id: subscription.id.to_string(),
                     subscription_status: Some(subscription.status),
                 },

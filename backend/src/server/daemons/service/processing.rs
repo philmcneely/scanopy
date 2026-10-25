@@ -1156,15 +1156,19 @@ impl DaemonService {
     /// When work is returned, the session is immediately transitioned to Starting phase
     /// to prevent it from being dispatched again on subsequent poll cycles.
     /// Returns None if there's already an active session running on the daemon,
-    /// or if the daemon's org is lapsed.
+    /// or if the daemon's org has discovery paused.
     pub async fn get_pending_work(&self, daemon: &Daemon) -> Option<DiscoveryUpdatePayload> {
         // A lapsed org (subscription ended, no paid plan chosen since) is
-        // read-only: it gets no new sessions, not even a daemon's initial run.
+        // read-only, and a cloud org on a license plan scans on its own server:
+        // neither gets new sessions, not even a daemon's initial run.
         // Its daemons keep reporting status through process_status so they
         // show as connected the moment it chooses a plan again. Both
         // DaemonPoll and ServerPoll funnel through here, so this is the one
         // place that decision lives.
-        if self.site_organization_is_lapsed(daemon.base.site_id).await {
+        if self
+            .site_organization_discovery_paused(daemon.base.site_id)
+            .await
+        {
             return None;
         }
         let daemon_id = daemon.id;
@@ -1204,10 +1208,11 @@ impl DaemonService {
         }
     }
 
-    /// Whether the org owning `site_id` is lapsed. A lookup failure reads as
-    /// not lapsed: the daemon then gets the work it would have got before this
-    /// check existed, and the billed result routes still refuse a lapsed org.
-    async fn site_organization_is_lapsed(&self, site_id: Uuid) -> bool {
+    /// Whether the org owning `site_id` gets no new discovery
+    /// ([`Organization::discovery_paused`]). A lookup failure reads as not paused: the daemon
+    /// then gets the work it would have got before this check existed, and the billed result
+    /// routes still refuse a lapsed or license-locked org.
+    async fn site_organization_discovery_paused(&self, site_id: Uuid) -> bool {
         let Ok(Some(site)) = self.site_service.get_by_id(&site_id).await else {
             return false;
         };
@@ -1215,7 +1220,7 @@ impl DaemonService {
             self.organization_service
                 .get_by_id(&site.base.organization_id)
                 .await,
-            Ok(Some(org)) if org.is_lapsed()
+            Ok(Some(org)) if org.discovery_paused(self.deployment_type)
         )
     }
 

@@ -1481,7 +1481,8 @@ impl EmailService {
 
         let daemons_count = self.daemon_service.count_for_sites(&site_ids).await?;
 
-        let days_into_trial = (chrono::Utc::now() - org.created_at).num_days();
+        let trial_started_at = org.trial_started_at().unwrap_or(org.created_at);
+        let days_into_trial = (chrono::Utc::now() - trial_started_at).num_days();
 
         Ok(TrialRecapMetrics {
             hosts_count,

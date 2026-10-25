@@ -443,7 +443,7 @@ impl ErrorCode {
                 "Your air-gapped key is still valid. You can switch back to an online key once the current license period ends."
             }
             Self::BillingAirGappedPlanChangeBlocked { .. } => {
-                "Your air-gapped key covers the plan you have until {date}. You can cancel now, or change plan from that date."
+                "Your air-gapped key covers the plan you have until {date}. You can cancel or move to a cloud plan now, or change license plan from that date."
             }
 
             // Rate Limiting
