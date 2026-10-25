@@ -1332,7 +1332,10 @@ fn a_mesh_point_is_identified_by_its_status_api() {
             .matches(&params)
             .is_ok()
     };
-    assert!(probe_answered(false), "a leaf's status API makes a repeater");
+    assert!(
+        probe_answered(false),
+        "a leaf's status API makes a repeater"
+    );
     assert!(
         !probe_answered(true),
         "the gateway root is the router, not a repeater"
