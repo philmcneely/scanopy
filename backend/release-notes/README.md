@@ -20,11 +20,12 @@ Markdown body. Raw HTML is dropped when rendered.
 email carries this release's notes only. A release with `email: false` is never emailed, and a later
 emailed release doesn't include it. `email: false` shows the notes in the app only.
 
-The email ends each section of the body (the text before each heading, and the last section) with a
-link to the app, and closes with an Open Scanopy button.
+The email ends each section of the body (the text before each heading, and the last section) with an
+Open Scanopy link to the app, and closes with an Open Scanopy button.
 
 On Scanopy Cloud, owners of a current self-hosted licence get an upgrade version of the email in
-place of the general one: the same notes, with every link pointing to the upgrade guide. Other
+place of the general one: the same notes, with each section's link and the closing button reading
+Upgrade your server and pointing to the upgrade guide. Other
 members of their org get neither, since their own server announces the release.
 `licensed_email: true` sends that version to licence owners even when `email` is `false`. A file
 without `licensed_email` sends it only with `email: true`. Self-hosted servers ignore it.

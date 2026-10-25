@@ -12,10 +12,10 @@ pub(super) fn subject(note: &ReleaseNote) -> String {
     format!("Scanopy {}: {}", note.version, note.title)
 }
 
-/// `note`'s title, then each section of its notes closed by a secondary link
-/// to `section_cta`, a `(href, label)` pair.
-pub(super) fn note_content(note: &ReleaseNote, section_cta: (&str, &str)) -> Content {
-    let (href, label) = section_cta;
+/// `note`'s title, then each section of its notes closed by a text link to
+/// `section_link`, a `(href, label)` pair.
+pub(super) fn note_content(note: &ReleaseNote, section_link: (&str, &str)) -> Content {
+    let (href, label) = section_link;
     let mut content = Content::new()
         .heading("What's new in Scanopy")
         .subheading(&format!(
@@ -29,7 +29,7 @@ pub(super) fn note_content(note: &ReleaseNote, section_cta: (&str, &str)) -> Con
                 "<div style=\"margin: 0 0 12px 0; font-size: 16px; line-height: 24px; color: #4a4a4a;\">{}</div>\n",
                 email_images(section)
             ))
-            .secondary_cta(href, label);
+            .link(href, label);
     }
     content
 }
@@ -49,10 +49,7 @@ impl Email for ReleaseNotes<'_> {
 
     fn body_html(&self) -> String {
         Body::new()
-            .content(note_content(
-                self.note,
-                (links::APP_HOME, "See it in Scanopy"),
-            ))
+            .content(note_content(self.note, (links::APP_HOME, "Open Scanopy")))
             .cta(links::APP_HOME, "Open Scanopy")
             .render()
     }
@@ -87,9 +84,9 @@ mod tests {
             "---\nversion: 0.18.0\ndate: 2026-10-11\ntitle: 'T'\nemail: true\n---\n\nLead-in.\n\n## New Features\n\n- One\n\n## Fixes\n\n- Two\n",
         )
         .unwrap();
-        let link = "See it in Scanopy";
+        let link = "Open Scanopy";
         let html = ReleaseNotes { note: &note }.body_html();
-        let found = ["Lead-in.", link, "New Features", link, "Fixes", link]
+        let found = ["Lead-in.", link, "New Features", link, "Fixes", link, link]
             .iter()
             .scan(0, |from, needle| {
                 let at = *from + html[*from..].find(needle)?;
@@ -97,8 +94,8 @@ mod tests {
                 Some(at)
             })
             .count();
-        assert_eq!(found, 6, "sections and links interleave: {html}");
-        assert_eq!(html.matches(link).count(), 3);
+        assert_eq!(found, 7, "sections and links interleave, then the button: {html}");
+        assert_eq!(html.matches(link).count(), 4);
     }
 
     #[test]
