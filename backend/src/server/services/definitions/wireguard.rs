@@ -24,9 +24,9 @@ impl ServiceDefinition for Wireguard {
     /// traffic is a stated design goal, so there is no packet we can send that distinguishes a
     /// WireGuard endpoint from a closed port.
     ///
-    /// This used to be `Port(Wireguard)` on 51820/udp, which could never match either: nothing
-    /// reports a UDP port open without a probe behind it, so the definition sat in the registry
-    /// detecting nothing while looking like coverage. `None` says the same thing honestly and
+    /// This used to be `Port(Wireguard)` on 51820/udp, which had no probe behind it: the network
+    /// scan never reports a UDP port no probe answers, and a container that declares 51820/udp is
+    /// not evidence of WireGuard. `None` says the same thing honestly and
     /// keeps the definition assignable by hand, which is the only way a WireGuard endpoint gets
     /// recorded today.
     ///

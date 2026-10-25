@@ -19,6 +19,7 @@ use crate::daemon::utils::app_probe::{
     AppProbe, AppProbeOutcome, ProbeContext, presence, udp_request_response,
 };
 use crate::server::ports::r#impl::base::PortType;
+use crate::server::services::r#impl::patterns::ClientProbe;
 
 /// RFC 1350 opcodes, all two octets, big-endian.
 const OPCODE_READ_REQUEST: u16 = 1;
@@ -51,6 +52,10 @@ pub struct TftpProbe;
 impl AppProbe for TftpProbe {
     fn port(&self) -> PortType {
         PortType::new_udp(69)
+    }
+
+    fn client_probe(&self) -> Option<ClientProbe> {
+        Some(ClientProbe::Tftp)
     }
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {

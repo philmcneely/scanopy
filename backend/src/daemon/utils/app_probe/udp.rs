@@ -7,6 +7,9 @@
 //! is that nothing about them changed — the `AppProbe` impls are thin adapters and the dispatch
 //! match was deleted rather than rewritten.
 //!
+//! Each contributes a [`ClientProbe`], so its definition needs the answer and a container that
+//! only declares the port is not claimed as the service.
+//!
 //! None of the four returns a [`DeviceIdentity`]: DNS and NTP are library calls that never see a
 //! raw response, DHCP's OFFER carries no device identity, and BACnet's I-Am does carry a vendor ID
 //! and device instance but parsing it is not this change. The shape is now in place for that to be
@@ -29,6 +32,7 @@ use tokio::time::timeout;
 
 use crate::daemon::utils::app_probe::{AppProbe, AppProbeOutcome, ProbeContext};
 use crate::server::ports::r#impl::base::PortType;
+use crate::server::services::r#impl::patterns::ClientProbe;
 
 /// The four migrated probes report presence only, so a detected port is the whole outcome.
 fn presence(detected: Option<u16>) -> AppProbeOutcome {
@@ -46,6 +50,10 @@ impl AppProbe for DnsProbe {
         PortType::DnsUdp
     }
 
+    fn client_probe(&self) -> Option<ClientProbe> {
+        Some(ClientProbe::DnsUdp)
+    }
+
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
         Ok(presence(test_dns_service(ctx.ip).await?))
     }
@@ -59,6 +67,10 @@ impl AppProbe for NtpProbe {
         PortType::Ntp
     }
 
+    fn client_probe(&self) -> Option<ClientProbe> {
+        Some(ClientProbe::Ntp)
+    }
+
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
         Ok(presence(test_ntp_service(ctx.ip).await?))
     }
@@ -70,6 +82,10 @@ pub struct DhcpProbe;
 impl AppProbe for DhcpProbe {
     fn port(&self) -> PortType {
         PortType::Dhcp
+    }
+
+    fn client_probe(&self) -> Option<ClientProbe> {
+        Some(ClientProbe::Dhcp)
     }
 
     /// Only the gateway is asked. The probe broadcasts a DISCOVER and any DHCP server on the
@@ -91,6 +107,10 @@ pub struct BacnetProbe;
 impl AppProbe for BacnetProbe {
     fn port(&self) -> PortType {
         PortType::BACnet
+    }
+
+    fn client_probe(&self) -> Option<ClientProbe> {
+        Some(ClientProbe::Bacnet)
     }
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {

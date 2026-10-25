@@ -285,10 +285,11 @@ pub trait AppProbe: Send + Sync {
     /// The evidence a successful probe contributes to service matching, for protocols whose
     /// definition matches on [`Pattern::ClientResponse`](crate::server::services::r#impl::patterns::Pattern::ClientResponse).
     ///
-    /// `None` for the four probes migrated off the old dispatch: their definitions match on the
-    /// port alone, exactly as they did before, and minting `ClientProbe` variants nothing consumes
-    /// would manufacture the very problem `every_client_probe_variant_has_a_producer` exists to
-    /// catch.
+    /// `None` makes [`probe_pattern`](crate::server::services::r#impl::patterns::probe_pattern)
+    /// match on the port alone, which the container scan satisfies from a declared port with no
+    /// probe run. Every UDP probe returns one for that reason, and
+    /// `test_no_service_matches_on_udp_openness_alone` fails on a definition whose UDP probe does
+    /// not.
     fn client_probe(&self) -> Option<ClientProbe> {
         None
     }
