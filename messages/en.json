@@ -130,7 +130,6 @@
 	"billing_seatUnitPlural": "seats",
 	"billing_selfHosted": "Self-Hosted",
 	"billing_serversIncluded": "{production} + {nonProduction} non-production",
-	"billing_settingUpOrganization": "Setting up your organization",
 	"billing_showFeatures": "Show features",
 	"billing_siteUnit": "site",
 	"billing_siteUnitPlural": "sites",
