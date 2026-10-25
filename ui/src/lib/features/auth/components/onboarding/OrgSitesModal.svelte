@@ -149,6 +149,7 @@
 							required={true}
 							helpText={licenseSignup ? onboarding_licenseOrgHelp() : useCaseConfig.orgHelp}
 							{field}
+							autofocus
 						/>
 					{/snippet}
 				</form.Field>
