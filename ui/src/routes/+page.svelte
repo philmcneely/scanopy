@@ -608,7 +608,6 @@
 		}}
 	/>
 
-
 	<ReleaseNotesModal
 		isOpen={showReleaseNotes}
 		notes={unseenReleaseNotesQuery.data}
