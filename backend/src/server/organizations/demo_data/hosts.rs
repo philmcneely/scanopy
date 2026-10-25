@@ -1347,9 +1347,10 @@ pub(super) fn generate_hosts_and_services(
         ),
     ));
 
-    // 17. TrueNAS Primary
+    // 17. TrueNAS Primary — multi-homed: the bond carries storage traffic on HQ Storage, and a
+    // separate management NIC on HQ Management serves the web UI
     {
-        let (host, ip_address) = with_snmp(
+        let (host, mut storage) = with_snmp(
             with_mac(
                 create_host(
                     "truenas-primary",
@@ -1377,14 +1378,40 @@ pub(super) fn generate_hosts_and_services(
             Some("TrueNAS Mini X+"),
             Some("IX-TNMXP-2231C0087"),
         );
-        let ip_addresses = vec![ip_address];
+        storage.base.name = Some("lagg0".to_string());
+        let management = IPAddress {
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: IPAddressBase {
+                site_id: hq.id,
+                host_id: host.id,
+                subnet_id: hq_mgmt.id,
+                ip_address: IpAddr::V4(Ipv4Addr::new(10, 0, 1, 20)),
+                mac_address: Some(MacEvidence::new(
+                    MacEvidenceValue(MacAddress::new([0xd0, 0x50, 0x99, 0x40, 0x17, 0x02])),
+                    AttributeSource::ArpReply,
+                )),
+                name: Some("eno1".to_string()),
+                position: 1,
+                ip_address_source: AttributeSource::ArpReply,
+            },
+        };
+        let ip_addresses = vec![storage, management];
         let mut ports = Vec::new();
         let mut services = Vec::new();
+        // The web UI listens on the management NIC only.
         if let Some((svc, port)) = create_service(
             "TrueNAS",
             "TrueNAS",
             &host,
-            &ip_addresses[0],
+            &ip_addresses[1],
             Some(PortType::Https),
             [backup_tag, backups_tag].into_iter().flatten().collect(),
             now,
@@ -1401,6 +1428,21 @@ pub(super) fn generate_hosts_and_services(
             &ip_addresses[0],
             Some(PortType::Nfs),
             file_sharing_tag.into_iter().collect(),
+            now,
+        ) {
+            if let Some(p) = port {
+                ports.push(p);
+            }
+            services.push(svc);
+        }
+        // ZFS replication to the Synology runs over SSH on the storage network.
+        if let Some((svc, port)) = create_service(
+            "SSH",
+            "SSH",
+            &host,
+            &ip_addresses[0],
+            Some(PortType::Ssh),
+            backups_tag.into_iter().collect(),
             now,
         ) {
             if let Some(p) = port {
