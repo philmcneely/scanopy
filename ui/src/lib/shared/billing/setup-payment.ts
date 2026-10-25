@@ -66,7 +66,6 @@ export function startSetupPayment({
 const CONFIRMS_PLAN_FIRST: SetupPaymentSource[] = [
 	'trial_banner',
 	'trial_modal',
-	'no_payment_banner',
 	'sidebar_trial_pill'
 ];
 

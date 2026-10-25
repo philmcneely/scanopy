@@ -98,7 +98,7 @@
 		mainAppLocked = false,
 		mainAppAvailable = false,
 		licensedPlanPending = false,
-		onLockedNavClick = null
+		showLockedMainNav = false
 	}: {
 		activeTab?: string;
 		collapsed?: boolean;
@@ -126,9 +126,9 @@
 		/** Passed through to the Settings modal, which shows the License tab on it
 		 * while the just-picked licensed plan is still in flight. */
 		licensedPlanPending?: boolean;
-		/** Set for a locked org whose main navigation still shows (a licensed
-		 * self-hosted plan): clicking an entry calls this instead of navigating. */
-		onLockedNavClick?: (() => void) | null;
+		/** A locked org whose main navigation still shows (a licensed self-hosted
+		 * plan): each page says it needs a cloud plan. */
+		showLockedMainNav?: boolean;
 	} = $props();
 
 	// TanStack Query for current user and organization
@@ -611,7 +611,7 @@
 	}
 
 	let mainNavItems = $derived(
-		mainAppLocked && !onLockedNavClick ? [] : filterByPosition(navConfig, 'main')
+		mainAppLocked && !showLockedMainNav ? [] : filterByPosition(navConfig, 'main')
 	);
 	let bottomNavItems = $derived(filterByPosition(navConfig, 'bottom'));
 
@@ -679,15 +679,6 @@
 			} catch (error) {
 				console.error('Failed to save section state:', error);
 			}
-		}
-	}
-
-	/** A main-navigation click: the locked org's handler takes it when one is set. */
-	function handleMainItemClick(item: NavItem) {
-		if (onLockedNavClick) {
-			onLockedNavClick();
-		} else {
-			handleItemClick(item);
 		}
 	}
 
@@ -830,7 +821,7 @@
 										{@const dotColor = itemNotificationColor(item)}
 										<li>
 											<button
-												onclick={() => handleMainItemClick(item)}
+												onclick={() => handleItemClick(item)}
 												class="{baseClasses} {isItemActive(item)
 													? 'border border-blue-500/30 bg-blue-100 text-primary dark:border-blue-600 dark:bg-blue-700'
 													: inactiveButtonClass}"
@@ -856,7 +847,7 @@
 													{#each item.children as child (child.id)}
 														<li>
 															<button
-																onclick={() => handleMainItemClick(child)}
+																onclick={() => handleItemClick(child)}
 																class="{baseClasses} {activeTab === child.id
 																	? 'border border-blue-500/30 bg-blue-100 text-primary dark:border-blue-600 dark:bg-blue-700'
 																	: inactiveButtonClass}"
@@ -881,7 +872,7 @@
 						<!-- Standalone item (no section, no indentation) -->
 						<li>
 							<button
-								onclick={() => handleMainItemClick(configItem)}
+								onclick={() => handleItemClick(configItem)}
 								class="{baseClasses} {activeTab === configItem.id ||
 								(configItem.id === 'settings' && showSettings)
 									? 'border border-blue-500/30 bg-blue-100 text-primary dark:border-blue-600 dark:bg-blue-700'

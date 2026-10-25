@@ -78,8 +78,6 @@ export function triggerUpgrade(options: TriggerUpgradeOptions): void {
 		return;
 	}
 
-	// An org holding a current air-gapped key can still move to a cloud plan, so
-	// the picker opens; it offers only the cloud plans and says why.
 	options.beforeModal?.();
 
 	if (options.reopenSettings) {

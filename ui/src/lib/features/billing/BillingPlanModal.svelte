@@ -19,12 +19,6 @@
 	import { isLicenseSigningAvailable, useConfigQuery } from '$lib/shared/stores/config-query';
 	import { modalState, openModal } from '$lib/shared/stores/modal-registry';
 	import { canPay } from '$lib/shared/utils/trial';
-	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
-	import { formatDate } from '$lib/shared/utils/formatting';
-	import {
-		errors_billing_air_gapped_plan_change_blocked,
-		settings_billing_changePlan
-	} from '$lib/paraglide/messages';
 
 	let {
 		isOpen = false,
@@ -138,16 +132,6 @@
 		!signingAvailable
 			? 'cloud'
 			: (requestedHosting ?? planHosting ?? $onboardingStore.hosting ?? 'cloud')
-	);
-
-	// A current air-gapped key holds the org to its license tier until this date,
-	// so the server refuses every other self-hosted plan. A cloud plan stays open:
-	// the key keeps running to its own expiry. The picker offers only those.
-	let airGappedLockedUntil = $derived(organization?.air_gapped_key_current_until ?? null);
-	let offeredPlans = $derived(
-		airGappedLockedUntil == null
-			? pickablePlans
-			: pickablePlans.filter((p) => billingPlanHelpers.getMetadata(p.type)?.license_plan == null)
 	);
 
 	// Set when a trial nudge opened the picker: the user confirms or changes the
@@ -273,24 +257,14 @@
 	compactPadding={true}
 >
 	<div class="flex min-h-0 flex-1 flex-col">
-		{#if airGappedLockedUntil}
-			<div class="p-6 pb-0">
-				<InlineInfo
-					title={settings_billing_changePlan()}
-					body={errors_billing_air_gapped_plan_change_blocked({
-						date: formatDate(airGappedLockedUntil)
-					})}
-				/>
-			</div>
-		{/if}
 		<BillingPlanForm
 			plans={billingPlanHelpers.getMetadata(organization?.plan?.type ?? null)?.is_free
-				? offeredPlans
-				: offeredPlans.filter((p) => billingPlanHelpers.getMetadata(p.type)?.is_free !== true)}
+				? pickablePlans
+				: pickablePlans.filter((p) => billingPlanHelpers.getMetadata(p.type)?.is_free !== true)}
 			{billingPlanHelpers}
 			{featureHelpers}
-			showHosting={signingAvailable && airGappedLockedUntil == null}
-			initialHosting={airGappedLockedUntil == null ? initialHosting : 'cloud'}
+			showHosting={signingAvailable}
+			{initialHosting}
 			onPlanSelect={handlePlanSelect}
 			{isReturningCustomer}
 			{isCurrentlyTrialing}

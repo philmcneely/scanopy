@@ -16,11 +16,7 @@
 	import { priceToCharge } from '$lib/features/billing/pricing';
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import {
-		hasLicensedPlan,
-		isPlanLapsed,
-		isSelfHostedPlanLocked
-	} from '$lib/features/organizations/types';
+	import { hasLicensedPlan, isPlanLapsed } from '$lib/features/organizations/types';
 	import type { Organization } from '$lib/features/organizations/types';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
@@ -31,7 +27,6 @@
 	import { formatLongDate, formatTimestamp } from '$lib/shared/utils/formatting';
 	import { startSetupPayment } from '$lib/shared/billing/setup-payment';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
-	import { tooltip } from '$lib/shared/actions/tooltip';
 	import type { components } from '$lib/api/schema';
 	import {
 		apiKeys_rotateKey,
@@ -49,6 +44,7 @@
 		settings_billing_changePlan,
 		settings_billing_license_airGappedCurrentUntil,
 		settings_billing_license_airGappedNeedsCard,
+		settings_billing_license_airGappedNeedsCardLink,
 		settings_billing_license_airGappedOpenInvoice,
 		settings_billing_license_airGappedPastDue,
 		settings_billing_license_installHint,
@@ -59,7 +55,6 @@
 		settings_billing_license_keyTypeChanged,
 		settings_billing_license_keyTypeLabel,
 		settings_billing_license_lastCheckIn,
-		settings_billing_license_notSelfHosting,
 		settings_billing_license_offlineKeyUpsell,
 		settings_billing_license_onlineLockedUntil,
 		settings_billing_license_validThrough,
@@ -73,8 +68,6 @@
 		settings_billing_license_switchConfirm,
 		settings_billing_license_switchOnlineConfirm,
 		settings_billing_license_switchTitle,
-		settings_billing_license_switchToCloud,
-		settings_billing_license_switchToCloudDesc,
 		settings_billing_payInvoice
 	} from '$lib/paraglide/messages';
 
@@ -300,19 +293,6 @@
 		startSetupPayment({ org, source: 'license_tab', trialDaysLeft: getTrialDaysLeft(org) });
 	}
 
-	// The way back for an org that decides not to self-host. Opens on the Cloud
-	// plans, where the picker says what happens to the license.
-	let locked = $derived(isSelfHostedPlanLocked(org, isCloudDeployment));
-	function openCloudPlans() {
-		triggerUpgrade({
-			source: 'settings_license_switch_to_cloud',
-			surface: 'billing_tab',
-			hosting: 'cloud',
-			reopenSettings: true,
-			beforeModal: () => onClose()
-		});
-	}
-
 	function openSelfHostedPlans() {
 		triggerUpgrade({
 			source: 'settings_license_preview',
@@ -439,8 +419,15 @@
 									</button>
 								</p>
 							{:else if !hasCard}
+								{@const [beforeLink, afterLink] =
+									settings_billing_license_airGappedNeedsCard().split('%link%')}
 								<p class="text-sm text-secondary">
-									{settings_billing_license_airGappedNeedsCard()}
+									{beforeLink}<button
+										type="button"
+										class="text-link hover:underline"
+										onclick={handleAddPaymentMethod}
+										>{settings_billing_license_airGappedNeedsCardLink()}</button
+									>{afterLink ?? ''}
 								</p>
 							{:else if isPastDue}
 								<p class="text-sm text-secondary">
@@ -499,6 +486,7 @@
 									text={settings_billing_license_installHint()}
 									href="https://scanopy.net/docs/self-hosted-server/installation/?edition=commercial"
 									linkText={settings_billing_license_installLinkText()}
+									disabled={preview}
 								/>
 							</div>
 						</div>
@@ -508,21 +496,6 @@
 				<!-- Only an online key checks in, so only an online key has servers to list. -->
 				{#if keyType === 'Online'}
 					<LicenseInstancesCard enabled={hasLicensedPlan(org)} />
-				{/if}
-
-				{#if locked}
-					<p class="text-sm text-secondary">
-						{settings_billing_license_notSelfHosting()}
-						<button
-							type="button"
-							onclick={openCloudPlans}
-							class="text-link hover:underline"
-							data-tooltip={settings_billing_license_switchToCloudDesc()}
-							use:tooltip
-						>
-							{settings_billing_license_switchToCloud()}
-						</button>
-					</p>
 				{/if}
 			</fieldset>
 		{/if}
