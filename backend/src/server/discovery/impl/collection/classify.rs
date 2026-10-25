@@ -118,6 +118,8 @@ impl ClientProbe {
             }
             // Spotify Connect's `getInfo` names the brand and model.
             Self::SpotifyConnect => C::CredentialFree(&[PortsAndServices, DeviceDetails]),
+            // Google Wifi's status API names the manufacturer, board and firmware.
+            Self::GoogleWifi => C::CredentialFree(&[PortsAndServices, DeviceDetails]),
             // The SMB negotiation states the Windows release.
             Self::Smb => C::CredentialFree(&[PortsAndServices, OperatingSystem]),
             // Lockdown's `GetValue` names the product type and OS version.

@@ -7804,7 +7804,7 @@ export interface components {
          *     `every_client_probe_variant_has_a_producer` is what now says so.
          * @enum {string}
          */
-        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing" | "Ipp" | "SpotifyConnect" | "Vnc" | "AppleLockdown" | "DnsUdp" | "Ntp" | "Dhcp" | "Bacnet" | "Tftp" | "Mgcp";
+        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing" | "Ipp" | "SpotifyConnect" | "Vnc" | "AppleLockdown" | "DnsUdp" | "Ntp" | "Dhcp" | "Bacnet" | "Tftp" | "Mgcp" | "GoogleWifi";
         /** @enum {string} */
         ClockFormat: "browser_default" | "twelve_hour" | "twenty_four_hour";
         /** @enum {string} */
