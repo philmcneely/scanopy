@@ -136,8 +136,13 @@
 		if (clientSecret != null) return;
 		try {
 			// Usually made already, by the surface that opened this (usePreloadStripe).
+			// TEMPORARY timing log (remove after the preload is confirmed).
+			const openedAt = performance.now();
 			clientSecret =
 				org != null ? await takeSetupIntent(org.id) : await setupIntentMutation.mutateAsync();
+			console.debug(
+				`[payment-form] SetupIntent ready after ${Math.round(performance.now() - openedAt)}ms`
+			);
 		} catch (err) {
 			trackPaymentFormFailed('setup_intent', source, apiFailure(err));
 			// setup-intent error is toasted by the mutation; close the empty dialog

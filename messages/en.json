@@ -117,7 +117,6 @@
 	"billing_payByInvoice": "Pay by invoice",
 	"billing_paymentMethodAdded": "Payment method added.",
 	"billing_paymentMethodFinalizeFailed": "Your card was accepted, but we couldn't finish saving it. Select Try again.",
-	"billing_perHostMonthly": "+${amount} / host / mo",
 	"billing_perSeatMonthly": "+${amount} / seat / mo",
 	"billing_perSiteMonthly": "+${amount} / site / mo",
 	"billing_planEndedBannerBody": "Your {plan} plan ended, and your organization is now on Free.",

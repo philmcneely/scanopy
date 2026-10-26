@@ -1,7 +1,13 @@
 // `/pure`: importing this module injects nothing. Stripe.js loads only when
 // `preloadStripe` first runs (see StripeCardForm for why that matters).
 import { loadStripe } from '@stripe/stripe-js/pure';
-import type { Stripe } from '@stripe/stripe-js';
+import type {
+	Stripe,
+	StripeElements,
+	StripePaymentElement,
+	StripePaymentElementOptions
+} from '@stripe/stripe-js';
+import { buildStripeAppearance } from '$lib/shared/billing/stripe-appearance';
 import { useConfigQuery } from '$lib/shared/stores/config-query';
 import { useCurrentUserQuery } from '$lib/features/auth/queries';
 import { useOrganizationQuery } from '$lib/features/organizations/queries';
@@ -50,9 +56,67 @@ export function takeSetupIntent(organizationId: string): Promise<string> {
 	return setupIntent.clientSecret;
 }
 
-/** Drop the cached SetupIntent once a card has been saved with it. */
+/** Drop the cached SetupIntent, and the form built on it, once a card has been saved with it. */
 export function clearSetupIntent(): void {
 	setupIntent = null;
+	preparedForm = null;
+}
+
+/** The Payment Element's options: the same in a prepared form and one built on open. */
+export function paymentElementOptions(email: string | undefined): StripePaymentElementOptions {
+	return {
+		// `defaultCollapsed` left unset means Stripe expands whichever method it
+		// thinks converts best, and then reports that method as selected before
+		// the customer has touched anything. Open on the list instead, so
+		// "selected" means they picked it.
+		layout: { type: 'accordion', defaultCollapsed: true },
+		defaultValues: email ? { billingDetails: { email } } : undefined
+	};
+}
+
+export interface PreparedPaymentForm {
+	clientSecret: string;
+	elements: StripeElements;
+	paymentElement: StripePaymentElement;
+}
+
+// The Elements group and Payment Element for the cached SetupIntent, built
+// ahead of the dialog. Creating the group fetches Stripe's Elements session,
+// the round trip the element otherwise waits on when the dialog opens.
+let preparedForm: { clientSecret: string; form: Promise<PreparedPaymentForm | null> } | null = null;
+
+/**
+ * The payment form for `clientSecret`, built once and shared: the dialog
+ * mounts the element prepared while the surface that opened it was showing.
+ * Null when Stripe.js didn't load. A failure is forgotten, so the next caller
+ * rebuilds.
+ */
+export function preparePaymentForm(
+	publishableKey: string,
+	clientSecret: string,
+	email: string | undefined
+): Promise<PreparedPaymentForm | null> {
+	if (preparedForm == null || preparedForm.clientSecret !== clientSecret) {
+		const form = (async () => {
+			const stripe = await preloadStripe(publishableKey);
+			if (!stripe) return null;
+			// `loader: 'never'` disables Stripe's optimistic skeleton so the user
+			// sees our native spinner until the element is fully ready (no flash
+			// of placeholder cards). Appearance mirrors the app theme.
+			const elements = stripe.elements({
+				clientSecret,
+				appearance: buildStripeAppearance(),
+				loader: 'never'
+			});
+			const paymentElement = elements.create('payment', paymentElementOptions(email));
+			return { clientSecret, elements, paymentElement };
+		})().catch((error: unknown) => {
+			if (preparedForm?.form === form) preparedForm = null;
+			throw error;
+		});
+		preparedForm = { clientSecret, form };
+	}
+	return preparedForm.form;
 }
 
 /**
@@ -73,10 +137,14 @@ export function usePreloadStripe(showing: () => boolean = () => true): void {
 			// StripeCardForm reports a failed load when it needs Stripe.
 		});
 		const organizationId = organizationQuery.data?.id;
+		const email = currentUserQuery.data?.email;
 		if (publishableKey && organizationId && currentUserQuery.data?.permissions === 'Owner') {
-			void takeSetupIntent(organizationId).catch(() => {
-				// The API client toasts it; the dialog retries when it opens.
-			});
+			void takeSetupIntent(organizationId)
+				.then((clientSecret) => preparePaymentForm(publishableKey, clientSecret, email))
+				.catch(() => {
+					// The API client toasts a failed intent, and the dialog retries
+					// both when it opens.
+				});
 		}
 	});
 }

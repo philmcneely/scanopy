@@ -219,21 +219,6 @@ impl DaemonService {
         let filter = StorableFilter::new_from_uuid_column("daemon_id", &daemon_id).live_configs();
         let existing_discoveries = self.discovery_service.get_all(filter).await?;
         if existing_discoveries.is_empty() {
-            let site = self
-                .site_service
-                .get_by_id(&daemon.base.site_id)
-                .await?
-                .ok_or_else(|| ApiError::entity_not_found::<Site>(daemon.base.site_id))?;
-            let organization = self
-                .organization_service
-                .get_by_id(&site.base.organization_id)
-                .await?
-                .ok_or_else(|| {
-                    ApiError::entity_not_found::<
-                        crate::server::organizations::r#impl::base::Organization,
-                    >(site.base.organization_id)
-                })?;
-            let is_free_plan = organization.base.plan.is_free();
             // Reconnect safety-net (discoveries were deleted): no registration request is in
             // scope on startup, so we can't recover the init-command targeting here. Recreate
             // with empty targeting; the daemon re-registering restores its integration_targets.
@@ -241,7 +226,6 @@ impl DaemonService {
                 daemon_id,
                 daemon.base.site_id,
                 daemon.base.host_id,
-                is_free_plan,
                 &[],
             )
             .await?;
@@ -524,12 +508,10 @@ impl DaemonService {
             .await?;
 
         // Create default discovery jobs
-        let is_free_plan = plan.is_free();
         self.create_default_discovery_jobs(
             effective_daemon_id,
             effective_site_id,
             host_response.id,
-            is_free_plan,
             &request.integration_targets,
         )
         .await?;
@@ -1271,7 +1253,6 @@ impl DaemonService {
         daemon_id: Uuid,
         site_id: Uuid,
         host_id: Uuid,
-        is_free_plan: bool,
         integration_targets: &[IntegrationTarget],
     ) -> Result<(), ApiError> {
         // Idempotency guard: a daemon gets exactly one set of default discovery
@@ -1291,16 +1272,16 @@ impl DaemonService {
             return Ok(());
         }
 
-        // Free plans use AdHoc (run once immediately), paid plans use Scheduled
-        let default_run_type = if is_free_plan {
-            RunType::AdHoc { last_run: None }
-        } else {
-            RunType::Scheduled {
-                cron_schedule: WEEKLY_SUNDAY_MIDNIGHT_CRON.to_string(),
-                last_run: None,
-                enabled: true,
-                timezone: None,
-            }
+        // Weekly on every plan. The first run doesn't wait for the schedule: the
+        // daemon's first work pull starts every discovery that has never run
+        // (start_initial_discovery_sessions). On Free the scheduler skips the later
+        // runs and the Scans tab shows the schedule as paused, so an upgrade starts
+        // it with nothing to set up.
+        let default_run_type = RunType::Scheduled {
+            cron_schedule: WEEKLY_SUNDAY_MIDNIGHT_CRON.to_string(),
+            last_run: None,
+            enabled: true,
+            timezone: None,
         };
 
         // Create a single Unified discovery combining self-report, network, and docker

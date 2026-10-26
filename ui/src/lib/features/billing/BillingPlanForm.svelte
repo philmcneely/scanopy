@@ -19,7 +19,6 @@
 		billing_siteUnit,
 		billing_siteUnitPlural,
 		billing_notIncluded,
-		billing_perHostMonthly,
 		billing_perSiteMonthly,
 		billing_perSeatMonthly,
 		billing_planIntegrations,
@@ -50,7 +49,6 @@
 		common_getStarted,
 		billing_continueOnPlan,
 		common_hide,
-		common_hosts,
 		common_servers,
 		common_monthly,
 		common_sites,
@@ -397,14 +395,6 @@
 		if (plan.site_cents) {
 			const monthly = plan.rate === 'Year' ? plan.site_cents / 12 : plan.site_cents;
 			return billing_perSiteMonthly({ amount: String(monthly / 100) });
-		}
-		return '';
-	}
-
-	function formatHostAddonPricing(plan: BillingPlan): string {
-		if (plan.host_cents) {
-			const monthly = plan.rate === 'Year' ? plan.host_cents / 12 : plan.host_cents;
-			return billing_perHostMonthly({ amount: String(monthly / 100) });
 		}
 		return '';
 	}
@@ -780,19 +770,6 @@
 										{formatIncludedValue(plan.included_sites, plan)}
 									</span>
 								{/if}
-							</div>
-
-							<!-- Hosts -->
-							<div class="flex items-center justify-between text-sm">
-								<div class="flex flex-col">
-									<span class="text-secondary">{common_hosts()}</span>
-									{#if plan.host_cents}
-										<span class="text-xs text-tertiary">{formatHostAddonPricing(plan)}</span>
-									{/if}
-								</div>
-								<span class="font-medium text-primary">
-									{formatIncludedValue(plan.included_hosts, plan)}
-								</span>
 							</div>
 
 							<!-- Servers (self-hosted only: how many servers one license key covers) -->
