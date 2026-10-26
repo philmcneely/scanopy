@@ -24,7 +24,7 @@ export interface ColorStyle {
 export const COLOR_MAP: Record<Color, ColorStyle> = {
 	Pink: {
 		color: 'Pink',
-		text: 'text-pink-600 dark:text-pink-400',
+		text: 'text-pink-800 dark:text-pink-400',
 		bg: 'bg-pink-200 border-pink-400 dark:bg-pink-900/50 dark:border-pink-600',
 		border: 'border-pink-400 dark:border-pink-600',
 		icon: 'text-pink-600 dark:text-pink-400',
@@ -34,7 +34,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Rose: {
 		color: 'Rose',
-		text: 'text-rose-600 dark:text-rose-400',
+		text: 'text-rose-800 dark:text-rose-400',
 		bg: 'bg-rose-200 border-rose-400 dark:bg-rose-900/50 dark:border-rose-600',
 		border: 'border-rose-400 dark:border-rose-600',
 		icon: 'text-rose-600 dark:text-rose-400',
@@ -44,7 +44,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Red: {
 		color: 'Red',
-		text: 'text-red-600 dark:text-red-400',
+		text: 'text-red-800 dark:text-red-400',
 		bg: 'bg-red-200 border-red-400 dark:bg-red-900/50 dark:border-red-600',
 		border: 'border-red-400 dark:border-red-600',
 		icon: 'text-red-600 dark:text-red-400',
@@ -54,7 +54,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Amber: {
 		color: 'Amber',
-		text: 'text-amber-600 dark:text-amber-400',
+		text: 'text-amber-800 dark:text-amber-400',
 		bg: 'bg-amber-200 border-amber-400 dark:bg-amber-900/50 dark:border-amber-600',
 		border: 'border-amber-400 dark:border-amber-600',
 		icon: 'text-amber-600 dark:text-amber-400',
@@ -64,7 +64,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Orange: {
 		color: 'Orange',
-		text: 'text-orange-600 dark:text-orange-400',
+		text: 'text-orange-800 dark:text-orange-400',
 		bg: 'bg-orange-200 border-orange-400 dark:bg-orange-900/50 dark:border-orange-600',
 		border: 'border-orange-400 dark:border-orange-600',
 		icon: 'text-orange-600 dark:text-orange-400',
@@ -74,7 +74,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Yellow: {
 		color: 'Yellow',
-		text: 'text-yellow-600 dark:text-yellow-400',
+		text: 'text-yellow-800 dark:text-yellow-400',
 		bg: 'bg-yellow-200 border-yellow-400 dark:bg-yellow-900/50 dark:border-yellow-600',
 		border: 'border-yellow-400 dark:border-yellow-600',
 		icon: 'text-yellow-600 dark:text-yellow-400',
@@ -84,7 +84,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Green: {
 		color: 'Green',
-		text: 'text-green-600 dark:text-green-400',
+		text: 'text-green-800 dark:text-green-400',
 		bg: 'bg-green-200 border-green-400 dark:bg-green-900/50 dark:border-green-600',
 		border: 'border-green-400 dark:border-green-600',
 		icon: 'text-green-600 dark:text-green-400',
@@ -94,7 +94,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Emerald: {
 		color: 'Emerald',
-		text: 'text-emerald-600 dark:text-emerald-400',
+		text: 'text-emerald-800 dark:text-emerald-400',
 		bg: 'bg-emerald-200 border-emerald-400 dark:bg-emerald-900/50 dark:border-emerald-600',
 		border: 'border-emerald-400 dark:border-emerald-600',
 		icon: 'text-emerald-600 dark:text-emerald-400',
@@ -104,7 +104,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Teal: {
 		color: 'Teal',
-		text: 'text-teal-600 dark:text-teal-400',
+		text: 'text-teal-800 dark:text-teal-400',
 		bg: 'bg-teal-200 border-teal-400 dark:bg-teal-900/50 dark:border-teal-600',
 		border: 'border-teal-400 dark:border-teal-600',
 		icon: 'text-teal-600 dark:text-teal-400',
@@ -114,7 +114,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Cyan: {
 		color: 'Cyan',
-		text: 'text-cyan-600 dark:text-cyan-400',
+		text: 'text-cyan-800 dark:text-cyan-400',
 		bg: 'bg-cyan-200 border-cyan-400 dark:bg-cyan-900/50 dark:border-cyan-600',
 		border: 'border-cyan-400 dark:border-cyan-600',
 		icon: 'text-cyan-600 dark:text-cyan-400',
@@ -124,7 +124,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Blue: {
 		color: 'Blue',
-		text: 'text-blue-600 dark:text-blue-400',
+		text: 'text-blue-800 dark:text-blue-400',
 		bg: 'bg-blue-200 border-blue-400 dark:bg-blue-900/50 dark:border-blue-600',
 		border: 'border-blue-400 dark:border-blue-600',
 		icon: 'text-blue-600 dark:text-blue-400',
@@ -134,7 +134,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Indigo: {
 		color: 'Indigo',
-		text: 'text-indigo-600 dark:text-indigo-400',
+		text: 'text-indigo-800 dark:text-indigo-400',
 		bg: 'bg-indigo-200 border-indigo-400 dark:bg-indigo-900/50 dark:border-indigo-600',
 		border: 'border-indigo-400 dark:border-indigo-600',
 		icon: 'text-indigo-600 dark:text-indigo-400',
@@ -144,7 +144,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Purple: {
 		color: 'Purple',
-		text: 'text-purple-600 dark:text-purple-400',
+		text: 'text-purple-800 dark:text-purple-400',
 		bg: 'bg-purple-200 border-purple-400 dark:bg-purple-900/50 dark:border-purple-600',
 		border: 'border-purple-400 dark:border-purple-600',
 		icon: 'text-purple-600 dark:text-purple-400',
@@ -154,7 +154,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Fuchsia: {
 		color: 'Fuchsia',
-		text: 'text-fuchsia-600 dark:text-fuchsia-400',
+		text: 'text-fuchsia-800 dark:text-fuchsia-400',
 		bg: 'bg-fuchsia-200 border-fuchsia-400 dark:bg-fuchsia-900/50 dark:border-fuchsia-600',
 		border: 'border-fuchsia-400 dark:border-fuchsia-600',
 		icon: 'text-fuchsia-600 dark:text-fuchsia-400',
@@ -164,7 +164,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Violet: {
 		color: 'Violet',
-		text: 'text-violet-600 dark:text-violet-400',
+		text: 'text-violet-800 dark:text-violet-400',
 		bg: 'bg-violet-200 border-violet-400 dark:bg-violet-900/50 dark:border-violet-600',
 		border: 'border-violet-400 dark:border-violet-600',
 		icon: 'text-violet-600 dark:text-violet-400',
@@ -174,7 +174,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Sky: {
 		color: 'Sky',
-		text: 'text-sky-600 dark:text-sky-400',
+		text: 'text-sky-800 dark:text-sky-400',
 		bg: 'bg-sky-200 border-sky-400 dark:bg-sky-900/50 dark:border-sky-600',
 		border: 'border-sky-400 dark:border-sky-600',
 		icon: 'text-sky-600 dark:text-sky-400',
@@ -184,7 +184,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Gray: {
 		color: 'Gray',
-		text: 'text-gray-600 dark:text-gray-400',
+		text: 'text-gray-800 dark:text-gray-400',
 		bg: 'bg-gray-200 border-gray-300 dark:bg-gray-900/50 dark:border-gray-600',
 		border: 'border-gray-400 dark:border-gray-600',
 		icon: 'text-gray-600 dark:text-gray-400',
@@ -194,7 +194,7 @@ export const COLOR_MAP: Record<Color, ColorStyle> = {
 	},
 	Lime: {
 		color: 'Lime',
-		text: 'text-lime-600 dark:text-lime-400',
+		text: 'text-lime-800 dark:text-lime-400',
 		bg: 'bg-lime-200 border-lime-400 dark:bg-lime-900/50 dark:border-lime-600',
 		border: 'border-lime-400 dark:border-lime-600',
 		icon: 'text-lime-600 dark:text-lime-400',
