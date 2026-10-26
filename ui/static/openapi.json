@@ -23332,19 +23332,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-26T04:43:15.315170Z",
+              "created_at": "2026-10-26T05:36:24.444998Z",
               "first_discovery_id": null,
-              "id": "8658299e-ae62-4c54-a3d9-7e6ed051adad",
+              "id": "956c0acd-7001-4077-b7b7-809c090e2f02",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-26T04:43:15.315170Z",
+              "last_seen_at": "2026-10-26T05:36:24.444998Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-26T04:43:15.315170Z",
-              "valid_from": "2026-10-26T04:43:15.315170Z",
+              "updated_at": "2026-10-26T05:36:24.444998Z",
+              "valid_from": "2026-10-26T05:36:24.444998Z",
               "valid_to": null
             }
           },
@@ -25125,19 +25125,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-26T04:43:15.266246Z",
+                      "created_at": "2026-10-26T05:36:24.406607Z",
                       "first_discovery_id": null,
-                      "id": "4ba064d8-7739-4c59-a9a6-11000dec53cd",
+                      "id": "02ef33ac-639a-4e45-a4bc-e4182ed631fa",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-26T04:43:15.266246Z",
+                      "last_seen_at": "2026-10-26T05:36:24.406607Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-26T04:43:15.266246Z",
-                      "valid_from": "2026-10-26T04:43:15.266246Z",
+                      "updated_at": "2026-10-26T05:36:24.406607Z",
+                      "valid_from": "2026-10-26T05:36:24.406607Z",
                       "valid_to": null
                     }
                   ],
@@ -25150,7 +25150,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Mealie",
+                  "service_definition": "Scanopy Server",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -26642,19 +26642,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-26T04:43:15.308573Z",
+                  "created_at": "2026-10-26T05:36:24.439171Z",
                   "first_discovery_id": null,
-                  "id": "e56328b3-c0c1-48b1-88b6-22c16618260e",
+                  "id": "2e10e6b8-6a05-450a-86b4-1c4dde0f0f1b",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-26T04:43:15.308573Z",
+                  "last_seen_at": "2026-10-26T05:36:24.439171Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-26T04:43:15.308573Z",
-                  "valid_from": "2026-10-26T04:43:15.308573Z",
+                  "updated_at": "2026-10-26T05:36:24.439171Z",
+                  "valid_from": "2026-10-26T05:36:24.439171Z",
                   "valid_to": null
                 }
               ],
@@ -26667,7 +26667,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Mealie",
+              "service_definition": "Scanopy Server",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -29794,19 +29794,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-26T04:43:15.267802Z",
+          "created_at": "2026-10-26T05:36:24.407299Z",
           "first_discovery_id": null,
-          "id": "493263de-c85b-42c9-b98d-b5320a2ffb3f",
+          "id": "1f7559d6-0098-4317-83de-9c1e596421f6",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-26T04:43:15.267802Z",
+          "last_seen_at": "2026-10-26T05:36:24.407299Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-26T04:43:15.267802Z",
-          "valid_from": "2026-10-26T04:43:15.267802Z",
+          "updated_at": "2026-10-26T05:36:24.407299Z",
+          "valid_from": "2026-10-26T05:36:24.407299Z",
           "valid_to": null
         }
       },
@@ -30714,7 +30714,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Mealie",
+              "service_definition": "Scanopy Server",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -38355,19 +38355,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-26T04:43:15.265378Z",
+                  "created_at": "2026-10-26T05:36:24.405765Z",
                   "first_discovery_id": null,
-                  "id": "2e69f39b-81ed-4aa1-8599-d04373a93ec7",
+                  "id": "6a43d303-5813-456b-a0c7-bb5e08f7e8d8",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-26T04:43:15.265378Z",
+                  "last_seen_at": "2026-10-26T05:36:24.405765Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-26T04:43:15.265378Z",
-                  "valid_from": "2026-10-26T04:43:15.265378Z",
+                  "updated_at": "2026-10-26T05:36:24.405765Z",
+                  "valid_from": "2026-10-26T05:36:24.405765Z",
                   "valid_to": null
                 }
               ],
@@ -38380,7 +38380,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Mealie",
+              "service_definition": "Scanopy Server",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -42688,19 +42688,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-26T04:43:15.240261Z",
+                        "created_at": "2026-10-26T05:36:24.392381Z",
                         "first_discovery_id": null,
-                        "id": "e24a61f4-0dcc-429b-999f-a9f276a793a1",
+                        "id": "1ca48201-07e4-47d3-848f-d67f701f7447",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-26T04:43:15.240261Z",
+                        "last_seen_at": "2026-10-26T05:36:24.392381Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-26T04:43:15.240261Z",
-                        "valid_from": "2026-10-26T04:43:15.240261Z",
+                        "updated_at": "2026-10-26T05:36:24.392381Z",
+                        "valid_from": "2026-10-26T05:36:24.392381Z",
                         "valid_to": null
                       }
                     ],
@@ -42713,7 +42713,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Mealie",
+                    "service_definition": "Scanopy Server",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -42960,19 +42960,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-26T04:43:15.307598Z",
+                    "created_at": "2026-10-26T05:36:24.438370Z",
                     "first_discovery_id": null,
-                    "id": "f9992f93-4004-484c-b085-7c00e9e09e82",
+                    "id": "ae0829b0-ccc3-4c78-a022-070cd089f0c9",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-26T04:43:15.307598Z",
+                    "last_seen_at": "2026-10-26T05:36:24.438370Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-26T04:43:15.307598Z",
-                    "valid_from": "2026-10-26T04:43:15.307598Z",
+                    "updated_at": "2026-10-26T05:36:24.438370Z",
+                    "valid_from": "2026-10-26T05:36:24.438370Z",
                     "valid_to": null
                   }
                 ],
@@ -42985,7 +42985,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Mealie",
+                "service_definition": "Scanopy Server",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -45682,19 +45682,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-26T04:43:15.267149Z",
+              "created_at": "2026-10-26T05:36:24.407091Z",
               "first_discovery_id": null,
-              "id": "993a2d0d-8b18-4816-90b5-e0fdbcb1984d",
+              "id": "f3aa999f-2900-4cf9-bc9e-f9c902dd523d",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-26T04:43:15.267149Z",
+              "last_seen_at": "2026-10-26T05:36:24.407091Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-26T04:43:15.267149Z",
-              "valid_from": "2026-10-26T04:43:15.267149Z",
+              "updated_at": "2026-10-26T05:36:24.407091Z",
+              "valid_from": "2026-10-26T05:36:24.407091Z",
               "valid_to": null
             }
           ],
@@ -45707,7 +45707,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Mealie",
+          "service_definition": "Scanopy Server",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -48054,7 +48054,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "2b77d5cf-1436-4342-9894-a6b65b48e44b",
+                  "id": "43930029-1d03-4799-975f-5ab69074046d",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -48064,23 +48064,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "27db4981-3c48-4a38-9c44-0d658e97e1f9",
+                  "id": "7598f048-2aaf-45b3-90d2-2791cb6f506d",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "85401415-f569-4966-83be-61bc59c14f19",
+                  "id": "12eeeb3d-68aa-4aa4-a026-64895b3c3a7a",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "ee999d39-936e-45f6-89d7-0a499a53d71a",
+                  "id": "f325cec9-d841-4631-8292-6af3abe7d4fc",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "27db4981-3c48-4a38-9c44-0d658e97e1f9",
+                  "id": "7598f048-2aaf-45b3-90d2-2791cb6f506d",
                   "rule": "ByHost"
                 }
               ]
@@ -48110,19 +48110,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "340714e5-6340-4f23-b771-9dcfb2d75163",
+                "id": "b81d664d-b24d-4b4a-a03b-197a1f03d91d",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "5b84efaf-c7f1-4181-8268-30341839e7f2",
+                "id": "282c5a80-bb7f-485a-b4d2-e47fc96fdaf7",
                 "rule": "ByVLAN"
               },
               {
-                "id": "d1fc0e09-0e7b-4fcf-8436-08b15407a69e",
+                "id": "4dadc7fb-67d3-4eac-8790-83537ca6f657",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "30a87bda-453f-4ea6-b740-635234d9d999",
+                "id": "8c66135d-71a8-434d-aaf5-d322314062fb",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -48143,7 +48143,7 @@
                 }
               },
               {
-                "id": "0a99b256-a8aa-4212-a973-360054d2af2c",
+                "id": "8b9e0b8d-22d9-41ce-9a7a-0794d952eac9",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -48152,19 +48152,19 @@
                 }
               },
               {
-                "id": "9bc22181-eaa5-42b3-89db-33e14dcfd92f",
+                "id": "b3016b7d-7019-4ac8-8dec-1e5e3398f33b",
                 "rule": "ByDeviceType"
               },
               {
-                "id": "6d9851d3-3916-4de4-926b-a8f3efac6d9a",
+                "id": "ae77d814-bf83-40b1-9935-b09fd756c6a7",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "b9e82bd9-682d-430d-80c5-acaffdd5a631",
+                "id": "62328bbe-114b-4956-895c-992d03fcc813",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "58a0b749-7014-4e72-ba56-d46e276354bb",
+                "id": "c04f8977-42eb-4ec8-8c98-1f0e8c06324c",
                 "rule": "ByStack"
               }
             ]

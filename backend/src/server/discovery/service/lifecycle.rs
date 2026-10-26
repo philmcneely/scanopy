@@ -2,6 +2,7 @@
 use super::*;
 
 impl DiscoveryService {
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         discovery_storage: Arc<GenericPostgresStorage<Discovery>>,
         event_bus: Arc<EventBus>,

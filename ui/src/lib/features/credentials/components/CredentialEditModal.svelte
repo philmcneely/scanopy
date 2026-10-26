@@ -297,8 +297,6 @@
 		}
 	}
 
-	let isStepNext = $derived(!isEditing && !isLastStep);
-
 	let actions = $derived<ModalAction[]>([
 		...(isEditing && onDelete && credential
 			? [
