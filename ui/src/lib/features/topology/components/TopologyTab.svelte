@@ -81,7 +81,6 @@
 	import ApplicationSetupWizard from './application-wizard/ApplicationSetupWizard.svelte';
 	import L2EmptyStateOverlay from './L2EmptyStateOverlay.svelte';
 	import TopologyPlanRequiredOverlay from './TopologyPlanRequiredOverlay.svelte';
-	import TopologyDiscoveryPendingOverlay from './TopologyDiscoveryPendingOverlay.svelte';
 	import { hasTopologyAccess } from '$lib/features/organizations/types';
 	import ViewFiltersEmptyState from './ViewFiltersEmptyState.svelte';
 	import ViewSwitcherHint from './ViewSwitcherHint.svelte';
@@ -872,12 +871,12 @@
 						/>
 					{/if}
 					<TopologyViewer bind:this={topologyViewer} topology={currentTopology} {isActive} />
-					{#if !topologyAccess && !onboarding.includes('FirstDiscoveryCompleted')}
-						<!-- Free before its first scan finishes: progress, not the plan prompt. -->
-						<TopologyDiscoveryPendingOverlay />
-					{:else if !topologyAccess}
-						<!-- Free: the org's own diagram, shrouded, behind the plan prompt. -->
-						<TopologyPlanRequiredOverlay />
+					{#if !topologyAccess}
+						<!-- Free: the plan prompt from the first scan on, with its progress while it runs,
+						     then over the org's own diagram, shrouded. -->
+						<TopologyPlanRequiredOverlay
+							scanning={!onboarding.includes('FirstDiscoveryCompleted')}
+						/>
 					{:else if $showDependencyTutorial}
 						<DependencyTutorial
 							onDismiss={dismissDependencyTutorial}

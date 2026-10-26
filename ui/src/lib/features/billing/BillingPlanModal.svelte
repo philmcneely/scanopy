@@ -22,7 +22,11 @@
 	import { isLicenseSigningAvailable, useConfigQuery } from '$lib/shared/stores/config-query';
 	import { modalState } from '$lib/shared/stores/modal-registry';
 	import { billingOverModal, openBillingModal } from '$lib/features/billing/stores';
-	import { canPay, isInTrial } from '$lib/shared/utils/trial';
+	import {
+		canPay,
+		isInTrial,
+		isReturningCustomer as isReturningCustomerOrg
+	} from '$lib/shared/utils/trial';
 
 	let {
 		isOpen = false,
@@ -103,18 +107,8 @@
 	// A trial with a cancellation scheduled still runs, and a switch keeps it.
 	let isCurrentlyTrialing = $derived(isInTrial(organization));
 
-	// Only show trial offers to orgs that have never had a non-Free paid plan and never trialed.
-	// trial_end_date is set by Stripe webhook only for subscriptions with trial periods
-	// (Free plan has trial_days=0, so it never sets trial_end_date).
-	// Trialing users are NOT returning — they should see trial-aware UI instead.
-	// A paid plan counts only once it has had a subscription: a license signup
-	// whose trial never started is on Self-Hosted Standard with no status.
-	let isReturningCustomer = $derived(
-		!isCurrentlyTrialing &&
-			((organization?.plan_status != null &&
-				billingPlanHelpers.getMetadata(organization.plan.type)?.is_free !== true) ||
-				!!organization?.trial_end_date)
-	);
+	// Only orgs that have never had a paid subscription or a trial see trial offers.
+	let isReturningCustomer = $derived(isReturningCustomerOrg(organization));
 	// The plan the org holds, unless no subscription ever started on it: then
 	// its card offers the trial instead of saying "Your current plan". Free has
 	// no subscription and is still the current plan.

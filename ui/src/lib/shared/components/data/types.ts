@@ -52,7 +52,7 @@ export interface TagProps {
 }
 
 /** An action's colour. Omitted, it renders neutral. The row and the toolbar both render from it. */
-export type ActionTone = 'danger' | 'warning' | 'success' | 'info';
+export type ActionTone = 'danger' | 'warning' | 'success' | 'info' | 'upgrade';
 
 export interface CardAction {
 	label: string;
