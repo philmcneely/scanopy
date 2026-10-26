@@ -30,7 +30,7 @@
 		billing_showFeatures,
 		billing_hideFeatures,
 		billing_snapshotRetention,
-		billing_startFreeTrial,
+		billing_startDayFreeTrial,
 		billing_startTrialNoCreditCard,
 		billing_switchPlan,
 		billing_trialContinues,
@@ -599,7 +599,7 @@
 											{billing_startTrialNoCreditCard()}
 										{:else}
 											<!-- A cloud trial collects a card first. -->
-											{billing_startFreeTrial()}
+											{billing_startDayFreeTrial({ days: plan.trial_days })}
 										{/if}
 									</button>
 								{/if}
@@ -615,81 +615,84 @@
 							{/if}
 						</div>
 
-						<!-- Included limits. Each label explains its limit; extras bill at the noted unit price. -->
-						<div class="space-y-2 border-b pb-4" style="border-color: var(--color-border)">
-							<!-- Seats -->
-							<div class="flex items-start justify-between gap-2 text-sm">
-								<div class="flex flex-col">
+						<!-- Included limits, striped so each value reads against its label. Each label explains
+						     its limit; extras bill at the unit price noted under the included count. -->
+						<div class="border-b pb-4" style="border-color: var(--color-border)">
+							<div class="-mx-2">
+								<!-- Seats -->
+								<div class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30">
 									<span
 										class="explainer text-secondary"
 										data-tooltip={limitHelpers.getDescription('seats')}
 										use:tooltip>{common_seats()}</span
 									>
-									<!-- Always rendered, invisible on plans that sell no extras, so every card's
-									     rows line up. -->
-									<span
-										class={`text-xs text-tertiary ${plan.seat_cents ? 'opacity-100' : 'opacity-0'}`}
-										aria-hidden={!plan.seat_cents}>{formatSeatAddonPricing(plan) || ' '}</span
-									>
+									<div class="flex flex-col items-end text-right">
+										<span class="font-medium text-primary">
+											{formatIncludedLimit(plan.included_seats, plan.seat_cents, plan)}
+										</span>
+										<!-- Always rendered, invisible on plans that sell no extras, so every card's
+										     rows line up. -->
+										<span
+											class={`text-xs text-tertiary ${plan.seat_cents ? 'opacity-100' : 'opacity-0'}`}
+											aria-hidden={!plan.seat_cents}>{formatSeatAddonPricing(plan) || ' '}</span
+										>
+									</div>
 								</div>
-								<span class="text-right font-medium text-primary">
-									{formatIncludedLimit(plan.included_seats, plan.seat_cents, plan)}
-								</span>
-							</div>
 
-							<!-- Sites -->
-							<div class="flex items-start justify-between gap-2 text-sm">
-								<div class="flex flex-col">
+								<!-- Sites -->
+								<div class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30">
 									<span
 										class="explainer text-secondary"
 										data-tooltip={limitHelpers.getDescription('sites')}
 										use:tooltip>{common_sites()}</span
 									>
-									<span
-										class={`text-xs text-tertiary ${plan.site_cents ? 'opacity-100' : 'opacity-0'}`}
-										aria-hidden={!plan.site_cents}>{formatSiteAddonPricing(plan) || ' '}</span
-									>
+									<div class="flex flex-col items-end text-right">
+										<span class="font-medium text-primary">
+											{formatIncludedLimit(plan.included_sites, plan.site_cents, plan)}
+										</span>
+										<span
+											class={`text-xs text-tertiary ${plan.site_cents ? 'opacity-100' : 'opacity-0'}`}
+											aria-hidden={!plan.site_cents}>{formatSiteAddonPricing(plan) || ' '}</span
+										>
+									</div>
 								</div>
-								<span class="text-right font-medium text-primary">
-									{formatIncludedLimit(plan.included_sites, plan.site_cents, plan)}
-								</span>
-							</div>
 
-							<!-- Servers (self-hosted only: how many servers one license key covers) -->
-							{#if getHosting(plan) === 'SelfHosted'}
-								{@const production = metadata?.included_instances}
-								{@const nonProduction = metadata?.included_non_production_instances}
-								<div class="flex items-start justify-between gap-2 text-sm">
+								<!-- Servers (self-hosted only: how many servers one license key covers) -->
+								{#if getHosting(plan) === 'SelfHosted'}
+									{@const production = metadata?.included_instances}
+									{@const nonProduction = metadata?.included_non_production_instances}
+									<div class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30">
+										<span
+											class="explainer text-secondary"
+											data-tooltip={limitHelpers.getDescription('servers')}
+											use:tooltip>{common_servers()}</span
+										>
+										<span class="text-right font-medium text-primary">
+											{#if production == null || nonProduction == null}
+												{formatIncludedValue(null, plan)}
+											{:else}
+												{production} +
+												<span
+													class="explainer"
+													data-tooltip={limitHelpers.getDescription('non_production_servers')}
+													use:tooltip>{billing_nonProductionCount({ count: nonProduction })}</span
+												>
+											{/if}
+										</span>
+									</div>
+								{/if}
+
+								<!-- Snapshot Retention -->
+								<div class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30">
 									<span
 										class="explainer text-secondary"
-										data-tooltip={limitHelpers.getDescription('servers')}
-										use:tooltip>{common_servers()}</span
+										data-tooltip={featureHelpers.getDescription('snapshot_retention_days')}
+										use:tooltip>{billing_snapshotRetention()}</span
 									>
 									<span class="text-right font-medium text-primary">
-										{#if production == null || nonProduction == null}
-											{formatIncludedValue(null, plan)}
-										{:else}
-											{production} +
-											<span
-												class="explainer"
-												data-tooltip={limitHelpers.getDescription('non_production_servers')}
-												use:tooltip>{billing_nonProductionCount({ count: nonProduction })}</span
-											>
-										{/if}
+										{formatSnapshotRetention(plan)}
 									</span>
 								</div>
-							{/if}
-
-							<!-- Snapshot Retention -->
-							<div class="flex items-start justify-between gap-2 text-sm">
-								<span
-									class="explainer text-secondary"
-									data-tooltip={featureHelpers.getDescription('snapshot_retention_days')}
-									use:tooltip>{billing_snapshotRetention()}</span
-								>
-								<span class="text-right font-medium text-primary">
-									{formatSnapshotRetention(plan)}
-								</span>
 							</div>
 						</div>
 
