@@ -29,14 +29,7 @@ const ALLOWED_SINGLE_WORD_KEYS = new Set([
 	'hosts_ipAddresses_neighbor',
 	// Discovery legacy label - context-specific label for non-Unified discovery types
 	'discovery_legacyType',
-	// Billing pricing-simulator tokens - lowercase count units and rate/hosting labels
-	// that are context-specific to the inline pricing breakdown (distinct from the
-	// title-case common_ nouns used as standalone labels)
-	'billing_siteUnit',
-	'billing_siteUnitPlural',
-	'billing_seatUnit',
-	'billing_seatUnitPlural',
-	'billing_priceBase',
+	// Billing rate and hosting labels - context-specific to the plan card price line
 	'billing_rateMonthly',
 	'billing_rateYearly',
 	'billing_selfHosted',

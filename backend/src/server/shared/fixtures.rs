@@ -10,6 +10,7 @@ use crate::server::auth::r#impl::oidc::IdentityProviderLogo;
 use crate::server::billing::plans::get_website_fixture_plans;
 use crate::server::billing::types::base::{BillingPlan, CancelReason, PlanStatus, SaveOffer};
 use crate::server::billing::types::features::Feature;
+use crate::server::billing::types::limits::PlanLimit;
 use crate::server::credentials::r#impl::integrations::all_integrations;
 use crate::server::credentials::r#impl::mapping::CredentialQueryPayloadDiscriminants;
 use crate::server::credentials::r#impl::types::{
@@ -466,6 +467,9 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
 
     let plan_statuses: Vec<TypeMetadata> = PlanStatus::iter().map(|s| s.to_metadata()).collect();
     write_fixture(&plan_statuses, output_dir, "plan-statuses.json");
+
+    let plan_limits: Vec<TypeMetadata> = PlanLimit::iter().map(|l| l.to_metadata()).collect();
+    write_fixture(&plan_limits, output_dir, "plan-limits.json");
 
     let email_categories: Vec<TypeMetadata> =
         EmailCategory::iter().map(|c| c.to_metadata()).collect();

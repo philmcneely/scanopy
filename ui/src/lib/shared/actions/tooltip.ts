@@ -230,6 +230,16 @@ export class TooltipTracker<T extends TooltipTarget> {
 		else this.onHide();
 	}
 
+	/**
+	 * The pointer left for `related` (null: it left the document). A touch has no hover: its
+	 * pointer leaves the moment the tap ends, so a tapped tooltip stays until the next tap lands
+	 * elsewhere (a `moveTo` there, or the popover's outside click).
+	 */
+	leave(related: T | null, pointerType: string) {
+		if (pointerType === 'touch') return;
+		this.moveTo(related);
+	}
+
 	/** A registered element is going away or changed: close or redraw if it is the one shown. */
 	refresh(source: T, removed: boolean) {
 		if (source !== this.current) return;
@@ -269,7 +279,7 @@ function listen() {
 	document.addEventListener('pointerover', (e) => tracker.moveTo(e.target as HTMLElement));
 	document.addEventListener('pointerout', (e) => {
 		// Leaving the window has no related target: the tooltip closes.
-		tracker.moveTo((e.relatedTarget as HTMLElement | null) ?? null);
+		tracker.leave((e.relatedTarget as HTMLElement | null) ?? null, e.pointerType);
 	});
 }
 

@@ -52,6 +52,14 @@
    same specificity, later rule wins), and any Tailwind utility on the element overrides both from
    the utilities layer. The cost: these take no variants (`hover:btn-secondary` doesn't exist). */
 @layer components {
+	.explainer {
+		/* A term with a tooltip explaining it: hover, or tap on touch, shows the explanation. */
+		cursor: help;
+		text-decoration: underline dotted;
+		text-decoration-color: var(--color-border-input);
+		text-underline-offset: 2px;
+	}
+
 	.btn-primary {
 		/* Primary action button - blue accent for emphasis */
 		@apply bg-blue-700 hover:bg-blue-600;
