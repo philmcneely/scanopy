@@ -89,20 +89,16 @@ pub struct IppProbe;
 
 #[async_trait]
 impl AppProbe for IppProbe {
-    fn port(&self) -> PortType {
-        PortType::Ipp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Ipp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Ipp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
         // The address the printer is reached at, which is what it expects in `printer-uri`.
-        let printer = SocketAddr::new(ctx.ip, self.port().number());
+        let printer = SocketAddr::new(ctx.ip, port.number());
         // One connection per path: the request asks the printer to close after its reply.
         for path in PATHS {
-            let reply = request_response(ctx, self.port(), &request(printer, path), 2048).await;
+            let reply = request_response(ctx, port, &request(printer, path), 2048).await;
             if is_ipp_response(&reply) {
                 return Ok(presence(true));
             }
@@ -239,13 +235,16 @@ mod tests {
     #[tokio::test]
     async fn a_printer_serving_ipp_on_any_known_path_answers() {
         for path in PATHS {
-            let outcome = IppProbe.run(&context(Some(path))).await.unwrap();
+            let outcome = IppProbe
+                .run(&context(Some(path)), PortType::Ipp)
+                .await
+                .unwrap();
             assert!(
                 matches!(outcome, AppProbeOutcome::Answered { .. }),
                 "IPP served at {path}"
             );
         }
-        let outcome = IppProbe.run(&context(None)).await.unwrap();
+        let outcome = IppProbe.run(&context(None), PortType::Ipp).await.unwrap();
         assert!(matches!(outcome, AppProbeOutcome::NoAnswer));
     }
 }

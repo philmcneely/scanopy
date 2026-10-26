@@ -4,7 +4,7 @@ use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct SIPServer;
@@ -22,7 +22,7 @@ impl ServiceDefinition for SIPServer {
     fn device_type(&self) -> Option<DeviceType> {
         Some(DeviceType::Server)
     }
-    /// Derived from the probe, so a listener on 5060 that does not answer an `OPTIONS` is not
+    /// Matches on the probe's answer, so a listener on 5060 that does not answer an `OPTIONS` is not
     /// claimed as SIP. This used to be `AnyOf([Port(Sip), Port(SipTls)])`, which a FortiGate
     /// session helper satisfied on behalf of every empty address on every routed VLAN.
     ///
@@ -30,7 +30,7 @@ impl ServiceDefinition for SIPServer {
     /// SIP is spoken, so an `OPTIONS` cannot reach it and the port alone would be the same bare
     /// connect this change exists to remove.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        probe_pattern(&SipProbe)
+        Pattern::ClientResponse(ClientProbe::Sip)
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(SipProbe)]

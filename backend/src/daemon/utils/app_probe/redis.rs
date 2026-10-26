@@ -34,16 +34,12 @@ pub struct RedisProbe;
 
 #[async_trait]
 impl AppProbe for RedisProbe {
-    fn port(&self) -> PortType {
-        PortType::Redis
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Redis
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Redis)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), PING, 256).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, PING, 256).await;
         Ok(parse_reply(&reply))
     }
 }

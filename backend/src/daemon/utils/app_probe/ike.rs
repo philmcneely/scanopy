@@ -50,15 +50,11 @@ pub struct IkeProbe;
 
 #[async_trait]
 impl AppProbe for IkeProbe {
-    fn port(&self) -> PortType {
-        PortType::new_udp(500)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Ike
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Ike)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, _port: PortType) -> Result<AppProbeOutcome, Error> {
         Ok(presence(
             exchange(ctx, 500, false).await || exchange(ctx, 4500, true).await,
         ))

@@ -3,7 +3,7 @@ use crate::daemon::utils::app_probe::snmp_engine::SnmpEngineProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{ClientProbe, Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Snmp;
@@ -25,7 +25,7 @@ impl ServiceDefinition for Snmp {
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AnyOf(vec![
             Pattern::ClientResponse(ClientProbe::Snmp),
-            probe_pattern(&SnmpEngineProbe),
+            Pattern::ClientResponse(ClientProbe::SnmpEngine),
         ])
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {

@@ -57,15 +57,11 @@ pub struct ModbusProbe;
 
 #[async_trait]
 impl AppProbe for ModbusProbe {
-    fn port(&self) -> PortType {
-        PortType::ModbusTcp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::ModbusTcp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::ModbusTcp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
         // Both units on one connection where the device allows it, which is the multi-round-trip
         // case the stage exists to support.
         //
@@ -83,7 +79,7 @@ impl AppProbe for ModbusProbe {
             }
 
             if stream.is_none() {
-                match ctx.connect(self.port().number()).await {
+                match ctx.connect(port.number()).await {
                     Some(fresh) => stream = Some(fresh),
                     None => break,
                 }

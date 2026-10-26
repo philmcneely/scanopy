@@ -348,9 +348,9 @@ pub(super) fn is_host_address(cidr: &IpCidr, addr: IpAddr) -> bool {
 static PROBE_COVERED_PORTS: std::sync::LazyLock<
     HashSet<crate::server::ports::r#impl::base::PortType>,
 > = std::sync::LazyLock::new(|| {
-    crate::daemon::utils::app_probe::all_app_probes()
-        .iter()
-        .map(|probe| probe.port())
+    crate::daemon::utils::app_probe::probe_runs()
+        .into_iter()
+        .map(|(_, port)| port)
         .collect()
 });
 

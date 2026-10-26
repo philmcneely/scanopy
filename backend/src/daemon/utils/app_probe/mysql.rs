@@ -37,18 +37,12 @@ pub struct MySqlProbe;
 
 #[async_trait]
 impl AppProbe for MySqlProbe {
-    fn port(&self) -> PortType {
-        PortType::MySql
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::MySql
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::MySql)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        Ok(parse_handshake(
-            &read_greeting(ctx, self.port(), READ_LIMIT).await,
-        ))
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        Ok(parse_handshake(&read_greeting(ctx, port, READ_LIMIT).await))
     }
 }
 

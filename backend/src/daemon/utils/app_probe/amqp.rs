@@ -33,16 +33,12 @@ pub struct AmqpProbe;
 
 #[async_trait]
 impl AppProbe for AmqpProbe {
-    fn port(&self) -> PortType {
-        PortType::AMQP
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Amqp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Amqp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &PROTOCOL_HEADER, 512).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &PROTOCOL_HEADER, 512).await;
         Ok(parse_reply(&reply))
     }
 }

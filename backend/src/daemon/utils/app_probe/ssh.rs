@@ -24,16 +24,12 @@ pub struct SshProbe;
 
 #[async_trait]
 impl AppProbe for SshProbe {
-    fn port(&self) -> PortType {
-        PortType::Ssh
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Ssh
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Ssh)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        Ok(parse_banner(&read_greeting(ctx, self.port(), 512).await))
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        Ok(parse_banner(&read_greeting(ctx, port, 512).await))
     }
 }
 

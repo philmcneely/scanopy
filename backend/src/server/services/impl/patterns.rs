@@ -405,6 +405,90 @@ impl ClientProbe {
             | Self::GoogleWifi => M::Native,
         }
     }
+
+    /// The ports this probe runs on, and so the ports a [`Pattern::ClientResponse`] reading it
+    /// scans. The one place a probe's port is written: the probe runner pairs each
+    /// [`AppProbe`](crate::daemon::utils::app_probe::AppProbe) with every port here.
+    ///
+    /// Empty for the evidence a credentialed integration produces, and for Spotify Connect, whose
+    /// port comes from the device's own mDNS advertisement. Neither runs as an app probe.
+    pub fn ports(&self) -> Vec<PortType> {
+        use crate::daemon::utils::app_probe::{
+            beszel_agent::BESZEL_AGENT_PORT,
+            epics_ca::CA_SERVER_PORT,
+            h323::H323_PORT,
+            mgcp::{MGCP_CALL_AGENT_PORT, MGCP_GATEWAY_PORT},
+        };
+        use crate::server::services::definitions::saltmaster::{
+            SALT_PUBLISH_PORT, SALT_REQUEST_PORT,
+        };
+        match self {
+            Self::Docker
+            | Self::Gnmi
+            | Self::Podman
+            | Self::Snmp
+            | Self::UnifiController
+            | Self::InstantOn
+            | Self::Proxmox
+            | Self::SpotifyConnect => vec![],
+            Self::ModbusTcp => vec![PortType::ModbusTcp],
+            Self::OpcUa => vec![PortType::OpcUa],
+            Self::EtherNetIp => vec![PortType::EtherNetIp],
+            Self::Sip => vec![PortType::Sip],
+            Self::Ssh => vec![PortType::Ssh],
+            Self::Ftp => vec![PortType::Ftp],
+            Self::Telnet => vec![PortType::Telnet],
+            Self::Rtsp => vec![PortType::Rtsp],
+            Self::Nut => vec![PortType::new_tcp(3493)],
+            Self::EpicsCa => vec![PortType::new_tcp(CA_SERVER_PORT)],
+            Self::ZabbixAgent => vec![PortType::new_tcp(10050)],
+            Self::CheckMkAgent => vec![PortType::new_tcp(6556)],
+            Self::Smb => vec![PortType::Samba],
+            Self::Ldap => vec![PortType::Ldap],
+            Self::Kerberos => vec![PortType::Kerberos],
+            Self::MySql => vec![PortType::MySql],
+            Self::PostgreSql => vec![PortType::PostgreSQL],
+            Self::MsSql => vec![PortType::MsSql],
+            Self::MongoDb => vec![PortType::MongoDB],
+            Self::Redis => vec![PortType::Redis],
+            Self::Cassandra => vec![PortType::Cassandra],
+            Self::Kafka => vec![PortType::Kafka],
+            Self::Amqp => vec![PortType::AMQP],
+            Self::Mqtt => vec![PortType::Mqtt],
+            Self::OracleTns => vec![PortType::new_tcp(1521)],
+            Self::Rdp => vec![PortType::Rdp],
+            Self::Nfs => vec![PortType::Nfs],
+            Self::DnsTcp => vec![PortType::DnsTcp],
+            Self::DockerSwarm => vec![PortType::new_tcp(2377)],
+            // Unbound's remote-control port: the TLS it speaks there is all it offers unauthenticated.
+            Self::Tls => vec![PortType::new_tcp(8953)],
+            Self::Ike => vec![PortType::new_udp(500)],
+            Self::OpenVpn => vec![PortType::OpenVPN],
+            Self::Zmtp => vec![
+                PortType::new_tcp(SALT_PUBLISH_PORT),
+                PortType::new_tcp(SALT_REQUEST_PORT),
+            ],
+            Self::Bacula => vec![PortType::new_tcp(9101)],
+            Self::BeszelAgent => vec![PortType::new_tcp(BESZEL_AGENT_PORT)],
+            Self::H323 => vec![PortType::new_tcp(H323_PORT)],
+            Self::SnmpEngine => vec![PortType::Snmp],
+            Self::DockerPing => vec![PortType::Docker],
+            Self::PodmanPing => vec![PortType::Http8888],
+            Self::Ipp => vec![PortType::Ipp],
+            Self::Vnc => vec![PortType::new_tcp(5900)],
+            Self::AppleLockdown => vec![PortType::new_tcp(62078)],
+            Self::DnsUdp => vec![PortType::DnsUdp],
+            Self::Ntp => vec![PortType::Ntp],
+            Self::Dhcp => vec![PortType::Dhcp],
+            Self::Bacnet => vec![PortType::BACnet],
+            Self::Tftp => vec![PortType::new_udp(69)],
+            Self::Mgcp => vec![
+                PortType::new_udp(MGCP_GATEWAY_PORT),
+                PortType::new_udp(MGCP_CALL_AGENT_PORT),
+            ],
+            Self::GoogleWifi => vec![PortType::Http],
+        }
+    }
 }
 
 /// A device reported by a management controller the daemon authenticated to, rather than one
@@ -746,26 +830,6 @@ impl Display for Pattern<'_> {
             }
             Pattern::None => write!(f, "No match pattern provided"),
         }
-    }
-}
-
-/// The discovery pattern for a service confirmed by an application probe.
-///
-/// `AllOf([Port(p), ClientResponse(c)])`: the port goes into the light scan because
-/// [`Pattern::ports`] flattens `AllOf`, *and* the service matches only once the probe has actually
-/// answered. Both halves come from the probe itself, so the port that gets scanned and the port
-/// that gets probed cannot drift apart — the failure mode that left `ClientProbe::Gnmi` with a
-/// pattern nothing can ever satisfy.
-///
-/// A probe contributing no [`ClientProbe`] degrades to the port alone, which a container's declared
-/// port satisfies without the probe having run.
-pub fn probe_pattern(probe: &dyn crate::daemon::utils::app_probe::AppProbe) -> Pattern<'static> {
-    match probe.client_probe() {
-        Some(client_probe) => Pattern::AllOf(vec![
-            Pattern::Port(probe.port()),
-            Pattern::ClientResponse(client_probe),
-        ]),
-        None => Pattern::Port(probe.port()),
     }
 }
 
@@ -1453,8 +1517,20 @@ impl Pattern<'_> {
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
                 patterns.iter().flat_map(|p| p.ports().to_vec()).collect()
             }
+            Pattern::ClientResponse(probe) => probe.ports(),
             Pattern::CertificateIssuer(_, ports) => {
                 ports.iter().map(|port| PortType::new_tcp(*port)).collect()
+            }
+            _ => vec![],
+        }
+    }
+
+    /// The probe evidence this pattern reads as a positive signal.
+    pub fn client_probes(&self) -> Vec<ClientProbe> {
+        match self {
+            Pattern::ClientResponse(probe) => vec![*probe],
+            Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
+                patterns.iter().flat_map(|p| p.client_probes()).collect()
             }
             _ => vec![],
         }

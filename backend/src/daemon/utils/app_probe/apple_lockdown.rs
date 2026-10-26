@@ -36,19 +36,15 @@ pub struct AppleLockdownProbe;
 
 #[async_trait]
 impl AppProbe for AppleLockdownProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(62078)
-    }
-
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::AppleLockdown)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::AppleLockdown
     }
 
     /// All three requests on one connection. An iPhone in Wi-Fi power save answers in short waking
     /// windows: in a live scan it answered `QueryType` and slept through the `GetValue`
     /// connections that followed, so the reads ride the connection that already got an answer.
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let Some(mut stream) = ctx.connect(self.port().number()).await else {
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let Some(mut stream) = ctx.connect(port.number()).await else {
             return Ok(AppProbeOutcome::NoAnswer);
         };
         let reply = exchange(&mut stream, &request("QueryType", None)).await;

@@ -81,16 +81,12 @@ pub struct OracleProbe;
 
 #[async_trait]
 impl AppProbe for OracleProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(1521)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::OracleTns
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::OracleTns)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &connect_packet(), 1024).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &connect_packet(), 1024).await;
         Ok(parse_reply(&reply))
     }
 }

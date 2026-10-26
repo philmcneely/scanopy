@@ -26,7 +26,7 @@ use std::net::SocketAddr;
 use cidr::{IpCidr, Ipv4Cidr};
 use tokio_util::sync::CancellationToken;
 
-use crate::daemon::utils::app_probe::{AppProbeOutcome, ProbeContext, all_app_probes};
+use crate::daemon::utils::app_probe::{AppProbeOutcome, ProbeContext, probe_runs};
 use crate::daemon::utils::scanner::ScanConcurrencyController;
 
 const LOOPBACK: std::net::Ipv4Addr = std::net::Ipv4Addr::new(127, 0, 0, 1);
@@ -75,13 +75,13 @@ async fn every_tcp_probe_recognises_its_own_reference_server() {
     let mut missed = Vec::new();
     let mut absent = Vec::new();
 
-    for probe in all_app_probes().into_iter().filter(|p| p.port().is_tcp()) {
-        let port = probe.port().number();
+    for (probe, port_type) in probe_runs().into_iter().filter(|(_, port)| port.is_tcp()) {
+        let port = port_type.number();
         if !is_listening(port).await {
             absent.push(port);
             continue;
         }
-        match probe.run(&ctx).await {
+        match probe.run(&ctx, port_type).await {
             Ok(AppProbeOutcome::Answered { .. }) => recognised.push(port),
             Ok(AppProbeOutcome::NoAnswer) => missed.push(port),
             Err(e) => missed.push_and_note(port, e),
@@ -125,12 +125,12 @@ async fn named_udp_probes_recognise_their_own_reference_server() {
     let mut missed = Vec::new();
     let mut recognised = Vec::new();
 
-    for probe in all_app_probes()
+    for (probe, port_type) in probe_runs()
         .into_iter()
-        .filter(|p| p.port().is_udp() && expected.contains(&p.port().number()))
+        .filter(|(_, port)| port.is_udp() && expected.contains(&port.number()))
     {
-        let port = probe.port().number();
-        match probe.run(&ctx).await {
+        let port = port_type.number();
+        match probe.run(&ctx, port_type).await {
             Ok(AppProbeOutcome::Answered { .. }) => recognised.push(port),
             _ => missed.push(port),
         }

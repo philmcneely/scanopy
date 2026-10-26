@@ -100,16 +100,12 @@ pub struct H323Probe;
 
 #[async_trait]
 impl AppProbe for H323Probe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(H323_PORT)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::H323
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::H323)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &setup(), READ_LIMIT).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &setup(), READ_LIMIT).await;
         Ok(parse_reply(&reply))
     }
 }

@@ -46,15 +46,11 @@ pub struct DnsProbe;
 
 #[async_trait]
 impl AppProbe for DnsProbe {
-    fn port(&self) -> PortType {
-        PortType::DnsUdp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::DnsUdp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::DnsUdp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, _port: PortType) -> Result<AppProbeOutcome, Error> {
         Ok(presence(test_dns_service(ctx.ip).await?))
     }
 }
@@ -63,15 +59,11 @@ pub struct NtpProbe;
 
 #[async_trait]
 impl AppProbe for NtpProbe {
-    fn port(&self) -> PortType {
-        PortType::Ntp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Ntp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Ntp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, _port: PortType) -> Result<AppProbeOutcome, Error> {
         Ok(presence(test_ntp_service(ctx.ip).await?))
     }
 }
@@ -80,12 +72,8 @@ pub struct DhcpProbe;
 
 #[async_trait]
 impl AppProbe for DhcpProbe {
-    fn port(&self) -> PortType {
-        PortType::Dhcp
-    }
-
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Dhcp)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Dhcp
     }
 
     /// Only the gateway is asked. The probe broadcasts a DISCOVER and any DHCP server on the
@@ -96,7 +84,7 @@ impl AppProbe for DhcpProbe {
         ctx.is_gateway
     }
 
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, _port: PortType) -> Result<AppProbeOutcome, Error> {
         Ok(presence(test_dhcp_service(ctx.ip, &ctx.subnet_cidr).await?))
     }
 }
@@ -105,15 +93,11 @@ pub struct BacnetProbe;
 
 #[async_trait]
 impl AppProbe for BacnetProbe {
-    fn port(&self) -> PortType {
-        PortType::BACnet
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Bacnet
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Bacnet)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, _port: PortType) -> Result<AppProbeOutcome, Error> {
         Ok(presence(test_bacnet_service(ctx.ip).await?))
     }
 }

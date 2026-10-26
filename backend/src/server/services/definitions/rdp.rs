@@ -3,7 +3,7 @@ use crate::daemon::utils::app_probe::rdp::RdpProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct RemoteDesktop;
@@ -18,10 +18,10 @@ impl ServiceDefinition for RemoteDesktop {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::RemoteAccess
     }
-    /// Derived from the probe, so a listener on this port that does not speak the protocol is
+    /// Matches on the probe's answer, so a listener on this port that does not speak the protocol is
     /// not claimed as this service.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        probe_pattern(&RdpProbe)
+        Pattern::ClientResponse(ClientProbe::Rdp)
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(RdpProbe)]

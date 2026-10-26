@@ -136,16 +136,12 @@ pub struct KerberosProbe;
 
 #[async_trait]
 impl AppProbe for KerberosProbe {
-    fn port(&self) -> PortType {
-        PortType::Kerberos
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Kerberos
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Kerberos)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &as_req(), READ_LIMIT).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &as_req(), READ_LIMIT).await;
         Ok(parse_reply(&reply))
     }
 }
