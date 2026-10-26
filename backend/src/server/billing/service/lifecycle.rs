@@ -54,12 +54,7 @@ impl BillingService {
         // describe the cloud app locking and unlocking, which says nothing
         // true about a license. The air-gapped refusal above stays separate
         // because an org that moved back to a cloud plan keeps its key type.
-        if organization
-            .base
-            .plan
-            .license_plan()
-            .is_some()
-        {
+        if organization.base.plan.license_plan().is_some() {
             return Err(crate::server::shared::types::api::ValidationError::new(
                 "Pausing is not available on self-hosted plans.",
             )
@@ -581,12 +576,7 @@ impl BillingService {
 
         // Self-hosted licences are never discounted; `get_save_offer_coupon`
         // returns nothing for them, so the panel is already hidden.
-        if organization
-            .base
-            .plan
-            .license_plan()
-            .is_some()
-        {
+        if organization.base.plan.license_plan().is_some() {
             return Err(crate::server::shared::types::api::ValidationError::new(
                 "The retention discount is not available on self-hosted plans.",
             )

@@ -98,11 +98,23 @@
 	// trial_end_date is set by Stripe webhook only for subscriptions with trial periods
 	// (Free plan has trial_days=0, so it never sets trial_end_date).
 	// Trialing users are NOT returning — they should see trial-aware UI instead.
+	// A paid plan counts only once it has had a subscription: a license signup
+	// whose trial never started is on Self-Hosted Standard with no status.
 	let isReturningCustomer = $derived(
 		!isCurrentlyTrialing &&
-			((organization?.plan != null &&
+			((organization?.plan_status != null &&
 				billingPlanHelpers.getMetadata(organization.plan.type)?.is_free !== true) ||
 				!!organization?.trial_end_date)
+	);
+	// The plan the org holds, unless no subscription ever started on it: then
+	// its card offers the trial instead of saying "Your current plan". Free has
+	// no subscription and is still the current plan.
+	let currentPlanType = $derived(
+		organization == null ||
+			(organization.plan_status == null &&
+				billingPlanHelpers.getMetadata(organization.plan.type)?.is_stripe_managed === true)
+			? null
+			: organization.plan.type
 	);
 
 	// Mutations
@@ -245,7 +257,7 @@
 			onPlanSelect={handlePlanSelect}
 			{isReturningCustomer}
 			{isCurrentlyTrialing}
-			currentPlanType={organization?.plan?.type ?? null}
+			{currentPlanType}
 			currentPlanLapsed={organization != null && isPlanLapsed(organization)}
 		/>
 	</div>

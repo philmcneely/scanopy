@@ -238,12 +238,15 @@
 	// plan — each requires owner action before normal use. A sign-up whose plan
 	// picker shows sees it first, and Settings opens once it closes. A plan picked
 	// there may need a card first, and that dialog stays until it closes.
+	// Nothing reopens while Settings is already up, so this never writes the
+	// modal state it reads.
 	$effect(() => {
 		if (
 			isBillingBlocking &&
 			appInitialized &&
 			!showBillingModal &&
-			$modalState.name !== 'payment-method'
+			$modalState.name !== 'payment-method' &&
+			$modalState.name !== 'settings'
 		) {
 			openModal('settings', { tab: billingBlockingTab });
 		}
@@ -254,7 +257,8 @@
 	// it leaves the sidebar. Cleared when the org leaves the plan.
 	let licenseSettingsOpenedFor = $state<string | null>(null);
 	$effect(() => {
-		if (!isSelfHostedPlanLocked) {
+		// A license org whose trial never started is the billing gate's, above.
+		if (!isSelfHostedPlanLocked || planUnchosen) {
 			licenseSettingsOpenedFor = null;
 			return;
 		}

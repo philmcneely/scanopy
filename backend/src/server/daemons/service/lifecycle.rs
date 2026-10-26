@@ -127,7 +127,10 @@ impl DaemonService {
     /// is always allowed so users can experience core product value. Free comes first, because
     /// verifying an email would not lift it. The email limit is never reached on a server with
     /// no email transport, where no owner could receive a verification link.
-    pub async fn daemon_limit_reached(&self, org_id: Uuid) -> Result<Option<DaemonLimit>, ApiError> {
+    pub async fn daemon_limit_reached(
+        &self,
+        org_id: Uuid,
+    ) -> Result<Option<DaemonLimit>, ApiError> {
         if !self.org_has_daemon(org_id).await {
             return Ok(None);
         }

@@ -195,10 +195,7 @@
 
 	let showDropdown = $derived(
 		open &&
-			(!taggingAllowed ||
-				availableTags.length > 0 ||
-				showCreateOption ||
-				unavailableNote !== null)
+			(!taggingAllowed || availableTags.length > 0 || showCreateOption || unavailableNote !== null)
 	);
 
 	// The existing tag the typed text completes to, ghosted in the input; Tab applies it.
@@ -536,33 +533,33 @@
 		</p>
 	{/if}
 	{#if taggingAllowed}
-	<CreatableOptionList
-		options={availableTags.map((tag) => ({
-			id: tag.id,
-			label: tag.name,
-			group: tagGroupLabel(groupOf(tag, tagGroups))
-		}))}
-		onSelect={handleAddTag}
-		createLabel={showCreateOption
-			? isCreating
-				? common_creating()
-				: tags_createTagQuoted({ name: inputValue.trim() })
-			: null}
-		onCreate={handleCreateTag}
-		createOnEnter
-		{highlighted}
-		creating={isCreating}
-	>
-		{#snippet row(option)}
-			{@const tag = getTag(option.id)}
-			<Tag
-				label={tag?.name}
-				color={tag?.color}
-				icon={tagIcon(tag, applicationGroup)}
-				title={tagTooltip(tag, tagGroups)}
-				isShiny={isApplicationTag(tag, applicationGroup)}
-			/>
-		{/snippet}
-	</CreatableOptionList>
+		<CreatableOptionList
+			options={availableTags.map((tag) => ({
+				id: tag.id,
+				label: tag.name,
+				group: tagGroupLabel(groupOf(tag, tagGroups))
+			}))}
+			onSelect={handleAddTag}
+			createLabel={showCreateOption
+				? isCreating
+					? common_creating()
+					: tags_createTagQuoted({ name: inputValue.trim() })
+				: null}
+			onCreate={handleCreateTag}
+			createOnEnter
+			{highlighted}
+			creating={isCreating}
+		>
+			{#snippet row(option)}
+				{@const tag = getTag(option.id)}
+				<Tag
+					label={tag?.name}
+					color={tag?.color}
+					icon={tagIcon(tag, applicationGroup)}
+					title={tagTooltip(tag, tagGroups)}
+					isShiny={isApplicationTag(tag, applicationGroup)}
+				/>
+			{/snippet}
+		</CreatableOptionList>
 	{/if}
 </Popover>

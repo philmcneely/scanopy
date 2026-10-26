@@ -184,6 +184,7 @@ async fn get_topology_data(
             .organization_service
             .get_by_id(&site.base.organization_id)
             .await
+        && org.base.plan.features().topology_view
         && org.has_onboarded(&OnboardingOperationDiscriminants::FirstDiscoveryCompleted)
         && org.not_onboarded(&OnboardingOperationDiscriminants::FirstTopologyRebuild)
         && let Ok(true) = state

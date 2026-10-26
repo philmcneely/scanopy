@@ -3033,7 +3033,7 @@
 	"tags_orderByNameHelp": "Tags are listed alphabetically, for a group with no sequence, such as applications.",
 	"tags_orderSet": "In an order you set",
 	"tags_orderSetHelp": "Tables, pickers and the topology list the tags in the order below.",
-	"tags_planRequired": "Tagging comes with a paid plan. Your tags stay where they are, and you can add or remove them once you choose one.",
+	"tags_planRequired": "Upgrade to a paid plan to add and remove tags.",
 	"tags_scopeComputedHelp": "Scanopy works out this list from what each entity type supports, so it can't be edited.",
 	"tags_serviceOverridesHostApplication": "This service's application overrides the host's. Remove it to inherit the host's application again.",
 	"tags_subtitle": "Manage organization-wide tags for categorizing entities",

@@ -320,10 +320,7 @@ impl BillingService {
             "Updating addon prices"
         );
 
-        let plan = organization
-            .base
-            .plan
-            ;
+        let plan = organization.base.plan;
         if plan.is_free() {
             // Free plan has no addons to update.
             return Ok(());

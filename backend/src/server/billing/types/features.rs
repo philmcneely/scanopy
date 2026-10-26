@@ -247,7 +247,9 @@ impl TypeMetadataProvider for Feature {
             Feature::DeviceInventory => {
                 "Automatically discover hosts, services, ports and interfaces into a searchable inventory"
             }
-            Feature::Tagging => "Apply tags to hosts, services and other entities to group and filter them",
+            Feature::Tagging => {
+                "Apply tags to hosts, services and other entities to group and filter them"
+            }
             Feature::TopologyView => {
                 "Explore your network as interactive topology diagrams, with snapshots of how it changes"
             }

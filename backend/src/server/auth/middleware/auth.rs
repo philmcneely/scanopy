@@ -526,10 +526,7 @@ impl AuthenticatedEntity {
                         )
                         .await
                         .map_err(AuthError)?;
-                        let plan = organization
-                            .base
-                            .plan
-                            ;
+                        let plan = organization.base.plan;
 
                         if !plan.features().api_access {
                             return Err(AuthError(ApiError::payment_required(
