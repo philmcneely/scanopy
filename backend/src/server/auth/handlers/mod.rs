@@ -94,9 +94,9 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(resend_verification))
 }
 
-mod oidc;
+pub(crate) mod oidc;
 mod password;
-mod registration;
+pub(crate) mod registration;
 mod session;
 mod verification;
 use oidc::*;

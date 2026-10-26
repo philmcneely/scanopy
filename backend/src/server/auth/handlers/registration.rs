@@ -77,12 +77,7 @@ pub(crate) async fn register(
         ));
     }
 
-    if state.config.disable_registration {
-        return Err(ApiError::coded(
-            StatusCode::FORBIDDEN,
-            ErrorCode::AuthRegistrationDisabled,
-        ));
-    }
+    ensure_registration_allowed(&state, &session).await?;
 
     let deployment_type = get_deployment_type(&state.config);
 
@@ -230,6 +225,35 @@ pub(crate) async fn register(
     }
 
     Ok(Json(ApiResponse::success(user)))
+}
+
+/// Refuse sign-up when registration is disabled, unless the session holds a pending invite
+/// that is still valid. Fails closed: no invite, an expired or deleted one, or an error
+/// reading either is a refusal.
+pub(crate) async fn ensure_registration_allowed(
+    state: &AppState,
+    session: &Session,
+) -> Result<(), ApiError> {
+    if !state.config.disable_registration {
+        return Ok(());
+    }
+
+    let refused = || ApiError::coded(StatusCode::FORBIDDEN, ErrorCode::AuthRegistrationDisabled);
+
+    let invite_id = session
+        .get::<Uuid>("pending_invite_id")
+        .await
+        .ok()
+        .flatten()
+        .ok_or_else(refused)?;
+
+    state
+        .services
+        .invite_service
+        .get_valid_invite(invite_id)
+        .await
+        .map(|_| ())
+        .map_err(|_| refused())
 }
 
 /// Store pre-registration setup in session

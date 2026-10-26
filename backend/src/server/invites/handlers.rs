@@ -647,14 +647,15 @@ pub async fn process_pending_invite(
         },
     };
 
-    // Mark invite as used
-    let send_to = match state.services.invite_service.use_invite(invite_id).await {
-        Ok(invite) => invite.base.send_to,
-        Err(e) => {
-            tracing::error!("Failed to mark invite as used: {}", e);
-            None
-        }
-    };
+    // Mark invite as used. A deleted or expired invite grants nothing, so its failure is
+    // the caller's failure: no account or membership is created from it.
+    let send_to = state
+        .services
+        .invite_service
+        .use_invite(invite_id)
+        .await?
+        .base
+        .send_to;
 
     // Emit InviteAccepted telemetry event if this is the first accepted invite
     if let Ok(true) = state
