@@ -245,8 +245,8 @@ impl Entity for Vlan {
         EntityDiscriminants::Vlan
     }
 
-    const ENTITY_NAME_SINGULAR: &'static str = "Vlan";
-    const ENTITY_NAME_PLURAL: &'static str = "Vlans";
+    const ENTITY_NAME_SINGULAR: &'static str = "VLAN";
+    const ENTITY_NAME_PLURAL: &'static str = "VLANs";
     const ENTITY_DESCRIPTION: &'static str = "VLANs (802.1Q virtual LANs) defined or discovered on the network. Each VLAN has a number (1-4094), a name, and an optional description, and is referenced by interfaces that participate in it.";
 
     fn entity_category() -> EntityCategory {

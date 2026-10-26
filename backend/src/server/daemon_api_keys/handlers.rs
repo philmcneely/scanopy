@@ -172,7 +172,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(generated::get_field_values))
 }
 
-/// Create Daemon API Key
+/// Create daemon API key
 #[utoipa::path(
     post,
     path = "",
@@ -219,7 +219,7 @@ pub async fn create_daemon_api_key(
     })))
 }
 
-/// Update a Daemon API Key
+/// Update daemon API key
 #[utoipa::path(
     put,
     path = "/{id}",
@@ -265,9 +265,10 @@ pub async fn update_daemon_api_key(
     result
 }
 
-/// Rotate a Daemon API Key
+/// Rotate daemon API key
 #[utoipa::path(
     post,
+    operation_id = "rotate_daemon_api_key",
     path = "/{id}/rotate",
     tag = DaemonApiKey::ENTITY_NAME_PLURAL,
     params(("id" = Uuid, Path, description = "Daemon API key ID")),
@@ -319,7 +320,7 @@ pub async fn rotate_key_handler(
     Ok(Json(ApiResponse::success(key)))
 }
 
-/// Delete a Daemon API Key
+/// Delete daemon API key
 ///
 /// Returns 409 Conflict if the key is currently assigned to a daemon.
 #[utoipa::path(
@@ -327,7 +328,7 @@ pub async fn rotate_key_handler(
     path = "/{id}",
     tag = DaemonApiKey::ENTITY_NAME_PLURAL,
     operation_id = "delete_daemon_api_key",
-    summary = "Delete daemon_api_key",
+    summary = "Delete daemon API key",
     params(("id" = Uuid, Path, description = "daemon_api_key ID")),
     responses(
         (status = 200, description = "daemon_api_key deleted", body = EmptyApiResponse),
@@ -373,7 +374,7 @@ pub async fn delete_daemon_api_key(
     result
 }
 
-/// Bulk delete Daemon API Keys
+/// Bulk delete daemon API keys
 ///
 /// Returns 409 Conflict if any key is currently assigned to a daemon.
 #[utoipa::path(
@@ -381,7 +382,7 @@ pub async fn delete_daemon_api_key(
     path = "/bulk-delete",
     tag = DaemonApiKey::ENTITY_NAME_PLURAL,
     operation_id = "bulk_delete_daemon_api_keys",
-    summary = "Bulk delete daemon_api_keys",
+    summary = "Bulk delete daemon API keys",
     request_body(content = Vec<Uuid>, description = "Array of Daemon API Key IDs to delete"),
     responses(
         (status = 200, description = "daemon_api_keys deleted", body = ApiResponse<BulkDeleteResponse>),

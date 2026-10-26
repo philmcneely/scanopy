@@ -1,3 +1,4 @@
+use crate::server::openapi::tags as api_tags;
 use crate::server::shared::events::traits::{Event, OrgScope};
 use crate::server::shared::events::types::{
     OnboardingOperation, OnboardingOperationDiscriminants, UpdateReason,
@@ -163,7 +164,7 @@ impl FilterQueryExtractor for UserApiKeyFilterQuery {
 // Generated handlers for CSV export and filter options
 mod generated {
     use super::*;
-    crate::crud_export_csv_handler!(UserApiKey);
+    crate::crud_export_csv_handler!(UserApiKey, internal);
     crate::crud_get_field_values_handler!(UserApiKey);
 }
 
@@ -178,12 +179,14 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(generated::get_field_values))
 }
 
-/// Get all user API keys for the current user
+/// List user API keys
+///
+/// The signed-in user's keys.
 #[utoipa::path(
     get,
     path = "",
-    tag = UserApiKey::ENTITY_NAME_PLURAL,
-    operation_id = "get_all_user_api_keys",
+    tags = [UserApiKey::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
+    operation_id = "list_user_api_keys",
     params(UserApiKeyFilterQuery),
     responses(
         (status = 200, description = "List of user API keys", body = PaginatedApiResponse<UserApiKey>),
@@ -203,11 +206,11 @@ pub async fn get_all(
     Ok(Json(list_page::<UserApiKey>(&state, &scope, &query).await?))
 }
 
-/// Create a new user API key
+/// Create user API key
 #[utoipa::path(
     post,
     path = "",
-    tag = UserApiKey::ENTITY_NAME_PLURAL,
+    tags = [UserApiKey::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     operation_id = "create_user_api_key",
     request_body = UserApiKey,
     responses(
@@ -285,11 +288,11 @@ pub async fn create_user_api_key(
     })))
 }
 
-/// Update a user API key
+/// Update user API key
 #[utoipa::path(
     put,
     path = "/{id}",
-    tag = UserApiKey::ENTITY_NAME_PLURAL,
+    tags = [UserApiKey::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     operation_id = "update_user_api_key",
     params(("id" = Uuid, Path, description = "API key ID")),
     request_body = UserApiKey,
@@ -355,11 +358,11 @@ pub async fn update_user_api_key(
     Ok(Json(ApiResponse::success(result)))
 }
 
-/// Rotate a user API key
+/// Rotate user API key
 #[utoipa::path(
     post,
     path = "/{id}/rotate",
-    tag = UserApiKey::ENTITY_NAME_PLURAL,
+    tags = [UserApiKey::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     operation_id = "rotate_user_api_key",
     params(("id" = Uuid, Path, description = "API key ID")),
     responses(
@@ -397,11 +400,11 @@ pub async fn rotate_key_handler(
     Ok(Json(ApiResponse::success(key)))
 }
 
-/// Get a user API key by ID
+/// Get user API key by ID
 #[utoipa::path(
     get,
     path = "/{id}",
-    tag = UserApiKey::ENTITY_NAME_PLURAL,
+    tags = [UserApiKey::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     operation_id = "get_user_api_key_by_id",
     params(("id" = Uuid, Path, description = "API key ID")),
     responses(
@@ -430,11 +433,11 @@ pub async fn get_by_id(
     Ok(result)
 }
 
-/// Delete a user API key
+/// Delete user API key
 #[utoipa::path(
     delete,
     path = "/{id}",
-    tag = UserApiKey::ENTITY_NAME_PLURAL,
+    tags = [UserApiKey::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     operation_id = "delete_user_api_key",
     params(("id" = Uuid, Path, description = "API key ID")),
     responses(
@@ -468,7 +471,7 @@ pub async fn delete(
 #[utoipa::path(
     post,
     path = "/bulk-delete",
-    tag = UserApiKey::ENTITY_NAME_PLURAL,
+    tags = [UserApiKey::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     operation_id = "bulk_delete_user_api_keys",
     request_body(content = Vec<Uuid>, description = "Array of User API Key IDs to delete"),
     responses(

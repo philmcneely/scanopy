@@ -61,7 +61,7 @@ async fn validate_port_site_consistency(state: &AppState, port: &Port) -> Result
     Ok(())
 }
 
-/// Create a new port
+/// Create port
 #[utoipa::path(
     post,
     path = "",
@@ -82,7 +82,7 @@ async fn create_port(
     create_handler::<Port>(State(state), auth, ApiJson(port)).await
 }
 
-/// Update a port
+/// Update port
 #[utoipa::path(
     put,
     path = "/{id}",

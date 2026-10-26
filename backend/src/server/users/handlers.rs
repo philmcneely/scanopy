@@ -48,7 +48,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 #[utoipa::path(
     get,
     path = "/{id}",
-    tag = User::ENTITY_NAME_PLURAL,
+    tags = [User::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     params(("id" = Uuid, Path, description = "User ID")),
     responses(
         (status = 200, description = "User found", body = ApiResponse<User>),
@@ -87,9 +87,10 @@ pub async fn get_user_by_id(
     Ok(Json(ApiResponse::success(user)))
 }
 
-/// List all users
+/// List users
 #[utoipa::path(
     get,
+    operation_id = "list_users",
     path = "",
     tag = User::ENTITY_NAME_PLURAL,
     params(NoFilterQuery),
@@ -165,7 +166,7 @@ pub async fn get_all_users(
     )))
 }
 
-/// Delete a user
+/// Delete user
 #[utoipa::path(
     delete,
     path = "/{id}",
@@ -233,7 +234,7 @@ pub async fn delete_user(
 #[utoipa::path(
     put,
     path = "/{id}",
-    tags = [User::ENTITY_NAME_PLURAL],
+    tags = [User::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     params(("id" = Uuid, Path, description = "User ID")),
     request_body = User,
     responses(
@@ -296,11 +297,14 @@ pub async fn update_user(
     Ok(Json(ApiResponse::success(updated)))
 }
 
-/// Admin update user (for changing permissions)
+/// Update user permissions
+///
+/// Sets the user's role in the organization.
 #[utoipa::path(
     put,
+    operation_id = "update_user_permissions",
     path = "/{id}/admin",
-    tags = [User::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
+    tags = [User::ENTITY_NAME_PLURAL],
     params(("id" = Uuid, Path, description = "User ID")),
     request_body = User,
     responses(

@@ -163,7 +163,7 @@ function toCreateHostRequest(formData: HostFormData): CreateHostRequest {
 }
 
 /** The host list endpoint's query. */
-type HostListQuery = NonNullable<operations['get_all_hosts']['parameters']['query']>;
+type HostListQuery = NonNullable<operations['list_hosts']['parameters']['query']>;
 
 /**
  * Query options for host list queries: the page, an as-of time, and the list's view as the
@@ -729,8 +729,8 @@ export function useConsolidateHostsMutation() {
 			otherHostName?: string;
 		}) => {
 			const response = unwrapData(
-				await apiClient.PUT('/api/v1/hosts/{destination_host}/consolidate/{other_host}', {
-					params: { path: { destination_host: destinationHostId, other_host: otherHostId } }
+				await apiClient.POST('/api/v1/hosts/{id}/consolidate/{other_id}', {
+					params: { path: { id: destinationHostId, other_id: otherHostId } }
 				})
 			);
 			return { response, otherHostId, otherHostName };

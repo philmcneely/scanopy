@@ -44,7 +44,7 @@ export interface SiteColumnsContext {
 
 type SiteOrderField = components['schemas']['SiteOrderField'];
 /** The sites list endpoint's query params, which the filters are sent and linked as. */
-type SiteListParam = keyof NonNullable<operations['get_all_sites']['parameters']['query']>;
+type SiteListParam = keyof NonNullable<operations['list_sites']['parameters']['query']>;
 
 // What a site contains, one resolver per column.
 function siteDaemons(ctx: SiteColumnsContext, site: Site): Daemon[] {

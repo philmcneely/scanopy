@@ -89,7 +89,7 @@
 	const page = listPageState(() => isActive);
 	const discoveriesQuery = useScheduledDiscoveriesQuery(() => page.params());
 	// Filter options: the values the scan configurations hold, scoped the way the list is.
-	const DISCOVERY_FIELD_VALUES = '/api/v1/discovery/field-values/{field}';
+	const DISCOVERY_FIELD_VALUES = '/api/v1/discoveries/field-values/{field}';
 	const configScope = () => ({ historical: false });
 	const daemonValuesQuery = useFieldValuesQuery(
 		DISCOVERY_FIELD_VALUES,

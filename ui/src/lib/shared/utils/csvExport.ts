@@ -89,7 +89,7 @@ export async function downloadTopologyExport(
 	view?: string
 ): Promise<void> {
 	const baseUrl = getServerUrl();
-	const url = new URL(`/api/v1/topology/${topologyId}/export/${format}`, baseUrl);
+	const url = new URL(`/api/v1/topologies/${topologyId}/export/${format}`, baseUrl);
 	if (view) url.searchParams.set('view', view);
 
 	const response = await fetch(url.toString(), {

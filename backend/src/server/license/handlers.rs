@@ -135,7 +135,7 @@ fn mint_error(error: MintError) -> ApiError {
     }
 }
 
-/// Exchange an online license key for an entitlement
+/// Exchange online license key for entitlement
 ///
 /// Called by self-hosted Scanopy servers. The key is the credential, so the
 /// endpoint takes no session or API key. Every success records the check-in
@@ -144,7 +144,7 @@ fn mint_error(error: MintError) -> ApiError {
 #[utoipa::path(
     post,
     path = "/entitlement",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = EntitlementRequest,
     responses(
         (status = 200, description = "Entitlement for the key's organization", body = ApiResponse<EntitlementResponse>),
@@ -243,14 +243,15 @@ pub async fn get_entitlement(
     })))
 }
 
-/// Mint a license key for this organization's self-hosted servers
+/// Create license key
 ///
+/// Mints a license key for this organization's self-hosted servers.
 /// Online keys work on any plan with a self-hosted license. Offline keys need
 /// a plan with air-gapped deployment.
 #[utoipa::path(
     post,
     path = "/keys",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = CreateLicenseKeyRequest,
     responses(
         (status = 200, description = "Signed license key", body = ApiResponse<LicenseKeyResponse>),
@@ -328,7 +329,7 @@ pub async fn create_license_key(
 #[utoipa::path(
     get,
     path = "/keys/current",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "The organization's current license key", body = ApiResponse<LicenseKeyResponse>),
         (status = 403, description = "Not an owner, or the organization has no license", body = ApiErrorResponse),
@@ -429,7 +430,7 @@ async fn mint_key(
 #[utoipa::path(
     post,
     path = "/keys/rotate",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Key rotated", body = EmptyApiResponse),
         (status = 403, description = "Not an owner", body = ApiErrorResponse),
@@ -472,14 +473,15 @@ pub struct LicenseInstanceSummary {
     pub refused: bool,
 }
 
-/// List the server instances running this organization's license key
+/// List license instances
 ///
+/// The server instances running this organization's license key.
 /// An instance counts against the limit while it has checked in within the
 /// last week.
 #[utoipa::path(
     get,
     path = "/instances",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "The organization's server instances", body = ApiResponse<LicenseInstancesResponse>),
         (status = 403, description = "Not an owner", body = ApiErrorResponse),
@@ -515,14 +517,15 @@ pub async fn list_license_instances(
     })))
 }
 
-/// Delete a server instance from this organization's license key
+/// Delete license instance
 ///
+/// Removes a server instance from this organization's license key.
 /// Frees its slot. A server that is still running is listed again at its next
 /// check-in; rotating the key is what stops one.
 #[utoipa::path(
     delete,
     path = "/instances/{id}",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     params(("id" = Uuid, Path, description = "License instance ID")),
     responses(
         (status = 200, description = "Instance deleted", body = EmptyApiResponse),

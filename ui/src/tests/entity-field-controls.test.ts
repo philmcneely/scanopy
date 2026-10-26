@@ -181,7 +181,7 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'discovery/components/tabs/DiscoveryHistoryTab.svelte': {
-		listPath: '/api/v1/discovery',
+		listPath: '/api/v1/discoveries',
 		columns: {
 			// Runs of one scan share its name, so grouping gathers a scan's history.
 			name: { sort: true, group: true, filter: SEARCH },
@@ -205,7 +205,7 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'discovery/components/tabs/DiscoveryScheduledTab.svelte': {
-		listPath: '/api/v1/discovery',
+		listPath: '/api/v1/discoveries',
 		columns: {
 			name: IDENTITY,
 			created_at: DATE,
@@ -243,7 +243,7 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'daemon_api_keys/components/ApiKeyTab.svelte': {
-		listPath: '/api/v1/auth/daemon',
+		listPath: '/api/v1/daemon-api-keys',
 		columns: {
 			name: IDENTITY,
 			site_id: server('site_ids'),
@@ -315,7 +315,7 @@ const DECISIONS: Record<string, TabDecisions> = {
 		}
 	},
 	'user_api_keys/components/UserApiKeyTab.svelte': {
-		listPath: '/api/v1/auth/keys',
+		listPath: '/api/v1/user-api-keys',
 		columns: {
 			name: IDENTITY,
 			permissions: server('permissions'),

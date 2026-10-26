@@ -38,7 +38,7 @@ export interface VlanColumnsContext {
 }
 
 /** The VLAN list endpoint's query params, which the filters are sent and linked as. */
-type VlanListParam = keyof NonNullable<operations['get_all_vlans']['parameters']['query']>;
+type VlanListParam = keyof NonNullable<operations['list_vlans']['parameters']['query']>;
 
 /**
  * Columns from the entity field registry; this adds how each one searches, filters, sorts and

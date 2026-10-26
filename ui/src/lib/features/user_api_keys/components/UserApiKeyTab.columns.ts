@@ -23,7 +23,7 @@ import {
 type UserApiKeyOrderField = components['schemas']['UserApiKeyOrderField'];
 /** The user API key list endpoint's query params, which the filters are sent and linked as. */
 type UserApiKeyListParam = keyof NonNullable<
-	operations['get_all_user_api_keys']['parameters']['query']
+	operations['list_user_api_keys']['parameters']['query']
 >;
 
 /** What the user API key columns read from the tab, each as a getter so values stay live. */

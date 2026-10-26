@@ -21,7 +21,7 @@ export function useOrganizationQuery() {
 		return {
 			queryKey: queryKeys.organizations.current(),
 			queryFn: async () => {
-				return unwrapData(await apiClient.GET('/api/v1/organizations'));
+				return unwrapData(await apiClient.GET('/api/v1/organizations/current'));
 			},
 			// Only fetch when user is authenticated
 			enabled: !!user
@@ -111,7 +111,7 @@ export function useRevokeInviteMutation() {
 	return createMutation(() => ({
 		mutationFn: async (id: string) => {
 			requireSuccess(
-				await apiClient.DELETE('/api/v1/invites/{id}/revoke', {
+				await apiClient.DELETE('/api/v1/invites/{id}', {
 					params: { path: { id } }
 				})
 			);
@@ -244,7 +244,7 @@ export async function fetchOrganization(): Promise<Organization> {
 	return queryClient.fetchQuery({
 		queryKey: queryKeys.organizations.current(),
 		queryFn: async () => {
-			return unwrapData(await apiClient.GET('/api/v1/organizations'));
+			return unwrapData(await apiClient.GET('/api/v1/organizations/current'));
 		}
 	});
 }
@@ -279,7 +279,7 @@ export function useBulkRevokeInvitesMutation() {
 
 	return createMutation(() => ({
 		mutationFn: async (ids: string[]) => {
-			requireSuccess(await apiClient.POST('/api/v1/invites/bulk-revoke', { body: ids }));
+			requireSuccess(await apiClient.POST('/api/v1/invites/bulk-delete', { body: ids }));
 			return ids;
 		},
 		onSuccess: (ids: string[]) => {

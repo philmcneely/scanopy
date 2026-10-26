@@ -1,6 +1,7 @@
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::auth::middleware::permissions::{Authorized, IsDaemon, Member, Or, Viewer};
 use crate::server::ip_addresses::r#impl::base::IPAddress;
+use crate::server::openapi::tags as api_tags;
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::extractors::Query;
 use crate::server::shared::handlers::list::list_page;
@@ -256,7 +257,7 @@ async fn get_subnet_by_id(
     Ok(Json(ApiResponse::success(response)))
 }
 
-/// Get all subnets
+/// List subnets
 ///
 /// Returns all subnets accessible to the authenticated user or daemon.
 /// Daemons can only access subnets within their assigned site.
@@ -267,7 +268,7 @@ async fn get_subnet_by_id(
     path = "",
     tag = Subnet::ENTITY_NAME_PLURAL,
     operation_id = "list_subnets",
-    summary = "List all subnets",
+    summary = "List subnets",
     params(SubnetFilterQuery),
     responses(
         (status = 200, description = "List of subnets", body = PaginatedApiResponse<SubnetResponse>),
@@ -321,7 +322,7 @@ async fn get_all_subnets(
     }
 }
 
-/// Create a new subnet
+/// Create subnet
 #[utoipa::path(
     post,
     path = "",
@@ -395,7 +396,7 @@ async fn create_subnet(
     Ok(created)
 }
 
-/// Update a subnet
+/// Update subnet
 ///
 /// Updates subnet properties. If the CIDR is being changed, validates that
 /// all existing ip_addresses on this subnet have IPs within the new CIDR range.
@@ -477,7 +478,7 @@ pub struct MergeSubnetRequest {
     pub into: Uuid,
 }
 
-/// Merge a subnet into the range that contains it
+/// Merge subnet into its covering range
 ///
 /// Moves every address to the covering subnet and removes this one. Offered for a range Scanopy
 /// assumed that a later reading turned out to cover: discovery corrects such a range on its own
@@ -486,7 +487,7 @@ pub struct MergeSubnetRequest {
 #[utoipa::path(
     post,
     path = "/{id}/merge",
-    tag = Subnet::ENTITY_NAME_PLURAL,
+    tags = [Subnet::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     params(("id" = Uuid, Path, description = "Subnet ID to merge away")),
     request_body = MergeSubnetRequest,
     responses(

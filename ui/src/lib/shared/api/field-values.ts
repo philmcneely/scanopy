@@ -65,29 +65,29 @@ const FIELD_VALUES_ENDPOINTS: { [P in FieldValuesPath]: FieldValuesEndpoint<P> }
 				})
 			)
 	},
-	'/api/v1/discovery/field-values/{field}': {
+	'/api/v1/discoveries/field-values/{field}': {
 		key: queryKeys.discovery.fieldValues,
 		fetch: async (field, query) =>
 			unwrapData(
-				await apiClient.GET('/api/v1/discovery/field-values/{field}', {
+				await apiClient.GET('/api/v1/discoveries/field-values/{field}', {
 					params: { path: { field }, query }
 				})
 			)
 	},
-	'/api/v1/auth/daemon/field-values/{field}': {
+	'/api/v1/daemon-api-keys/field-values/{field}': {
 		key: queryKeys.apiKeys.fieldValues,
 		fetch: async (field, query) =>
 			unwrapData(
-				await apiClient.GET('/api/v1/auth/daemon/field-values/{field}', {
+				await apiClient.GET('/api/v1/daemon-api-keys/field-values/{field}', {
 					params: { path: { field }, query }
 				})
 			)
 	},
-	'/api/v1/auth/keys/field-values/{field}': {
+	'/api/v1/user-api-keys/field-values/{field}': {
 		key: queryKeys.userApiKeys.fieldValues,
 		fetch: async (field, query) =>
 			unwrapData(
-				await apiClient.GET('/api/v1/auth/keys/field-values/{field}', {
+				await apiClient.GET('/api/v1/user-api-keys/field-values/{field}', {
 					params: { path: { field }, query }
 				})
 			)

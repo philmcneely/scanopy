@@ -403,14 +403,14 @@ async fn test_discovery_crud(ctx: &TestContext) -> Result<(), String> {
         integration_targets: vec![],
     };
 
-    let created: Discovery = ctx.client.post("/api/v1/discovery", &discovery).await?;
+    let created: Discovery = ctx.client.post("/api/v1/discoveries", &discovery).await?;
     assert!(!created.id.is_nil());
     assert_eq!(created.base.name, "CRUD Test Discovery");
     println!("  ✓ Create discovery");
 
     let fetched: Discovery = ctx
         .client
-        .get(&format!("/api/v1/discovery/{}", created.id))
+        .get(&format!("/api/v1/discoveries/{}", created.id))
         .await?;
     assert_eq!(fetched.id, created.id);
     println!("  ✓ Read discovery");
@@ -419,24 +419,24 @@ async fn test_discovery_crud(ctx: &TestContext) -> Result<(), String> {
     updated.base.name = "Updated Discovery".to_string();
     let updated: Discovery = ctx
         .client
-        .put(&format!("/api/v1/discovery/{}", updated.id), &updated)
+        .put(&format!("/api/v1/discoveries/{}", updated.id), &updated)
         .await?;
     assert_eq!(updated.base.name, "Updated Discovery");
     println!("  ✓ Update discovery");
 
-    let discoveries: Vec<Discovery> = ctx.client.get("/api/v1/discovery").await?;
+    let discoveries: Vec<Discovery> = ctx.client.get("/api/v1/discoveries").await?;
     assert!(discoveries.iter().any(|d| d.id == created.id));
     println!("  ✓ List discoveries");
 
     ctx.client
-        .delete_no_content(&format!("/api/v1/discovery/{}", created.id))
+        .delete_no_content(&format!("/api/v1/discoveries/{}", created.id))
         .await?;
     println!("  ✓ Delete discovery");
 
     let result = ctx
         .client
         .get_expect_status(
-            &format!("/api/v1/discovery/{}", created.id),
+            &format!("/api/v1/discoveries/{}", created.id),
             StatusCode::NOT_FOUND,
         )
         .await;
@@ -462,15 +462,16 @@ async fn test_api_key_crud(ctx: &TestContext) -> Result<(), String> {
         plaintext: None,
     });
 
-    // Daemon API keys are now at /api/v1/auth/daemon
-    let created: DaemonApiKeyResponse = ctx.client.post("/api/v1/auth/daemon", &api_key).await?;
+    // Daemon API keys are now at /api/v1/daemon-api-keys
+    let created: DaemonApiKeyResponse =
+        ctx.client.post("/api/v1/daemon-api-keys", &api_key).await?;
     let key_id = created.api_key.id;
     assert!(!created.key.is_empty(), "Should return plaintext key");
     println!("  ✓ Create daemon API key (received plaintext key)");
 
     let fetched: DaemonApiKey = ctx
         .client
-        .get(&format!("/api/v1/auth/daemon/{}", key_id))
+        .get(&format!("/api/v1/daemon-api-keys/{}", key_id))
         .await?;
     assert_eq!(fetched.id, key_id);
     println!("  ✓ Read daemon API key");
@@ -479,7 +480,7 @@ async fn test_api_key_crud(ctx: &TestContext) -> Result<(), String> {
     updated.base.name = "Updated Daemon API Key".to_string();
     let updated: DaemonApiKey = ctx
         .client
-        .put(&format!("/api/v1/auth/daemon/{}", updated.id), &updated)
+        .put(&format!("/api/v1/daemon-api-keys/{}", updated.id), &updated)
         .await?;
     assert_eq!(updated.base.name, "Updated Daemon API Key");
     assert_eq!(
@@ -488,12 +489,12 @@ async fn test_api_key_crud(ctx: &TestContext) -> Result<(), String> {
     );
     println!("  ✓ Update daemon API key (key hash preserved)");
 
-    let keys: Vec<DaemonApiKey> = ctx.client.get("/api/v1/auth/daemon").await?;
+    let keys: Vec<DaemonApiKey> = ctx.client.get("/api/v1/daemon-api-keys").await?;
     assert!(keys.iter().any(|k| k.id == key_id));
     println!("  ✓ List daemon API keys");
 
     ctx.client
-        .delete_no_content(&format!("/api/v1/auth/daemon/{}", key_id))
+        .delete_no_content(&format!("/api/v1/daemon-api-keys/{}", key_id))
         .await?;
     println!("  ✓ Delete daemon API key");
 
@@ -517,15 +518,15 @@ async fn test_user_api_key_crud(ctx: &TestContext) -> Result<(), String> {
         site_ids: vec![ctx.site_id],
     });
 
-    // User API keys are at /api/v1/auth/keys
-    let created: UserApiKeyResponse = ctx.client.post("/api/v1/auth/keys", &api_key).await?;
+    // User API keys are at /api/v1/user-api-keys
+    let created: UserApiKeyResponse = ctx.client.post("/api/v1/user-api-keys", &api_key).await?;
     let key_id = created.api_key.id;
     assert!(!created.key.is_empty(), "Should return plaintext key");
     println!("  ✓ Create user API key (received plaintext key)");
 
     let fetched: UserApiKey = ctx
         .client
-        .get(&format!("/api/v1/auth/keys/{}", key_id))
+        .get(&format!("/api/v1/user-api-keys/{}", key_id))
         .await?;
     assert_eq!(fetched.id, key_id);
     println!("  ✓ Read user API key");
@@ -534,7 +535,7 @@ async fn test_user_api_key_crud(ctx: &TestContext) -> Result<(), String> {
     updated.base.name = "Updated User API Key".to_string();
     let updated: UserApiKey = ctx
         .client
-        .put(&format!("/api/v1/auth/keys/{}", updated.id), &updated)
+        .put(&format!("/api/v1/user-api-keys/{}", updated.id), &updated)
         .await?;
     assert_eq!(updated.base.name, "Updated User API Key");
     assert_eq!(
@@ -543,12 +544,12 @@ async fn test_user_api_key_crud(ctx: &TestContext) -> Result<(), String> {
     );
     println!("  ✓ Update user API key (key hash preserved)");
 
-    let keys: Vec<UserApiKey> = ctx.client.get("/api/v1/auth/keys").await?;
+    let keys: Vec<UserApiKey> = ctx.client.get("/api/v1/user-api-keys").await?;
     assert!(keys.iter().any(|k| k.id == key_id));
     println!("  ✓ List user API keys");
 
     ctx.client
-        .delete_no_content(&format!("/api/v1/auth/keys/{}", key_id))
+        .delete_no_content(&format!("/api/v1/user-api-keys/{}", key_id))
         .await?;
     println!("  ✓ Delete user API key");
 
@@ -573,7 +574,7 @@ async fn test_user_api_key_authentication(ctx: &TestContext) -> Result<(), Strin
         site_ids: vec![ctx.site_id],
     });
 
-    let created: UserApiKeyResponse = ctx.client.post("/api/v1/auth/keys", &api_key).await?;
+    let created: UserApiKeyResponse = ctx.client.post("/api/v1/user-api-keys", &api_key).await?;
     let plaintext_key = created.key.clone();
     let key_id = created.api_key.id;
     println!("  ✓ Created API key for authentication test");
@@ -647,7 +648,7 @@ async fn test_user_api_key_authentication(ctx: &TestContext) -> Result<(), Strin
 
     // Cleanup
     ctx.client
-        .delete_no_content(&format!("/api/v1/auth/keys/{}", key_id))
+        .delete_no_content(&format!("/api/v1/user-api-keys/{}", key_id))
         .await?;
 
     println!("✅ User API Key Authentication passed");
@@ -679,7 +680,7 @@ async fn test_user_api_key_permission_escalation(ctx: &TestContext) -> Result<()
 
     let result = ctx
         .client
-        .post_expect_status("/api/v1/auth/keys", &api_key, StatusCode::FORBIDDEN)
+        .post_expect_status("/api/v1/user-api-keys", &api_key, StatusCode::FORBIDDEN)
         .await;
 
     // Restore Owner permissions
@@ -706,13 +707,16 @@ async fn test_user_api_key_permission_escalation(ctx: &TestContext) -> Result<()
         site_ids: vec![ctx.site_id],
     });
 
-    let created: UserApiKeyResponse = ctx.client.post("/api/v1/auth/keys", &api_key_admin).await?;
+    let created: UserApiKeyResponse = ctx
+        .client
+        .post("/api/v1/user-api-keys", &api_key_admin)
+        .await?;
     let key_id = created.api_key.id;
     println!("  ✓ Owner can create Admin-level API key");
 
     // Cleanup
     ctx.client
-        .delete_no_content(&format!("/api/v1/auth/keys/{}", key_id))
+        .delete_no_content(&format!("/api/v1/user-api-keys/{}", key_id))
         .await?;
 
     println!("✅ User API Key Permission Escalation Prevention passed");
@@ -737,7 +741,7 @@ async fn test_user_api_key_rotation(ctx: &TestContext) -> Result<(), String> {
         site_ids: vec![ctx.site_id],
     });
 
-    let created: UserApiKeyResponse = ctx.client.post("/api/v1/auth/keys", &api_key).await?;
+    let created: UserApiKeyResponse = ctx.client.post("/api/v1/user-api-keys", &api_key).await?;
     let original_key = created.key.clone();
     let key_id = created.api_key.id;
     println!("  ✓ Created API key for rotation test");
@@ -745,7 +749,7 @@ async fn test_user_api_key_rotation(ctx: &TestContext) -> Result<(), String> {
     // Rotate the key
     let rotated: String = ctx
         .client
-        .post(&format!("/api/v1/auth/keys/{}/rotate", key_id), &())
+        .post(&format!("/api/v1/user-api-keys/{}/rotate", key_id), &())
         .await?;
 
     assert_ne!(
@@ -791,7 +795,7 @@ async fn test_user_api_key_rotation(ctx: &TestContext) -> Result<(), String> {
 
     // Cleanup
     ctx.client
-        .delete_no_content(&format!("/api/v1/auth/keys/{}", key_id))
+        .delete_no_content(&format!("/api/v1/user-api-keys/{}", key_id))
         .await?;
 
     println!("✅ User API Key Rotation passed");
@@ -818,7 +822,7 @@ async fn test_user_api_key_expired_disabled(ctx: &TestContext) -> Result<(), Str
         site_ids: vec![ctx.site_id],
     });
 
-    let created: UserApiKeyResponse = ctx.client.post("/api/v1/auth/keys", &api_key).await?;
+    let created: UserApiKeyResponse = ctx.client.post("/api/v1/user-api-keys", &api_key).await?;
     let plaintext_key = created.key.clone();
     let key_id = created.api_key.id;
 
@@ -839,12 +843,12 @@ async fn test_user_api_key_expired_disabled(ctx: &TestContext) -> Result<(), Str
     // Disable the key via update
     let mut fetched: UserApiKey = ctx
         .client
-        .get(&format!("/api/v1/auth/keys/{}", key_id))
+        .get(&format!("/api/v1/user-api-keys/{}", key_id))
         .await?;
     fetched.base.is_enabled = false;
     let _updated: UserApiKey = ctx
         .client
-        .put(&format!("/api/v1/auth/keys/{}", key_id), &fetched)
+        .put(&format!("/api/v1/user-api-keys/{}", key_id), &fetched)
         .await?;
 
     // Verify disabled key is rejected
@@ -866,7 +870,7 @@ async fn test_user_api_key_expired_disabled(ctx: &TestContext) -> Result<(), Str
     fetched.base.expires_at = Some(Utc::now() - Duration::hours(1));
     let _updated: UserApiKey = ctx
         .client
-        .put(&format!("/api/v1/auth/keys/{}", key_id), &fetched)
+        .put(&format!("/api/v1/user-api-keys/{}", key_id), &fetched)
         .await?;
 
     // Verify expired key is rejected
@@ -885,7 +889,7 @@ async fn test_user_api_key_expired_disabled(ctx: &TestContext) -> Result<(), Str
 
     // Cleanup
     ctx.client
-        .delete_no_content(&format!("/api/v1/auth/keys/{}", key_id))
+        .delete_no_content(&format!("/api/v1/user-api-keys/{}", key_id))
         .await?;
 
     println!("✅ Expired/Disabled API Key Rejection passed");
@@ -942,7 +946,7 @@ async fn test_user_api_key_site_access(ctx: &TestContext) -> Result<(), String> 
         site_ids: vec![ctx.site_id], // Only first site
     });
 
-    let created: UserApiKeyResponse = ctx.client.post("/api/v1/auth/keys", &api_key).await?;
+    let created: UserApiKeyResponse = ctx.client.post("/api/v1/user-api-keys", &api_key).await?;
     let plaintext_key = created.key.clone();
     let key_id = created.api_key.id;
     println!("  ✓ Created API key with limited site access");
@@ -999,7 +1003,11 @@ async fn test_user_api_key_site_access(ctx: &TestContext) -> Result<(), String> 
 
     let result = ctx
         .client
-        .post_expect_status("/api/v1/auth/keys", &restricted_key, StatusCode::FORBIDDEN)
+        .post_expect_status(
+            "/api/v1/user-api-keys",
+            &restricted_key,
+            StatusCode::FORBIDDEN,
+        )
         .await;
 
     // Restore Owner permissions
@@ -1014,7 +1022,7 @@ async fn test_user_api_key_site_access(ctx: &TestContext) -> Result<(), String> 
 
     // Cleanup
     ctx.client
-        .delete_no_content(&format!("/api/v1/auth/keys/{}", key_id))
+        .delete_no_content(&format!("/api/v1/user-api-keys/{}", key_id))
         .await?;
     let _ = ctx.delete_entity::<Subnet>(&other_subnet.id).await;
     let _ = ctx.delete_entity::<Site>(&other_site.id).await;
@@ -1043,7 +1051,7 @@ async fn test_user_api_key_owner_isolation(ctx: &TestContext) -> Result<(), Stri
         site_ids: vec![ctx.site_id],
     });
 
-    let created: UserApiKeyResponse = ctx.client.post("/api/v1/auth/keys", &api_key).await?;
+    let created: UserApiKeyResponse = ctx.client.post("/api/v1/user-api-keys", &api_key).await?;
     let key_id = created.api_key.id;
 
     // Create another user's API key directly in the database
@@ -1073,7 +1081,7 @@ async fn test_user_api_key_owner_isolation(ctx: &TestContext) -> Result<(), Stri
     let result = ctx
         .client
         .get_expect_status(
-            &format!("/api/v1/auth/keys/{}", other_key.id),
+            &format!("/api/v1/user-api-keys/{}", other_key.id),
             StatusCode::NOT_FOUND,
         )
         .await;
@@ -1085,7 +1093,7 @@ async fn test_user_api_key_owner_isolation(ctx: &TestContext) -> Result<(), Stri
     println!("  ✓ Cannot read other user's API key (returns 404)");
 
     // Verify other user's key doesn't appear in the list
-    let keys: Vec<UserApiKey> = ctx.client.get("/api/v1/auth/keys").await?;
+    let keys: Vec<UserApiKey> = ctx.client.get("/api/v1/user-api-keys").await?;
     let other_key_in_list = keys.iter().any(|k| k.id == other_key.id);
     assert!(
         !other_key_in_list,
@@ -1099,7 +1107,7 @@ async fn test_user_api_key_owner_isolation(ctx: &TestContext) -> Result<(), Stri
     let _result = ctx
         .client
         .post_expect_status(
-            &format!("/api/v1/auth/keys/{}", other_key.id),
+            &format!("/api/v1/user-api-keys/{}", other_key.id),
             &attempt_update,
             StatusCode::NOT_FOUND,
         )
@@ -1113,7 +1121,10 @@ async fn test_user_api_key_owner_isolation(ctx: &TestContext) -> Result<(), Stri
     let response = ctx
         .client
         .client
-        .delete(format!("{}/api/v1/auth/keys/{}", BASE_URL, other_key.id))
+        .delete(format!(
+            "{}/api/v1/user-api-keys/{}",
+            BASE_URL, other_key.id
+        ))
         .send()
         .await
         .map_err(|e| format!("Delete request failed: {}", e))?;
@@ -1127,7 +1138,7 @@ async fn test_user_api_key_owner_isolation(ctx: &TestContext) -> Result<(), Stri
 
     // Cleanup - delete both keys
     ctx.client
-        .delete_no_content(&format!("/api/v1/auth/keys/{}", key_id))
+        .delete_no_content(&format!("/api/v1/user-api-keys/{}", key_id))
         .await?;
     let _ = ctx.delete_entity::<UserApiKeyEntity>(&other_key.id).await;
 

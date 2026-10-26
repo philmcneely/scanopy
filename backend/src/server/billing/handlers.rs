@@ -43,7 +43,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 #[utoipa::path(
     get,
     path = "/plans",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "List of available billing plans", body = ApiResponse<Vec<BillingPlan>>),
         (status = 400, description = "Billing not enabled", body = ApiErrorResponse),
@@ -65,11 +65,11 @@ async fn get_billing_plans(
     }
 }
 
-/// Create a checkout session
+/// Create checkout session
 #[utoipa::path(
     post,
     path = "/checkout",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = CreateCheckoutRequest,
     responses(
         (status = 200, description = "Checkout session URL", body = ApiResponse<String>),
@@ -242,11 +242,13 @@ async fn create_checkout_session(
     }
 }
 
-/// Create a SetupIntent for in-app card collection (Stripe Payment Element)
+/// Create payment method setup intent
+///
+/// A SetupIntent for collecting a card in the app with the Stripe Payment Element.
 #[utoipa::path(
     post,
     path = "/payment-method-setup-intent",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "SetupIntent client secret", body = ApiResponse<SetupIntentResponse>),
         (status = 400, description = "Billing not enabled", body = ApiErrorResponse),
@@ -273,11 +275,13 @@ async fn create_payment_method_setup_intent(
     }
 }
 
-/// Finalize a client-confirmed SetupIntent (set the card as default)
+/// Finalize payment method
+///
+/// Sets the card from a client-confirmed SetupIntent as the default.
 #[utoipa::path(
     post,
     path = "/finalize-payment-method",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = FinalizePaymentMethodRequest,
     responses(
         (status = 200, description = "Payment method finalized", body = EmptyApiResponse),
@@ -310,7 +314,7 @@ async fn finalize_payment_method(
 #[utoipa::path(
     post,
     path = "/change-plan",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = ChangePlanRequest,
     responses(
         (status = 200, description = "Plan change initiated", body = ApiResponse<String>),
@@ -351,7 +355,7 @@ async fn change_plan(
 #[utoipa::path(
     get,
     path = "/change-plan/preview",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     params(
         ("plan" = String, Query, description = "Target plan (JSON)"),
     ),
@@ -394,7 +398,7 @@ async fn preview_plan_change(
 #[utoipa::path(
     post,
     path = "/webhooks",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Webhook processed", body = EmptyApiResponse),
         (status = 400, description = "Invalid signature or billing not enabled", body = ApiErrorResponse),
@@ -422,11 +426,11 @@ async fn handle_webhook(
     }
 }
 
-/// Create a billing portal session
+/// Create billing portal session
 #[utoipa::path(
     post,
     path = "/portal",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = String,
     responses(
         (status = 200, description = "Portal session URL", body = ApiResponse<String>),
@@ -461,7 +465,7 @@ async fn create_portal_session(
 #[utoipa::path(
     post,
     path = "/pause",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = PauseSubscriptionRequest,
     responses(
         (status = 200, description = "Subscription paused", body = ApiResponse<String>),
@@ -488,7 +492,7 @@ async fn pause_subscription(
     }
 }
 
-/// Resume a paused subscription
+/// Resume paused subscription
 ///
 /// Clears Stripe pause collection and re-activates billing. Available while
 /// `plan_status === 'paused'`. The prorated pause credit is posted to the
@@ -497,7 +501,7 @@ async fn pause_subscription(
 #[utoipa::path(
     post,
     path = "/resume",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Subscription resumed", body = ApiResponse<String>),
         (status = 400, description = "No paused subscription or billing not enabled", body = ApiErrorResponse),
@@ -522,14 +526,14 @@ async fn resume_subscription(
     }
 }
 
-/// Reactivate a subscription pending cancellation
+/// Reactivate subscription pending cancellation
 ///
 /// Clears Stripe's scheduled-cancellation state (`cancel_at` → None).
 /// Available while `plan_status === 'pending_cancellation'`.
 #[utoipa::path(
     post,
     path = "/reactivate",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Subscription reactivated", body = ApiResponse<String>),
         (status = 400, description = "No pending cancellation or billing not enabled", body = ApiErrorResponse),
@@ -558,7 +562,7 @@ async fn reactivate_subscription(
 #[utoipa::path(
     post,
     path = "/extend-trial",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Trial extended", body = ApiResponse<String>),
         (status = 400, description = "Ineligible or billing not enabled", body = ApiErrorResponse),
@@ -583,14 +587,14 @@ async fn extend_trial(
     }
 }
 
-/// End the trial now and charge the card on file
+/// End trial and charge card on file
 ///
 /// Offered to customers who want an air-gapped license key, which needs a paid
 /// subscription because it validates offline and cannot be revoked.
 #[utoipa::path(
     post,
     path = "/end-trial",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Trial ended and subscription charged", body = ApiResponse<String>),
         (status = 400, description = "Not trialing, no payment method, or billing not enabled", body = ApiErrorResponse),
@@ -624,7 +628,7 @@ async fn end_trial(
 #[utoipa::path(
     post,
     path = "/cancel",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = CancelSubscriptionRequest,
     responses(
         (status = 200, description = "Cancellation initiated", body = ApiResponse<CancelSubscriptionResponse>),
@@ -651,14 +655,14 @@ async fn cancel_subscription(
     }
 }
 
-/// Apply the discount save offer
+/// Apply discount save offer
 ///
 /// Applies the configured Stripe coupon to the subscription. Returns 400
 /// when `STRIPE_SAVE_OFFER_COUPON_ID` is unset.
 #[utoipa::path(
     post,
     path = "/cancel/apply-discount",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Discount applied", body = ApiResponse<String>),
         (status = 400, description = "Discount not configured or billing not enabled", body = ApiErrorResponse),
@@ -692,7 +696,7 @@ async fn apply_discount_save_offer(
 #[utoipa::path(
     get,
     path = "/save-offer-coupon",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Save-offer coupon terms, or null when not configured", body = ApiResponse<Option<SaveOfferCoupon>>),
         (status = 400, description = "Billing not enabled", body = ApiErrorResponse),

@@ -8,6 +8,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Accept terms of service */
         post: operations["accept_terms"];
         delete?: never;
         options?: never;
@@ -24,6 +25,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Check whether an email is available */
         post: operations["check_email"];
         delete?: never;
         options?: never;
@@ -40,6 +42,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Request password reset */
         post: operations["forgot_password"];
         delete?: never;
         options?: never;
@@ -56,6 +59,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Log in */
         post: operations["login"];
         delete?: never;
         options?: never;
@@ -72,6 +76,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Log out */
         post: operations["logout"];
         delete?: never;
         options?: never;
@@ -88,6 +93,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Get current user */
         post: operations["get_current_user"];
         delete?: never;
         options?: never;
@@ -104,6 +110,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Unlink OIDC account */
         post: operations["unlink_oidc_account"];
         delete?: never;
         options?: never;
@@ -154,6 +161,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Register user */
         post: operations["register"];
         delete?: never;
         options?: never;
@@ -170,6 +178,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Request email change */
         post: operations["request_email_change"];
         delete?: never;
         options?: never;
@@ -186,6 +195,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Resend verification email */
         post: operations["resend_verification"];
         delete?: never;
         options?: never;
@@ -202,6 +212,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Reset password */
         post: operations["reset_password"];
         delete?: never;
         options?: never;
@@ -218,7 +229,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Store pre-registration setup data (org name, first site) in session */
+        /**
+         * Store pre-registration setup in session
+         * @description The organization name and first site, kept until registration completes.
+         */
         post: operations["setup"];
         delete?: never;
         options?: never;
@@ -235,6 +249,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Update password */
         post: operations["update_password_auth"];
         delete?: never;
         options?: never;
@@ -251,6 +266,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Verify email */
         post: operations["verify_email"];
         delete?: never;
         options?: never;
@@ -291,7 +307,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Apply the discount save offer
+         * Apply discount save offer
          * @description Applies the configured Stripe coupon to the subscription. Returns 400
          *     when `STRIPE_SAVE_OFFER_COUPON_ID` is unset.
          */
@@ -348,7 +364,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a checkout session */
+        /** Create checkout session */
         post: operations["create_checkout_session"];
         delete?: never;
         options?: never;
@@ -366,7 +382,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * End the trial now and charge the card on file
+         * End trial and charge card on file
          * @description Offered to customers who want an air-gapped license key, which needs a paid
          *     subscription because it validates offline and cannot be revoked.
          */
@@ -403,7 +419,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Finalize a client-confirmed SetupIntent (set the card as default) */
+        /**
+         * Finalize payment method
+         * @description Sets the card from a client-confirmed SetupIntent as the default.
+         */
         post: operations["finalize_payment_method"];
         delete?: never;
         options?: never;
@@ -468,7 +487,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a SetupIntent for in-app card collection (Stripe Payment Element) */
+        /**
+         * Create payment method setup intent
+         * @description A SetupIntent for collecting a card in the app with the Stripe Payment Element.
+         */
         post: operations["create_payment_method_setup_intent"];
         delete?: never;
         options?: never;
@@ -502,7 +524,7 @@ export interface paths {
         };
         get?: never;
         /**
-         * Update the PO number
+         * Update PO number
          * @description Replaces the purchase order number printed on this organization's future
          *     invoices, for a renewal raised against a new PO.
          */
@@ -523,7 +545,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a billing portal session */
+        /** Create billing portal session */
         post: operations["create_portal_session"];
         delete?: never;
         options?: never;
@@ -541,7 +563,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Cancel the open quote */
+        /** Cancel open quote */
         delete: operations["cancel_quote"];
         options?: never;
         head?: never;
@@ -558,7 +580,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Accept the open quote
+         * Accept open quote
          * @description Stripe creates the invoiced subscription from the quote and sends the
          *     first invoice, carrying whatever purchase order number the billing account
          *     holds (set through `PUT /po-number`).
@@ -577,7 +599,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Download the open quote as a PDF */
+        /** Download open quote as PDF */
         get: operations["download_quote_pdf"];
         put?: never;
         post?: never;
@@ -597,7 +619,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Reactivate a subscription pending cancellation
+         * Reactivate subscription pending cancellation
          * @description Clears Stripe's scheduled-cancellation state (`cancel_at` → None).
          *     Available while `plan_status === 'pending_cancellation'`.
          */
@@ -618,7 +640,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Resume a paused subscription
+         * Resume paused subscription
          * @description Clears Stripe pause collection and re-activates billing. Available while
          *     `plan_status === 'paused'`. The prorated pause credit is posted to the
          *     customer's Stripe balance asynchronously by the webhook arm that fires
@@ -704,7 +726,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Register a new Daemon
+         * Register daemon
          * @description Internal endpoint for daemon self-registration. Creates a host entry
          *     and sets up default discovery jobs for the daemon.
          */
@@ -725,7 +747,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Receive daemon heartbeat (DEPRECATED - for backwards compatibility with pre-v0.14.0 daemons)
+         * Receive daemon heartbeat (deprecated)
          * @description Internal endpoint for legacy daemons to send periodic heartbeats.
          *     New daemons (v0.14.0+) use the /request-work endpoint which includes heartbeat functionality.
          *     This endpoint is kept for backwards compatibility and will be removed in a future version.
@@ -790,7 +812,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Update Daemon capabilities
+         * Update daemon capabilities
          * @description Legacy internal endpoint for pre-0.15 daemons to report their interfaced
          *     subnets as bare ids. Modern daemons report them via the status heartbeat's
          *     `interfaced_subnets` channel; this remains functional so older daemons in a
@@ -834,7 +856,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Open an unsubscribe link in a browser
+         * Open unsubscribe link in browser
          * @description A mail client that does not support one-click opens the `List-Unsubscribe`
          *     URL with a GET. That changes nothing: it redirects to Settings → Email,
          *     where the user chooses what to turn off.
@@ -886,240 +908,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Download the Windows daemon MSI
+         * Download Windows daemon MSI
          * @description Proxies the Windows daemon MSI from GitHub so the browser can save it under a caller-chosen filename. Cached for an hour to avoid refetching from GitHub on every request.
          */
         get: operations["get_windows_msi"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/daemon": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List all Daemon API Keys */
-        get: operations["list_daemon_api_keys"];
-        put?: never;
-        /** Create Daemon API Key */
-        post: operations["create_daemon_api_key"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/daemon/bulk-delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Bulk delete daemon_api_keys
-         * @description Returns 409 Conflict if any key is currently assigned to a daemon.
-         */
-        post: operations["bulk_delete_daemon_api_keys"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/daemon/export/csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Export Daemon API Keys to CSV
-         * @description Export all Daemon API Keys matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
-         */
-        get: operations["export_daemon_api_keys_csv"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/daemon/field-values/{field}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List the values of a Daemon API Key field
-         * @description Every distinct value of one Daemon API Key field across the Daemon API Keys the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
-         */
-        get: operations["get_daemon_api_key_field_values"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/daemon/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Daemon API Key by ID */
-        get: operations["get_daemon_api_key_by_id"];
-        /** Update a Daemon API Key */
-        put: operations["update_daemon_api_key"];
-        post?: never;
-        /**
-         * Delete daemon_api_key
-         * @description Returns 409 Conflict if the key is currently assigned to a daemon.
-         */
-        delete: operations["delete_daemon_api_key"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/daemon/{id}/rotate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Rotate a Daemon API Key */
-        post: operations["rotate_key_handler"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/keys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get all user API keys for the current user */
-        get: operations["get_all_user_api_keys"];
-        put?: never;
-        /** Create a new user API key */
-        post: operations["create_user_api_key"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/keys/bulk-delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Bulk delete user API keys */
-        post: operations["bulk_delete_user_api_keys"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/keys/export/csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Export User API Keys to CSV
-         * @description Export all User API Keys matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
-         */
-        get: operations["export_user_api_keys_csv"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/keys/field-values/{field}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List the values of a User API Key field
-         * @description Every distinct value of one User API Key field across the User API Keys the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
-         */
-        get: operations["get_user_api_key_field_values"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/keys/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get a user API key by ID */
-        get: operations["get_user_api_key_by_id"];
-        /** Update a user API key */
-        put: operations["update_user_api_key"];
-        post?: never;
-        /** Delete a user API key */
-        delete: operations["delete_user_api_key"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/keys/{id}/rotate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Rotate a user API key */
-        post: operations["rotate_user_api_key"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1133,11 +927,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all Bindings */
+        /** List bindings */
         get: operations["list_bindings"];
         put?: never;
         /**
-         * Create a new Binding
+         * Create binding
          * @description Creates a binding that associates a service with a port or interface.
          *
          *     ### Binding Types
@@ -1172,7 +966,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Bindings */
+        /** Bulk delete bindings */
         post: operations["bulk_delete_bindings"];
         delete?: never;
         options?: never;
@@ -1188,8 +982,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Bindings to CSV
-         * @description Export all Bindings matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export bindings to CSV
+         * @description Export all bindings matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_bindings_csv"];
         put?: never;
@@ -1207,10 +1001,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Binding by ID */
+        /** Get binding by ID */
         get: operations["get_binding_by_id"];
         /**
-         * Update a Binding
+         * Update binding
          * @description Updates an existing binding. The same conflict detection rules from binding creation apply.
          *
          *     ## Validation Rules
@@ -1220,7 +1014,7 @@ export interface paths {
          */
         put: operations["update_binding"];
         post?: never;
-        /** Delete Binding */
+        /** Delete binding */
         delete: operations["delete_binding"];
         options?: never;
         head?: never;
@@ -1235,14 +1029,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all Credentials
+         * List credentials
          * @description Returns all credentials in the authenticated user's organization.
          *     Optionally filter by type (e.g. `?type=SnmpCommunity`).
          */
-        get: operations["get_all_credentials"];
+        get: operations["list_credentials"];
         put?: never;
         /**
-         * Create a new Credential
+         * Create credential
          * @description Creates a credential scoped to your organization.
          */
         post: operations["create_credential"];
@@ -1262,7 +1056,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Bulk create Credentials
+         * Bulk create credentials
          * @description Creates multiple credentials in one request. Validation is atomic — if any
          *     credential has an invalid type, none are created. Individual creates are
          *     sequential, so a mid-batch DB error leaves earlier credentials committed.
@@ -1283,7 +1077,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Credentials */
+        /** Bulk delete credentials */
         post: operations["bulk_delete_credentials"];
         delete?: never;
         options?: never;
@@ -1299,8 +1093,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Credentials to CSV
-         * @description Export all Credentials matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export credentials to CSV
+         * @description Export all credentials matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_credentials_csv"];
         put?: never;
@@ -1318,13 +1112,130 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get a Credential by ID */
-        get: operations["get_by_id_credential"];
-        /** Update Credential */
+        /** Get credential by ID */
+        get: operations["get_credential_by_id"];
+        /** Update credential */
         put: operations["update_credential"];
         post?: never;
-        /** Delete Credential */
+        /** Delete credential */
         delete: operations["delete_credential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daemon-api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List daemon API keys */
+        get: operations["list_daemon_api_keys"];
+        put?: never;
+        /** Create daemon API key */
+        post: operations["create_daemon_api_key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daemon-api-keys/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk delete daemon API keys
+         * @description Returns 409 Conflict if any key is currently assigned to a daemon.
+         */
+        post: operations["bulk_delete_daemon_api_keys"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daemon-api-keys/export/csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export daemon API keys to CSV
+         * @description Export all daemon API keys matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         */
+        get: operations["export_daemon_api_keys_csv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daemon-api-keys/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List daemon API key field values
+         * @description Every distinct value of one Daemon API Key field across the Daemon API Keys the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_daemon_api_key_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daemon-api-keys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get daemon API key by ID */
+        get: operations["get_daemon_api_key_by_id"];
+        /** Update daemon API key */
+        put: operations["update_daemon_api_key"];
+        post?: never;
+        /**
+         * Delete daemon API key
+         * @description Returns 409 Conflict if the key is currently assigned to a daemon.
+         */
+        delete: operations["delete_daemon_api_key"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daemon-api-keys/{id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate daemon API key */
+        post: operations["rotate_daemon_api_key"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1338,12 +1249,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get all daemons
+         * List daemons
          * @description Returns all daemons accessible to the user.
          *     Supports pagination via `limit` and `offset` query parameters,
          *     and ordering via `group_by`, `order_by`, and `order_direction`.
          */
-        get: operations["get_daemons"];
+        get: operations["list_daemons"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1385,7 +1296,7 @@ export interface paths {
          *     unreachable again, and its unreachable notification is sent again. The request is refused,
          *     and nothing changes, if any daemon isn't a ServerPoll daemon.
          */
-        post: operations["bulk_retry_daemon_connection"];
+        post: operations["bulk_retry_daemon_connections"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1426,8 +1337,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Daemons to CSV
-         * @description Export all Daemons matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export daemons to CSV
+         * @description Export all daemons matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_daemons_csv"];
         put?: never;
@@ -1446,7 +1357,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the values of a Daemon field
+         * List daemon field values
          * @description Every distinct value of one Daemon field across the Daemons the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
          */
         get: operations["get_daemon_field_values"];
@@ -1468,7 +1379,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Provision a daemon, or re-provision an existing one
+         * Provision or re-provision daemon
          * @description Creates a daemon record on the server before the daemon is installed and mints an API key
          *     bound to it 1:1. Returns the daemon record and that key, which is shown only once and must
          *     be configured on the daemon.
@@ -1660,14 +1571,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all Dependencies
+         * List dependencies
          * @description Returns all dependencies the authenticated user has access to.
          *     Supports pagination via `limit` and `offset` query parameters,
          *     and ordering via `group_by`, `order_by`, and `order_direction`.
          */
-        get: operations["get_all_dependencies"];
+        get: operations["list_dependencies"];
         put?: never;
-        /** Create a new Dependency */
+        /** Create dependency */
         post: operations["create_dependency"];
         delete?: never;
         options?: never;
@@ -1684,7 +1595,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Dependencies */
+        /** Bulk delete dependencies */
         post: operations["bulk_delete_dependencies"];
         delete?: never;
         options?: never;
@@ -1700,8 +1611,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Dependencies to CSV
-         * @description Export all Dependencies matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export dependencies to CSV
+         * @description Export all dependencies matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_dependencies_csv"];
         put?: never;
@@ -1719,19 +1630,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Dependency by ID */
+        /** Get dependency by ID */
         get: operations["get_dependency_by_id"];
-        /** Update a Dependency */
+        /** Update dependency */
         put: operations["update_dependency"];
         post?: never;
-        /** Delete Dependency */
+        /** Delete dependency */
         delete: operations["delete_dependency"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery": {
+    "/api/v1/discoveries": {
         parameters: {
             query?: never;
             header?: never;
@@ -1744,9 +1655,9 @@ export interface paths {
          *     grows without bound, so this is paginated and ordered server-side rather
          *     than filtered in the browser.
          */
-        get: operations["get_all_discoveries"];
+        get: operations["list_discoveries"];
         put?: never;
-        /** Create new Discovery */
+        /** Create discovery */
         post: operations["create_discovery"];
         delete?: never;
         options?: never;
@@ -1754,15 +1665,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/active-sessions": {
+    "/api/v1/discoveries/active-sessions": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get active Discovery Sessions */
-        get: operations["get_active_sessions"];
+        /** List active discovery sessions */
+        get: operations["list_active_discovery_sessions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1771,7 +1682,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/bulk-cancel": {
+    "/api/v1/discoveries/bulk-cancel": {
         parameters: {
             query?: never;
             header?: never;
@@ -1781,20 +1692,20 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Cancel Discovery Sessions
+         * Cancel discovery sessions
          * @description Cancels the running session of each discovery, given discovery IDs. Sessions still queued
          *     are cancelled before running ones, so cancelling a running session never starts a queued one
          *     that is also being cancelled. The request is refused, and nothing is cancelled, if any
          *     discovery isn't running or its session is just starting on its daemon.
          */
-        post: operations["bulk_cancel_sessions"];
+        post: operations["bulk_cancel_discovery_sessions"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/bulk-delete": {
+    "/api/v1/discoveries/bulk-delete": {
         parameters: {
             query?: never;
             header?: never;
@@ -1811,7 +1722,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/bulk-set-enabled": {
+    "/api/v1/discoveries/bulk-set-enabled": {
         parameters: {
             query?: never;
             header?: never;
@@ -1821,19 +1732,19 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Turn Discovery Schedules On or Off
+         * Turn discovery schedules on or off
          * @description Turns the schedule of each scheduled discovery on or off, and changes nothing else about
          *     them. The request is refused, and nothing changes, if any discovery has no schedule or is
          *     running.
          */
-        post: operations["bulk_set_enabled"];
+        post: operations["bulk_set_discoveries_enabled"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/bulk-start-session": {
+    "/api/v1/discoveries/bulk-start-session": {
         parameters: {
             query?: never;
             header?: never;
@@ -1843,20 +1754,20 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start Discovery Sessions
+         * Start discovery sessions
          * @description Starts a session for each discovery, as `POST /start-session` does for one. Sessions start
          *     in turn: on a daemon running several, the first is dispatched and the rest queue behind it.
          *     The request is refused, and nothing starts, if any discovery is a past run, a rescan, or
          *     already running.
          */
-        post: operations["bulk_start_sessions"];
+        post: operations["bulk_start_discovery_sessions"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/export/csv": {
+    "/api/v1/discoveries/export/csv": {
         parameters: {
             query?: never;
             header?: never;
@@ -1864,8 +1775,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Discoveries to CSV
-         * @description Export all Discoveries matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export discoveries to CSV
+         * @description Export all discoveries matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_discoveries_csv"];
         put?: never;
@@ -1876,7 +1787,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/field-values/{field}": {
+    "/api/v1/discoveries/field-values/{field}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1884,7 +1795,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the values of a Discovery field
+         * List discovery field values
          * @description Every distinct value of one Discovery field across the Discoveries the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
          */
         get: operations["get_discovery_field_values"];
@@ -1896,7 +1807,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/start-session": {
+    "/api/v1/discoveries/start-session": {
         parameters: {
             query?: never;
             header?: never;
@@ -1905,24 +1816,24 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start a Discovery Session */
-        post: operations["start_session"];
+        /** Start discovery session */
+        post: operations["start_discovery_session"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/{id}": {
+    "/api/v1/discoveries/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Discovery by ID */
+        /** Get discovery by ID */
         get: operations["get_discovery_by_id"];
-        /** Update Discovery */
+        /** Update discovery */
         put: operations["update_discovery"];
         post?: never;
         /** Delete discovery */
@@ -1932,7 +1843,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/{session_id}/cancel": {
+    "/api/v1/discoveries/{session_id}/cancel": {
         parameters: {
             query?: never;
             header?: never;
@@ -1941,15 +1852,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancel a Discovery Session */
-        post: operations["cancel_discovery"];
+        /** Cancel discovery session */
+        post: operations["cancel_discovery_session"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/{session_id}/update": {
+    "/api/v1/discoveries/{session_id}/update": {
         parameters: {
             query?: never;
             header?: never;
@@ -1959,7 +1870,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Receive discovery progress update from daemon
+         * Receive discovery progress from daemon
          * @description Internal endpoint for daemons to report discovery progress.
          */
         post: operations["receive_discovery_update"];
@@ -1977,7 +1888,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all hosts
+         * List hosts
          * @description Returns all hosts the authenticated user has access to, with their
          *     ip_addresses, ports, services and interfaces included — pass
          *     `include_children=false` to omit the ports, services and interfaces and get a
@@ -1985,10 +1896,10 @@ export interface paths {
          *     Supports pagination via `limit` and `offset` query parameters, and ordering
          *     via `group_by`, `order_by`, and `order_direction`.
          */
-        get: operations["get_all_hosts"];
+        get: operations["list_hosts"];
         put?: never;
         /**
-         * Create a new host
+         * Create host
          * @description Creates a host with optional ip_addresses, ports, and services.
          *     The `source` field is automatically set to `Manual`.
          *
@@ -2062,7 +1973,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Internal endpoint for daemon discovery
+         * Upsert host from daemon discovery
          * @description Used by daemons to report discovered hosts. Accepts full entities with
          *     pre-generated IDs. Uses upsert behavior to merge with existing hosts.
          *
@@ -2084,8 +1995,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Hosts to CSV
-         * @description Export all Hosts matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export hosts to CSV
+         * @description Export all hosts matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_hosts_csv"];
         put?: never;
@@ -2126,47 +2037,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the values of a Host field
+         * List host field values
          * @description Every distinct value of one Host field across the Hosts the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
          */
         get: operations["get_host_field_values"];
         put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/hosts/{destination_host}/consolidate/{other_host}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Consolidate hosts
-         * @description Merges all ip_addresses, ports, and services from `other_host` into
-         *     `destination_host`, then deletes `other_host`. Both hosts must be
-         *     on the same site.
-         *
-         *     ### Merge Behavior
-         *
-         *     - **Interfaces**: Transferred to destination. If an interface with matching subnet+IP or MAC
-         *       already exists on destination, bindings are remapped to use the existing interface.
-         *     - **Ports**: Transferred to destination. If a port with the same number and protocol already
-         *       exists, bindings are remapped to use the existing port.
-         *     - **Services**: Transferred to destination with deduplication.
-         *       See [upsert behavior](https://scanopy.net/docs/discovery/#upsert-behavior) for details.
-         *
-         *     ### Restrictions
-         *
-         *     - Cannot consolidate a host with itself.
-         *     - Cannot consolidate a host that has a daemon - consolidate into it instead.
-         */
-        put: operations["consolidate_hosts"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2182,12 +2057,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get a host by ID
+         * Get host by ID
          * @description Returns a single host with its ip_addresses, ports, and services.
          */
         get: operations["get_host_by_id"];
         /**
-         * Update a host
+         * Update host
          * @description Updates host properties. Children (ip_addresses, ports, services, interfaces) are synced
          *     from the fields on this same request body when provided — omit a field to leave that child
          *     set untouched.
@@ -2201,10 +2076,45 @@ export interface paths {
         put: operations["update_host"];
         post?: never;
         /**
-         * Delete a host
+         * Delete host
          * @description Prevents deletion if the host has a daemon associated with it
          */
         delete: operations["delete_host"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hosts/{id}/consolidate/{other_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Consolidate hosts
+         * @description Merges all IP addresses, ports, and services from the host `other_id` into the host `id`,
+         *     then deletes `other_id`. Both hosts must be on the same site.
+         *
+         *     ### Merge Behavior
+         *
+         *     - **Interfaces**: Transferred to destination. If an interface with matching subnet+IP or MAC
+         *       already exists on destination, bindings are remapped to use the existing interface.
+         *     - **Ports**: Transferred to destination. If a port with the same number and protocol already
+         *       exists, bindings are remapped to use the existing port.
+         *     - **Services**: Transferred to destination with deduplication.
+         *       See [upsert behavior](https://scanopy.net/docs/discovery/#upsert-behavior) for details.
+         *
+         *     ### Restrictions
+         *
+         *     - Cannot consolidate a host with itself.
+         *     - Cannot consolidate a host that has a daemon - consolidate into it instead.
+         */
+        post: operations["consolidate_hosts"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2220,7 +2130,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Rescan a host
+         * Rescan host
          * @description Starts a one-shot scan of this host's addresses and nothing else, answering
          *     "is this host still there, and is its data current?" without sweeping the
          *     whole subnet.
@@ -2237,7 +2147,7 @@ export interface paths {
          *     subnets they have an interface on, and the request is refused when the host
          *     has none.
          *
-         *     Returns the session, which streams progress over `/api/v1/discovery/stream`
+         *     Returns the session, which streams progress over `/api/v1/discoveries/stream`
          *     like any other scan. A `Queued` phase means the daemon is busy; it will start
          *     when the running scan finishes.
          */
@@ -2255,11 +2165,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all Interfaces */
+        /** List interfaces */
         get: operations["list_interfaces"];
         put?: never;
         /**
-         * Create a new Interface
+         * Create interface
          * @description Creates an SNMP ifTable entry for a host. These are typically created by
          *     SNMP discovery, but can also be created manually.
          */
@@ -2279,7 +2189,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Interfaces */
+        /** Bulk delete interfaces */
         post: operations["bulk_delete_interfaces"];
         delete?: never;
         options?: never;
@@ -2295,8 +2205,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Interfaces to CSV
-         * @description Export all Interfaces matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export interfaces to CSV
+         * @description Export all interfaces matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_interfaces_csv"];
         put?: never;
@@ -2314,12 +2224,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Interface by ID */
+        /** Get interface by ID */
         get: operations["get_interface_by_id"];
-        /** Update an Interface */
+        /** Update interface */
         put: operations["update_interface"];
         post?: never;
-        /** Delete Interface */
+        /** Delete interface */
         delete: operations["delete_interface"];
         options?: never;
         head?: never;
@@ -2334,7 +2244,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get an Interface's neighbours
+         * Get interface neighbours
          * @description Returns the adjacencies resolved for the interface and the raw LLDP/CDP evidence behind them,
          *     including records that resolved to nothing.
          */
@@ -2354,8 +2264,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all invites */
-        get: operations["get_invites"];
+        /** List invites */
+        get: operations["list_invites"];
         put?: never;
         /** Create invite */
         post: operations["create_invite"];
@@ -2365,7 +2275,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/invites/bulk-revoke": {
+    "/api/v1/invites/bulk-delete": {
         parameters: {
             query?: never;
             header?: never;
@@ -2376,10 +2286,10 @@ export interface paths {
         put?: never;
         /**
          * Revoke invites
-         * @description Revokes each invite, as `DELETE /{id}/revoke` does for one. The request is refused, and
+         * @description Revokes each invite, as `DELETE /{id}` does for one. The request is refused, and
          *     nothing is revoked, if any invite is invalid or one the caller can't revoke.
          */
-        post: operations["bulk_revoke_invites"];
+        post: operations["bulk_delete_invites"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2393,28 +2303,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get an invite by ID */
-        get: operations["get_invite"];
+        /** Get invite by ID */
+        get: operations["get_invite_by_id"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/invites/{id}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Revoke an invite */
-        delete: operations["revoke_invite"];
+        /**
+         * Revoke invite
+         * @description Deletes the invite, so its link stops working.
+         */
+        delete: operations["delete_invite"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2427,12 +2324,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all IP Addresses */
+        /** List IP addresses */
         get: operations["list_ip_addresses"];
         put?: never;
         /**
-         * Create a new IP address
-         *     Position is automatically assigned to the end of the host's IP address list.
+         * Create IP address
+         * @description Position is automatically assigned to the end of the host's IP address list.
          */
         post: operations["create_ip_address"];
         delete?: never;
@@ -2452,7 +2349,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk delete IP addresses
-         *     Remaining IP addresses for affected hosts are renumbered to maintain sequential positions.
+         * @description Remaining IP addresses for affected hosts are renumbered to maintain sequential positions.
          */
         post: operations["bulk_delete_ip_addresses"];
         delete?: never;
@@ -2469,8 +2366,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export IP Addresses to CSV
-         * @description Export all IP Addresses matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export IP addresses to CSV
+         * @description Export all IP addresses matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_ip_addresses_csv"];
         put?: never;
@@ -2488,17 +2385,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get IP Address by ID */
+        /** Get IP address by ID */
         get: operations["get_ip_address_by_id"];
         /**
-         * Update an IP address
-         *     Position must be within valid range and not conflict with other IP addresses.
+         * Update IP address
+         * @description Position must be within valid range and not conflict with other IP addresses.
          */
         put: operations["update_ip_address"];
         post?: never;
         /**
-         * Delete an IP address
-         *     Remaining IP addresses for the host are renumbered to maintain sequential positions.
+         * Delete IP address
+         * @description Remaining IP addresses for the host are renumbered to maintain sequential positions.
          */
         delete: operations["delete_ip_address"];
         options?: never;
@@ -2516,7 +2413,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Exchange an online license key for an entitlement
+         * Exchange online license key for entitlement
          * @description Called by self-hosted Scanopy servers. The key is the credential, so the
          *     endpoint takes no session or API key. Every success records the check-in
          *     and returns an entitlement minted from the organization's current plan and
@@ -2537,8 +2434,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the server instances running this organization's license key
-         * @description An instance counts against the limit while it has checked in within the
+         * List license instances
+         * @description The server instances running this organization's license key.
+         *     An instance counts against the limit while it has checked in within the
          *     last week.
          */
         get: operations["list_license_instances"];
@@ -2561,8 +2459,9 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete a server instance from this organization's license key
-         * @description Frees its slot. A server that is still running is listed again at its next
+         * Delete license instance
+         * @description Removes a server instance from this organization's license key.
+         *     Frees its slot. A server that is still running is listed again at its next
          *     check-in; rotating the key is what stops one.
          */
         delete: operations["delete_license_instance"];
@@ -2581,8 +2480,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Mint a license key for this organization's self-hosted servers
-         * @description Online keys work on any plan with a self-hosted license. Offline keys need
+         * Create license key
+         * @description Mints a license key for this organization's self-hosted servers.
+         *     Online keys work on any plan with a self-hosted license. Offline keys need
          *     a plan with air-gapped deployment.
          */
         post: operations["create_license_key"];
@@ -2635,15 +2535,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/organizations": {
+    "/api/v1/organizations/current": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get the current user's organization */
-        get: operations["get_organization"];
+        /**
+         * Get current organization
+         * @description The organization of the signed-in user.
+         */
+        get: operations["get_current_organization"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2662,7 +2565,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Record the user's response to the daemon-install prompt so it is not shown again.
+         * Record daemon-install prompt response
+         * @description Records the response so the prompt is not shown again.
          *     Each CTA records a distinct onboarding milestone, which the UI reads to hide the prompt.
          *     Every response is published; the PostHog subscriber turns these into funnel events, so
          *     no client-side telemetry is needed.
@@ -2717,9 +2621,12 @@ export interface paths {
         };
         get?: never;
         /** Update organization name */
-        put: operations["update_org_name"];
+        put: operations["update_organization"];
         post?: never;
-        /** Delete the organization entirely, including all data and users */
+        /**
+         * Delete organization
+         * @description Deletes the organization with all its data and users.
+         */
         delete: operations["delete_organization"];
         options?: never;
         head?: never;
@@ -2736,8 +2643,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Populate demo data (only available for demo organizations).
-         * @description Runs the population off the request thread (a `tokio::spawn`) and returns
+         * Populate demo data
+         * @description Only available for demo organizations.
+         *
+         *     Runs the population off the request thread (a `tokio::spawn`) and returns
          *     `202` immediately — the work is a few hundred sequential DB round-trips and
          *     would otherwise exceed the reverse-proxy request timeout against a remote
          *     database. Poll `GET /{id}/populate-demo/status` for completion/failure.
@@ -2756,7 +2665,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Poll the status of an org's background demo-populate task. */
+        /** Get demo data population status */
         get: operations["populate_demo_status"];
         put?: never;
         post?: never;
@@ -2775,7 +2684,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reset all organization data (delete all entities except organization and owner user) */
+        /**
+         * Reset organization data
+         * @description Deletes every entity except the organization and its owner.
+         */
         post: operations["reset"];
         delete?: never;
         options?: never;
@@ -2790,10 +2702,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all Ports */
+        /** List ports */
         get: operations["list_ports"];
         put?: never;
-        /** Create a new port */
+        /** Create port */
         post: operations["create_port"];
         delete?: never;
         options?: never;
@@ -2810,7 +2722,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Ports */
+        /** Bulk delete ports */
         post: operations["bulk_delete_ports"];
         delete?: never;
         options?: never;
@@ -2826,8 +2738,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Ports to CSV
-         * @description Export all Ports matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export ports to CSV
+         * @description Export all ports matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_ports_csv"];
         put?: never;
@@ -2845,12 +2757,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Port by ID */
+        /** Get port by ID */
         get: operations["get_port_by_id"];
-        /** Update a port */
+        /** Update port */
         put: operations["update_port"];
         post?: never;
-        /** Delete Port */
+        /** Delete port */
         delete: operations["delete_port"];
         options?: never;
         head?: never;
@@ -2930,15 +2842,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all services
+         * List services
          * @description Returns all services the authenticated user has access to.
          *     Supports pagination via `limit` and `offset` query parameters,
          *     and ordering via `group_by`, `order_by`, and `order_direction`.
          */
-        get: operations["get_all_services"];
+        get: operations["list_services"];
         put?: never;
         /**
-         * Create a new service
+         * Create service
          * @description Creates a service with optional bindings to ip_addresses or ports.
          *     The `id`, `created_at`, `updated_at`, and `source` fields are generated server-side.
          *     Bindings are specified without `service_id` or `site_id` - these are assigned automatically.
@@ -2969,7 +2881,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Services */
+        /** Bulk delete services */
         post: operations["bulk_delete_services"];
         delete?: never;
         options?: never;
@@ -2985,8 +2897,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Services to CSV
-         * @description Export all Services matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export services to CSV
+         * @description Export all services matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_services_csv"];
         put?: never;
@@ -3005,7 +2917,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the values of a Service field
+         * List service field values
          * @description Every distinct value of one Service field across the Services the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
          */
         get: operations["get_service_field_values"];
@@ -3024,10 +2936,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Service by ID */
+        /** Get service by ID */
         get: operations["get_service_by_id"];
         /**
-         * Update a service
+         * Update service
          * @description Updates an existing service. All binding validation rules from service creation apply here as well.
          *
          *     ## Binding Validation Rules
@@ -3041,7 +2953,7 @@ export interface paths {
          */
         put: operations["update_service"];
         post?: never;
-        /** Delete Service */
+        /** Delete service */
         delete: operations["delete_service"];
         options?: never;
         head?: never;
@@ -3055,10 +2967,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all Shares */
+        /** List shares */
         get: operations["list_shares"];
         put?: never;
-        /** Create a new share */
+        /** Create share */
         post: operations["create_share"];
         delete?: never;
         options?: never;
@@ -3075,7 +2987,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Shares */
+        /** Bulk delete shares */
         post: operations["bulk_delete_shares"];
         delete?: never;
         options?: never;
@@ -3091,8 +3003,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Shares to CSV
-         * @description Export all Shares matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export shares to CSV
+         * @description Export all shares matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_shares_csv"];
         put?: never;
@@ -3150,8 +3062,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Verify password for a password-protected share and return an access token.
-         * @description The returned token is an HS256 JWT tied to the share's current password
+         * Verify share password
+         * @description Returns an access token for a password-protected share.
+         *
+         *     The returned token is an HS256 JWT tied to the share's current password
          *     hash; subsequent `/topology` calls send the token instead of the raw
          *     password. Changing the share password invalidates outstanding tokens.
          */
@@ -3169,12 +3083,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Share by ID */
+        /** Get share by ID */
         get: operations["get_share_by_id"];
-        /** Update a share */
+        /** Update share */
         put: operations["update_share"];
         post?: never;
-        /** Delete Share */
+        /** Delete share */
         delete: operations["delete_share"];
         options?: never;
         head?: never;
@@ -3188,10 +3102,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all sites */
-        get: operations["get_all_sites"];
+        /** List sites */
+        get: operations["list_sites"];
         put?: never;
-        /** Create a new site */
+        /** Create site */
         post: operations["create_site"];
         delete?: never;
         options?: never;
@@ -3224,8 +3138,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Sites to CSV
-         * @description Export all Sites matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export sites to CSV
+         * @description Export all sites matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_sites_csv"];
         put?: never;
@@ -3244,7 +3158,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the values of a Site field
+         * List site field values
          * @description Every distinct value of one Site field across the Sites the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
          */
         get: operations["get_site_field_values"];
@@ -3263,12 +3177,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get a site by ID */
-        get: operations["get_by_id_site"];
-        /** Update a site */
+        /** Get site by ID */
+        get: operations["get_site_by_id"];
+        /** Update site */
         put: operations["update_site"];
         post?: never;
-        /** Delete a site */
+        /** Delete site */
         delete: operations["delete_site"];
         options?: never;
         head?: never;
@@ -3282,11 +3196,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all Snapshots */
+        /** List snapshots */
         get: operations["list_snapshots"];
         put?: never;
         /**
-         * Take a snapshot of the current live topology + entity state for a site.
+         * Create snapshot
+         * @description Takes a snapshot of the current live topology and entity state for a site.
          *     Acquires the discovery snapshot lock, creates the snapshots row, runs
          *     close-and-clone to stamp every Snapshotable entity row with `snapshot_id`
          *     and close them. The topology subscriber inserts the snapshot's topology
@@ -3306,11 +3221,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Snapshot by ID */
+        /** Get snapshot by ID */
         get: operations["get_snapshot_by_id"];
         put?: never;
         post?: never;
-        /** Delete Snapshot */
+        /** Delete snapshot */
         delete: operations["delete_snapshot"];
         options?: never;
         head?: never;
@@ -3325,7 +3240,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all subnets
+         * List subnets
          * @description Returns all subnets accessible to the authenticated user or daemon.
          *     Daemons can only access subnets within their assigned site.
          *     Supports pagination via `limit` and `offset` query parameters,
@@ -3333,7 +3248,7 @@ export interface paths {
          */
         get: operations["list_subnets"];
         put?: never;
-        /** Create a new subnet */
+        /** Create subnet */
         post: operations["create_subnet"];
         delete?: never;
         options?: never;
@@ -3350,7 +3265,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Subnets */
+        /** Bulk delete subnets */
         post: operations["bulk_delete_subnets"];
         delete?: never;
         options?: never;
@@ -3366,8 +3281,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Subnets to CSV
-         * @description Export all Subnets matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export subnets to CSV
+         * @description Export all subnets matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_subnets_csv"];
         put?: never;
@@ -3386,7 +3301,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the values of a Subnet field
+         * List subnet field values
          * @description Every distinct value of one Subnet field across the Subnets the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
          */
         get: operations["get_subnet_field_values"];
@@ -3411,13 +3326,13 @@ export interface paths {
          */
         get: operations["get_subnet_by_id"];
         /**
-         * Update a subnet
+         * Update subnet
          * @description Updates subnet properties. If the CIDR is being changed, validates that
          *     all existing ip_addresses on this subnet have IPs within the new CIDR range.
          */
         put: operations["update_subnet"];
         post?: never;
-        /** Delete Subnet */
+        /** Delete subnet */
         delete: operations["delete_subnet"];
         options?: never;
         head?: never;
@@ -3434,7 +3349,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Merge a subnet into the range that contains it
+         * Merge subnet into its covering range
          * @description Moves every address to the covering subnet and removes this one. Offered for a range Scanopy
          *     assumed that a later reading turned out to cover: discovery corrects such a range on its own
          *     only where the answer is unambiguous, and folding several assumed ranges into one means deleting
@@ -3455,14 +3370,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all tag groups
+         * List tag groups
          * @description Returns every tag group in your organization: the system groups (Application, Status) first,
          *     then the groups your organization named, by name.
          */
-        get: operations["get_all_tag_groups"];
+        get: operations["list_tag_groups"];
         put?: never;
         /**
-         * Create a tag group
+         * Create tag group
          * @description Creates a group your organization names. Group names are unique within the organization, and
          *     "Application" and "Status" are reserved for the system groups.
          */
@@ -3482,7 +3397,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Tag Groups */
+        /** Bulk delete tag groups */
         post: operations["bulk_delete_tag_groups"];
         delete?: never;
         options?: never;
@@ -3497,12 +3412,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Tag Group by ID */
+        /** Get tag group by ID */
         get: operations["get_tag_group_by_id"];
-        /** Update Tag Group */
+        /** Update tag group */
         put: operations["update_tag_group"];
         post?: never;
-        /** Delete Tag Group */
+        /** Delete tag group */
         delete: operations["delete_tag_group"];
         options?: never;
         head?: never;
@@ -3518,7 +3433,7 @@ export interface paths {
         };
         get?: never;
         /**
-         * Set the order of a tag group's tags
+         * Reorder tag group tags
          * @description Tables, pickers and the topology list a group's tags in this order.
          */
         put: operations["set_tag_order"];
@@ -3537,15 +3452,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all tags
+         * List tags
          * @description Returns all tags in the authenticated user's organization.
          *     Supports pagination via `limit` and `offset` query parameters,
          *     and ordering via `group_by`, `order_by`, and `order_direction`.
          */
-        get: operations["get_all_tags"];
+        get: operations["list_tags"];
         put?: never;
         /**
-         * Create a new tag
+         * Create tag
          * @description Creates a tag scoped to your organization. Tag names must be unique within the organization.
          *
          *     ### Validation
@@ -3569,7 +3484,7 @@ export interface paths {
         };
         get?: never;
         /**
-         * Set all tags for an entity
+         * Set entity tags
          * @description Replaces all tags on an entity with the provided list.
          *
          *     ### Validation
@@ -3595,7 +3510,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Bulk add a tag to multiple entities
+         * Bulk add tag to entities
          * @description Adds a single tag to multiple entities of the same type. This is useful for batch tagging operations.
          *
          *     ### Validation
@@ -3621,7 +3536,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Bulk remove a tag from multiple entities
+         * Bulk remove tag from entities
          * @description Removes a single tag from multiple entities of the same type.
          *
          *     ### Validation
@@ -3645,7 +3560,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Tags */
+        /** Bulk delete tags */
         post: operations["bulk_delete_tags"];
         delete?: never;
         options?: never;
@@ -3661,8 +3576,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Tags to CSV
-         * @description Export all Tags matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export tags to CSV
+         * @description Export all tags matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_tags_csv"];
         put?: never;
@@ -3681,7 +3596,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the values of a Tag field
+         * List tag field values
          * @description Every distinct value of one Tag field across the Tags the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
          */
         get: operations["get_tag_field_values"];
@@ -3700,19 +3615,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Tag by ID */
+        /** Get tag by ID */
         get: operations["get_tag_by_id"];
-        /** Update Tag */
+        /** Update tag */
         put: operations["update_tag"];
         post?: never;
-        /** Delete Tag */
+        /** Delete tag */
         delete: operations["delete_tag"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/topology": {
+    "/api/v1/topologies": {
         parameters: {
             query?: never;
             header?: never;
@@ -3720,12 +3635,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get all topologies for the authenticated user's sites.
-         * @description Returns both live-view rows (`snapshot_id IS NULL`) and snapshot-pinned
+         * List topologies
+         * @description Topologies for the caller's sites.
+         *
+         *     Returns both live-view rows (`snapshot_id IS NULL`) and snapshot-pinned
          *     rows. The frontend renders the live one by default and renders snapshot
          *     rows when the user picks one from the snapshots dropdown.
          */
-        get: operations["get_all_topologies"];
+        get: operations["list_topologies"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3734,7 +3651,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/topology/data": {
+    "/api/v1/topologies/data": {
         parameters: {
             query?: never;
             header?: never;
@@ -3742,8 +3659,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Unified entity-set endpoint for the topology view.
-         * @description `?snapshot_id=<id>` resolves to the snapshot's `taken_at` and returns the
+         * Get topology view data
+         * @description The entity set the topology view draws.
+         *
+         *     `?snapshot_id=<id>` resolves to the snapshot's `taken_at` and returns the
          *     as-of-T entity set; otherwise returns live entities. The frontend
          *     `TopologyTab` is the sole intended consumer.
          */
@@ -3756,7 +3675,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/topology/export/csv": {
+    "/api/v1/topologies/export/csv": {
         parameters: {
             query?: never;
             header?: never;
@@ -3764,8 +3683,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Topologies to CSV
-         * @description Export all Topologies matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export topologies to CSV
+         * @description Export all topologies matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_topologies_csv"];
         put?: never;
@@ -3776,15 +3695,19 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/topology/{id}": {
+    "/api/v1/topologies/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Topology by ID */
+        /** Get topology by ID */
         get: operations["get_topology_by_id"];
+        /**
+         * Update topology
+         * @description Saves the topology's view options.
+         */
         put: operations["update_topology"];
         post?: never;
         delete?: never;
@@ -3793,7 +3716,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/topology/{id}/export/confluence": {
+    "/api/v1/topologies/{id}/export/confluence": {
         parameters: {
             query?: never;
             header?: never;
@@ -3801,7 +3724,7 @@ export interface paths {
             cookie?: never;
         };
         /** Export topology as Confluence wiki markup */
-        get: operations["export_confluence"];
+        get: operations["export_topology_confluence"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3810,7 +3733,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/topology/{id}/export/mermaid": {
+    "/api/v1/topologies/{id}/export/mermaid": {
         parameters: {
             query?: never;
             header?: never;
@@ -3818,9 +3741,123 @@ export interface paths {
             cookie?: never;
         };
         /** Export topology as Mermaid flowchart */
-        get: operations["export_mermaid"];
+        get: operations["export_topology_mermaid"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/user-api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List user API keys
+         * @description The signed-in user's keys.
+         */
+        get: operations["list_user_api_keys"];
+        put?: never;
+        /** Create user API key */
+        post: operations["create_user_api_key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/user-api-keys/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk delete user API keys */
+        post: operations["bulk_delete_user_api_keys"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/user-api-keys/export/csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export user API keys to CSV
+         * @description Export all user API keys matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         */
+        get: operations["export_user_api_keys_csv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/user-api-keys/field-values/{field}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List user API key field values
+         * @description Every distinct value of one User API Key field across the User API Keys the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         */
+        get: operations["get_user_api_key_field_values"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/user-api-keys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get user API key by ID */
+        get: operations["get_user_api_key_by_id"];
+        /** Update user API key */
+        put: operations["update_user_api_key"];
+        post?: never;
+        /** Delete user API key */
+        delete: operations["delete_user_api_key"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/user-api-keys/{id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate user API key */
+        post: operations["rotate_user_api_key"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3834,8 +3871,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all users */
-        get: operations["get_all_users"];
+        /** List users */
+        get: operations["list_users"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3869,8 +3906,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Users to CSV
-         * @description Export all Users matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export users to CSV
+         * @description Export all users matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_users_csv"];
         put?: never;
@@ -3915,7 +3952,7 @@ export interface paths {
         /** Update your own user record */
         put: operations["update_user"];
         post?: never;
-        /** Delete a user */
+        /** Delete user */
         delete: operations["delete_user"];
         options?: never;
         head?: never;
@@ -3930,8 +3967,11 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Admin update user (for changing permissions) */
-        put: operations["admin_update_user"];
+        /**
+         * Update user permissions
+         * @description Sets the user's role in the organization.
+         */
+        put: operations["update_user_permissions"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3947,13 +3987,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all VLANs
+         * List VLANs
          * @description Returns VLANs accessible to the authenticated user, optionally filtered by site.
          */
-        get: operations["get_all_vlans"];
+        get: operations["list_vlans"];
         put?: never;
         /**
-         * Create a new VLAN
+         * Create VLAN
          * @description Creates a VLAN scoped to a site. VLAN numbers must be unique within a site.
          */
         post: operations["create_vlan"];
@@ -3972,7 +4012,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk delete Vlans */
+        /** Bulk delete VLANs */
         post: operations["bulk_delete_vlans"];
         delete?: never;
         options?: never;
@@ -4009,8 +4049,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Vlans to CSV
-         * @description Export all Vlans matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
+         * Export VLANs to CSV
+         * @description Export all VLANs matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.
          */
         get: operations["export_vlans_csv"];
         put?: never;
@@ -4029,8 +4069,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the values of a Vlan field
-         * @description Every distinct value of one Vlan field across the Vlans the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
+         * List VLAN field values
+         * @description Every distinct value of one VLAN field across the VLANs the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.
          */
         get: operations["get_vlan_field_values"];
         put?: never;
@@ -4048,12 +4088,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Vlan by ID */
+        /** Get VLAN by ID */
         get: operations["get_vlan_by_id"];
-        /** Update Vlan */
+        /** Update VLAN */
         put: operations["update_vlan"];
         post?: never;
-        /** Delete Vlan */
+        /** Delete VLAN */
         delete: operations["delete_vlan"];
         options?: never;
         head?: never;
@@ -4067,7 +4107,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get API version information */
+        /**
+         * Get API version
+         * @description The API version this server speaks and its release version. Takes no authentication, so a
+         *     client can check compatibility before it holds a key.
+         */
         get: operations["get_version"];
         put?: never;
         post?: never;
@@ -4140,19 +4184,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-26T01:35:16.006882Z",
+             *       "created_at": "2026-10-26T04:43:15.315170Z",
              *       "first_discovery_id": null,
-             *       "id": "22177a58-c419-4a9e-a72c-a2cd3a11598b",
+             *       "id": "8658299e-ae62-4c54-a3d9-7e6ed051adad",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-26T01:35:16.006882Z",
+             *       "last_seen_at": "2026-10-26T04:43:15.315170Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-26T01:35:16.006882Z",
-             *       "valid_from": "2026-10-26T01:35:16.006882Z",
+             *       "updated_at": "2026-10-26T04:43:15.315170Z",
+             *       "valid_from": "2026-10-26T04:43:15.315170Z",
              *       "valid_to": null
              *     }
              */
@@ -5030,19 +5074,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-26T01:35:15.975308Z",
+             *               "created_at": "2026-10-26T04:43:15.266246Z",
              *               "first_discovery_id": null,
-             *               "id": "1969ddaa-f6c8-4041-9124-48c721f8f60b",
+             *               "id": "4ba064d8-7739-4c59-a9a6-11000dec53cd",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-26T01:35:15.975308Z",
+             *               "last_seen_at": "2026-10-26T04:43:15.266246Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-26T01:35:15.975308Z",
-             *               "valid_from": "2026-10-26T01:35:15.975308Z",
+             *               "updated_at": "2026-10-26T04:43:15.266246Z",
+             *               "valid_from": "2026-10-26T04:43:15.266246Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5055,7 +5099,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Wizarr",
+             *           "service_definition": "Mealie",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -6059,19 +6103,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-26T01:35:16.001570Z",
+             *           "created_at": "2026-10-26T04:43:15.308573Z",
              *           "first_discovery_id": null,
-             *           "id": "041a4b78-140b-46de-8f42-4abdfc5bb451",
+             *           "id": "e56328b3-c0c1-48b1-88b6-22c16618260e",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-26T01:35:16.001570Z",
+             *           "last_seen_at": "2026-10-26T04:43:15.308573Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-26T01:35:16.001570Z",
-             *           "valid_from": "2026-10-26T01:35:16.001570Z",
+             *           "updated_at": "2026-10-26T04:43:15.308573Z",
+             *           "valid_from": "2026-10-26T04:43:15.308573Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6084,7 +6128,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Wizarr",
+             *       "service_definition": "Mealie",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7526,19 +7570,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-26T01:35:15.975827Z",
+         *       "created_at": "2026-10-26T04:43:15.267802Z",
          *       "first_discovery_id": null,
-         *       "id": "ed0df955-7bbd-434d-b0ff-51372250c706",
+         *       "id": "493263de-c85b-42c9-b98d-b5320a2ffb3f",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-26T01:35:15.975827Z",
+         *       "last_seen_at": "2026-10-26T04:43:15.267802Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-26T01:35:15.975827Z",
-         *       "valid_from": "2026-10-26T01:35:15.975827Z",
+         *       "updated_at": "2026-10-26T04:43:15.267802Z",
+         *       "valid_from": "2026-10-26T04:43:15.267802Z",
          *       "valid_to": null
          *     }
          */
@@ -7928,7 +7972,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Wizarr",
+         *           "service_definition": "Mealie",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -8154,7 +8198,8 @@ export interface components {
          *
          *     The single source of the type → integration mapping
          *     ([`CredentialTypeDiscriminants::integration`]); the associated service, category, fallback
-         *     icon, discovery text and docs guide all derive from it. The id is an identifier-safe code name
+         *     icon, discovery text and docs guide all derive from it. Its display name is the service's
+         *     unless [`TypeMetadataProvider::name`] says otherwise. The id is an identifier-safe code name
          *     rather than the service's display name, so it can key `meta_credential_integrations_*`
          *     messages.
          * @enum {string}
@@ -10937,19 +10982,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-26T01:35:15.974693Z",
+         *               "created_at": "2026-10-26T04:43:15.265378Z",
          *               "first_discovery_id": null,
-         *               "id": "c64ff440-35a6-4e1e-8372-b4a979d2c8f1",
+         *               "id": "2e69f39b-81ed-4aa1-8599-d04373a93ec7",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-26T01:35:15.974693Z",
+         *               "last_seen_at": "2026-10-26T04:43:15.265378Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-26T01:35:15.974693Z",
-         *               "valid_from": "2026-10-26T01:35:15.974693Z",
+         *               "updated_at": "2026-10-26T04:43:15.265378Z",
+         *               "valid_from": "2026-10-26T04:43:15.265378Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10962,7 +11007,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Wizarr",
+         *           "service_definition": "Mealie",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -14539,19 +14584,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-26T01:35:15.975661Z",
+         *           "created_at": "2026-10-26T04:43:15.267149Z",
          *           "first_discovery_id": null,
-         *           "id": "1550c30a-e709-4f18-be90-624c34931585",
+         *           "id": "993a2d0d-8b18-4816-90b5-e0fdbcb1984d",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-26T01:35:15.975661Z",
+         *           "last_seen_at": "2026-10-26T04:43:15.267149Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-26T01:35:15.975661Z",
-         *           "valid_from": "2026-10-26T01:35:15.975661Z",
+         *           "updated_at": "2026-10-26T04:43:15.267149Z",
+         *           "valid_from": "2026-10-26T04:43:15.267149Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14564,7 +14609,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Wizarr",
+         *       "service_definition": "Mealie",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15744,7 +15789,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "ced370ed-5565-48d2-9c3d-af2677d112b9",
+             *           "id": "2b77d5cf-1436-4342-9894-a6b65b48e44b",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15754,23 +15799,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "3cd53a8e-cb5a-4621-8391-7215171fb41f",
+             *           "id": "27db4981-3c48-4a38-9c44-0d658e97e1f9",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "3aef014c-1a44-4d66-a9b7-4bad5e2c8dc5",
+             *           "id": "85401415-f569-4966-83be-61bc59c14f19",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "49c17c0c-285a-49cb-8c63-2560f39ed26e",
+             *           "id": "ee999d39-936e-45f6-89d7-0a499a53d71a",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "3cd53a8e-cb5a-4621-8391-7215171fb41f",
+             *           "id": "27db4981-3c48-4a38-9c44-0d658e97e1f9",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15784,19 +15829,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "07eb5022-0e7f-4833-80a6-5a3ed0b0aa5a",
+             *         "id": "340714e5-6340-4f23-b771-9dcfb2d75163",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "fc1398ee-fc67-44e9-977d-9751ae178eb6",
+             *         "id": "5b84efaf-c7f1-4181-8268-30341839e7f2",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "457952e6-9fce-44d1-a96e-71abf9cb878f",
+             *         "id": "d1fc0e09-0e7b-4fcf-8436-08b15407a69e",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "6d4119ba-fdfc-4028-9e51-4f9a73e79b33",
+             *         "id": "30a87bda-453f-4ea6-b740-635234d9d999",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15817,7 +15862,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "f54b7de4-06d0-4145-86d0-b76d66d4ab61",
+             *         "id": "0a99b256-a8aa-4212-a973-360054d2af2c",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15826,19 +15871,19 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "ced3d721-7bb2-400d-bf20-cc20fafb1c6b",
+             *         "id": "9bc22181-eaa5-42b3-89db-33e14dcfd92f",
              *         "rule": "ByDeviceType"
              *       },
              *       {
-             *         "id": "546e3f94-9b99-425e-8ef7-a563c615098b",
+             *         "id": "6d9851d3-3916-4de4-926b-a8f3efac6d9a",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "6b1c74eb-a4b0-4726-8899-813c55ebc428",
+             *         "id": "b9e82bd9-682d-430d-80c5-acaffdd5a631",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "9d7a84e0-b09a-4ae1-985b-7560b0ad5c6b",
+             *         "id": "58a0b749-7014-4e72-ba56-d46e276354bb",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -18165,6 +18210,610 @@ export interface operations {
             };
         };
     };
+    list_bindings: {
+        parameters: {
+            query?: {
+                /** @description Filter by service ID */
+                service_id?: string | null;
+                /** @description Filter by site ID */
+                site_id?: string | null;
+                /** @description Filter by port ID */
+                port_id?: string | null;
+                /** @description Filter by interface ID */
+                ip_address_id?: string | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+                /**
+                 * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
+                 *     instant (snapshot view) instead of live state.
+                 */
+                at?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of Bindings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description The page of results. Empty when nothing matched the query. */
+                        data: components["schemas"]["Binding"][];
+                        /** @description Human-readable failure message. Omitted on success. */
+                        error?: string | null;
+                        /** @description API and server version metadata, plus pagination counters. */
+                        meta: components["schemas"]["PaginatedApiMeta"];
+                        /** @description `true` when the request succeeded. `false` responses carry `error` instead of `data`. */
+                        success: boolean;
+                    };
+                };
+            };
+        };
+    };
+    create_binding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Binding"];
+            };
+        };
+        responses: {
+            /** @description Binding created (superseded bindings may be removed) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Binding"];
+                };
+            };
+            /** @description Referenced port or ip_address does not exist */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Conflict with existing binding type */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_delete_bindings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Array of Binding IDs to delete */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Bindings deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_BulkDeleteResponse"];
+                };
+            };
+        };
+    };
+    export_bindings_csv: {
+        parameters: {
+            query?: {
+                /** @description Filter by service ID */
+                service_id?: string | null;
+                /** @description Filter by site ID */
+                site_id?: string | null;
+                /** @description Filter by port ID */
+                port_id?: string | null;
+                /** @description Filter by interface ID */
+                ip_address_id?: string | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+                /**
+                 * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
+                 *     instant (snapshot view) instead of live state.
+                 */
+                at?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV file containing Bindings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+        };
+    };
+    get_binding_by_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Binding ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Binding found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Binding"];
+                };
+            };
+            /** @description Binding not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    update_binding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Binding ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Binding"];
+            };
+        };
+        responses: {
+            /** @description Binding updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Binding"];
+                };
+            };
+            /** @description Referenced port or ip_address does not exist */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Conflict with existing binding type */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_binding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Binding ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Binding deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            /** @description Binding not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    list_credentials: {
+        parameters: {
+            query?: {
+                /** @description Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several. */
+                type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
+                /** @description Only credentials of one of these integrations. Repeat for several. */
+                integrations?: components["schemas"]["CredentialIntegration"][] | null;
+                /**
+                 * @description Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).
+                 *     Sent empty, matches none.
+                 */
+                beta?: boolean[] | null;
+                /**
+                 * @description Only credentials whose type reads an unpublished API (`true`), a published one (`false`),
+                 *     or both (repeat it). Sent empty, matches none.
+                 */
+                unofficial_api?: boolean[] | null;
+                /** @description Only credentials whose type can be applied to one of these targets. Repeat for several. */
+                targets?: components["schemas"]["Target"][] | null;
+                /** @description Only file and socket credentials for one of these daemon OS families. Repeat for several. */
+                daemon_os?: components["schemas"]["OsFamily"][] | null;
+                /** @description Only credentials assigned to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns credentials that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the credential must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["CredentialOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["CredentialOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of credentials */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedApiResponse_Credential"];
+                };
+            };
+        };
+    };
+    create_credential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Credential"];
+            };
+        };
+        responses: {
+            /** @description Credential created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Credential"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_create_credentials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Credential"][];
+            };
+        };
+        responses: {
+            /** @description Credentials created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_Credential"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_delete_credentials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Array of Credential IDs to delete */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Credentials deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_BulkDeleteResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    export_credentials_csv: {
+        parameters: {
+            query?: {
+                /** @description Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several. */
+                type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
+                /** @description Only credentials of one of these integrations. Repeat for several. */
+                integrations?: components["schemas"]["CredentialIntegration"][] | null;
+                /**
+                 * @description Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).
+                 *     Sent empty, matches none.
+                 */
+                beta?: boolean[] | null;
+                /**
+                 * @description Only credentials whose type reads an unpublished API (`true`), a published one (`false`),
+                 *     or both (repeat it). Sent empty, matches none.
+                 */
+                unofficial_api?: boolean[] | null;
+                /** @description Only credentials whose type can be applied to one of these targets. Repeat for several. */
+                targets?: components["schemas"]["Target"][] | null;
+                /** @description Only file and socket credentials for one of these daemon OS families. Repeat for several. */
+                daemon_os?: components["schemas"]["OsFamily"][] | null;
+                /** @description Only credentials assigned to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /** @description Filter by tag IDs (returns credentials that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the credential must hold one tag from each of. Each entry is a comma-separated
+                 *     list of tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the name and description. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["CredentialOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["CredentialOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV file containing Credentials */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+        };
+    };
+    get_credential_by_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Credential ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Credential found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Credential"];
+                };
+            };
+            /** @description Credential not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    update_credential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Credential ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Credential"];
+            };
+        };
+        responses: {
+            /** @description Credential updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Credential"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Credential not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_credential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Credential ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Credential deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            /** @description Credential not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     list_daemon_api_keys: {
         parameters: {
             query?: {
@@ -18563,7 +19212,7 @@ export interface operations {
             };
         };
     };
-    rotate_key_handler: {
+    rotate_daemon_api_key: {
         parameters: {
             query?: never;
             header?: never;
@@ -18595,1035 +19244,7 @@ export interface operations {
             };
         };
     };
-    get_all_user_api_keys: {
-        parameters: {
-            query?: {
-                /** @description Only keys limited to one of these roles. Repeat for several. */
-                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
-                /** @description Only keys with access to one of these sites. Repeat for several. */
-                site_ids?: string[] | null;
-                /**
-                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
-                 *     none.
-                 */
-                is_enabled?: boolean[] | null;
-                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
-                tag_ids?: string[] | null;
-                /**
-                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
-                 *     tag ids. One entry per tag group the list is filtered by.
-                 */
-                tag_sets?: string[] | null;
-                /** @description Free-text search. Case-insensitive substring match against the key's name. */
-                search?: string | null;
-                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
-                /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
-                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
-                group_by_tag_group?: string | null;
-                /**
-                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
-                 *     `order_by`.
-                 */
-                order_by_tag_group?: string | null;
-                /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: components["schemas"]["OrderDirection"] | null;
-                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
-                limit?: number | null;
-                /** @description Number of results to skip. Default: 0. */
-                offset?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of user API keys */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedApiResponse_UserApiKey"];
-                };
-            };
-            /** @description Not authenticated */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    create_user_api_key: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserApiKey"];
-            };
-        };
-        responses: {
-            /** @description API key created */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_UserApiKeyResponse"];
-                };
-            };
-            /** @description Bad request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Invalid permissions or site access */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    bulk_delete_user_api_keys: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Array of User API Key IDs to delete */
-        requestBody: {
-            content: {
-                "application/json": string[];
-            };
-        };
-        responses: {
-            /** @description API keys deleted */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_BulkDeleteResponse"];
-                };
-            };
-        };
-    };
-    export_user_api_keys_csv: {
-        parameters: {
-            query?: {
-                /** @description Only keys limited to one of these roles. Repeat for several. */
-                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
-                /** @description Only keys with access to one of these sites. Repeat for several. */
-                site_ids?: string[] | null;
-                /**
-                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
-                 *     none.
-                 */
-                is_enabled?: boolean[] | null;
-                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
-                tag_ids?: string[] | null;
-                /**
-                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
-                 *     tag ids. One entry per tag group the list is filtered by.
-                 */
-                tag_sets?: string[] | null;
-                /** @description Free-text search. Case-insensitive substring match against the key's name. */
-                search?: string | null;
-                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
-                /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
-                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
-                group_by_tag_group?: string | null;
-                /**
-                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
-                 *     `order_by`.
-                 */
-                order_by_tag_group?: string | null;
-                /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: components["schemas"]["OrderDirection"] | null;
-                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
-                limit?: number | null;
-                /** @description Number of results to skip. Default: 0. */
-                offset?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description CSV file containing User API Keys */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/csv": string;
-                };
-            };
-        };
-    };
-    get_user_api_key_field_values: {
-        parameters: {
-            query?: {
-                /** @description Only keys limited to one of these roles. Repeat for several. */
-                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
-                /** @description Only keys with access to one of these sites. Repeat for several. */
-                site_ids?: string[] | null;
-                /**
-                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
-                 *     none.
-                 */
-                is_enabled?: boolean[] | null;
-                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
-                tag_ids?: string[] | null;
-                /**
-                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
-                 *     tag ids. One entry per tag group the list is filtered by.
-                 */
-                tag_sets?: string[] | null;
-                /** @description Free-text search. Case-insensitive substring match against the key's name. */
-                search?: string | null;
-                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
-                /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
-                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
-                group_by_tag_group?: string | null;
-                /**
-                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
-                 *     `order_by`.
-                 */
-                order_by_tag_group?: string | null;
-                /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: components["schemas"]["OrderDirection"] | null;
-                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
-                limit?: number | null;
-                /** @description Number of results to skip. Default: 0. */
-                offset?: number | null;
-            };
-            header?: never;
-            path: {
-                /** @description The field whose values to count */
-                field: components["schemas"]["UserApiKeyOrderField"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Distinct values and their User API Key counts */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
-                };
-            };
-            /** @description Unknown field */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    get_user_api_key_by_id: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description API key ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description API key found */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_UserApiKey"];
-                };
-            };
-            /** @description API key not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    update_user_api_key: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description API key ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserApiKey"];
-            };
-        };
-        responses: {
-            /** @description API key updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_UserApiKey"];
-                };
-            };
-            /** @description Not authorized to update this key */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description API key not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    delete_user_api_key: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description API key ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description API key deleted */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse"];
-                };
-            };
-            /** @description API key not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    rotate_user_api_key: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description API key ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description API key rotated, returns new key */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_String"];
-                };
-            };
-            /** @description Not authorized to rotate this key */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description API key not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    list_bindings: {
-        parameters: {
-            query?: {
-                /** @description Filter by service ID */
-                service_id?: string | null;
-                /** @description Filter by site ID */
-                site_id?: string | null;
-                /** @description Filter by port ID */
-                port_id?: string | null;
-                /** @description Filter by interface ID */
-                ip_address_id?: string | null;
-                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
-                limit?: number | null;
-                /** @description Number of results to skip. Default: 0. */
-                offset?: number | null;
-                /**
-                 * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
-                 *     instant (snapshot view) instead of live state.
-                 */
-                at?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of Bindings */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description The page of results. Empty when nothing matched the query. */
-                        data: components["schemas"]["Binding"][];
-                        /** @description Human-readable failure message. Omitted on success. */
-                        error?: string | null;
-                        /** @description API and server version metadata, plus pagination counters. */
-                        meta: components["schemas"]["PaginatedApiMeta"];
-                        /** @description `true` when the request succeeded. `false` responses carry `error` instead of `data`. */
-                        success: boolean;
-                    };
-                };
-            };
-        };
-    };
-    create_binding: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Binding"];
-            };
-        };
-        responses: {
-            /** @description Binding created (superseded bindings may be removed) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_Binding"];
-                };
-            };
-            /** @description Referenced port or ip_address does not exist */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Conflict with existing binding type */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    bulk_delete_bindings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Array of Binding IDs to delete */
-        requestBody: {
-            content: {
-                "application/json": string[];
-            };
-        };
-        responses: {
-            /** @description Bindings deleted */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_BulkDeleteResponse"];
-                };
-            };
-        };
-    };
-    export_bindings_csv: {
-        parameters: {
-            query?: {
-                /** @description Filter by service ID */
-                service_id?: string | null;
-                /** @description Filter by site ID */
-                site_id?: string | null;
-                /** @description Filter by port ID */
-                port_id?: string | null;
-                /** @description Filter by interface ID */
-                ip_address_id?: string | null;
-                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
-                limit?: number | null;
-                /** @description Number of results to skip. Default: 0. */
-                offset?: number | null;
-                /**
-                 * @description As-of timestamp (ISO 8601). When set, returns SCD2 state as of this
-                 *     instant (snapshot view) instead of live state.
-                 */
-                at?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description CSV file containing Bindings */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/csv": string;
-                };
-            };
-        };
-    };
-    get_binding_by_id: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Binding ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Binding found */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_Binding"];
-                };
-            };
-            /** @description Binding not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    update_binding: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Binding ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Binding"];
-            };
-        };
-        responses: {
-            /** @description Binding updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_Binding"];
-                };
-            };
-            /** @description Referenced port or ip_address does not exist */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Conflict with existing binding type */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    delete_binding: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Binding ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Binding deleted */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse"];
-                };
-            };
-            /** @description Binding not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    get_all_credentials: {
-        parameters: {
-            query?: {
-                /** @description Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several. */
-                type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
-                /** @description Only credentials of one of these integrations. Repeat for several. */
-                integrations?: components["schemas"]["CredentialIntegration"][] | null;
-                /**
-                 * @description Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).
-                 *     Sent empty, matches none.
-                 */
-                beta?: boolean[] | null;
-                /**
-                 * @description Only credentials whose type reads an unpublished API (`true`), a published one (`false`),
-                 *     or both (repeat it). Sent empty, matches none.
-                 */
-                unofficial_api?: boolean[] | null;
-                /** @description Only credentials whose type can be applied to one of these targets. Repeat for several. */
-                targets?: components["schemas"]["Target"][] | null;
-                /** @description Only file and socket credentials for one of these daemon OS families. Repeat for several. */
-                daemon_os?: components["schemas"]["OsFamily"][] | null;
-                /** @description Only credentials assigned to one of these sites. Repeat for several. */
-                site_ids?: string[] | null;
-                /** @description Filter by tag IDs (returns credentials that have ANY of the specified tags) */
-                tag_ids?: string[] | null;
-                /**
-                 * @description Tag sets the credential must hold one tag from each of. Each entry is a comma-separated
-                 *     list of tag ids. One entry per tag group the list is filtered by.
-                 */
-                tag_sets?: string[] | null;
-                /** @description Free-text search. Case-insensitive substring match against the name and description. */
-                search?: string | null;
-                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: components["schemas"]["CredentialOrderField"] | null;
-                /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: components["schemas"]["CredentialOrderField"] | null;
-                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
-                group_by_tag_group?: string | null;
-                /**
-                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
-                 *     `order_by`.
-                 */
-                order_by_tag_group?: string | null;
-                /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: components["schemas"]["OrderDirection"] | null;
-                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
-                limit?: number | null;
-                /** @description Number of results to skip. Default: 0. */
-                offset?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of credentials */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedApiResponse_Credential"];
-                };
-            };
-        };
-    };
-    create_credential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Credential"];
-            };
-        };
-        responses: {
-            /** @description Credential created successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_Credential"];
-                };
-            };
-            /** @description Validation error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    bulk_create_credentials: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Credential"][];
-            };
-        };
-        responses: {
-            /** @description Credentials created successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_Vec_Credential"];
-                };
-            };
-            /** @description Validation error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    bulk_delete_credentials: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Array of Credential IDs to delete */
-        requestBody: {
-            content: {
-                "application/json": string[];
-            };
-        };
-        responses: {
-            /** @description Credentials deleted successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_BulkDeleteResponse"];
-                };
-            };
-            /** @description Validation error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    export_credentials_csv: {
-        parameters: {
-            query?: {
-                /** @description Filter by credential type (e.g. `SnmpCommunity`, `DockerProxy`). Repeat for several. */
-                type?: components["schemas"]["CredentialTypeDiscriminants"][] | null;
-                /** @description Only credentials of one of these integrations. Repeat for several. */
-                integrations?: components["schemas"]["CredentialIntegration"][] | null;
-                /**
-                 * @description Only credentials whose type is in beta (`true`), stable (`false`), or both (repeat it).
-                 *     Sent empty, matches none.
-                 */
-                beta?: boolean[] | null;
-                /**
-                 * @description Only credentials whose type reads an unpublished API (`true`), a published one (`false`),
-                 *     or both (repeat it). Sent empty, matches none.
-                 */
-                unofficial_api?: boolean[] | null;
-                /** @description Only credentials whose type can be applied to one of these targets. Repeat for several. */
-                targets?: components["schemas"]["Target"][] | null;
-                /** @description Only file and socket credentials for one of these daemon OS families. Repeat for several. */
-                daemon_os?: components["schemas"]["OsFamily"][] | null;
-                /** @description Only credentials assigned to one of these sites. Repeat for several. */
-                site_ids?: string[] | null;
-                /** @description Filter by tag IDs (returns credentials that have ANY of the specified tags) */
-                tag_ids?: string[] | null;
-                /**
-                 * @description Tag sets the credential must hold one tag from each of. Each entry is a comma-separated
-                 *     list of tag ids. One entry per tag group the list is filtered by.
-                 */
-                tag_sets?: string[] | null;
-                /** @description Free-text search. Case-insensitive substring match against the name and description. */
-                search?: string | null;
-                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
-                group_by?: components["schemas"]["CredentialOrderField"] | null;
-                /** @description Secondary ordering field (sorting within groups or standalone sort). */
-                order_by?: components["schemas"]["CredentialOrderField"] | null;
-                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
-                group_by_tag_group?: string | null;
-                /**
-                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
-                 *     `order_by`.
-                 */
-                order_by_tag_group?: string | null;
-                /** @description Direction for order_by field (group_by always uses ASC). */
-                order_direction?: components["schemas"]["OrderDirection"] | null;
-                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
-                limit?: number | null;
-                /** @description Number of results to skip. Default: 0. */
-                offset?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description CSV file containing Credentials */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/csv": string;
-                };
-            };
-        };
-    };
-    get_by_id_credential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Credential ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Credential found */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_Credential"];
-                };
-            };
-            /** @description Credential not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    update_credential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Credential ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Credential"];
-            };
-        };
-        responses: {
-            /** @description Credential updated successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_Credential"];
-                };
-            };
-            /** @description Validation error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Credential not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    delete_credential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Credential ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Credential deleted successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse"];
-                };
-            };
-            /** @description Credential not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    get_daemons: {
+    list_daemons: {
         parameters: {
             query?: {
                 /** @description Filter by site ID. Repeat the parameter to pass several. */
@@ -19718,7 +19339,7 @@ export interface operations {
             };
         };
     };
-    bulk_retry_daemon_connection: {
+    bulk_retry_daemon_connections: {
         parameters: {
             query?: never;
             header?: never;
@@ -20330,7 +19951,7 @@ export interface operations {
             };
         };
     };
-    get_all_dependencies: {
+    list_dependencies: {
         parameters: {
             query?: {
                 /** @description Filter by site ID */
@@ -20573,7 +20194,7 @@ export interface operations {
             };
         };
     };
-    get_all_discoveries: {
+    list_discoveries: {
         parameters: {
             query?: {
                 /** @description Filter by site ID. Repeat the parameter to pass several. */
@@ -20689,7 +20310,7 @@ export interface operations {
             };
         };
     };
-    get_active_sessions: {
+    list_active_discovery_sessions: {
         parameters: {
             query?: never;
             header?: never;
@@ -20709,7 +20330,7 @@ export interface operations {
             };
         };
     };
-    bulk_cancel_sessions: {
+    bulk_cancel_discovery_sessions: {
         parameters: {
             query?: never;
             header?: never;
@@ -20795,7 +20416,7 @@ export interface operations {
             };
         };
     };
-    bulk_set_enabled: {
+    bulk_set_discoveries_enabled: {
         parameters: {
             query?: never;
             header?: never;
@@ -20846,7 +20467,7 @@ export interface operations {
             };
         };
     };
-    bulk_start_sessions: {
+    bulk_start_discovery_sessions: {
         parameters: {
             query?: never;
             header?: never;
@@ -21076,7 +20697,7 @@ export interface operations {
             };
         };
     };
-    start_session: {
+    start_discovery_session: {
         parameters: {
             query?: never;
             header?: never;
@@ -21227,7 +20848,7 @@ export interface operations {
             };
         };
     };
-    cancel_discovery: {
+    cancel_discovery_session: {
         parameters: {
             query?: never;
             header?: never;
@@ -21277,7 +20898,7 @@ export interface operations {
             };
         };
     };
-    get_all_hosts: {
+    list_hosts: {
         parameters: {
             query?: {
                 /** @description Filter by site ID. Repeat the parameter to pass several. */
@@ -21889,49 +21510,6 @@ export interface operations {
             };
         };
     };
-    consolidate_hosts: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Destination host ID - will receive all children */
-                destination_host: string;
-                /** @description Host to merge into destination - will be deleted */
-                other_host: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Hosts consolidated successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_HostResponse"];
-                };
-            };
-            /** @description Validation error: same host, has daemon, or different sites */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description One or both hosts not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
     get_host_by_id: {
         parameters: {
             query?: never;
@@ -22041,6 +21619,49 @@ export interface operations {
             };
             /** @description Host has associated daemon */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    consolidate_hosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Host that receives all children */
+                id: string;
+                /** @description Host merged into `id`, then deleted */
+                other_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hosts consolidated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_HostResponse"];
+                };
+            };
+            /** @description Validation error: same host, has daemon, or different sites */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description One or both hosts not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -22380,7 +22001,7 @@ export interface operations {
             };
         };
     };
-    get_invites: {
+    list_invites: {
         parameters: {
             query?: never;
             header?: never;
@@ -22442,7 +22063,7 @@ export interface operations {
             };
         };
     };
-    bulk_revoke_invites: {
+    bulk_delete_invites: {
         parameters: {
             query?: never;
             header?: never;
@@ -22485,7 +22106,7 @@ export interface operations {
             };
         };
     };
-    get_invite: {
+    get_invite_by_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -22526,7 +22147,7 @@ export interface operations {
             };
         };
     };
-    revoke_invite: {
+    delete_invite: {
         parameters: {
             query?: never;
             header?: never;
@@ -23036,7 +22657,7 @@ export interface operations {
             };
         };
     };
-    get_organization: {
+    get_current_organization: {
         parameters: {
             query?: never;
             header?: never;
@@ -23137,7 +22758,7 @@ export interface operations {
             };
         };
     };
-    update_org_name: {
+    update_organization: {
         parameters: {
             query?: never;
             header?: never;
@@ -23683,7 +23304,7 @@ export interface operations {
             };
         };
     };
-    get_all_services: {
+    list_services: {
         parameters: {
             query?: {
                 /** @description Filter by site ID. Repeat the parameter to pass several. */
@@ -24578,7 +24199,7 @@ export interface operations {
             };
         };
     };
-    get_all_sites: {
+    list_sites: {
         parameters: {
             query?: {
                 /** @description Only sites with one of these credentials assigned. Repeat for several. */
@@ -24854,7 +24475,7 @@ export interface operations {
             };
         };
     };
-    get_by_id_site: {
+    get_site_by_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -25568,7 +25189,7 @@ export interface operations {
             };
         };
     };
-    get_all_tag_groups: {
+    list_tag_groups: {
         parameters: {
             query?: {
                 /**
@@ -25848,7 +25469,7 @@ export interface operations {
             };
         };
     };
-    get_all_tags: {
+    list_tags: {
         parameters: {
             query?: {
                 /** @description Only tags of one of these colours. Repeat for several. */
@@ -26276,7 +25897,7 @@ export interface operations {
             };
         };
     };
-    get_all_topologies: {
+    list_topologies: {
         parameters: {
             query?: {
                 /** @description Filter by site ID */
@@ -26460,7 +26081,7 @@ export interface operations {
             };
         };
     };
-    export_confluence: {
+    export_topology_confluence: {
         parameters: {
             query?: {
                 /** @description View to export. Defaults to the default view when omitted. */
@@ -26513,7 +26134,7 @@ export interface operations {
             };
         };
     };
-    export_mermaid: {
+    export_topology_mermaid: {
         parameters: {
             query?: {
                 /** @description View to export. Defaults to the default view when omitted. */
@@ -26566,7 +26187,431 @@ export interface operations {
             };
         };
     };
-    get_all_users: {
+    list_user_api_keys: {
+        parameters: {
+            query?: {
+                /** @description Only keys limited to one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only keys with access to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
+                 *     none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of user API keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedApiResponse_UserApiKey"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    create_user_api_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserApiKey"];
+            };
+        };
+        responses: {
+            /** @description API key created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_UserApiKeyResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Invalid permissions or site access */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    bulk_delete_user_api_keys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Array of User API Key IDs to delete */
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description API keys deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_BulkDeleteResponse"];
+                };
+            };
+        };
+    };
+    export_user_api_keys_csv: {
+        parameters: {
+            query?: {
+                /** @description Only keys limited to one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only keys with access to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
+                 *     none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV file containing User API Keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+        };
+    };
+    get_user_api_key_field_values: {
+        parameters: {
+            query?: {
+                /** @description Only keys limited to one of these roles. Repeat for several. */
+                permissions?: components["schemas"]["UserOrgPermissions"][] | null;
+                /** @description Only keys with access to one of these sites. Repeat for several. */
+                site_ids?: string[] | null;
+                /**
+                 * @description Only enabled keys (`true`), disabled ones (`false`), or both (repeat it). Sent empty, matches
+                 *     none.
+                 */
+                is_enabled?: boolean[] | null;
+                /** @description Filter by tag IDs (returns keys that have ANY of the specified tags) */
+                tag_ids?: string[] | null;
+                /**
+                 * @description Tag sets the key must hold one tag from each of. Each entry is a comma-separated list of
+                 *     tag ids. One entry per tag group the list is filtered by.
+                 */
+                tag_sets?: string[] | null;
+                /** @description Free-text search. Case-insensitive substring match against the key's name. */
+                search?: string | null;
+                /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
+                group_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Secondary ordering field (sorting within groups or standalone sort). */
+                order_by?: components["schemas"]["UserApiKeyOrderField"] | null;
+                /** @description Group by the tag each row holds from this tag group. Takes the place of `group_by`. */
+                group_by_tag_group?: string | null;
+                /**
+                 * @description Sort by the position of the tag each row holds from this tag group. Takes the place of
+                 *     `order_by`.
+                 */
+                order_by_tag_group?: string | null;
+                /** @description Direction for order_by field (group_by always uses ASC). */
+                order_direction?: components["schemas"]["OrderDirection"] | null;
+                /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
+                limit?: number | null;
+                /** @description Number of results to skip. Default: 0. */
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The field whose values to count */
+                field: components["schemas"]["UserApiKeyOrderField"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distinct values and their User API Key counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_Vec_GroupCount"];
+                };
+            };
+            /** @description Unknown field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    get_user_api_key_by_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description API key ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API key found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_UserApiKey"];
+                };
+            };
+            /** @description API key not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    update_user_api_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description API key ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserApiKey"];
+            };
+        };
+        responses: {
+            /** @description API key updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_UserApiKey"];
+                };
+            };
+            /** @description Not authorized to update this key */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description API key not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_user_api_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description API key ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API key deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            /** @description API key not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    rotate_user_api_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description API key ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API key rotated, returns new key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_String"];
+                };
+            };
+            /** @description Not authorized to rotate this key */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description API key not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    list_users: {
         parameters: {
             query?: {
                 /** @description Maximum number of results to return (1-1000, default: 50). Use 0 for no limit. */
@@ -26842,7 +26887,7 @@ export interface operations {
             };
         };
     };
-    admin_update_user: {
+    update_user_permissions: {
         parameters: {
             query?: never;
             header?: never;
@@ -26887,7 +26932,7 @@ export interface operations {
             };
         };
     };
-    get_all_vlans: {
+    list_vlans: {
         parameters: {
             query?: {
                 /** @description Primary ordering field (used for grouping). Always sorts ASC to keep groups together. */
@@ -26997,14 +27042,14 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description Array of Vlan IDs to delete */
+        /** @description Array of VLAN IDs to delete */
         requestBody: {
             content: {
                 "application/json": string[];
             };
         };
         responses: {
-            /** @description Vlans deleted */
+            /** @description VLANs deleted */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -27098,7 +27143,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description CSV file containing Vlans */
+            /** @description CSV file containing VLANs */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -27162,7 +27207,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Distinct values and their Vlan counts */
+            /** @description Distinct values and their VLAN counts */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -27187,14 +27232,14 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Vlan ID */
+                /** @description VLAN ID */
                 id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Vlan found */
+            /** @description VLAN found */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -27203,7 +27248,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse_Vlan"];
                 };
             };
-            /** @description Vlan not found */
+            /** @description VLAN not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -27219,7 +27264,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Vlan ID */
+                /** @description VLAN ID */
                 id: string;
             };
             cookie?: never;
@@ -27230,7 +27275,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Vlan updated */
+            /** @description VLAN updated */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -27239,7 +27284,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse_Vlan"];
                 };
             };
-            /** @description Vlan not found */
+            /** @description VLAN not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -27255,14 +27300,14 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Vlan ID */
+                /** @description VLAN ID */
                 id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Vlan deleted */
+            /** @description VLAN deleted */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -27271,7 +27316,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse"];
                 };
             };
-            /** @description Vlan not found */
+            /** @description VLAN not found */
             404: {
                 headers: {
                     [name: string]: unknown;

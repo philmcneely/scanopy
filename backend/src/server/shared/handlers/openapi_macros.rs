@@ -35,13 +35,61 @@
 //! because utoipa's proc macro cannot resolve `$crate::` tokens. This means these macros
 //! can only be used within this crate, not from external crates.
 
+/// One byte of an entity name in the form spec text uses mid-sentence: each word's first letter
+/// is lowercased unless the word is an acronym (its second letter is uppercase). "Daemon API Keys"
+/// becomes "daemon API keys", "IP Addresses" becomes "IP addresses", "VLANs" stays.
+const fn api_text_byte(name: &[u8], i: usize) -> u8 {
+    let byte = name[i];
+    let starts_word = i == 0 || name[i - 1] == b' ';
+    let acronym = i + 1 < name.len() && name[i + 1].is_ascii_uppercase();
+    if starts_word && !acronym {
+        byte.to_ascii_lowercase()
+    } else {
+        byte
+    }
+}
+
+/// [`api_text`] at compile time, for the CRUD macros. `N` is the name's length.
+pub const fn api_text_bytes<const N: usize>(name: &str) -> [u8; N] {
+    let bytes = name.as_bytes();
+    let mut out = [0u8; N];
+    let mut i = 0;
+    while i < N {
+        out[i] = api_text_byte(bytes, i);
+        i += 1;
+    }
+    out
+}
+
+/// An entity name as spec summaries write it mid-sentence. See [`api_text_byte`].
+pub fn api_text(name: &str) -> String {
+    (0..name.len())
+        .map(|i| api_text_byte(name.as_bytes(), i) as char)
+        .collect()
+}
+
+/// [`api_text`] as a `&'static str` constant, from a constant entity name.
+#[macro_export]
+macro_rules! api_text_name {
+    ($name:expr) => {{
+        const __NAME: &str = $name;
+        const __BYTES: [u8; __NAME.len()] =
+            $crate::server::shared::handlers::openapi_macros::api_text_bytes(__NAME);
+        match ::core::str::from_utf8(&__BYTES) {
+            Ok(text) => text,
+            Err(_) => panic!("entity names are ASCII"),
+        }
+    }};
+}
+
 /// Generates an OpenAPI-annotated get-by-id handler that delegates to `get_by_id_handler::<T>`
 #[macro_export]
 macro_rules! crud_get_by_id_handler {
     ($entity:ty) => {
         const __GET_BY_ID_TAG: &str = <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL;
         const __GET_BY_ID_OP_ID: &str = const_format::concatcp!("get_", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, "_by_id");
-        const __GET_BY_ID_SUMMARY: &str = const_format::concatcp!("Get ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " by ID");
+        const __GET_BY_ID_NAME: &str = $crate::api_text_name!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
+        const __GET_BY_ID_SUMMARY: &str = const_format::concatcp!("Get ", __GET_BY_ID_NAME, " by ID");
         const __GET_BY_ID_DESC_FOUND: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " found");
         const __GET_BY_ID_DESC_NOT_FOUND: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " not found");
         const __GET_BY_ID_PARAM_DESC: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " ID");
@@ -78,7 +126,8 @@ macro_rules! crud_create_handler {
     ($entity:ty) => {
         const __CREATE_TAG: &str = <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL;
         const __CREATE_OP_ID: &str = const_format::concatcp!("create_", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
-        const __CREATE_SUMMARY: &str = const_format::concatcp!("Create new ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
+        const __CREATE_NAME: &str = $crate::api_text_name!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
+        const __CREATE_SUMMARY: &str = const_format::concatcp!("Create ", __CREATE_NAME);
         const __CREATE_DESC_CREATED: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " created");
 
         #[utoipa::path(
@@ -113,7 +162,8 @@ macro_rules! crud_update_handler {
     ($entity:ty) => {
         const __UPDATE_TAG: &str = <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL;
         const __UPDATE_OP_ID: &str = const_format::concatcp!("update_", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
-        const __UPDATE_SUMMARY: &str = const_format::concatcp!("Update ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
+        const __UPDATE_NAME: &str = $crate::api_text_name!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
+        const __UPDATE_SUMMARY: &str = const_format::concatcp!("Update ", __UPDATE_NAME);
         const __UPDATE_DESC_UPDATED: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " updated");
         const __UPDATE_DESC_NOT_FOUND: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " not found");
         const __UPDATE_PARAM_DESC: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " ID");
@@ -154,7 +204,8 @@ macro_rules! crud_delete_handler {
     ($entity:ty) => {
         const __DELETE_TAG: &str = <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL;
         const __DELETE_OP_ID: &str = const_format::concatcp!("delete_", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
-        const __DELETE_SUMMARY: &str = const_format::concatcp!("Delete ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
+        const __DELETE_NAME: &str = $crate::api_text_name!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
+        const __DELETE_SUMMARY: &str = const_format::concatcp!("Delete ", __DELETE_NAME);
         const __DELETE_DESC_DELETED: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " deleted");
         const __DELETE_DESC_NOT_FOUND: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " not found");
         const __DELETE_PARAM_DESC: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " ID");
@@ -191,7 +242,8 @@ macro_rules! crud_bulk_delete_handler {
     ($entity:ty) => {
         const __BULK_DELETE_TAG: &str = <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL;
         const __BULK_DELETE_OP_ID: &str = const_format::concatcp!("bulk_delete_", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
-        const __BULK_DELETE_SUMMARY: &str = const_format::concatcp!("Bulk delete ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
+        const __BULK_DELETE_NAME: &str = $crate::api_text_name!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
+        const __BULK_DELETE_SUMMARY: &str = const_format::concatcp!("Bulk delete ", __BULK_DELETE_NAME);
         const __BULK_DELETE_DESC_DELETED: &str = const_format::concatcp!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL, " deleted");
         const __BULK_DELETE_BODY_DESC: &str = const_format::concatcp!("Array of ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " IDs to delete");
 
@@ -231,23 +283,26 @@ macro_rules! crud_bulk_delete_handler {
 /// # Example
 /// ```ignore
 /// crud_export_csv_handler!(Host);
+/// // For an entity whose export only the UI calls:
+/// crud_export_csv_handler!(UserApiKey, internal);
 /// ```
 #[macro_export]
 macro_rules! crud_export_csv_handler {
-    ($entity:ty) => {
+    (@impl $entity:ty, [$($tag:ident),+]) => {
         // Type alias for filter query
         type __ExportCsvFilterQuery = <$entity as $crate::server::shared::handlers::traits::CrudHandlers>::FilterQuery;
 
         const __EXPORT_CSV_TAG: &str = <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL;
         const __EXPORT_CSV_OP_ID: &str = const_format::concatcp!("export_", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL, "_csv");
-        const __EXPORT_CSV_SUMMARY: &str = const_format::concatcp!("Export ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL, " to CSV");
-        const __EXPORT_CSV_DESC: &str = const_format::concatcp!("Export all ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL, " matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.");
+        const __EXPORT_CSV_NAME: &str = $crate::api_text_name!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
+        const __EXPORT_CSV_SUMMARY: &str = const_format::concatcp!("Export ", __EXPORT_CSV_NAME, " to CSV");
+        const __EXPORT_CSV_DESC: &str = const_format::concatcp!("Export all ", __EXPORT_CSV_NAME, " matching the filter criteria to CSV format. Ignores pagination parameters (limit/offset) and exports all matching records.");
         const __EXPORT_CSV_RESP_DESC: &str = const_format::concatcp!("CSV file containing ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
 
         #[utoipa::path(
             get,
             path = "/export/csv",
-            tag = __EXPORT_CSV_TAG,
+            tags = [$($tag),+],
             operation_id = __EXPORT_CSV_OP_ID,
             summary = __EXPORT_CSV_SUMMARY,
             description = __EXPORT_CSV_DESC,
@@ -265,6 +320,13 @@ macro_rules! crud_export_csv_handler {
             $crate::server::shared::handlers::csv::export_csv_handler::<$entity>(state, auth, query)
                 .await
         }
+    };
+    ($entity:ty) => {
+        $crate::crud_export_csv_handler!(@impl $entity, [__EXPORT_CSV_TAG]);
+    };
+    ($entity:ty, internal) => {
+        const __EXPORT_CSV_INTERNAL: &str = $crate::server::openapi::tags::INTERNAL;
+        $crate::crud_export_csv_handler!(@impl $entity, [__EXPORT_CSV_TAG, __EXPORT_CSV_INTERNAL]);
     };
 }
 
@@ -288,7 +350,8 @@ macro_rules! crud_get_all_handler {
         // Consts from trait - utoipa accepts const identifiers
         const __GET_ALL_TAG: &str = <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL;
         const __GET_ALL_OP_ID: &str = const_format::concatcp!("list_", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
-        const __GET_ALL_SUMMARY: &str = const_format::concatcp!("List all ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
+        const __GET_ALL_NAME: &str = $crate::api_text_name!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
+        const __GET_ALL_SUMMARY: &str = const_format::concatcp!("List ", __GET_ALL_NAME);
         const __GET_ALL_RESP_DESC: &str = const_format::concatcp!("List of ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
 
         #[utoipa::path(
@@ -333,7 +396,8 @@ macro_rules! crud_list_page_handler {
         >;
         const __LIST_TAG: &str = <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL;
         const __LIST_OP_ID: &str = const_format::concatcp!("list_", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
-        const __LIST_SUMMARY: &str = const_format::concatcp!("List all ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
+        const __LIST_NAME: &str = $crate::api_text_name!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
+        const __LIST_SUMMARY: &str = const_format::concatcp!("List ", __LIST_NAME);
         const __LIST_RESP_DESC: &str = const_format::concatcp!("List of ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL);
 
         #[utoipa::path(
@@ -379,14 +443,16 @@ macro_rules! crud_get_field_values_handler {
 
         const __FIELD_VALUES_TAG: &str = <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL;
         const __FIELD_VALUES_OP_ID: &str = const_format::concatcp!("get_", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, "_field_values");
-        const __FIELD_VALUES_SUMMARY: &str = const_format::concatcp!("List the values of a ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " field");
+        const __FIELD_VALUES_NAME: &str = $crate::api_text_name!(<$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR);
+        const __FIELD_VALUES_INTERNAL: &str = $crate::server::openapi::tags::INTERNAL;
+        const __FIELD_VALUES_SUMMARY: &str = const_format::concatcp!("List ", __FIELD_VALUES_NAME, " field values");
         const __FIELD_VALUES_DESC: &str = const_format::concatcp!("Every distinct value of one ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " field across the ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_PLURAL, " the caller can list, with how many hold each. Takes the list's filters; ignores pagination, search and ordering.");
         const __FIELD_VALUES_RESP_DESC: &str = const_format::concatcp!("Distinct values and their ", <$entity as $crate::server::shared::storage::traits::Entity>::ENTITY_NAME_SINGULAR, " counts");
 
         #[utoipa::path(
             get,
             path = "/field-values/{field}",
-            tag = __FIELD_VALUES_TAG,
+            tags = [__FIELD_VALUES_TAG, __FIELD_VALUES_INTERNAL],
             operation_id = __FIELD_VALUES_OP_ID,
             summary = __FIELD_VALUES_SUMMARY,
             description = __FIELD_VALUES_DESC,

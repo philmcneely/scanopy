@@ -27,7 +27,7 @@ export type { Service };
  * names (`DataControls`' `onQueryChange`), which is sent as written.
  */
 export type ServicesQueryParams = NonNullable<
-	operations['get_all_services']['parameters']['query']
+	operations['list_services']['parameters']['query']
 > & {
 	list?: URLSearchParams;
 	/** Set false to hold the fetch. Excluded from the query key. */

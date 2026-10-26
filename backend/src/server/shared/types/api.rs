@@ -1022,7 +1022,7 @@ mod api_json_tests {
     async fn a_malformed_discovery_update_is_rejected_in_the_standard_format() {
         let request = Request::builder()
             .method("POST")
-            .uri("/api/v1/discovery/00000000-0000-0000-0000-000000000000/update")
+            .uri("/api/v1/discoveries/00000000-0000-0000-0000-000000000000/update")
             .header("content-type", "application/json")
             .body(Body::from(r#"{"session_id": "not-a-uuid"}"#))
             .unwrap();
