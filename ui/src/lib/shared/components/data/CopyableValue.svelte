@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Copy } from 'lucide-svelte';
 	import { pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
+	import { copyText } from '$lib/shared/utils/clipboard';
 	import { common_clickToCopy, common_copied, common_failedToCopy } from '$lib/paraglide/messages';
 
 	/**
@@ -12,7 +13,7 @@
 
 	async function copy() {
 		try {
-			await navigator.clipboard.writeText(value);
+			await copyText(value);
 			pushSuccess(common_copied());
 		} catch (error) {
 			pushWarning(common_failedToCopy({ error: String(error) }));

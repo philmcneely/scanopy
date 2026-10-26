@@ -5,6 +5,7 @@
 	import { UserPlus, Copy, Check, Calendar, RotateCcw, Send } from 'lucide-svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import { pushSuccess, pushError } from '$lib/shared/stores/feedback';
+	import { copyText } from '$lib/shared/utils/clipboard';
 	import { formatTimestamp } from '$lib/shared/utils/formatting';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import type { OrganizationInvite } from '$lib/features/organizations/types';
@@ -147,7 +148,7 @@
 		if (!invite) return;
 
 		try {
-			await navigator.clipboard.writeText(formatInviteUrl(invite));
+			await copyText(formatInviteUrl(invite));
 			copied = true;
 			pushSuccess(users_inviteCopied());
 
