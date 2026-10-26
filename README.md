@@ -28,7 +28,7 @@ Scanopy replaces manual network diagrams with a continuously maintained model of
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="./media/l2.png" alt="L2 view" />
+      <img src="./media/l2.webp" alt="L2 view" />
       <p align="center"><strong>L2 (Physical)</strong><br/><sub>Every switch, every port, every link.</sub></p>
     </td>
     <td width="50%" valign="top">
