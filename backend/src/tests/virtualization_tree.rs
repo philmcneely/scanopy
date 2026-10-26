@@ -72,12 +72,12 @@ async fn a_tree_grouping_places_every_host_under_its_root() {
     let names: Vec<&str> = page.data.iter().map(|h| h.name.as_str()).collect();
     assert_eq!(
         names,
-        vec!["printer", "pve-01", "app-vm", "docker-vm", "pihole"],
-        "no tree first, then the tree parent first with each subtree under its parent, siblings by name"
+        vec!["pve-01", "app-vm", "docker-vm", "pihole", "printer"],
+        "the tree parent first with each subtree under its parent, siblings by name, then no tree"
     );
 
     let depths: Vec<u32> = page.data.iter().map(|h| h.virtualization_depth).collect();
-    assert_eq!(depths, vec![0, 0, 1, 1, 2]);
+    assert_eq!(depths, vec![0, 1, 1, 2, 0]);
 
     // The groups the responses' roots imply, in page order, against `group_counts`.
     let mut response_groups: Vec<(String, u64)> = Vec::new();
@@ -101,7 +101,7 @@ async fn a_tree_grouping_places_every_host_under_its_root() {
     assert_eq!(response_groups, group_counts);
     assert_eq!(
         group_counts,
-        vec![(String::new(), 1), (node.id.to_string(), 4)]
+        vec![(node.id.to_string(), 4), (String::new(), 1)]
     );
 }
 
@@ -154,10 +154,10 @@ async fn a_sort_orders_siblings_inside_each_tree() {
 
     assert_eq!(page.meta.pagination.total_count, 5);
     let names: Vec<&str> = page.data.iter().map(|h| h.name.as_str()).collect();
-    // Whole order: printer, camera | pve-01, docker-vm, app-vm. The page skips one, takes three.
-    assert_eq!(names, vec!["camera", "pve-01", "docker-vm"]);
+    // Whole order: pve-01, docker-vm, app-vm | printer, camera. The page skips one, takes three.
+    assert_eq!(names, vec!["docker-vm", "app-vm", "printer"]);
     assert_eq!(
         counts(page.meta.pagination.group_counts.as_deref().unwrap()),
-        vec![(String::new(), 2), (node.id.to_string(), 3)]
+        vec![(node.id.to_string(), 3), (String::new(), 2)]
     );
 }
