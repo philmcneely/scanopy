@@ -14,7 +14,7 @@ function org(overrides: Partial<Organization> = {}): Organization {
 		updated_at: '2026-01-01T00:00:00Z',
 		name: 'Acme',
 		onboarding: [],
-		plan: null,
+		plan: { type: 'Free' } as Organization['plan'],
 		plan_status: null,
 		...overrides
 	};
@@ -26,7 +26,8 @@ function plan(type: string): Plan {
 
 // Each org state the Settings lock has to leave alone, and the one it adds.
 const states: Record<string, Organization> = {
-	noPlan: org(),
+	free: org({ plan: plan('Free') }),
+	licenseTrialNotStarted: org({ plan: plan('SelfHostedStandard'), plan_status: null }),
 	trialing: org({ plan: plan('Pro'), plan_status: 'trialing' }),
 	active: org({ plan: plan('Business'), plan_status: 'active' }),
 	pastDue: org({ plan: plan('Pro'), plan_status: 'past_due' }),
@@ -49,9 +50,10 @@ function lockedStates(isCloud: boolean): Record<string, string | null> {
 }
 
 describe('the Settings lock', () => {
-	it('holds a cloud org with no plan, and a licensed one, and nothing else', () => {
+	it('holds a license org whose trial never started, and a licensed one, and nothing else', () => {
 		expect(lockedStates(true)).toEqual({
-			noPlan: 'no-plan',
+			free: null,
+			licenseTrialNotStarted: 'no-plan',
 			trialing: null,
 			active: null,
 			pastDue: null,

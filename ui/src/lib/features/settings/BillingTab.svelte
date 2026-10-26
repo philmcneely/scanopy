@@ -41,12 +41,12 @@
 		common_usage,
 		settings_billing_billingQuestions,
 		billing_continueOnPlan,
-		billing_lapsedBannerCta,
 		settings_billing_contactUs,
 		settings_billing_currentPlan,
 		settings_billing_discount_active,
 		settings_billing_discount_active_yearly,
 		settings_billing_downgrade_pending,
+		settings_billing_downgrade_pendingLicense,
 		settings_billing_paymentAndInvoices,
 		settings_billing_needHelp,
 		settings_billing_pastDue,
@@ -324,9 +324,6 @@
 		// they expect: a pending cancellation is told to click Reactivate
 		// Subscription, and it has to be there.
 		if (openInvoiceUrl) return { label: settings_billing_payInvoice(), onclick: handlePayInvoice };
-		// A new sign-up that closed the plan picker reopens it from here.
-		if (org != null && org.plan == null)
-			return { label: billing_lapsedBannerCta(), onclick: openPlanPicker };
 		return {
 			label: hasManageableSubscription
 				? settings_billing_changePlan()
@@ -411,7 +408,12 @@
 		// No lapsed branch: PlanLapsedBanner renders in this same modal frame
 		// and says it already, so a second copy sat directly above it.
 		if (isPendingCancellation)
-			return { type: 'warning' as const, message: settings_billing_downgrade_pending() };
+			return {
+				type: 'warning' as const,
+				message: isLicensedPlan
+					? settings_billing_downgrade_pendingLicense()
+					: settings_billing_downgrade_pending()
+			};
 		return null;
 	});
 

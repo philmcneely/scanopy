@@ -60,11 +60,21 @@ async fn state_with_email() -> (
     (state, container, dir)
 }
 
+/// On a paid plan, so the only daemon limit in play is the email one (Free has its own).
 async fn create_org(state: &AppState) -> Organization {
+    create_org_on(state, crate::server::billing::plans::get_enterprise_plan()).await
+}
+
+async fn create_org_on(
+    state: &AppState,
+    plan: crate::server::billing::types::base::BillingPlan,
+) -> Organization {
+    let mut org = organization();
+    org.base.plan = plan;
     state
         .services
         .organization_service
-        .create(organization(), AuthenticatedEntity::System)
+        .create(org, AuthenticatedEntity::System)
         .await
         .unwrap()
 }
@@ -219,6 +229,14 @@ fn provision_request(site_id: Uuid, name: &str) -> ProvisionDaemonRequest {
 /// return the second attempt's result.
 async fn provision_second_daemon(state: &AppState, owner_verified: bool) -> Result<(), ApiError> {
     let org = create_org(state).await;
+    provision_second_daemon_for(state, org, owner_verified).await
+}
+
+async fn provision_second_daemon_for(
+    state: &AppState,
+    org: Organization,
+    owner_verified: bool,
+) -> Result<(), ApiError> {
     let owner = create_user(
         state,
         org.id,
@@ -237,9 +255,10 @@ async fn provision_second_daemon(state: &AppState, owner_verified: bool) -> Resu
         .expect("the first daemon is always allowed");
     // What the create wizard reads before its first step must match what provisioning does.
     let reached = daemons
-        .unverified_daemon_limit_reached(org.id)
+        .daemon_limit_reached(org.id)
         .await
-        .unwrap();
+        .unwrap()
+        .is_some();
     let result = daemons
         .provision(&provision_request(site.id, "second"), None, auth)
         .await
@@ -697,4 +716,17 @@ async fn emailing_the_install_command_requires_a_verified_email() {
     .await;
     assert_eq!(status, 403, "{body}");
     assert!(body.contains("auth_email_verification_required"), "{body}");
+}
+
+#[tokio::test]
+async fn second_daemon_is_refused_on_free_even_once_an_owner_is_verified() {
+    let (state, _container, _dir) = state_with_email().await;
+    let org = create_org_on(&state, crate::server::billing::plans::get_free_plan()).await;
+    let refused = provision_second_daemon_for(&state, org, true)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        wire_code(&refused),
+        Some(ErrorCode::DaemonPlanRequired.code())
+    );
 }

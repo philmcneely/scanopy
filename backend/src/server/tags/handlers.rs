@@ -1,4 +1,5 @@
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
+use crate::server::auth::middleware::features::{RequireFeature, TaggingFeature};
 use crate::server::auth::middleware::permissions::{Admin, Authorized, Member, Viewer};
 use crate::server::shared::entities::{Entity as EntityEnum, EntityDiscriminants};
 use crate::server::shared::events::log::EventLog;
@@ -522,6 +523,7 @@ pub struct SetTagsRequest {
 pub async fn bulk_add_tag(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Member>,
+    _tagging: RequireFeature<TaggingFeature>,
     ApiJson(request): ApiJson<BulkTagRequest>,
 ) -> ApiResult<Json<ApiResponse<BulkTagResponse>>> {
     // Validate entity type is taggable
@@ -590,6 +592,7 @@ pub async fn bulk_add_tag(
 pub async fn bulk_remove_tag(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Member>,
+    _tagging: RequireFeature<TaggingFeature>,
     ApiJson(request): ApiJson<BulkTagRequest>,
 ) -> ApiResult<Json<ApiResponse<BulkTagResponse>>> {
     // Validate entity type is taggable
@@ -653,6 +656,7 @@ pub async fn bulk_remove_tag(
 pub async fn set_entity_tags(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Member>,
+    _tagging: RequireFeature<TaggingFeature>,
     ApiJson(request): ApiJson<SetTagsRequest>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     // Validate entity type is taggable

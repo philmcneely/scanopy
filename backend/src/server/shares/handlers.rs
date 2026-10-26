@@ -257,7 +257,7 @@ async fn get_share_org_plan(state: &AppState, share: &Share) -> Result<BillingPl
         .get_by_id(&site.base.organization_id)
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?
-        .and_then(|o| o.base.plan)
+        .map(|o| o.base.plan)
         .unwrap_or_else(crate::server::billing::plans::get_free_plan))
 }
 

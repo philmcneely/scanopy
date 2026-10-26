@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Scanopy API",
-    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.0\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.0\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.19.0)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
+    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.1\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.1\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.19.1)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
     "license": {
       "name": "Dual (AGPL3.0, Commercial License Available)"
     },
@@ -19929,12 +19929,12 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.19.0"
+            "example": "0.19.1"
           }
         },
         "example": {
           "api_version": 1,
-          "server_version": "0.19.0"
+          "server_version": "0.19.1"
         }
       },
       "ApiResponse": {
@@ -20066,19 +20066,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-22T23:24:30.910202Z",
+              "created_at": "2026-10-26T00:36:37.374026Z",
               "first_discovery_id": null,
-              "id": "6c02560d-2003-4f34-9ce2-a0d35aaba1ce",
+              "id": "e06698f2-1454-452f-925e-d62f3a0464d5",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-22T23:24:30.910202Z",
+              "last_seen_at": "2026-10-26T00:36:37.374026Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-22T23:24:30.910202Z",
-              "valid_from": "2026-10-22T23:24:30.910202Z",
+              "updated_at": "2026-10-26T00:36:37.374026Z",
+              "valid_from": "2026-10-26T00:36:37.374026Z",
               "valid_to": null
             }
           },
@@ -21859,19 +21859,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-22T23:24:30.883753Z",
+                      "created_at": "2026-10-26T00:36:37.347026Z",
                       "first_discovery_id": null,
-                      "id": "abdaccbe-69b2-41e9-a4bc-486dbc398de8",
+                      "id": "af7a0e8a-2849-4b3f-96fd-7c3cd2e3a624",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-22T23:24:30.883753Z",
+                      "last_seen_at": "2026-10-26T00:36:37.347026Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-22T23:24:30.883753Z",
-                      "valid_from": "2026-10-22T23:24:30.883753Z",
+                      "updated_at": "2026-10-26T00:36:37.347026Z",
+                      "valid_from": "2026-10-26T00:36:37.347026Z",
                       "valid_to": null
                     }
                   ],
@@ -21884,7 +21884,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Consul",
+                  "service_definition": "Radarr",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -22658,42 +22658,6 @@
           }
         }
       },
-      "ApiResponse_Option_String": {
-        "type": "object",
-        "description": "Envelope for a successful response. Failures are sent with a non-2xx status\nand an `ApiErrorResponse` body instead.",
-        "required": [
-          "success",
-          "meta"
-        ],
-        "properties": {
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              }
-            ],
-            "description": "The result payload. Omitted on failure."
-          },
-          "error": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Not sent on a successful response. Failure messages arrive in an\n`ApiErrorResponse`."
-          },
-          "meta": {
-            "$ref": "#/components/schemas/ApiMeta",
-            "description": "API and server version metadata."
-          },
-          "success": {
-            "type": "boolean",
-            "description": "Always `true` on a successful response."
-          }
-        }
-      },
       "ApiResponse_Organization": {
         "type": "object",
         "description": "Envelope for a successful response. Failures are sent with a non-2xx status\nand an `ApiErrorResponse` body instead.",
@@ -22938,12 +22902,17 @@
             "type": "object",
             "description": "Whether provisioning another daemon would be refused for the caller's organization.",
             "required": [
-              "email_verification_required"
+              "email_verification_required",
+              "plan_required"
             ],
             "properties": {
               "email_verification_required": {
                 "type": "boolean",
                 "description": "The organization already has a daemon and no owner has verified their email, so a new\ndaemon is refused until one does."
+              },
+              "plan_required": {
+                "type": "boolean",
+                "description": "The organization already has a daemon and is on Free, which runs one, so a new daemon\nis refused until it chooses a plan."
               }
             }
           },
@@ -23407,19 +23376,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-22T23:24:30.905506Z",
+                  "created_at": "2026-10-26T00:36:37.369363Z",
                   "first_discovery_id": null,
-                  "id": "c7fd1604-3e33-46c7-b4f9-445fefd44c91",
+                  "id": "38de9370-f6da-45af-8b16-3af2ba15dcc7",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-22T23:24:30.905506Z",
+                  "last_seen_at": "2026-10-26T00:36:37.369363Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-22T23:24:30.905506Z",
-                  "valid_from": "2026-10-22T23:24:30.905506Z",
+                  "updated_at": "2026-10-26T00:36:37.369363Z",
+                  "valid_from": "2026-10-26T00:36:37.369363Z",
                   "valid_to": null
                 }
               ],
@@ -23432,7 +23401,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Consul",
+              "service_definition": "Radarr",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -26559,19 +26528,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-22T23:24:30.884265Z",
+          "created_at": "2026-10-26T00:36:37.347534Z",
           "first_discovery_id": null,
-          "id": "d8f1499a-f4ba-4b09-966f-f1dd73d4d5e7",
+          "id": "ac82e37c-2880-4737-a3bf-1e60f9118c7c",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-22T23:24:30.884265Z",
+          "last_seen_at": "2026-10-26T00:36:37.347534Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-22T23:24:30.884265Z",
-          "valid_from": "2026-10-22T23:24:30.884265Z",
+          "updated_at": "2026-10-26T00:36:37.347534Z",
+          "valid_from": "2026-10-26T00:36:37.347534Z",
           "valid_to": null
         }
       },
@@ -27472,7 +27441,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Consul",
+              "service_definition": "Radarr",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -35113,19 +35082,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-22T23:24:30.883133Z",
+                  "created_at": "2026-10-26T00:36:37.346419Z",
                   "first_discovery_id": null,
-                  "id": "1c354e44-b9b4-4847-9a62-83806f461808",
+                  "id": "5b083698-ab9a-4e25-8102-608fb74f6579",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-22T23:24:30.883133Z",
+                  "last_seen_at": "2026-10-26T00:36:37.346419Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-22T23:24:30.883133Z",
-                  "valid_from": "2026-10-22T23:24:30.883133Z",
+                  "updated_at": "2026-10-26T00:36:37.346419Z",
+                  "valid_from": "2026-10-26T00:36:37.346419Z",
                   "valid_to": null
                 }
               ],
@@ -35138,7 +35107,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Consul",
+              "service_definition": "Radarr",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -38457,15 +38426,8 @@
             "description": "Progress through first-run setup."
           },
           "plan": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/BillingPlan",
-                "description": "The plan this organization is on."
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "$ref": "#/components/schemas/BillingPlan",
+            "description": "The plan this organization is on.",
             "readOnly": true
           },
           "plan_status": {
@@ -38530,7 +38492,7 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.19.0"
+            "example": "0.19.1"
           }
         },
         "example": {
@@ -38541,7 +38503,7 @@
             "offset": 0,
             "total_count": 142
           },
-          "server_version": "0.19.0"
+          "server_version": "0.19.1"
         }
       },
       "PaginatedApiResponse_Credential": {
@@ -39453,19 +39415,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-22T23:24:30.874499Z",
+                        "created_at": "2026-10-26T00:36:37.337762Z",
                         "first_discovery_id": null,
-                        "id": "3e75c5da-9f99-4059-9115-e683de077600",
+                        "id": "e04c5c9a-c4b0-4336-938f-ba17395f6199",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-22T23:24:30.874499Z",
+                        "last_seen_at": "2026-10-26T00:36:37.337762Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-22T23:24:30.874499Z",
-                        "valid_from": "2026-10-22T23:24:30.874499Z",
+                        "updated_at": "2026-10-26T00:36:37.337762Z",
+                        "valid_from": "2026-10-26T00:36:37.337762Z",
                         "valid_to": null
                       }
                     ],
@@ -39478,7 +39440,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Consul",
+                    "service_definition": "Radarr",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -39725,19 +39687,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-22T23:24:30.904818Z",
+                    "created_at": "2026-10-26T00:36:37.368677Z",
                     "first_discovery_id": null,
-                    "id": "6df49081-0fd6-4f3d-bf6c-7302379eccb1",
+                    "id": "a363d890-0b56-4465-8c81-223e5d536ce9",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-22T23:24:30.904818Z",
+                    "last_seen_at": "2026-10-26T00:36:37.368677Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-22T23:24:30.904818Z",
-                    "valid_from": "2026-10-22T23:24:30.904818Z",
+                    "updated_at": "2026-10-26T00:36:37.368677Z",
+                    "valid_from": "2026-10-26T00:36:37.368677Z",
                     "valid_to": null
                   }
                 ],
@@ -39750,7 +39712,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Consul",
+                "service_definition": "Radarr",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -40984,12 +40946,17 @@
         "type": "object",
         "description": "Whether provisioning another daemon would be refused for the caller's organization.",
         "required": [
-          "email_verification_required"
+          "email_verification_required",
+          "plan_required"
         ],
         "properties": {
           "email_verification_required": {
             "type": "boolean",
             "description": "The organization already has a daemon and no owner has verified their email, so a new\ndaemon is refused until one does."
+          },
+          "plan_required": {
+            "type": "boolean",
+            "description": "The organization already has a daemon and is on Free, which runs one, so a new daemon\nis refused until it chooses a plan."
           }
         }
       },
@@ -42442,19 +42409,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-22T23:24:30.884108Z",
+              "created_at": "2026-10-26T00:36:37.347377Z",
               "first_discovery_id": null,
-              "id": "bc2ffab8-2a44-4cbf-974e-7df5ff3d0805",
+              "id": "851238f6-5ede-43d3-89c2-912fe5799df0",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-22T23:24:30.884108Z",
+              "last_seen_at": "2026-10-26T00:36:37.347377Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-22T23:24:30.884108Z",
-              "valid_from": "2026-10-22T23:24:30.884108Z",
+              "updated_at": "2026-10-26T00:36:37.347377Z",
+              "valid_from": "2026-10-26T00:36:37.347377Z",
               "valid_to": null
             }
           ],
@@ -42467,7 +42434,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Consul",
+          "service_definition": "Radarr",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -44814,7 +44781,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "8712409e-56ca-4d0c-8bfd-b7e56d46304b",
+                  "id": "8a9a0b13-9052-4798-829e-53c80c19d66d",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -44824,23 +44791,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "c40e2571-08a8-4c49-831b-7b3809e65f0b",
+                  "id": "650234cc-a38d-4a5f-855d-77bb66b36c35",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "bf33e9ec-03df-4251-b255-06a6928480fc",
+                  "id": "95304068-8777-4351-aaf3-cd4844c0f597",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "e02250f0-999c-4363-ae68-fd2ec527df21",
+                  "id": "25c50297-23b5-440b-9768-5067f1f22afb",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "c40e2571-08a8-4c49-831b-7b3809e65f0b",
+                  "id": "650234cc-a38d-4a5f-855d-77bb66b36c35",
                   "rule": "ByHost"
                 }
               ]
@@ -44870,19 +44837,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "b27cc6fe-9c4b-4c09-89be-fb840a6806dc",
+                "id": "288d5575-40be-4b9e-b4a9-7119c709ca71",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "70cd4663-42a4-45fe-9854-5ccf0a0fc8a2",
+                "id": "4a8fffd1-e60d-46f8-a145-ff9d5b29d03c",
                 "rule": "ByVLAN"
               },
               {
-                "id": "399a36b8-3014-4bac-a623-e1002bfea0a8",
+                "id": "d42a4d15-2bec-47fa-90c8-f0cc6d05222f",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "ceae203e-fee9-455d-b53d-c70be71274ca",
+                "id": "d1d8d616-3ffd-440b-aa19-b9987b6c84ff",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -44903,7 +44870,7 @@
                 }
               },
               {
-                "id": "00ca0008-842b-47f6-8d1f-4f16a28fea2e",
+                "id": "945ac7d5-05fe-450c-b6ae-e490da9cca95",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -44912,19 +44879,19 @@
                 }
               },
               {
-                "id": "68fc0377-b942-48e6-acae-c1c3599c7f17",
+                "id": "334c20ac-f0b9-4106-961c-961c5741c358",
                 "rule": "ByDeviceType"
               },
               {
-                "id": "56031123-1603-4308-a84a-69be1f9d5402",
+                "id": "995d6145-94cf-46fe-9e0d-f0e702ba5061",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "6ad6d96a-a8a5-4d15-8365-bb48de60b756",
+                "id": "8aba0615-560d-42a6-b8ed-08c169de177b",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "adb70f03-058f-45b6-a776-cd1a5435b5e2",
+                "id": "e2cbb1e0-e10a-43c1-90c7-ea2827f54728",
                 "rule": "ByStack"
               }
             ]

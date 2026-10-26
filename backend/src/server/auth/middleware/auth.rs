@@ -529,7 +529,7 @@ impl AuthenticatedEntity {
                         let plan = organization
                             .base
                             .plan
-                            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+                            ;
 
                         if !plan.features().api_access {
                             return Err(AuthError(ApiError::payment_required(

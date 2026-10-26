@@ -250,7 +250,9 @@ pub struct BillingPlanFeatures {
     /// Signed service level agreement.
     pub signed_sla: bool,
     // Core features
-    pub network_mapping: bool,
+    pub device_inventory: bool,
+    pub tagging: bool,
+    pub topology_view: bool,
     pub png_export: bool,
     pub svg_export: bool,
     pub mermaid_export: bool,
@@ -658,7 +660,9 @@ impl BillingPlan {
                 embeds: true,
                 email_support: false,
                 priority_support: false,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                topology_view: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -692,8 +696,11 @@ impl BillingPlan {
                 embeds: false,
                 email_support: false,
                 priority_support: false,
-                network_mapping: true,
-                png_export: true,
+                device_inventory: true,
+                tagging: false,
+                // Diagram exports come from the topology view, which Free lacks.
+                topology_view: false,
+                png_export: false,
                 svg_export: false,
                 mermaid_export: false,
                 confluence_export: false,
@@ -726,7 +733,9 @@ impl BillingPlan {
                 embeds: false,
                 email_support: true,
                 priority_support: false,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                topology_view: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: false,
@@ -760,7 +769,9 @@ impl BillingPlan {
                 embeds: true,
                 email_support: true,
                 priority_support: false,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                topology_view: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -794,7 +805,9 @@ impl BillingPlan {
                 embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                topology_view: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -828,7 +841,9 @@ impl BillingPlan {
                 embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                topology_view: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -862,7 +877,9 @@ impl BillingPlan {
                 embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                topology_view: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -896,7 +913,9 @@ impl BillingPlan {
                 embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                topology_view: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -930,7 +949,9 @@ impl BillingPlan {
                 embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                topology_view: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -964,7 +985,9 @@ impl BillingPlan {
                 embeds: true,
                 email_support: true,
                 priority_support: false,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                topology_view: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -998,7 +1021,9 @@ impl BillingPlan {
                 embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                topology_view: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -1041,7 +1066,9 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             embeds,
             email_support,
             priority_support,
-            network_mapping,
+            device_inventory,
+            tagging,
+            topology_view,
             png_export,
             svg_export,
             mermaid_export,
@@ -1136,8 +1163,16 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             features.push(Feature::RemoveCreatedWith)
         }
 
-        if network_mapping {
-            features.push(Feature::NetworkMapping)
+        if device_inventory {
+            features.push(Feature::DeviceInventory)
+        }
+
+        if tagging {
+            features.push(Feature::Tagging)
+        }
+
+        if topology_view {
+            features.push(Feature::TopologyView)
         }
 
         if png_export {

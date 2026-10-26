@@ -140,7 +140,7 @@ async fn get_dashboard_summary(
         .organization_service
         .get_by_id(&organization_id)
         .await?
-        .and_then(|o| o.base.plan)
+        .map(|o| o.base.plan)
         .unwrap_or_else(crate::server::billing::plans::get_free_plan);
     let (host_limit, site_limit, seat_limit) =
         (plan.host_limit(), plan.site_limit(), plan.seat_limit());

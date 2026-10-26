@@ -187,7 +187,7 @@ impl LicenseIssuer {
         now: DateTime<Utc>,
         unpaid_from: Option<DateTime<Utc>>,
     ) -> Result<String, MintError> {
-        let plan = org.base.plan.ok_or(MintError::NotLicensed)?;
+        let plan = org.base.plan;
         if !plan.features().air_gapped_deployment {
             return Err(MintError::OfflineNotIncluded);
         }
@@ -269,7 +269,7 @@ fn has_paid_subscription(org: &Organization, paid_through: Option<DateTime<Utc>>
 fn licensed_plan(org: &Organization) -> Result<LicensePlan, MintError> {
     org.base
         .plan
-        .and_then(|plan| plan.license_plan())
+        .license_plan()
         .ok_or(MintError::NotLicensed)
 }
 
@@ -302,7 +302,7 @@ pub(crate) mod tests {
             id: Uuid::new_v4(),
             ..Default::default()
         };
-        org.base.plan = Some(plan);
+        org.base.plan = plan;
         org.base.license_paid_through = paid_through;
         org.base.license_key_version = 3;
         org

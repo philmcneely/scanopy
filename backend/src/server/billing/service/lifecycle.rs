@@ -57,7 +57,8 @@ impl BillingService {
         if organization
             .base
             .plan
-            .is_some_and(|plan| plan.license_plan().is_some())
+            .license_plan()
+            .is_some()
         {
             return Err(crate::server::shared::types::api::ValidationError::new(
                 "Pausing is not available on self-hosted plans.",
@@ -485,10 +486,7 @@ impl BillingService {
         };
 
         let organization = self.get_organization(organization_id).await?;
-        let Some(plan) = organization.base.plan else {
-            // No plan selected yet — nothing to discount.
-            return Ok(None);
-        };
+        let plan = organization.base.plan;
         if !plan.is_stripe_managed() {
             // No Stripe sub to attach a coupon to (Free / Community / Demo /
             // CommercialSelfHosted).
@@ -586,7 +584,8 @@ impl BillingService {
         if organization
             .base
             .plan
-            .is_some_and(|plan| plan.license_plan().is_some())
+            .license_plan()
+            .is_some()
         {
             return Err(crate::server::shared::types::api::ValidationError::new(
                 "The retention discount is not available on self-hosted plans.",
@@ -717,7 +716,7 @@ impl BillingService {
                         .map(|i| i.to_string())
                         .unwrap_or_default(),
                     amount_cents: invoice.amount_paid,
-                    plan: organization.base.plan.unwrap_or_else(get_free_plan),
+                    plan: organization.base.plan,
                     attempt_count: invoice.attempt_count as u32,
                     // The sub object isn't in scope here; Stripe fires
                     // customer.subscription.updated right after this
@@ -791,11 +790,10 @@ impl BillingService {
         invoice: &stripe_billing::Invoice,
     ) -> Result<Option<LicenseResume>, Error> {
         let snapshot = BillingInvoice::from(invoice);
-        let (Some(original_term_end), Some(plan)) =
-            (snapshot.license_paid_through(), organization.base.plan)
-        else {
+        let Some(original_term_end) = snapshot.license_paid_through() else {
             return Ok(None);
         };
+        let plan = organization.base.plan;
         if !organization.is_lapsed() {
             return Ok(None);
         }
@@ -859,6 +857,46 @@ impl BillingService {
             subscription,
             invoice_id: snapshot.stripe_invoice_id.to_string(),
         }))
+    }
+
+    /// ONE-SHOT (remove next release): cancel the live $0 subscriptions left on Free orgs from
+    /// when picking Free created one. Free has no subscription now; each cancellation's webhook
+    /// clears the org's status and sends nothing. Cancelling an already-cancelled subscription
+    /// can't happen, because only live ones are listed, so this is safe to run at every boot.
+    pub async fn cancel_free_plan_subscriptions(&self) -> Result<usize, Error> {
+        let organizations = self
+            .organization_service
+            .get_all(StorableFilter::<Organization>::new())
+            .await?;
+        let mut cancelled = 0;
+        for organization in organizations
+            .into_iter()
+            .filter(|org| org.base.plan.is_free())
+        {
+            let Some(customer_id) = organization.base.stripe_customer_id else {
+                continue;
+            };
+            let subscriptions = ListSubscription::new()
+                .customer(CustomerId::from(customer_id))
+                .send(&self.stripe)
+                .await?;
+            for subscription in subscriptions.data.iter().filter(|s| {
+                matches!(
+                    s.status,
+                    SubscriptionStatus::Active
+                        | SubscriptionStatus::Trialing
+                        | SubscriptionStatus::PastDue
+                        | SubscriptionStatus::Unpaid
+                        | SubscriptionStatus::Paused
+                )
+            }) {
+                CancelSubscription::new(&subscription.id)
+                    .send(&self.stripe)
+                    .await?;
+                cancelled += 1;
+            }
+        }
+        Ok(cancelled)
     }
 }
 

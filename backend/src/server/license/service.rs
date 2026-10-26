@@ -868,7 +868,7 @@ mod tests {
         let org = orgs
             .create(
                 Organization::new(OrganizationBase {
-                    plan: Some(get_community_plan()),
+                    plan: get_community_plan(),
                     ..Default::default()
                 }),
                 AuthenticatedEntity::System,
@@ -888,7 +888,7 @@ mod tests {
 
         // The check-in writes the reconciled plan before it returns.
         let stored = orgs.get_by_id(&org.id).await.unwrap().unwrap();
-        assert_eq!(stored.base.plan, Some(get_self_hosted_plus_plan()));
+        assert_eq!(stored.base.plan, get_self_hosted_plus_plan());
         assert!(stored.base.license_entitlement.is_some());
 
         // Restart with the cloud unreachable: the persisted entitlement applies.

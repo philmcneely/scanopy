@@ -177,18 +177,6 @@ export function useReactivateSubscriptionMutation() {
 /**
  * Mutation hook for self-serve trial extend (+7 days, once per lifetime)
  */
-/**
- * Mutation hook that starts a plan-less org's trial on its default plan.
- * Resolves to `null` when the org already has a plan.
- */
-export function useStartDefaultTrialMutation() {
-	return createMutation(() => ({
-		mutationFn: async () => {
-			return unwrapData(await apiClient.POST('/api/billing/start-trial', {}));
-		}
-	}));
-}
-
 export function useExtendTrialMutation() {
 	return createMutation(() => ({
 		mutationFn: async () => {

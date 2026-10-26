@@ -101,8 +101,8 @@
 	let isOwner = $derived(currentUser?.permissions === 'Owner');
 	let isDemoOrg = $derived(billingPlans.getMetadata(org?.plan?.type ?? null).is_demo === true);
 	// Reset and populate-demo hit main-app routes, which stay locked on a licensed
-	// plan and until a plan is chosen.
-	let mainAppRoutesLocked = $derived(org != null && (org.plan == null || hasLicensedPlan(org)));
+	// plan.
+	let mainAppRoutesLocked = $derived(org != null && hasLicensedPlan(org));
 
 	// TanStack Form
 	const form = createForm(() => ({

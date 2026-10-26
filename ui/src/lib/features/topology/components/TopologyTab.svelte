@@ -80,6 +80,9 @@
 	import { formatDate, formatTimestamp } from '$lib/shared/utils/formatting';
 	import ApplicationSetupWizard from './application-wizard/ApplicationSetupWizard.svelte';
 	import L2EmptyStateOverlay from './L2EmptyStateOverlay.svelte';
+	import TopologyPlanRequiredOverlay from './TopologyPlanRequiredOverlay.svelte';
+	import ActiveDiscoveries from '$lib/features/home/components/ActiveDiscoveries.svelte';
+	import { hasTopologyAccess } from '$lib/features/organizations/types';
 	import ViewFiltersEmptyState from './ViewFiltersEmptyState.svelte';
 	import ViewSwitcherHint from './ViewSwitcherHint.svelte';
 	import DependencyTutorial from './DependencyTutorial.svelte';
@@ -107,6 +110,7 @@
 		topology_asOf,
 		common_current,
 		topology_noTopologySelected,
+		topology_readyWhenDiscoveryCompletes,
 		topology_snapshotDeleteConfirm,
 		topology_takeSnapshot
 	} from '$lib/paraglide/messages';
@@ -400,6 +404,7 @@
 
 	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 	let onboarding = $derived((organizationQuery.data?.onboarding ?? []) as OnboardingOperation[]);
+	let topologyAccess = $derived(hasTopologyAccess(organizationQuery.data));
 	let hasCompletedFirstDiscovery = $derived(
 		onboarding.length === 0 || onboarding.includes('FirstDiscoveryCompleted')
 	);
@@ -842,7 +847,24 @@
 				<ViewSwitcherHint anchor={viewSwitcherEl} />
 			{/if}
 
-			{#if isLoading}
+			{#if !topologyAccess && !onboarding.includes('FirstDiscoveryCompleted')}
+				<!-- Free before its first scan finishes: the plan prompt waits until there
+				     is something to map, and the scan's progress shows meanwhile. -->
+				<div class="card-static card space-y-4 p-6 text-center">
+					<p class="text-sm text-secondary">{topology_readyWhenDiscoveryCompletes()}</p>
+					{#if (activeSessionsQuery.data ?? []).length > 0}
+						<ActiveDiscoveries
+							sessions={activeSessionsQuery.data ?? []}
+							onNavigate={() => (window.location.hash = 'discovery-scans')}
+						/>
+					{/if}
+				</div>
+			{:else if !topologyAccess}
+				<!-- Free: nothing to draw, and the overlay says why. -->
+				<div class="relative min-h-[60vh]" id="topology-view-area">
+					<TopologyPlanRequiredOverlay />
+				</div>
+			{:else if isLoading}
 				<Loading />
 			{:else if currentTopology}
 				<div class="relative" id="topology-view-area">

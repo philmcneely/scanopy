@@ -654,28 +654,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/billing/start-trial": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start the default trial for an org that has no plan
-         * @description Signup starts it on its own; this covers orgs created before that, and a signup whose start
-         *     failed. A cloud org without a site is a self-hosted license buyer's, so it gets the license
-         *     trial. Returns `null` when the org already has a plan.
-         */
-        post: operations["start_default_trial"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/billing/webhooks": {
         parameters: {
             query?: never;
@@ -4122,7 +4100,7 @@ export interface components {
          * @description API metadata included in all responses
          * @example {
          *       "api_version": 1,
-         *       "server_version": "0.19.0"
+         *       "server_version": "0.19.1"
          *     }
          */
         ApiMeta: {
@@ -4133,7 +4111,7 @@ export interface components {
             api_version: number;
             /**
              * @description Server version (semver)
-             * @example 0.19.0
+             * @example 0.19.1
              */
             server_version: string;
         };
@@ -4162,19 +4140,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-22T23:24:30.832627Z",
+             *       "created_at": "2026-10-26T00:36:37.295549Z",
              *       "first_discovery_id": null,
-             *       "id": "fc6c2dca-1633-473a-bfca-7132fb921d9b",
+             *       "id": "6c2b33c0-9468-4c7a-8618-60f8b5b06e99",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-22T23:24:30.832627Z",
+             *       "last_seen_at": "2026-10-26T00:36:37.295549Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-22T23:24:30.832627Z",
-             *       "valid_from": "2026-10-22T23:24:30.832627Z",
+             *       "updated_at": "2026-10-26T00:36:37.295549Z",
+             *       "valid_from": "2026-10-26T00:36:37.295549Z",
              *       "valid_to": null
              *     }
              */
@@ -5052,19 +5030,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-22T23:24:30.797940Z",
+             *               "created_at": "2026-10-26T00:36:37.264095Z",
              *               "first_discovery_id": null,
-             *               "id": "1eb91317-7aa9-4574-9e4b-588aaf5d3fdf",
+             *               "id": "0eef4044-9857-4423-ae3f-3b1440bf6ef4",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-22T23:24:30.797940Z",
+             *               "last_seen_at": "2026-10-26T00:36:37.264095Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-22T23:24:30.797940Z",
-             *               "valid_from": "2026-10-22T23:24:30.797940Z",
+             *               "updated_at": "2026-10-26T00:36:37.264095Z",
+             *               "valid_from": "2026-10-26T00:36:37.264095Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5077,7 +5055,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Consul",
+             *           "service_definition": "Radarr",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -5698,23 +5676,6 @@ export interface components {
          * @description Envelope for a successful response. Failures are sent with a non-2xx status
          *     and an `ApiErrorResponse` body instead.
          */
-        ApiResponse_Option_String: {
-            /** @description The result payload. Omitted on failure. */
-            data?: null | string;
-            /**
-             * @description Not sent on a successful response. Failure messages arrive in an
-             *     `ApiErrorResponse`.
-             */
-            error?: string | null;
-            /** @description API and server version metadata. */
-            meta: components["schemas"]["ApiMeta"];
-            /** @description Always `true` on a successful response. */
-            success: boolean;
-        };
-        /**
-         * @description Envelope for a successful response. Failures are sent with a non-2xx status
-         *     and an `ApiErrorResponse` body instead.
-         */
         ApiResponse_Organization: {
             /** @description The result payload. Omitted on failure. */
             data?: components["schemas"]["OrganizationBase"] & {
@@ -5871,6 +5832,11 @@ export interface components {
                  *     daemon is refused until one does.
                  */
                 email_verification_required: boolean;
+                /**
+                 * @description The organization already has a daemon and is on Free, which runs one, so a new daemon
+                 *     is refused until it chooses a plan.
+                 */
+                plan_required: boolean;
             };
             /**
              * @description Not sent on a successful response. Failure messages arrive in an
@@ -6093,19 +6059,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-22T23:24:30.827090Z",
+             *           "created_at": "2026-10-26T00:36:37.290099Z",
              *           "first_discovery_id": null,
-             *           "id": "c87c9317-ad74-4576-ba13-b477778df3a4",
+             *           "id": "ce08b608-912a-492f-8ff6-b9f910fcf6b6",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-22T23:24:30.827090Z",
+             *           "last_seen_at": "2026-10-26T00:36:37.290099Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-22T23:24:30.827090Z",
-             *           "valid_from": "2026-10-22T23:24:30.827090Z",
+             *           "updated_at": "2026-10-26T00:36:37.290099Z",
+             *           "valid_from": "2026-10-26T00:36:37.290099Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6118,7 +6084,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Consul",
+             *       "service_definition": "Radarr",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7560,19 +7526,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-22T23:24:30.798643Z",
+         *       "created_at": "2026-10-26T00:36:37.264605Z",
          *       "first_discovery_id": null,
-         *       "id": "f2f2a59d-eea4-4275-840d-c0c7d18a5bc4",
+         *       "id": "997f533c-abaf-4bd9-a268-d48f0b58c69f",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-22T23:24:30.798643Z",
+         *       "last_seen_at": "2026-10-26T00:36:37.264605Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-22T23:24:30.798643Z",
-         *       "valid_from": "2026-10-22T23:24:30.798643Z",
+         *       "updated_at": "2026-10-26T00:36:37.264605Z",
+         *       "valid_from": "2026-10-26T00:36:37.264605Z",
          *       "valid_to": null
          *     }
          */
@@ -7962,7 +7928,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Consul",
+         *           "service_definition": "Radarr",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -10971,19 +10937,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-22T23:24:30.797110Z",
+         *               "created_at": "2026-10-26T00:36:37.263492Z",
          *               "first_discovery_id": null,
-         *               "id": "3d638c11-1399-42ba-ad25-99cc4c837064",
+         *               "id": "fa3e6d72-9f68-485e-9897-70f49f82adc3",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-22T23:24:30.797110Z",
+         *               "last_seen_at": "2026-10-26T00:36:37.263492Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-22T23:24:30.797110Z",
-         *               "valid_from": "2026-10-22T23:24:30.797110Z",
+         *               "updated_at": "2026-10-26T00:36:37.263492Z",
+         *               "valid_from": "2026-10-26T00:36:37.263492Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -10996,7 +10962,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Consul",
+         *           "service_definition": "Radarr",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -12785,7 +12751,8 @@ export interface components {
             readonly next_renewal_at?: string | null;
             /** @description Progress through first-run setup. */
             onboarding: components["schemas"]["OnboardingOperationDiscriminants"][];
-            readonly plan: components["schemas"]["BillingPlan"] | null;
+            /** @description The plan this organization is on. */
+            readonly plan: components["schemas"]["BillingPlan"];
             readonly plan_status: components["schemas"]["PlanStatus"] | null;
             /**
              * Format: date-time
@@ -12813,7 +12780,7 @@ export interface components {
          *         "offset": 0,
          *         "total_count": 142
          *       },
-         *       "server_version": "0.19.0"
+         *       "server_version": "0.19.1"
          *     }
          */
         PaginatedApiMeta: {
@@ -12826,7 +12793,7 @@ export interface components {
             pagination: components["schemas"]["PaginationMeta"];
             /**
              * @description Server version (semver)
-             * @example 0.19.0
+             * @example 0.19.1
              */
             server_version: string;
         };
@@ -13916,6 +13883,11 @@ export interface components {
              *     daemon is refused until one does.
              */
             email_verification_required: boolean;
+            /**
+             * @description The organization already has a daemon and is on Free, which runs one, so a new daemon
+             *     is refused until it chooses a plan.
+             */
+            plan_required: boolean;
         };
         /**
          * @description A range inferred from where unplaceable far ends say they live.
@@ -14567,19 +14539,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-22T23:24:30.798422Z",
+         *           "created_at": "2026-10-26T00:36:37.264445Z",
          *           "first_discovery_id": null,
-         *           "id": "a2609fdf-a5a1-41dc-9602-83992cfdca81",
+         *           "id": "4f17996d-3aca-448c-ae10-36922bb335c9",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-22T23:24:30.798422Z",
+         *           "last_seen_at": "2026-10-26T00:36:37.264445Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-22T23:24:30.798422Z",
-         *           "valid_from": "2026-10-22T23:24:30.798422Z",
+         *           "updated_at": "2026-10-26T00:36:37.264445Z",
+         *           "valid_from": "2026-10-26T00:36:37.264445Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14592,7 +14564,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Consul",
+         *       "service_definition": "Radarr",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15772,7 +15744,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "b61ff00f-03fe-478f-922f-26c5c9e76dd7",
+             *           "id": "572da343-b2ca-445d-b184-cba61280f6bd",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15782,23 +15754,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "a22641af-b046-4940-9b4c-875c68f8eafe",
+             *           "id": "ad2d7b24-c1dc-4602-9242-95686de282a0",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "e05ac25c-09ec-4858-876a-2650eb6e5d62",
+             *           "id": "2c6ed145-f30b-411b-85b0-c2ad3e6f081f",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "7e39eeb0-7d32-4562-b84a-04d418861f4f",
+             *           "id": "f5ea4a10-07f7-4783-8576-0db08767742f",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "a22641af-b046-4940-9b4c-875c68f8eafe",
+             *           "id": "ad2d7b24-c1dc-4602-9242-95686de282a0",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15812,19 +15784,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "a99d6b46-68d6-43c4-a525-490a3b91fe37",
+             *         "id": "2cb3922a-e4d2-474c-ba92-21ee00a2b598",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "8fe4cd9e-fab0-440a-b1e7-fd5ab7d59e88",
+             *         "id": "4fab00fe-0889-4644-826b-6e107404dd35",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "f967cec4-5269-46c1-9491-cfd8564fa019",
+             *         "id": "1bb03be9-cdf5-4567-ba06-19432322228f",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "50a1ee48-9fcf-42b0-a125-62d00e6b9280",
+             *         "id": "98a2c1e2-f4f7-4499-b58a-f5059645cde8",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15845,7 +15817,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "81c93f96-89ea-4939-bc26-3a2dfb6570ff",
+             *         "id": "80aa3d43-cdf2-4aa9-820e-bbd82d8d8358",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15854,19 +15826,19 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "fa941699-7d1f-4471-9917-b62303442770",
+             *         "id": "206a27df-24be-4bb8-81d5-31f0b9d35d09",
              *         "rule": "ByDeviceType"
              *       },
              *       {
-             *         "id": "ff18020a-634f-41aa-a84f-e50b8f697716",
+             *         "id": "367fe768-4c32-408e-b0bc-3f6377fbe4aa",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "b83d3594-a11b-47e1-8219-40c56413875f",
+             *         "id": "33a64aa8-ef62-4f97-8a57-729f8c1874fc",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "596b4839-b739-48e0-847c-1e6f6ca1e652",
+             *         "id": "f5654f1f-b531-4af2-b3b3-732b5eb8a4eb",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -17810,35 +17782,6 @@ export interface operations {
                 };
             };
             /** @description Billing not enabled */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    start_default_trial: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Trial started, or `null` when the org already has a plan */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_Option_String"];
-                };
-            };
-            /** @description Trial already used or billing not enabled */
             400: {
                 headers: {
                     [name: string]: unknown;

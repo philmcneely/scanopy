@@ -303,7 +303,7 @@ impl Subscriber<BillingOperation> for EmailService {
                             .organization_service
                             .get_by_id(&event.scope.organization_id)
                             .await?
-                            .and_then(|org| org.base.plan)
+                            .map(|org| org.base.plan)
                             .map(|plan| plan.name())
                             .unwrap_or("Scanopy");
                         // A downgrade credits more than it charges, so nothing
@@ -330,7 +330,7 @@ impl Subscriber<BillingOperation> for EmailService {
                         .organization_service
                         .get_by_id(&event.scope.organization_id)
                         .await?
-                        .and_then(|org| org.base.plan)
+                        .map(|org| org.base.plan)
                         .map(|plan| plan.name())
                         .unwrap_or("Scanopy");
                     self.send_invoice_finalization_failed_email(org_owner, plan_name, &reason)
@@ -344,7 +344,7 @@ impl Subscriber<BillingOperation> for EmailService {
                         .organization_service
                         .get_by_id(&event.scope.organization_id)
                         .await?
-                        .and_then(|org| org.base.plan)
+                        .map(|org| org.base.plan)
                         .map(|plan| plan.name())
                         .unwrap_or("Scanopy");
                     self.send_invoice_overdue_email(
@@ -394,11 +394,7 @@ impl Subscriber<BillingOperation> for EmailService {
                                     let current_key_expires = previous_license_paid_through
                                         .map(|at| at.format("%B %-d, %Y").to_string())
                                         .unwrap_or_else(|| "its current expiry".to_string());
-                                    let plan_name = organization
-                                        .base
-                                        .plan
-                                        .map(|plan| plan.name())
-                                        .unwrap_or("Self-Hosted");
+                                    let plan_name = organization.base.plan.name();
                                     self.send_airgap_renewal_email(
                                         org_owner,
                                         plan_name,

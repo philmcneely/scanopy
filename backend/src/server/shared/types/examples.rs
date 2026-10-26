@@ -433,7 +433,7 @@ pub fn organization() -> Organization {
         base: OrganizationBase {
             name: "Acme Corp".to_string(),
             stripe_customer_id: None,
-            plan: None,
+            plan: crate::server::billing::plans::get_free_plan(),
             plan_status: None,
             onboarding: vec![],
             has_payment_method: false,

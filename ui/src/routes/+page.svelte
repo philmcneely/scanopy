@@ -15,7 +15,6 @@
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import BillingPlanModal from '$lib/features/billing/BillingPlanModal.svelte';
 	import CloudPlanRequired from '$lib/features/billing/CloudPlanRequired.svelte';
-	import { useStartDefaultTrialMutation } from '$lib/features/billing/queries';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
 	import { TAB_LABELS } from '$lib/shared/entity-ui-config';
 	import DaemonPromptModal from '$lib/features/daemons/components/DaemonPromptModal.svelte';
@@ -36,6 +35,7 @@
 	} from '$lib/features/organizations/queries';
 	import {
 		hasLicensedPlan,
+		hasTopologyAccess,
 		isBillingPlanActive,
 		isPlanUnchosen,
 		isSelfHostedPlanLocked as isSelfHostedPlanLockedFor
@@ -140,41 +140,29 @@
 			(organization?.onboarding?.includes('DaemonPromptAccepted') ?? false)
 	);
 
-	// Signup starts a trial on the default plan. An owner whose org still has no
-	// plan (created before that, or a signup whose start failed) gets it started
-	// here, and the plan picker and Settings lock wait for it. They are the
-	// fallback when it fails or the plan doesn't land.
-	const startDefaultTrialMutation = useStartDefaultTrialMutation();
+	// A license signup's trial starts off the signup itself, a second or two
+	// after the org exists. A fresh org with no subscription yet waits for it
+	// rather than flashing the plan picker; an older one is the fallback case and
+	// gets the picker at once.
 	const FRESH_SIGNUP_MS = 60_000;
-	let defaultTrialAttempted = $state(false);
-	let defaultTrialFailed = $state(false);
-	let defaultTrialPending = $derived(planUnchosen && isOwner && !defaultTrialFailed);
-	$effect(() => {
-		if (!appInitialized || !planUnchosen || !isOwner || defaultTrialAttempted) return;
-		defaultTrialAttempted = true;
-		void startDefaultTrial();
-	});
-	async function startDefaultTrial() {
-		const planLanded = () => waitForOrgUpdate((org) => org.plan != null, { intervalMs: 500 });
-		// A fresh signup's trial is already on its way from the signup itself, and
-		// its first site may still be being created, which is what the server reads
-		// to pick the plan. Asking only once that window has passed keeps the two
-		// from naming different plans. An older org has nothing in flight.
-		const freshSignup =
+	let licenseTrialWaitDone = $state(false);
+	let licenseTrialPending = $derived(
+		planUnchosen &&
+			!licenseTrialWaitDone &&
 			organization != null &&
-			Date.now() - new Date(organization.created_at).getTime() < FRESH_SIGNUP_MS;
-		if (freshSignup && (await planLanded())) return;
-		try {
-			await startDefaultTrialMutation.mutateAsync();
-			if (!(await planLanded())) defaultTrialFailed = true;
-		} catch {
-			// The API client toasts the error.
-			defaultTrialFailed = true;
-		}
-	}
+			Date.now() - new Date(organization.created_at).getTime() < FRESH_SIGNUP_MS
+	);
+	let licenseTrialWaitStarted = $state(false);
+	$effect(() => {
+		if (!appInitialized || !licenseTrialPending || licenseTrialWaitStarted) return;
+		licenseTrialWaitStarted = true;
+		void waitForOrgUpdate((org) => org.plan_status != null, { intervalMs: 500 }).then(() => {
+			licenseTrialWaitDone = true;
+		});
+	});
 	let showBillingModal = $derived(
 		isCloudDeployment &&
-			((needsPlanSelection && !planJustActivated && !defaultTrialPending) ||
+			((needsPlanSelection && !planJustActivated && !licenseTrialPending) ||
 				$modalState.name === 'billing-plan')
 	);
 
@@ -191,7 +179,7 @@
 	let isBillingBlocking = $derived(
 		(isCloudDeployment &&
 			(organization?.plan_status === 'past_due' || organization?.plan_status === 'paused')) ||
-			(planUnchosen && !cloudPlanJustPicked && !defaultTrialPending)
+			(planUnchosen && !cloudPlanJustPicked && !licenseTrialPending)
 	);
 	// Only owners can see the Billing tab; everyone else is held on Account,
 	// where SettingsModal explains that an owner has to resolve billing.
@@ -289,14 +277,18 @@
 	});
 
 	// Real-time streams are main-app routes: connect only once the org is known
-	// to be unlocked, and drop them if the org moves onto a licensed plan.
+	// to be unlocked, and drop them if the org moves onto a licensed plan. The
+	// topology stream also needs the topology view on the plan (Free lacks it).
 	$effect(() => {
 		if (!appInitialized) return;
-		if (mainAppAvailable) {
+		if (mainAppAvailable && hasTopologyAccess(organization)) {
 			topologySSEManager.connect();
-			discoverySSEManager.connect();
 		} else {
 			topologySSEManager.disconnect();
+		}
+		if (mainAppAvailable) {
+			discoverySSEManager.connect();
+		} else {
 			discoverySSEManager.disconnect();
 		}
 	});
@@ -456,7 +448,7 @@
 						: 'account'}
 				settingsDismissible={!isBillingBlocking}
 				mainAppLocked={isMainAppLocked}
-				showLockedMainNav={isSelfHostedPlanLocked || defaultTrialPending}
+				showLockedMainNav={isSelfHostedPlanLocked}
 				{mainAppAvailable}
 				licensedPlanPending={licensedPlanJustPicked}
 			/>
@@ -533,9 +525,6 @@
 					{/each}
 				{:else if isSelfHostedPlanLocked}
 					<CloudPlanRequired page={TAB_LABELS[activeTab] ?? TAB_LABELS.home} />
-				{:else if defaultTrialPending}
-					<!-- The trial is starting; the pages mount once its plan lands. -->
-					<Loading />
 				{/if}
 			</div>
 

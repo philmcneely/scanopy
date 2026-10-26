@@ -258,7 +258,9 @@ impl AuthService {
                 (org_id, permissions.unwrap_or(UserOrgPermissions::Viewer))
             }
             ProvisionOrg::New(PendingSetup {
-                use_case, org_name, ..
+                use_case,
+                org_name,
+                ref site,
             }) => {
                 // Self-hosted org count is capped by the licensed plan's
                 // `included_orgs` (Community/Standard/Plus = 1,
@@ -290,10 +292,18 @@ impl AuthService {
                     OnboardingOperationDiscriminants::OnboardingModalCompleted,
                 ];
 
-                // Cloud: no plan until user selects one via billing modal → Stripe checkout → webhook
-                // Self-hosted: assign the license-resolved plan, which `OrgCreated` below carries.
-                let self_hosted_plan = deployment_type.is_self_hosted().then_some(license_plan);
-                new_org_plan = self_hosted_plan;
+                // Self-hosted: the license-resolved plan. Cloud: Free for a signup that names a
+                // site, and Self-Hosted Standard for a license buyer (no site), whose trial the
+                // billing subscriber starts off `OrgCreated` below. `plan_status` stays empty
+                // until a subscription exists.
+                let plan = if deployment_type.is_self_hosted() {
+                    license_plan
+                } else if site.is_some() {
+                    crate::server::billing::plans::get_free_plan()
+                } else {
+                    crate::server::billing::plans::get_self_hosted_standard_plan()
+                };
+                new_org_plan = Some(plan);
 
                 // Create new organization for this user
                 let organization = self
@@ -302,7 +312,7 @@ impl AuthService {
                         Organization::new(OrganizationBase {
                             stripe_customer_id: None,
                             name: org_name,
-                            plan: self_hosted_plan,
+                            plan,
                             plan_status: None,
                             onboarding,
                             has_payment_method: false,

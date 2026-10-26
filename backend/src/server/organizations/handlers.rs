@@ -508,7 +508,7 @@ pub async fn populate_demo_data(
     let plan = org
         .base
         .plan
-        .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        ;
     if !plan.is_demo() {
         return Err(ApiError::forbidden(
             "Populate demo data is only available for demo organizations",

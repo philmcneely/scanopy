@@ -19,13 +19,16 @@
 	import { permissions, billingPlans } from '$lib/shared/stores/metadata';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { tick, untrack } from 'svelte';
+	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { SvelteSet } from 'svelte/reactivity';
 	import {
 		common_creating,
 		tags_addTag,
 		tags_alreadyApplied,
 		tags_createTagQuoted,
-		tags_notAvailableHere
+		tags_notAvailableHere,
+		tags_planRequired,
+		billing_lapsedBannerCta
 	} from '$lib/paraglide/messages';
 	import CreatableOptionList, {
 		CREATE_ROW
@@ -127,6 +130,11 @@
 		billingPlans.getMetadata(organization?.plan?.type ?? null).is_demo === true
 	);
 	let isNonOwnerInDemo = $derived(isDemoOrg && currentUser?.permissions !== 'Owner');
+	// Free has no tagging: the picker still opens, says so, and offers a plan. The
+	// server refuses the change either way.
+	let taggingAllowed = $derived(
+		billingPlans.getMetadata(organization?.plan?.type ?? null).features?.tagging !== false
+	);
 
 	// Check if user can create tags
 	let canCreateTags = $derived(
@@ -186,7 +194,11 @@
 	});
 
 	let showDropdown = $derived(
-		open && (availableTags.length > 0 || showCreateOption || unavailableNote !== null)
+		open &&
+			(!taggingAllowed ||
+				availableTags.length > 0 ||
+				showCreateOption ||
+				unavailableNote !== null)
 	);
 
 	// The existing tag the typed text completes to, ghosted in the input; Tab applies it.
@@ -499,11 +511,31 @@
 	minWidth="10rem"
 	onClose={() => (open = false)}
 >
-	{#if unavailableNote}
+	{#if !taggingAllowed}
+		<div class="space-y-2 px-3 py-2 text-xs text-secondary">
+			<p>{tags_planRequired()}</p>
+			<button
+				type="button"
+				class="text-link hover:underline"
+				onclick={() => {
+					open = false;
+					triggerUpgrade({
+						feature: 'tagging',
+						source: 'tag_picker',
+						surface: 'hosts_tab',
+						gate_type: 'plan_required'
+					});
+				}}
+			>
+				{billing_lapsedBannerCta()}
+			</button>
+		</div>
+	{:else if unavailableNote}
 		<p class="border-b px-3 py-2 text-xs text-tertiary" style="border-color: var(--color-border)">
 			{unavailableNote}
 		</p>
 	{/if}
+	{#if taggingAllowed}
 	<CreatableOptionList
 		options={availableTags.map((tag) => ({
 			id: tag.id,
@@ -532,4 +564,5 @@
 			/>
 		{/snippet}
 	</CreatableOptionList>
+	{/if}
 </Popover>

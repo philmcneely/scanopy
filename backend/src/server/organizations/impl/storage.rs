@@ -119,7 +119,7 @@ impl Storable for Organization {
                 SqlValue::Timestamp(updated_at),
                 SqlValue::String(name),
                 SqlValue::OptionalString(stripe_customer_id),
-                SqlValue::OptionBillingPlan(plan),
+                SqlValue::OptionBillingPlan(Some(plan)),
                 SqlValue::OptionalString(plan_status.map(|s| s.to_string())),
                 SqlValue::OnboardingOperation(onboarding),
                 SqlValue::Bool(has_payment_method),
@@ -153,10 +153,8 @@ impl Storable for Organization {
     }
 
     fn from_row(row: &PgRow) -> Result<Self, anyhow::Error> {
-        let plan: Option<BillingPlan> = row
-            .try_get::<Option<serde_json::Value>, _>("plan")
-            .unwrap_or(None)
-            .and_then(|v| serde_json::from_value(v).ok());
+        let plan: BillingPlan = serde_json::from_value(row.get::<serde_json::Value, _>("plan"))
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize plan: {}", e))?;
 
         let raw: Vec<serde_json::Value> =
             serde_json::from_value(row.get::<serde_json::Value, _>("onboarding"))

@@ -103,6 +103,7 @@ impl BillingOperation {
     /// for the columns that record it. Returns whether anything changed.
     pub fn apply(&self, organization: &mut Organization, at: DateTime<Utc>) -> bool {
         let implied = self.implied_status();
+        let mut landed_on_free = false;
         let mut changed = false;
         match self {
             BillingOperation::Paused { .. } => {
@@ -114,8 +115,8 @@ impl BillingOperation {
                 next_renewal_at,
                 ..
             } => {
-                if organization.base.plan.as_ref() != Some(plan) {
-                    organization.base.plan = Some(*plan);
+                if organization.base.plan != *plan {
+                    organization.base.plan = *plan;
                     changed = true;
                 }
                 if next_renewal_at.is_some()
@@ -128,8 +129,8 @@ impl BillingOperation {
             BillingOperation::TrialStarted {
                 plan, trial_end, ..
             } => {
-                if organization.base.plan.as_ref() != Some(plan) {
-                    organization.base.plan = Some(*plan);
+                if organization.base.plan != *plan {
+                    organization.base.plan = *plan;
                     changed = true;
                 }
                 if organization.base.trial_end_date != Some(*trial_end) {
@@ -165,10 +166,7 @@ impl BillingOperation {
                     organization.base.next_renewal_at = Some(*new_trial_end);
                     changed = true;
                 }
-                if organization
-                    .base
-                    .plan
-                    .is_some_and(|plan| plan.license_plan().is_some())
+                if organization.base.plan.license_plan().is_some()
                     && organization.base.license_paid_through != Some(*new_trial_end)
                 {
                     organization.base.license_paid_through = Some(*new_trial_end);
@@ -194,8 +192,8 @@ impl BillingOperation {
                 next_renewal_at,
                 license_key_type: _,
             } => {
-                if organization.base.plan.as_ref() != Some(to) {
-                    organization.base.plan = Some(*to);
+                if organization.base.plan != *to {
+                    organization.base.plan = *to;
                     changed = true;
                 }
                 if *is_downgrade {
@@ -276,8 +274,8 @@ impl BillingOperation {
                 // has already been applied to this organization and
                 // restored the invoice's own term end, which is the past
                 // for anyone settling after it expired.
-                if organization.base.plan.as_ref() != Some(plan) {
-                    organization.base.plan = Some(*plan);
+                if organization.base.plan != *plan {
+                    organization.base.plan = *plan;
                     changed = true;
                 }
                 if organization.base.license_paid_through != Some(*resumed_through) {
@@ -303,8 +301,8 @@ impl BillingOperation {
                 // emits this when the plans differ, and the guard here makes
                 // a re-emission a no-op regardless. No renewal/downgrade
                 // bookkeeping — self-hosted plans carry no Stripe subscription.
-                if organization.base.plan.as_ref() != Some(to) {
-                    organization.base.plan = Some(*to);
+                if organization.base.plan != *to {
+                    organization.base.plan = *to;
                     changed = true;
                 }
             }
@@ -329,13 +327,22 @@ impl BillingOperation {
                 }
             }
             BillingOperation::SubscriptionCancelled { .. } => {
-                // A full cancellation (trialing or not) leaves the org on
-                // the plan it holds. The implied_status mirror below sets
-                // plan_status = Cancelled in the same write, which is what
-                // makes the org read-only until it chooses a paid plan; a
-                // self-hosted org's `license_paid_through` is left alone so
-                // its key runs out on the schedule it was issued with. Only
-                // the subscription mirrors are cleared here.
+                // A cloud plan, trialing or not, lands on Free: the org keeps
+                // using the app within Free's limits, with no status because
+                // there is no subscription, and `last_downgrade_*` records
+                // where it came from. A license plan stays as it is, and the
+                // implied_status mirror below sets plan_status = Cancelled,
+                // which makes the org read-only until it chooses a paid plan;
+                // its `license_paid_through` is left alone so the key runs out
+                // on the schedule it was issued with.
+                if organization.base.plan.license_plan().is_none()
+                    && !organization.base.plan.is_free()
+                {
+                    organization.base.last_downgrade_from_plan = Some(organization.base.plan);
+                    organization.base.last_downgrade_at = Some(at);
+                    organization.base.plan = crate::server::billing::plans::get_free_plan();
+                    landed_on_free = true;
+                }
                 //
                 // The subscription that billed by invoice is gone, so the
                 // org has no standing way to pay by invoice either. Unlike
@@ -409,6 +416,13 @@ impl BillingOperation {
         // `BillingOperation::implied_status()`; downstream consumers
         // (auth gates, BillingTab pills, PostHog properties) read the typed
         // enum, set in one place.
+        // A cancellation that landed on Free leaves no subscription to have a
+        // status.
+        let implied = if landed_on_free { None } else { implied };
+        if landed_on_free && organization.base.plan_status.is_some() {
+            organization.base.plan_status = None;
+            changed = true;
+        }
         if let Some(status) = implied {
             let new_status = Some(status);
             if organization.base.plan_status != new_status {

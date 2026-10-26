@@ -3,6 +3,7 @@ use crate::server::shared::extractors::Query;
 use crate::server::{
     auth::middleware::{
         auth::AuthenticatedEntity,
+        features::{ensure_tagging_allowed, tags_changed},
         permissions::{Authorized, Member, Viewer},
     },
     config::AppState,
@@ -168,6 +169,10 @@ where
         &site_ids,
         organization_id,
     )?;
+
+    if tags_changed(None, entity.get_tags()) {
+        ensure_tagging_allowed(&state, &organization_id).await?;
+    }
 
     let created = service
         .create(entity, auth.into_entity())
@@ -414,6 +419,10 @@ where
         &site_ids,
         organization_id,
     )?;
+
+    if tags_changed(existing.get_tags(), entity.get_tags()) {
+        ensure_tagging_allowed(&state, &organization_id).await?;
+    }
 
     let updated = service
         .update(

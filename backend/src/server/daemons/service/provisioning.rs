@@ -61,9 +61,9 @@ impl DaemonService {
                 ));
             }
 
-            // Check daemon limit for unverified orgs (allows 1st daemon). Re-provisioning an
+            // Check the daemon limit for Free and unverified orgs (allows 1st daemon). Re-provisioning an
             // existing record adds no daemons, so it is exempt.
-            self.check_unverified_daemon_limit(org_id).await?;
+            self.check_daemon_limit(org_id).await?;
 
             // The create modal blocks these too; this holds for any other caller.
             let daemon_os = request.os;
@@ -301,7 +301,7 @@ impl DaemonService {
             .await
             .ok()
             .flatten()
-            .and_then(|o| o.base.plan)
+            .map(|o| o.base.plan)
             .map(|p| p.is_free())
             .unwrap_or(true);
 

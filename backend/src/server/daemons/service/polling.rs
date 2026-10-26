@@ -292,7 +292,7 @@ impl DaemonService {
                         .await
                         .ok()
                         .flatten()
-                        .and_then(|o| o.base.plan)
+                        .map(|o| o.base.plan)
                         .map(|p| p.is_free())
                         .unwrap_or(true)
                 } else {

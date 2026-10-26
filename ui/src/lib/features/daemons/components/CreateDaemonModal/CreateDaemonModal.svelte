@@ -88,10 +88,14 @@
 		daemons_installBackToInstall,
 		daemons_installReturnToCommands,
 		daemons_testingConnectionTo,
-		daemons_verifyEmailForMoreDaemons
+		daemons_verifyEmailForMoreDaemons,
+		daemons_planRequiredForMoreDaemons,
+		billing_lapsedBannerCta
 	} from '$lib/paraglide/messages';
 	import { credentialTypes } from '$lib/shared/stores/metadata';
 	import EmailVerificationNotice from '$lib/features/auth/components/EmailVerificationNotice.svelte';
+	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
+	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 
 	interface Props {
 		isOpen?: boolean;
@@ -217,12 +221,13 @@
 	let provisionedDaemonId = $state('');
 	let isProvisioning = $state(false);
 
-	// The server refuses another daemon while no owner of the org has verified their email. It
+	// The server refuses another daemon on Free, and while no owner of the org has verified their email. It
 	// says so up front, so the wizard stops on its first step instead of after the user has
 	// configured everything.
 	const provisionEligibilityQuery = useProvisionEligibilityQuery({
 		enabled: () => isOpen && !provisionedDaemonId
 	});
+	let provisionNeedsPlan = $derived(provisionEligibilityQuery.data?.plan_required ?? false);
 	let provisionNeedsVerification = $derived(
 		provisionEligibilityQuery.data?.email_verification_required ?? false
 	);
@@ -518,7 +523,7 @@
 	async function handleNext() {
 		if (activeTab === 'configure') {
 			// Provisioning would be refused; the notice above the form says why.
-			if (provisionNeedsVerification) return;
+			if (provisionNeedsPlan || provisionNeedsVerification) return;
 			const fields = getVisibleFieldIds(formValues);
 			const isValid = await validateForm(form, fields);
 
@@ -811,7 +816,7 @@
 							})
 						: common_next(),
 					onClick: handleNext,
-					disabled: isTestingReachability || provisionNeedsVerification,
+					disabled: isTestingReachability || provisionNeedsPlan || provisionNeedsVerification,
 					large: true,
 					busy: isTestingReachability,
 					icon: ArrowRight,
@@ -894,7 +899,25 @@
 			<div class="flex-1 overflow-auto p-4 sm:p-6">
 				{#key activeTab}
 					{#if activeTab === 'configure'}
-						{#if provisionNeedsVerification}
+						{#if provisionNeedsPlan}
+							<div class="mb-4">
+								<InlineWarning title="" body={daemons_planRequiredForMoreDaemons()}>
+									<button
+										type="button"
+										class="text-link text-sm hover:underline"
+										onclick={() =>
+											triggerUpgrade({
+												source: 'create_daemon_plan_required',
+												surface: 'sidebar',
+												gate_type: 'limit_hit',
+												beforeModal: () => onClose()
+											})}
+									>
+										{billing_lapsedBannerCta()}
+									</button>
+								</InlineWarning>
+							</div>
+						{:else if provisionNeedsVerification}
 							<div class="mb-4">
 								<EmailVerificationNotice body={daemons_verifyEmailForMoreDaemons()} />
 							</div>

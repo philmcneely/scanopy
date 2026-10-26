@@ -13,7 +13,11 @@
 	} from 'lucide-svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import { hasLicensedPlan, isSelfHostedPlanLocked } from '$lib/features/organizations/types';
+	import {
+		hasLicensedPlan,
+		isPlanUnchosen,
+		isSelfHostedPlanLocked
+	} from '$lib/features/organizations/types';
 	import {
 		isCloud,
 		isLicenseSigningAvailable,
@@ -90,7 +94,7 @@
 	// there, and the dot follows it.
 	let billingNeedsAttention = $derived(
 		isCloudDeployment &&
-			(!org?.plan ||
+			(isPlanUnchosen(org, isCloudDeployment) ||
 				org?.plan_status === 'past_due' ||
 				org?.plan_status === 'paused' ||
 				org?.plan_status === 'cancelled' ||

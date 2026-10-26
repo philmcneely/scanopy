@@ -133,10 +133,12 @@ impl BillingService {
             .await?;
 
         for plan in plans {
-            // Skip free and contact-only plans — they don't need Stripe products
+            // Free has no subscription, and contact-only plans are sold by hand,
+            // so neither gets a Stripe product.
             if matches!(
                 plan,
                 BillingPlan::Community(_)
+                    | BillingPlan::Free(_)
                     | BillingPlan::CommercialSelfHosted(_)
                     | BillingPlan::Enterprise(_)
                     | BillingPlan::Demo(_)

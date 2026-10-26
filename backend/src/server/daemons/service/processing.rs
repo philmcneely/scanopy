@@ -233,7 +233,7 @@ impl DaemonService {
                         crate::server::organizations::r#impl::base::Organization,
                     >(site.base.organization_id)
                 })?;
-            let is_free_plan = organization.base.plan.map(|p| p.is_free()).unwrap_or(true);
+            let is_free_plan = organization.base.plan.is_free();
             // Reconnect safety-net (discoveries were deleted): no registration request is in
             // scope on startup, so we can't recover the init-command targeting here. Recreate
             // with empty targeting; the daemon re-registering restores its integration_targets.
@@ -290,7 +290,7 @@ impl DaemonService {
         let plan = organization
             .base
             .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+            ;
 
         if plan.is_demo() {
             return Err(ApiError::demo_mode_blocked());
@@ -399,8 +399,8 @@ impl DaemonService {
             return Err(ApiError::daemon_not_provisioned());
         }
 
-        // Check daemon limit for unverified orgs (allows 1st daemon)
-        self.check_unverified_daemon_limit(org_id).await?;
+        // Check the daemon limit for Free and unverified orgs (allows 1st daemon)
+        self.check_daemon_limit(org_id).await?;
 
         // New registration - create host and daemon
         let mut dummy_host = Host::new(HostBase {
@@ -926,7 +926,7 @@ impl DaemonService {
                     .organization_service
                     .get_by_id(&org_id)
                     .await?
-                    .and_then(|o| o.base.plan)
+                    .map(|o| o.base.plan)
                     .unwrap_or_else(crate::server::billing::plans::get_free_plan);
                 if let Some(limit) = plan.host_limit() {
                     let org_sites = self

@@ -9,7 +9,7 @@ function org(overrides: Partial<Organization> = {}): Organization {
 		updated_at: '2026-01-01T00:00:00Z',
 		name: 'Acme',
 		onboarding: [],
-		plan: null,
+		plan: { type: 'Pro' } as Organization['plan'],
 		plan_status: null,
 		...overrides
 	};

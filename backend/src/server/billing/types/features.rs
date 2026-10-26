@@ -27,7 +27,9 @@ pub enum Feature {
     LiveChatSupport,
     PrioritySupport,
     Embeds,
-    NetworkMapping,
+    DeviceInventory,
+    Tagging,
+    TopologyView,
     PngExport,
     SvgExport,
     MermaidExport,
@@ -64,7 +66,9 @@ impl HasId for Feature {
             Feature::EmailSupport => "email_support",
             Feature::PrioritySupport => "priority_support",
             Feature::ApiAccess => "api_access",
-            Feature::NetworkMapping => "network_mapping",
+            Feature::DeviceInventory => "device_inventory",
+            Feature::Tagging => "tagging",
+            Feature::TopologyView => "topology_view",
             Feature::PngExport => "png_export",
             Feature::SvgExport => "svg_export",
             Feature::MermaidExport => "mermaid_export",
@@ -129,11 +133,13 @@ impl EntityMetadataProvider for Feature {
 impl TypeMetadataProvider for Feature {
     fn category(&self) -> &'static str {
         match self {
-            Feature::NetworkMapping
+            Feature::DeviceInventory
+            | Feature::Tagging
             | Feature::DiscoveryIntegrations
             | Feature::ScheduledDiscovery => "Discovery",
 
-            Feature::PngExport
+            Feature::TopologyView
+            | Feature::PngExport
             | Feature::SvgExport
             | Feature::MermaidExport
             | Feature::ConfluenceExport
@@ -183,7 +189,9 @@ impl TypeMetadataProvider for Feature {
             Feature::ApiAccess => "API Access",
             Feature::EmailSupport => "Email Support",
             Feature::PrioritySupport => "Priority Support",
-            Feature::NetworkMapping => "Automated Network Mapping",
+            Feature::DeviceInventory => "Device Inventory",
+            Feature::Tagging => "Tagging",
+            Feature::TopologyView => "Network Topology",
             Feature::PngExport => "PNG Export",
             Feature::SvgExport => "SVG Export",
             Feature::MermaidExport => "Mermaid Export",
@@ -236,8 +244,12 @@ impl TypeMetadataProvider for Feature {
             Feature::EmailSupport => "Access to the Scanopy team via email support tickets",
             Feature::Whitelabeling => "Deploy Scanopy with your logo and brand colors",
             Feature::LiveChatSupport => "Access to the Scanopy team via live chat",
-            Feature::NetworkMapping => {
-                "Automatically discover hosts, services, and connections and map them as interactive topology diagrams"
+            Feature::DeviceInventory => {
+                "Automatically discover hosts, services, ports and interfaces into a searchable inventory"
+            }
+            Feature::Tagging => "Apply tags to hosts, services and other entities to group and filter them",
+            Feature::TopologyView => {
+                "Explore your network as interactive topology diagrams, with snapshots of how it changes"
             }
             Feature::PngExport => "Export network diagrams as high-resolution PNG images",
             Feature::SvgExport => "Export network diagrams as scalable SVG vector images",

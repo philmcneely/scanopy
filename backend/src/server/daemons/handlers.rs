@@ -9,6 +9,7 @@ use crate::server::daemons::r#impl::api::{
     ProvisionEligibility, TestReachabilityRequest, TestReachabilityResponse,
 };
 use crate::server::daemons::r#impl::base::DaemonOs;
+use crate::server::daemons::service::DaemonLimit;
 use crate::server::metrics::dependency::{Dependency, observe_http};
 use crate::server::openapi::tags as api_tags;
 use crate::server::shared::api_key_common::hash_api_key;
@@ -1254,14 +1255,15 @@ async fn get_provision_eligibility(
     auth: Authorized<Member>,
 ) -> ApiResult<Json<ApiResponse<ProvisionEligibility>>> {
     let organization_id = auth.require_organization_id()?;
-    let email_verification_required = state
+    let limit = state
         .services
         .daemon_service
-        .unverified_daemon_limit_reached(organization_id)
+        .daemon_limit_reached(organization_id)
         .await?;
 
     Ok(Json(ApiResponse::success(ProvisionEligibility {
-        email_verification_required,
+        email_verification_required: limit == Some(DaemonLimit::EmailVerification),
+        plan_required: limit == Some(DaemonLimit::PlanRequired),
     })))
 }
 
