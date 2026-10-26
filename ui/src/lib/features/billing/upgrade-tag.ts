@@ -1,12 +1,12 @@
-import { ArrowUpCircle } from 'lucide-svelte';
+import PaidCrown from '$lib/shared/components/PaidCrown.svelte';
 import type { TagProps } from '$lib/shared/components/data/types';
-import { common_upgrade, common_upgradePlan } from '$lib/paraglide/messages';
+import { common_availableOnPaidPlans } from '$lib/paraglide/messages';
 
 /**
- * The badge on something the plan lacks (an export format, a credential type, snapshots), in the
- * upgrade button's colours. `title` names what is missing; it names no plan, since the lowest one
+ * The badge on something the plan lacks (an export format, a credential type, snapshots): the
+ * crown alone. Its tooltip says the feature is paid without naming a plan, since the lowest one
  * differs between cloud and self-hosted.
  */
-export function upgradeTagProps(title: string = common_upgradePlan()): TagProps {
-	return { label: common_upgrade(), icon: ArrowUpCircle, upgrade: true, title };
+export function upgradeTagProps(title: string = common_availableOnPaidPlans()): TagProps {
+	return { icon: PaidCrown, upgrade: true, title };
 }

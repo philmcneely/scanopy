@@ -35,7 +35,7 @@
 		title?: string | TooltipContent | null;
 		removable?: boolean;
 		isShiny?: boolean;
-		/** An upgrade prompt, drawn in the upgrade button's colours (`btn-upgrade`) instead of `color`. */
+		/** A paid feature's badge (`upgradeTagProps`): an amber chip around its crown, instead of `color`. */
 		upgrade?: boolean;
 		nativeTooltip?: boolean;
 		faded?: boolean;
@@ -60,8 +60,12 @@
 	// Null collapses the text element entirely rather than rendering an empty span.
 	let displayLabel = $derived(label ?? (icon ? null : common_unknown()));
 	let colorHelper = $derived(color ? createColorHelper(color) : null);
-	let bgColor = $derived(upgrade ? 'bg-amber-500' : (colorHelper?.bg ?? ''));
-	let textColor = $derived(upgrade ? 'text-amber-950' : (colorHelper?.text ?? ''));
+	let bgColor = $derived(
+		upgrade
+			? 'border border-amber-300 bg-amber-100 dark:border-amber-400/45 dark:bg-amber-500/15'
+			: (colorHelper?.bg ?? '')
+	);
+	let textColor = $derived(upgrade ? '' : (colorHelper?.text ?? ''));
 
 	/**
 	 * Names the full label on hover, but only while the chip is too narrow to
