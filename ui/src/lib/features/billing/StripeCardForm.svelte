@@ -121,13 +121,8 @@
 		initialized = true;
 		const node = container;
 		const key = publishableKey;
-		// TEMPORARY timing logs (remove after the preload is confirmed): which
-		// step the dialog's spinner waits on.
-		const openedAt = performance.now();
-		const since = () => `${Math.round(performance.now() - openedAt)}ms`;
 		void (async () => {
 			stripe = await (preloadStripe(key) ?? Promise.resolve(null));
-			console.debug(`[payment-form] Stripe.js ready after ${since()}`);
 			if (!stripe) {
 				loadFailed = true;
 				errorMessage = billing_cardLoadError();
@@ -135,7 +130,6 @@
 			}
 			// Usually built already, while the surface that opened this was showing.
 			const prepared = await preparePaymentForm(key, clientSecret, email);
-			console.debug(`[payment-form] Elements ready after ${since()}`);
 			if (!prepared) {
 				loadFailed = true;
 				errorMessage = billing_cardLoadError();
@@ -157,7 +151,6 @@
 		})();
 
 		function handleReady() {
-			console.debug(`[payment-form] element ready after ${since()}`);
 			ready = true;
 		}
 	});
@@ -169,10 +162,6 @@
 		const isActive = active;
 		untrack(() => {
 			if (isActive && !wasActive) {
-				// TEMPORARY (remove after the preload is confirmed).
-				console.debug(
-					`[payment-form] dialog opened, form ${ready ? 'already drawn' : 'still loading'}`
-				);
 				elements?.update({ appearance: buildStripeAppearance() });
 			} else if (!isActive && wasActive && !confirmedSetupIntentId) {
 				mountedElement?.clear();

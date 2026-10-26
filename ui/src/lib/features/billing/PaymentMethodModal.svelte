@@ -79,16 +79,6 @@
 	// a picked plan with a trial the org can still take, or an org already
 	// trialing (a switch keeps the trial).
 	let trialEndsAt = $derived(trialChargeDate(org, pendingPlan));
-	// TEMPORARY (remove once the note is confirmed showing): what decided it.
-	$effect(() => {
-		if (!isOpen) return;
-		console.debug('[payment-form] trial note', {
-			plan_status: org?.plan_status,
-			trial_end_date: org?.trial_end_date,
-			pending_trial_days: pendingPlan?.trial_days ?? null,
-			shows: trialEndsAt != null
-		});
-	});
 	// An org that defaulted on an invoice we wrote off has lost payment terms
 	// until it settles. The server refuses the request either way; withholding
 	// the link here is what stops the buyer walking into that refusal.
@@ -154,15 +144,8 @@
 		if (clientSecret != null) return;
 		try {
 			// Usually made already, by the surface that opened this (usePreloadStripe).
-			// TEMPORARY timing log (remove after the preload is confirmed).
-			const openedAt = performance.now();
 			pinnedSecret =
-				org != null
-					? await takeSetupIntent(org.id, 'dialog')
-					: await setupIntentMutation.mutateAsync();
-			console.debug(
-				`[payment-form] SetupIntent ready after ${Math.round(performance.now() - openedAt)}ms`
-			);
+				org != null ? await takeSetupIntent(org.id) : await setupIntentMutation.mutateAsync();
 		} catch (err) {
 			trackPaymentFormFailed('setup_intent', source, apiFailure(err));
 			// setup-intent error is toasted by the mutation; close the empty dialog
