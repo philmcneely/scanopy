@@ -5,7 +5,6 @@ import {
 	entities,
 	type FeatureId
 } from '$lib/shared/stores/metadata';
-import { ArrowUpCircle } from 'lucide-svelte';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
 export type Credential = components['schemas']['Credential'];
@@ -32,8 +31,6 @@ import {
 	common_beta,
 	common_testing,
 	common_unknown,
-	common_upgrade,
-	credentials_planRequired,
 	credentials_betaTooltip,
 	credentials_unofficialApi,
 	credentials_unofficialApiTooltip,
@@ -222,17 +219,6 @@ export function credentialTypeUpgradeFeature(
 	const required = credentialTypes.getMetadata(typeId)?.required_feature;
 	if (!required || !planType) return null;
 	return billingPlans.getMetadata(planType)?.features?.[required] ? null : required;
-}
-
-/** The upgrade badge on a credential type the plan lacks, matching the export options' badge. Its
- *  tooltip names no plan: the lowest one differs between cloud and self-hosted. */
-export function getUpgradeTagProps(): TagProps {
-	return {
-		label: common_upgrade(),
-		color: 'Yellow' as Color,
-		icon: ArrowUpCircle,
-		title: credentials_planRequired()
-	};
 }
 
 /**

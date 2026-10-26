@@ -38,6 +38,8 @@ export interface TagProps {
 	href?: string;
 	entityRef?: EntityRef;
 	pill?: boolean;
+	/** An upgrade prompt, drawn in the upgrade button's colours instead of `color`. */
+	upgrade?: boolean;
 	/** Hover text, or structured tooltip content. */
 	title?: string | TooltipContent;
 	/**

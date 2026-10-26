@@ -27,6 +27,7 @@
 			label={tag.label}
 			color={tag.color}
 			pill={tag.pill}
+			upgrade={tag.upgrade}
 			icon={tag.icon ?? null}
 			href={tag.href ?? ''}
 			title={tag.title ?? ''}
@@ -37,6 +38,7 @@
 		label={tag.label}
 		color={tag.color}
 		pill={tag.pill}
+		upgrade={tag.upgrade}
 		icon={tag.icon ?? null}
 		href={tag.href ?? ''}
 		title={tag.title ?? ''}

@@ -81,6 +81,7 @@
 	import ApplicationSetupWizard from './application-wizard/ApplicationSetupWizard.svelte';
 	import L2EmptyStateOverlay from './L2EmptyStateOverlay.svelte';
 	import TopologyPlanRequiredOverlay from './TopologyPlanRequiredOverlay.svelte';
+	import { upgradeTagProps } from '$lib/features/billing/upgrade-tag';
 	import { hasTopologyAccess } from '$lib/features/organizations/types';
 	import ViewFiltersEmptyState from './ViewFiltersEmptyState.svelte';
 	import ViewSwitcherHint from './ViewSwitcherHint.svelte';
@@ -104,7 +105,6 @@
 		common_delete,
 		common_firstDiscoveryEmailHint,
 		common_share,
-		common_upgrade,
 		daemons_installPromptTopology,
 		topology_asOf,
 		common_current,
@@ -809,7 +809,8 @@
 						>
 							<Camera class="h-5 w-5" />
 							{#if !snapshotsEnabled}
-								<Tag label={common_upgrade()} color="Yellow" />
+								<!-- The button names the action; the badge only marks it as an upgrade. -->
+								<Tag {...upgradeTagProps()} title={null} />
 							{/if}
 						</button>
 					{/if}
