@@ -12,7 +12,6 @@
 		onboarding_commercialNoticeTitle,
 		onboarding_howWillYouUse,
 		onboarding_logInHere,
-		onboarding_tailorSetup,
 		onboarding_understandContinue
 	} from '$lib/paraglide/messages';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
@@ -107,8 +106,6 @@
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="flex-1 overflow-y-auto p-6">
 			<div class="space-y-6">
-				<p class="text-center text-sm text-secondary">{onboarding_tailorSetup()}</p>
-
 				<!-- Use Case Cards -->
 				<div class="grid gap-3">
 					{#each useCaseIds as useCaseId (useCaseId)}

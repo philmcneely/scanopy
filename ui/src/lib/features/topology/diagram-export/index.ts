@@ -31,7 +31,7 @@ export async function buildDiagramExport(input: DiagramExportInput): Promise<Blo
 	const { icons, iconKeys } = await captureNodeIcons(
 		input.flowElement,
 		new Set(sourceNodes.map((n) => n.id)),
-		{ png: input.format === 'vsdx' }
+		{ png: input.format === 'vsdx', theme: input.theme }
 	);
 
 	const model = buildDiagramModel({

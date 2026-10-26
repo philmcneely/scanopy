@@ -21,7 +21,7 @@
 
 <button
 	title={common_upgradePlan()}
-	class="btn-primary inline-flex items-center gap-1.5 border-amber-400 bg-amber-500 hover:border-amber-300 hover:bg-amber-600"
+	class="btn-upgrade gap-1.5"
 	onclick={() => triggerUpgrade({ feature, source: 'upgrade_button', surface, gate_type })}
 >
 	<ArrowUpCircle class="h-4 w-4" />

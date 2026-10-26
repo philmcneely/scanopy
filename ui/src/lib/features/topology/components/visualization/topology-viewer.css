@@ -152,6 +152,11 @@
 	background: var(--glyph) center / contain no-repeat;
 }
 
+/* A `Paired` logo draws its set's dark-theme file in the dark theme. */
+.dark .card-glyph[data-glyph-dark]::before {
+	background-image: var(--glyph-dark);
+}
+
 /* A state dot centred in its ring, as one element. */
 .card-status-dot::before {
 	content: '';

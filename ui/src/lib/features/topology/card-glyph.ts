@@ -26,6 +26,9 @@ export type CardGlyph =
 			/** The logo is a disc, drawn at the frame's size (`logos.json` `Round`). */
 			round: boolean;
 			css: string;
+			/** A `Paired` logo's dark-theme file. */
+			darkSrc: string | null;
+			darkCss: string | null;
 	  };
 
 const glyphs = new Map<string, CardGlyph>();
@@ -52,7 +55,8 @@ export function cardGlyph(key: string, Icon: IconComponent): CardGlyph {
 		target,
 		props: { size: 24 }
 	});
-	const img = target.querySelector('img');
+	const img = target.querySelector('img:not([data-logo-dark])');
+	const darkSrc = target.querySelector('img[data-logo-dark]')?.getAttribute('src') ?? null;
 	const svg = target.querySelector('svg');
 	let glyph: CardGlyph;
 	if (img) {
@@ -64,7 +68,9 @@ export function cardGlyph(key: string, Icon: IconComponent): CardGlyph {
 			// `LogoIcon` marks what fills the logo's frame.
 			fill: target.querySelector<HTMLElement>('[data-logo-fill]')?.dataset.logoFill ?? null,
 			round: !!target.querySelector('[data-logo-round]'),
-			css: cssUrl(src)
+			css: cssUrl(src),
+			darkSrc,
+			darkCss: darkSrc ? cssUrl(darkSrc) : null
 		};
 	} else if (svg) {
 		svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -79,7 +85,9 @@ export function cardGlyph(key: string, Icon: IconComponent): CardGlyph {
 					src: svgDataUri(markup),
 					fill: null,
 					round: false,
-					css: cssUrl(svgDataUri(markup))
+					css: cssUrl(svgDataUri(markup)),
+					darkSrc: null,
+					darkCss: null
 				};
 	} else {
 		glyph = { type: 'mask', key, svg: '', css: 'none' };

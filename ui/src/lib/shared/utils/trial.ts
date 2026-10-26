@@ -1,5 +1,6 @@
 import type { Organization } from '$lib/features/organizations/types';
 import { billingPlans } from '$lib/shared/stores/metadata';
+import pickablePlans from '$lib/data/billing-plans.json';
 
 export function getTrialEndDate(org: Organization | null | undefined): Date | null {
 	return org?.trial_end_date ? new Date(org.trial_end_date) : null;
@@ -96,4 +97,37 @@ export function trialChargeDate(
 		return new Date(now + pendingPlan.trial_days * 24 * 60 * 60 * 1000);
 	}
 	return null;
+}
+
+/**
+ * Whether the org has had a paid subscription or a trial, so it gets no trial offer. Mirrors the
+ * backend's checkout rule (`billing/service/checkout.rs`); `trial_end_date` is set only by a
+ * subscription with a trial period. An org mid-trial is not returning: it sees trial-aware UI
+ * instead. A paid plan counts only once a subscription started on it: a license signup whose trial
+ * never started is on Self-Hosted Standard with no status.
+ */
+export function isReturningCustomer(org: Organization | null | undefined): boolean {
+	if (!org || isInTrial(org)) return false;
+	return (
+		(org.plan_status != null && billingPlans.getMetadata(org.plan.type)?.is_free !== true) ||
+		!!org.trial_end_date
+	);
+}
+
+/**
+ * The longest free trial a cloud plan with the topology view offers, in days; 0 when none does.
+ * Read from the plans the picker sells (`billing-plans.json`): the metadata store's
+ * `billing-plans-all.json` describes every variant at its default config, which has no trial.
+ */
+export function topologyTrialDays(): number {
+	const days = pickablePlans
+		.map((plan) => plan.metadata)
+		.filter((meta) => meta.license_plan == null && !meta.is_free && meta.features.topology_view)
+		.map((meta) => meta.trial_days);
+	return Math.max(0, ...days);
+}
+
+/** Whether the org would get a trial of the topology view if it picked a plan now. */
+export function canTrialTopology(org: Organization | null | undefined): boolean {
+	return !isReturningCustomer(org) && topologyTrialDays() > 0;
 }

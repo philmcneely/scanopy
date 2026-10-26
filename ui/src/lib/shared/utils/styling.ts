@@ -2,6 +2,7 @@ import * as LucideIcons from 'lucide-svelte';
 import type { IconComponent } from './types';
 import colors from 'tailwindcss/colors';
 import LogoIcon from '$lib/shared/components/data/LogoIcon.svelte';
+import type { LogoTheming } from '$lib/shared/utils/logos';
 import type { components } from '$lib/api/schema';
 
 // Use the generated Color type from OpenAPI schema
@@ -243,16 +244,35 @@ export function createLogoIconComponent(
 	{
 		fill = null,
 		round = false,
-		darkMark = false,
+		theming = 'Fixed',
+		darkUrl = null,
+		markup = null,
 		framed = true
-	}: { fill?: string | null; round?: boolean; darkMark?: boolean; framed?: boolean } = {}
+	}: {
+		fill?: string | null;
+		round?: boolean;
+		theming?: LogoTheming;
+		darkUrl?: string | null;
+		markup?: string | null;
+		framed?: boolean;
+	} = {}
 ): IconComponent {
 	if (!iconName || iconName == null) return LucideIcons.HelpCircle;
 
 	// Create a wrapper component that pre-binds the iconName
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const BoundLogoIcon = ($$payload: any, $$props: Omit<any, 'iconName'>) => {
-		return LogoIcon($$payload, { iconName, iconUrl, fill, round, darkMark, framed, ...$$props });
+		return LogoIcon($$payload, {
+			iconName,
+			iconUrl,
+			fill,
+			round,
+			theming,
+			darkUrl,
+			markup,
+			framed,
+			...$$props
+		});
 	};
 
 	return BoundLogoIcon;
