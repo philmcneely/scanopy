@@ -129,7 +129,7 @@
 					? 180
 					: $topologyOptions.local.show_minimap
 						? 350
-						: 230}px);"
+						: 242}px);"
 			>
 				{#if multiSelectedNodes.length >= 2 || $editingDependencyId}
 					{@const editingDep = $editingDependencyId
