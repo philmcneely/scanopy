@@ -118,7 +118,7 @@
 
 <div class="flex min-h-0 flex-1 flex-col">
 	<div class="flex-1 space-y-6 overflow-auto p-6">
-		<div class="grid grid-cols-2 gap-3">
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			{#each supportOptions as option (option.description)}
 				{@const colors = createColorHelper(option.color)}
 				<button onclick={() => handleCardClick(option.url)} class="card w-full text-left">

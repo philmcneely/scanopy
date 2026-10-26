@@ -5,8 +5,10 @@
 	export let items: TItem[] = [];
 
 	// Layout configuration
-	export let listPanelWidth: string = 'w-2/5';
-	export let configPanelWidth: string = 'w-3/5';
+	// Below `md` the panes stack, each full width, so the list keeps room on a phone.
+	export let listPanelWidth: string =
+		'w-full max-h-[40%] shrink-0 md:max-h-none md:w-2/5 md:shrink';
+	export let configPanelWidth: string = 'w-full flex-1 md:flex-initial md:w-3/5';
 	export let loading: boolean = false;
 
 	// Event handlers
@@ -98,10 +100,10 @@
 	</div>
 {:else}
 	<div class="relative min-h-0 flex-1">
-		<div class="absolute inset-0 flex gap-6">
+		<div class="absolute inset-0 flex flex-col md:flex-row md:gap-6">
 			<!-- Left Panel - List Manager -->
 			<div class="list-config-pane {listPanelWidth} min-h-0 overflow-y-auto">
-				<div class="p-6">
+				<div class="p-4 md:p-6">
 					<slot
 						name="list"
 						{items}
@@ -121,7 +123,7 @@
 
 			<!-- Right Panel - Configuration -->
 			<div
-				class="list-config-pane {configPanelWidth} min-h-0 overflow-y-auto border-l border-(--color-border) p-6"
+				class="list-config-pane {configPanelWidth} min-h-0 overflow-y-auto border-t border-(--color-border) p-4 md:border-t-0 md:border-l md:p-6"
 			>
 				<slot name="config" {selectedItem} {selectedIndex} onChange={handleItemChange}>
 					<div class="flex h-32 items-center justify-center text-tertiary">

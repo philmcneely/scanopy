@@ -17,6 +17,7 @@
 
 <script lang="ts">
 	import { tick, untrack, type Snippet } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { ArrowLeft, Loader2, X } from 'lucide-svelte';
 	import type { AnyFormApi } from '@tanstack/form-core';
 	import {
@@ -209,9 +210,24 @@
 	}
 
 	// Tabs and steppers share the title row, between the title and the close button, whenever
-	// that row shows a left-aligned title. Otherwise they keep their own row below. In the row,
+	// that row shows a left-aligned title and the viewport is `md` or wider. Otherwise they keep
+	// their own row below, which scrolls sideways when the tabs outgrow it. In the title row,
 	// tabs never shrink below their full width; a long title truncates instead.
-	let inlineTabs = $derived(tabs.length > 0 && showTitleRow && !centerTitle);
+	const wideViewport = new MediaQuery('min-width: 768px');
+	let inlineTabs = $derived(
+		tabs.length > 0 && showTitleRow && !centerTitle && wideViewport.current
+	);
+
+	// Keep the active tab in view in a tab row that scrolls, including after a deep-link open.
+	// Sets the row's own scroll position: `scrollIntoView` would scroll the modal page too.
+	let tabRow = $state<HTMLElement | null>(null);
+	$effect(() => {
+		if (!isOpen || !tabRow || !activeTab) return;
+		const row = tabRow;
+		const current = row.querySelector<HTMLElement>('[aria-current]');
+		if (!current || row.scrollWidth <= row.clientWidth) return;
+		row.scrollLeft = current.offsetLeft - (row.clientWidth - current.offsetWidth) / 2;
+	});
 
 	let showBackButton = $derived(
 		name != null && $modalState.name === name && $modalState.returnUrl != null
@@ -434,6 +450,28 @@
 		max: 'max-w-none w-full'
 	};
 
+	// The panel's height, less the backdrop's padding. `dvh`, not `vh`: on iOS the browser's
+	// toolbar covers the bottom of a `vh` box, and with it the footer. Below `sm` the back button
+	// takes the top 4rem of the backdrop.
+	let heightClass = $derived.by(() => {
+		const fills = size === 'full' || size === 'wide' || fixedHeight;
+		const phone = fills
+			? showBackButton
+				? 'h-[calc(100dvh-4.5rem)]'
+				: 'h-[calc(100dvh-1rem)]'
+			: showBackButton
+				? 'max-h-[calc(100dvh-4.5rem)]'
+				: 'max-h-[calc(100dvh-1rem)]';
+		const desktop = fills
+			? compactPadding
+				? 'sm:h-[calc(100dvh-2rem)]'
+				: 'sm:h-[calc(100dvh-8rem)]'
+			: compactPadding
+				? 'sm:max-h-[calc(100dvh-2rem)]'
+				: 'sm:max-h-[calc(100dvh-8rem)]';
+		return `${phone} ${desktop}`;
+	});
+
 	function handleClose() {
 		activeTab = tabs.length > 0 ? tabs[0].id : '';
 		if (name) {
@@ -498,7 +536,7 @@
 			? 'modal-page-anchored'
 			: ''} {compactPadding ? 'px-2! py-1! sm:px-4! sm:py-4!' : ''} {listOrder
 			? 'sm:px-16!'
-			: ''} {isOpen ? '' : 'invisible'}"
+			: ''} {showBackButton ? 'max-sm:pt-16!' : ''} {isOpen ? '' : 'invisible'}"
 		inert={!isOpen}
 		aria-hidden={!isOpen}
 		onclick={handleBackdropClick}
@@ -536,13 +574,7 @@
 		<div
 			class="relative outline-hidden {borderless ? '' : 'modal-container'} {sizeClasses[
 				size
-			]} {compactPadding
-				? size === 'full' || size === 'wide' || fixedHeight
-					? 'h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)]'
-					: 'max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)]'
-				: size === 'full' || size === 'wide' || fixedHeight
-					? 'h-[calc(100vh-2rem)] sm:h-[calc(100vh-8rem)]'
-					: 'max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-8rem)]'} flex w-full flex-col"
+			]} {heightClass} flex w-full flex-col"
 			bind:this={panel}
 			tabindex="-1"
 			onpointerdowncapture={captureBaseline}
@@ -624,15 +656,20 @@
 				{#if tabStyle === 'stepper'}
 					<ModalStepper {tabs} {activeTab} onTabClick={handleTabClick} {inline} />
 				{:else}
+					<!-- On its own row the tabs scroll sideways, snapping to each tab, once they
+					     outgrow the panel (a phone). -->
 					<nav
-						class={inline ? 'flex flex-1 items-center gap-6' : 'flex w-full space-x-6 pt-4'}
+						bind:this={tabRow}
+						class={inline
+							? 'flex flex-1 items-center gap-6'
+							: 'flex w-full snap-x snap-mandatory [scrollbar-width:none] space-x-6 overflow-x-auto pt-4'}
 						aria-label={common_modalTabs()}
 					>
 						{#each tabs as tab (tab.id)}
 							<button
 								type="button"
 								onclick={() => !tab.disabled && handleTabClick(tab.id)}
-								class="shrink-0 border-b-2 px-1 text-sm font-medium whitespace-nowrap transition-colors
+								class="shrink-0 snap-start border-b-2 px-1 text-sm font-medium whitespace-nowrap transition-colors
 									{inline ? 'py-1' : 'pb-3'}
 									{tab.disabled
 									? 'cursor-not-allowed border-transparent text-muted opacity-50'
@@ -721,8 +758,9 @@
 		{/if}
 		{action.label}
 		{#if key}
+			<!-- Hidden below `md`: a phone has no keyboard to press it with. -->
 			<span
-				class="inline-flex transition-opacity {paused ? 'opacity-40' : ''}"
+				class="hidden transition-opacity md:inline-flex {paused ? 'opacity-40' : ''}"
 				title={!paused
 					? undefined
 					: key === ENTER_KEY
