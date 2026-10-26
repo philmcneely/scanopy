@@ -83,7 +83,7 @@ async fn current_user(state: &AppState, auth: &Authorized<IsUser>) -> ApiResult<
 #[utoipa::path(
     get,
     path = "/unseen",
-    tags = [api_tags::RELEASE_NOTES],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Unseen releases", body = ApiResponse<UnseenReleaseNotes>),
         (status = 401, description = "Not signed in", body = ApiErrorResponse),
@@ -110,7 +110,7 @@ pub async fn get_unseen_release_notes(
 #[utoipa::path(
     post,
     path = "/seen",
-    tags = [api_tags::RELEASE_NOTES],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Dismissed", body = EmptyApiResponse),
         (status = 401, description = "Not signed in", body = ApiErrorResponse),
