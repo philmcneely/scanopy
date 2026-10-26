@@ -185,18 +185,18 @@
 		/>
 	</div>
 
-	<div class="grid grid-cols-2 items-start gap-4">
+	<div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
 		{@render numberField('scan_rate_pps')}
 		{@render numberField('port_scan_batch_size')}
 	</div>
 
-	<div class="grid grid-cols-3 items-start gap-4">
+	<div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
 		{@render numberField('arp_rate_pps')}
 		{@render numberField('arp_scan_cutoff')}
 		{@render numberField('arp_retries')}
 	</div>
 
-	<div class="grid grid-cols-2 items-start gap-4">
+	<div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
 		{@render numberField('max_discovery_duration')}
 		{@render booleanField('use_npcap_arp', true)}
 	</div>

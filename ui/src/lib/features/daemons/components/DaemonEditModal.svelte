@@ -301,7 +301,7 @@
 						     server-authoritative label (reaches the daemon via its handshake, not a
 						     command); mode is fixed at install and decides how daemon and server reach
 						     each other. Neither is a form value the user can change here. -->
-						<div class="grid grid-cols-2 gap-4">
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<detailsForm.Field name="name">
 								{#snippet children(field)}
 									<TextInput

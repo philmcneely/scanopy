@@ -240,7 +240,7 @@
 				<div class="space-y-6">
 					<!-- Email & Password. A linked OIDC account owns the address, so it can't be changed here. -->
 					<InfoCard title={common_emailAndPassword()}>
-						<div class="flex items-center justify-between gap-4">
+						<div class="flex flex-wrap items-center justify-between gap-4">
 							<div class="flex min-w-0 items-center gap-4">
 								<Mail class="h-5 w-5 shrink-0 text-secondary" />
 								<div class="min-w-0">
@@ -261,7 +261,7 @@
 								</button>
 							{/if}
 						</div>
-						<div class="flex items-center justify-between gap-4">
+						<div class="flex flex-wrap items-center justify-between gap-4">
 							<div class="flex items-center gap-4">
 								<Key class="h-5 w-5 shrink-0 text-secondary" />
 								<p class="text-sm font-medium text-primary">{common_password()}</p>

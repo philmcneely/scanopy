@@ -285,7 +285,7 @@
 	}
 
 	.modal-page {
-		@apply fixed inset-0 z-50 flex items-center justify-center overscroll-contain px-3 py-4 sm:px-0 sm:py-16;
+		@apply fixed inset-0 z-50 flex items-center justify-center overscroll-contain px-2 py-2 sm:px-0 sm:py-16;
 	}
 
 	.modal-page-anchored {
@@ -303,7 +303,7 @@
 	}
 
 	.modal-header {
-		@apply flex shrink-0 items-center justify-between p-6;
+		@apply flex shrink-0 items-center justify-between p-4 sm:p-6;
 		border-bottom: 1px solid var(--color-border);
 	}
 
@@ -312,7 +312,7 @@
 	}
 
 	.modal-footer {
-		@apply shrink-0 p-6;
+		@apply shrink-0 p-4 sm:p-6;
 		border-top: 1px solid var(--color-border);
 	}
 
