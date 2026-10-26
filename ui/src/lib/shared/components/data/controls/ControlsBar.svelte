@@ -96,8 +96,8 @@
 {/if}
 <div class="flex flex-wrap items-center justify-between gap-y-3">
 	<!-- Left: the page filter. Filters, grouping and sort live in the column headers. -->
-	<div class="flex min-w-0 items-center gap-4">
-		<div class="w-96 min-w-48">
+	<div class="flex min-w-0 items-center gap-4 max-md:w-full">
+		<div class="w-full min-w-48 md:w-96">
 			<form.Field name="query">
 				{#snippet children(field)}
 					<SearchInput

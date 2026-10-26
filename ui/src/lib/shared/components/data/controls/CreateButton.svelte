@@ -57,7 +57,7 @@
 	{label}
 	{#if shortcuts}
 		<span
-			class="inline-flex transition-opacity {paused ? 'opacity-40' : ''}"
+			class="inline-flex transition-opacity max-md:hidden {paused ? 'opacity-40' : ''}"
 			title={paused ? common_shortcutsPausedInSearch() : undefined}
 		>
 			<KbdKey key={SHORTCUT} size="xs" tone="inherit" />

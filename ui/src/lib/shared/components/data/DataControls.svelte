@@ -70,6 +70,7 @@
 	import ColumnControlsMenu from './table/ColumnControlsMenu.svelte';
 	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import PaginationBar from './controls/PaginationBar.svelte';
+	import SelectionMenus from './controls/SelectionMenus.svelte';
 	import EntityTable from './table/EntityTable.svelte';
 	import ColumnVisibilityMenu from './table/ColumnVisibilityMenu.svelte';
 	import TagCell from './TagCell.svelte';
@@ -113,7 +114,7 @@
 		type EntityDiscriminants
 	} from '$lib/features/tags/queries';
 	import { computeCommonTags } from '$lib/shared/utils/tags';
-	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { MediaQuery, SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import throttle from 'just-throttle';
 	import { isOnVisiblePage, registerEntityList } from '$lib/shared/stores/modal-registry';
 	import { isShiftShortcut, keyLabel, shiftShortcutLabel } from '$lib/shared/utils/shortcuts';
@@ -961,7 +962,10 @@
 	/** Focus is in the tag island (T put it there, or a click): its tags can be removed from the keyboard. */
 	let editingTags = $state(false);
 	let bulkTagPicker: { focusInput: () => void } | undefined = $state();
-	let showTagIsland = $derived(hasBulkTagging && selectedIds.size > 0);
+	// Below `md` the selection's actions and tags fold into menus in the toolbar (`SelectionMenus`)
+	// instead of a row of buttons and an island floating over a phone-sized table.
+	const narrowViewport = new MediaQuery('max-width: 767px');
+	let showTagIsland = $derived(hasBulkTagging && selectedIds.size > 0 && !narrowViewport.current);
 	// The island unmounts without a focusout when the selection clears.
 	$effect(() => {
 		if (!showTagIsland) editingTags = false;
@@ -1112,27 +1116,42 @@
 
 <!-- With rows selected: the selection's actions, as their rows show them. -->
 {#snippet selectionToolbar()}
-	{#each selectionToolbarActions as { action, key } (action.label)}
-		<button
-			onclick={action.onClick}
-			disabled={!!action.unavailable}
-			use:tooltip
-			data-tooltip={resolveTooltip(action)}
-			class="{toolbarButtonClass(
-				action.tone
-			)} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
-		>
-			{action.label}
-			{#if key}
-				<span
-					class="inline-flex transition-opacity {searchFocused ? 'opacity-40' : ''}"
-					title={searchFocused ? common_shortcutsPausedInSearch() : undefined}
-				>
-					<KbdKey key={keyLabel(key)} size="xs" tone="inherit" />
-				</span>
-			{/if}
-		</button>
-	{/each}
+	{#if narrowViewport.current}
+		<SelectionMenus
+			actions={selectionToolbarActions.map(({ action }) => action)}
+			selectedCount={selectedIds.size}
+			tagging={hasBulkTagging && entityType
+				? {
+						commonTags,
+						entityType,
+						onAdd: handleBulkTagAdd,
+						onRemove: handleBulkTagRemove
+					}
+				: null}
+		/>
+	{:else}
+		{#each selectionToolbarActions as { action, key } (action.label)}
+			<button
+				onclick={action.onClick}
+				disabled={!!action.unavailable}
+				use:tooltip
+				data-tooltip={resolveTooltip(action)}
+				class="{toolbarButtonClass(
+					action.tone
+				)} toolbar-control flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+			>
+				{action.label}
+				{#if key}
+					<span
+						class="inline-flex transition-opacity {searchFocused ? 'opacity-40' : ''}"
+						title={searchFocused ? common_shortcutsPausedInSearch() : undefined}
+					>
+						<KbdKey key={keyLabel(key)} size="xs" tone="inherit" />
+					</span>
+				{/if}
+			</button>
+		{/each}
+	{/if}
 {/snippet}
 
 <div bind:this={rootRef} class="space-y-4">
@@ -1142,7 +1161,7 @@
 	<!-- Sticky Controls Bar. `mt-0!`: the zero-height sentinel above would otherwise give it the
 	     group's gap, putting the toolbar 16px below the sidebar's first row instead of level. -->
 	<div
-		class="sticky top-0 z-20 -mx-4 mt-0! border-b bg-(--color-bg-body) px-4 pb-4 {isStuck
+		class="z-20 -mx-4 mt-0! border-b bg-(--color-bg-body) px-4 pb-4 md:sticky md:top-0 {isStuck
 			? 'border-(--color-border) pt-4 shadow-lg'
 			: 'border-transparent'}"
 	>
@@ -1152,7 +1171,10 @@
 			onClearSearch={clearSearch}
 			{entityLabel}
 			actions={selectedIds.size > 0 ? undefined : toolbarActions}
-			selectionActions={selectionToolbarActions.length > 0 ? selectionToolbar : undefined}
+			selectionActions={selectionToolbarActions.length > 0 ||
+			(narrowViewport.current && hasBulkTagging && selectedIds.size > 0)
+				? selectionToolbar
+				: undefined}
 			{title}
 			{subtitle}
 		/>

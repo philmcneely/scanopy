@@ -70,20 +70,29 @@
 		action();
 		dismissToast(toastId);
 	}
+
+	// Below `sm` toasts sit at the top, clear of a modal's footer buttons, and drop in from above.
+	function flyParams() {
+		return window.matchMedia('(min-width: 640px)').matches
+			? { x: 300, duration: 300 }
+			: { y: -80, duration: 300 };
+	}
 </script>
 
 <!-- Toast Container -->
 <!-- Above the modal band. Modals are also z-50 and the billing modal is rendered
      last on the page, so an equal z-index left toasts painted behind it by DOM
      order. Fixed here rather than by reordering, because four routes mount this. -->
-<div class="pointer-events-none fixed right-4 bottom-4 z-100 flex flex-col gap-2">
+<div
+	class="pointer-events-none fixed inset-x-2 top-[max(0.5rem,env(safe-area-inset-top))] z-100 flex flex-col gap-2 sm:top-auto sm:right-4 sm:bottom-4 sm:left-auto"
+>
 	{#each toasts as toast (toast.id)}
 		{@const colors = getToastColors(toast.type)}
 		{@const IconComponent = getToastIcon(toast.type)}
 
 		<div
-			class="pointer-events-auto max-w-md min-w-80 rounded-lg border {colors.bg} {colors.border} shadow-lg backdrop-blur-xs"
-			transition:fly={{ x: 300, duration: 300 }}
+			class="pointer-events-auto rounded-lg border sm:max-w-md sm:min-w-80 {colors.bg} {colors.border} shadow-lg backdrop-blur-xs"
+			transition:fly={flyParams()}
 		>
 			<div class="p-4">
 				<div class="flex items-start gap-3">
