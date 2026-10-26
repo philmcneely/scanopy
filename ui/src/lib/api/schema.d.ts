@@ -16990,7 +16990,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Verification email sent to new address */
+            /** @description Verification email sent to the new address, or the change applied at once when the server has no email transport */
             200: {
                 headers: {
                     [name: string]: unknown;

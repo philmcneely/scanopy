@@ -7,6 +7,8 @@
 	import ConfirmationDialog from '$lib/shared/components/feedback/ConfirmationDialog.svelte';
 	import SegmentedControl from '$lib/shared/components/forms/SegmentedControl.svelte';
 	import LicenseInstancesCard from './LicenseInstancesCard.svelte';
+	import EmailVerificationNotice from '$lib/features/auth/components/EmailVerificationNotice.svelte';
+	import { useEmailVerificationPending } from '$lib/features/auth/queries';
 	import {
 		useCreateLicenseKeyMutation,
 		useCurrentLicenseKeyQuery,
@@ -49,6 +51,7 @@
 		settings_billing_license_airGappedOpenInvoice,
 		settings_billing_license_airGappedPastDue,
 		settings_billing_license_installHint,
+		settings_billing_license_verifyEmailForKey,
 		settings_billing_license_installLinkText,
 		settings_billing_license_keyLabel,
 		settings_billing_license_lapsed,
@@ -95,7 +98,15 @@
 	// Wait for the real org to carry the plan: minting before the checkout webhook
 	// lands returns 403 NotLicensed. The tab opens on a provisional signal from the
 	// plan picker, so this can be false for the first second or two.
-	const keyQuery = useCurrentLicenseKeyQuery(() => org != null && hasLicensedPlan(org));
+	//
+	// The server also refuses every key endpoint to an owner who hasn't verified their
+	// email. Fetching anyway would toast that refusal each time the tab opens, so the
+	// query waits; the current-user query refetches on focus, which lifts this once the
+	// link is used.
+	const emailVerification = useEmailVerificationPending();
+	const keyQuery = useCurrentLicenseKeyQuery(
+		() => org != null && hasLicensedPlan(org) && !emailVerification.pending
+	);
 	let currentKey = $derived(keyQuery.data?.key ?? null);
 	let keyType = $derived<LicenseKeyType>(keyQuery.data?.key_type ?? 'Online');
 	// An org on a cloud plan sees the tab as a preview of what a self-hosted plan
@@ -455,6 +466,9 @@
 								</p>
 							{/if}
 
+							{#if !preview}
+								<EmailVerificationNotice body={settings_billing_license_verifyEmailForKey()} />
+							{/if}
 							<div>
 								<label class="text-sm text-secondary" for="license-key">
 									{settings_billing_license_keyLabel()}
