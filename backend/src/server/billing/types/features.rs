@@ -9,44 +9,55 @@ use strum::Display;
 use strum::EnumIter;
 use strum::IntoStaticStr;
 
+/// Declaration order is display order: grouped by [`category`](TypeMetadataProvider::category),
+/// and within a category in the order plan cards list them (`BillingPlan::incremental_features`).
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, IntoStaticStr, Display, Default)]
 pub enum Feature {
-    #[default]
-    ShareViews,
-    OnboardingCall,
-    AuditLogs,
-    Webhooks,
-    RemoveCreatedWith,
-    ApiAccess,
-    CustomSso,
-    Saml,
-    AirGappedDeployment,
-    ManagedDeployment,
-    Whitelabeling,
-    EmailSupport,
-    LiveChatSupport,
-    PrioritySupport,
-    Embeds,
-    DeviceInventory,
-    Tagging,
-    TopologyView,
-    PngExport,
-    SvgExport,
-    MermaidExport,
-    ConfluenceExport,
-    PdfExport,
-    HtmlExport,
-    DrawioExport,
-    VsdxExport,
+    // Discovery
     ScheduledDiscovery,
     DiscoveryIntegrations,
     InstantOnIntegration,
-    CsvExport,
+    // Inventory
+    DeviceInventory,
+    Tagging,
     SnapshotRetentionDays,
+    // Diagrams
+    TopologyView,
+    #[default]
+    ShareViews,
+    Embeds,
+    RemoveCreatedWith,
+    // Export
+    PngExport,
+    SvgExport,
+    PdfExport,
+    HtmlExport,
+    MermaidExport,
+    ConfluenceExport,
+    DrawioExport,
+    VsdxExport,
+    CsvExport,
+    // API & Automation
+    ApiAccess,
+    Webhooks,
+    // Support
+    EmailSupport,
+    LiveChatSupport,
+    PrioritySupport,
+    OnboardingCall,
+    SignedSla,
+    // Security
+    CustomSso,
+    Saml,
+    AuditLogs,
+    // Deployment
+    AirGappedDeployment,
+    ManagedDeployment,
+    Whitelabeling,
+    // Billing
     InvoiceBilling,
     CustomBilling,
     ProcurementDocuments,
-    SignedSla,
 }
 
 impl HasId for Feature {
@@ -146,25 +157,30 @@ impl EntityMetadataProvider for Feature {
 impl TypeMetadataProvider for Feature {
     fn category(&self) -> &'static str {
         match self {
-            Feature::DeviceInventory
-            | Feature::Tagging
+            Feature::ScheduledDiscovery
             | Feature::DiscoveryIntegrations
-            | Feature::InstantOnIntegration
-            | Feature::ScheduledDiscovery => "Discovery",
+            | Feature::InstantOnIntegration => "Discovery",
+
+            Feature::DeviceInventory | Feature::Tagging | Feature::SnapshotRetentionDays => {
+                "Inventory"
+            }
 
             Feature::TopologyView
-            | Feature::PngExport
+            | Feature::ShareViews
+            | Feature::Embeds
+            | Feature::RemoveCreatedWith => "Diagrams",
+
+            Feature::PngExport
             | Feature::SvgExport
-            | Feature::MermaidExport
-            | Feature::ConfluenceExport
             | Feature::PdfExport
             | Feature::HtmlExport
+            | Feature::MermaidExport
+            | Feature::ConfluenceExport
             | Feature::DrawioExport
             | Feature::VsdxExport
-            | Feature::Embeds
-            | Feature::ShareViews
-            | Feature::RemoveCreatedWith
-            | Feature::SnapshotRetentionDays => "Visualization",
+            | Feature::CsvExport => "Export",
+
+            Feature::ApiAccess | Feature::Webhooks => "API & Automation",
 
             Feature::EmailSupport
             | Feature::LiveChatSupport
@@ -172,17 +188,15 @@ impl TypeMetadataProvider for Feature {
             | Feature::OnboardingCall
             | Feature::SignedSla => "Support",
 
-            Feature::CustomSso
-            | Feature::Saml
-            | Feature::AirGappedDeployment
-            | Feature::ManagedDeployment
-            | Feature::Whitelabeling
-            | Feature::AuditLogs
-            | Feature::InvoiceBilling
-            | Feature::CustomBilling
-            | Feature::ProcurementDocuments => "Enterprise",
+            Feature::CustomSso | Feature::Saml | Feature::AuditLogs => "Security",
 
-            Feature::CsvExport | Feature::Webhooks | Feature::ApiAccess => "Integrations",
+            Feature::AirGappedDeployment | Feature::ManagedDeployment | Feature::Whitelabeling => {
+                "Deployment"
+            }
+
+            Feature::InvoiceBilling | Feature::CustomBilling | Feature::ProcurementDocuments => {
+                "Billing"
+            }
         }
     }
 
@@ -216,7 +230,7 @@ impl TypeMetadataProvider for Feature {
             Feature::VsdxExport => "Visio Export",
             Feature::ScheduledDiscovery => "Scheduled Discovery",
             Feature::DiscoveryIntegrations => "Discovery Integrations",
-            Feature::InstantOnIntegration => "HPE Aruba Instant On",
+            Feature::InstantOnIntegration => "Aruba Instant On",
             Feature::CsvExport => "CSV Export",
             Feature::SnapshotRetentionDays => "Snapshot Retention",
             Feature::InvoiceBilling => "Invoice & PO Billing",
@@ -291,7 +305,7 @@ impl TypeMetadataProvider for Feature {
                 "Add credentials so discovery also collects from network devices, controllers, hypervisors, container runtimes and hosts"
             }
             Feature::InstantOnIntegration => {
-                "Add HPE Aruba Instant On credentials so discovery reads switches, access points and their links from the Instant On portal"
+                "Add Aruba Instant On credentials so discovery reads switches, access points and their links from the Instant On portal"
             }
             Feature::CsvExport => {
                 "Download host, service, and network data as CSV for use in spreadsheets and other tools"
@@ -370,5 +384,23 @@ mod tests {
             feature_ids.len(),
             billing_plan_features.len()
         );
+    }
+
+    /// Plan cards list features in declaration order within each category, so a feature declared
+    /// away from its category's other variants lands out of place in that list.
+    #[test]
+    fn features_are_declared_grouped_by_category() {
+        let mut seen: Vec<&str> = Vec::new();
+        for feature in Feature::iter() {
+            let category = feature.category();
+            if seen.last() != Some(&category) {
+                assert!(
+                    !seen.contains(&category),
+                    "{} is declared apart from the other {category} features",
+                    feature.id()
+                );
+                seen.push(category);
+            }
+        }
     }
 }

@@ -225,52 +225,61 @@ impl BillingRate {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BillingPlanFeatures {
+    // Field order follows `Feature`, the order plan cards list them.
+    // Discovery
+    pub scheduled_discovery: bool,
+    pub discovery_integrations: bool,
+    /// Aruba Instant On credentials can be created (existing ones keep working on any plan).
+    pub instant_on_integration: bool,
+    // Inventory
+    pub device_inventory: bool,
+    pub tagging: bool,
+    /// How many days of snapshots the plan retains before the daily sweep
+    /// deletes them. `0` means snapshots are unavailable on this plan. The
+    /// env-var override (`SCANOPY_SNAPSHOT_RETENTION_DAYS_OVERRIDE`) takes
+    /// precedence at runtime — see `BillingPlan::snapshot_retention_days`.
+    pub snapshot_retention_days: u32,
+    // Diagrams
+    pub topology_view: bool,
     pub share_views: bool,
+    pub embeds: bool,
     pub remove_created_with: bool,
-    pub audit_logs: bool,
-    pub webhooks: bool,
+    // Export
+    pub png_export: bool,
+    pub svg_export: bool,
+    pub pdf_export: bool,
+    pub html_export: bool,
+    pub mermaid_export: bool,
+    pub confluence_export: bool,
+    pub drawio_export: bool,
+    pub vsdx_export: bool,
+    pub csv_export: bool,
+    // API & Automation
     pub api_access: bool,
+    pub webhooks: bool,
+    // Support
+    pub email_support: bool,
+    pub live_chat_support: bool,
+    pub priority_support: bool,
     pub onboarding_call: bool,
+    /// Signed service level agreement.
+    pub signed_sla: bool,
+    // Security
     pub custom_sso: bool,
     pub saml: bool,
+    pub audit_logs: bool,
+    // Deployment
     /// License validated fully offline (no phone-home). Deployable air-gapped.
     pub air_gapped_deployment: bool,
     pub managed_deployment: bool,
     pub whitelabeling: bool,
-    pub live_chat_support: bool,
-    pub embeds: bool,
-    pub email_support: bool,
-    pub priority_support: bool,
+    // Billing
     /// Pay by invoice against a purchase order.
     pub invoice_billing: bool,
     /// Billing schedule and payment terms negotiated per contract.
     pub custom_billing: bool,
     /// W-9 and NDAA 889 attestation supplied for vendor onboarding.
     pub procurement_documents: bool,
-    /// Signed service level agreement.
-    pub signed_sla: bool,
-    // Core features
-    pub device_inventory: bool,
-    pub tagging: bool,
-    pub topology_view: bool,
-    pub png_export: bool,
-    pub svg_export: bool,
-    pub mermaid_export: bool,
-    pub confluence_export: bool,
-    pub pdf_export: bool,
-    pub html_export: bool,
-    pub drawio_export: bool,
-    pub vsdx_export: bool,
-    pub scheduled_discovery: bool,
-    pub discovery_integrations: bool,
-    /// HPE Aruba Instant On credentials can be created (existing ones keep working on any plan).
-    pub instant_on_integration: bool,
-    pub csv_export: bool,
-    /// How many days of snapshots the plan retains before the daily sweep
-    /// deletes them. `0` means snapshots are unavailable on this plan. The
-    /// env-var override (`SCANOPY_SNAPSHOT_RETENTION_DAYS_OVERRIDE`) takes
-    /// precedence at runtime — see `BillingPlan::snapshot_retention_days`.
-    pub snapshot_retention_days: u32,
 }
 
 impl BillingPlan {
@@ -514,11 +523,13 @@ impl BillingPlan {
     /// For Free: returns all enabled features (it's the baseline).
     /// For self-hosted plans with no previous tier: returns all enabled non-universal features.
     /// For cloud plans: returns features new vs the previous tier.
-    /// Sorted, so the generated fixture is identical from run to run.
+    /// In [`Feature`] declaration order, which is the order plan cards list them.
     pub fn incremental_features(&self) -> Vec<&'static str> {
+        use strum::IntoEnumIterator;
+
         let enabled = self.enabled_feature_ids();
 
-        let mut features: Vec<&'static str> = match self.previous_tier() {
+        let added: HashSet<&'static str> = match self.previous_tier() {
             Some(prev_disc) => {
                 let prev_plan = Self::default_for_discriminant(prev_disc);
                 match prev_plan {
@@ -539,8 +550,10 @@ impl BillingPlan {
                 enabled.difference(&universal).copied().collect()
             }
         };
-        features.sort_unstable();
-        features
+        Feature::iter()
+            .map(|f| f.id())
+            .filter(|id| added.contains(id))
+            .collect()
     }
 
     /// The discovery integrations this plan can create a credential for, in declaration order:

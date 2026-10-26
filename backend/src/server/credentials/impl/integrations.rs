@@ -150,7 +150,7 @@ pub fn all_integrations() -> Vec<Integration> {
         integrations.push(Integration {
             id: service_id,
             integration: disc.integration(),
-            name: ServiceDefinition::name(&*service).to_string(),
+            name: TypeMetadataProvider::name(&disc.integration()).to_string(),
             category: <&'static str>::from(ct.credential_category()).to_string(),
             logo: service.logo(),
             is_generic: ServiceDefinition::is_generic(&*service),
