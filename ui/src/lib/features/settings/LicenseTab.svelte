@@ -466,9 +466,11 @@
 								<div class="mt-1 flex flex-wrap items-center gap-2">
 									<input
 										id="license-key"
-										class="input-field min-w-0 flex-1 font-mono text-sm sm:min-w-[16rem]"
+										class="input-field min-w-0 flex-1 text-sm sm:min-w-[16rem]"
+										class:font-mono={!keyPlaceholder}
 										value={maskedKey}
 										placeholder={keyPlaceholder}
+										disabled={!!keyPlaceholder}
 										readonly
 									/>
 									<button
@@ -492,13 +494,17 @@
 										</button>
 									{/if}
 								</div>
-								<DocsHint
-									class="mt-2"
-									text={settings_billing_license_installHint()}
-									href="https://scanopy.net/docs/self-hosted-server/installation/?edition=commercial"
-									linkText={settings_billing_license_installLinkText()}
-									disabled={preview}
-								/>
+								<!-- What to do with the key, once there is one. The preview keeps it as
+								     part of showing what a self-hosted plan gives. -->
+								{#if currentKey || preview}
+									<DocsHint
+										class="mt-2"
+										text={settings_billing_license_installHint()}
+										href="https://scanopy.net/docs/self-hosted-server/installation/?edition=commercial"
+										linkText={settings_billing_license_installLinkText()}
+										disabled={preview}
+									/>
+								{/if}
 							</div>
 						</div>
 					</div>
