@@ -107,8 +107,13 @@ pub async fn require_billing_for_users(
         }
         return ApiError::self_hosted_plan_locked().into_response();
     }
-    // The topology view and its snapshots need a plan that includes them.
-    if topology_route(request.uri().path()) && !plan.features().topology_view {
+    // The topology view and its snapshots need a plan that includes them. A plan
+    // without it can still read the diagram, which the app draws behind its
+    // plan prompt.
+    if topology_route(request.uri().path())
+        && !plan.features().topology_view
+        && !topology_preview_route(request.method(), request.uri().path())
+    {
         return ApiError::coded(
             StatusCode::PAYMENT_REQUIRED,
             ErrorCode::BillingFeatureNotAvailable {
@@ -148,10 +153,26 @@ pub async fn require_billing_for_users(
 /// The topology view's routes and the snapshots captured from it, which need
 /// the topology view on the plan.
 fn topology_route(path: &str) -> bool {
-    ["/api/v1/topology", "/api/v1/snapshots"].iter().any(|prefix| {
-        path.strip_prefix(prefix)
-            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
-    })
+    ["/api/v1/topology", "/api/v1/snapshots"]
+        .iter()
+        .any(|prefix| {
+            path.strip_prefix(prefix)
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+        })
+}
+
+/// The reads that draw the topology: the list, the graph data and one
+/// topology. Open to a plan without the topology view, which sees the diagram
+/// behind its plan prompt. The stream, saving options, exports and snapshots
+/// stay closed to it.
+fn topology_preview_route(method: &Method, path: &str) -> bool {
+    const TOPOLOGY: &str = "/api/v1/topology";
+    *method == Method::GET
+        && (path == TOPOLOGY
+            || path
+                .strip_prefix(TOPOLOGY)
+                .and_then(|rest| rest.strip_prefix('/'))
+                .is_some_and(|rest| !rest.is_empty() && !rest.contains('/') && rest != "stream"))
 }
 
 /// Billed routes the Settings modal calls, which stay open to an org on a

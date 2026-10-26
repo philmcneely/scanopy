@@ -505,10 +505,7 @@ pub async fn populate_demo_data(
     }
 
     // Only available for demo organizations
-    let plan = org
-        .base
-        .plan
-        ;
+    let plan = org.base.plan;
     if !plan.is_demo() {
         return Err(ApiError::forbidden(
             "Populate demo data is only available for demo organizations",

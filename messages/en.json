@@ -3023,7 +3023,7 @@
 	"tags_noEntityTypesChosen": "No entity types chosen yet. Add the types this group's tags can go on.",
 	"tags_noTagsHelp": "Tags help you organize and filter hosts, services, and other entities",
 	"tags_noTagsInGroup": "No tags in this group yet. Choose this group when you create or edit a tag.",
-	"tags_planRequired": "Tagging comes with a paid plan. Your tags stay where they are, and you can add or remove them once you choose one.",
+	"tags_planRequired": "Upgrade to a paid plan to add and remove tags.",
 	"tags_notAvailableHere": "A tag named \"{name}\" exists, but it can't go on these.",
 	"tags_orderByName": "By name",
 	"tags_orderByNameHelp": "Tags are listed alphabetically, for a group with no sequence, such as applications.",

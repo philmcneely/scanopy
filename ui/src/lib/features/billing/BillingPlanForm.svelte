@@ -579,15 +579,13 @@
 											{billing_continueOnPlan({ plan: billingPlanHelpers.getName(plan.type) })}
 										{:else if isCurrentlyTrialing}
 											{billing_switchPlan()}
+										{:else if !trial}
+											{common_getStarted()}
+										{:else if getHosting(plan) === 'SelfHosted'}
+											{billing_startTrialNoCreditCard()}
 										{:else}
-											{#if !trial}
-												{common_getStarted()}
-											{:else if getHosting(plan) === 'SelfHosted'}
-												{billing_startTrialNoCreditCard()}
-											{:else}
-												<!-- A cloud trial collects a card first. -->
-												{billing_startFreeTrial()}
-											{/if}
+											<!-- A cloud trial collects a card first. -->
+											{billing_startFreeTrial()}
 										{/if}
 									</button>
 									{#if trial && !isCurrentlyTrialing}

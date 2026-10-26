@@ -435,10 +435,7 @@ async fn handle_login_flow(
                 .get_by_id(&user.base.organization_id)
                 .await
             {
-                let plan = org
-                    .base
-                    .plan
-                    ;
+                let plan = org.base.plan;
                 if plan.is_demo() && !is_demo_host(&host) {
                     return Err(ErrorRedirect::to(&format!(
                         "{}?error={}",

@@ -91,10 +91,7 @@ pub async fn demo_mode_middleware(
             Ok(org) => org,
             Err(e) => return e.into_response(),
         };
-    let plan = organization
-        .base
-        .plan
-        ;
+    let plan = organization.base.plan;
 
     let request = Request::from_parts(parts, body);
 

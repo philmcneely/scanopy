@@ -203,10 +203,7 @@ impl BillingService {
         // Snapshot pre-webhook state from the org row so we can detect
         // transitions (None plan, was-trialing, etc.) before applying
         // webhook updates.
-        let prior_plan = organization
-            .base
-            .plan
-            ;
+        let prior_plan = organization.base.plan;
         let prior_status = organization.base.plan_status;
         let prior_was_free = prior_plan.is_free();
         let prior_was_trialing = prior_status == Some(PlanStatus::Trialing);
@@ -858,10 +855,7 @@ impl BillingService {
         }
         let organization = &locked.org;
 
-        let cancelled_plan = organization
-            .base
-            .plan
-            ;
+        let cancelled_plan = organization.base.plan;
         let was_trialing = organization.base.plan_status == Some(PlanStatus::Trialing);
         let customer_id = organization.base.stripe_customer_id.clone();
         // Whether a save-offer discount is currently applied — drives the

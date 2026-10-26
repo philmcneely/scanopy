@@ -904,7 +904,7 @@
 								<InlineWarning title="" body={daemons_planRequiredForMoreDaemons()}>
 									<button
 										type="button"
-										class="text-link text-sm hover:underline"
+										class="text-sm text-link hover:underline"
 										onclick={() =>
 											triggerUpgrade({
 												source: 'create_daemon_plan_required',

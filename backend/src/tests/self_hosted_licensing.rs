@@ -566,8 +566,8 @@ async fn billing_middleware_locks_main_app_routes_for_self_hosted_plans() {
     assert_eq!(get_status(addr, "/api/v1/hosts").await.0, 403);
 }
 
-/// A cloud org on Free uses the app, but the topology view and its snapshots
-/// wait for a plan that includes them.
+/// A cloud org on Free uses the app and can read the diagram, but the topology
+/// stream and its snapshots wait for a plan that includes them.
 #[tokio::test]
 async fn billing_middleware_keeps_free_out_of_the_topology_view() {
     let (state, _container) = test_state().await;
@@ -589,6 +589,8 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
             get(|| async { "ok" }).post(|| async { "ok" }),
         )
         .route("/api/v1/topology/data", get(|| async { "ok" }))
+        .route("/api/v1/topology/stream", get(|| async { "ok" }))
+        .route("/api/v1/topology/export/csv", get(|| async { "ok" }))
         .route("/api/v1/snapshots", get(|| async { "ok" }))
         .layer(middleware::from_fn_with_state(
             state.clone(),
@@ -615,16 +617,22 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
             .0,
         200
     );
-    for path in ["/api/v1/topology/data", "/api/v1/snapshots"] {
+    // The diagram the app draws behind its plan prompt.
+    assert_eq!(get_status(addr, "/api/v1/topology/data").await.0, 200);
+    for path in [
+        "/api/v1/topology/stream",
+        "/api/v1/topology/export/csv",
+        "/api/v1/snapshots",
+    ] {
         let (status, body) = get_status(addr, path).await;
         assert_eq!(status, 402, "{path}");
         assert!(body.contains("billing_feature_not_available"), "{body}");
     }
 
-    // A plan with the topology view opens it.
+    // A plan with the topology view opens the rest.
     set_plan(&state, org.id, pro_plan()).await;
     set_plan_status(&state, org.id, Some(PlanStatus::Trialing)).await;
-    assert_eq!(get_status(addr, "/api/v1/topology/data").await.0, 200);
+    assert_eq!(get_status(addr, "/api/v1/topology/stream").await.0, 200);
 }
 
 #[tokio::test]

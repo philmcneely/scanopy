@@ -267,10 +267,7 @@ fn has_paid_subscription(org: &Organization, paid_through: Option<DateTime<Utc>>
 }
 
 fn licensed_plan(org: &Organization) -> Result<LicensePlan, MintError> {
-    org.base
-        .plan
-        .license_plan()
-        .ok_or(MintError::NotLicensed)
+    org.base.plan.license_plan().ok_or(MintError::NotLicensed)
 }
 
 #[cfg(test)]

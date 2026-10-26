@@ -98,10 +98,7 @@ where
             .map_err(AuthError)?;
 
         // Plan from the cached organization row.
-        let plan = organization
-            .base
-            .plan
-            ;
+        let plan = organization.base.plan;
 
         let ctx = FeatureCheckContext {
             organization: &organization,
@@ -192,7 +189,6 @@ impl FeatureCheck for TopologyViewFeature {
 const TAGGING_NOT_INCLUDED: &str =
     "Your plan does not include tagging. Choose a plan to tag hosts, services and other entities.";
 
-
 #[derive(Default)]
 pub struct TaggingFeature;
 
@@ -200,9 +196,7 @@ pub struct TaggingFeature;
 impl FeatureCheck for TaggingFeature {
     async fn check(&self, ctx: &FeatureCheckContext<'_>) -> FeatureCheckResult {
         if !ctx.plan.features().tagging {
-            return FeatureCheckResult::payment_required(
-                TAGGING_NOT_INCLUDED,
-            );
+            return FeatureCheckResult::payment_required(TAGGING_NOT_INCLUDED);
         }
 
         FeatureCheckResult::Allowed
@@ -361,8 +355,6 @@ pub async fn ensure_tagging_allowed(
     if organization.base.plan.features().tagging {
         Ok(())
     } else {
-        Err(ApiError::payment_required(
-            TAGGING_NOT_INCLUDED,
-        ))
+        Err(ApiError::payment_required(TAGGING_NOT_INCLUDED))
     }
 }

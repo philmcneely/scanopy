@@ -1008,10 +1008,7 @@ impl EmailService {
             None => return Ok(()),
         };
 
-        let plan = org
-            .base
-            .plan
-            ;
+        let plan = org.base.plan;
         // On the cloud app a self-hosted plan's seat and site limits govern
         // the customer's own server. The cloud org's rows are left over from
         // before the switch (or an invite accepted after it), and an upgrade

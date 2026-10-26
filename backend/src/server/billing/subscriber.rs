@@ -70,10 +70,7 @@ impl Subscriber<EntityOperation> for BillingService {
             let site_count = self.site_service.get_all(site_filter).await?.len();
             let seat_count = self.user_service.get_all(user_filter).await?.len();
 
-            let plan = org
-                .base
-                .plan
-                ;
+            let plan = org.base.plan;
             if plan.config().seat_cents.is_none() && plan.config().site_cents.is_none() {
                 continue;
             }

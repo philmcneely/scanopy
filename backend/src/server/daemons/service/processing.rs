@@ -287,10 +287,7 @@ impl DaemonService {
                         crate::server::organizations::r#impl::base::Organization,
                     >(org_id)
                 })?;
-        let plan = organization
-            .base
-            .plan
-            ;
+        let plan = organization.base.plan;
 
         if plan.is_demo() {
             return Err(ApiError::demo_mode_blocked());

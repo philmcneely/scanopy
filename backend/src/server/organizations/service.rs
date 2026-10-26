@@ -550,11 +550,7 @@ impl OrganizationService {
                 // equality is config-based (see `BillingPlan`'s `PartialEq`),
                 // so an org already on `target` is skipped regardless of how
                 // its plan was set.
-                let current = locked
-                    .org
-                    .base
-                    .plan
-                    ;
+                let current = locked.org.base.plan;
                 if current == target {
                     locked.release().await?;
                     return Ok(false);

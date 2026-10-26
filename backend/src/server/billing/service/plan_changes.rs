@@ -167,10 +167,7 @@ impl BillingService {
         else {
             return Ok(false);
         };
-        let plan = org
-            .base
-            .plan
-            ;
+        let plan = org.base.plan;
         if plan.is_free() || !plan.is_stripe_managed() {
             return Ok(false);
         }
@@ -204,7 +201,6 @@ impl BillingService {
             .await?;
         Ok(!payment_methods.data.is_empty())
     }
-
 
     /// Preview what would change when switching to a different plan
     pub async fn preview_plan_change(

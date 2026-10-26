@@ -164,12 +164,7 @@ struct Licensed {
 fn licensed_orgs(organizations: &[Organization], now: DateTime<Utc>) -> (HashSet<Uuid>, Vec<Uuid>) {
     let locked: Vec<&Organization> = organizations
         .iter()
-        .filter(|org| {
-            org.base
-                .plan
-                .license_plan()
-                .is_some()
-        })
+        .filter(|org| org.base.plan.license_plan().is_some())
         .collect();
     let current = locked
         .iter()

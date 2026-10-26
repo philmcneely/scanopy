@@ -211,12 +211,7 @@ impl BillingService {
         organization_id: Uuid,
     ) -> Result<InvoiceBillingStatus, Error> {
         let organization = self.get_organization(organization_id).await?;
-        if organization
-            .base
-            .plan
-            .license_plan()
-            .is_none()
-        {
+        if organization.base.plan.license_plan().is_none() {
             return Err(refused(SELF_HOSTED_ONLY));
         }
         let Some(customer_id) = organization
@@ -372,12 +367,7 @@ impl BillingService {
         po_number: Option<String>,
     ) -> Result<(), Error> {
         let organization = self.get_organization(organization_id).await?;
-        if organization
-            .base
-            .plan
-            .license_plan()
-            .is_none()
-        {
+        if organization.base.plan.license_plan().is_none() {
             return Err(refused(SELF_HOSTED_ONLY));
         }
         let customer_id = self.customer_id(organization_id).await?;

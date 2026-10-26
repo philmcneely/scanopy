@@ -11,8 +11,7 @@ import { apiClient } from '$lib/api/client';
 import { unwrapData } from '$lib/api/query-helpers';
 import type { Topology, TopologyEdge, TopologyOptions, RenderableTopology } from './types/base';
 import type { ElementGraphRule } from './types/grouping';
-import { hasTopologyAccess, type Organization } from '$lib/features/organizations/types';
-import { useOrganizationQuery } from '$lib/features/organizations/queries';
+import type { Organization } from '$lib/features/organizations/types';
 import { BaseSSEManager, type SSEConfig } from '$lib/shared/utils/sse';
 import throttle from 'just-throttle';
 import { writable, derived, get } from 'svelte/store';
@@ -184,9 +183,7 @@ function emptyRequestOptions(): components['schemas']['TopologyRequestOptions'] 
 /**
  * Query hook for fetching all topologies
  */
-/** Held while the plan lacks the topology view (Free), which the backend refuses. */
 export function useTopologiesQuery(enabled?: () => boolean) {
-	const organizationQuery = useOrganizationQuery();
 	return createQuery(() => ({
 		queryKey: queryKeys.topology.all,
 		queryFn: async () => {
@@ -196,7 +193,7 @@ export function useTopologiesQuery(enabled?: () => boolean) {
 				})
 			);
 		},
-		enabled: () => hasTopologyAccess(organizationQuery.data) && (enabled?.() ?? true)
+		...(enabled ? { enabled } : {})
 	}));
 }
 
@@ -226,11 +223,9 @@ export function useTopologyDataQuery(
 	view: () => TopologyView,
 	enabled?: () => boolean
 ) {
-	const organizationQuery = useOrganizationQuery();
 	return createQuery(() => ({
 		...topologyDataQueryOptions(siteId() ?? '', snapshotId(), view()),
-		enabled: () =>
-			!!siteId() && hasTopologyAccess(organizationQuery.data) && (enabled?.() ?? true),
+		enabled: () => !!siteId() && (enabled?.() ?? true),
 		// A held site refetches only when the user asks (see `heldTopologySites`).
 		refetchOnWindowFocus: () => !get(heldTopologySites).has(siteId() ?? '')
 	}));
