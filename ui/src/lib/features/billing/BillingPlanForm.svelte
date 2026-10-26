@@ -8,7 +8,7 @@
 	 */
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { Check, X, ChevronDown, ChevronUp, Loader2 } from 'lucide-svelte';
+	import { Check, X, ChevronDown, ChevronUp, Info, Loader2 } from 'lucide-svelte';
 	import {
 		billing_compareAllFeatures,
 		billing_dayFreeTrial,
@@ -50,7 +50,6 @@
 		common_unlimited,
 		common_yearly
 	} from '$lib/paraglide/messages';
-	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import ToggleGroup from './ToggleGroup.svelte';
 	import type { BillingPlan, PlanPickerHosting } from './types';
@@ -579,7 +578,13 @@
 							{#if metadata?.purchase_flow === 'stripe' || metadata?.is_free}
 								<!-- Free has purchase_flow 'none' but activates in-app like a Stripe plan -->
 								{#if plan.type === currentPlanType && !currentPlanLapsed}
-									<InlineInfo title="" body={billing_yourCurrentPlan()} />
+									<!-- Sized like the CTA buttons (border, py-2, text-sm) so every card's header is the same height. -->
+									<div
+										class="flex w-full items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-info dark:border-blue-600/30 dark:bg-blue-900/20"
+									>
+										<Info class="h-4 w-4 shrink-0" />
+										{billing_yourCurrentPlan()}
+									</div>
 								{:else}
 									<button
 										type="button"
@@ -617,11 +622,11 @@
 
 						<!-- Included limits, striped so each value reads against its label. Each label explains
 						     its limit; extras bill at the unit price noted under the included count. -->
-						<div class="border-b pb-4" style="border-color: var(--color-border)">
+						<div class="pb-4">
 							<div class="-mx-2">
 								<!-- Seats -->
 								<div
-									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+									class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
 								>
 									<span
 										class="explainer text-secondary"
@@ -643,7 +648,7 @@
 
 								<!-- Sites -->
 								<div
-									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+									class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
 								>
 									<span
 										class="explainer text-secondary"
@@ -666,7 +671,7 @@
 									{@const production = metadata?.included_instances}
 									{@const nonProduction = metadata?.included_non_production_instances}
 									<div
-										class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+										class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
 									>
 										<span
 											class="explainer text-secondary"
@@ -690,7 +695,7 @@
 
 								<!-- Snapshot Retention -->
 								<div
-									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+									class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
 								>
 									<span
 										class="explainer text-secondary"
