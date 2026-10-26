@@ -729,8 +729,11 @@ fn a_virtualizer_definition_is_never_generic() {
     );
 }
 
+/// Every logo URL resolves to an image. A logo `make generate-fixtures` already downloaded from the
+/// same URL has resolved, so only the rest are fetched.
 #[tokio::test]
 async fn test_service_definition_logo_urls_resolve() {
+    use crate::server::shared::fixtures::logo_is_cached;
     use backon::{ExponentialBuilder, Retryable};
     use futures::stream::{self, StreamExt};
 
@@ -739,12 +742,17 @@ async fn test_service_definition_logo_urls_resolve() {
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .expect("Failed to create HTTP client");
+    let catalog_dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui/static/logos/catalog");
 
     let services_to_check: Vec<_> = registry
         .into_iter()
         .filter_map(|service| {
-            let logo_url = service.logo()?.url();
-            Some((ServiceDefinition::name(&service).to_string(), logo_url))
+            let logo = service.logo()?;
+            let logo_url = logo.url();
+            let stem: &'static str = logo.into();
+            (!logo_is_cached(&catalog_dir, stem, &logo_url))
+                .then(|| (ServiceDefinition::name(&service).to_string(), logo_url))
         })
         .collect();
 

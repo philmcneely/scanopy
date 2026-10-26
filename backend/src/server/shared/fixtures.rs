@@ -508,6 +508,18 @@ pub(crate) fn logo_ext(url: &str) -> &str {
 /// Record of the URL each logo file in a directory was downloaded from, kept beside the logos.
 const LOGO_CACHE_FILE: &str = ".logo-cache.json";
 
+/// Whether `url` was already downloaded into `catalog_dir` as `<stem>.<ext>`: the file is there and
+/// the cache record names this URL for it, the same test `plan_logos` uses to skip a download.
+#[cfg(test)]
+pub(crate) fn logo_is_cached(catalog_dir: &Path, stem: &str, url: &str) -> bool {
+    let filename = format!("{stem}.{}", logo_ext(url));
+    let cache: BTreeMap<String, String> = fs::read(catalog_dir.join(LOGO_CACHE_FILE))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default();
+    catalog_dir.join(&filename).is_file() && cache.get(&filename).map(String::as_str) == Some(url)
+}
+
 /// What `download_logos` does with a logo directory, worked out from the wanted logos, the cache
 /// record and the files already on disk.
 #[derive(Debug, PartialEq)]
