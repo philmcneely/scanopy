@@ -438,7 +438,7 @@
 {#if appInitialized && termsGated}
 	<TermsAcceptanceModal isOpen={true} />
 {:else if appInitialized}
-	<div class="flex h-screen">
+	<div class="flex h-dvh">
 		<!-- Sidebar -->
 		<div class="shrink-0">
 			<Sidebar

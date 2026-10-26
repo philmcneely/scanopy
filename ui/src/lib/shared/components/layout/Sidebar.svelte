@@ -733,7 +733,7 @@
 	class:w-48={!collapsed}
 >
 	<!-- Logo/Brand -->
-	<div class="flex min-h-0 flex-1 flex-col">
+	<div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
 		<div class="px-2 py-4">
 			<button
 				onclick={toggleCollapse}
