@@ -489,6 +489,67 @@ fn write_fixture<T: serde::Serialize + ?Sized>(items: &T, output_dir: &Path, fil
     println!("  {}", filename);
 }
 
+/// The repo README, whose `<!-- generated:<key> -->` spans `update_readme` fills.
+fn readme_path() -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../README.md")
+}
+
+/// The README's generated spans, by key. Each value matches what the website derives from the
+/// same fixtures: `getServiceCountLabel` and `getIntegrationsLabel` in the website's `schemas.ts`.
+fn readme_spans() -> Vec<(&'static str, String)> {
+    // The `services.json` catalog: definitions a user can add, floored to ten ("300+").
+    let services = ServiceDefinitionRegistry::all_service_definitions()
+        .iter()
+        .filter(|s| s.can_be_manually_added())
+        .count();
+    let integrations: Vec<String> = all_integrations().into_iter().map(|i| i.name).collect();
+    vec![
+        ("service-count", format!("{}+", services / 10 * 10)),
+        ("integrations", list_label(&integrations)),
+    ]
+}
+
+/// "A, B, and C", as the website joins names.
+fn list_label(names: &[String]) -> String {
+    match names {
+        [] => String::new(),
+        [one] => one.clone(),
+        [a, b] => format!("{a} and {b}"),
+        [rest @ .., last] => format!("{}, and {last}", rest.join(", ")),
+    }
+}
+
+/// `readme` with every generated span replaced by its current value. Panics on a missing marker,
+/// so a README edit that drops one fails instead of leaving a stale value.
+fn render_readme(readme: &str) -> String {
+    const END: &str = "<!-- /generated -->";
+    let mut out = readme.to_string();
+    for (key, value) in readme_spans() {
+        let start = format!("<!-- generated:{key} -->");
+        let open = out
+            .find(&start)
+            .unwrap_or_else(|| panic!("README.md has no {start} marker"))
+            + start.len();
+        let close = out[open..]
+            .find(END)
+            .unwrap_or_else(|| panic!("README.md marker {start} has no {END}"))
+            + open;
+        out.replace_range(open..close, &value);
+    }
+    out
+}
+
+/// Rewrite the README's generated spans from the current definitions.
+pub fn update_readme() {
+    let path = readme_path();
+    let readme = fs::read_to_string(&path).expect("Failed to read README.md");
+    let rendered = render_readme(&readme);
+    if rendered != readme {
+        fs::write(&path, rendered).expect("Failed to write README.md");
+        println!("  README.md");
+    }
+}
+
 /// Convert a service name to a URL-safe filename slug.
 /// "Home Assistant" → "home-assistant", "Docker Container" → "docker-container"
 pub fn logo_slug(name: &str) -> String {
@@ -649,6 +710,23 @@ fn download_logos(logos: &[(String, &str)], static_dir: &Path, force: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn readme_generated_spans_are_current() {
+        let readme = fs::read_to_string(readme_path()).unwrap();
+        assert!(
+            render_readme(&readme) == readme,
+            "README.md is stale: run `make generate-fixtures`"
+        );
+    }
+
+    #[test]
+    fn list_label_joins_like_the_website() {
+        let names = |n: &[&str]| n.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(list_label(&names(&["A"])), "A");
+        assert_eq!(list_label(&names(&["A", "B"])), "A and B");
+        assert_eq!(list_label(&names(&["A", "B", "C"])), "A, B, and C");
+    }
 
     fn files(names: &[&str]) -> BTreeSet<String> {
         names.iter().map(|n| n.to_string()).collect()
