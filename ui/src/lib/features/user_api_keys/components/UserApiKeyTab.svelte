@@ -167,24 +167,16 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if !hasApiAccess}
-		<!-- The plan lacks API access: the usual empty state, its Create opening the plans. -->
-		<EmptyState title={userApiKeys_noApiKeysYet()} subtitle={userApiKeys_noApiKeysSubtitle()}>
-			{#if !isReadOnly}
-				<CreateButton
-					onclick={handleCreate}
-					upgrade={{ feature: 'api_access', surface: 'api_keys_tab' }}
-				/>
-			{/if}
-		</EmptyState>
-	{:else if isLoading}
+	{#if hasApiAccess && isLoading}
 		<Loading />
-	{:else if page.isEmpty(userApiKeysQuery)}
+	{:else if !hasApiAccess || page.isEmpty(userApiKeysQuery)}
+		<!-- Without API access the plan lacks keys: the same empty state, its Create opening the plans. -->
 		<EmptyState
 			title={userApiKeys_noApiKeysYet()}
 			subtitle={userApiKeys_noApiKeysSubtitle()}
 			onClick={handleCreate}
 			cta={common_create()}
+			upgrade={hasApiAccess ? null : { feature: 'api_access', surface: 'api_keys_tab' }}
 		/>
 	{:else}
 		<DataControls

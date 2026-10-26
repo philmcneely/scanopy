@@ -9,12 +9,7 @@
 <script lang="ts">
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
 	import PaidCrown from '$lib/shared/components/PaidCrown.svelte';
-	import {
-		triggerUpgrade,
-		type PaywallGateType,
-		type PaywallSurface
-	} from '$lib/features/billing/trigger-upgrade';
-	import type { UpgradeFeature } from '$lib/shared/stores/metadata';
+	import { triggerUpgrade, type UpgradeGate } from '$lib/features/billing/trigger-upgrade';
 	import {
 		common_availableOnPaidPlans,
 		common_create,
@@ -30,11 +25,7 @@
 		onclick: () => void;
 		label?: string;
 		/** The plan lacks what this creates: the gate the click opens the plans for. */
-		upgrade?: {
-			feature: UpgradeFeature;
-			surface: PaywallSurface;
-			gate_type?: PaywallGateType;
-		} | null;
+		upgrade?: UpgradeGate | null;
 	} = $props();
 
 	const SHORTCUT = 'C';
