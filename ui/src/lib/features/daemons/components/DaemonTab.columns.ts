@@ -44,7 +44,7 @@ import {
 
 type DaemonOrderField = components['schemas']['DaemonOrderField'];
 /** The daemon list endpoint's query params, which the filters are sent and linked as. */
-type DaemonListParam = keyof NonNullable<operations['get_daemons']['parameters']['query']>;
+type DaemonListParam = keyof NonNullable<operations['list_daemons']['parameters']['query']>;
 
 /** What the daemon columns read from the tab, each as a getter or function so values stay live. */
 export interface DaemonColumnsContext {

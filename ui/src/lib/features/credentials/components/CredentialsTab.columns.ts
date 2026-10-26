@@ -47,9 +47,7 @@ function isUnofficialApi(item: Credential): boolean {
 }
 
 /** The credentials list endpoint's query params, which the filters are sent and linked as. */
-type CredentialListParam = keyof NonNullable<
-	operations['get_all_credentials']['parameters']['query']
->;
+type CredentialListParam = keyof NonNullable<operations['list_credentials']['parameters']['query']>;
 
 /** What the credential columns read from the tab, each as a getter or function so values stay live. */
 export interface CredentialColumnsContext {

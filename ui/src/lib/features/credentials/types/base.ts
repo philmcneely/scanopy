@@ -1,5 +1,11 @@
 import type { components } from '$lib/api/schema';
-import { credentialTypes, entities } from '$lib/shared/stores/metadata';
+import {
+	billingPlans,
+	credentialTypes,
+	entities,
+	type FeatureId
+} from '$lib/shared/stores/metadata';
+import { ArrowUpCircle } from 'lucide-svelte';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
 export type Credential = components['schemas']['Credential'];
@@ -26,6 +32,8 @@ import {
 	common_beta,
 	common_testing,
 	common_unknown,
+	common_upgrade,
+	credentials_planRequired,
 	credentials_betaTooltip,
 	credentials_unofficialApi,
 	credentials_unofficialApiTooltip,
@@ -199,6 +207,31 @@ export function getUpstreamSupportTagProps(
 		// not a warning about our own maturity, and the two can appear side by side.
 		color: 'Gray' as Color,
 		title: credentials_unofficialApiTooltip()
+	};
+}
+
+/**
+ * The plan feature a new credential of `typeId` needs and an organization on `planType` lacks,
+ * or `null` when it can create one. Only creating is gated: existing credentials of the type keep
+ * working on any plan. An unknown plan gates nothing here; the server refuses the create anyway.
+ */
+export function credentialTypeUpgradeFeature(
+	typeId: string,
+	planType: string | null | undefined
+): FeatureId | null {
+	const required = credentialTypes.getMetadata(typeId)?.required_feature;
+	if (!required || !planType) return null;
+	return billingPlans.getMetadata(planType)?.features?.[required] ? null : required;
+}
+
+/** The upgrade badge on a credential type the plan lacks, matching the export options' badge. Its
+ *  tooltip names no plan: the lowest one differs between cloud and self-hosted. */
+export function getUpgradeTagProps(): TagProps {
+	return {
+		label: common_upgrade(),
+		color: 'Yellow' as Color,
+		icon: ArrowUpCircle,
+		title: credentials_planRequired()
 	};
 }
 

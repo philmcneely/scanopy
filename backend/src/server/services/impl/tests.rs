@@ -433,6 +433,113 @@ async fn test_service_patterns_are_specific_enough() {
     }
 }
 
+/// Definitions allowed to match on an open UDP port with no answer behind it: (name, reason).
+const UDP_OPEN_ONLY_ALLOWED: &[(&str, &str)] = &[];
+
+/// The container scan reports every UDP port an image declares, with no probe run, so a pattern
+/// that a UDP port alone satisfies claims the service from a declaration. Generic definitions are
+/// checked too: DNS Server on a container that merely declares 53/udp is as wrong as a vendor's.
+#[test]
+fn test_no_service_matches_on_udp_openness_alone() {
+    let registry = ServiceDefinitionRegistry::all_service_definitions();
+    let names: HashSet<&str> = registry.iter().map(|s| s.name()).collect();
+
+    let mut offenders = Vec::new();
+    let mut needless_allowances = Vec::new();
+    for service in &registry {
+        let udp_only = udp_openness_alone(&service.discovery_pattern()) == Some(true);
+        let allowed = UDP_OPEN_ONLY_ALLOWED
+            .iter()
+            .any(|(name, _)| *name == service.name());
+        match (udp_only, allowed) {
+            (true, false) => offenders.push(service.name()),
+            (false, true) => needless_allowances.push(service.name()),
+            _ => {}
+        }
+    }
+    let unknown_allowances: Vec<&str> = UDP_OPEN_ONLY_ALLOWED
+        .iter()
+        .map(|(name, _)| *name)
+        .filter(|name| !names.contains(name))
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "These services match on an open UDP port alone: {offenders:?}. A container that only \
+         declares the port satisfies that. Use `probe_pattern` with a probe that returns a \
+         `ClientProbe`, AND the port with other evidence, or add the definition to \
+         UDP_OPEN_ONLY_ALLOWED with a reason."
+    );
+    assert!(
+        needless_allowances.is_empty() && unknown_allowances.is_empty(),
+        "Remove these from UDP_OPEN_ONLY_ALLOWED; they no longer match on UDP openness alone or no \
+         longer exist: {needless_allowances:?} {unknown_allowances:?}"
+    );
+}
+
+/// Whether the pattern can be satisfied by open UDP ports with nothing else behind them.
+///
+/// `None`: it needs evidence beyond an open UDP port. `Some(used_udp)`: it can be satisfied
+/// without such evidence, and `used_udp` says whether a UDP port took part. Context that says
+/// nothing about what listens on the port (gateway, subnet type, containerised, a negation) is
+/// free, so `AllOf([Port(udp), IsGateway])` is still UDP openness alone.
+fn udp_openness_alone(pattern: &Pattern) -> Option<bool> {
+    match pattern {
+        Pattern::Port(port) => port.is_udp().then_some(true),
+        Pattern::Not(_)
+        | Pattern::IsGateway
+        | Pattern::SubnetIsType(_)
+        | Pattern::ContainerVirtualization => Some(false),
+        Pattern::AnyOf(patterns) => {
+            let arms: Vec<Option<bool>> = patterns.iter().map(udp_openness_alone).collect();
+            if arms.contains(&Some(true)) {
+                Some(true)
+            } else if arms.contains(&Some(false)) {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        Pattern::AllOf(patterns) if !patterns.is_empty() => patterns
+            .iter()
+            .map(udp_openness_alone)
+            .try_fold(false, |used, arm| arm.map(|arm_used| used || arm_used)),
+        _ => None,
+    }
+}
+
+#[test]
+fn udp_openness_alone_needs_an_answer_or_other_evidence() {
+    use crate::server::services::r#impl::patterns::ClientProbe;
+
+    let udp = || Pattern::Port(PortType::new_udp(2427));
+    let answered = || Pattern::AllOf(vec![udp(), Pattern::ClientResponse(ClientProbe::Mgcp)]);
+
+    for satisfied_by_openness in [
+        udp(),
+        Pattern::AnyOf(vec![answered(), udp()]),
+        Pattern::AllOf(vec![udp(), Pattern::IsGateway]),
+        Pattern::AllOf(vec![udp(), Pattern::Not(Box::new(answered()))]),
+    ] {
+        assert_eq!(
+            udp_openness_alone(&satisfied_by_openness),
+            Some(true),
+            "{satisfied_by_openness}"
+        );
+    }
+    for backed in [
+        answered(),
+        Pattern::AnyOf(vec![answered(), Pattern::Port(PortType::new_tcp(2427))]),
+        Pattern::AllOf(vec![
+            udp(),
+            Pattern::Endpoint(PortType::Http, "/", "MGCP gateway", None),
+        ]),
+        Pattern::Port(PortType::new_tcp(2427)),
+    ] {
+        assert_ne!(udp_openness_alone(&backed), Some(true), "{backed}");
+    }
+}
+
 fn check_pattern_specificity(
     pattern: &Pattern,
     common_ports: &[PortType],

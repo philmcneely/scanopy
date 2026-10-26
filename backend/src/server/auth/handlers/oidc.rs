@@ -435,10 +435,7 @@ async fn handle_login_flow(
                 .get_by_id(&user.base.organization_id)
                 .await
             {
-                let plan = org
-                    .base
-                    .plan
-                    .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+                let plan = org.base.plan;
                 if plan.is_demo() && !is_demo_host(&host) {
                     return Err(ErrorRedirect::to(&format!(
                         "{}?error={}",
@@ -675,10 +672,11 @@ async fn handle_register_flow(
     }
 }
 
+/// Unlink OIDC account
 #[utoipa::path(
     post,
     path = "/oidc/{slug}/unlink",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     params(("slug" = String, Path, description = "OIDC provider slug")),
     responses(
         (status = 200, description = "OIDC account unlinked", body = ApiResponse<User>),

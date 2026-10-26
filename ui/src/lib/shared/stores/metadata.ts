@@ -100,6 +100,10 @@ export interface CredentialTypeMetadata {
 	 *  "Unofficial API" tag but stay selectable. A separate axis from `stability`: an integration
 	 *  can be fully validated and still ride an endpoint the vendor never published. */
 	upstream_support?: components['schemas']['UpstreamSupport'];
+	/** The plan feature needed to create this type, or null when every plan can. The type picker
+	 *  shows an upgrade badge when the organization's plan lacks it; existing credentials of the
+	 *  type keep working on any plan. */
+	required_feature?: FeatureId | null;
 	/** Guide for this type's integration, root-relative and trailing-slashed
 	 *  (`/docs/guides/integrations/snmp/`). Compose onto the docs origin with `docsUrl`. */
 	docs_path?: string;
@@ -168,6 +172,10 @@ export interface BillingPlanMetadata {
 	hosting: string;
 	custom_price: string | null;
 	incremental_features: string[];
+	/** Discovery integrations the plan can create credentials for, itemized on the plan cards. */
+	integrations: components['schemas']['CredentialIntegration'][];
+	/** The integrations this plan adds over `previous_tier`. */
+	incremental_integrations: components['schemas']['CredentialIntegration'][];
 	previous_tier: string | null;
 	/** How the plan is obtained: 'stripe' (in-app checkout), 'contact' (inquiry), 'none'. */
 	purchase_flow: string;
@@ -262,6 +270,8 @@ export interface DependencyTypeMetadata {}
 export interface FeatureMetadata {
 	is_coming_soon: boolean;
 	minimum_plan: string | null;
+	/** A credential type needs this feature; plan cards list the integration instead of it. */
+	gates_integration: boolean;
 }
 
 export interface PortTypeMetadata {

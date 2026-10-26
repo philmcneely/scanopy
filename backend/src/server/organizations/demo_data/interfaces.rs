@@ -188,7 +188,7 @@ pub(super) fn generate_interfaces(
     }
 
     // ========================================================================
-    // HQ: TrueNAS — bonded ip_addresses, connected to switch port 2
+    // HQ: TrueNAS — storage bond on switch port 2, management NIC on switch port 7
     // ========================================================================
     if let Some(host) = find_host("truenas-primary") {
         let site = sites.iter().find(|n| n.id == host.base.site_id).unwrap();
@@ -235,6 +235,53 @@ pub(super) fn generate_interfaces(
             source_if_index: 1,
             target_host_name: "unifi-usw-48".to_string(),
             target_if_index: 2,
+        });
+
+        // Management NIC — carries the HQ Management address, connected to switch port 7
+        let management = ip_addresses
+            .iter()
+            .find(|i| i.base.host_id == host.id && i.base.name.as_deref() == Some("eno1"));
+        interfaces.push(Interface {
+            display_name: None,
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: InterfaceBase {
+                neighbor_candidates: Default::default(),
+                host_id: host.id,
+                site_id: site.id,
+                if_index: Some(2),
+                if_descr: Some("eno1".to_string()),
+                if_name: None,
+                if_alias: Some("Management".to_string()),
+                if_type: Some(6),
+                speed_bps: Some(1_000_000_000),
+                admin_status: Some(IfAdminStatus::Up),
+                oper_status: Some(IfOperStatus::Up),
+                mac_address: Some(MacEvidence::new(
+                    MacEvidenceValue(MacAddress::new([0xd0, 0x50, 0x99, 0x40, 0x17, 0x02])),
+                    AttributeSource::ArpReply,
+                )),
+                ip_address_id: management.map(|i| i.id),
+                ip_configured: false,
+                fdb_macs: None,
+                interface_source: SNMP,
+                vlan_membership_source: SNMP,
+                native_vlan_id: find_vlan(site.id, 10),
+                vlan_ids: None,
+            },
+        });
+        neighbor_updates.push(NeighborUpdate {
+            source_host_name: "truenas-primary".to_string(),
+            source_if_index: 2,
+            target_host_name: "unifi-usw-48".to_string(),
+            target_if_index: 7,
         });
     }
 
@@ -697,8 +744,52 @@ pub(super) fn generate_interfaces(
             target_if_index: 1,
         });
 
-        // Ports 7-48 — empty/down
-        for port_num in 7..=48 {
+        // Port 7 ↔ truenas-primary management NIC
+        interfaces.push(Interface {
+            display_name: None,
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: InterfaceBase {
+                neighbor_candidates: Default::default(),
+                host_id: host.id,
+                site_id: site.id,
+                if_index: Some(7),
+                if_descr: Some("Port 1/0/7".to_string()),
+                if_name: None,
+                if_alias: Some("TrueNAS mgmt".to_string()),
+                if_type: Some(6),
+                speed_bps: Some(1_000_000_000),
+                admin_status: Some(IfAdminStatus::Up),
+                oper_status: Some(IfOperStatus::Up),
+                mac_address: Some(MacEvidence::new(
+                    MacEvidenceValue(MacAddress::new([0xfc, 0xec, 0xda, 0x10, 0x03, 0x07])),
+                    AttributeSource::ArpReply,
+                )),
+                ip_address_id: None,
+                ip_configured: false,
+                fdb_macs: None,
+                interface_source: SNMP,
+                vlan_membership_source: SNMP,
+                native_vlan_id: find_vlan(site.id, 10),
+                vlan_ids: None,
+            },
+        });
+        neighbor_updates.push(NeighborUpdate {
+            source_host_name: "unifi-usw-48".to_string(),
+            source_if_index: 7,
+            target_host_name: "truenas-primary".to_string(),
+            target_if_index: 2,
+        });
+
+        // Ports 8-48 — empty/down
+        for port_num in 8..=48 {
             interfaces.push(Interface {
                 display_name: None,
                 valid_from: now,

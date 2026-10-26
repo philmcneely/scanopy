@@ -113,7 +113,9 @@ pub struct TopologyExportQuery {
     pub view: TopologyView,
 }
 
-/// Unified entity-set endpoint for the topology view.
+/// Get topology view data
+///
+/// The entity set the topology view draws.
 ///
 /// `?snapshot_id=<id>` resolves to the snapshot's `taken_at` and returns the
 /// as-of-T entity set; otherwise returns live entities. The frontend
@@ -184,6 +186,7 @@ async fn get_topology_data(
             .organization_service
             .get_by_id(&site.base.organization_id)
             .await
+        && org.base.plan.features().topology_view
         && org.has_onboarded(&OnboardingOperationDiscriminants::FirstDiscoveryCompleted)
         && org.not_onboarded(&OnboardingOperationDiscriminants::FirstTopologyRebuild)
         && let Ok(true) = state
@@ -211,10 +214,13 @@ async fn get_topology_data(
     Ok(Json(ApiResponse::success(data)))
 }
 
+/// Update topology
+///
+/// Saves the topology's view options.
 #[utoipa::path(
     put,
     path = "/{id}",
-    tags = [Topology::ENTITY_NAME_PLURAL],
+    tags = [Topology::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     params(("id" = Uuid, Path, description = "Topology ID")),
     request_body = Topology,
     responses(
@@ -236,13 +242,16 @@ async fn update_topology(
     update_handler::<Topology>(state, auth, id, topology).await
 }
 
-/// Get all topologies for the authenticated user's sites.
+/// List topologies
+///
+/// Topologies for the caller's sites.
 ///
 /// Returns both live-view rows (`snapshot_id IS NULL`) and snapshot-pinned
 /// rows. The frontend renders the live one by default and renders snapshot
 /// rows when the user picks one from the snapshots dropdown.
 #[utoipa::path(
     get,
+    operation_id = "list_topologies",
     path = "",
     tags = [Topology::ENTITY_NAME_PLURAL],
     params(SiteFilterQuery),
@@ -482,6 +491,7 @@ async fn update_node_resize(
 /// Export topology as Mermaid flowchart
 #[utoipa::path(
     get,
+    operation_id = "export_topology_mermaid",
     path = "/{id}/export/mermaid",
     tags = [Topology::ENTITY_NAME_PLURAL],
     params(("id" = Uuid, Path, description = "Topology ID"), TopologyExportQuery),
@@ -548,6 +558,7 @@ async fn export_mermaid(
 /// Export topology as Confluence wiki markup
 #[utoipa::path(
     get,
+    operation_id = "export_topology_confluence",
     path = "/{id}/export/confluence",
     tags = [Topology::ENTITY_NAME_PLURAL],
     params(("id" = Uuid, Path, description = "Topology ID"), TopologyExportQuery),

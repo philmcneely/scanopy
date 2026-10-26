@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import { AlertTriangle } from 'lucide-svelte';
 	import AppBanner from './AppBanner.svelte';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
@@ -48,6 +49,9 @@
 	function handleCta() {
 		startSetupPayment({ org, source: 'trial_banner', trialDaysLeft });
 	}
+
+	// Stripe.js is ready before anyone opens the payment dialog from here.
+	usePreloadStripe(() => shouldShow);
 </script>
 
 {#if shouldShow}

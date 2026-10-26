@@ -333,7 +333,7 @@ impl OrganizationService {
                 locked.org.base.license_key_issued_at = Some(issued_at);
                 let organization = locked.save_quietly().await?;
                 let issued = BillingOperation::LicenseKeyIssued {
-                    plan: organization.base.plan,
+                    plan: Some(organization.base.plan),
                     key_version: organization.base.license_key_version,
                 };
                 (issued_at, Some(issued))
@@ -550,11 +550,7 @@ impl OrganizationService {
                 // equality is config-based (see `BillingPlan`'s `PartialEq`),
                 // so an org already on `target` is skipped regardless of how
                 // its plan was set.
-                let current = locked
-                    .org
-                    .base
-                    .plan
-                    .unwrap_or_else(crate::server::billing::plans::get_community_plan);
+                let current = locked.org.base.plan;
                 if current == target {
                     locked.release().await?;
                     return Ok(false);

@@ -354,7 +354,10 @@ mod tests {
                     ingest::<DaemonRegistrationRequest>(body, version, &source).await
                 } else if route.ends_with("/request-work") {
                     ingest::<DaemonStatus>(body, version, &source).await
-                } else if route.starts_with("/api/v1/discovery/") && route.ends_with("/update") {
+                } else if (route.starts_with("/api/v1/discovery/")
+                    || route.starts_with("/api/v1/discoveries/"))
+                    && route.ends_with("/update")
+                {
                     ingest::<DiscoveryUpdatePayload>(body, version, &source).await
                 } else if route == "/api/v1/hosts/discovery" {
                     ingest::<DiscoveryHostRequest>(body, version, &source).await

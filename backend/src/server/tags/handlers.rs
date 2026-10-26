@@ -1,4 +1,5 @@
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
+use crate::server::auth::middleware::features::{RequireFeature, TaggingFeature};
 use crate::server::auth::middleware::permissions::{Admin, Authorized, Member, Viewer};
 use crate::server::shared::entities::{Entity as EntityEnum, EntityDiscriminants};
 use crate::server::shared::events::log::EventLog;
@@ -198,13 +199,14 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(set_entity_tags))
 }
 
-/// List all tags
+/// List tags
 ///
 /// Returns all tags in the authenticated user's organization.
 /// Supports pagination via `limit` and `offset` query parameters,
 /// and ordering via `group_by`, `order_by`, and `order_direction`.
 #[utoipa::path(
     get,
+    operation_id = "list_tags",
     path = "",
     tag = Tag::ENTITY_NAME_PLURAL,
     params(TagFilterQuery),
@@ -223,7 +225,7 @@ async fn get_all_tags(
     Ok(Json(list_page::<Tag>(&state, &scope, &query).await?))
 }
 
-/// Create a new tag
+/// Create tag
 ///
 /// Creates a tag scoped to your organization. Tag names must be unique within the organization.
 ///
@@ -498,7 +500,7 @@ pub struct SetTagsRequest {
     pub tag_ids: Vec<Uuid>,
 }
 
-/// Bulk add a tag to multiple entities
+/// Bulk add tag to entities
 ///
 /// Adds a single tag to multiple entities of the same type. This is useful for batch tagging operations.
 ///
@@ -522,6 +524,7 @@ pub struct SetTagsRequest {
 pub async fn bulk_add_tag(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Member>,
+    _tagging: RequireFeature<TaggingFeature>,
     ApiJson(request): ApiJson<BulkTagRequest>,
 ) -> ApiResult<Json<ApiResponse<BulkTagResponse>>> {
     // Validate entity type is taggable
@@ -568,7 +571,7 @@ pub async fn bulk_add_tag(
     })))
 }
 
-/// Bulk remove a tag from multiple entities
+/// Bulk remove tag from entities
 ///
 /// Removes a single tag from multiple entities of the same type.
 ///
@@ -590,6 +593,7 @@ pub async fn bulk_add_tag(
 pub async fn bulk_remove_tag(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Member>,
+    _tagging: RequireFeature<TaggingFeature>,
     ApiJson(request): ApiJson<BulkTagRequest>,
 ) -> ApiResult<Json<ApiResponse<BulkTagResponse>>> {
     // Validate entity type is taggable
@@ -630,7 +634,7 @@ pub async fn bulk_remove_tag(
     })))
 }
 
-/// Set all tags for an entity
+/// Set entity tags
 ///
 /// Replaces all tags on an entity with the provided list.
 ///
@@ -653,6 +657,7 @@ pub async fn bulk_remove_tag(
 pub async fn set_entity_tags(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Member>,
+    _tagging: RequireFeature<TaggingFeature>,
     ApiJson(request): ApiJson<SetTagsRequest>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     // Validate entity type is taggable

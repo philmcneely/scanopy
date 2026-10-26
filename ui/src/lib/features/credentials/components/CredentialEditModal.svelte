@@ -19,7 +19,7 @@
 	import CredentialAssignmentsSection from './CredentialAssignmentsSection.svelte';
 	import { submitForm, validateForm } from '$lib/shared/components/forms/form-context';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
-	import { ArrowRight, Info, KeyRound, Link } from 'lucide-svelte';
+	import { Info, KeyRound, Link } from 'lucide-svelte';
 	import {
 		common_assignments,
 		common_back,
@@ -297,8 +297,6 @@
 		}
 	}
 
-	let isStepNext = $derived(!isEditing && !isLastStep);
-
 	let actions = $derived<ModalAction[]>([
 		...(isEditing && onDelete && credential
 			? [
@@ -317,8 +315,7 @@
 			role: 'primary',
 			label: loading ? common_saving() : saveLabel,
 			onClick: handlePrimary,
-			disabled: loading || deleting,
-			...(isStepNext ? { icon: ArrowRight, iconAfter: true } : {})
+			disabled: loading || deleting
 		}
 	]);
 </script>

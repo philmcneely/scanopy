@@ -856,7 +856,7 @@ async fn members_list_users_and_invites_the_caller_may_see() {
 
 /// Subnets grouped by range nest each range under the ranges containing it, through the generic
 /// tree path: a page cut through a tree keeps every group's full count, each row carries its depth,
-/// and ranges nested in nothing fall in the ungrouped bucket.
+/// and ranges nested in nothing fall in the ungrouped bucket after every tree.
 #[tokio::test]
 async fn subnets_group_as_a_nesting_tree_across_pages() {
     use crate::server::subnets::handlers::{SubnetFilterQuery, SubnetOrderField};
@@ -907,17 +907,17 @@ async fn subnets_group_as_a_nesting_tree_across_pages() {
     assert_eq!(
         rows,
         vec![
-            ("192.168.9.0/24".to_string(), 0),
             ("10.0.0.0/16".to_string(), 0),
             ("10.0.16.0/20".to_string(), 1),
             ("10.0.16.0/24".to_string(), 2),
+            ("192.168.9.0/24".to_string(), 0),
         ],
-        "a range in no tree first, then each parent directly before the ranges inside it"
+        "each parent directly before the ranges inside it, then a range in no tree"
     );
     // Each row's root is the key the UI matches it to its group by.
-    assert_eq!(first.data[0].nesting_root_id, None);
-    assert_eq!(second.data[1].nesting_root_id, Some(wide.id));
-    let expected = vec![(String::new(), 1), (wide.id.to_string(), 3)];
+    assert_eq!(first.data[0].nesting_root_id, Some(wide.id));
+    assert_eq!(second.data[1].nesting_root_id, None);
+    let expected = vec![(wide.id.to_string(), 3), (String::new(), 1)];
     assert_eq!(
         counts(first.meta.pagination.group_counts.as_deref()),
         expected
@@ -990,11 +990,11 @@ async fn subnets_stay_grouped_as_trees_under_a_computed_sort() {
         assert_eq!(
             counts(page.meta.pagination.group_counts.as_deref()),
             vec![
-                (String::new(), 2),
                 (first_root.id.to_string(), 2),
-                (second_root.id.to_string(), 2)
+                (second_root.id.to_string(), 2),
+                (String::new(), 2)
             ],
-            "one group of ranges in no tree, then one group per tree, in address order"
+            "one group per tree, in address order, then one group of ranges in no tree"
         );
         rows.extend(
             page.data
@@ -1005,12 +1005,12 @@ async fn subnets_stay_grouped_as_trees_under_a_computed_sort() {
     assert_eq!(
         rows,
         vec![
-            ("172.16.9.0/24".to_string(), None),
-            ("192.168.9.0/24".to_string(), None),
             ("10.0.0.0/16".to_string(), Some(first_root.id)),
             ("10.0.1.0/24".to_string(), Some(first_root.id)),
             ("10.5.0.0/16".to_string(), Some(second_root.id)),
             ("10.5.1.0/24".to_string(), Some(second_root.id)),
+            ("172.16.9.0/24".to_string(), None),
+            ("192.168.9.0/24".to_string(), None),
         ],
         "every row sits in the group its root names, parents before the ranges inside them"
     );

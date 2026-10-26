@@ -42,6 +42,17 @@ export function isPlanLapsed(organization: Organization): boolean {
  * The org is on a licensed self-hosted plan (SelfHostedStandard / SelfHostedPlus).
  * On Scanopy Cloud these orgs get license keys, not the main app.
  */
+/**
+ * The org's plan includes the topology view. Free doesn't: the topology tab
+ * shows a plan-required overlay and nothing fetches topology data, which the
+ * backend refuses for it.
+ */
+export function hasTopologyAccess(organization: Organization | null | undefined): boolean {
+	const type = organization?.plan?.type;
+	if (type == null) return false;
+	return billingPlans.getMetadata(type).features?.topology_view === true;
+}
+
 export function hasLicensedPlan(organization: Organization): boolean {
 	const type = organization.plan?.type;
 	if (type == null) return false;
@@ -61,14 +72,21 @@ export function isSelfHostedPlanLocked(
 }
 
 /**
- * The org is a cloud sign-up that hasn't chosen a plan yet. The backend opens
- * only the Settings routes to it until it does, so the app is locked to Settings.
+ * The org signed up for a self-hosted license, but its trial never started (it
+ * signed up before signup started it, or the start failed), so it has a
+ * license plan and no subscription. It stays on the plan picker over Settings
+ * until it chooses. A cloud org always has a plan: Free, if nothing else.
  */
 export function isPlanUnchosen(
 	organization: Organization | null | undefined,
 	isCloudDeployment: boolean
 ): boolean {
-	return isCloudDeployment && organization != null && organization.plan == null;
+	return (
+		isCloudDeployment &&
+		organization != null &&
+		hasLicensedPlan(organization) &&
+		organization.plan_status == null
+	);
 }
 
 /**

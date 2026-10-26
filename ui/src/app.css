@@ -455,14 +455,16 @@
 
 /* `text-success` and `text-warning` take their light-mode color from the theme colors above,
    which win over a custom utility of the same name. These keep the dark-mode shades the v3
-   component classes applied on top. */
+   component classes applied on top. Literals (green-400, yellow-400): Tailwind emits only the
+   theme variables utilities use, and plain CSS naming one doesn't count, so
+   `var(--color-green-400)` was undefined here and the text fell back to white. */
 @layer utilities {
 	.dark .text-success {
-		color: var(--color-green-400);
+		color: oklch(79.2% 0.209 151.711);
 	}
 
 	.dark .text-warning {
-		color: var(--color-yellow-400);
+		color: oklch(85.2% 0.199 91.936);
 	}
 }
 

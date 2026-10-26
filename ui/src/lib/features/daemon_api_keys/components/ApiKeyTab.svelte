@@ -50,7 +50,7 @@
 	const page = listPageState(() => isActive);
 	const keysPageQuery = useUnboundApiKeysListQuery(() => page.params());
 	const siteValuesQuery = useFieldValuesQuery(
-		'/api/v1/auth/daemon/field-values/{field}',
+		'/api/v1/daemon-api-keys/field-values/{field}',
 		'site_id',
 		() => ({
 			unbound: true

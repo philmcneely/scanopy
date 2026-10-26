@@ -106,6 +106,15 @@ pub(crate) fn is_within_standby_grace(
     standby_cleared_at.is_some_and(|t| t > now - chrono::Duration::days(STANDBY_GRACE_PERIOD_DAYS))
 }
 
+/// What stops an organization adding another daemon once it has one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DaemonLimit {
+    /// The org is on Free, which runs one daemon.
+    PlanRequired,
+    /// No owner has verified their email.
+    EmailVerification,
+}
+
 pub struct DaemonService {
     // Storage and core dependencies
     daemon_storage: Arc<GenericPostgresStorage<Daemon>>,

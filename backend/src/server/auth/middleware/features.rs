@@ -98,10 +98,7 @@ where
             .map_err(AuthError)?;
 
         // Plan from the cached organization row.
-        let plan = organization
-            .base
-            .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        let plan = organization.base.plan;
 
         let ctx = FeatureCheckContext {
             organization: &organization,
@@ -167,6 +164,39 @@ impl FeatureCheck for ShareViewsFeature {
             return FeatureCheckResult::payment_required(
                 "Your plan does not include sharing. Upgrade to share live network diagrams.",
             );
+        }
+
+        FeatureCheckResult::Allowed
+    }
+}
+
+#[derive(Default)]
+pub struct TopologyViewFeature;
+
+#[async_trait]
+impl FeatureCheck for TopologyViewFeature {
+    async fn check(&self, ctx: &FeatureCheckContext<'_>) -> FeatureCheckResult {
+        if !ctx.plan.features().topology_view {
+            return FeatureCheckResult::payment_required(
+                "Your plan does not include the topology view. Choose a plan to explore your network as a diagram.",
+            );
+        }
+
+        FeatureCheckResult::Allowed
+    }
+}
+
+const TAGGING_NOT_INCLUDED: &str =
+    "Your plan does not include tagging. Choose a plan to tag hosts, services and other entities.";
+
+#[derive(Default)]
+pub struct TaggingFeature;
+
+#[async_trait]
+impl FeatureCheck for TaggingFeature {
+    async fn check(&self, ctx: &FeatureCheckContext<'_>) -> FeatureCheckResult {
+        if !ctx.plan.features().tagging {
+            return FeatureCheckResult::payment_required(TAGGING_NOT_INCLUDED);
         }
 
         FeatureCheckResult::Allowed
@@ -294,5 +324,37 @@ impl FeatureCheck for CreateSiteFeature {
         }
 
         FeatureCheckResult::Allowed
+    }
+}
+
+/// Whether `next` changes an entity's tags from `current`, order aside.
+pub fn tags_changed(current: Option<&Vec<uuid::Uuid>>, next: Option<&Vec<uuid::Uuid>>) -> bool {
+    let sorted = |tags: Option<&Vec<uuid::Uuid>>| {
+        let mut tags = tags.cloned().unwrap_or_default();
+        tags.sort_unstable();
+        tags
+    };
+    sorted(current) != sorted(next)
+}
+
+/// Refuse a change to an entity's tags made through its own create or update
+/// when the organization's plan has no tagging. The tag endpoints check
+/// [`TaggingFeature`] themselves; tags written by discovery never come
+/// through here.
+pub async fn ensure_tagging_allowed(
+    state: &AppState,
+    organization_id: &uuid::Uuid,
+) -> Result<(), ApiError> {
+    let organization = state
+        .services
+        .organization_service
+        .get_by_id(organization_id)
+        .await
+        .map_err(|e| ApiError::internal_error(&e.to_string()))?
+        .ok_or_else(ApiError::organization_required)?;
+    if organization.base.plan.features().tagging {
+        Ok(())
+    } else {
+        Err(ApiError::payment_required(TAGGING_NOT_INCLUDED))
     }
 }

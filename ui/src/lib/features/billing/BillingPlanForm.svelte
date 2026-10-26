@@ -19,9 +19,9 @@
 		billing_siteUnit,
 		billing_siteUnitPlural,
 		billing_notIncluded,
-		billing_perHostMonthly,
 		billing_perSiteMonthly,
 		billing_perSeatMonthly,
+		billing_planIntegrations,
 		billing_priceBase,
 		billing_rateMonthly,
 		billing_rateMonthlyEquivalent,
@@ -36,6 +36,7 @@
 		billing_showFeatures,
 		billing_hideFeatures,
 		billing_snapshotRetention,
+		billing_startFreeTrial,
 		billing_startTrialNoCreditCard,
 		billing_switchPlan,
 		billing_trialContinues,
@@ -48,7 +49,6 @@
 		common_getStarted,
 		billing_continueOnPlan,
 		common_hide,
-		common_hosts,
 		common_servers,
 		common_monthly,
 		common_sites,
@@ -60,7 +60,11 @@
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import ToggleGroup from './ToggleGroup.svelte';
 	import type { BillingPlan, PlanPickerHosting } from './types';
-	import type { BillingPlanMetadata, FeatureMetadata } from '$lib/shared/stores/metadata';
+	import type {
+		BillingPlanMetadata,
+		CredentialIntegrationMetadata,
+		FeatureMetadata
+	} from '$lib/shared/stores/metadata';
 	import type { ColorStyle } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { tooltip } from '$lib/shared/actions/tooltip';
@@ -89,6 +93,8 @@
 		plans: BillingPlan[];
 		billingPlanHelpers: MetadataHelpers<BillingPlanMetadata>;
 		featureHelpers: MetadataHelpers<FeatureMetadata>;
+		/** Names the discovery integrations itemized on each card (`credential-integrations.json`). */
+		integrationHelpers: MetadataHelpers<CredentialIntegrationMetadata>;
 		onPlanSelect: (plan: BillingPlan) => void | Promise<void>;
 		showGithubStars?: boolean;
 		/** Show the Cloud / Self-Hosted toggle (and hosting tags on each card). */
@@ -115,6 +121,7 @@
 		plans,
 		billingPlanHelpers,
 		featureHelpers,
+		integrationHelpers,
 		onPlanSelect,
 		showGithubStars = true,
 		class: className = '',
@@ -258,9 +265,53 @@
 		return featureHelpers.getMetadata(featureKey)?.is_coming_soon === true;
 	}
 
+	const DISCOVERY_INTEGRATIONS = 'discovery_integrations';
+
+	/** Feature categories in display order; unknown ones sort last. */
+	const CATEGORY_ORDER = [
+		'Discovery',
+		'Inventory',
+		'Diagrams',
+		'Export',
+		'API & Automation',
+		'Support',
+		'Security',
+		'Deployment',
+		'Billing'
+	];
+
+	/** The category the integrations sit under, on the cards and in the comparison. */
+	let discoveryCategory = $derived(featureHelpers.getCategory(DISCOVERY_INTEGRATIONS));
+
+	/**
+	 * Features the cards and the comparison show as the itemized integrations instead: the
+	 * general discovery-integrations flag, and each feature that gates one integration.
+	 */
+	function isItemizedAsIntegrations(featureKey: string): boolean {
+		return (
+			featureKey === DISCOVERY_INTEGRATIONS ||
+			featureHelpers.getMetadata(featureKey)?.gates_integration === true
+		);
+	}
+
+	/** Every integration any shown plan includes, in the order the plans list them. */
+	let comparisonIntegrations = $derived([
+		...new Set(
+			filteredPlans.flatMap((p) => billingPlanHelpers.getMetadata(p.type)?.integrations ?? [])
+		)
+	]);
+
+	function planHasIntegration(planType: string, integration: string): boolean {
+		return (billingPlanHelpers.getMetadata(planType)?.integrations ?? []).some(
+			(id) => id === integration
+		);
+	}
+
 	let featureKeys = $derived(
 		filteredPlans.length > 0
-			? Object.keys(billingPlanHelpers.getMetadata(filteredPlans[0].type)?.features || {})
+			? Object.keys(billingPlanHelpers.getMetadata(filteredPlans[0].type)?.features || {}).filter(
+					(key) => !isItemizedAsIntegrations(key)
+				)
 			: []
 	);
 
@@ -280,16 +331,9 @@
 				return countB - countA;
 			});
 		}
-		// Sort categories: Core first, Support/Enterprise/Licensing last
+		// Sort categories into display order
 		const sortedEntries = [...groups.entries()].sort(([a], [b]) => {
-			const order = [
-				'Discovery',
-				'Visualization',
-				'Integrations',
-				'Support',
-				'Enterprise',
-				'Licensing & Billing'
-			];
+			const order: string[] = CATEGORY_ORDER;
 			const aIdx = order.indexOf(a);
 			const bIdx = order.indexOf(b);
 			if (aIdx === -1 && bIdx === -1) return a.localeCompare(b);
@@ -355,14 +399,6 @@
 		return '';
 	}
 
-	function formatHostAddonPricing(plan: BillingPlan): string {
-		if (plan.host_cents) {
-			const monthly = plan.rate === 'Year' ? plan.host_cents / 12 : plan.host_cents;
-			return billing_perHostMonthly({ amount: String(monthly / 100) });
-		}
-		return '';
-	}
-
 	function getHosting(plan: BillingPlan): string {
 		return billingPlanHelpers.getMetadata(plan.type)?.hosting ?? '';
 	}
@@ -410,7 +446,7 @@
 	}
 
 	function sortFeaturesByCategory(features: string[]): string[] {
-		const order = ['Discovery', 'Visualization', 'Integrations', 'Support', 'Enterprise'];
+		const order: string[] = CATEGORY_ORDER;
 		return [...features].sort((a, b) => {
 			const catA = order.indexOf(featureHelpers.getCategory(a));
 			const catB = order.indexOf(featureHelpers.getCategory(b));
@@ -435,7 +471,48 @@
 		}
 		expandedFeatures = next;
 	}
+
+	let expandedIntegrations = new SvelteSet<string>();
+
+	function toggleIntegrations(planType: string) {
+		if (expandedIntegrations.has(planType)) {
+			expandedIntegrations.delete(planType);
+		} else {
+			expandedIntegrations.add(planType);
+		}
+	}
 </script>
+
+<!-- One line per card for its integrations, expanding to their names. -->
+{#snippet integrationsLine(planType: string, integrations: string[])}
+	{@const expanded = expandedIntegrations.has(planType)}
+	<li class="flex items-start gap-2 text-sm">
+		<Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />
+		<div class="flex flex-col gap-0.5">
+			<button
+				type="button"
+				class="flex cursor-pointer items-center gap-1 text-left text-secondary"
+				aria-expanded={expanded}
+				onclick={() => toggleIntegrations(planType)}
+			>
+				{billing_planIntegrations({
+					planName: billingPlanHelpers.getName(planType),
+					count: integrations.length
+				})}
+				{#if expanded}
+					<ChevronUp class="h-3 w-3" />
+				{:else}
+					<ChevronDown class="h-3 w-3" />
+				{/if}
+			</button>
+			{#if expanded}
+				<span class="text-xs text-tertiary">
+					{integrations.map((id) => integrationHelpers.getName(id)).join(' · ')}
+				</span>
+			{/if}
+		</div>
+	</li>
+{/snippet}
 
 <div class="flex min-h-0 flex-1 flex-col {className}">
 	<!-- Header with Toggles (fixed, does not scroll) -->
@@ -481,10 +558,24 @@
 							? (billingPlanHelpers.getMetadata(prevTier)?.incremental_features ?? [])
 							: []}
 					{@const displayFeatures = sortFeaturesByCategory(
-						prevTierFeatures.length > 0
+						(prevTierFeatures.length > 0
 							? [...new Set([...prevTierFeatures, ...incrementalFeatures])]
 							: incrementalFeatures
+						).filter((key) => !isItemizedAsIntegrations(key))
 					)}
+					{@const incrementalIntegrations = metadata?.incremental_integrations ?? []}
+					{@const displayIntegrations =
+						prevTier && !prevTierVisible
+							? [
+									...new Set([
+										...(billingPlanHelpers.getMetadata(prevTier)?.incremental_integrations ?? []),
+										...incrementalIntegrations
+									])
+								]
+							: incrementalIntegrations}
+					{@const leadsWithIntegrations =
+						displayIntegrations.length > 0 &&
+						!displayFeatures.some((key) => featureHelpers.getCategory(key) === discoveryCategory)}
 
 					<div class="plan-card card-static card flex flex-col">
 						<!-- Plan Header -->
@@ -578,8 +669,13 @@
 											{billing_continueOnPlan({ plan: billingPlanHelpers.getName(plan.type) })}
 										{:else if isCurrentlyTrialing}
 											{billing_switchPlan()}
+										{:else if !trial}
+											{common_getStarted()}
+										{:else if getHosting(plan) === 'SelfHosted'}
+											{billing_startTrialNoCreditCard()}
 										{:else}
-											{trial ? billing_startTrialNoCreditCard() : common_getStarted()}
+											<!-- A cloud trial collects a card first. -->
+											{billing_startFreeTrial()}
 										{/if}
 									</button>
 									{#if trial && !isCurrentlyTrialing}
@@ -674,19 +770,6 @@
 								{/if}
 							</div>
 
-							<!-- Hosts -->
-							<div class="flex items-center justify-between text-sm">
-								<div class="flex flex-col">
-									<span class="text-secondary">{common_hosts()}</span>
-									{#if plan.host_cents}
-										<span class="text-xs text-tertiary">{formatHostAddonPricing(plan)}</span>
-									{/if}
-								</div>
-								<span class="font-medium text-primary">
-									{formatIncludedValue(plan.included_hosts, plan)}
-								</span>
-							</div>
-
 							<!-- Servers (self-hosted only: how many servers one license key covers) -->
 							{#if getHosting(plan) === 'SelfHosted'}
 								<div class="flex items-center justify-between text-sm">
@@ -715,7 +798,7 @@
 							{/if}
 
 							<!-- Mobile: collapsible feature list -->
-							{#if displayFeatures.length > 0}
+							{#if displayFeatures.length > 0 || displayIntegrations.length > 0}
 								<button
 									type="button"
 									class="mb-2 flex items-center gap-1 text-xs font-medium text-tertiary sm:hidden"
@@ -733,11 +816,24 @@
 							{/if}
 
 							<ul class="space-y-1.5 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}">
+								<!-- The integrations line closes the Discovery group, or opens it when the
+								     card lists no other Discovery feature. -->
+								{#if leadsWithIntegrations}
+									<li class="text-[10px] font-medium tracking-wider text-tertiary uppercase">
+										{discoveryCategory}
+									</li>
+									{@render integrationsLine(plan.type, displayIntegrations)}
+								{/if}
 								{#each displayFeatures as featureKey, i (featureKey)}
 									{@const category = featureHelpers.getCategory(featureKey)}
+									{@const nextCategory =
+										i + 1 < displayFeatures.length
+											? featureHelpers.getCategory(displayFeatures[i + 1])
+											: null}
 									{#if i === 0 || category !== featureHelpers.getCategory(displayFeatures[i - 1])}
 										<li
-											class="text-[10px] font-medium tracking-wider text-tertiary uppercase {i > 0
+											class="text-[10px] font-medium tracking-wider text-tertiary uppercase {i >
+												0 || leadsWithIntegrations
 												? 'mt-2'
 												: ''}"
 										>
@@ -760,6 +856,9 @@
 											<Tag label={common_comingSoon()} color="Gray" />
 										{/if}
 									</li>
+									{#if displayIntegrations.length > 0 && category === discoveryCategory && nextCategory !== discoveryCategory}
+										{@render integrationsLine(plan.type, displayIntegrations)}
+									{/if}
 								{/each}
 							</ul>
 						</div>
@@ -848,6 +947,34 @@
 							{/each}
 						</div>
 					{/each}
+
+					<!-- The integrations themselves, one row each, after the category holding the
+					     discovery-integrations feature they stand in for. -->
+					{#if category === discoveryCategory && comparisonIntegrations.length > 0}
+						<div class="comparison-category-row">
+							<span class="p-2 text-xs font-medium text-tertiary lg:p-3 lg:text-sm">
+								{featureHelpers.getName(DISCOVERY_INTEGRATIONS)}
+							</span>
+						</div>
+						{#each comparisonIntegrations as integration (integration)}
+							<div class="comparison-row" style="grid-template-columns: {gridColumns}">
+								<div class="comparison-label-cell">
+									<div class="text-xs font-medium lg:text-sm">
+										{integrationHelpers.getName(integration)}
+									</div>
+								</div>
+								{#each filteredPlans as plan (plan.type)}
+									<div class="comparison-value-cell">
+										{#if planHasIntegration(plan.type, integration)}
+											<Check class="mx-auto h-4 w-4 text-success lg:h-5 lg:w-5" />
+										{:else}
+											<X class="mx-auto h-4 w-4 text-muted lg:h-5 lg:w-5" />
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/each}
+					{/if}
 				{/each}
 			</div>
 		{/if}

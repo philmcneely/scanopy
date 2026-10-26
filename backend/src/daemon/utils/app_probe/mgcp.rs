@@ -28,6 +28,7 @@ use crate::daemon::utils::app_probe::{
     AppProbe, AppProbeOutcome, ProbeContext, presence, udp_request_response,
 };
 use crate::server::ports::r#impl::base::PortType;
+use crate::server::services::r#impl::patterns::ClientProbe;
 
 /// The gateway port and the call-agent port. Both speak the same protocol; which end is listening
 /// says which role the host plays, and either is worth finding.
@@ -65,6 +66,10 @@ impl MgcpProbe {
 impl AppProbe for MgcpProbe {
     fn port(&self) -> PortType {
         self.port
+    }
+
+    fn client_probe(&self) -> Option<ClientProbe> {
+        Some(ClientProbe::Mgcp)
     }
 
     async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {

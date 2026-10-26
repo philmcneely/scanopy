@@ -37,7 +37,8 @@ pub const DEMO_USER_ID: Uuid = Uuid::from_u128(0x550e8400_e29b_41d4_a716_4466554
 
 pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
     OpenApiRouter::new()
-        .routes(routes!(get_organization, update_org_name))
+        .routes(routes!(get_organization))
+        .routes(routes!(update_org_name))
         .routes(routes!(update_profile))
         .routes(routes!(submit_referral_source))
         .routes(routes!(daemon_prompt_response))
@@ -47,11 +48,14 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(populate_demo_status))
 }
 
-/// Get the current user's organization
+/// Get current organization
+///
+/// The organization of the signed-in user.
 #[utoipa::path(
     get,
-    path = "",
-    tag = Organization::ENTITY_NAME_PLURAL,
+    operation_id = "get_current_organization",
+    path = "/current",
+    tags = [Organization::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     responses(
         (status = 200, description = "Organization details", body = ApiResponse<Organization>),
         (status = 404, description = "Organization not found", body = ApiErrorResponse),
@@ -76,6 +80,7 @@ pub async fn get_organization(
 /// Update organization name
 #[utoipa::path(
     put,
+    operation_id = "update_organization",
     path = "/{id}",
     tag = Organization::ENTITY_NAME_PLURAL,
     params(("id" = Uuid, Path, description = "Organization ID")),
@@ -134,7 +139,7 @@ pub struct ProfileUpdateRequest {
 #[utoipa::path(
     post,
     path = "/profile",
-    tag = Organization::ENTITY_NAME_PLURAL,
+    tags = [Organization::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     request_body = ProfileUpdateRequest,
     responses(
         (status = 200, description = "Profile updated", body = EmptyApiResponse),
@@ -204,7 +209,7 @@ pub struct ReferralSourceRequest {
 #[utoipa::path(
     post,
     path = "/referral-source",
-    tag = Organization::ENTITY_NAME_PLURAL,
+    tags = [Organization::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     request_body = ReferralSourceRequest,
     responses(
         (status = 200, description = "Referral source recorded", body = EmptyApiResponse),
@@ -260,14 +265,16 @@ pub struct DaemonPromptResponseRequest {
     pub action: DaemonPromptAction,
 }
 
-/// Record the user's response to the daemon-install prompt so it is not shown again.
+/// Record daemon-install prompt response
+///
+/// Records the response so the prompt is not shown again.
 /// Each CTA records a distinct onboarding milestone, which the UI reads to hide the prompt.
 /// Every response is published; the PostHog subscriber turns these into funnel events, so
 /// no client-side telemetry is needed.
 #[utoipa::path(
     post,
     path = "/daemon-prompt-response",
-    tag = Organization::ENTITY_NAME_PLURAL,
+    tags = [Organization::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     request_body = DaemonPromptResponseRequest,
     responses(
         (status = 200, description = "Response recorded", body = EmptyApiResponse),
@@ -313,7 +320,9 @@ async fn daemon_prompt_response(
     Ok(Json(ApiResponse::success(())))
 }
 
-/// Reset all organization data (delete all entities except organization and owner user)
+/// Reset organization data
+///
+/// Deletes every entity except the organization and its owner.
 #[utoipa::path(
     post,
     path = "/{id}/reset",
@@ -352,11 +361,13 @@ pub async fn reset(
     Ok(Json(ApiResponse::success(())))
 }
 
-/// Delete the organization entirely, including all data and users
+/// Delete organization
+///
+/// Deletes the organization with all its data and users.
 #[utoipa::path(
     delete,
     path = "/{id}",
-    tags = [Organization::ENTITY_NAME_PLURAL],
+    tags = [Organization::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     params(("id" = Uuid, Path, description = "Organization ID")),
     responses(
         (status = 200, description = "Organization deleted", body = EmptyApiResponse),
@@ -464,7 +475,9 @@ pub async fn delete_organization(
     Ok(Json(ApiResponse::success(())))
 }
 
-/// Populate demo data (only available for demo organizations).
+/// Populate demo data
+///
+/// Only available for demo organizations.
 ///
 /// Runs the population off the request thread (a `tokio::spawn`) and returns
 /// `202` immediately — the work is a few hundred sequential DB round-trips and
@@ -505,10 +518,7 @@ pub async fn populate_demo_data(
     }
 
     // Only available for demo organizations
-    let plan = org
-        .base
-        .plan
-        .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+    let plan = org.base.plan;
     if !plan.is_demo() {
         return Err(ApiError::forbidden(
             "Populate demo data is only available for demo organizations",
@@ -551,7 +561,7 @@ pub async fn populate_demo_data(
     Ok((StatusCode::ACCEPTED, Json(ApiResponse::success(started))))
 }
 
-/// Poll the status of an org's background demo-populate task.
+/// Get demo data population status
 #[utoipa::path(
     get,
     path = "/{id}/populate-demo/status",

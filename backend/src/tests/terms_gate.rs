@@ -66,7 +66,7 @@ async fn serve_gated(
     let caller = current;
     let app = Router::new()
         .route("/api/v1/hosts", get(|| async { "ok" }))
-        .route("/api/v1/organizations", get(|| async { "ok" }))
+        .route("/api/v1/organizations/current", get(|| async { "ok" }))
         .route("/api/auth/me", post(|| async { "ok" }))
         .route("/api/billing/checkout", post(|| async { "ok" }))
         .layer(middleware::from_fn_with_state(
@@ -115,7 +115,7 @@ async fn a_user_who_accepted_earlier_terms_is_refused_until_they_accept_again() 
         200
     );
     assert_eq!(
-        status(addr, reqwest::Method::GET, "/api/v1/organizations")
+        status(addr, reqwest::Method::GET, "/api/v1/organizations/current")
             .await
             .0,
         200
@@ -154,7 +154,7 @@ async fn a_user_who_accepted_earlier_terms_is_refused_until_they_accept_again() 
     assert!(Utc::now() - accepted_at < Duration::minutes(1));
     assert!(!acceptance_required(
         DeploymentType::Cloud,
-        org.base.plan.as_ref(),
+        Some(&org.base.plan),
         accepted.base.terms_accepted_at
     ));
     *current.lock().unwrap() = session(&accepted);

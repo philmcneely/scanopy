@@ -188,7 +188,7 @@ export function useTopologiesQuery(enabled?: () => boolean) {
 		queryKey: queryKeys.topology.all,
 		queryFn: async () => {
 			return unwrapData(
-				await apiClient.GET('/api/v1/topology', {
+				await apiClient.GET('/api/v1/topologies', {
 					params: { query: { limit: 0 } }
 				})
 			);
@@ -256,7 +256,7 @@ function topologyDataQueryOptions(
 				throw new Error('No site ID provided');
 			}
 			return unwrapData(
-				await apiClient.GET('/api/v1/topology/data', {
+				await apiClient.GET('/api/v1/topologies/data', {
 					params: { query: { site_id: siteId, snapshot_id: snapshotId, view } }
 				})
 			);
@@ -285,7 +285,7 @@ export function loadTopologyData(
  * explicit on-tab view, never from background fetches on other tabs.
  */
 export async function markTopologyViewed(siteId: string, view: TopologyView): Promise<void> {
-	await apiClient.GET('/api/v1/topology/data', {
+	await apiClient.GET('/api/v1/topologies/data', {
 		params: { query: { site_id: siteId, mark_viewed: true, view } }
 	});
 }
@@ -302,7 +302,7 @@ export function useTopologyQuery(id: () => string | undefined) {
 				throw new Error('No topology ID provided');
 			}
 			return unwrapData(
-				await apiClient.GET('/api/v1/topology/{id}', {
+				await apiClient.GET('/api/v1/topologies/{id}', {
 					params: { path: { id: topologyId } }
 				})
 			);
@@ -323,7 +323,7 @@ export function useTopologyQuery(id: () => string | undefined) {
 export function useUpdateTopologyMutation() {
 	return createMutation(() => ({
 		mutationFn: async (topology: Topology) => {
-			await apiClient.PUT('/api/v1/topology/{id}', {
+			await apiClient.PUT('/api/v1/topologies/{id}', {
 				params: { path: { id: topology.id } },
 				body: topology
 			});
@@ -353,7 +353,7 @@ export function useUpdateNodePositionMutation() {
 			position: { x: number; y: number };
 		}) => {
 			requireSuccess(
-				await apiClient.POST('/api/v1/topology/{id}/node-position', {
+				await apiClient.POST('/api/v1/topologies/{id}/node-position', {
 					params: { path: { id: params.topologyId } },
 					body: {
 						site_id: params.siteId,
@@ -383,7 +383,7 @@ export function useUpdateNodeResizeMutation() {
 			position: { x: number; y: number };
 		}) => {
 			requireSuccess(
-				await apiClient.POST('/api/v1/topology/{id}/node-resize', {
+				await apiClient.POST('/api/v1/topologies/{id}/node-resize', {
 					params: { path: { id: params.topologyId } },
 					body: {
 						site_id: params.siteId,
@@ -414,7 +414,7 @@ export function useUpdateEdgeHandlesMutation() {
 			targetHandle: 'Top' | 'Bottom' | 'Left' | 'Right';
 		}) => {
 			requireSuccess(
-				await apiClient.POST('/api/v1/topology/{id}/edge-handles', {
+				await apiClient.POST('/api/v1/topologies/{id}/edge-handles', {
 					params: { path: { id: params.topologyId } },
 					body: {
 						site_id: params.siteId,
@@ -849,7 +849,7 @@ function saveOptionsForCurrentTopology(): void {
 		const topology = topologies?.find((t) => t.id === topologyId);
 		if (!topology) return;
 		void apiClient
-			.PUT('/api/v1/topology/{id}', {
+			.PUT('/api/v1/topologies/{id}', {
 				params: { path: { id: topologyId } },
 				body: { ...topology, options: buildOptionsForApi() }
 			})
@@ -1049,7 +1049,7 @@ class TopologySSEManager extends BaseSSEManager<LiveTopologyUpdate> {
 
 	protected createConfig(): SSEConfig<LiveTopologyUpdate> {
 		return {
-			url: '/api/v1/topology/stream',
+			url: '/api/v1/topologies/stream',
 			onMessage: (update) => {
 				this.pendingSiteIds.add(update.site_id);
 				this.flushInvalidations();

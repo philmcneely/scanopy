@@ -41,7 +41,7 @@ export function useDiscoveriesQuery(enabled?: () => boolean) {
 		queryKey: queryKeys.discovery.all,
 		queryFn: async () => {
 			return unwrapData(
-				await apiClient.GET('/api/v1/discovery', {
+				await apiClient.GET('/api/v1/discoveries', {
 					params: { query: { limit: 0 } }
 				})
 			);
@@ -65,7 +65,7 @@ export function useDiscoveriesByIds(idsGetter: () => string[]) {
 			queryKey: [...queryKeys.discovery.all, 'byIds', ids],
 			queryFn: async (): Promise<Discovery[]> =>
 				unwrapData(
-					await apiClient.GET('/api/v1/discovery', { params: { query: { ids, limit: 0 } } })
+					await apiClient.GET('/api/v1/discoveries', { params: { query: { ids, limit: 0 } } })
 				),
 			enabled: ids.length > 0
 		};
@@ -80,7 +80,7 @@ export function useScheduledDiscoveriesQuery(params: () => ListPageParams) {
 	return useListPageQuery<Discovery>(
 		[...queryKeys.discovery.all, 'scheduled'],
 		({ query, querySerializer }) =>
-			apiClient.GET('/api/v1/discovery', {
+			apiClient.GET('/api/v1/discoveries', {
 				params: { query: { ...query, historical: false } },
 				querySerializer
 			}),
@@ -100,7 +100,7 @@ export function useDiscoveryHistoryQuery(params: () => ListPageParams) {
 	return useListPageQuery<Discovery>(
 		[...queryKeys.discovery.all, 'history'],
 		({ query, querySerializer }) =>
-			apiClient.GET('/api/v1/discovery', {
+			apiClient.GET('/api/v1/discoveries', {
 				params: { query: { ...query, historical: true } },
 				querySerializer
 			}),
@@ -116,7 +116,7 @@ export function useCreateDiscoveryMutation() {
 
 	return createMutation(() => ({
 		mutationFn: async (discovery: Discovery) => {
-			return unwrapData(await apiClient.POST('/api/v1/discovery', { body: discovery }));
+			return unwrapData(await apiClient.POST('/api/v1/discoveries', { body: discovery }));
 		},
 		onSuccess: (newDiscovery: Discovery) => {
 			queryClient.setQueryData<Discovery[]>(queryKeys.discovery.all, (old) =>
@@ -140,7 +140,7 @@ export function useUpdateDiscoveryMutation() {
 	return createMutation(() => ({
 		mutationFn: async (discovery: Discovery) => {
 			return unwrapData(
-				await apiClient.PUT('/api/v1/discovery/{id}', {
+				await apiClient.PUT('/api/v1/discoveries/{id}', {
 					params: { path: { id: discovery.id } },
 					body: discovery
 				})
@@ -167,7 +167,7 @@ export function useBulkSetDiscoveriesEnabledMutation() {
 	return createMutation(() => ({
 		mutationFn: async ({ ids, enabled }: { ids: string[]; enabled: boolean }) => {
 			return unwrapData(
-				await apiClient.POST('/api/v1/discovery/bulk-set-enabled', { body: { ids, enabled } })
+				await apiClient.POST('/api/v1/discoveries/bulk-set-enabled', { body: { ids, enabled } })
 			);
 		},
 		onSuccess: (updated: Discovery[]) => {
@@ -189,7 +189,7 @@ export function useDeleteDiscoveryMutation() {
 	return createMutation(() => ({
 		mutationFn: async (id: string) => {
 			requireSuccess(
-				await apiClient.DELETE('/api/v1/discovery/{id}', {
+				await apiClient.DELETE('/api/v1/discoveries/{id}', {
 					params: { path: { id } }
 				})
 			);
@@ -214,7 +214,7 @@ export function useBulkDeleteDiscoveriesMutation() {
 
 	return createMutation(() => ({
 		mutationFn: async (ids: string[]) => {
-			requireSuccess(await apiClient.POST('/api/v1/discovery/bulk-delete', { body: ids }));
+			requireSuccess(await apiClient.POST('/api/v1/discoveries/bulk-delete', { body: ids }));
 			return ids;
 		},
 		onSuccess: (ids: string[]) => {
@@ -424,7 +424,7 @@ export type DiscoveryOrderField = components['schemas']['DiscoveryOrderField'];
  */
 /** The discovery list endpoint's query params, which the filters are sent and linked as. */
 export type DiscoveryListParam = keyof NonNullable<
-	operations['get_all_discoveries']['parameters']['query']
+	operations['list_discoveries']['parameters']['query']
 >;
 
 export type DiscoveryFieldEntry = Partial<
@@ -561,7 +561,7 @@ export function useActiveSessionsQuery(getEnabled: () => boolean = () => true) {
 		queryKey: queryKeys.discovery.sessions(),
 		queryFn: async () => {
 			const sessions = unwrapData(
-				await apiClient.GET('/api/v1/discovery/active-sessions', {})
+				await apiClient.GET('/api/v1/discoveries/active-sessions', {})
 			) as DiscoveryUpdatePayload[];
 			observeSessions(
 				sessions.map((s) => s.session_id),
@@ -584,7 +584,7 @@ export function useInitiateDiscoveryMutation() {
 	return createMutation(() => ({
 		mutationFn: async (discoveryId: string) => {
 			return unwrapData(
-				await apiClient.POST('/api/v1/discovery/start-session', {
+				await apiClient.POST('/api/v1/discoveries/start-session', {
 					body: discoveryId
 				})
 			) as DiscoveryUpdatePayload;
@@ -630,7 +630,7 @@ export function useCancelDiscoveryMutation() {
 				});
 
 			const result = await apiClient
-				.POST('/api/v1/discovery/{session_id}/cancel', {
+				.POST('/api/v1/discoveries/{session_id}/cancel', {
 					params: { path: { session_id: sessionId } }
 				})
 				.catch((error: unknown) => {
@@ -736,7 +736,7 @@ class DiscoverySSEManager extends BaseSSEManager<DiscoveryUpdatePayload> {
 
 	protected createConfig(): SSEConfig<DiscoveryUpdatePayload> {
 		return {
-			url: '/api/v1/discovery/stream',
+			url: '/api/v1/discoveries/stream',
 			onMessage: async (update) => {
 				if (isTerminalPhase(update.phase)) {
 					forgetSession(update.session_id);
@@ -872,7 +872,7 @@ export function useBulkStartDiscoveriesMutation() {
 	return createMutation(() => ({
 		mutationFn: async (discoveryIds: string[]) => {
 			return unwrapData(
-				await apiClient.POST('/api/v1/discovery/bulk-start-session', { body: discoveryIds })
+				await apiClient.POST('/api/v1/discoveries/bulk-start-session', { body: discoveryIds })
 			) as DiscoveryUpdatePayload[];
 		},
 		onSuccess: (sessions: DiscoveryUpdatePayload[]) => {
@@ -908,7 +908,7 @@ export function useBulkCancelDiscoveriesMutation() {
 			mark(true);
 			try {
 				requireSuccess(
-					await apiClient.POST('/api/v1/discovery/bulk-cancel', { body: discoveryIds })
+					await apiClient.POST('/api/v1/discoveries/bulk-cancel', { body: discoveryIds })
 				);
 			} catch (error) {
 				// The stream only clears the mark when a session ends, which a refused request

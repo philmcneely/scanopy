@@ -156,7 +156,7 @@ impl BillingService {
     /// subscription as fetched, carried the customer's cancellation feedback.
     /// See `StripeEnvelope::carries_cancellation_feedback`. `event_created` is
     /// the event's unix timestamp, which redeliveries repeat.
-    async fn handle_subscription_update(
+    pub(crate) async fn handle_subscription_update(
         &self,
         sub: Subscription,
         feedback_in_event: bool,
@@ -203,10 +203,7 @@ impl BillingService {
         // Snapshot pre-webhook state from the org row so we can detect
         // transitions (None plan, was-trialing, etc.) before applying
         // webhook updates.
-        let prior_plan = organization
-            .base
-            .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        let prior_plan = organization.base.plan;
         let prior_status = organization.base.plan_status;
         let prior_was_free = prior_plan.is_free();
         let prior_was_trialing = prior_status == Some(PlanStatus::Trialing);
@@ -252,7 +249,7 @@ impl BillingService {
                             organization_id: organization.id,
                         },
                         BillingOperation::CancellationInitiated {
-                            plan: organization.base.plan,
+                            plan: Some(organization.base.plan),
                             reason_code: meta.scanopy_cancel_reason,
                             stripe_feedback: stripe_feedback.clone(),
                             stripe_reason: stripe_reason.clone(),
@@ -841,12 +838,24 @@ impl BillingService {
             );
             return Ok(());
         };
+        // A legacy $0 Free subscription ending is not a cancellation: the org
+        // stays on Free, now with no subscription behind it, and nobody is
+        // told. The one-shot cleanup at boot cancels these.
+        if locked.org.base.plan.is_free() {
+            let mut locked = locked;
+            locked.org.base.plan_status = None;
+            locked.org.base.next_renewal_at = None;
+            locked
+                .save(
+                    AuthenticatedEntity::System,
+                    crate::server::shared::events::types::UpdateReason::OrganizationBillingSynced,
+                )
+                .await?;
+            return Ok(());
+        }
         let organization = &locked.org;
 
-        let cancelled_plan = organization
-            .base
-            .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        let cancelled_plan = organization.base.plan;
         let was_trialing = organization.base.plan_status == Some(PlanStatus::Trialing);
         let customer_id = organization.base.stripe_customer_id.clone();
         // Whether a save-offer discount is currently applied — drives the

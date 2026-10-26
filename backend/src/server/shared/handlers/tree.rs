@@ -66,8 +66,8 @@ pub fn tree_position(
     })
 }
 
-/// A list grouped by tree, in display order: rows in no tree first, then each tree where its first
-/// row falls in the sort; each parent first with its subtree directly under it, and every set of
+/// A list grouped by tree, in display order: each tree where its first row falls in the sort, then
+/// the rows in no tree; each parent first with its subtree directly under it, and every set of
 /// siblings in the order `rows` arrive in, which is the sort. A row whose parent is not among
 /// `rows` (filtered out) is placed as a root of its group.
 ///
@@ -75,8 +75,8 @@ pub fn tree_position(
 pub fn tree_order(rows: &[(Uuid, String, Option<Uuid>)]) -> Vec<Uuid> {
     let present: std::collections::HashSet<Uuid> = rows.iter().map(|(id, _, _)| *id).collect();
     let mut children: std::collections::HashMap<Uuid, Vec<Uuid>> = Default::default();
-    // Groups in the order their first row arrives, the no-tree group (`""`) ahead of every tree.
-    let mut groups: Vec<&str> = vec![""];
+    // Trees in the order their first row arrives, the no-tree group (`""`) after every tree.
+    let mut groups: Vec<&str> = Vec::new();
     let mut listed: std::collections::HashSet<&str> = std::collections::HashSet::from([""]);
     let mut roots: std::collections::HashMap<&str, Vec<Uuid>> = Default::default();
     for (id, group, parent) in rows {
@@ -88,6 +88,7 @@ pub fn tree_order(rows: &[(Uuid, String, Option<Uuid>)]) -> Vec<Uuid> {
             None => roots.entry(group.as_str()).or_default().push(*id),
         }
     }
+    groups.push("");
 
     let mut ordered = Vec::with_capacity(rows.len());
     let mut seen = std::collections::HashSet::new();
@@ -198,8 +199,8 @@ mod tests {
         ];
         assert_eq!(
             tree_order(&rows),
-            vec![lone_z, lone_y, node, vm_b, vm_a, container],
-            "hosts in no tree group first and keep the sort; inside the tree each parent leads and siblings keep the sort"
+            vec![node, vm_b, vm_a, container, lone_z, lone_y],
+            "hosts in no tree group last and keep the sort; inside the tree each parent leads and siblings keep the sort"
         );
     }
 
@@ -227,8 +228,8 @@ mod tests {
         ];
         assert_eq!(
             tree_order(&rows),
-            vec![lone, early, early_kid, late, late_kid],
-            "rows in no tree lead; each tree follows where its first row sorts"
+            vec![early, early_kid, late, late_kid, lone],
+            "each tree lists where its first row sorts; rows in no tree follow"
         );
     }
 }

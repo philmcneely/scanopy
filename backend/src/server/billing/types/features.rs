@@ -9,41 +9,55 @@ use strum::Display;
 use strum::EnumIter;
 use strum::IntoStaticStr;
 
+/// Declaration order is display order: grouped by [`category`](TypeMetadataProvider::category),
+/// and within a category in the order plan cards list them (`BillingPlan::incremental_features`).
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, IntoStaticStr, Display, Default)]
 pub enum Feature {
+    // Discovery
+    ScheduledDiscovery,
+    DiscoveryIntegrations,
+    InstantOnIntegration,
+    // Inventory
+    DeviceInventory,
+    Tagging,
+    SnapshotRetentionDays,
+    // Diagrams
+    TopologyView,
     #[default]
     ShareViews,
-    OnboardingCall,
-    AuditLogs,
-    Webhooks,
+    Embeds,
     RemoveCreatedWith,
+    // Export
+    PngExport,
+    SvgExport,
+    PdfExport,
+    HtmlExport,
+    MermaidExport,
+    ConfluenceExport,
+    DrawioExport,
+    VsdxExport,
+    CsvExport,
+    // API & Automation
     ApiAccess,
-    CustomSso,
-    Saml,
-    AirGappedDeployment,
-    ManagedDeployment,
-    Whitelabeling,
+    Webhooks,
+    // Support
     EmailSupport,
     LiveChatSupport,
     PrioritySupport,
-    Embeds,
-    NetworkMapping,
-    PngExport,
-    SvgExport,
-    MermaidExport,
-    ConfluenceExport,
-    PdfExport,
-    HtmlExport,
-    DrawioExport,
-    VsdxExport,
-    ScheduledDiscovery,
-    DiscoveryIntegrations,
-    CsvExport,
-    SnapshotRetentionDays,
+    OnboardingCall,
+    SignedSla,
+    // Security
+    CustomSso,
+    Saml,
+    AuditLogs,
+    // Deployment
+    AirGappedDeployment,
+    ManagedDeployment,
+    Whitelabeling,
+    // Billing
     InvoiceBilling,
     CustomBilling,
     ProcurementDocuments,
-    SignedSla,
 }
 
 impl HasId for Feature {
@@ -64,7 +78,9 @@ impl HasId for Feature {
             Feature::EmailSupport => "email_support",
             Feature::PrioritySupport => "priority_support",
             Feature::ApiAccess => "api_access",
-            Feature::NetworkMapping => "network_mapping",
+            Feature::DeviceInventory => "device_inventory",
+            Feature::Tagging => "tagging",
+            Feature::TopologyView => "topology_view",
             Feature::PngExport => "png_export",
             Feature::SvgExport => "svg_export",
             Feature::MermaidExport => "mermaid_export",
@@ -75,6 +91,7 @@ impl HasId for Feature {
             Feature::VsdxExport => "vsdx_export",
             Feature::ScheduledDiscovery => "scheduled_discovery",
             Feature::DiscoveryIntegrations => "discovery_integrations",
+            Feature::InstantOnIntegration => "instant_on_integration",
             Feature::CsvExport => "csv_export",
             Feature::SnapshotRetentionDays => "snapshot_retention_days",
             Feature::InvoiceBilling => "invoice_billing",
@@ -91,6 +108,17 @@ impl Feature {
             self,
             Feature::Webhooks | Feature::AuditLogs | Feature::Saml | Feature::Whitelabeling
         )
+    }
+
+    /// Whether some credential type needs this feature to be created (see
+    /// `CredentialTypeDiscriminants::required_feature`).
+    pub fn gates_integration(&self) -> bool {
+        use crate::server::credentials::r#impl::types::CredentialTypeDiscriminants;
+        use strum::IntoEnumIterator;
+
+        let id = self.id();
+        CredentialTypeDiscriminants::iter()
+            .any(|t| t.required_feature().is_some_and(|f| f.id() == id))
     }
 
     /// Returns the ID of the lowest-tier cloud plan that includes this feature.
@@ -129,22 +157,30 @@ impl EntityMetadataProvider for Feature {
 impl TypeMetadataProvider for Feature {
     fn category(&self) -> &'static str {
         match self {
-            Feature::NetworkMapping
+            Feature::ScheduledDiscovery
             | Feature::DiscoveryIntegrations
-            | Feature::ScheduledDiscovery => "Discovery",
+            | Feature::InstantOnIntegration => "Discovery",
+
+            Feature::DeviceInventory | Feature::Tagging | Feature::SnapshotRetentionDays => {
+                "Inventory"
+            }
+
+            Feature::TopologyView
+            | Feature::ShareViews
+            | Feature::Embeds
+            | Feature::RemoveCreatedWith => "Diagrams",
 
             Feature::PngExport
             | Feature::SvgExport
-            | Feature::MermaidExport
-            | Feature::ConfluenceExport
             | Feature::PdfExport
             | Feature::HtmlExport
+            | Feature::MermaidExport
+            | Feature::ConfluenceExport
             | Feature::DrawioExport
             | Feature::VsdxExport
-            | Feature::Embeds
-            | Feature::ShareViews
-            | Feature::RemoveCreatedWith
-            | Feature::SnapshotRetentionDays => "Visualization",
+            | Feature::CsvExport => "Export",
+
+            Feature::ApiAccess | Feature::Webhooks => "API & Automation",
 
             Feature::EmailSupport
             | Feature::LiveChatSupport
@@ -152,17 +188,15 @@ impl TypeMetadataProvider for Feature {
             | Feature::OnboardingCall
             | Feature::SignedSla => "Support",
 
-            Feature::CustomSso
-            | Feature::Saml
-            | Feature::AirGappedDeployment
-            | Feature::ManagedDeployment
-            | Feature::Whitelabeling
-            | Feature::AuditLogs
-            | Feature::InvoiceBilling
-            | Feature::CustomBilling
-            | Feature::ProcurementDocuments => "Enterprise",
+            Feature::CustomSso | Feature::Saml | Feature::AuditLogs => "Security",
 
-            Feature::CsvExport | Feature::Webhooks | Feature::ApiAccess => "Integrations",
+            Feature::AirGappedDeployment | Feature::ManagedDeployment | Feature::Whitelabeling => {
+                "Deployment"
+            }
+
+            Feature::InvoiceBilling | Feature::CustomBilling | Feature::ProcurementDocuments => {
+                "Billing"
+            }
         }
     }
 
@@ -183,7 +217,9 @@ impl TypeMetadataProvider for Feature {
             Feature::ApiAccess => "API Access",
             Feature::EmailSupport => "Email Support",
             Feature::PrioritySupport => "Priority Support",
-            Feature::NetworkMapping => "Automated Network Mapping",
+            Feature::DeviceInventory => "Device Inventory",
+            Feature::Tagging => "Tagging",
+            Feature::TopologyView => "Network Topology",
             Feature::PngExport => "PNG Export",
             Feature::SvgExport => "SVG Export",
             Feature::MermaidExport => "Mermaid Export",
@@ -194,6 +230,7 @@ impl TypeMetadataProvider for Feature {
             Feature::VsdxExport => "Visio Export",
             Feature::ScheduledDiscovery => "Scheduled Discovery",
             Feature::DiscoveryIntegrations => "Discovery Integrations",
+            Feature::InstantOnIntegration => "Aruba Instant On",
             Feature::CsvExport => "CSV Export",
             Feature::SnapshotRetentionDays => "Snapshot Retention",
             Feature::InvoiceBilling => "Invoice & PO Billing",
@@ -236,8 +273,14 @@ impl TypeMetadataProvider for Feature {
             Feature::EmailSupport => "Access to the Scanopy team via email support tickets",
             Feature::Whitelabeling => "Deploy Scanopy with your logo and brand colors",
             Feature::LiveChatSupport => "Access to the Scanopy team via live chat",
-            Feature::NetworkMapping => {
-                "Automatically discover hosts, services, and connections and map them as interactive topology diagrams"
+            Feature::DeviceInventory => {
+                "Automatically discover hosts, services, ports and interfaces into a searchable inventory"
+            }
+            Feature::Tagging => {
+                "Apply tags to hosts, services and other entities to group and filter them"
+            }
+            Feature::TopologyView => {
+                "Explore your network as interactive topology diagrams, with snapshots of how it changes"
             }
             Feature::PngExport => "Export network diagrams as high-resolution PNG images",
             Feature::SvgExport => "Export network diagrams as scalable SVG vector images",
@@ -261,6 +304,9 @@ impl TypeMetadataProvider for Feature {
             Feature::DiscoveryIntegrations => {
                 "Add credentials so discovery also collects from network devices, controllers, hypervisors, container runtimes and hosts"
             }
+            Feature::InstantOnIntegration => {
+                "Add Aruba Instant On credentials so discovery reads switches, access points and their links from the Instant On portal"
+            }
             Feature::CsvExport => {
                 "Download host, service, and network data as CSV for use in spreadsheets and other tools"
             }
@@ -283,7 +329,9 @@ impl TypeMetadataProvider for Feature {
     fn metadata(&self) -> serde_json::Value {
         serde_json::json!({
             "is_coming_soon": self.is_coming_soon(),
-            "minimum_plan": self.minimum_plan()
+            "minimum_plan": self.minimum_plan(),
+            // Plan cards list the integrations themselves, so they skip this feature's line.
+            "gates_integration": self.gates_integration()
         })
     }
 }
@@ -336,5 +384,23 @@ mod tests {
             feature_ids.len(),
             billing_plan_features.len()
         );
+    }
+
+    /// Plan cards list features in declaration order within each category, so a feature declared
+    /// away from its category's other variants lands out of place in that list.
+    #[test]
+    fn features_are_declared_grouped_by_category() {
+        let mut seen: Vec<&str> = Vec::new();
+        for feature in Feature::iter() {
+            let category = feature.category();
+            if seen.last() != Some(&category) {
+                assert!(
+                    !seen.contains(&category),
+                    "{} is declared apart from the other {category} features",
+                    feature.id()
+                );
+                seen.push(category);
+            }
+        }
     }
 }

@@ -1,4 +1,5 @@
 use crate::server::auth::middleware::permissions::{Authorized, IsDaemon, Member, Viewer};
+use crate::server::openapi::tags as api_tags;
 use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::handlers::list::list_page;
@@ -155,11 +156,12 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(discovery_upsert_vlans))
 }
 
-/// List all VLANs
+/// List VLANs
 ///
 /// Returns VLANs accessible to the authenticated user, optionally filtered by site.
 #[utoipa::path(
     get,
+    operation_id = "list_vlans",
     path = "",
     tag = Vlan::ENTITY_NAME_PLURAL,
     params(VlanFilterQuery),
@@ -181,7 +183,7 @@ async fn get_all_vlans(
     Ok(Json(list_page::<Vlan>(&state, &scope, &query).await?))
 }
 
-/// Create a new VLAN
+/// Create VLAN
 ///
 /// Creates a VLAN scoped to a site. VLAN numbers must be unique within a site.
 #[utoipa::path(
@@ -290,7 +292,7 @@ pub struct VlanDiscoveryResponseItem {
 #[utoipa::path(
     post,
     path = "/discovery",
-    tag = Vlan::ENTITY_NAME_PLURAL,
+    tags = [Vlan::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     request_body = VlanDiscoveryRequest,
     responses(
         (status = 200, description = "VLANs upserted", body = ApiResponse<VlanDiscoveryResponse>),

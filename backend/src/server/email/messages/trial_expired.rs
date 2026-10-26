@@ -1,7 +1,7 @@
 use super::{Body, Content, Email, EmailCategory, links};
 
-/// Sent when a trial ends without conversion: the org keeps its plan and is
-/// read-only until it chooses a paid plan, with a CTA to the plan picker.
+/// Sent when a cloud trial ends without conversion: the org moves to Free,
+/// with a CTA to the plan picker.
 pub struct TrialExpired<'a> {
     pub plan_name: &'a str,
     pub billing_period: &'a str,
@@ -27,7 +27,7 @@ impl Email for TrialExpired<'_> {
                     .heading("Your Trial Has Ended")
                     .paragraph("Hi there,")
                     .paragraph(&format!(
-                        "Your {} {} trial has ended. Your account is now read-only: you can still see everything Scanopy found, but scans, edits and daemon work are paused.",
+                        "Your {} {} trial has ended, and your organization is now on Free. Everything Scanopy found is still here, and your daemons still run the scans you start. The topology view, tagging and scheduled scans come back when you choose a plan.",
                         self.plan_name, self.billing_period
                     ))
                     .paragraph("Choose a paid plan from Settings to pick up where the trial left off. Your sites, hosts and schedules are all still there."),

@@ -37,7 +37,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 #[utoipa::path(
     post,
     path = "/invoice-billing",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = InvoiceBillingRequest,
     responses(
         (status = 200, description = "Invoice sent or quote opened", body = ApiResponse<String>),
@@ -78,7 +78,7 @@ async fn set_up_invoice_billing(
 #[utoipa::path(
     get,
     path = "/invoice-billing",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Invoice billing status", body = ApiResponse<InvoiceBillingStatus>),
         (status = 400, description = "Billing not enabled", body = ApiErrorResponse),
@@ -104,11 +104,11 @@ async fn get_invoice_billing_status(
     Ok(Json(ApiResponse::success(status)))
 }
 
-/// Cancel the open quote
+/// Cancel open quote
 #[utoipa::path(
     delete,
     path = "/quote",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Quote cancelled", body = EmptyApiResponse),
         (status = 400, description = "No open quote or billing not enabled", body = ApiErrorResponse),
@@ -132,7 +132,7 @@ async fn cancel_quote(
     Ok(Json(ApiResponse::success(())))
 }
 
-/// Accept the open quote
+/// Accept open quote
 ///
 /// Stripe creates the invoiced subscription from the quote and sends the
 /// first invoice, carrying whatever purchase order number the billing account
@@ -140,7 +140,7 @@ async fn cancel_quote(
 #[utoipa::path(
     post,
     path = "/quote/accept",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Quote accepted", body = ApiResponse<String>),
         (status = 400, description = "No open quote or billing not enabled", body = ApiErrorResponse),
@@ -164,11 +164,11 @@ async fn accept_quote(
     Ok(Json(ApiResponse::success(result)))
 }
 
-/// Download the open quote as a PDF
+/// Download open quote as PDF
 #[utoipa::path(
     get,
     path = "/quote/pdf",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Quote PDF", content_type = "application/pdf", body = Vec<u8>),
         (status = 400, description = "No open quote or billing not enabled", body = ApiErrorResponse),
@@ -202,14 +202,14 @@ async fn download_quote_pdf(
     Ok((headers, Body::from(bytes)))
 }
 
-/// Update the PO number
+/// Update PO number
 ///
 /// Replaces the purchase order number printed on this organization's future
 /// invoices, for a renewal raised against a new PO.
 #[utoipa::path(
     put,
     path = "/po-number",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = UpdatePoNumberRequest,
     responses(
         (status = 200, description = "PO number updated", body = EmptyApiResponse),

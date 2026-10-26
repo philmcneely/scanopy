@@ -80,6 +80,9 @@
 	import { formatDate, formatTimestamp } from '$lib/shared/utils/formatting';
 	import ApplicationSetupWizard from './application-wizard/ApplicationSetupWizard.svelte';
 	import L2EmptyStateOverlay from './L2EmptyStateOverlay.svelte';
+	import TopologyPlanRequiredOverlay from './TopologyPlanRequiredOverlay.svelte';
+	import TopologyDiscoveryPendingOverlay from './TopologyDiscoveryPendingOverlay.svelte';
+	import { hasTopologyAccess } from '$lib/features/organizations/types';
 	import ViewFiltersEmptyState from './ViewFiltersEmptyState.svelte';
 	import ViewSwitcherHint from './ViewSwitcherHint.svelte';
 	import DependencyTutorial from './DependencyTutorial.svelte';
@@ -144,7 +147,7 @@
 	// Single bundle query for the topology view's entity set. `snapshot_id =
 	// undefined` returns live entities; `snapshot_id = <id>` returns the
 	// captured set as-of that snapshot's `taken_at`. Same code path for both
-	// — see backend `GET /api/v1/topology/data`.
+	// — see backend `GET /api/v1/topologies/data`.
 	// Gated on `isActive`: this is the heaviest query in the app and it is the only
 	// subscriber to its key, so holding it while the tab is off-screen keeps the
 	// bundle — and the discovery SSE stream's throttled refetch of it — off pages
@@ -400,6 +403,7 @@
 
 	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 	let onboarding = $derived((organizationQuery.data?.onboarding ?? []) as OnboardingOperation[]);
+	let topologyAccess = $derived(hasTopologyAccess(organizationQuery.data));
 	let hasCompletedFirstDiscovery = $derived(
 		onboarding.length === 0 || onboarding.includes('FirstDiscoveryCompleted')
 	);
@@ -419,6 +423,7 @@
 			$selectedSiteId &&
 			hasHosts &&
 			onboarding.includes('FirstDiscoveryCompleted') &&
+			topologyAccess &&
 			!firstTopologyMilestoneTracked &&
 			!onboarding.includes('FirstTopologyRebuild')
 		) {
@@ -846,45 +851,53 @@
 				<Loading />
 			{:else if currentTopology}
 				<div class="relative" id="topology-view-area">
-					<TopologyOptionsPanel
-						topology={currentTopology}
-						tutorialTopology={$showDependencyTutorial ? TUTORIAL_TOPOLOGY : undefined}
-						{isReadOnly}
-						raised={showFiltersEmptyState || showL2EmptyState}
-						onClearSelection={$showDependencyTutorial
-							? dismissDependencyTutorial
-							: clearMultiSelect}
-						onGroupCreated={() => {
-							clearMultiSelect();
-							updateHiddenEdgeTypes((hidden) =>
-								hidden.filter((e) => !edgeTypes.getMetadata(e).is_dependency_edge)
-							);
-						}}
-						onDependencyTypeChange={$showDependencyTutorial
-							? () => (tutorialTypeToggled = true)
-							: undefined}
-					/>
+					{#if topologyAccess}
+						<TopologyOptionsPanel
+							topology={currentTopology}
+							tutorialTopology={$showDependencyTutorial ? TUTORIAL_TOPOLOGY : undefined}
+							{isReadOnly}
+							raised={showFiltersEmptyState || showL2EmptyState}
+							onClearSelection={$showDependencyTutorial
+								? dismissDependencyTutorial
+								: clearMultiSelect}
+							onGroupCreated={() => {
+								clearMultiSelect();
+								updateHiddenEdgeTypes((hidden) =>
+									hidden.filter((e) => !edgeTypes.getMetadata(e).is_dependency_edge)
+								);
+							}}
+							onDependencyTypeChange={$showDependencyTutorial
+								? () => (tutorialTypeToggled = true)
+								: undefined}
+						/>
+					{/if}
 					<TopologyViewer bind:this={topologyViewer} topology={currentTopology} {isActive} />
-					{#if $showDependencyTutorial}
+					{#if !topologyAccess && !onboarding.includes('FirstDiscoveryCompleted')}
+						<!-- Free before its first scan finishes: progress, not the plan prompt. -->
+						<TopologyDiscoveryPendingOverlay />
+					{:else if !topologyAccess}
+						<!-- Free: the org's own diagram, shrouded, behind the plan prompt. -->
+						<TopologyPlanRequiredOverlay />
+					{:else if $showDependencyTutorial}
 						<DependencyTutorial
 							onDismiss={dismissDependencyTutorial}
 							dependencyTypeToggled={tutorialTypeToggled}
 						/>
 					{/if}
-					{#if showAppWizard}
+					{#if topologyAccess && showAppWizard}
 						<ApplicationSetupWizard
 							{appTags}
 							siteId={currentTopology.site_id}
 							onComplete={handleWizardComplete}
 						/>
 					{/if}
-					{#if showFiltersEmptyState}
+					{#if topologyAccess && showFiltersEmptyState}
 						<ViewFiltersEmptyState
 							filters={emptyingFilters}
 							viewName={views.getName($activeView) ?? $activeView}
 							{isReadOnly}
 						/>
-					{:else if showL2EmptyState}
+					{:else if topologyAccess && showL2EmptyState}
 						<L2EmptyStateOverlay
 							hasInterfaceCredential={onboarding.includes('FirstInterfaceCredentialCreated')}
 						/>

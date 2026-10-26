@@ -3,6 +3,7 @@ use crate::daemon::discovery::types::base::{DiscoveryPhase, DiscoveryTerminalRea
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
 use crate::daemon::runtime::service::LOG_TARGET;
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
+use crate::server::config::DeploymentType;
 use crate::server::credentials::r#impl::mapping::{IntegrationTarget, Target};
 use crate::server::credentials::service::CredentialService;
 use crate::server::daemons::r#impl::api::{
@@ -91,6 +92,8 @@ pub struct DiscoveryService {
     organization_service: Arc<OrganizationService>,
     /// Each historical run's warnings, stored as rows beside it.
     warning_service: Arc<DiscoveryWarningService>,
+    /// Whether this is Scanopy Cloud, where a license-plan org gets no scheduled runs.
+    deployment_type: DeploymentType,
     // Lazy dependencies (set after construction to break circular dependencies)
     daemon_service: std::sync::OnceLock<Arc<DaemonService>>,
     /// Stamps the discovery FKs on what a finished session scanned.

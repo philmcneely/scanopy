@@ -26,7 +26,7 @@ const CACHE_KEY: &str = "github_stars";
 #[utoipa::path(
     get,
     path = "/api/github-stars",
-    tags = [api_tags::GITHUB, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "GitHub star count", body = ApiResponse<u32>)
     )

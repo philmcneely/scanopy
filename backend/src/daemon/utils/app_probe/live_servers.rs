@@ -18,6 +18,8 @@
 //! UDP has no connect, so nothing can tell "no server there" from "the probe is wrong". Its probes
 //! are therefore only asserted when `SCANOPY_LIVE_UDP_PORTS` names the ports a server is known to
 //! be on — `SCANOPY_LIVE_UDP_PORTS=500,1194 cargo test --lib -- --ignored live_servers`.
+//! `SCANOPY_LIVE_TARGET` and `SCANOPY_LIVE_SUBNET` point the probes at a server off loopback, which
+//! DHCP needs: run the test from a container on the same Docker network as the servers.
 
 use std::net::SocketAddr;
 
@@ -29,10 +31,20 @@ use crate::daemon::utils::scanner::ScanConcurrencyController;
 
 const LOOPBACK: std::net::Ipv4Addr = std::net::Ipv4Addr::new(127, 0, 0, 1);
 
+/// Loopback unless `SCANOPY_LIVE_TARGET` and `SCANOPY_LIVE_SUBNET` name a server on a real segment.
+/// The DHCP probe broadcasts on the subnet, so it can only be exercised that way, from a host on
+/// the same segment as the server.
 fn context() -> ProbeContext {
+    let target = std::env::var("SCANOPY_LIVE_TARGET").ok();
+    let subnet = std::env::var("SCANOPY_LIVE_SUBNET").ok();
     ProbeContext {
-        ip: std::net::IpAddr::V4(LOOPBACK),
-        subnet_cidr: IpCidr::V4(Ipv4Cidr::new(std::net::Ipv4Addr::new(127, 0, 0, 0), 8).unwrap()),
+        ip: target.map_or(std::net::IpAddr::V4(LOOPBACK), |t| {
+            t.parse().expect("SCANOPY_LIVE_TARGET")
+        }),
+        subnet_cidr: subnet.map_or(
+            IpCidr::V4(Ipv4Cidr::new(std::net::Ipv4Addr::new(127, 0, 0, 0), 8).unwrap()),
+            |s| s.parse().expect("SCANOPY_LIVE_SUBNET"),
+        ),
         is_gateway: false,
         cancel: CancellationToken::new(),
         scan_controller: ScanConcurrencyController::new(16),

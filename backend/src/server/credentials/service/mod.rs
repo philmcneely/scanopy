@@ -49,6 +49,8 @@ mod capability;
 mod coverage;
 mod defaults;
 mod junctions;
+mod plan_gate;
+pub(crate) use plan_gate::check_type_in_plan;
 mod targetless;
 
 pub use capability::DaemonPlacement;
@@ -178,6 +180,7 @@ impl CrudService<Credential> for CredentialService {
         entity.base.clear_unused_daemon_os();
         entity.refresh_is_default();
         self.refuse_second_default(&entity).await?;
+        self.refuse_type_outside_plan(None, &entity).await?;
 
         let created = self.create_base(entity, authentication.clone()).await?;
 
@@ -251,6 +254,8 @@ impl CrudService<Credential> for CredentialService {
         entity.refresh_is_default();
         defaults::refuse_default_settings_change(&current, entity)?;
         self.refuse_second_default(entity).await?;
+        self.refuse_type_outside_plan(Some(current.base.credential_type.discriminant()), entity)
+            .await?;
         self.update_base(entity, authentication, reason).await
     }
 

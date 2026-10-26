@@ -39,7 +39,7 @@ impl Email for SelfHostedTrialEnding<'_> {
             .heading("Your license trial ends soon")
             .paragraph("Hi there,");
 
-        let (content, cta_label) = if self.has_payment {
+        let (content, cta_href, cta_label) = if self.has_payment {
             (
                 content
                     .paragraph(&format!(
@@ -49,6 +49,7 @@ impl Email for SelfHostedTrialEnding<'_> {
                     .paragraph(
                         "Your license key keeps working through the change. There is nothing to update on your server.",
                     ),
+                links::SETTINGS_LICENSE,
                 "View your license",
             )
         } else {
@@ -62,13 +63,14 @@ impl Email for SelfHostedTrialEnding<'_> {
                         "When the trial ends your license lapses. Your key keeps working until {}, then your server stops accepting it and goes read-only. Add a payment method in Settings before then to keep the same key working.",
                         self.key_expires
                     )),
+                links::ADD_PAYMENT_METHOD,
                 "Add payment method",
             )
         };
 
         Body::new()
             .content(content)
-            .cta(links::SETTINGS_LICENSE, cta_label)
+            .cta(cta_href, cta_label)
             .render()
     }
 }

@@ -164,11 +164,7 @@ struct Licensed {
 fn licensed_orgs(organizations: &[Organization], now: DateTime<Utc>) -> (HashSet<Uuid>, Vec<Uuid>) {
     let locked: Vec<&Organization> = organizations
         .iter()
-        .filter(|org| {
-            org.base
-                .plan
-                .is_some_and(|plan| plan.license_plan().is_some())
-        })
+        .filter(|org| org.base.plan.license_plan().is_some())
         .collect();
     let current = locked
         .iter()
@@ -622,7 +618,7 @@ mod tests {
         let now = Utc::now();
         let org = |plan: BillingPlan, paid_through: Option<DateTime<Utc>>, key| {
             let mut org = crate::tests::organization();
-            org.base.plan = Some(plan);
+            org.base.plan = plan;
             org.base.license_paid_through = paid_through;
             org.base.license_key_type = key;
             org
@@ -774,7 +770,7 @@ mod tests {
             .await
             .unwrap();
         let mut organization = crate::tests::organization();
-        organization.base.plan = Some(BillingPlan::SelfHostedStandard(PlanConfig::default()));
+        organization.base.plan = BillingPlan::SelfHostedStandard(PlanConfig::default());
         organization.base.license_paid_through = Some(Utc::now() + chrono::Duration::days(30));
         let organization = storage.organizations.create(&organization).await.unwrap();
         let mut owner = user_in(organization.id, true);

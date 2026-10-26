@@ -185,7 +185,7 @@ async fn a_renewal_on_an_unchanged_plan_is_not_a_checkout() {
         let billing = billing_with(&state, router).await;
 
         let mut org = checked_out_org(&state, org_id).await;
-        org.base.plan = Some(plan);
+        org.base.plan = plan;
         org.base.plan_status = Some(PlanStatus::Active);
         state
             .services
@@ -224,7 +224,7 @@ async fn a_checkout_in_either_api_version_sets_the_plan_once() {
 
         deliver(&billing, payload).await;
         let after_first = reload(&state, org.id).await;
-        assert!(after_first.base.plan.is_some_and(|plan| !plan.is_free()));
+        assert!(!after_first.base.plan.is_free());
         assert_eq!(after_first.base.plan_status, Some(PlanStatus::Trialing));
         assert_eq!(published(&mut events, is_checkout), 1);
 
@@ -262,7 +262,7 @@ async fn the_portal_cancel_pair_announces_the_cancellation_once() {
     let billing = billing_with(&state, router).await;
 
     let mut org = checked_out_org(&state, org_id).await;
-    org.base.plan = Some(pro);
+    org.base.plan = pro;
     org.base.plan_status = Some(PlanStatus::Active);
     state
         .services

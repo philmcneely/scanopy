@@ -21,7 +21,8 @@
 	import type { Credential, CredentialType } from '../types/base';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
-	import { createDefaultCredential } from '../types/base';
+	import { createDefaultCredential, credentialTypeUpgradeFeature } from '../types/base';
+	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import { entityRef } from '$lib/shared/components/data/types';
 	import { credentialTypes, entities } from '$lib/shared/stores/metadata';
@@ -568,6 +569,18 @@
 			? credentialTypes.getItems().filter((t) => typeChoices.includes(t.id))
 			: credentialTypes.getItems()
 	);
+
+	// A type the plan lacks stays listed behind an upgrade badge, as export formats do, and picking
+	// it opens the plan picker. Only creating is gated; the type is locked while editing.
+	function upgradeFeatureFor(typeId: string) {
+		return isEditing ? null : credentialTypeUpgradeFeature(typeId, organization?.plan?.type);
+	}
+
+	function handleGatedTypeClick(typeId: string) {
+		const feature = upgradeFeatureFor(typeId);
+		if (!feature) return;
+		triggerUpgrade({ feature, source: 'credential_type_picker', surface: 'credential_form' });
+	}
 
 	// Whether to show type selector and name field
 	let showTypeSelector = $derived(!fixedCredentialType);
@@ -1180,6 +1193,8 @@
 			showSearch={true}
 			disabled={isEditing}
 			onSelect={handleTypeChange}
+			getOptionContext={(option) => ({ upgradeFeature: upgradeFeatureFor(option.id) })}
+			onDisabledClick={handleGatedTypeClick}
 		/>
 		{#if !isEditing}
 			<p class="mt-1 text-xs text-muted">{credentials_typeImmutableWarning()}</p>

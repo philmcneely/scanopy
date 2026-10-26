@@ -259,7 +259,7 @@ impl EmailService {
             .organization_service
             .get_by_id(org_id)
             .await?
-            .and_then(|organization| organization.base.plan);
+            .map(|organization| organization.base.plan);
         Ok(self.self_hosted_plan_locked(plan))
     }
 
@@ -987,7 +987,7 @@ impl EmailService {
         // A guide to discovery and topology in an app the org is locked out of
         // leads nowhere. Reachable when a daemon key made on a cloud plan is
         // first used after the switch to a self-hosted one.
-        if self.self_hosted_plan_locked(organization.base.plan) {
+        if self.self_hosted_plan_locked(Some(organization.base.plan)) {
             return Ok(());
         }
 
@@ -1008,16 +1008,13 @@ impl EmailService {
             None => return Ok(()),
         };
 
-        let plan = org
-            .base
-            .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        let plan = org.base.plan;
         // On the cloud app a self-hosted plan's seat and site limits govern
         // the customer's own server. The cloud org's rows are left over from
         // before the switch (or an invite accepted after it), and an upgrade
         // nudge about them is noise. Returns before the ratchet write, so an
         // org that moves back to a cloud plan is still warned.
-        if self.self_hosted_plan_locked(org.base.plan) {
+        if self.self_hosted_plan_locked(Some(org.base.plan)) {
             return Ok(());
         }
         let plan_name = plan.to_string();
@@ -1234,10 +1231,8 @@ impl EmailService {
     /// One organization's warning, plus the ratchet write that stops it
     /// repeating for the same licence period.
     async fn warn_expiring_airgap_key(&self, organization: Organization) -> Result<()> {
-        let (Some(plan), Some(paid_through)) = (
-            organization.base.plan,
-            organization.base.license_paid_through,
-        ) else {
+        let plan = organization.base.plan;
+        let Some(paid_through) = organization.base.license_paid_through else {
             return Ok(());
         };
         if plan.license_plan().is_none() {
@@ -1376,7 +1371,7 @@ impl EmailService {
         // idle: the org is locked out of the cloud app and its scans run on
         // its own server. Skipped without advancing the ratchet, so an org
         // that returns to a cloud plan is told on the next boot.
-        if self.self_hosted_plan_locked(org.base.plan) {
+        if self.self_hosted_plan_locked(Some(org.base.plan)) {
             return Ok(());
         }
         // Ratchet: the stored value is the highest ceiling this org has been told
@@ -1481,7 +1476,8 @@ impl EmailService {
 
         let daemons_count = self.daemon_service.count_for_sites(&site_ids).await?;
 
-        let days_into_trial = (chrono::Utc::now() - org.created_at).num_days();
+        let trial_started_at = org.trial_started_at().unwrap_or(org.created_at);
+        let days_into_trial = (chrono::Utc::now() - trial_started_at).num_days();
 
         Ok(TrialRecapMetrics {
             hosts_count,

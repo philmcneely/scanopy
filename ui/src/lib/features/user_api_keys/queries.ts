@@ -21,7 +21,7 @@ export function useUserApiKeysListQuery(params: () => ListPageParams) {
 	return useListPageQuery<UserApiKey>(
 		queryKeys.userApiKeys.all,
 		({ query, querySerializer }) =>
-			apiClient.GET('/api/v1/auth/keys', { params: { query }, querySerializer }),
+			apiClient.GET('/api/v1/user-api-keys', { params: { query }, querySerializer }),
 		params
 	);
 }
@@ -44,7 +44,7 @@ export function useCreateUserApiKeyMutation() {
 	return createMutation(() => ({
 		mutationFn: async (apiKey: UserApiKey) => {
 			const response = unwrapData(
-				await apiClient.POST('/api/v1/auth/keys', { body: apiKey })
+				await apiClient.POST('/api/v1/user-api-keys', { body: apiKey })
 			) as CreateUserApiKeyResponse;
 			return { keyString: response.key, apiKey: response.api_key };
 		},
@@ -61,7 +61,7 @@ export function useUpdateUserApiKeyMutation() {
 	return createMutation(() => ({
 		mutationFn: async (apiKey: UserApiKey) => {
 			return unwrapData(
-				await apiClient.PUT('/api/v1/auth/keys/{id}', {
+				await apiClient.PUT('/api/v1/user-api-keys/{id}', {
 					params: { path: { id: apiKey.id } },
 					body: apiKey
 				})
@@ -80,7 +80,7 @@ export function useDeleteUserApiKeyMutation() {
 	return createMutation(() => ({
 		mutationFn: async (id: string) => {
 			requireSuccess(
-				await apiClient.DELETE('/api/v1/auth/keys/{id}', {
+				await apiClient.DELETE('/api/v1/user-api-keys/{id}', {
 					params: { path: { id } }
 				})
 			);
@@ -98,7 +98,7 @@ export function useBulkDeleteUserApiKeysMutation() {
 
 	return createMutation(() => ({
 		mutationFn: async (ids: string[]) => {
-			requireSuccess(await apiClient.POST('/api/v1/auth/keys/bulk-delete', { body: ids }));
+			requireSuccess(await apiClient.POST('/api/v1/user-api-keys/bulk-delete', { body: ids }));
 			return ids;
 		},
 		onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.userApiKeys.all })
@@ -112,7 +112,7 @@ export function useRotateUserApiKeyMutation() {
 	return createMutation(() => ({
 		mutationFn: async (keyId: string) => {
 			return unwrapData(
-				await apiClient.POST('/api/v1/auth/keys/{id}/rotate', {
+				await apiClient.POST('/api/v1/user-api-keys/{id}/rotate', {
 					params: { path: { id: keyId } }
 				})
 			) as string;

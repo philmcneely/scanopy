@@ -5,7 +5,7 @@ use crate::server::credentials::r#impl::types::{
     CredentialIntegration, CredentialStability, CredentialTypeDiscriminants, OsFamily,
     UpstreamSupport,
 };
-use crate::server::credentials::service::CredentialService;
+use crate::server::credentials::service::{CredentialService, check_type_in_plan};
 use crate::server::daemons::r#impl::base::Daemon;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::shared::handlers::list::{ListOrdering, PaginatedList, list_page};
@@ -37,7 +37,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, LazyLock};
-use strum::IntoEnumIterator;
+use strum::{IntoDiscriminant, IntoEnumIterator};
 use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 use uuid::Uuid;
@@ -496,9 +496,10 @@ async fn save_assignments(
     Ok(())
 }
 
-/// Get a Credential by ID
+/// Get credential by ID
 #[utoipa::path(
     get,
+    operation_id = "get_credential_by_id",
     path = "/{id}",
     tag = Credential::ENTITY_NAME_PLURAL,
     params(("id" = Uuid, Path, description = "Credential ID")),
@@ -523,7 +524,7 @@ async fn get_by_id_credential(
     Ok(response)
 }
 
-/// Update Credential
+/// Update credential
 #[utoipa::path(
     put,
     path = "/{id}",
@@ -580,7 +581,7 @@ async fn update_credential(
     Ok(response)
 }
 
-/// Delete Credential
+/// Delete credential
 #[utoipa::path(
     delete,
     path = "/{id}",
@@ -607,7 +608,7 @@ async fn delete_credential(
     .await
 }
 
-/// Bulk delete Credentials
+/// Bulk delete credentials
 #[utoipa::path(
     post,
     path = "/bulk-delete",
@@ -632,12 +633,13 @@ async fn bulk_delete_credentials(
     .await
 }
 
-/// List all Credentials
+/// List credentials
 ///
 /// Returns all credentials in the authenticated user's organization.
 /// Optionally filter by type (e.g. `?type=SnmpCommunity`).
 #[utoipa::path(
     get,
+    operation_id = "list_credentials",
     path = "",
     tag = Credential::ENTITY_NAME_PLURAL,
     params(CredentialFilterQuery),
@@ -657,7 +659,7 @@ async fn get_all_credentials(
     Ok(Json(list_page::<Credential>(&state, &scope, &query).await?))
 }
 
-/// Create a new Credential
+/// Create credential
 ///
 /// Creates a credential scoped to your organization.
 #[utoipa::path(
@@ -717,7 +719,7 @@ fn check_bulk_create_size(len: usize) -> Result<(), ApiError> {
     Ok(())
 }
 
-/// Bulk create Credentials
+/// Bulk create credentials
 ///
 /// Creates multiple credentials in one request. Validation is atomic — if any
 /// credential has an invalid type, none are created. Individual creates are
@@ -751,8 +753,17 @@ async fn bulk_create_credentials(
     let site_ids = auth.site_ids();
 
     // Validate all credential types and their assignments up front, so a batch containing one
-    // contradicting credential creates none of them.
+    // contradicting credential creates none of them. The service checks the plan again per create.
+    let plan = state
+        .services
+        .organization_service
+        .get_by_id(&org_id)
+        .await?
+        .ok_or_else(ApiError::organization_required)?
+        .base
+        .plan;
     for credential in &credentials {
+        check_type_in_plan(None, credential.base.credential_type.discriminant(), &plan)?;
         credential
             .base
             .validate_settings()

@@ -132,7 +132,7 @@ pub(super) fn generate_dependencies(
             DependencyType::RequestPath,
             DependencyMembers::Bindings {
                 binding_ids: vec![
-                    binding("truenas-primary", "TrueNAS"),
+                    binding("truenas-primary", "SSH"),
                     binding("synology-backup", "Synology DSM"),
                 ],
             },

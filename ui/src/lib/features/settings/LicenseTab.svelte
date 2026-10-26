@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import { Copy, RefreshCw } from 'lucide-svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
@@ -16,11 +17,7 @@
 	import { priceToCharge } from '$lib/features/billing/pricing';
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import {
-		hasLicensedPlan,
-		isPlanLapsed,
-		isSelfHostedPlanLocked
-	} from '$lib/features/organizations/types';
+	import { hasLicensedPlan, isPlanLapsed } from '$lib/features/organizations/types';
 	import type { Organization } from '$lib/features/organizations/types';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
@@ -31,7 +28,6 @@
 	import { formatLongDate, formatTimestamp } from '$lib/shared/utils/formatting';
 	import { startSetupPayment } from '$lib/shared/billing/setup-payment';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
-	import { tooltip } from '$lib/shared/actions/tooltip';
 	import type { components } from '$lib/api/schema';
 	import {
 		apiKeys_rotateKey,
@@ -49,6 +45,7 @@
 		settings_billing_changePlan,
 		settings_billing_license_airGappedCurrentUntil,
 		settings_billing_license_airGappedNeedsCard,
+		settings_billing_license_airGappedNeedsCardLink,
 		settings_billing_license_airGappedOpenInvoice,
 		settings_billing_license_airGappedPastDue,
 		settings_billing_license_installHint,
@@ -59,26 +56,32 @@
 		settings_billing_license_keyTypeChanged,
 		settings_billing_license_keyTypeLabel,
 		settings_billing_license_lastCheckIn,
-		settings_billing_license_notSelfHosting,
 		settings_billing_license_offlineKeyUpsell,
 		settings_billing_license_onlineLockedUntil,
 		settings_billing_license_validThrough,
+		settings_billing_license_viewSelfHostedPlans,
 		settings_billing_license_paymentDeclined,
 		settings_billing_license_rotateConfirm,
 		settings_billing_license_rotateTitle,
 		settings_billing_license_rotated,
+		settings_billing_license_selfHostedPlanRequired,
 		settings_billing_license_switchAirGappedConfirm,
 		settings_billing_license_switchConfirm,
 		settings_billing_license_switchOnlineConfirm,
 		settings_billing_license_switchTitle,
-		settings_billing_license_switchToCloud,
-		settings_billing_license_switchToCloudDesc,
 		settings_billing_payInvoice
 	} from '$lib/paraglide/messages';
 
 	type LicenseKeyType = components['schemas']['LicenseKeyType'];
 
-	let { onClose }: { onClose: () => void } = $props();
+	let {
+		onClose,
+		licensedPlanPending = false
+	}: {
+		onClose: () => void;
+		/** A licensed plan was just picked and the org hasn't caught up: show the key, not the preview. */
+		licensedPlanPending?: boolean;
+	} = $props();
 
 	const organizationQuery = useOrganizationQuery();
 	let org = $derived(organizationQuery.data);
@@ -95,7 +98,12 @@
 	const keyQuery = useCurrentLicenseKeyQuery(() => org != null && hasLicensedPlan(org));
 	let currentKey = $derived(keyQuery.data?.key ?? null);
 	let keyType = $derived<LicenseKeyType>(keyQuery.data?.key_type ?? 'Online');
-	let maskedKey = $derived(currentKey ? `${currentKey.slice(0, 8)}${'•'.repeat(32)}` : '');
+	// An org on a cloud plan sees the tab as a preview of what a self-hosted plan
+	// gives it: the same controls, disabled, with a placeholder key.
+	let preview = $derived(org != null && !hasLicensedPlan(org) && !licensedPlanPending);
+	let maskedKey = $derived(
+		currentKey ? `${currentKey.slice(0, 8)}${'•'.repeat(32)}` : preview ? '•'.repeat(40) : ''
+	);
 
 	let planType = $derived(org?.plan?.type ?? null);
 	let airGappedIncluded = $derived(
@@ -111,7 +119,7 @@
 	// what it means: after a write-off it is in the past, and after an ordinary
 	// lapse it is a deadline the org can no longer act on. Lapsed and stopped
 	// is the whole message.
-	let isLapsed = $derived(org != null && isPlanLapsed(org));
+	let isLapsed = $derived(!preview && org != null && isPlanLapsed(org));
 	// Which of the two lapse messages to show. A write-off takes the date back
 	// to the start of the period it covered, so a date already past says the
 	// invoice went unpaid rather than that the plan simply ended.
@@ -172,7 +180,9 @@
 	// and a "Valid through" date beside it either sits in the past or reads as
 	// a deadline the org can no longer meet.
 	let validThrough = $derived(
-		!isLapsed && org?.license_paid_through ? formatLongDate(org.license_paid_through) : null
+		!preview && !isLapsed && org?.license_paid_through
+			? formatLongDate(org.license_paid_through)
+			: null
 	);
 	let lastCheckIn = $derived(
 		org?.license_checkin_at ? formatTimestamp(org.license_checkin_at) : common_never()
@@ -284,14 +294,11 @@
 		startSetupPayment({ org, source: 'license_tab', trialDaysLeft: getTrialDaysLeft(org) });
 	}
 
-	// The way back for an org that decides not to self-host. Opens on the Cloud
-	// plans, where the picker says what happens to the license.
-	let locked = $derived(isSelfHostedPlanLocked(org, isCloudDeployment));
-	function openCloudPlans() {
+	function openSelfHostedPlans() {
 		triggerUpgrade({
-			source: 'settings_license_switch_to_cloud',
+			source: 'settings_license_preview',
 			surface: 'billing_tab',
-			hosting: 'cloud',
+			hosting: 'self_hosted',
 			reopenSettings: true,
 			beforeModal: () => onClose()
 		});
@@ -305,12 +312,27 @@
 			beforeModal: () => onClose()
 		});
 	}
+
+	// Stripe.js is ready before anyone opens the payment dialog from here.
+	usePreloadStripe();
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
 	<div class="flex-1 overflow-auto p-6">
 		{#if org}
-			<div class="space-y-6">
+			{#if preview}
+				<p class="mb-4 text-sm text-secondary">
+					{settings_billing_license_selfHostedPlanRequired()}
+					<button type="button" onclick={openSelfHostedPlans} class="text-link hover:underline">
+						{settings_billing_license_viewSelfHostedPlans()}
+					</button>
+				</p>
+			{/if}
+			<fieldset
+				disabled={preview}
+				class="m-0 min-w-0 space-y-6 border-0 p-0"
+				class:opacity-60={preview}
+			>
 				<InfoCard title={common_license()}>
 					<div class="space-y-4">
 						{#if lapsedKeyAlreadyStopped}
@@ -327,8 +349,10 @@
 							/>
 						{/if}
 						<dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
-							<dt class="text-secondary">{common_tier()}</dt>
-							<dd class="font-medium text-primary">{billingPlans.getName(planType)}</dd>
+							{#if !preview}
+								<dt class="text-secondary">{common_tier()}</dt>
+								<dd class="font-medium text-primary">{billingPlans.getName(planType)}</dd>
+							{/if}
 							{#if validThrough}
 								<dt class="text-secondary">{settings_billing_license_validThrough()}</dt>
 								<dd class="flex flex-wrap items-center gap-3 text-primary">
@@ -370,7 +394,7 @@
 										selected={keyType}
 										onchange={handleTypeChange}
 										size="md"
-										disabled={switching || createKeyMutation.isPending}
+										disabled={preview || switching || createKeyMutation.isPending}
 									/>
 								</div>
 							</div>
@@ -379,7 +403,9 @@
 							     includes air-gapped) what makes the option selectable. A tooltip on
 							     the disabled option can't carry this — the message has to be readable
 							     without hovering something that isn't clickable. -->
-							{#if airGappedCurrentUntil}
+							{#if preview}
+								<!-- A preview has no plan to explain; the prompt above says what unlocks it. -->
+							{:else if airGappedCurrentUntil}
 								<!-- The org already holds the key, so this slot says what is locked
 								     rather than why air-gapped is unavailable. It has to come first:
 								     such an org has a card and is not past due, so it falls through
@@ -397,8 +423,15 @@
 									</button>
 								</p>
 							{:else if !hasCard}
+								{@const [beforeLink, afterLink] =
+									settings_billing_license_airGappedNeedsCard().split('%link%')}
 								<p class="text-sm text-secondary">
-									{settings_billing_license_airGappedNeedsCard()}
+									{beforeLink}<button
+										type="button"
+										class="text-link hover:underline"
+										onclick={handleAddPaymentMethod}
+										>{settings_billing_license_airGappedNeedsCardLink()}</button
+									>{afterLink ?? ''}
 								</p>
 							{:else if isPastDue}
 								<p class="text-sm text-secondary">
@@ -457,6 +490,7 @@
 									text={settings_billing_license_installHint()}
 									href="https://scanopy.net/docs/self-hosted-server/installation/?edition=commercial"
 									linkText={settings_billing_license_installLinkText()}
+									disabled={preview}
 								/>
 							</div>
 						</div>
@@ -467,22 +501,7 @@
 				{#if keyType === 'Online'}
 					<LicenseInstancesCard enabled={hasLicensedPlan(org)} />
 				{/if}
-
-				{#if locked}
-					<p class="text-sm text-secondary">
-						{settings_billing_license_notSelfHosting()}
-						<button
-							type="button"
-							onclick={openCloudPlans}
-							class="text-link hover:underline"
-							data-tooltip={settings_billing_license_switchToCloudDesc()}
-							use:tooltip
-						>
-							{settings_billing_license_switchToCloud()}
-						</button>
-					</p>
-				{/if}
-			</div>
+			</fieldset>
 		{/if}
 	</div>
 </div>

@@ -502,7 +502,8 @@ pub async fn setup_authenticated_user(client: &TestClient) -> Result<User, Strin
 
 pub async fn wait_for_organization(client: &TestClient) -> Result<Organization, String> {
     retry("wait for organization to be created", 15, 2, || async {
-        let organization: Option<Organization> = client.get("/api/v1/organizations").await?;
+        let organization: Option<Organization> =
+            client.get("/api/v1/organizations/current").await?;
         organization.ok_or_else(|| "No organization found yet".to_string())
     })
     .await

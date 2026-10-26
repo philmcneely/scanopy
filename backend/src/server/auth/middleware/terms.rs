@@ -27,7 +27,7 @@ fn allowed_while_gated(method: &Method, path: &str) -> bool {
         || path == "/api/config"
         || path == "/api/health"
         || path == "/api/version"
-        || (method == Method::GET && path == "/api/v1/organizations")
+        || (method == Method::GET && path == "/api/v1/organizations/current")
 }
 
 pub async fn terms_gate_middleware(
@@ -63,7 +63,7 @@ pub async fn terms_gate_middleware(
 
     if terms_gate::acceptance_required(
         deployment_type,
-        organization.base.plan.as_ref(),
+        Some(&organization.base.plan),
         terms_accepted_at,
     ) {
         return ApiError::terms_acceptance_required().into_response();
@@ -82,7 +82,10 @@ mod tests {
         assert!(allowed_while_gated(&Method::POST, "/api/auth/accept-terms"));
         assert!(allowed_while_gated(&Method::POST, "/api/auth/logout"));
         assert!(allowed_while_gated(&Method::GET, "/api/config"));
-        assert!(allowed_while_gated(&Method::GET, "/api/v1/organizations"));
+        assert!(allowed_while_gated(
+            &Method::GET,
+            "/api/v1/organizations/current"
+        ));
         assert!(allowed_while_gated(&Method::GET, "/index.html"));
 
         assert!(!allowed_while_gated(&Method::GET, "/api/v1/hosts"));

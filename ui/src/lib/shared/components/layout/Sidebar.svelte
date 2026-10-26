@@ -97,7 +97,8 @@
 		settingsDismissible = true,
 		mainAppLocked = false,
 		mainAppAvailable = false,
-		licensedPlanPending = false
+		licensedPlanPending = false,
+		showLockedMainNav = false
 	}: {
 		activeTab?: string;
 		collapsed?: boolean;
@@ -125,6 +126,9 @@
 		/** Passed through to the Settings modal, which shows the License tab on it
 		 * while the just-picked licensed plan is still in flight. */
 		licensedPlanPending?: boolean;
+		/** A locked org whose main navigation still shows: a licensed self-hosted
+		 * plan, where each page says it needs a cloud plan. */
+		showLockedMainNav?: boolean;
 	} = $props();
 
 	// TanStack Query for current user and organization
@@ -606,7 +610,9 @@
 		});
 	}
 
-	let mainNavItems = $derived(mainAppLocked ? [] : filterByPosition(navConfig, 'main'));
+	let mainNavItems = $derived(
+		mainAppLocked && !showLockedMainNav ? [] : filterByPosition(navConfig, 'main')
+	);
 	let bottomNavItems = $derived(filterByPosition(navConfig, 'bottom'));
 
 	onMount(() => {

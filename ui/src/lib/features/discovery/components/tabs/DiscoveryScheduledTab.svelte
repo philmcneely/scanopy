@@ -7,10 +7,8 @@
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
 	import type { Discovery } from '../../types/base';
-	import { cancellingSessions, type DiscoveryConfigOrderField } from '../../queries';
-	import SessionProgress from '../cards/SessionProgress.svelte';
-	import DiscoveryEstimation from '../DiscoveryEstimation.svelte';
-	import { isFullScan } from '../../utils/fullScan';
+	import type { DiscoveryConfigOrderField } from '../../queries';
+	import SessionPhaseProgress from '../cards/SessionPhaseProgress.svelte';
 	import DiscoveryEditModal from '../DiscoveryModal/DiscoveryEditModal.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import { discoveryScheduledColumns } from './DiscoveryScheduledTab.columns';
@@ -53,9 +51,7 @@
 		common_cancel,
 		common_delete,
 		common_disable,
-		common_cancelling,
 		common_none,
-		common_phase,
 		common_edit,
 		common_enable,
 		common_run,
@@ -93,7 +89,7 @@
 	const page = listPageState(() => isActive);
 	const discoveriesQuery = useScheduledDiscoveriesQuery(() => page.params());
 	// Filter options: the values the scan configurations hold, scoped the way the list is.
-	const DISCOVERY_FIELD_VALUES = '/api/v1/discovery/field-values/{field}';
+	const DISCOVERY_FIELD_VALUES = '/api/v1/discoveries/field-values/{field}';
 	const configScope = () => ({ historical: false });
 	const daemonValuesQuery = useFieldValuesQuery(
 		DISCOVERY_FIELD_VALUES,
@@ -388,28 +384,7 @@
 {#snippet progressCell(discovery: Discovery)}
 	{@const session = getActiveSession(discovery)}
 	{#if session}
-		{@const isCancelling = $cancellingSessions.get(session.session_id) === true}
-		{@const phase = isCancelling ? common_cancelling() : session.phase}
-		<div class="min-w-0 space-y-2">
-			<div class="flex flex-wrap items-center gap-x-2">
-				<span class="text-sm font-medium text-secondary">{common_phase()}:</span>
-				<span class="text-sm font-medium text-accent">{phase}</span>
-			</div>
-
-			<DiscoveryEstimation
-				{phase}
-				hosts_discovered={session.hosts_discovered}
-				estimated_remaining_secs={session.estimated_remaining_secs}
-				is_full_scan={isFullScan(session.discovery_type)}
-			/>
-
-			<SessionProgress
-				session_id={session.session_id}
-				phase={session.phase}
-				progress={session.progress}
-				cancelling={isCancelling}
-			/>
-		</div>
+		<SessionPhaseProgress {session} />
 	{:else}
 		<span class="text-muted" aria-hidden="true">—</span>
 		<span class="sr-only">{common_none()}</span>

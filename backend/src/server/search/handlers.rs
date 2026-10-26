@@ -31,7 +31,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 #[utoipa::path(
     get,
     path = "",
-    tags = [api_tags::SEARCH, api_tags::INTERNAL],
+    tags = [api_tags::SEARCH],
     params(GlobalSearchQuery),
     responses(
         (status = 200, description = "Matches grouped by entity type", body = ApiResponse<GlobalSearchResponse>),

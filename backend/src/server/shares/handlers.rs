@@ -123,7 +123,7 @@ pub fn create_public_router() -> OpenApiRouter<Arc<AppState>> {
 // Authenticated Routes
 // ============================================================================
 
-/// Create a new share
+/// Create share
 #[utoipa::path(
     post,
     path = "",
@@ -174,7 +174,7 @@ async fn create_share(
     .await
 }
 
-/// Update a share
+/// Update share
 #[utoipa::path(
     put,
     path = "/{id}",
@@ -257,7 +257,7 @@ async fn get_share_org_plan(state: &AppState, share: &Share) -> Result<BillingPl
         .get_by_id(&site.base.organization_id)
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?
-        .and_then(|o| o.base.plan)
+        .map(|o| o.base.plan)
         .unwrap_or_else(crate::server::billing::plans::get_free_plan))
 }
 
@@ -267,7 +267,7 @@ async fn get_share_org_plan(state: &AppState, share: &Share) -> Result<BillingPl
 #[utoipa::path(
     get,
     path = "/public/{id}",
-    tag = Share::ENTITY_NAME_PLURAL,
+    tags = [Share::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     params(("id" = Uuid, Path, description = "Share ID")),
     responses(
         (status = 200, description = "Share metadata", body = ApiResponse<PublicShareMetadata>),
@@ -317,7 +317,9 @@ async fn get_public_share_metadata(
     ))))
 }
 
-/// Verify password for a password-protected share and return an access token.
+/// Verify share password
+///
+/// Returns an access token for a password-protected share.
 ///
 /// The returned token is an HS256 JWT tied to the share's current password
 /// hash; subsequent `/topology` calls send the token instead of the raw

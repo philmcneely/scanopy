@@ -173,6 +173,7 @@
 	}
 
 	let hideCreatedWith = $derived(hasFeature('remove_created_with'));
+	let hasPngExport = $derived(hasFeature('png_export'));
 	let hasSvgExport = $derived(hasFeature('svg_export'));
 	let hasMermaidExport = $derived(hasFeature('mermaid_export'));
 	let hasConfluenceExport = $derived(hasFeature('confluence_export'));
@@ -200,6 +201,7 @@
 			label: topology_exportPng(),
 			description: topology_exportPngDesc(),
 			icon: Image,
+			featureKey: 'png_export',
 			supportsTheme: true,
 			supportsHeader: true
 		},
@@ -270,6 +272,7 @@
 
 	// Feature gate map for reactive access
 	const featureGates: Record<string, () => boolean> = {
+		png_export: () => hasPngExport,
 		svg_export: () => hasSvgExport,
 		mermaid_export: () => hasMermaidExport,
 		confluence_export: () => hasConfluenceExport,
@@ -298,6 +301,11 @@
 	});
 
 	let selectedFormatDef = $derived(allFormats.find((f) => f.value === selectedFormat));
+	// PNG is selected by default, so a plan without it opens onto a format it
+	// can't export; the Export button waits for one it can.
+	let selectedFormatGated = $derived(
+		selectedFormatDef?.featureKey != null && !featureGates[selectedFormatDef.featureKey]?.()
+	);
 
 	function handleFormatSelect(value: string) {
 		selectedFormat = value;
@@ -311,6 +319,7 @@
 	}
 
 	function handleExport() {
+		if (selectedFormatGated) return;
 		switch (selectedFormat) {
 			case 'png':
 				captureImage('png');
@@ -792,7 +801,12 @@
 	}
 
 	let actions = $derived<ModalAction[]>([
-		{ role: 'primary', label: common_export(), onClick: handleExport }
+		{
+			role: 'primary',
+			label: common_export(),
+			onClick: handleExport,
+			disabled: selectedFormatGated
+		}
 	]);
 </script>
 

@@ -120,7 +120,7 @@ async fn validate_no_binding_type_conflict(
     Ok(())
 }
 
-/// Create a new Binding
+/// Create binding
 ///
 /// Creates a binding that associates a service with a port or interface.
 ///
@@ -199,7 +199,7 @@ async fn create_binding(
     create_handler::<Binding>(State(state), auth, ApiJson(binding)).await
 }
 
-/// Update a Binding
+/// Update binding
 ///
 /// Updates an existing binding. The same conflict detection rules from binding creation apply.
 ///

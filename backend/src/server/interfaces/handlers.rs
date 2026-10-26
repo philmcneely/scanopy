@@ -68,7 +68,7 @@ async fn validate_interface_site_consistency(
     Ok(())
 }
 
-/// Create a new Interface
+/// Create interface
 ///
 /// Creates an SNMP ifTable entry for a host. These are typically created by
 /// SNMP discovery, but can also be created manually.
@@ -98,7 +98,7 @@ async fn create_interface(
     create_handler::<Interface>(State(state), auth, ApiJson(interface)).await
 }
 
-/// Update an Interface
+/// Update interface
 #[utoipa::path(
     put,
     path = "/{id}",
@@ -128,7 +128,7 @@ async fn update_interface(
     update_handler::<Interface>(State(state), auth, path, ApiJson(interface)).await
 }
 
-/// Get an Interface's neighbours
+/// Get interface neighbours
 ///
 /// Returns the adjacencies resolved for the interface and the raw LLDP/CDP evidence behind them,
 /// including records that resolved to nothing.

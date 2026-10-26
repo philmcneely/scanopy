@@ -553,6 +553,10 @@ pub enum BillingOperation {
     CheckoutStarted {
         plan: BillingPlan,
         has_trial: bool,
+        /// Started by Scanopy on the default trial plan rather than picked in the plan picker,
+        /// so analytics can tell a signup's trial from a plan choice.
+        #[serde(default)]
+        auto_started: bool,
         /// The checkout session, or the subscription when checkout was skipped. Log only.
         #[serde(skip)]
         stripe_id: String,

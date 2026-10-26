@@ -52,7 +52,7 @@
 	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 	type DiscoveryOrderField = components['schemas']['DiscoveryOrderField'];
 
-	const DISCOVERY_FIELD_VALUES = '/api/v1/discovery/field-values/{field}';
+	const DISCOVERY_FIELD_VALUES = '/api/v1/discoveries/field-values/{field}';
 
 	let { isReadOnly = false, isActive = false }: TabProps = $props();
 

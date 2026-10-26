@@ -1303,38 +1303,68 @@ fn a_kasa_plug_is_identified_by_its_server_header_on_a_tp_link_mac() {
     ));
 }
 
-/// A Google Wifi point answers `/` with a 404 and reports itself `leaf` on its status API; the
-/// mesh root reports `root` there and is the router's.
+/// A Google Wifi point 404s `/`, so the Google Wifi probe reads its status API and reports a
+/// `ClientProbe::GoogleWifi` response; that, on a non-gateway Google MAC, is a repeater. The root
+/// also answers the API, and both definitions match on it: the gateway root is the router and the
+/// non-gateway leaf is the repeater, split by `IsGateway` / `Not(IsGateway)`. The root's "Nest
+/// Wifi" page identifies a unit that serves it either way.
 #[test]
-fn a_mesh_point_is_identified_by_its_status_api_role() {
+fn a_mesh_point_is_identified_by_its_status_api() {
     let google_mac = "B0:2A:43:00:00:01";
-    let ports = [PortType::Http];
-    let status = |role: &'static str| -> String {
-        format!(
-            "{{\n   \"setupState\": \"GWIFI_OOBE_COMPLETE\",\n   \"system\": {{\n      \
-             \"groupRole\": \"{role}\",\n      \"hardwareId\": \"GALE\"\n   }}\n}}"
-        )
+    let ports = vec![PortType::Http];
+
+    // A Google unit whose status API answered the probe, matched against a definition.
+    let probe_answered = |def_id: &str, is_gateway: bool| {
+        let mut ctx = TestContext::new();
+        ctx.ip_address.base.mac_address = Some(MacEvidence::new(
+            MacEvidenceValue(google_mac.parse().expect("valid MAC")),
+            AttributeSource::ArpReply,
+        ));
+        if is_gateway {
+            ctx.gateway_ips = vec![ctx.ip_address.base.ip_address];
+        }
+        ctx.client_responses
+            .insert(super::ClientProbe::GoogleWifi, vec![PortType::Http]);
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
+        ServiceDefinitionRegistry::find_by_id(def_id)
+            .unwrap_or_else(|| panic!("{def_id} is registered"))
+            .discovery_pattern()
+            .matches(&params)
+            .is_ok()
     };
-    let leaf = status("leaf");
-    let root = status("root");
-    assert!(definition_matches_host(
-        "Google Nest Repeater",
-        google_mac,
-        &ports,
-        &[(PortType::Http, "/api/v1/status", 200, &[], &leaf)]
-    ));
-    assert!(!definition_matches_host(
-        "Google Nest Repeater",
-        google_mac,
-        &ports,
-        &[(PortType::Http, "/api/v1/status", 200, &[], &root)]
-    ));
+    // The probe response alone types each unit, split by whether it is the gateway.
+    assert!(
+        probe_answered("Google Nest Repeater", false),
+        "a leaf's status API makes a repeater"
+    );
+    assert!(
+        !probe_answered("Google Nest Repeater", true),
+        "the gateway root is the router, not a repeater"
+    );
+    assert!(
+        probe_answered("Google Nest Router", true),
+        "the gateway root's status API makes a router"
+    );
+    assert!(
+        !probe_answered("Google Nest Router", false),
+        "a non-gateway leaf is not the router"
+    );
+
     // The page the root serves still identifies a unit that serves it.
     assert!(definition_matches_host(
         "Google Nest Repeater",
         google_mac,
         &ports,
         &[(PortType::Http, "/", 200, &[], "<title>Nest Wifi</title>")]
+    ));
+
+    // A bare Google MAC on port 80 with neither the page nor a probe response is not a repeater.
+    assert!(!definition_matches_host(
+        "Google Nest Repeater",
+        google_mac,
+        &ports,
+        &[]
     ));
 }
 

@@ -5,10 +5,11 @@ use crate::server::auth::r#impl::api::CheckEmailResponse;
 use crate::server::openapi::tags as api_tags;
 use crate::server::shared::types::api::ApiJson;
 
+/// Check whether an email is available
 #[utoipa::path(
     post,
     path = "/check-email",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = CheckEmailRequest,
     responses(
         (status = 200, description = "Whether the address is available", body = ApiResponse<CheckEmailResponse>),
@@ -41,10 +42,11 @@ pub(crate) async fn check_email(
     })))
 }
 
+/// Register user
 #[utoipa::path(
     post,
     path = "/register",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = RegisterRequest,
     responses(
         (status = 200, description = "User registered successfully", body = ApiResponse<User>),
@@ -230,11 +232,13 @@ pub(crate) async fn register(
     Ok(Json(ApiResponse::success(user)))
 }
 
-/// Store pre-registration setup data (org name, first site) in session
+/// Store pre-registration setup in session
+///
+/// The organization name and first site, kept until registration completes.
 #[utoipa::path(
     post,
     path = "/setup",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = SetupRequest,
     responses(
         (status = 200, description = "Setup data stored", body = ApiResponse<SetupResponse>),
@@ -319,7 +323,7 @@ pub async fn clear_pending_setup(session: &Session) {
 #[utoipa::path(
     post,
     path = "/onboarding-step",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = OnboardingStepRequest,
     responses(
         (status = 200, description = "Step saved", body = EmptyApiResponse),
@@ -351,7 +355,7 @@ pub(crate) async fn onboarding_step(
 #[utoipa::path(
     get,
     path = "/onboarding-state",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Onboarding state", body = ApiResponse<OnboardingStateResponse>),
     )

@@ -313,6 +313,22 @@ pub enum ClientProbe {
     /// The port answered a lockdown `QueryType` with `com.apple.mobile.lockdown`: the pairing and
     /// sync service on iPhones and iPads.
     AppleLockdown,
+    /// A DNS query over UDP was answered.
+    DnsUdp,
+    /// An SNTP request was answered with a time.
+    Ntp,
+    /// A DHCP DISCOVER broadcast on the subnet drew an OFFER.
+    Dhcp,
+    /// A BACnet Who-Is came back as a BVLC message from the address asked.
+    Bacnet,
+    /// A TFTP read request for a missing file came back as an `ERROR` or `DATA` packet.
+    Tftp,
+    /// An MGCP `AUEP` came back as a response line carrying our transaction id.
+    Mgcp,
+    /// `/api/v1/status` returned the Google Wifi private API shape — `setupState`,
+    /// `software.softwareVersion`, `system` — from which the probe reads the unit's board and
+    /// firmware. Router and mesh point both answer; `Not(IsGateway)` separates them.
+    GoogleWifi,
 }
 
 impl ClientProbe {
@@ -379,7 +395,14 @@ impl ClientProbe {
             | Self::Ipp
             | Self::SpotifyConnect
             | Self::Vnc
-            | Self::AppleLockdown => M::Native,
+            | Self::AppleLockdown
+            | Self::DnsUdp
+            | Self::Ntp
+            | Self::Dhcp
+            | Self::Bacnet
+            | Self::Tftp
+            | Self::Mgcp
+            | Self::GoogleWifi => M::Native,
         }
     }
 }
@@ -734,8 +757,8 @@ impl Display for Pattern<'_> {
 /// that gets probed cannot drift apart — the failure mode that left `ClientProbe::Gnmi` with a
 /// pattern nothing can ever satisfy.
 ///
-/// A probe contributing no [`ClientProbe`] degrades to the port alone, which is what the four
-/// probes migrated off the old UDP dispatch already matched on.
+/// A probe contributing no [`ClientProbe`] degrades to the port alone, which a container's declared
+/// port satisfies without the probe having run.
 pub fn probe_pattern(probe: &dyn crate::daemon::utils::app_probe::AppProbe) -> Pattern<'static> {
     match probe.client_probe() {
         Some(client_probe) => Pattern::AllOf(vec![

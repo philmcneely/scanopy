@@ -585,3 +585,56 @@ fn demo_tag_positions_run_from_one_in_each_ordered_group() {
         assert_eq!(positions, expected, "{}", group.base.name);
     }
 }
+
+/// The L3 view draws a host once per subnet it has an address on and joins the copies, but only
+/// for regular subnets: container-bridge addresses render inside their host instead. Each of the
+/// host's addresses sits on one of its interfaces, so L2 and the host page show which NIC carries
+/// which subnet.
+#[test]
+fn a_host_is_multi_homed_across_subnets() {
+    let demo = DemoData::generate(Uuid::new_v4(), Uuid::new_v4(), UseCase::default());
+    let subnets_by_id: HashMap<Uuid, &Subnet> = demo.subnets.iter().map(|s| (s.id, s)).collect();
+
+    let multi_homed = demo.hosts_with_services.iter().find(|hws| {
+        let subnets: HashSet<Uuid> = hws
+            .ip_addresses
+            .iter()
+            .map(|ip| ip.base.subnet_id)
+            .filter(|id| !subnets_by_id[id].base.subnet_type().is_container_bridge())
+            .collect();
+        subnets.len() >= 2
+    });
+    let hws = multi_homed.expect("a demo host with addresses on two or more regular subnets");
+
+    let attached: HashSet<Uuid> = demo
+        .interfaces
+        .iter()
+        .filter(|i| i.base.host_id == hws.host.id)
+        .filter_map(|i| i.base.ip_address_id)
+        .collect();
+    for ip in &hws.ip_addresses {
+        assert!(
+            attached.contains(&ip.id),
+            "{} on {} is on none of its host's interfaces",
+            ip.base.ip_address,
+            hws.host.base.name
+        );
+    }
+}
+
+#[test]
+fn no_two_demo_addresses_share_an_address_on_one_subnet() {
+    let demo = DemoData::generate(Uuid::new_v4(), Uuid::new_v4(), UseCase::default());
+    let mut seen = HashSet::new();
+    for ip in demo
+        .hosts_with_services
+        .iter()
+        .flat_map(|hws| &hws.ip_addresses)
+    {
+        assert!(
+            seen.insert((ip.base.subnet_id, ip.base.ip_address)),
+            "{} appears twice on one subnet",
+            ip.base.ip_address
+        );
+    }
+}

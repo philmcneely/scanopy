@@ -19,7 +19,7 @@ export function useApiKeysQuery(options?: { enabled?: () => boolean }) {
 		queryKey: queryKeys.apiKeys.all,
 		queryFn: async () => {
 			return unwrapData(
-				await apiClient.GET('/api/v1/auth/daemon', {
+				await apiClient.GET('/api/v1/daemon-api-keys', {
 					params: { query: { limit: 0 } }
 				})
 			);
@@ -34,7 +34,7 @@ export function useUnboundApiKeysListQuery(params: () => ListPageParams) {
 	return useListPageQuery<ApiKey>(
 		queryKeys.apiKeys.all,
 		({ query, querySerializer }) =>
-			apiClient.GET('/api/v1/auth/daemon', {
+			apiClient.GET('/api/v1/daemon-api-keys', {
 				params: { query: { ...query, unbound: true } },
 				querySerializer
 			}),
@@ -61,7 +61,7 @@ export function useCreateApiKeyMutation() {
 		mutationFn: async (apiKey: ApiKey) => {
 			// Response contains both the key string and the created api_key object
 			const response = unwrapData(
-				await apiClient.POST('/api/v1/auth/daemon', { body: apiKey })
+				await apiClient.POST('/api/v1/daemon-api-keys', { body: apiKey })
 			) as CreateApiKeyResponse;
 			return { keyString: response.key, apiKey: response.api_key };
 		},
@@ -83,7 +83,7 @@ export function useUpdateApiKeyMutation() {
 	return createMutation(() => ({
 		mutationFn: async (apiKey: ApiKey) => {
 			return unwrapData(
-				await apiClient.PUT('/api/v1/auth/daemon/{id}', {
+				await apiClient.PUT('/api/v1/daemon-api-keys/{id}', {
 					params: { path: { id: apiKey.id } },
 					body: apiKey
 				})
@@ -108,7 +108,7 @@ export function useDeleteApiKeyMutation() {
 	return createMutation(() => ({
 		mutationFn: async (id: string) => {
 			requireSuccess(
-				await apiClient.DELETE('/api/v1/auth/daemon/{id}', {
+				await apiClient.DELETE('/api/v1/daemon-api-keys/{id}', {
 					params: { path: { id } }
 				})
 			);
@@ -132,7 +132,7 @@ export function useBulkDeleteApiKeysMutation() {
 
 	return createMutation(() => ({
 		mutationFn: async (ids: string[]) => {
-			requireSuccess(await apiClient.POST('/api/v1/auth/daemon/bulk-delete', { body: ids }));
+			requireSuccess(await apiClient.POST('/api/v1/daemon-api-keys/bulk-delete', { body: ids }));
 			return ids;
 		},
 		onSuccess: (ids: string[]) => {
@@ -153,7 +153,7 @@ export function useRotateApiKeyMutation() {
 		mutationFn: async (keyId: string) => {
 			// Returns the new key string
 			return unwrapData(
-				await apiClient.POST('/api/v1/auth/daemon/{id}/rotate', {
+				await apiClient.POST('/api/v1/daemon-api-keys/{id}/rotate', {
 					params: { path: { id: keyId } }
 				})
 			) as string;

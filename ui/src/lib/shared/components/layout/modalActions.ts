@@ -26,9 +26,8 @@ export interface ModalAction {
 	shortcut?: string;
 	/** Which end of the footer the button sits at. Danger actions default to the start. */
 	align?: 'start' | 'end';
+	/** Drawn before the label. Nothing goes after it: the key hint sits there. */
 	icon?: IconComponent;
-	/** Draws the icon after the label, as the arrow on a wizard's Next. */
-	iconAfter?: boolean;
 	/** The action is running: a spinner replaces the icon. */
 	busy?: boolean;
 	/** The larger primary button wizards use for Next. */

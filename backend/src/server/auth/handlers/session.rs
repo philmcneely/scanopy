@@ -5,10 +5,11 @@ use crate::server::billing::types::base::BillingPlan;
 use crate::server::openapi::tags as api_tags;
 use crate::server::shared::types::api::ApiJson;
 
+/// Log in
 #[utoipa::path(
     post,
     path = "/login",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = LoginRequest,
     responses(
         (status = 200, description = "Login successful", body = ApiResponse<User>),
@@ -46,7 +47,7 @@ pub(crate) async fn login(
             .organization_service
             .get_by_id(&user.base.organization_id)
             .await?
-            .and_then(|o| o.base.plan)
+            .map(|o| o.base.plan)
             .unwrap_or_else(crate::server::billing::plans::get_free_plan);
         if plan.is_demo() && !is_demo_host(&host) {
             return Err(ApiError::forbidden(
@@ -84,10 +85,11 @@ pub(crate) async fn login(
     Ok(Json(ApiResponse::success(user)))
 }
 
+/// Log out
 #[utoipa::path(
     post,
     path = "/logout",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Logout successful", body = EmptyApiResponse),
     )
@@ -116,10 +118,11 @@ pub(crate) async fn logout(
     Ok(Json(ApiResponse::success(())))
 }
 
+/// Get current user
 #[utoipa::path(
     post,
     path = "/me",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Current user", body = ApiResponse<User>),
         (status = 401, description = "Not authenticated", body = ApiErrorResponse),
@@ -134,10 +137,11 @@ pub(crate) async fn get_current_user(
     Ok(Json(ApiResponse::success(user)))
 }
 
+/// Accept terms of service
 #[utoipa::path(
     post,
     path = "/accept-terms",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Terms accepted", body = ApiResponse<User>),
         (status = 401, description = "Not authenticated", body = ApiErrorResponse),
@@ -205,6 +209,6 @@ async fn with_org_terms_gate(state: &AppState, user: User) -> ApiResult<User> {
         .organization_service
         .get_by_id(&user.base.organization_id)
         .await?
-        .and_then(|o| o.base.plan);
+        .map(|o| o.base.plan);
     Ok(with_terms_gate(state, user, plan.as_ref()))
 }

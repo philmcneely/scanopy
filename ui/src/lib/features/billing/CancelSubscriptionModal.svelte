@@ -34,9 +34,11 @@
 		settings_billing_cancelModal_keepSubscription,
 		settings_billing_cancelModal_airGappedNoRefund,
 		settings_billing_cancelModal_confirmDisclosure,
+		settings_billing_cancelModal_confirmDisclosureLicense,
 		settings_billing_cancelModal_confirmHeading,
 		settings_billing_cancelModal_confirmCta,
 		settings_billing_cancelModal_doneSummary,
+		settings_billing_cancelModal_doneSummaryLicense,
 		settings_billing_saveOffer_pauseTitle,
 		settings_billing_saveOffer_pauseSubtitle,
 		settings_billing_saveOffer_pauseDuration30,
@@ -99,6 +101,8 @@
 	// would 4xx anyway. This just hides the dead-end UI. Self-hosted licences
 	// are excluded too: an annual licence is not discounted to retain it, and
 	// the server refuses the coupon for them.
+	// A license plan stays on its plan, read-only, when it ends; a cloud plan moves to Free.
+	let licensePlan = $derived(billingPlans.getMetadata(planType ?? null).license_plan != null);
 	let canReceiveSaveOffer = $derived(
 		billingPlans.getMetadata(planType ?? null).is_stripe_managed === true &&
 			billingPlans.getMetadata(planType ?? null).license_plan == null
@@ -311,9 +315,13 @@
 			const flipped = await waitForOrgUpdate((o) => o.plan_status === 'pending_cancellation');
 			if (flipped) {
 				pushSuccess(
-					settings_billing_cancelModal_doneSummary({
-						periodEnd: formatLongDate(response.period_end)
-					})
+					licensePlan
+						? settings_billing_cancelModal_doneSummaryLicense({
+								periodEnd: formatLongDate(response.period_end)
+							})
+						: settings_billing_cancelModal_doneSummary({
+								periodEnd: formatLongDate(response.period_end)
+							})
 				);
 			} else {
 				pushWarning(
@@ -500,9 +508,13 @@
 							{settings_billing_cancelModal_confirmHeading()}
 						</h4>
 						<p class="mt-1 text-sm text-secondary">
-							{settings_billing_cancelModal_confirmDisclosure({
-								periodEnd: 'the end of your current billing cycle'
-							})}
+							{licensePlan
+								? settings_billing_cancelModal_confirmDisclosureLicense({
+										periodEnd: 'the end of your current billing cycle'
+									})
+								: settings_billing_cancelModal_confirmDisclosure({
+										periodEnd: 'the end of your current billing cycle'
+									})}
 						</p>
 						{#if holdsAirGappedKey}
 							<div class="mt-3">

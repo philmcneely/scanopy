@@ -67,6 +67,7 @@
 		title = common_modal(),
 		centerTitle = false,
 		isOpen = false,
+		keepMounted = false,
 		onClose = null,
 		size = 'lg',
 		anchor = 'viewport',
@@ -100,6 +101,11 @@
 		title?: string;
 		centerTitle?: boolean;
 		isOpen?: boolean;
+		/**
+		 * Render the modal's content while closed, hidden and inert, so what it loads (an
+		 * iframe) is ready the moment it opens. Every open/close effect still keys on `isOpen`.
+		 */
+		keepMounted?: boolean;
 		onClose?: (() => void) | null;
 		size?: 'sm' | 'md' | 'lg' | 'xl' | 'wide' | 'full' | 'max';
 		/**
@@ -485,12 +491,16 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-{#if isOpen}
+{#if isOpen || keepMounted}
 	<!-- Modal backdrop -->
 	<div
 		class="{showBackdrop ? 'modal-page modal-background' : 'modal-page'} {anchor === 'container'
 			? 'modal-page-anchored'
-			: ''} {compactPadding ? 'px-2! py-1! sm:px-4! sm:py-4!' : ''} {listOrder ? 'sm:px-16!' : ''}"
+			: ''} {compactPadding ? 'px-2! py-1! sm:px-4! sm:py-4!' : ''} {listOrder
+			? 'sm:px-16!'
+			: ''} {isOpen ? '' : 'invisible'}"
+		inert={!isOpen}
+		aria-hidden={!isOpen}
 		onclick={handleBackdropClick}
 		role="dialog"
 		aria-modal="true"
@@ -706,13 +716,10 @@
 			? 'flex-1'
 			: ''} flex items-center gap-2"
 	>
-		{#if Icon && !action.iconAfter}
+		{#if Icon}
 			<Icon class="h-4 w-4 {action.busy ? 'animate-spin' : ''}" />
 		{/if}
 		{action.label}
-		{#if Icon && action.iconAfter}
-			<Icon class="h-4 w-4 {action.busy ? 'animate-spin' : ''}" />
-		{/if}
 		{#if key}
 			<span
 				class="inline-flex transition-opacity {paused ? 'opacity-40' : ''}"

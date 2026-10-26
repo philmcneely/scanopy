@@ -275,7 +275,7 @@ async fn a_reset_license_buyer_gets_no_site() {
             org,
             AuthenticatedEntity::System,
             UpdateReason::OrganizationBillingSynced,
-            |o| o.base.plan = Some(license_plan),
+            |o| o.base.plan = license_plan,
         )
         .await
         .unwrap();

@@ -14,6 +14,7 @@
 	import NoPaymentMethodBanner from './NoPaymentMethodBanner.svelte';
 	import PostStripeWelcomeBanner from './PostStripeWelcomeBanner.svelte';
 	import PlanLapsedBanner from './PlanLapsedBanner.svelte';
+	import PlanEndedBanner from './PlanEndedBanner.svelte';
 	import DemoBanner from './DemoBanner.svelte';
 	import LicenseLockedBanner from './LicenseLockedBanner.svelte';
 	import LicensePendingBanner from './LicensePendingBanner.svelte';
@@ -61,6 +62,7 @@
 <NoPaymentMethodBanner />
 <PostStripeWelcomeBanner />
 <PlanLapsedBanner />
+<PlanEndedBanner />
 {#if organization?.plan?.type === 'Demo'}
 	<DemoBanner />
 {/if}

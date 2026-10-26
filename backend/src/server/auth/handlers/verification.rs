@@ -3,10 +3,11 @@ use super::*;
 use crate::server::openapi::tags as api_tags;
 use crate::server::shared::types::api::ApiJson;
 
+/// Verify email
 #[utoipa::path(
     post,
     path = "/verify-email",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = VerifyEmailRequest,
     responses(
         (status = 200, description = "Email verified successfully", body = ApiResponse<User>),
@@ -47,10 +48,11 @@ pub(crate) async fn verify_email(
     Ok(Json(ApiResponse::success(user)))
 }
 
+/// Resend verification email
 #[utoipa::path(
     post,
     path = "/resend-verification",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = ResendVerificationRequest,
     responses(
         (status = 200, description = "Accepted. A link is sent only when the address has an unverified account", body = EmptyApiResponse),
