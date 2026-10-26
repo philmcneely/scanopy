@@ -68,3 +68,22 @@ export function getDaysIntoTrial(org: Organization | null | undefined): number |
 	const diff = Date.now() - created;
 	return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
 }
+
+/**
+ * When the card being added for `pendingPlan` (or for the org's current plan,
+ * when null) is first charged, if a trial defers that charge: the end of the
+ * trial the org is on (a switch keeps it), or the end of the trial the picked
+ * plan starts. Null when the card is charged straight away.
+ */
+export function trialChargeDate(
+	org: Organization | null | undefined,
+	pendingPlan: Organization['plan'] | null,
+	now: number = Date.now()
+): Date | null {
+	if (org == null) return null;
+	if (org.plan_status === 'trialing' && org.trial_end_date) return new Date(org.trial_end_date);
+	if (pendingPlan != null && pendingPlan.trial_days > 0 && org.trial_end_date == null) {
+		return new Date(now + pendingPlan.trial_days * 24 * 60 * 60 * 1000);
+	}
+	return null;
+}
