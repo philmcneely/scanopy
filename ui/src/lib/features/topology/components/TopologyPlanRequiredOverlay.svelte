@@ -47,7 +47,13 @@
 	]);
 </script>
 
-<TopologyOverlay title={topology_planRequiredTitle()} size={scanning ? 'lg' : 'sm'} {actions}>
+<!-- Stacked: title, text and the full-width button read straight down. -->
+<TopologyOverlay
+	title={topology_planRequiredTitle()}
+	size={scanning ? 'lg' : 'sm'}
+	{actions}
+	footerLayout="stack"
+>
 	<div class="space-y-4 p-6">
 		<p class="text-sm text-secondary">{topology_planRequiredBody()}</p>
 		{#if sessions.length > 0}

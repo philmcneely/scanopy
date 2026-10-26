@@ -24,7 +24,8 @@
 		fixedHeight = false,
 		offsetForPanel = false,
 		children,
-		actions = []
+		actions = [],
+		footerLayout = 'row'
 	}: {
 		title: string;
 		size?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'max';
@@ -34,6 +35,8 @@
 		children: Snippet;
 		/** The modal's footer actions. */
 		actions?: ModalAction[];
+		/** `stack` widens the primary action across the footer, under the body. */
+		footerLayout?: 'row' | 'stack';
 	} = $props();
 
 	let leftOffset = $derived(offsetForPanel ? OPTIONS_PANEL_FITVIEW_PADDING_PX : 0);
@@ -50,6 +53,7 @@
 		isOpen={true}
 		anchor="container"
 		{actions}
+		{footerLayout}
 		showCloseButton={false}
 		preventCloseOnClickOutside={true}
 		showBackdrop={false}
