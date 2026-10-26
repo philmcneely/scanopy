@@ -20,7 +20,6 @@
 		common_firstDiscoveryEmailHint,
 		common_upgrade,
 		topology_planRequiredBody,
-		topology_planRequiredScanningBody,
 		topology_planRequiredTitle
 	} from '$lib/paraglide/messages';
 
@@ -50,9 +49,7 @@
 
 <TopologyOverlay title={topology_planRequiredTitle()} size={scanning ? 'lg' : 'sm'} {actions}>
 	<div class="space-y-4 p-6">
-		<p class="text-sm text-secondary">
-			{scanning ? topology_planRequiredScanningBody() : topology_planRequiredBody()}
-		</p>
+		<p class="text-sm text-secondary">{topology_planRequiredBody()}</p>
 		{#if scanning}
 			<!-- The scan's status in a panel of its own, apart from the pitch above. -->
 			<InfoCard variant="compact">
