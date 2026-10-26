@@ -40,6 +40,8 @@
 		options?: V[];
 		optionDisplayComponent: EntityDisplayComponent<V, OC>;
 		getOptionContext?: (option: V, index: number) => OC;
+		/** Called with a disabled option's id when it is clicked (an upgrade badge, say); see RichSelect. */
+		onDisabledClick?: ((value: string) => void) | null;
 		showSearch?: boolean;
 		/** Server-side search and paging for the add-dropdown; see RichSelect. */
 		onSearchChange?: ((query: string) => void) | null;
@@ -116,6 +118,7 @@
 		options = [] as V[],
 		optionDisplayComponent,
 		getOptionContext = () => ({}) as OC,
+		onDisabledClick = null,
 		showSearch = false,
 		onSearchChange = null,
 		onLoadMore = null,
@@ -351,6 +354,7 @@
 							onSelect={handleDropdownSelectChange}
 							displayComponent={optionDisplayComponent}
 							{getOptionContext}
+							{onDisabledClick}
 							{onSearchChange}
 							{onLoadMore}
 							{hasMore}

@@ -18,7 +18,10 @@ use crate::server::shared::types::field_definition::FieldDefinition;
 use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider};
 use crate::server::shared::types::{Color, Icon};
 
-use super::types::{CredentialStability, CredentialTypeDiscriminants, Target, UpstreamSupport};
+use super::types::{
+    CredentialIntegration, CredentialStability, CredentialTypeDiscriminants, Target,
+    UpstreamSupport,
+};
 
 /// A kind of host virtualization an integration reports, by id (`HostVirtualization`'s tag) and
 /// display name.
@@ -34,6 +37,8 @@ pub struct IntegrationVirtualization {
 pub struct Integration {
     /// Service id (e.g. "Docker", "Podman", "SNMP").
     pub id: String,
+    /// The `CredentialIntegration` id, which billing plans list their integrations by.
+    pub integration: CredentialIntegration,
     pub name: String,
     /// Credential category grouping (e.g. "Container & Virtualization").
     pub category: String,
@@ -144,6 +149,7 @@ pub fn all_integrations() -> Vec<Integration> {
 
         integrations.push(Integration {
             id: service_id,
+            integration: disc.integration(),
             name: ServiceDefinition::name(&*service).to_string(),
             category: <&'static str>::from(ct.credential_category()).to_string(),
             logo: service.logo(),

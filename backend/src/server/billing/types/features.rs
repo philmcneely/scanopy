@@ -40,6 +40,7 @@ pub enum Feature {
     VsdxExport,
     ScheduledDiscovery,
     DiscoveryIntegrations,
+    InstantOnIntegration,
     CsvExport,
     SnapshotRetentionDays,
     InvoiceBilling,
@@ -79,6 +80,7 @@ impl HasId for Feature {
             Feature::VsdxExport => "vsdx_export",
             Feature::ScheduledDiscovery => "scheduled_discovery",
             Feature::DiscoveryIntegrations => "discovery_integrations",
+            Feature::InstantOnIntegration => "instant_on_integration",
             Feature::CsvExport => "csv_export",
             Feature::SnapshotRetentionDays => "snapshot_retention_days",
             Feature::InvoiceBilling => "invoice_billing",
@@ -95,6 +97,17 @@ impl Feature {
             self,
             Feature::Webhooks | Feature::AuditLogs | Feature::Saml | Feature::Whitelabeling
         )
+    }
+
+    /// Whether some credential type needs this feature to be created (see
+    /// `CredentialTypeDiscriminants::required_feature`).
+    pub fn gates_integration(&self) -> bool {
+        use crate::server::credentials::r#impl::types::CredentialTypeDiscriminants;
+        use strum::IntoEnumIterator;
+
+        let id = self.id();
+        CredentialTypeDiscriminants::iter()
+            .any(|t| t.required_feature().is_some_and(|f| f.id() == id))
     }
 
     /// Returns the ID of the lowest-tier cloud plan that includes this feature.
@@ -136,6 +149,7 @@ impl TypeMetadataProvider for Feature {
             Feature::DeviceInventory
             | Feature::Tagging
             | Feature::DiscoveryIntegrations
+            | Feature::InstantOnIntegration
             | Feature::ScheduledDiscovery => "Discovery",
 
             Feature::TopologyView
@@ -202,6 +216,7 @@ impl TypeMetadataProvider for Feature {
             Feature::VsdxExport => "Visio Export",
             Feature::ScheduledDiscovery => "Scheduled Discovery",
             Feature::DiscoveryIntegrations => "Discovery Integrations",
+            Feature::InstantOnIntegration => "HPE Aruba Instant On",
             Feature::CsvExport => "CSV Export",
             Feature::SnapshotRetentionDays => "Snapshot Retention",
             Feature::InvoiceBilling => "Invoice & PO Billing",
@@ -247,7 +262,9 @@ impl TypeMetadataProvider for Feature {
             Feature::DeviceInventory => {
                 "Automatically discover hosts, services, ports and interfaces into a searchable inventory"
             }
-            Feature::Tagging => "Apply tags to hosts, services and other entities to group and filter them",
+            Feature::Tagging => {
+                "Apply tags to hosts, services and other entities to group and filter them"
+            }
             Feature::TopologyView => {
                 "Explore your network as interactive topology diagrams, with snapshots of how it changes"
             }
@@ -273,6 +290,9 @@ impl TypeMetadataProvider for Feature {
             Feature::DiscoveryIntegrations => {
                 "Add credentials so discovery also collects from network devices, controllers, hypervisors, container runtimes and hosts"
             }
+            Feature::InstantOnIntegration => {
+                "Add HPE Aruba Instant On credentials so discovery reads switches, access points and their links from the Instant On portal"
+            }
             Feature::CsvExport => {
                 "Download host, service, and network data as CSV for use in spreadsheets and other tools"
             }
@@ -295,7 +315,9 @@ impl TypeMetadataProvider for Feature {
     fn metadata(&self) -> serde_json::Value {
         serde_json::json!({
             "is_coming_soon": self.is_coming_soon(),
-            "minimum_plan": self.minimum_plan()
+            "minimum_plan": self.minimum_plan(),
+            // Plan cards list the integrations themselves, so they skip this feature's line.
+            "gates_integration": self.gates_integration()
         })
     }
 }

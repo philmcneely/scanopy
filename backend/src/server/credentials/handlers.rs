@@ -5,7 +5,7 @@ use crate::server::credentials::r#impl::types::{
     CredentialIntegration, CredentialStability, CredentialTypeDiscriminants, OsFamily,
     UpstreamSupport,
 };
-use crate::server::credentials::service::CredentialService;
+use crate::server::credentials::service::{CredentialService, check_type_in_plan};
 use crate::server::daemons::r#impl::base::Daemon;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::shared::handlers::list::{ListOrdering, PaginatedList, list_page};
@@ -37,7 +37,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, LazyLock};
-use strum::IntoEnumIterator;
+use strum::{IntoDiscriminant, IntoEnumIterator};
 use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 use uuid::Uuid;
@@ -751,8 +751,17 @@ async fn bulk_create_credentials(
     let site_ids = auth.site_ids();
 
     // Validate all credential types and their assignments up front, so a batch containing one
-    // contradicting credential creates none of them.
+    // contradicting credential creates none of them. The service checks the plan again per create.
+    let plan = state
+        .services
+        .organization_service
+        .get_by_id(&org_id)
+        .await?
+        .ok_or_else(ApiError::organization_required)?
+        .base
+        .plan;
     for credential in &credentials {
+        check_type_in_plan(None, credential.base.credential_type.discriminant(), &plan)?;
         credential
             .base
             .validate_settings()

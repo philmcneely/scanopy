@@ -61,7 +61,11 @@
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import ToggleGroup from './ToggleGroup.svelte';
 	import type { BillingPlan, PlanPickerHosting } from './types';
-	import type { BillingPlanMetadata, FeatureMetadata } from '$lib/shared/stores/metadata';
+	import type {
+		BillingPlanMetadata,
+		CredentialIntegrationMetadata,
+		FeatureMetadata
+	} from '$lib/shared/stores/metadata';
 	import type { ColorStyle } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { tooltip } from '$lib/shared/actions/tooltip';
@@ -90,6 +94,8 @@
 		plans: BillingPlan[];
 		billingPlanHelpers: MetadataHelpers<BillingPlanMetadata>;
 		featureHelpers: MetadataHelpers<FeatureMetadata>;
+		/** Names the discovery integrations itemized on each card (`credential-integrations.json`). */
+		integrationHelpers: MetadataHelpers<CredentialIntegrationMetadata>;
 		onPlanSelect: (plan: BillingPlan) => void | Promise<void>;
 		showGithubStars?: boolean;
 		/** Show the Cloud / Self-Hosted toggle (and hosting tags on each card). */
@@ -116,6 +122,7 @@
 		plans,
 		billingPlanHelpers,
 		featureHelpers,
+		integrationHelpers,
 		onPlanSelect,
 		showGithubStars = true,
 		class: className = '',
@@ -259,9 +266,37 @@
 		return featureHelpers.getMetadata(featureKey)?.is_coming_soon === true;
 	}
 
+	const DISCOVERY_INTEGRATIONS = 'discovery_integrations';
+
+	/**
+	 * Features the cards and the comparison show as the itemized integrations instead: the
+	 * general discovery-integrations flag, and each feature that gates one integration.
+	 */
+	function isItemizedAsIntegrations(featureKey: string): boolean {
+		return (
+			featureKey === DISCOVERY_INTEGRATIONS ||
+			featureHelpers.getMetadata(featureKey)?.gates_integration === true
+		);
+	}
+
+	/** Every integration any shown plan includes, in the order the plans list them. */
+	let comparisonIntegrations = $derived([
+		...new Set(
+			filteredPlans.flatMap((p) => billingPlanHelpers.getMetadata(p.type)?.integrations ?? [])
+		)
+	]);
+
+	function planHasIntegration(planType: string, integration: string): boolean {
+		return (billingPlanHelpers.getMetadata(planType)?.integrations ?? []).some(
+			(id) => id === integration
+		);
+	}
+
 	let featureKeys = $derived(
 		filteredPlans.length > 0
-			? Object.keys(billingPlanHelpers.getMetadata(filteredPlans[0].type)?.features || {})
+			? Object.keys(billingPlanHelpers.getMetadata(filteredPlans[0].type)?.features || {}).filter(
+					(key) => !isItemizedAsIntegrations(key)
+				)
 			: []
 	);
 
@@ -482,10 +517,21 @@
 							? (billingPlanHelpers.getMetadata(prevTier)?.incremental_features ?? [])
 							: []}
 					{@const displayFeatures = sortFeaturesByCategory(
-						prevTierFeatures.length > 0
+						(prevTierFeatures.length > 0
 							? [...new Set([...prevTierFeatures, ...incrementalFeatures])]
 							: incrementalFeatures
+						).filter((key) => !isItemizedAsIntegrations(key))
 					)}
+					{@const incrementalIntegrations = metadata?.incremental_integrations ?? []}
+					{@const displayIntegrations =
+						prevTier && !prevTierVisible
+							? [
+									...new Set([
+										...(billingPlanHelpers.getMetadata(prevTier)?.incremental_integrations ?? []),
+										...incrementalIntegrations
+									])
+								]
+							: incrementalIntegrations}
 
 					<div class="plan-card card-static card flex flex-col">
 						<!-- Plan Header -->
@@ -579,15 +625,13 @@
 											{billing_continueOnPlan({ plan: billingPlanHelpers.getName(plan.type) })}
 										{:else if isCurrentlyTrialing}
 											{billing_switchPlan()}
+										{:else if !trial}
+											{common_getStarted()}
+										{:else if getHosting(plan) === 'SelfHosted'}
+											{billing_startTrialNoCreditCard()}
 										{:else}
-											{#if !trial}
-												{common_getStarted()}
-											{:else if getHosting(plan) === 'SelfHosted'}
-												{billing_startTrialNoCreditCard()}
-											{:else}
-												<!-- A cloud trial collects a card first. -->
-												{billing_startFreeTrial()}
-											{/if}
+											<!-- A cloud trial collects a card first. -->
+											{billing_startFreeTrial()}
 										{/if}
 									</button>
 									{#if trial && !isCurrentlyTrialing}
@@ -723,7 +767,7 @@
 							{/if}
 
 							<!-- Mobile: collapsible feature list -->
-							{#if displayFeatures.length > 0}
+							{#if displayFeatures.length > 0 || displayIntegrations.length > 0}
 								<button
 									type="button"
 									class="mb-2 flex items-center gap-1 text-xs font-medium text-tertiary sm:hidden"
@@ -769,6 +813,24 @@
 										{/if}
 									</li>
 								{/each}
+								{#if displayIntegrations.length > 0}
+									<li
+										class="text-[10px] font-medium tracking-wider text-tertiary uppercase {displayFeatures.length >
+										0
+											? 'mt-2'
+											: ''}"
+										data-tooltip={featureHelpers.getDescription(DISCOVERY_INTEGRATIONS)}
+										use:tooltip
+									>
+										{featureHelpers.getName(DISCOVERY_INTEGRATIONS)}
+									</li>
+									{#each displayIntegrations as integration (integration)}
+										<li class="flex items-start gap-2 text-sm">
+											<Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />
+											<span class="text-secondary">{integrationHelpers.getName(integration)}</span>
+										</li>
+									{/each}
+								{/if}
 							</ul>
 						</div>
 					</div>
@@ -856,6 +918,34 @@
 							{/each}
 						</div>
 					{/each}
+
+					<!-- The integrations themselves, one row each, after the category holding the
+					     discovery-integrations feature they stand in for. -->
+					{#if category === featureHelpers.getCategory(DISCOVERY_INTEGRATIONS) && comparisonIntegrations.length > 0}
+						<div class="comparison-category-row">
+							<span class="p-2 text-xs font-medium text-tertiary lg:p-3 lg:text-sm">
+								{featureHelpers.getName(DISCOVERY_INTEGRATIONS)}
+							</span>
+						</div>
+						{#each comparisonIntegrations as integration (integration)}
+							<div class="comparison-row" style="grid-template-columns: {gridColumns}">
+								<div class="comparison-label-cell">
+									<div class="text-xs font-medium lg:text-sm">
+										{integrationHelpers.getName(integration)}
+									</div>
+								</div>
+								{#each filteredPlans as plan (plan.type)}
+									<div class="comparison-value-cell">
+										{#if planHasIntegration(plan.type, integration)}
+											<Check class="mx-auto h-4 w-4 text-success lg:h-5 lg:w-5" />
+										{:else}
+											<X class="mx-auto h-4 w-4 text-muted lg:h-5 lg:w-5" />
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/each}
+					{/if}
 				{/each}
 			</div>
 		{/if}

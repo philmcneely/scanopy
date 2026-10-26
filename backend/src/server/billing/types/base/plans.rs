@@ -263,6 +263,8 @@ pub struct BillingPlanFeatures {
     pub vsdx_export: bool,
     pub scheduled_discovery: bool,
     pub discovery_integrations: bool,
+    /// HPE Aruba Instant On credentials can be created (existing ones keep working on any plan).
+    pub instant_on_integration: bool,
     pub csv_export: bool,
     /// How many days of snapshots the plan retains before the daily sweep
     /// deletes them. `0` means snapshots are unavailable on this plan. The
@@ -541,6 +543,43 @@ impl BillingPlan {
         features
     }
 
+    /// The discovery integrations this plan can create a credential for, in declaration order:
+    /// each one with at least one credential type available on the plan.
+    pub fn integration_ids(&self) -> Vec<&'static str> {
+        use crate::server::credentials::r#impl::types::{
+            CredentialIntegration, CredentialTypeDiscriminants,
+        };
+        use crate::server::shared::types::metadata::HasId;
+        use strum::IntoEnumIterator;
+
+        CredentialIntegration::iter()
+            .filter(|integration| {
+                CredentialTypeDiscriminants::iter()
+                    .any(|t| t.integration() == *integration && t.available_on(self))
+            })
+            .map(|integration| integration.id())
+            .collect()
+    }
+
+    /// Discovery integrations this plan adds over its previous tier, the way
+    /// [`Self::incremental_features`] does for features. A plan with no previous tier lists all
+    /// of its own.
+    pub fn incremental_integration_ids(&self) -> Vec<&'static str> {
+        let own = self.integration_ids();
+        match self
+            .previous_tier()
+            .and_then(Self::default_for_discriminant)
+        {
+            Some(previous) => {
+                let inherited = previous.integration_ids();
+                own.into_iter()
+                    .filter(|id| !inherited.contains(id))
+                    .collect()
+            }
+            None => own,
+        }
+    }
+
     /// Returns set of feature IDs where the feature is enabled on this plan.
     pub fn enabled_feature_ids(&self) -> HashSet<&'static str> {
         let features = self.features();
@@ -673,6 +712,7 @@ impl BillingPlan {
                 vsdx_export: false,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: false,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -710,6 +750,7 @@ impl BillingPlan {
                 vsdx_export: false,
                 scheduled_discovery: false,
                 discovery_integrations: true,
+                instant_on_integration: false,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -746,6 +787,7 @@ impl BillingPlan {
                 vsdx_export: false,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: false,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -782,6 +824,7 @@ impl BillingPlan {
                 vsdx_export: false,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -818,6 +861,7 @@ impl BillingPlan {
                 vsdx_export: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -854,6 +898,7 @@ impl BillingPlan {
                 vsdx_export: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -890,6 +935,7 @@ impl BillingPlan {
                 vsdx_export: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: true,
                 custom_billing: true,
@@ -926,6 +972,7 @@ impl BillingPlan {
                 vsdx_export: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: true,
                 custom_billing: true,
@@ -962,6 +1009,7 @@ impl BillingPlan {
                 vsdx_export: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: true,
                 custom_billing: true,
@@ -998,6 +1046,7 @@ impl BillingPlan {
                 vsdx_export: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: true,
                 custom_billing: false,
@@ -1034,6 +1083,7 @@ impl BillingPlan {
                 vsdx_export: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: true,
                 custom_billing: false,
@@ -1079,6 +1129,7 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             vsdx_export,
             scheduled_discovery,
             discovery_integrations,
+            instant_on_integration,
             csv_export,
             invoice_billing,
             custom_billing,
@@ -1215,6 +1266,10 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             features.push(Feature::DiscoveryIntegrations)
         }
 
+        if instant_on_integration {
+            features.push(Feature::InstantOnIntegration)
+        }
+
         if csv_export {
             features.push(Feature::CsvExport)
         }
@@ -1345,6 +1400,9 @@ impl TypeMetadataProvider for BillingPlan {
             "license_plan": self.license_plan(),
             // Tier relationship
             "incremental_features": self.incremental_features(),
+            // Discovery integrations, itemized on the plan cards and in the comparison table.
+            "integrations": self.integration_ids(),
+            "incremental_integrations": self.incremental_integration_ids(),
             "previous_tier": previous_tier
         })
     }

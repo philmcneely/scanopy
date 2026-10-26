@@ -30,7 +30,8 @@ export type PaywallSurface =
 	| 'hosts_tab'
 	| 'api_keys_tab'
 	| 'shares_modal'
-	| 'topology_tab';
+	| 'topology_tab'
+	| 'credential_form';
 
 export type PaywallGateType = 'limit_hit' | 'plan_required';
 
