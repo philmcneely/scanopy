@@ -16,8 +16,8 @@ use async_trait::async_trait;
 use tokio::io::AsyncWriteExt;
 
 use crate::daemon::utils::app_probe::{
-    AppProbe, AppProbeOutcome, DeviceIdentity, ProbeContext, ProbeStream, identity_field, presence,
-    read_reply,
+    AppProbe, AppProbeOutcome, DeviceIdentity, ProbeContext, ProbeStream, RESPONSE_READ_TIMEOUT,
+    identity_field, presence, read_reply,
 };
 use crate::daemon::utils::scanner::SCAN_TIMEOUT;
 use crate::server::hosts::r#impl::attributes::HostOsValue;
@@ -74,7 +74,7 @@ async fn exchange(stream: &mut Box<dyn ProbeStream>, request: &[u8]) -> Vec<u8> 
     {
         return Vec::new();
     }
-    read_reply(stream, MAX_REPLY).await
+    read_reply(stream, MAX_REPLY, RESPONSE_READ_TIMEOUT).await
 }
 
 /// A lockdown request, framed by its length.

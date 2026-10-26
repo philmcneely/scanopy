@@ -327,7 +327,7 @@ pub(crate) async fn read_greeting(ctx: &ProbeContext, port: PortType, buf_len: u
 
     // A listener that accepts and then says nothing is the middlebox shape, and it is why this
     // returns empty rather than erroring: silence is a legitimate answer meaning "not this".
-    read_reply(&mut stream, buf_len).await
+    read_reply(&mut stream, buf_len, SCAN_TIMEOUT).await
 }
 
 /// Connect to `port`, send `request`, and read the reply.
@@ -351,19 +351,44 @@ pub(crate) async fn request_response(
         return Vec::new();
     }
 
-    read_reply(&mut stream, buf_len).await
+    // The connect and write bind to the tight `SCAN_TIMEOUT` (network-bound), but the peer has to
+    // compute the reply, so the first response byte is allowed `RESPONSE_READ_TIMEOUT`. A Google
+    // Nest root's `/api/v1/status` takes ~1.15s to answer where the leaf takes ~0.12s; under the
+    // old 800ms read the root's reply was lost and its identity never collected.
+    let reply = read_reply(&mut stream, buf_len, RESPONSE_READ_TIMEOUT).await;
+    if reply.is_empty() {
+        // Connect and write succeeded (a connect failure returned above), so this is a port that
+        // accepted us and then sent no first byte within the window: a slow or silent endpoint,
+        // not an absent service. Logged so slow endpoints are visible rather than silently read as
+        // "nothing here" — grep this to find probes whose `RESPONSE_READ_TIMEOUT` is too tight.
+        tracing::debug!(
+            ip = %ctx.ip,
+            port = %port.number(),
+            timeout_ms = RESPONSE_READ_TIMEOUT.as_millis(),
+            "request_response: connected and sent request but received no reply in time"
+        );
+    }
+    reply
 }
 
-/// Read what the peer sends, up to `buf_len` bytes: the first segment within [`SCAN_TIMEOUT`],
+/// Read what the peer sends, up to `buf_len` bytes: the first segment within `first_read_timeout`,
 /// then any further segments that follow within [`REPLY_CONTINUATION`] of each other.
+///
+/// `first_read_timeout` is how long the peer may take to send its first byte. For a greeting it is
+/// the tight [`SCAN_TIMEOUT`] (a banner is pushed immediately or not at all); for a request the
+/// peer has to compute the reply, so [`request_response`] allows the longer [`RESPONSE_READ_TIMEOUT`].
 ///
 /// TCP carries a stream, not messages, and one `read` returns whatever segment arrived first. A
 /// Google Nest router's DNS server writes its 2-byte length prefix and the message as two
 /// segments, and a Brother print server writes a screen clear and then its Telnet negotiation, so
 /// a single read handed DnsTcp the prefix alone and Telnet the escape codes alone.
-async fn read_reply(stream: &mut (impl AsyncRead + Unpin), buf_len: usize) -> Vec<u8> {
+async fn read_reply(
+    stream: &mut (impl AsyncRead + Unpin),
+    buf_len: usize,
+    first_read_timeout: std::time::Duration,
+) -> Vec<u8> {
     let mut buf = vec![0u8; buf_len];
-    let mut filled = match tokio::time::timeout(SCAN_TIMEOUT, stream.read(&mut buf)).await {
+    let mut filled = match tokio::time::timeout(first_read_timeout, stream.read(&mut buf)).await {
         Ok(Ok(read)) => read,
         _ => return Vec::new(),
     };
@@ -379,6 +404,14 @@ async fn read_reply(stream: &mut (impl AsyncRead + Unpin), buf_len: usize) -> Ve
 
 /// How long [`read_reply`] waits for the next segment of a reply that has started arriving.
 const REPLY_CONTINUATION: std::time::Duration = std::time::Duration::from_millis(100);
+
+/// How long [`request_response`] waits for the first byte of a reply it asked for. Longer than
+/// [`SCAN_TIMEOUT`] because that bounds the network (connect, write), while this bounds the peer's
+/// time to *compute* the reply, which varies by device: an embedded web server that aggregates
+/// state can take over a second to answer where the connect took milliseconds. Only ports that
+/// already passed the connect scan reach here, so the cost of the longer wait falls on open ports
+/// that are slow or silent, not on every probed address.
+pub(crate) const RESPONSE_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// Connect to `port`, send `request`, and read until `want` bytes have arrived.
 ///
