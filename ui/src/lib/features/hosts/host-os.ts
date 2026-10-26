@@ -35,10 +35,13 @@ export function hostOsLabel(os: HostOs): string {
  * The icon for a family, from `host-os-families.json`; nothing here names a family. The family's
  * logo when it has one (a daemon OS family's too), else its glyph.
  */
-export function hostOsIcon(family: HostOsFamily): IconComponent {
+export function hostOsIcon(
+	family: HostOsFamily,
+	options: { framed?: boolean } = {}
+): IconComponent {
 	const entry = hostOsFamilies.find((item) => item.id === family);
 	const meta = entry?.metadata as { logo?: string | null } | undefined;
-	return logoIcon(meta?.logo, createIconComponent(entry?.icon ?? null));
+	return logoIcon(meta?.logo, createIconComponent(entry?.icon ?? null), options);
 }
 
 /**

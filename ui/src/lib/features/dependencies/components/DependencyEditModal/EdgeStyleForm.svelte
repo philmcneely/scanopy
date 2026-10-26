@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { createColorHelper, AVAILABLE_COLORS, type Color } from '$lib/shared/utils/styling';
+	import { createColorHelper, type Color } from '$lib/shared/utils/styling';
+	import { dependencyColors } from '../../utils';
 	import type { Dependency, EdgeStyle } from '../../types/base';
 	import { Edit } from 'lucide-svelte';
 	import {
@@ -59,17 +60,25 @@
 	// Ensure formData has default values if not set
 	$effect(() => {
 		if (!formData.color) {
-			formData.color = 'Blue';
+			formData.color = dependencyColors()[0];
 		}
 		if (!formData.edge_style) {
-			formData.edge_style = 'SmoothStep';
+			formData.edge_style = 'Bezier';
 		}
 	});
 
+	// A dependency saved before its colour was claimed by another edge type keeps it on offer, so
+	// opening the editor shows its current colour selected rather than none.
+	const allowedColors = dependencyColors();
+	let colorOptions = $derived(
+		allowedColors.includes(formData.color as Color)
+			? allowedColors
+			: [formData.color as Color, ...allowedColors]
+	);
+
 	let selectedColorHelper = $derived(createColorHelper(formData.color));
 	let selectedEdgeStyleLabel = $derived(
-		edgeStyleOptions.find((opt) => opt.value === formData.edge_style)?.label ||
-			dependencies_smoothStep()
+		edgeStyleOptions.find((opt) => opt.value === formData.edge_style)?.label || common_bezier()
 	);
 </script>
 
@@ -126,7 +135,7 @@
 				<p class="text-xs text-tertiary">{dependencies_edgeColorHelp()}</p>
 
 				<div class="grid grid-cols-7 gap-2">
-					{#each AVAILABLE_COLORS as color (color)}
+					{#each colorOptions as color (color)}
 						{@const colorHelper = createColorHelper(color)}
 						<button
 							type="button"
