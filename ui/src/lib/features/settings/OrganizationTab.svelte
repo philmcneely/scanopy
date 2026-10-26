@@ -16,7 +16,6 @@
 	import ConfirmationDialog from '$lib/shared/components/feedback/ConfirmationDialog.svelte';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import { hasLicensedPlan } from '$lib/features/organizations/types';
-	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { formatLongDate, formatTimestamp } from '$lib/shared/utils/formatting';
 	import { createForm } from '@tanstack/svelte-form';
@@ -162,7 +161,10 @@
 		try {
 			await deleteOrganizationMutation.mutateAsync(org.id);
 			pushSuccess(settings_org_deleteSuccess());
-			await goto(resolve('/onboarding'));
+			// A full load, as logout does: `queryClient.clear()` orphans the queries of
+			// components that stay mounted across a client-side navigation (AppShell's
+			// banners and payment dialog), which would keep showing the deleted org.
+			window.location.assign(resolve('/onboarding'));
 		} catch {
 			// API client middleware auto-toasts the translated error message
 			// (e.g. "Cancel your subscription before deleting your organization").
