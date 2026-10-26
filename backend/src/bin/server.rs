@@ -180,6 +180,22 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
+    // Daemon version distribution gauge. The first tick fires at once, so it is set at boot.
+    let version_gauge_service = state.services.daemon_service.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(15 * 60)); // 15 minutes
+        let mut previous = std::collections::BTreeSet::new();
+        loop {
+            interval.tick().await;
+            if let Err(e) = version_gauge_service
+                .record_daemon_versions(&mut previous)
+                .await
+            {
+                tracing::warn!(error = %e, "Failed to record daemon version gauge");
+            }
+        }
+    });
+
     // Start daemon polling loop for ServerPoll mode daemons
     let daemon_service = state.services.daemon_service.clone();
     let poll_email_service = state.services.email_service.clone();
