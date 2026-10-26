@@ -3,6 +3,9 @@
 import { loadStripe } from '@stripe/stripe-js/pure';
 import type { Stripe } from '@stripe/stripe-js';
 import { useConfigQuery } from '$lib/shared/stores/config-query';
+import { useCurrentUserQuery } from '$lib/features/auth/queries';
+import { useOrganizationQuery } from '$lib/features/organizations/queries';
+import { createSetupIntent } from '$lib/features/billing/queries';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 let loadedKey: string | null = null;
@@ -27,18 +30,53 @@ export function preloadStripe(
 	return stripePromise;
 }
 
+// One SetupIntent per org, made ahead of the payment dialog. An unconfirmed
+// intent can be reused, so it is kept across opens until a card is saved.
+let setupIntent: { organizationId: string; clientSecret: Promise<string> } | null = null;
+
 /**
- * Start loading Stripe.js once a component that can open the payment dialog
- * is showing it (`showing`, default always) and the server config names the
- * publishable key. Components that stay mounted while hidden pass `showing`,
- * so a page that offers no card never fetches the script.
+ * The client secret for `organizationId`'s payment form, created now unless
+ * one is already in flight or ready. A failure is forgotten, so the next
+ * caller retries.
+ */
+export function takeSetupIntent(organizationId: string): Promise<string> {
+	if (setupIntent == null || setupIntent.organizationId !== organizationId) {
+		const clientSecret = createSetupIntent().catch((error: unknown) => {
+			if (setupIntent?.clientSecret === clientSecret) setupIntent = null;
+			throw error;
+		});
+		setupIntent = { organizationId, clientSecret };
+	}
+	return setupIntent.clientSecret;
+}
+
+/** Drop the cached SetupIntent once a card has been saved with it. */
+export function clearSetupIntent(): void {
+	setupIntent = null;
+}
+
+/**
+ * Get the payment dialog ready while a component that opens it is showing
+ * it (`showing`, default always): Stripe.js once the config names the
+ * publishable key, and, for an owner (the only role that can add a card),
+ * the SetupIntent the form mounts on. Components that stay mounted while
+ * hidden pass `showing`, so a page that offers no card fetches neither.
  */
 export function usePreloadStripe(showing: () => boolean = () => true): void {
 	const configQuery = useConfigQuery();
+	const currentUserQuery = useCurrentUserQuery();
+	const organizationQuery = useOrganizationQuery();
 	$effect(() => {
 		if (!showing()) return;
-		void preloadStripe(configQuery.data?.stripe_publishable_key)?.catch(() => {
+		const publishableKey = configQuery.data?.stripe_publishable_key;
+		void preloadStripe(publishableKey)?.catch(() => {
 			// StripeCardForm reports a failed load when it needs Stripe.
 		});
+		const organizationId = organizationQuery.data?.id;
+		if (publishableKey && organizationId && currentUserQuery.data?.permissions === 'Owner') {
+			void takeSetupIntent(organizationId).catch(() => {
+				// The API client toasts it; the dialog retries when it opens.
+			});
+		}
 	});
 }

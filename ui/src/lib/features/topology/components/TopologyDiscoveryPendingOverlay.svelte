@@ -10,6 +10,7 @@
 	import { isFullScan } from '$lib/features/discovery/utils/fullScan';
 	import { useActiveSessionsQuery } from '$lib/features/discovery/queries';
 	import { topology_readyWhenDiscoveryCompletes } from '$lib/paraglide/messages';
+	import { discoveryPhases } from '$lib/shared/stores/metadata';
 
 	const activeSessionsQuery = useActiveSessionsQuery();
 	let sessions = $derived(activeSessionsQuery.data ?? []);
@@ -25,11 +26,18 @@
 					estimated_remaining_secs={session.estimated_remaining_secs}
 					is_full_scan={isFullScan(session.discovery_type)}
 				/>
-				<SessionProgress
-					session_id={session.session_id}
-					phase={session.phase}
-					progress={session.progress}
-				/>
+				<div class="flex items-center gap-3">
+					<span class="shrink-0 text-sm font-medium text-primary">
+						{discoveryPhases.getName(session.phase)}
+					</span>
+					<div class="min-w-0 flex-1">
+						<SessionProgress
+							session_id={session.session_id}
+							phase={session.phase}
+							progress={session.progress}
+						/>
+					</div>
+				</div>
 			</div>
 		{/each}
 	</div>
