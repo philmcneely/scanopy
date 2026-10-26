@@ -15,7 +15,7 @@
 	let sessions = $derived(activeSessionsQuery.data ?? []);
 </script>
 
-<TopologyOverlay title={topology_readyWhenDiscoveryCompletes()} size="sm">
+<TopologyOverlay title={topology_readyWhenDiscoveryCompletes()} size="lg">
 	<div class="space-y-4 p-6">
 		{#each sessions as session (session.session_id)}
 			<div class="space-y-1">
