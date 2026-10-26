@@ -12,6 +12,8 @@
 	import { buildStripeAppearance } from '$lib/shared/billing/stripe-appearance';
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
+	import { useDelayedFlag } from '$lib/shared/utils/delayed-flag.svelte';
 	import type { PaymentFormFailure } from '$lib/shared/billing/setup-payment';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
@@ -27,6 +29,7 @@
 	let {
 		clientSecret,
 		description = undefined,
+		notice = undefined,
 		email = undefined,
 		submitLabel = common_continue(),
 		onSuccess,
@@ -38,6 +41,8 @@
 		clientSecret: string;
 		/** Optional lead-in text rendered above the Payment Element. */
 		description?: string;
+		/** Optional info note rendered at the top, above the description. */
+		notice?: string;
 		/** Prefills the Link email so returning users skip re-typing it. */
 		email?: string;
 		submitLabel?: string;
@@ -83,6 +88,8 @@
 	let confirmedSetupIntentId = $state<string | null>(null);
 	let loadFailed = $state(false);
 	let initialized = false;
+	// The prepared element draws in a few hundred ms, too short to need a wheel.
+	const showSpinner = useDelayedFlag(() => !ready, 400);
 
 	// Mount the Payment Element once we have the publishable key, a client
 	// secret, and the container node. loadStripe + element creation happen once.
@@ -250,16 +257,20 @@
 	class="flex min-h-0 flex-1 flex-col"
 >
 	<div class="min-h-0 flex-1 space-y-4 overflow-auto p-6">
+		{#if notice}
+			<InlineInfo title={notice} />
+		{/if}
 		{#if description}
 			<p class="text-sm text-secondary">{description}</p>
 		{/if}
 
 		<!-- Stripe mounts the Payment Element iframe here. Keep it mounted (so it
-		     loads) but hidden until `ready`, with our native spinner over it — no
-		     flash of Stripe's placeholder cards. -->
+		     loads) but hidden until `ready`, with our native spinner over it once
+		     the wait is long enough to need one — no flash of Stripe's
+		     placeholder cards. -->
 		<div class="relative min-h-[8rem]">
 			<div bind:this={container} class:invisible={!ready}></div>
-			{#if !ready && !loadFailed}
+			{#if showSpinner.current && !loadFailed}
 				<div class="absolute inset-0 flex items-center justify-center">
 					<Loading />
 				</div>

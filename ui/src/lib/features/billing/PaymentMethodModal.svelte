@@ -5,6 +5,8 @@
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import { formatLongDate } from '$lib/shared/utils/formatting';
+	import { trialChargeDate } from '$lib/shared/utils/trial';
+	import { useDelayedFlag } from '$lib/shared/utils/delayed-flag.svelte';
 	import { clearSetupIntent, takeSetupIntent } from '$lib/features/billing/stripe.svelte';
 	import {
 		useCheckoutMutation,
@@ -76,13 +78,16 @@
 	// The card starts or continues a trial, so nothing is charged until it ends:
 	// a picked plan with a trial the org can still take, or an org already
 	// trialing (a switch keeps the trial).
-	let trialEndsAt = $derived.by((): Date | null => {
-		if (org == null) return null;
-		if (org.plan_status === 'trialing' && org.trial_end_date) return new Date(org.trial_end_date);
-		if (pendingPlan != null && pendingPlan.trial_days > 0 && org.trial_end_date == null) {
-			return new Date(Date.now() + pendingPlan.trial_days * 24 * 60 * 60 * 1000);
-		}
-		return null;
+	let trialEndsAt = $derived(trialChargeDate(org, pendingPlan));
+	// TEMPORARY (remove once the note is confirmed showing): what decided it.
+	$effect(() => {
+		if (!isOpen) return;
+		console.debug('[payment-form] trial note', {
+			plan_status: org?.plan_status,
+			trial_end_date: org?.trial_end_date,
+			pending_trial_days: pendingPlan?.trial_days ?? null,
+			shows: trialEndsAt != null
+		});
 	});
 	// An org that defaulted on an invoice we wrote off has lost payment terms
 	// until it settles. The server refuses the request either way; withholding
@@ -114,6 +119,8 @@
 	type Method = 'card' | 'invoice';
 	let method = $state<Method>('card');
 	let clientSecret = $state<string | null>(null);
+	// The intent is usually prefetched, so a wheel only shows for a slow fetch.
+	const showSpinner = useDelayedFlag(() => isOpen && clientSecret == null, 400);
 
 	// Opened from a tab inside Settings, this modal replaced Settings in the
 	// registry while Settings stayed on screen (a locked org's Settings can't
@@ -253,15 +260,11 @@
 				/>
 			</div>
 		{/if}
-		{#if trialEndsAt}
-			<div class="px-6 pt-4">
-				<InlineInfo
-					title={billing_notChargedUntilTrialEnds({ date: formatLongDate(trialEndsAt) })}
-				/>
-			</div>
-		{/if}
 		<StripeCardForm
 			{clientSecret}
+			notice={trialEndsAt
+				? billing_notChargedUntilTrialEnds({ date: formatLongDate(trialEndsAt) })
+				: undefined}
 			email={userEmail}
 			submitLabel={common_save()}
 			onSuccess={handleCardSuccess}
@@ -278,7 +281,9 @@
 		/>
 	{:else}
 		<div class="flex min-h-[12rem] items-center justify-center p-6">
-			<Loading />
+			{#if showSpinner.current}
+				<Loading />
+			{/if}
 		</div>
 	{/if}
 </GenericModal>

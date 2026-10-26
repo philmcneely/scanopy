@@ -39,6 +39,9 @@ export function preloadStripe(
 // One SetupIntent per org, made ahead of the payment dialog. An unconfirmed
 // intent can be reused, so it is kept across opens until a card is saved.
 let setupIntent: { organizationId: string; clientSecret: Promise<string> } | null = null;
+// Bumped when the cached intent is spent, so surfaces still showing prefetch
+// the next one rather than leaving the next open to fetch it.
+let setupIntentGeneration = $state(0);
 
 /**
  * The client secret for `organizationId`'s payment form, created now unless
@@ -60,6 +63,7 @@ export function takeSetupIntent(organizationId: string): Promise<string> {
 export function clearSetupIntent(): void {
 	setupIntent = null;
 	preparedForm = null;
+	setupIntentGeneration += 1;
 }
 
 /** The Payment Element's options: the same in a prepared form and one built on open. */
@@ -132,6 +136,7 @@ export function usePreloadStripe(showing: () => boolean = () => true): void {
 	const organizationQuery = useOrganizationQuery();
 	$effect(() => {
 		if (!showing()) return;
+		void setupIntentGeneration;
 		const publishableKey = configQuery.data?.stripe_publishable_key;
 		void preloadStripe(publishableKey)?.catch(() => {
 			// StripeCardForm reports a failed load when it needs Stripe.
