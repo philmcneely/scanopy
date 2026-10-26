@@ -625,9 +625,12 @@
 										data-tooltip={limitHelpers.getDescription('seats')}
 										use:tooltip>{common_seats()}</span
 									>
-									{#if plan.seat_cents}
-										<span class="text-xs text-tertiary">{formatSeatAddonPricing(plan)}</span>
-									{/if}
+									<!-- Always rendered, invisible on plans that sell no extras, so every card's
+									     rows line up. -->
+									<span
+										class={`text-xs text-tertiary ${plan.seat_cents ? 'opacity-100' : 'opacity-0'}`}
+										aria-hidden={!plan.seat_cents}>{formatSeatAddonPricing(plan) || ' '}</span
+									>
 								</div>
 								<span class="text-right font-medium text-primary">
 									{formatIncludedLimit(plan.included_seats, plan.seat_cents, plan)}
@@ -642,9 +645,10 @@
 										data-tooltip={limitHelpers.getDescription('sites')}
 										use:tooltip>{common_sites()}</span
 									>
-									{#if plan.site_cents}
-										<span class="text-xs text-tertiary">{formatSiteAddonPricing(plan)}</span>
-									{/if}
+									<span
+										class={`text-xs text-tertiary ${plan.site_cents ? 'opacity-100' : 'opacity-0'}`}
+										aria-hidden={!plan.site_cents}>{formatSiteAddonPricing(plan) || ' '}</span
+									>
 								</div>
 								<span class="text-right font-medium text-primary">
 									{formatIncludedLimit(plan.included_sites, plan.site_cents, plan)}
