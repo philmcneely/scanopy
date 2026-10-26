@@ -1305,15 +1305,16 @@ fn a_kasa_plug_is_identified_by_its_server_header_on_a_tp_link_mac() {
 
 /// A Google Wifi point 404s `/`, so the Google Wifi probe reads its status API and reports a
 /// `ClientProbe::GoogleWifi` response; that, on a non-gateway Google MAC, is a repeater. The root
-/// also answers the API, but it is the gateway, so `Not(IsGateway)` keeps it out. The root's
-/// "Nest Wifi" page identifies a unit that serves it either way.
+/// also answers the API, and both definitions match on it: the gateway root is the router and the
+/// non-gateway leaf is the repeater, split by `IsGateway` / `Not(IsGateway)`. The root's "Nest
+/// Wifi" page identifies a unit that serves it either way.
 #[test]
 fn a_mesh_point_is_identified_by_its_status_api() {
     let google_mac = "B0:2A:43:00:00:01";
     let ports = vec![PortType::Http];
 
-    // A non-gateway Google unit whose status API answered the probe.
-    let probe_answered = |is_gateway: bool| {
+    // A Google unit whose status API answered the probe, matched against a definition.
+    let probe_answered = |def_id: &str, is_gateway: bool| {
         let mut ctx = TestContext::new();
         ctx.ip_address.base.mac_address = Some(MacEvidence::new(
             MacEvidenceValue(google_mac.parse().expect("valid MAC")),
@@ -1326,19 +1327,28 @@ fn a_mesh_point_is_identified_by_its_status_api() {
             .insert(super::ClientProbe::GoogleWifi, vec![PortType::Http]);
         let baseline = ctx.create_baseline_params(&ports);
         let params = ctx.create_params_with_ports(&baseline, &ports);
-        ServiceDefinitionRegistry::find_by_id("Google Nest Repeater")
-            .expect("Google Nest Repeater is registered")
+        ServiceDefinitionRegistry::find_by_id(def_id)
+            .unwrap_or_else(|| panic!("{def_id} is registered"))
             .discovery_pattern()
             .matches(&params)
             .is_ok()
     };
+    // The probe response alone types each unit, split by whether it is the gateway.
     assert!(
-        probe_answered(false),
+        probe_answered("Google Nest Repeater", false),
         "a leaf's status API makes a repeater"
     );
     assert!(
-        !probe_answered(true),
+        !probe_answered("Google Nest Repeater", true),
         "the gateway root is the router, not a repeater"
+    );
+    assert!(
+        probe_answered("Google Nest Router", true),
+        "the gateway root's status API makes a router"
+    );
+    assert!(
+        !probe_answered("Google Nest Router", false),
+        "a non-gateway leaf is not the router"
     );
 
     // The page the root serves still identifies a unit that serves it.
