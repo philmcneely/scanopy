@@ -1,0 +1,4 @@
+# Email domains accepted at Scanopy Cloud sign-up even when mailchecker or
+# disposable-email-domains.txt lists them. Add a real company's domain here when
+# either list flags it by mistake. One domain per line; a listed domain also
+# covers its subdomains.
