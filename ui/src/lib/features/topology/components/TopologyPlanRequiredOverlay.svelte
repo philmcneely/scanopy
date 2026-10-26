@@ -8,6 +8,7 @@
 	 */
 	import TopologyOverlay from './TopologyOverlay.svelte';
 	import SessionPhaseProgress from '$lib/features/discovery/components/cards/SessionPhaseProgress.svelte';
+	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import { useActiveSessionsQuery } from '$lib/features/discovery/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import PaidCrownOnPrimary from '$lib/shared/components/PaidCrownOnPrimary.svelte';
@@ -49,14 +50,17 @@
 
 <TopologyOverlay title={topology_planRequiredTitle()} size={scanning ? 'lg' : 'sm'} {actions}>
 	<div class="space-y-4 p-6">
-		<p class="text-center text-sm text-secondary">
+		<p class="text-sm text-secondary">
 			{scanning ? topology_planRequiredScanningBody() : topology_planRequiredBody()}
 		</p>
-		{#each sessions as session (session.session_id)}
-			<SessionPhaseProgress {session} />
-		{/each}
 		{#if scanning}
-			<p class="text-center text-xs text-tertiary">{common_firstDiscoveryEmailHint()}</p>
+			<!-- The scan's status in a panel of its own, apart from the pitch above. -->
+			<InfoCard variant="compact">
+				{#each sessions as session (session.session_id)}
+					<SessionPhaseProgress {session} />
+				{/each}
+				<p class="text-xs text-tertiary">{common_firstDiscoveryEmailHint()}</p>
+			</InfoCard>
 		{/if}
 	</div>
 </TopologyOverlay>
