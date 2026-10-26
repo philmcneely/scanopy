@@ -15,8 +15,7 @@
 	import { canTrialTopology, topologyTrialDays } from '$lib/shared/utils/trial';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
-		billing_dayFreeTrial,
-		billing_startFreeTrial,
+		billing_startDayFreeTrial,
 		common_firstDiscoveryEmailHint,
 		common_upgrade,
 		topology_planRequiredBody,
@@ -34,7 +33,8 @@
 	let actions = $derived<ModalAction[]>([
 		{
 			role: 'primary',
-			label: trial ? billing_startFreeTrial() : common_upgrade(),
+			// The trial is the offer itself, so its length goes on the button rather than in a caption.
+			label: trial ? billing_startDayFreeTrial({ days: topologyTrialDays() }) : common_upgrade(),
 			icon: PaidCrownOnPrimary,
 			onClick: () =>
 				triggerUpgrade({
@@ -49,21 +49,14 @@
 
 <TopologyOverlay title={topology_planRequiredTitle()} size={scanning ? 'lg' : 'sm'} {actions}>
 	<div class="space-y-4 p-6">
-		<div class="space-y-2 text-center">
-			<p class="text-sm text-secondary">
-				{scanning ? topology_planRequiredScanningBody() : topology_planRequiredBody()}
-			</p>
-			{#if trial}
-				<p class="text-xs font-medium text-success">
-					{billing_dayFreeTrial({ days: topologyTrialDays() })}
-				</p>
-			{/if}
-			{#if scanning}
-				<p class="text-xs text-tertiary">{common_firstDiscoveryEmailHint()}</p>
-			{/if}
-		</div>
+		<p class="text-center text-sm text-secondary">
+			{scanning ? topology_planRequiredScanningBody() : topology_planRequiredBody()}
+		</p>
 		{#each sessions as session (session.session_id)}
 			<SessionPhaseProgress {session} />
 		{/each}
+		{#if scanning}
+			<p class="text-center text-xs text-tertiary">{common_firstDiscoveryEmailHint()}</p>
+		{/if}
 	</div>
 </TopologyOverlay>
