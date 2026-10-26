@@ -180,7 +180,8 @@ export function getStabilityTagProps(stability: CredentialStability | undefined)
 	if (stability !== 'Beta') return null;
 	return {
 		label: common_beta(),
-		color: 'Amber' as Color,
+		// Purple: amber is the paid crown's and the Host target's, so Beta stands apart from both.
+		color: 'Purple' as Color,
 		title: credentials_betaTooltip()
 	};
 }
