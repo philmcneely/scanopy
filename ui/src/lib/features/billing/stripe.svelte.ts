@@ -53,17 +53,10 @@ let warmSurfaces = $state(0);
  * one is already in flight or ready. A failure is forgotten, so the next
  * caller retries.
  */
-export function takeSetupIntent(organizationId: string, caller: string): Promise<string> {
+export function takeSetupIntent(organizationId: string): Promise<string> {
 	if (setupIntent == null || setupIntent.organizationId !== organizationId) {
-		// TEMPORARY (remove once the prefetch is confirmed reused): why a new intent.
-		console.debug(
-			`[payment-form] setup intent: new for ${caller} (${setupIntent == null ? 'none cached' : 'another org'})`
-		);
 		const clientSecret = createSetupIntent().catch((error: unknown) => {
-			if (setupIntent?.clientSecret === clientSecret) {
-				console.debug(`[payment-form] setup intent: failed for ${caller}, forgotten`);
-				setupIntent = null;
-			}
+			if (setupIntent?.clientSecret === clientSecret) setupIntent = null;
 			throw error;
 		});
 		setupIntent = { organizationId, clientSecret };
@@ -77,8 +70,6 @@ export function takeSetupIntent(organizationId: string, caller: string): Promise
 				// The catch above has forgotten it.
 			}
 		);
-	} else {
-		console.debug(`[payment-form] setup intent: reused for ${caller}`);
 	}
 	return setupIntent.clientSecret;
 }
@@ -185,7 +176,7 @@ export function usePreloadStripe(showing: () => boolean = () => true): void {
 		const organizationId = organizationQuery.data?.id;
 		const email = currentUserQuery.data?.email;
 		if (publishableKey && organizationId && currentUserQuery.data?.permissions === 'Owner') {
-			void takeSetupIntent(organizationId, 'prefetch')
+			void takeSetupIntent(organizationId)
 				.then((clientSecret) => preparePaymentForm(publishableKey, clientSecret, email))
 				.catch(() => {
 					// The API client toasts a failed intent, and the dialog retries
