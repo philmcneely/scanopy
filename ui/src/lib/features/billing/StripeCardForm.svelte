@@ -5,7 +5,7 @@
 	// root layout via AppShell -> PaymentMethodModal, meaning every page did. On share and embed
 	// routes, whose CSP deliberately allows no third-party scripts, that surfaced as a blocked
 	// script. The shared loader (`preloadStripe`) uses `/pure`, which defers injection until it runs.
-	import { preloadStripe } from '$lib/features/billing/stripe.svelte';
+	import { preloadStripe, preparePaymentForm } from '$lib/features/billing/stripe.svelte';
 	// Types only — `/pure` re-exports just the runtime function. `import type` is erased at
 	// compile time, so this never pulls the injecting module into the bundle.
 	import type { Stripe, StripeElements, StripePaymentElement } from '@stripe/stripe-js';
@@ -106,41 +106,60 @@
 
 		initialized = true;
 		const node = container;
+		const key = publishableKey;
+		// TEMPORARY timing logs (remove after the preload is confirmed): which
+		// step the dialog's spinner waits on.
+		const openedAt = performance.now();
+		const since = () => `${Math.round(performance.now() - openedAt)}ms`;
 		void (async () => {
-			stripe = await (preloadStripe(publishableKey) ?? Promise.resolve(null));
+			stripe = await (preloadStripe(key) ?? Promise.resolve(null));
+			console.debug(`[payment-form] Stripe.js ready after ${since()}`);
 			if (!stripe) {
 				loadFailed = true;
 				errorMessage = billing_cardLoadError();
 				return;
 			}
-			// `loader: 'never'` disables Stripe's optimistic skeleton so the user
-			// sees our native spinner until the element is fully ready (no flash
-			// of placeholder cards). Appearance mirrors the app theme.
-			elements = stripe.elements({
-				clientSecret,
-				appearance: buildStripeAppearance(),
-				loader: 'never'
-			});
-			const paymentElement = elements.create('payment', {
-				// `defaultCollapsed` left unset means Stripe expands whichever
-				// method it thinks converts best, and then reports that method
-				// as selected before the customer has touched anything. Open
-				// on the list instead, so "selected" means they picked it.
-				layout: { type: 'accordion', defaultCollapsed: true },
-				defaultValues: email ? { billingDetails: { email } } : undefined
-			});
-			paymentElement.on('ready', () => (ready = true));
+			// Usually built already, while the surface that opened this was showing.
+			const prepared = await preparePaymentForm(key, clientSecret, email);
+			console.debug(`[payment-form] Elements ready after ${since()}`);
+			if (!prepared) {
+				loadFailed = true;
+				errorMessage = billing_cardLoadError();
+				return;
+			}
+			elements = prepared.elements;
+			// Built earlier, the appearance may predate a theme switch.
+			elements.update({ appearance: buildStripeAppearance() });
+			const paymentElement = prepared.paymentElement;
+			paymentElement.on('ready', handleReady);
 			// Nothing to save until a method is chosen, so the submit button
 			// waits for one. `collapsed` is the only field that says whether
 			// one has been: `value.type` is a plain string that is always set,
 			// and `empty`/`complete` describe the inputs, which a method
 			// collecting none would never fill.
-			paymentElement.on('change', (event) => {
-				methodSelected = !event.collapsed;
-			});
+			paymentElement.on('change', handleChange);
 			paymentElement.mount(node);
 			mountedElement = paymentElement;
 		})();
+
+		function handleReady() {
+			console.debug(`[payment-form] element ready after ${since()}`);
+			ready = true;
+		}
+	});
+
+	function handleChange(event: { collapsed?: boolean }) {
+		methodSelected = !event.collapsed;
+	}
+
+	// The element may be the prepared one, shared with the next open, so it
+	// leaves this form detached and with none of this form's listeners.
+	$effect(() => () => {
+		if (!mountedElement) return;
+		mountedElement.off('ready');
+		mountedElement.off('change', handleChange);
+		mountedElement.unmount();
+		mountedElement = null;
 	});
 
 	/** Hand a confirmed SetupIntent to the caller (finalize/checkout). */

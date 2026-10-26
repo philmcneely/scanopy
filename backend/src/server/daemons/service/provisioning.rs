@@ -164,7 +164,6 @@ impl DaemonService {
                         reachable_url,
                         user_id,
                         created_api_key.id,
-                        org_id,
                         auth.clone(),
                     )
                     .await?;
@@ -208,7 +207,6 @@ impl DaemonService {
         reachable_url: String,
         user_id: Uuid,
         api_key_id: Uuid,
-        org_id: Uuid,
         auth: AuthenticatedEntity,
     ) -> Result<Daemon, ApiError> {
         let host_service = self
@@ -295,22 +293,11 @@ impl DaemonService {
         // write the host_credentials junction directly here — a seeded credential must earn
         // its assignment. create_default_discovery_jobs is idempotent, so the later
         // registration / first-contact paths won't duplicate this.
-        let is_free_plan = self
-            .organization_service
-            .get_by_id(&org_id)
-            .await
-            .ok()
-            .flatten()
-            .map(|o| o.base.plan)
-            .map(|p| p.is_free())
-            .unwrap_or(true);
-
         if let Err(e) = self
             .create_default_discovery_jobs(
                 created_daemon.id,
                 site_id,
                 created_host.id,
-                is_free_plan,
                 &request.seed_credential_refs,
             )
             .await
