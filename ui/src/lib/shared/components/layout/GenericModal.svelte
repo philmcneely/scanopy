@@ -186,6 +186,7 @@
 	let endActions = $derived(
 		keyedActions.filter(({ action }) => (action.align ?? defaultAlign(action)) === 'end')
 	);
+	let stackNarrowActions = $derived(endActions.length >= 3 && footerLayout !== 'stack');
 
 	function defaultAlign(action: ModalAction): 'start' | 'end' {
 		return action.role === 'danger' ? 'start' : 'end';
@@ -708,7 +709,7 @@
 			{#if footer}
 				{@render footer()}
 			{:else if keyedActions.length > 0 || footerNote}
-				<div class="modal-footer {footerLayout === 'stack' ? 'space-y-4' : ''}">
+				<div class="modal-footer @container {footerLayout === 'stack' ? 'space-y-4' : ''}">
 					{#if keyedActions.length > 0}
 						<div
 							class="flex flex-wrap items-center gap-3 {startActions.length > 0
@@ -722,9 +723,14 @@
 									{/each}
 								</div>
 							{/if}
+							<!-- Three or more actions don't fit a narrow footer on one row, and wrapping
+							     strands the primary alone. Below 36rem they stack full width instead,
+							     primary on top. -->
 							<div
 								class="flex flex-wrap items-center justify-end gap-3 {footerLayout === 'stack'
 									? 'w-full'
+									: ''} {stackNarrowActions
+									? '@max-xl:w-full @max-xl:flex-col-reverse @max-xl:items-stretch'
 									: ''}"
 							>
 								{#each endActions as keyed, i (i)}
@@ -751,7 +757,7 @@
 		data-tooltip={action.tooltip}
 		class="{actionClass(action)} {footerLayout === 'stack' && action.role === 'primary'
 			? 'flex-1'
-			: ''} flex items-center gap-2"
+			: ''} {stackNarrowActions ? '@max-xl:justify-center' : ''} flex items-center gap-2"
 	>
 		{#if Icon}
 			<Icon class="h-4 w-4 {action.busy ? 'animate-spin' : ''}" />
