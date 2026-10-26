@@ -560,43 +560,43 @@ install-dev-windows:
 set-plan-community:
 	@echo "Setting all organizations to Community plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Community\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"network_cents\": null, \"included_seats\": null, \"included_networks\": null}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Community\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": 1, \"included_sites\": 1, \"included_hosts\": null, \"included_orgs\": 1}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-free:
 	@echo "Setting all organizations to Free plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Free\", \"base_cents\": 999, \"rate\": \"Month\", \"trial_days\": 7, \"seat_cents\": null, \"network_cents\": null, \"included_seats\": 1, \"included_networks\": 1, \"included_hosts\": 25}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Free\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": 1, \"included_sites\": 1, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-starter:
 	@echo "Setting all organizations to Starter plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Starter\", \"base_cents\": 999, \"rate\": \"Month\", \"trial_days\": 7, \"seat_cents\": null, \"network_cents\": null, \"included_seats\": 1, \"included_networks\": 1}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Starter\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": null, \"included_sites\": null, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-pro:
 	@echo "Setting all organizations to Pro plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Pro\", \"base_cents\": 1999, \"rate\": \"Month\", \"trial_days\": 7, \"seat_cents\": null, \"network_cents\": 800, \"included_seats\": 1, \"included_networks\": 3}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Pro\", \"base_cents\": 9999, \"rate\": \"Month\", \"trial_days\": 14, \"seat_cents\": null, \"site_cents\": 2500, \"host_cents\": null, \"included_seats\": 1, \"included_sites\": 3, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-business:
 	@echo "Setting all organizations to Business plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Business\", \"base_cents\": 5999, \"rate\": \"Month\", \"trial_days\": 14, \"seat_cents\": 800, \"network_cents\": 500, \"included_seats\": 5, \"included_networks\": 15}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Business\", \"base_cents\": 24999, \"rate\": \"Month\", \"trial_days\": 14, \"seat_cents\": 1500, \"site_cents\": 1500, \"host_cents\": null, \"included_seats\": 5, \"included_sites\": 15, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-enterprise:
 	@echo "Setting all organizations to Enterprise plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Enterprise\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"network_cents\": null, \"included_seats\": null, \"included_networks\": null}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Enterprise\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": null, \"included_sites\": null, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-demo:
 	@echo "Setting all organizations to Demo plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Demo\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"network_cents\": null, \"included_seats\": null, \"included_networks\": null}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Demo\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": null, \"included_sites\": null, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 # Values mirror get_self_hosted_standard_plan / get_self_hosted_plus_plan in
@@ -611,7 +611,7 @@ set-plan-self-hosted-standard:
 set-plan-self-hosted-plus:
 	@echo "Setting all organizations to Self-Hosted Plus plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"SelfHostedPlus\", \"base_cents\": 600000, \"rate\": \"Year\", \"trial_days\": 14, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": 50, \"included_sites\": 100, \"included_hosts\": null, \"included_orgs\": 5}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"SelfHostedPlus\", \"base_cents\": 700000, \"rate\": \"Year\", \"trial_days\": 14, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": 50, \"included_sites\": 100, \"included_hosts\": null, \"included_orgs\": 1}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 # Test Environments
