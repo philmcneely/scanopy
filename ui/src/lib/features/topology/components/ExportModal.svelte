@@ -173,6 +173,7 @@
 	}
 
 	let hideCreatedWith = $derived(hasFeature('remove_created_with'));
+	let hasPngExport = $derived(hasFeature('png_export'));
 	let hasSvgExport = $derived(hasFeature('svg_export'));
 	let hasMermaidExport = $derived(hasFeature('mermaid_export'));
 	let hasConfluenceExport = $derived(hasFeature('confluence_export'));
@@ -200,6 +201,7 @@
 			label: topology_exportPng(),
 			description: topology_exportPngDesc(),
 			icon: Image,
+			featureKey: 'png_export',
 			supportsTheme: true,
 			supportsHeader: true
 		},
@@ -270,6 +272,7 @@
 
 	// Feature gate map for reactive access
 	const featureGates: Record<string, () => boolean> = {
+		png_export: () => hasPngExport,
 		svg_export: () => hasSvgExport,
 		mermaid_export: () => hasMermaidExport,
 		confluence_export: () => hasConfluenceExport,

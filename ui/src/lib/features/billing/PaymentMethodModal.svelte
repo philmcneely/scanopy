@@ -4,6 +4,8 @@
 	import InvoiceBillingForm from '$lib/features/billing/InvoiceBillingForm.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
+	import { formatLongDate } from '$lib/shared/utils/formatting';
+	import { clearSetupIntent, takeSetupIntent } from '$lib/features/billing/stripe.svelte';
 	import {
 		useCheckoutMutation,
 		useCreateSetupIntentMutation,
@@ -36,6 +38,7 @@
 		billing_payByInvoice,
 		billing_invoice_termsUnavailable,
 		billing_invoice_termsUnavailableSettled,
+		billing_notChargedUntilTrialEnds,
 		billing_invoice_payOutstanding
 	} from '$lib/paraglide/messages';
 
@@ -57,10 +60,26 @@
 	const organizationQuery = useOrganizationQuery();
 	let org = $derived(organizationQuery.data);
 
+	// The plan this card is for: the one being bought, or else the one the org
+	// is on (a banner asking to pay for the current trial or subscription).
+	// Every plan-dependent choice below reads it. `pendingPlan` alone means
+	// "buy this after saving the card".
+	let cardPlan = $derived(pendingPlan ?? org?.plan ?? null);
 	// Invoice billing is offered only on the self-hosted plans sold in the app.
-	let orgPlanLicensed = $derived(
-		org?.plan?.type != null && billingPlans.getMetadata(org.plan.type).license_plan != null
+	let cardPlanLicensed = $derived(
+		cardPlan != null && billingPlans.getMetadata(cardPlan.type).license_plan != null
 	);
+	// The card starts or continues a trial, so nothing is charged until it ends:
+	// a picked plan with a trial the org can still take, or an org already
+	// trialing (a switch keeps the trial).
+	let trialEndsAt = $derived.by((): Date | null => {
+		if (org == null) return null;
+		if (org.plan_status === 'trialing' && org.trial_end_date) return new Date(org.trial_end_date);
+		if (pendingPlan != null && pendingPlan.trial_days > 0 && org.trial_end_date == null) {
+			return new Date(Date.now() + pendingPlan.trial_days * 24 * 60 * 60 * 1000);
+		}
+		return null;
+	});
 	// An org that defaulted on an invoice we wrote off has lost payment terms
 	// until it settles. The server refuses the request either way; withholding
 	// the link here is what stops the buyer walking into that refusal.
@@ -70,11 +89,9 @@
 	// exists, so paying here would buy nothing. It still cannot take terms,
 	// which is what the note has to explain without offering a payment.
 	let orgIsLapsed = $derived(org != null && isPlanLapsed(org));
-	let planAllowsInvoice = $derived(
-		(pendingPlan?.type != null &&
-			billingPlans.getMetadata(pendingPlan.type).license_plan != null) ||
-			orgPlanLicensed
-	);
+	// Decided by the plan the card is for, so an org on a license trial adding a
+	// card for a cloud plan isn't offered terms the cloud plan doesn't take.
+	let planAllowsInvoice = $derived(cardPlanLicensed);
 	let invoiceEligible = $derived(planAllowsInvoice && writtenOffInvoice.current == null);
 	// Settling is the one route back for a lapsed org, so it takes the centred
 	// slot under the element where "Pay by invoice" sits for everyone else.
@@ -86,7 +103,7 @@
 	);
 	// Nothing names the plan to invoice for: the form asks. Covers a reload
 	// mid-flow, which rebuilds modal state from the URL without the plan.
-	let needsPlanChoice = $derived(pendingPlan == null && !orgPlanLicensed);
+	let needsPlanChoice = $derived(pendingPlan == null && !cardPlanLicensed);
 
 	// Card and bank are Stripe's own tabs inside the Payment Element, which is up
 	// as soon as the dialog opens. Invoice is a text link under it.
@@ -118,7 +135,9 @@
 	async function loadCardForm() {
 		if (clientSecret != null) return;
 		try {
-			clientSecret = await setupIntentMutation.mutateAsync();
+			// Usually made already, by the surface that opened this (usePreloadStripe).
+			clientSecret =
+				org != null ? await takeSetupIntent(org.id) : await setupIntentMutation.mutateAsync();
 		} catch (err) {
 			trackPaymentFormFailed('setup_intent', source, apiFailure(err));
 			// setup-intent error is toasted by the mutation; close the empty dialog
@@ -134,6 +153,8 @@
 		// Read before the await: the registry can move on while the card is
 		// finalizing, and the plan this dialog was opened for must not go with it.
 		const plan = pendingPlan;
+		// Stripe has confirmed this intent, so it can't back another form.
+		clearSetupIntent();
 		try {
 			await finalizeMutation.mutateAsync(setupIntentId);
 		} catch (err) {
@@ -216,6 +237,13 @@
 								number: writtenOffInvoice.current.number ?? ''
 							})
 						: billing_invoice_termsUnavailableSettled()}
+				/>
+			</div>
+		{/if}
+		{#if trialEndsAt}
+			<div class="px-6 pt-4">
+				<InlineInfo
+					title={billing_notChargedUntilTrialEnds({ date: formatLongDate(trialEndsAt) })}
 				/>
 			</div>
 		{/if}

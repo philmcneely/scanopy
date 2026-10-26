@@ -111,6 +111,7 @@
 	"billing_lapsedBannerCta": "Choose a plan",
 	"billing_planEndedBannerBody": "Your {plan} plan ended, and your organization is now on Free.",
 	"billing_nextRenewalOn": "Next renewal on {date}",
+	"billing_notChargedUntilTrialEnds": "You won't be charged until your trial ends on {date}.",
 	"billing_noPaymentMethodBannerBody": "Your subscription has no payment method on file. Add one to avoid losing access.",
 	"billing_notIncluded": "Not included",
 	"billing_payByCard": "Pay by card or bank account instead",

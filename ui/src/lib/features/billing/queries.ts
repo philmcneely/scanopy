@@ -77,14 +77,17 @@ export function useCustomerPortalMutation() {
  * Mutation hook to create a SetupIntent for in-app card collection.
  * Returns the client secret used to mount the Stripe Payment Element.
  */
+/** Create a SetupIntent for the payment-method form and return its client secret. */
+export async function createSetupIntent(): Promise<string> {
+	const setupIntent = unwrapData(
+		await apiClient.POST('/api/billing/payment-method-setup-intent', {})
+	);
+	return setupIntent.client_secret;
+}
+
 export function useCreateSetupIntentMutation() {
 	return createMutation(() => ({
-		mutationFn: async () => {
-			const setupIntent = unwrapData(
-				await apiClient.POST('/api/billing/payment-method-setup-intent', {})
-			);
-			return setupIntent.client_secret;
-		}
+		mutationFn: createSetupIntent
 	}));
 }
 
