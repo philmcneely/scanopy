@@ -30,7 +30,7 @@ use crate::server::shared::attribution::{AttributeMethod, AttributeSourceDiscrim
 use crate::server::shared::concepts::Concept;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::entity_metadata::EntityCategory;
-use crate::server::shared::logos::{Logo, logo_credits, logo_entries};
+use crate::server::shared::logos::{Logo, Theming, logo_credits, logo_entries};
 use crate::server::shared::types::entities::EntitySourceDiscriminants;
 use crate::server::shared::types::entity_field::FieldGroup;
 use crate::server::shared::types::metadata::{
@@ -111,21 +111,41 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
     write_fixture(&services_catalog, output_dir, "services.json");
 
     // Every logo, once, into ui/static/logos/catalog/<id>.<ext> (output_dir is ui/src/lib/data),
-    // and logos.json, which every logo consumer looks a logo id up in.
+    // a `Paired` logo's dark-theme file beside it as <id>.dark.<ext>, and logos.json, which every
+    // logo consumer looks a logo id up in.
     let urls: Vec<(String, String)> = Logo::iter()
         .filter(Logo::is_downloaded)
-        .map(|logo| (<&'static str>::from(logo).to_string(), logo.url()))
+        .flat_map(|logo| {
+            let id: &'static str = logo.into();
+            std::iter::once((id.to_string(), logo.url()))
+                .chain(logo.dark_url().map(|url| (format!("{id}.dark"), url)))
+        })
         .collect();
     let wanted: Vec<(String, &str)> = urls
         .iter()
         .map(|(stem, url)| (stem.clone(), url.as_str()))
         .collect();
-    download_logos(
-        &wanted,
-        &output_dir.join("../../../static/logos/catalog"),
-        force_logos,
-    );
-    write_fixture(&logo_entries(), output_dir, "logos.json");
+    let catalog_dir = output_dir.join("../../../static/logos/catalog");
+    download_logos(&wanted, &catalog_dir, force_logos);
+    // A `TextColor` logo's markup goes into logos.json, so the UI draws it inline in the text
+    // colour as it draws its own icons. That only works while the file uses `currentColor`.
+    let mut entries = logo_entries();
+    for entry in entries
+        .iter_mut()
+        .filter(|e| e.theming == Theming::TextColor)
+    {
+        let file = catalog_dir.join(entry.id.file_name());
+        let Ok(svg) = fs::read_to_string(&file) else {
+            continue;
+        };
+        assert!(
+            svg.contains("currentColor") && !svg.contains("<script"),
+            "{} is drawn in the text colour, so it must use currentColor and carry no script",
+            file.display()
+        );
+        entry.markup = Some(svg);
+    }
+    write_fixture(&entries, output_dir, "logos.json");
 
     // The website's OIDC guide lists these from identity-provider-logos.json, as paths oidc.toml
     // can name for a provider's logo.

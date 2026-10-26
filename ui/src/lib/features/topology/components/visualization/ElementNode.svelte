@@ -338,21 +338,33 @@
 			data-glyph-type={source.type}
 			style="{frameStyle} {logo.fill ? `background: ${logo.fill};` : ''}"
 		>
+			<!-- The export sets the page theme first, so a pair shows the export's file. -->
 			<img
 				src={logo.src}
 				alt=""
-				class="block object-contain"
+				class="block object-contain {logo.darkSrc ? 'dark:hidden' : ''}"
 				style="width: {logoPx}px; height: {logoPx}px;"
 			/>
+			{#if logo.darkSrc}
+				<img
+					src={logo.darkSrc}
+					alt=""
+					class="hidden object-contain dark:block"
+					style="width: {logoPx}px; height: {logoPx}px;"
+				/>
+			{/if}
 		</span>
 	{:else}
 		<span
 			class="card-glyph {frameClass}"
 			data-glyph={source.key}
 			data-glyph-type={source.type}
+			data-glyph-dark={logo?.darkCss ? '' : undefined}
 			style="{frameStyle} {logo?.fill
 				? `background: ${logo.fill};`
-				: ''} --glyph: {source.css}; --glyph-size: {logo ? logoPx : size}px;"
+				: ''} --glyph: {source.css}; {logo?.darkCss
+				? `--glyph-dark: ${logo.darkCss};`
+				: ''} --glyph-size: {logo ? logoPx : size}px;"
 		></span>
 	{/if}
 {/snippet}

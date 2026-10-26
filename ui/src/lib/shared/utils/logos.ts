@@ -9,23 +9,21 @@ import type { IconComponent } from '$lib/shared/utils/types';
 
 type LogoEntry = (typeof logos)[number];
 
+/** How a logo meets the light and dark themes (the backend's `Theming`). */
+export type LogoTheming = LogoEntry['theming']['type'];
+
 const byId = new Map<string, LogoEntry>(logos.map((logo) => [logo.id, logo]));
 
-/**
- * What fills a logo's frame: a colour (`Solid`), white behind a black mark (`DarkMark`), the logo
- * itself (`Round`), or nothing.
- */
+/** What fills a logo's frame: a colour (`Solid`), the logo itself (`Round`), or nothing. */
 export function logoFrame(background: LogoEntry['background']): {
 	fill: string | null;
 	round: boolean;
-	darkMark: boolean;
 } {
-	if (background === 'Round') return { fill: null, round: true, darkMark: false };
-	if (background === 'DarkMark') return { fill: '#ffffff', round: false, darkMark: true };
+	if (background === 'Round') return { fill: null, round: true };
 	if (typeof background === 'object' && 'Solid' in background) {
-		return { fill: background.Solid, round: false, darkMark: false };
+		return { fill: background.Solid, round: false };
 	}
-	return { fill: null, round: false, darkMark: false };
+	return { fill: null, round: false };
 }
 
 /** Where the UI serves the logo with this id, for an `<img>`; null when there is none. */
@@ -44,6 +42,12 @@ export function logoIcon(
 ): IconComponent {
 	const logo = id ? byId.get(id) : undefined;
 	return logo
-		? createLogoIconComponent(logo.id, logo.path, { ...logoFrame(logo.background), framed })
+		? createLogoIconComponent(logo.id, logo.path, {
+				...logoFrame(logo.background),
+				theming: logo.theming.type,
+				darkUrl: logo.dark_path,
+				markup: logo.markup,
+				framed
+			})
 		: fallback;
 }
