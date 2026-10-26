@@ -7,6 +7,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::server::{
+    billing::types::{base::BillingPlan, features::Feature},
     daemons::r#impl::version::last_without_credential_wire,
     services::r#impl::definitions::ServiceDefinition,
     shared::types::{
@@ -433,6 +434,36 @@ impl CredentialTypeDiscriminants {
         }
     }
 
+    /// The plan feature an organization needs to create a credential of this type, or `None` when
+    /// every plan can. Exhaustive with no wildcard: adding a credential type forces a decision.
+    ///
+    /// Gates creation only. A credential created before its type was gated, or before the
+    /// organization's plan changed, keeps working and stays editable.
+    pub fn required_feature(&self) -> Option<Feature> {
+        match self {
+            Self::SnmpCommunity
+            | Self::SnmpV3
+            | Self::Gnmi
+            | Self::DockerProxy
+            | Self::DockerSocket
+            | Self::PodmanProxy
+            | Self::PodmanSocket
+            | Self::UnifiApiKey
+            | Self::UnifiLocalAdmin
+            | Self::SshPassword
+            | Self::SshKey
+            | Self::WakeOnLan
+            | Self::ProxmoxApiToken => None,
+            Self::InstantOnAccount => Some(Feature::InstantOnIntegration),
+        }
+    }
+
+    /// Whether an organization on `plan` can create a credential of this type.
+    pub fn available_on(&self, plan: &BillingPlan) -> bool {
+        self.required_feature()
+            .is_none_or(|feature| plan.has_feature(feature.id()))
+    }
+
     fn metadata_json(&self) -> serde_json::Value {
         let ct = self.to_credential_type();
         let integration = self.integration();
@@ -454,6 +485,9 @@ impl CredentialTypeDiscriminants {
             // Whether the vendor publishes this API. Orthogonal to `stability` — an integration
             // can be fully validated and still be riding an undocumented endpoint.
             "upstream_support": self.upstream_support(),
+            // The plan feature needed to create this type. The type picker shows an upgrade badge
+            // when the organization's plan lacks it; the server refuses the create either way.
+            "required_feature": self.required_feature().map(|f| f.id()),
             // Guide for this credential's integration, path-only. The form links it for every
             // type rather than the two it used to hardcode.
             "docs_path": integration.docs_path(),

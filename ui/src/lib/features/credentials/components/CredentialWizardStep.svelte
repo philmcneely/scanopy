@@ -16,8 +16,10 @@
 	import type { Host } from '$lib/features/hosts/types/base';
 	import {
 		createDefaultCredential,
+		credentialTypeUpgradeFeature,
 		isDaemonHostOnly as isDaemonHostOnlyTargets
 	} from '$lib/features/credentials/types/base';
+	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
@@ -226,6 +228,14 @@
 					integration: type.metadata.associated_service
 				})
 			: null;
+	}
+
+	// A new credential of a type the plan lacks sits behind an upgrade badge, as export formats do,
+	// and picking it opens the plan picker. Existing credentials of that type are not gated.
+	function handleGatedTypeClick(typeId: string) {
+		const feature = credentialTypeUpgradeFeature(typeId, organization?.plan?.type);
+		if (!feature) return;
+		triggerUpgrade({ feature, source: 'credential_type_picker', surface: 'discovery_form' });
 	}
 
 	// Available existing credentials (filter out already-added and site-level)
@@ -555,7 +565,11 @@
 				emptyMessage={daemons_credentialWizardEmpty()}
 				options={typeOptions}
 				showSearch={true}
-				getOptionContext={(option) => ({ disabledReason: dropdownDisabledReason(option) })}
+				getOptionContext={(option) => ({
+					disabledReason: dropdownDisabledReason(option),
+					upgradeFeature: credentialTypeUpgradeFeature(option.id, organization?.plan?.type)
+				})}
+				onDisabledClick={handleGatedTypeClick}
 				itemClickAction="edit"
 				allowReorder={false}
 				allowDuplicates={true}

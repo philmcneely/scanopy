@@ -2,11 +2,13 @@
 	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import billingPlansJson from '$lib/data/billing-plans.json';
 	import featuresJson from '$lib/data/features.json';
+	import credentialIntegrationsJson from '$lib/data/credential-integrations.json';
 	import BillingPlanForm from '$lib/features/billing/BillingPlanForm.svelte';
 	import type { BillingPlan, PlanPickerHosting } from '$lib/features/billing/types';
 	import {
 		createStaticHelpers,
 		type BillingPlanMetadata,
+		type CredentialIntegrationMetadata,
 		type FeatureMetadata
 	} from '$lib/shared/stores/metadata';
 	import { useCheckoutMutation } from '$lib/features/billing/queries';
@@ -41,6 +43,10 @@
 		billingPlansJson
 	);
 	const featureHelpers = createStaticHelpers<FeatureMetadata>('features', featuresJson);
+	const integrationHelpers = createStaticHelpers<CredentialIntegrationMetadata>(
+		'credential_integrations',
+		credentialIntegrationsJson
+	);
 
 	// Transform fixture data to BillingPlan[] format (exclude plans that can't be obtained
 	// in-app, deduplicate). purchase_flow 'none' is Community (GitHub) and Free; Free
@@ -255,6 +261,7 @@
 				: pickablePlans.filter((p) => billingPlanHelpers.getMetadata(p.type)?.is_free !== true)}
 			{billingPlanHelpers}
 			{featureHelpers}
+			{integrationHelpers}
 			showHosting={signingAvailable}
 			{initialHosting}
 			onPlanSelect={handlePlanSelect}
