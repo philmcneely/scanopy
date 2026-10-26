@@ -284,8 +284,15 @@
 
 	function trackColumnWidth(node: HTMLElement, columnId: string) {
 		let id = columnId;
-		const observer = new ResizeObserver(() => {
+		// Record on the next frame, not inside the delivery: the width caps the column's cell
+		// content, which can resize the observed header and raise the ResizeObserver loop error.
+		let frame = 0;
+		const record = () => {
 			if (renderedWidths[id] !== node.offsetWidth) renderedWidths[id] = node.offsetWidth;
+		};
+		const observer = new ResizeObserver(() => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(record);
 		});
 		observer.observe(node);
 		return {
@@ -294,6 +301,7 @@
 			},
 			destroy() {
 				observer.disconnect();
+				cancelAnimationFrame(frame);
 				delete renderedWidths[id];
 			}
 		};

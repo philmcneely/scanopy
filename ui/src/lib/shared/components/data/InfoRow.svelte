@@ -28,10 +28,19 @@
 
 	onMount(() => {
 		// Measure after first paint
-		requestAnimationFrame(checkWrap);
-		const observer = new ResizeObserver(checkWrap);
+		let frame = requestAnimationFrame(checkWrap);
+		// Recheck on the next frame, not inside the delivery: the wrapped style adds a border and
+		// padding that change the row's size, which inside the callback raises the ResizeObserver
+		// loop error.
+		const observer = new ResizeObserver(() => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(checkWrap);
+		});
 		observer.observe(rowEl);
-		return () => observer.disconnect();
+		return () => {
+			observer.disconnect();
+			cancelAnimationFrame(frame);
+		};
 	});
 </script>
 
