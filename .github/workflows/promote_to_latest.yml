@@ -11,18 +11,6 @@ on:
         description: 'Generate social post (Tweet/Bluesky/Discord)'
         type: boolean
         default: true
-      generate_email:
-        description: 'Generate product update email draft'
-        type: boolean
-        default: false
-      generate_reddit_scanopy:
-        description: 'Generate r/scanopy Reddit draft'
-        type: boolean
-        default: false
-      generate_reddit_community:
-        description: 'Generate community (r/selfhosted or r/homelab) Reddit draft'
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -265,91 +253,6 @@ jobs:
           echo "Title: $TITLE"
           echo "Social post: $SOCIAL_POST"
 
-      - name: Generate r/scanopy Reddit draft
-        id: ai_reddit_scanopy
-        if: ${{ inputs.generate_reddit_scanopy }}
-        run: .github/scripts/claude-generate.sh
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          JSON_SCHEMA: '{"type":"object","properties":{"title":{"type":"string"},"body":{"type":"string"}},"required":["title","body"],"additionalProperties":false}'
-          PROMPT: |
-            Write the Reddit post described below, returning it in the `title` and `body` fields.
-
-            Generate a Reddit post draft for a Scanopy release, for r/scanopy (the project's own subreddit).
-
-            About Scanopy: A self-hosted network discovery and topology mapping tool built for homelabbers, sysadmins, and IT teams. It deploys as Docker containers — a server and one or more daemons. Daemons scan your network using ping sweep, ARP, and SNMP to discover hosts, services (200+ recognized, including Docker, PostgreSQL, nginx, Prometheus, Active Directory), and subnets. It maps physical connections via LLDP/CDP neighbor discovery and generates interactive topology visualizations. It has a free tier for small networks. GitHub: https://github.com/scanopy/scanopy
-
-            r/scanopy (own subreddit):
-            - For existing users who already know what Scanopy is
-            - Include version number in title: "Scanopy vX.Y.Z — <descriptive title>"
-            - Full technical details, changelog style
-            - Link to full changelog: https://scanopy.net/changelog
-
-            ---
-
-            Generate the r/scanopy Reddit post draft for Scanopy ${{ inputs.release_tag }}:
-
-            ${{ steps.cleaned_notes.outputs.notes }}
-
-      - name: Generate community Reddit draft
-        id: ai_reddit_community
-        if: ${{ inputs.generate_reddit_community }}
-        run: .github/scripts/claude-generate.sh
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          JSON_SCHEMA: '{"type":"object","properties":{"title":{"type":"string"},"body":{"type":"string"}},"required":["title","body"],"additionalProperties":false}'
-          PROMPT: |
-            Write the Reddit post described below, returning it in the `title` and `body` fields.
-
-            Generate a Reddit post draft for a Scanopy release, for a community subreddit (r/selfhosted or r/homelab).
-
-            About Scanopy: A self-hosted network discovery and topology mapping tool built for homelabbers, sysadmins, and IT teams. It deploys as Docker containers — a server and one or more daemons. Daemons scan your network using ping sweep, ARP, and SNMP to discover hosts, services (200+ recognized, including Docker, PostgreSQL, nginx, Prometheus, Active Directory), and subnets. It maps physical connections via LLDP/CDP neighbor discovery and generates interactive topology visualizations. It has a free tier for small networks. GitHub: https://github.com/scanopy/scanopy
-
-            r/selfhosted or r/homelab (community subreddit):
-            - Written as if the reader has NEVER heard of Scanopy
-            - NO version number in title — title is a benefit statement
-            - Opening line: "I built Scanopy, a self-hosted tool that..."
-            - 2-3 highlights framed as problems solved, not features shipped
-            - Founder voice ("I built...", "Just shipped...")
-            - Mention it's free for small networks and runs as Docker containers
-            - End with: GitHub link (https://github.com/scanopy/scanopy), docs (https://scanopy.net/docs), and mention r/scanopy for updates
-
-            ---
-
-            Generate the community Reddit post draft for Scanopy ${{ inputs.release_tag }}:
-
-            ${{ steps.cleaned_notes.outputs.notes }}
-
-      - name: Generate email content
-        id: ai_email
-        if: ${{ inputs.generate_email }}
-        run: .github/scripts/claude-generate.sh
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          JSON_SCHEMA: '{"type":"object","properties":{"subject":{"type":"string"},"body_html":{"type":"string"}},"required":["subject","body_html"],"additionalProperties":false}'
-          PROMPT: |
-            Write the email described below, returning it in the `subject` and `body_html` fields.
-
-            Generate a product update email for a Scanopy release.
-
-            About Scanopy: A self-hosted network discovery and topology mapping tool for homelabbers, sysadmins, and IT teams. Deploys as Docker containers (server + daemons). Discovers hosts, services, subnets via ping sweep, ARP, and SNMP. Maps physical connections via LLDP/CDP. Generates interactive topology maps. Free tier for small networks.
-
-            The email goes to registered users who opted into product updates. They already use or have tried Scanopy — don't re-explain the product, just highlight what's new and why it matters to them.
-
-            Requirements:
-            - Subject: 5-10 words, benefit-oriented, no version number
-            - Body: Simple inline HTML only — use <p>, <ul>, <li>, <strong> tags
-            - Structure: 1-2 sentence intro paragraph, 3-5 bulleted highlights framed as problems solved or workflows improved
-            - Do NOT include a changelog link or CTA — the email template adds those automatically
-            - Do NOT copy-paste the changelog — write a concise, scannable email
-            - Do NOT include unsubscribe links (the sending pipeline adds them)
-
-            ---
-
-            Generate a product update email for Scanopy ${{ inputs.release_tag }}:
-
-            ${{ steps.cleaned_notes.outputs.notes }}
-
       - name: Create changelog file
         env:
           VERSION: ${{ steps.parsed.outputs.version }}
@@ -357,7 +260,6 @@ jobs:
           SOCIAL_POST: ${{ steps.parsed.outputs.social_post }}
           GEN_SOCIAL: ${{ inputs.generate_social }}
           CONTRIBUTORS: ${{ steps.diff.outputs.contributors }}
-          EMAIL_SUBJECT: ${{ fromJSON(steps.ai_email.outputs.structured_output || '{}').subject }}
           NOTES: ${{ steps.cleaned_notes.outputs.notes }}
           REPO: ${{ github.repository }}
           PREV_TAG: ${{ steps.prev_tag.outputs.prev_tag }}
@@ -389,7 +291,6 @@ jobs:
             echo "social_post: $(yaml_quote "${SOCIAL_POST_LINE}")"
             echo "publish_social: ${GEN_SOCIAL}"
             echo "contributors: $(yaml_quote "${CONTRIBUTORS}")"
-            echo "email_subject: $(yaml_quote "${EMAIL_SUBJECT}")"
             echo "---"
             echo ""
             printf '%s\n' "$NOTES"
@@ -398,14 +299,6 @@ jobs:
             echo ""
             echo "**Full Changelog**: https://github.com/${REPO}/compare/${PREV_TAG}...${RELEASE_TAG}"
           } > "website/src/lib/changelog/${RELEASE_TAG}.md"
-
-      - name: Create email HTML file
-        if: ${{ inputs.generate_email }}
-        env:
-          EMAIL_BODY: ${{ fromJSON(steps.ai_email.outputs.structured_output || '{}').body_html }}
-        run: |
-          # Write email HTML alongside the changelog .md
-          printf '%s\n' "$EMAIL_BODY" > website/src/lib/changelog/${{ inputs.release_tag }}.email.html
 
       - name: Commit and push fixtures to website repo
         working-directory: website
@@ -425,16 +318,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SYNC_FIXTURES_TO_WEBSITE_TOKEN }}
           GEN_SOCIAL: ${{ inputs.generate_social }}
-          GEN_EMAIL: ${{ inputs.generate_email }}
-          GEN_REDDIT_SCANOPY: ${{ inputs.generate_reddit_scanopy }}
-          GEN_REDDIT_COMMUNITY: ${{ inputs.generate_reddit_community }}
           SOCIAL_POST: ${{ steps.parsed.outputs.social_post }}
-          SCANOPY_TITLE: ${{ fromJSON(steps.ai_reddit_scanopy.outputs.structured_output || '{}').title }}
-          SCANOPY_BODY: ${{ fromJSON(steps.ai_reddit_scanopy.outputs.structured_output || '{}').body }}
-          COMMUNITY_TITLE: ${{ fromJSON(steps.ai_reddit_community.outputs.structured_output || '{}').title }}
-          COMMUNITY_BODY: ${{ fromJSON(steps.ai_reddit_community.outputs.structured_output || '{}').body }}
-          EMAIL_SUBJECT: ${{ fromJSON(steps.ai_email.outputs.structured_output || '{}').subject }}
-          EMAIL_BODY: ${{ fromJSON(steps.ai_email.outputs.structured_output || '{}').body_html }}
         run: |
           BRANCH="changelog/${{ inputs.release_tag }}"
 
@@ -444,7 +328,6 @@ jobs:
           # Create and switch to new branch
           git checkout -b "$BRANCH"
 
-          # Add changelog and email
           git add src/lib/changelog/
 
           # Check if there are changes to commit
@@ -467,18 +350,6 @@ jobs:
               echo "- [ ] Review social post"
             fi
 
-            if [ "$GEN_EMAIL" = "true" ]; then
-              echo "- [ ] Review email subject and body"
-            fi
-
-            if [ "$GEN_REDDIT_SCANOPY" = "true" ]; then
-              echo "- [ ] Review Reddit r/scanopy draft"
-            fi
-
-            if [ "$GEN_REDDIT_COMMUNITY" = "true" ]; then
-              echo "- [ ] Review Reddit community post draft"
-            fi
-
             echo ""
             echo "### Auto-published on merge"
             echo "- Changelog on scanopy.net"
@@ -486,21 +357,6 @@ jobs:
             if [ "$GEN_SOCIAL" = "true" ]; then
               echo "- Discord notification"
               echo "- Tweet + Bluesky post"
-            fi
-
-            if [ "$GEN_EMAIL" = "true" ]; then
-              echo "- Product update email draft"
-            fi
-
-            echo ""
-            echo "### Manual after merge"
-
-            if [ "$GEN_REDDIT_SCANOPY" = "true" ]; then
-              echo "- [ ] Post to r/scanopy (copy draft below)"
-            fi
-
-            if [ "$GEN_REDDIT_COMMUNITY" = "true" ]; then
-              echo "- [ ] Post to r/selfhosted OR r/homelab (copy draft below)"
             fi
 
             echo ""
@@ -511,30 +367,6 @@ jobs:
               echo "> ${SOCIAL_POST}"
               echo ""
             fi
-
-            if [ "$GEN_REDDIT_SCANOPY" = "true" ]; then
-              echo "### Draft: r/scanopy"
-              echo "**Title:** ${SCANOPY_TITLE}"
-              echo ""
-              printf '%s\n' "$SCANOPY_BODY"
-            fi
-
-            if [ "$GEN_REDDIT_COMMUNITY" = "true" ]; then
-              echo ""
-              echo "### Draft: r/selfhosted or r/homelab"
-              echo "**Title:** ${COMMUNITY_TITLE}"
-              echo ""
-              printf '%s\n' "$COMMUNITY_BODY"
-            fi
-
-            if [ "$GEN_EMAIL" = "true" ]; then
-              echo ""
-              echo "### Draft: Email"
-              echo "**Subject:** ${EMAIL_SUBJECT}"
-              echo ""
-              printf '%s\n' "$EMAIL_BODY"
-            fi
-
 
             echo ""
             echo "---"
