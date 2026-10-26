@@ -23321,19 +23321,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-26T00:36:37.295549Z",
+              "created_at": "2026-10-26T01:35:16.006882Z",
               "first_discovery_id": null,
-              "id": "6c2b33c0-9468-4c7a-8618-60f8b5b06e99",
+              "id": "22177a58-c419-4a9e-a72c-a2cd3a11598b",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-26T00:36:37.295549Z",
+              "last_seen_at": "2026-10-26T01:35:16.006882Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-26T00:36:37.295549Z",
-              "valid_from": "2026-10-26T00:36:37.295549Z",
+              "updated_at": "2026-10-26T01:35:16.006882Z",
+              "valid_from": "2026-10-26T01:35:16.006882Z",
               "valid_to": null
             }
           },
@@ -25114,19 +25114,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-26T00:36:37.264095Z",
+                      "created_at": "2026-10-26T01:35:15.975308Z",
                       "first_discovery_id": null,
-                      "id": "0eef4044-9857-4423-ae3f-3b1440bf6ef4",
+                      "id": "1969ddaa-f6c8-4041-9124-48c721f8f60b",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-26T00:36:37.264095Z",
+                      "last_seen_at": "2026-10-26T01:35:15.975308Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-26T00:36:37.264095Z",
-                      "valid_from": "2026-10-26T00:36:37.264095Z",
+                      "updated_at": "2026-10-26T01:35:15.975308Z",
+                      "valid_from": "2026-10-26T01:35:15.975308Z",
                       "valid_to": null
                     }
                   ],
@@ -25139,7 +25139,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Radarr",
+                  "service_definition": "Wizarr",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -26631,19 +26631,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-26T00:36:37.290099Z",
+                  "created_at": "2026-10-26T01:35:16.001570Z",
                   "first_discovery_id": null,
-                  "id": "ce08b608-912a-492f-8ff6-b9f910fcf6b6",
+                  "id": "041a4b78-140b-46de-8f42-4abdfc5bb451",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-26T00:36:37.290099Z",
+                  "last_seen_at": "2026-10-26T01:35:16.001570Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-26T00:36:37.290099Z",
-                  "valid_from": "2026-10-26T00:36:37.290099Z",
+                  "updated_at": "2026-10-26T01:35:16.001570Z",
+                  "valid_from": "2026-10-26T01:35:16.001570Z",
                   "valid_to": null
                 }
               ],
@@ -26656,7 +26656,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Radarr",
+              "service_definition": "Wizarr",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -29783,19 +29783,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-26T00:36:37.264605Z",
+          "created_at": "2026-10-26T01:35:15.975827Z",
           "first_discovery_id": null,
-          "id": "997f533c-abaf-4bd9-a268-d48f0b58c69f",
+          "id": "ed0df955-7bbd-434d-b0ff-51372250c706",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-26T00:36:37.264605Z",
+          "last_seen_at": "2026-10-26T01:35:15.975827Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-26T00:36:37.264605Z",
-          "valid_from": "2026-10-26T00:36:37.264605Z",
+          "updated_at": "2026-10-26T01:35:15.975827Z",
+          "valid_from": "2026-10-26T01:35:15.975827Z",
           "valid_to": null
         }
       },
@@ -30298,7 +30298,14 @@
           "Ipp",
           "SpotifyConnect",
           "Vnc",
-          "AppleLockdown"
+          "AppleLockdown",
+          "DnsUdp",
+          "Ntp",
+          "Dhcp",
+          "Bacnet",
+          "Tftp",
+          "Mgcp",
+          "GoogleWifi"
         ]
       },
       "ClockFormat": {
@@ -30696,7 +30703,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Radarr",
+              "service_definition": "Wizarr",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -38337,19 +38344,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-26T00:36:37.263492Z",
+                  "created_at": "2026-10-26T01:35:15.974693Z",
                   "first_discovery_id": null,
-                  "id": "fa3e6d72-9f68-485e-9897-70f49f82adc3",
+                  "id": "c64ff440-35a6-4e1e-8372-b4a979d2c8f1",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-26T00:36:37.263492Z",
+                  "last_seen_at": "2026-10-26T01:35:15.974693Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-26T00:36:37.263492Z",
-                  "valid_from": "2026-10-26T00:36:37.263492Z",
+                  "updated_at": "2026-10-26T01:35:15.974693Z",
+                  "valid_from": "2026-10-26T01:35:15.974693Z",
                   "valid_to": null
                 }
               ],
@@ -38362,7 +38369,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Radarr",
+              "service_definition": "Wizarr",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -42670,19 +42677,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-26T00:36:37.252990Z",
+                        "created_at": "2026-10-26T01:35:15.964054Z",
                         "first_discovery_id": null,
-                        "id": "445cc5db-a867-4693-9c65-9b5e5b9b8b19",
+                        "id": "4a0321dc-d357-486d-a731-3ca0aebc0776",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-26T00:36:37.252990Z",
+                        "last_seen_at": "2026-10-26T01:35:15.964054Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-26T00:36:37.252990Z",
-                        "valid_from": "2026-10-26T00:36:37.252990Z",
+                        "updated_at": "2026-10-26T01:35:15.964054Z",
+                        "valid_from": "2026-10-26T01:35:15.964054Z",
                         "valid_to": null
                       }
                     ],
@@ -42695,7 +42702,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Radarr",
+                    "service_definition": "Wizarr",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -42942,19 +42949,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-26T00:36:37.289343Z",
+                    "created_at": "2026-10-26T01:35:16.000758Z",
                     "first_discovery_id": null,
-                    "id": "5abeba9d-94a9-4bd8-b73e-1d510bee9a60",
+                    "id": "f3505c00-5dda-4795-8f7d-22f6d0578127",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-26T00:36:37.289343Z",
+                    "last_seen_at": "2026-10-26T01:35:16.000758Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-26T00:36:37.289343Z",
-                    "valid_from": "2026-10-26T00:36:37.289343Z",
+                    "updated_at": "2026-10-26T01:35:16.000758Z",
+                    "valid_from": "2026-10-26T01:35:16.000758Z",
                     "valid_to": null
                   }
                 ],
@@ -42967,7 +42974,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Radarr",
+                "service_definition": "Wizarr",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -45664,19 +45671,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-26T00:36:37.264445Z",
+              "created_at": "2026-10-26T01:35:15.975661Z",
               "first_discovery_id": null,
-              "id": "4f17996d-3aca-448c-ae10-36922bb335c9",
+              "id": "1550c30a-e709-4f18-be90-624c34931585",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-26T00:36:37.264445Z",
+              "last_seen_at": "2026-10-26T01:35:15.975661Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-26T00:36:37.264445Z",
-              "valid_from": "2026-10-26T00:36:37.264445Z",
+              "updated_at": "2026-10-26T01:35:15.975661Z",
+              "valid_from": "2026-10-26T01:35:15.975661Z",
               "valid_to": null
             }
           ],
@@ -45689,7 +45696,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Radarr",
+          "service_definition": "Wizarr",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -48036,7 +48043,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "572da343-b2ca-445d-b184-cba61280f6bd",
+                  "id": "ced370ed-5565-48d2-9c3d-af2677d112b9",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -48046,23 +48053,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "ad2d7b24-c1dc-4602-9242-95686de282a0",
+                  "id": "3cd53a8e-cb5a-4621-8391-7215171fb41f",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "2c6ed145-f30b-411b-85b0-c2ad3e6f081f",
+                  "id": "3aef014c-1a44-4d66-a9b7-4bad5e2c8dc5",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "f5ea4a10-07f7-4783-8576-0db08767742f",
+                  "id": "49c17c0c-285a-49cb-8c63-2560f39ed26e",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "ad2d7b24-c1dc-4602-9242-95686de282a0",
+                  "id": "3cd53a8e-cb5a-4621-8391-7215171fb41f",
                   "rule": "ByHost"
                 }
               ]
@@ -48092,19 +48099,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "2cb3922a-e4d2-474c-ba92-21ee00a2b598",
+                "id": "07eb5022-0e7f-4833-80a6-5a3ed0b0aa5a",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "4fab00fe-0889-4644-826b-6e107404dd35",
+                "id": "fc1398ee-fc67-44e9-977d-9751ae178eb6",
                 "rule": "ByVLAN"
               },
               {
-                "id": "1bb03be9-cdf5-4567-ba06-19432322228f",
+                "id": "457952e6-9fce-44d1-a96e-71abf9cb878f",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "98a2c1e2-f4f7-4499-b58a-f5059645cde8",
+                "id": "6d4119ba-fdfc-4028-9e51-4f9a73e79b33",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -48125,7 +48132,7 @@
                 }
               },
               {
-                "id": "80aa3d43-cdf2-4aa9-820e-bbd82d8d8358",
+                "id": "f54b7de4-06d0-4145-86d0-b76d66d4ab61",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -48134,19 +48141,19 @@
                 }
               },
               {
-                "id": "206a27df-24be-4bb8-81d5-31f0b9d35d09",
+                "id": "ced3d721-7bb2-400d-bf20-cc20fafb1c6b",
                 "rule": "ByDeviceType"
               },
               {
-                "id": "367fe768-4c32-408e-b0bc-3f6377fbe4aa",
+                "id": "546e3f94-9b99-425e-8ef7-a563c615098b",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "33a64aa8-ef62-4f97-8a57-729f8c1874fc",
+                "id": "6b1c74eb-a4b0-4726-8899-813c55ebc428",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "f5654f1f-b531-4af2-b3b3-732b5eb8a4eb",
+                "id": "9d7a84e0-b09a-4ae1-985b-7560b0ad5c6b",
                 "rule": "ByStack"
               }
             ]
