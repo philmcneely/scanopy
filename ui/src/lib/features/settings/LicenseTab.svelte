@@ -466,7 +466,7 @@
 								<div class="mt-1 flex flex-wrap items-center gap-2">
 									<input
 										id="license-key"
-										class="input-field min-w-0 flex-1 text-sm sm:min-w-[16rem]"
+										class="input-field min-w-0 flex-1 basis-full text-sm sm:min-w-[16rem] sm:basis-0"
 										class:font-mono={!keyPlaceholder}
 										value={maskedKey}
 										placeholder={keyPlaceholder}
