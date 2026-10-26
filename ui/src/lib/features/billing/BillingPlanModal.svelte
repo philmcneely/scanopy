@@ -19,7 +19,8 @@
 	import { isPlanLapsed, isBillingPlanActive } from '$lib/features/organizations/types';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { isLicenseSigningAvailable, useConfigQuery } from '$lib/shared/stores/config-query';
-	import { modalState, openModal } from '$lib/shared/stores/modal-registry';
+	import { modalState } from '$lib/shared/stores/modal-registry';
+	import { billingOverModal, openBillingModal } from '$lib/features/billing/stores';
 	import { canPay } from '$lib/shared/utils/trial';
 
 	let {
@@ -130,9 +131,11 @@
 	// An opener can ask for a tab (Settings → License asks for Cloud), which wins
 	// over the current plan's.
 	let requestedHosting = $derived(
-		$modalState.name === name
-			? (($modalState.entityData?.hosting as PlanPickerHosting | undefined) ?? null)
-			: null
+		(($billingOverModal?.modal === 'billing-plan'
+			? $billingOverModal.entityData?.hosting
+			: $modalState.name === name
+				? $modalState.entityData?.hosting
+				: undefined) as PlanPickerHosting | undefined) ?? null
 	);
 	let initialHosting = $derived<PlanPickerHosting>(
 		!signingAvailable
@@ -157,8 +160,9 @@
 			// Closed without the plan: nothing is bought yet, so the page must not lock
 			// onto the License tab over the dialog. The lock follows the webhook.
 			onClose();
-			openModal('payment-method', {
-				entityData: { plan, source: 'plan_picker' satisfies PaymentFormSource }
+			openBillingModal('payment-method', {
+				plan,
+				source: 'plan_picker' satisfies PaymentFormSource
 			});
 			return;
 		}

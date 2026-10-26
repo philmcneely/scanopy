@@ -16,7 +16,7 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { isPaidSubscriptionActive, isPlanLapsed } from '$lib/features/organizations/types';
 	import { modalState, closeModal, openModal } from '$lib/shared/stores/modal-registry';
-	import { reopenSettingsTabAfterPayment } from '$lib/features/billing/stores';
+	import { billingOverModal, reopenSettingsTabAfterPayment } from '$lib/features/billing/stores';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import { pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
@@ -45,9 +45,13 @@
 	// openModal('payment-method'). A plan picked by an org with no live
 	// subscription rides along in `entityData.plan`, and the surface that opened
 	// it in `entityData.source` (absent after a reload mid-flow).
-	let isOpen = $derived($modalState.name === 'payment-method');
-	let pendingPlan = $derived(($modalState.entityData?.plan as BillingPlan | undefined) ?? null);
-	let source = $derived(($modalState.entityData?.source as PaymentFormSource | undefined) ?? null);
+	// Opened over a form (see `billingOverModal`), it takes no registry name and reads its plan from
+	// that store, so the form underneath stays mounted.
+	let overModal = $derived($billingOverModal?.modal === 'payment-method');
+	let isOpen = $derived(overModal || $modalState.name === 'payment-method');
+	let entityData = $derived(overModal ? $billingOverModal?.entityData : $modalState.entityData);
+	let pendingPlan = $derived((entityData?.plan as BillingPlan | undefined) ?? null);
+	let source = $derived((entityData?.source as PaymentFormSource | undefined) ?? null);
 
 	const setupIntentMutation = useCreateSetupIntentMutation();
 	const finalizeMutation = useFinalizePaymentMethodMutation();
@@ -102,6 +106,10 @@
 		// A SetupIntent is single-use. The next open fetches a fresh one rather
 		// than remounting the form on one that may already have succeeded.
 		clientSecret = null;
+		if (overModal) {
+			billingOverModal.set(null);
+			return;
+		}
 		const tab = $reopenSettingsTabAfterPayment;
 		closeModal();
 		if (tab) {
@@ -188,7 +196,7 @@
 
 <GenericModal
 	{isOpen}
-	name="payment-method"
+	name={overModal ? undefined : 'payment-method'}
 	title={billing_addPaymentMethod()}
 	size="md"
 	compactPadding={true}

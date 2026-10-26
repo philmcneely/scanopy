@@ -42,7 +42,7 @@
 	} from '$lib/features/organizations/types';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import { licenseTabVisible } from '$lib/features/settings/license-tab';
-	import { reopenSettingsAfterBilling } from '$lib/features/billing/stores';
+	import { billingOverModal, reopenSettingsAfterBilling } from '$lib/features/billing/stores';
 	import {
 		modalState,
 		openModal,
@@ -160,6 +160,7 @@
 			licenseTrialWaitDone = true;
 		});
 	});
+	let billingPlanOverModal = $derived($billingOverModal?.modal === 'billing-plan');
 	let showBillingModal = $derived(
 		isCloudDeployment &&
 			((needsPlanSelection && !planJustActivated && !licenseTrialPending) ||
@@ -543,11 +544,14 @@
 	{/if}
 
 	<!-- Billing modal rendered last so it stacks on top of other modals -->
+	<!-- Opened over a form by an upgrade badge, it takes no registry name, so the form stays mounted. -->
 	<BillingPlanModal
-		isOpen={showBillingModal}
-		name="billing-plan"
+		isOpen={showBillingModal || billingPlanOverModal}
+		name={billingPlanOverModal ? undefined : 'billing-plan'}
 		dismissible={!needsPlanSelection || planUnchosen}
 		onClose={(selectedPlan) => {
+			const overModal = billingPlanOverModal;
+			if (overModal) billingOverModal.set(null);
 			planJustActivated = true;
 			// Key the licensed check off the plan the user just picked: `organization`
 			// still holds the previous plan at this point, which is how the daemon
@@ -556,7 +560,8 @@
 			const licensed =
 				selectedPlan != null && billingPlans.getMetadata(selectedPlan.type).license_plan != null;
 			if (selectedPlan != null && !licensed) cloudPlanJustPicked = true;
-			closeModal();
+			// Over a form, the registry still names the form, which stays open.
+			if (!overModal) closeModal();
 			if (licensed) {
 				// Locks the app and opens Settings on the License tab now, rather than
 				// when the webhook lands the plan on the org, whether the org was on a
@@ -570,6 +575,7 @@
 				reopenSettingsAfterBilling.set(false);
 				openModal('settings', { tab: 'billing' });
 			} else if (
+				!overModal &&
 				!isViewer &&
 				!daemonPromptResponded &&
 				hasSite &&

@@ -501,10 +501,8 @@
 		<div class="flex flex-col gap-0.5">
 			<button
 				type="button"
-				class="flex items-center gap-1 text-left text-secondary"
+				class="flex cursor-pointer items-center gap-1 text-left text-secondary"
 				aria-expanded={expanded}
-				data-tooltip={featureHelpers.getDescription(DISCOVERY_INTEGRATIONS)}
-				use:tooltip
 				onclick={() => toggleIntegrations(planType)}
 			>
 				{billing_planIntegrations({
