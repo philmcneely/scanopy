@@ -38,7 +38,7 @@ impl ServiceDefinition for AppleMobileDevice {
         true
     }
     fn logo(&self) -> Option<Logo> {
-        Some(Logo::Apple)
+        Some(Logo::AppleMobileDevice)
     }
 }
 

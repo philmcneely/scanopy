@@ -110,6 +110,11 @@ pub fn describe_metrics() {
         Unit::Count,
         "Live discovery sessions by phase, refreshed every 60s"
     );
+    describe_gauge!(
+        "scanopy_daemons",
+        Unit::Count,
+        "Daemons seen in the last 24h by the exact version each reported, refreshed every 15m"
+    );
     describe_counter!(
         "scanopy_discovery_finish_errors_total",
         Unit::Count,

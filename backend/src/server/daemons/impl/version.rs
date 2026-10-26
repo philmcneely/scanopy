@@ -154,6 +154,15 @@ fn applicable_sunset_in(
 // by the same invariant test here.
 // ===========================================================================
 
+/// Whether a reported daemon version is on a release line newer than this server's. No daemon
+/// this server knows reports one, so metrics label it `unknown` rather than let a
+/// client-supplied version mint new label values.
+pub fn is_beyond_server_release_line(version: &Version) -> bool {
+    let server = Version::parse(crate::server::openapi::SERVER_VERSION)
+        .expect("CARGO_PKG_VERSION is semver");
+    (version.major, version.minor) > (server.major, server.minor)
+}
+
 /// The last release without unified discovery.
 pub fn last_without_unified_discovery() -> Version {
     Version::new(0, 14, 19)
@@ -1066,6 +1075,26 @@ mod tests {
              daemons/service/http.rs), `last_without_site_wire`, and this test. The daemon \
              config loader's use of `rewrite_from_network_wire` stays: config files written \
              before the rename live on disk until the daemon next saves."
+        );
+    }
+
+    /// Same end-condition for the legacy discovery types: once every supported daemon runs
+    /// Unified, nothing can be created for or run by a pre-unified daemon.
+    #[test]
+    fn legacy_discovery_types_still_needed() {
+        let ceiling = enforced_last_unsupported(Utc::now());
+        let last = last_without_unified_discovery();
+        assert!(
+            ceiling < last,
+            "the enforced daemon ceiling is {ceiling}, at or above {last}: every supported daemon \
+             runs Unified discovery. Remove `DiscoveryType::{{SelfReport, Network, Docker}}`: \
+             first a migration converting or deleting live and Historical rows holding them in \
+             `discovery.discovery_type` and `discovery.run_type->'results'->'discovery_type'` \
+             (carry data forward, prove it on a scratch DB), then the variants, `is_legacy`, \
+             `migrate_discoveries_to_unified`, the daemon's `spawn_legacy_stub`, the legacy SNMP \
+             dispatch, a new `Default`, their `db_enum_baseline.json` entry, the compat \
+             fixtures that send them, `last_without_unified_discovery`, and this test. See the \
+             DiscoveryType row in docs/db-expand-contract-ledger.md."
         );
     }
 

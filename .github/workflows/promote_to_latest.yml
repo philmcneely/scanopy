@@ -79,7 +79,7 @@ jobs:
           docker buildx imagetools create -t ghcr.io/${{ github.repository }}/daemon:latest \
             ghcr.io/${{ github.repository }}/daemon:${{ inputs.release_tag }}
 
-      - name: Checkout scanopy repo (dev branch for latest fixtures)
+      - name: Checkout scanopy repo (dev branch for the schema files and contributors)
         uses: actions/checkout@v7
         with:
           ref: dev
@@ -93,19 +93,14 @@ jobs:
           token: ${{ secrets.SYNC_FIXTURES_TO_WEBSITE_TOKEN }}
           path: website
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.90.0
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: backend
-
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
-
-      - name: Generate UI fixtures and service logos
-        run: cd backend && cargo run --release --bin generate-fixtures
+      # release.yml attaches the fixtures and logos it generated for this tag, so the website
+      # gets what the release shipped without compiling the generator again.
+      - name: Download UI fixtures and service logos
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "${{ inputs.release_tag }}" --repo "${{ github.repository }}" --pattern ui-fixtures.tar.gz
+          tar -xzf ui-fixtures.tar.gz
 
       - name: Setup Node.js
         uses: actions/setup-node@v7

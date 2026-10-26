@@ -231,9 +231,9 @@ pub enum EdgeHandle {
 )]
 pub enum EdgeStyle {
     Straight,
-    #[default]
     #[serde(alias = "Step")]
     SmoothStep,
+    #[default]
     #[serde(alias = "SimpleBezier")]
     Bezier,
 }

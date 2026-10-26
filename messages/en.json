@@ -2688,7 +2688,6 @@
 	"onboarding_hostingCloudLabel": "Scanopy Cloud",
 	"onboarding_hostingSelfHostedDescription": "You host it. This account holds your license key and billing.",
 	"onboarding_hostingSelfHostedLabel": "Your own server",
-	"onboarding_hostingSubtitle": "You can switch between cloud and self-hosted plans later.",
 	"onboarding_howDidYouHear": "How did you hear about Scanopy?",
 	"onboarding_howWillYouUse": "How will you use Scanopy?",
 	"onboarding_internalItDescription": "Servers, services, and the networks connecting them",

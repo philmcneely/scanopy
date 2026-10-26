@@ -178,3 +178,110 @@ impl DaemonService {
         Ok(())
     }
 }
+
+/// How recently a daemon must have been seen to count in `scanopy_daemons`.
+const VERSION_GAUGE_WINDOW: chrono::Duration = chrono::Duration::hours(24);
+
+impl DaemonService {
+    /// Sets `scanopy_daemons{daemon_version}` from every daemon seen in the last day. `previous`
+    /// holds the labels the last pass set; a label this pass no longer has is set to 0, so a
+    /// version that leaves the fleet stops reading its last count.
+    pub async fn record_daemon_versions(
+        &self,
+        previous: &mut std::collections::BTreeSet<String>,
+    ) -> Result<()> {
+        let daemons = self.get_all(StorableFilter::<Daemon>::new()).await?;
+        let counts = daemon_version_counts(&daemons, Utc::now());
+        for (label, count) in daemon_version_gauge_values(previous, &counts) {
+            metrics::gauge!("scanopy_daemons", "daemon_version" => label).set(count as f64);
+        }
+        *previous = counts.into_keys().collect();
+        Ok(())
+    }
+}
+
+/// Daemons seen within `VERSION_GAUGE_WINDOW`, counted by the exact version each last reported:
+/// `none` when it never reported one, `unknown` when it is beyond this server's release line.
+/// Patch-level, since sunset ceilings are patch-level.
+pub(crate) fn daemon_version_counts(
+    daemons: &[Daemon],
+    now: DateTime<Utc>,
+) -> std::collections::BTreeMap<String, u64> {
+    use crate::server::daemons::r#impl::version::is_beyond_server_release_line;
+    let mut counts = std::collections::BTreeMap::new();
+    for daemon in daemons.iter().filter(|d| {
+        d.base
+            .last_seen
+            .is_some_and(|seen| now - seen <= VERSION_GAUGE_WINDOW)
+    }) {
+        let label = match &daemon.base.version {
+            None => "none".to_string(),
+            Some(v) if is_beyond_server_release_line(v) => "unknown".to_string(),
+            Some(v) => v.to_string(),
+        };
+        *counts.entry(label).or_insert(0) += 1;
+    }
+    counts
+}
+
+/// The values to set this pass: every current count, plus 0 for each label set last pass that
+/// has none now.
+fn daemon_version_gauge_values(
+    previous: &std::collections::BTreeSet<String>,
+    counts: &std::collections::BTreeMap<String, u64>,
+) -> Vec<(String, u64)> {
+    previous
+        .iter()
+        .filter(|label| !counts.contains_key(*label))
+        .map(|label| (label.clone(), 0))
+        .chain(counts.iter().map(|(label, count)| (label.clone(), *count)))
+        .collect()
+}
+
+#[cfg(test)]
+mod version_gauge_tests {
+    use super::*;
+    use std::collections::{BTreeMap, BTreeSet};
+
+    fn seen(version: Option<&str>, hours_ago: i64, now: DateTime<Utc>) -> Daemon {
+        let mut d = crate::tests::daemon(&Uuid::new_v4(), &Uuid::new_v4());
+        d.base.version = version.map(|v| Version::parse(v).unwrap());
+        d.base.last_seen = Some(now - chrono::Duration::hours(hours_ago));
+        d
+    }
+
+    #[test]
+    fn counts_recent_daemons_by_exact_version() {
+        let now = Utc::now();
+        let daemons = vec![
+            seen(Some("0.17.4"), 1, now),
+            seen(Some("0.17.4"), 2, now),
+            seen(Some("0.17.5"), 1, now),
+            seen(None, 1, now),
+            seen(Some("999.0.0"), 1, now),
+            seen(Some("0.14.19"), 25, now),
+        ];
+        let counts = daemon_version_counts(&daemons, now);
+        assert_eq!(
+            counts,
+            BTreeMap::from([
+                ("0.17.4".to_string(), 2),
+                ("0.17.5".to_string(), 1),
+                ("none".to_string(), 1),
+                ("unknown".to_string(), 1),
+            ])
+        );
+    }
+
+    #[test]
+    fn a_version_gone_from_the_fleet_is_set_to_zero() {
+        let previous = BTreeSet::from(["0.16.2".to_string(), "0.17.4".to_string()]);
+        let counts = BTreeMap::from([("0.17.4".to_string(), 3)]);
+        let mut values = daemon_version_gauge_values(&previous, &counts);
+        values.sort();
+        assert_eq!(
+            values,
+            vec![("0.16.2".to_string(), 0), ("0.17.4".to_string(), 3)]
+        );
+    }
+}

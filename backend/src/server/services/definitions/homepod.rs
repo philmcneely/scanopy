@@ -36,7 +36,7 @@ impl ServiceDefinition for HomePod {
     }
 
     fn logo(&self) -> Option<Logo> {
-        Some(Logo::Apple)
+        Some(Logo::HomePod)
     }
 }
 

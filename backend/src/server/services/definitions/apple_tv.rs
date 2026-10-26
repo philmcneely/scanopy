@@ -36,7 +36,7 @@ impl ServiceDefinition for AppleTv {
     }
 
     fn logo(&self) -> Option<Logo> {
-        Some(Logo::Apple)
+        Some(Logo::AppleTv)
     }
 }
 
