@@ -81,9 +81,7 @@
 	import ApplicationSetupWizard from './application-wizard/ApplicationSetupWizard.svelte';
 	import L2EmptyStateOverlay from './L2EmptyStateOverlay.svelte';
 	import TopologyPlanRequiredOverlay from './TopologyPlanRequiredOverlay.svelte';
-	import SessionProgress from '$lib/features/discovery/components/cards/SessionProgress.svelte';
-	import DiscoveryEstimation from '$lib/features/discovery/components/DiscoveryEstimation.svelte';
-	import { isFullScan } from '$lib/features/discovery/utils/fullScan';
+	import TopologyDiscoveryPendingOverlay from './TopologyDiscoveryPendingOverlay.svelte';
 	import { hasTopologyAccess } from '$lib/features/organizations/types';
 	import ViewFiltersEmptyState from './ViewFiltersEmptyState.svelte';
 	import ViewSwitcherHint from './ViewSwitcherHint.svelte';
@@ -112,7 +110,6 @@
 		topology_asOf,
 		common_current,
 		topology_noTopologySelected,
-		topology_readyWhenDiscoveryCompletes,
 		topology_snapshotDeleteConfirm,
 		topology_takeSnapshot
 	} from '$lib/paraglide/messages';
@@ -731,154 +728,126 @@
 		<PreDaemonEmptyState title={daemons_installPromptTopology()} {isReadOnly} />
 	{:else}
 		<div class="space-y-3">
-			<!-- Header. Free has no use for it: export, share, snapshots and view
-			     switching wait for a plan, and the overlay below says so. -->
-			{#if topologyAccess}
-				<div
-					class="card-static card flex items-center justify-evenly gap-2 px-2 py-2"
-					style="border-bottom: 2px solid {viewColorStyle.rgb}; transition: border-color 0.3s ease;"
-				>
-					{#if currentTopology}
-						<div class="flex items-center gap-2">
-							<ExportButton onclick={() => openModal('topology-export')} />
-							<!-- A share always renders the LIVE view (the backend builds the share
+			<!-- Header -->
+			<div
+				class="card-static card flex items-center justify-evenly gap-2 px-2 py-2"
+				style="border-bottom: 2px solid {viewColorStyle.rgb}; transition: border-color 0.3s ease;"
+			>
+				{#if currentTopology}
+					<div class="flex items-center gap-2">
+						<ExportButton onclick={() => openModal('topology-export')} />
+						<!-- A share always renders the LIVE view (the backend builds the share
 						     graph from live entities + options), so the button stays available
 						     while viewing a snapshot; the share modal shows an inline notice
 						     clarifying that a share captures the live view, not the snapshot. -->
-							{#if !isReadOnly}
-								<button
-									class="btn-secondary"
-									onclick={() => openModal('topology-share')}
-									title={common_share()}
-								>
-									<Share2 class="my-1 h-5 w-5" />
-								</button>
-							{/if}
-						</div>
-
 						{#if !isReadOnly}
-							<div class="card-divider-v self-stretch"></div>
-							{#if activeSession}
-								{@const estimate = activeSession.estimated_remaining_secs}
-								<div
-									class="flex cursor-default flex-col items-center {discoveryColor.icon}"
-									data-tooltip={!hasCompletedFirstDiscovery && hasEmail
-										? common_firstDiscoveryEmailHint()
-										: ''}
-									use:tooltip
-								>
-									<div class="flex items-center">
-										<Radar class="mr-2 h-4 w-4 animate-pulse [animation-duration:5s]" />
-										{#if activeSession.progress > 0}
-											<span class="text-xs">{activeSession.progress}%</span>
-										{/if}
-									</div>
-									{#if estimate != null}
-										<span class="text-[10px]">~{Math.round(estimate / 60)} min left</span>
-									{:else}
-										<span class="text-[10px]">Estimating...</span>
-									{/if}
-								</div>
-								<div class="card-divider-v self-stretch"></div>
-							{/if}
-						{/if}
-					{/if}
-
-					{#if sitesData.length > 0}
-						<RichSelect
-							label=""
-							selectedValue={$selectedSiteId ?? ''}
-							displayComponent={SiteDisplay}
-							onSelect={handleSiteChange}
-							options={sitesData}
-						/>
-
-						<div class="card-divider-v self-stretch"></div>
-
-						<RichSelect
-							label=""
-							selectedValue={$selectedSnapshotId ?? CURRENT_VIEW_SENTINEL}
-							displayComponent={snapshotDisplayWithLive}
-							onSelect={handleSnapshotChange}
-							options={snapshotOptions}
-							fitToContent
-						/>
-
-						{#if !isReadOnly && $selectedSnapshotId == null}
 							<button
 								class="btn-secondary"
-								onclick={handleTakeSnapshot}
-								disabled={takeSnapshotMutation.isPending || !$selectedSiteId}
-								aria-label={topology_takeSnapshot()}
-								data-tooltip={topology_takeSnapshot()}
-								use:tooltip
+								onclick={() => openModal('topology-share')}
+								title={common_share()}
 							>
-								<Camera class="h-5 w-5" />
-								{#if !snapshotsEnabled}
-									<Tag label={common_upgrade()} color="Yellow" />
-								{/if}
+								<Share2 class="my-1 h-5 w-5" />
 							</button>
 						{/if}
+					</div>
 
-						{#if !isReadOnly}
-							{#if $selectedSnapshotId}
-								<button
-									class="btn-danger"
-									onclick={handleDeleteSnapshot}
-									disabled={deleteSnapshotMutation.isPending}
-									title={common_delete()}
-								>
-									<Trash2 class="my-1 h-5 w-5" />
-								</button>
-							{/if}
-						{/if}
-
+					{#if !isReadOnly}
 						<div class="card-divider-v self-stretch"></div>
-
-						<div bind:this={viewSwitcherEl}>
-							<RichSelect
-								label=""
-								selectedValue={$activeView}
-								displayComponent={SimpleOptionDisplay}
-								onSelect={handleViewChange}
-								options={viewOptions}
-								minWidth="22rem"
-							/>
-						</div>
+						{#if activeSession}
+							{@const estimate = activeSession.estimated_remaining_secs}
+							<div
+								class="flex cursor-default flex-col items-center {discoveryColor.icon}"
+								data-tooltip={!hasCompletedFirstDiscovery && hasEmail
+									? common_firstDiscoveryEmailHint()
+									: ''}
+								use:tooltip
+							>
+								<div class="flex items-center">
+									<Radar class="mr-2 h-4 w-4 animate-pulse [animation-duration:5s]" />
+									{#if activeSession.progress > 0}
+										<span class="text-xs">{activeSession.progress}%</span>
+									{/if}
+								</div>
+								{#if estimate != null}
+									<span class="text-[10px]">~{Math.round(estimate / 60)} min left</span>
+								{:else}
+									<span class="text-[10px]">Estimating...</span>
+								{/if}
+							</div>
+							<div class="card-divider-v self-stretch"></div>
+						{/if}
 					{/if}
-				</div>
-
-				{#if $showViewSwitcherHint && viewSwitcherEl}
-					<ViewSwitcherHint anchor={viewSwitcherEl} />
 				{/if}
+
+				{#if sitesData.length > 0}
+					<RichSelect
+						label=""
+						selectedValue={$selectedSiteId ?? ''}
+						displayComponent={SiteDisplay}
+						onSelect={handleSiteChange}
+						options={sitesData}
+					/>
+
+					<div class="card-divider-v self-stretch"></div>
+
+					<RichSelect
+						label=""
+						selectedValue={$selectedSnapshotId ?? CURRENT_VIEW_SENTINEL}
+						displayComponent={snapshotDisplayWithLive}
+						onSelect={handleSnapshotChange}
+						options={snapshotOptions}
+						fitToContent
+					/>
+
+					{#if !isReadOnly && $selectedSnapshotId == null}
+						<button
+							class="btn-secondary"
+							onclick={handleTakeSnapshot}
+							disabled={takeSnapshotMutation.isPending || !$selectedSiteId}
+							aria-label={topology_takeSnapshot()}
+							data-tooltip={topology_takeSnapshot()}
+							use:tooltip
+						>
+							<Camera class="h-5 w-5" />
+							{#if !snapshotsEnabled}
+								<Tag label={common_upgrade()} color="Yellow" />
+							{/if}
+						</button>
+					{/if}
+
+					{#if !isReadOnly}
+						{#if $selectedSnapshotId}
+							<button
+								class="btn-danger"
+								onclick={handleDeleteSnapshot}
+								disabled={deleteSnapshotMutation.isPending}
+								title={common_delete()}
+							>
+								<Trash2 class="my-1 h-5 w-5" />
+							</button>
+						{/if}
+					{/if}
+
+					<div class="card-divider-v self-stretch"></div>
+
+					<div bind:this={viewSwitcherEl}>
+						<RichSelect
+							label=""
+							selectedValue={$activeView}
+							displayComponent={SimpleOptionDisplay}
+							onSelect={handleViewChange}
+							options={viewOptions}
+							minWidth="22rem"
+						/>
+					</div>
+				{/if}
+			</div>
+
+			{#if $showViewSwitcherHint && viewSwitcherEl}
+				<ViewSwitcherHint anchor={viewSwitcherEl} />
 			{/if}
 
-			{#if !topologyAccess && !onboarding.includes('FirstDiscoveryCompleted')}
-				<!-- Free before its first scan finishes: the plan prompt waits until there
-				     is something to map, and the scan's progress shows meanwhile. -->
-				<div
-					class="card-static card flex h-[calc(100vh-120px)] flex-col items-center justify-center gap-6 p-6"
-				>
-					<h2 class="text-center text-lg font-semibold text-primary">
-						{topology_readyWhenDiscoveryCompletes()}
-					</h2>
-					{#each activeSessionsQuery.data ?? [] as session (session.session_id)}
-						<div class="w-full max-w-md space-y-1">
-							<DiscoveryEstimation
-								phase={session.phase}
-								hosts_discovered={session.hosts_discovered}
-								estimated_remaining_secs={session.estimated_remaining_secs}
-								is_full_scan={isFullScan(session.discovery_type)}
-							/>
-							<SessionProgress
-								session_id={session.session_id}
-								phase={session.phase}
-								progress={session.progress}
-							/>
-						</div>
-					{/each}
-				</div>
-			{:else if isLoading}
+			{#if isLoading}
 				<Loading />
 			{:else if currentTopology}
 				<div class="relative" id="topology-view-area">
@@ -903,7 +872,10 @@
 						/>
 					{/if}
 					<TopologyViewer bind:this={topologyViewer} topology={currentTopology} {isActive} />
-					{#if !topologyAccess}
+					{#if !topologyAccess && !onboarding.includes('FirstDiscoveryCompleted')}
+						<!-- Free before its first scan finishes: progress, not the plan prompt. -->
+						<TopologyDiscoveryPendingOverlay />
+					{:else if !topologyAccess}
 						<!-- Free: the org's own diagram, shrouded, behind the plan prompt. -->
 						<TopologyPlanRequiredOverlay />
 					{:else if $showDependencyTutorial}

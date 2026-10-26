@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import billingPlansJson from '$lib/data/billing-plans.json';
 	import featuresJson from '$lib/data/features.json';
 	import BillingPlanForm from '$lib/features/billing/BillingPlanForm.svelte';
@@ -151,15 +152,14 @@
 		// go to Stripe Checkout. The payment-method dialog collects the card here
 		// instead (and offers invoice billing on self-hosted plans), then the
 		// backend creates the subscription. Cloud and self-hosted behave alike.
-		// A cloud plan's trial needs the card first too; a license trial doesn't.
-		const cloudTrialNeedsCard =
-			plan.trial_days > 0 && billingPlanHelpers.getMetadata(plan.type)?.license_plan == null;
-		if (
-			plan.base_cents > 0 &&
-			(isReturningCustomer || cloudTrialNeedsCard) &&
-			!canPay(organization) &&
-			!isCurrentlyTrialing
-		) {
+		// Every cloud trial needs the card first too, whether it starts here or an
+		// org already trialing (a license trial needs none) switches onto a cloud
+		// plan; the switch keeps the trial running.
+		const cloudPlan = billingPlanHelpers.getMetadata(plan.type)?.license_plan == null;
+		const needsCardFirst = isCurrentlyTrialing
+			? cloudPlan
+			: isReturningCustomer || (cloudPlan && plan.trial_days > 0);
+		if (plan.base_cents > 0 && needsCardFirst && !canPay(organization)) {
 			// Closed without the plan: nothing is bought yet, so the page must not lock
 			// onto the License tab over the dialog. The lock follows the webhook.
 			onClose();
@@ -231,6 +231,9 @@
 			stripeTab?.close();
 		}
 	}
+
+	// Stripe.js is ready before anyone opens the payment dialog from here.
+	usePreloadStripe(() => isOpen);
 </script>
 
 <GenericModal
