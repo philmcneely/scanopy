@@ -50,8 +50,9 @@
 <TopologyOverlay title={topology_planRequiredTitle()} size={scanning ? 'lg' : 'sm'} {actions}>
 	<div class="space-y-4 p-6">
 		<p class="text-sm text-secondary">{topology_planRequiredBody()}</p>
-		{#if scanning}
-			<!-- The scan's status in a panel of its own, apart from the pitch above. -->
+		{#if sessions.length > 0}
+			<!-- A running scan's status in a panel of its own, apart from the pitch above. With no
+			     scan running there is nothing to report or email about. -->
 			<InfoCard variant="compact">
 				{#each sessions as session (session.session_id)}
 					<SessionPhaseProgress {session} />

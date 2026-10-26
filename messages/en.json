@@ -3144,7 +3144,7 @@
 	"topology_optionsHint": "These settings apply to the entire topology",
 	"topology_parseFailed": "Failed to parse topology data: {error}",
 	"topology_planRequiredBody": "Free covers your inventory. Paid plans map how it connects: physical links, VLANs and the dependencies between your applications.",
-	"topology_planRequiredTitle": "See how your network connects",
+	"topology_planRequiredTitle": "See your network diagram",
 	"topology_searchContainerMatches": "{count} found inside",
 	"topology_searchMatchCount": "{current} of {total}",
 	"topology_searchNoMatches": "No matches",
