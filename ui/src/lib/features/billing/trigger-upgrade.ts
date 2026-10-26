@@ -35,7 +35,8 @@ export type PaywallSurface =
 	| 'api_keys_tab'
 	| 'shares_modal'
 	| 'topology_tab'
-	| 'credential_form';
+	| 'credential_form'
+	| 'app_banner';
 
 export type PaywallGateType = 'limit_hit' | 'plan_required';
 

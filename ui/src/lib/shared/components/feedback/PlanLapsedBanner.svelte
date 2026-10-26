@@ -6,7 +6,7 @@
 	import { isPlanLapsed } from '$lib/features/organizations/types';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
-	import { openModal } from '$lib/shared/stores/modal-registry';
+	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import {
 		billing_lapsedBannerAskOwner,
 		billing_lapsedBannerBody,
@@ -37,7 +37,7 @@
 		{#snippet actions()}
 			{#if isOwner}
 				<button
-					onclick={() => openModal('billing-plan')}
+					onclick={() => triggerUpgrade({ source: 'plan_lapsed_banner', surface: 'app_banner' })}
 					class="ml-2 rounded-sm px-2 py-0.5 text-xs font-medium underline hover:no-underline"
 				>
 					{billing_lapsedBannerCta()}
