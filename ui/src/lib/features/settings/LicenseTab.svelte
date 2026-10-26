@@ -494,13 +494,17 @@
 										</button>
 									{/if}
 								</div>
-								<DocsHint
-									class="mt-2"
-									text={settings_billing_license_installHint()}
-									href="https://scanopy.net/docs/self-hosted-server/installation/?edition=commercial"
-									linkText={settings_billing_license_installLinkText()}
-									disabled={preview}
-								/>
+								<!-- What to do with the key, once there is one. The preview keeps it as
+								     part of showing what a self-hosted plan gives. -->
+								{#if currentKey || preview}
+									<DocsHint
+										class="mt-2"
+										text={settings_billing_license_installHint()}
+										href="https://scanopy.net/docs/self-hosted-server/installation/?edition=commercial"
+										linkText={settings_billing_license_installLinkText()}
+										disabled={preview}
+									/>
+								{/if}
 							</div>
 						</div>
 					</div>
