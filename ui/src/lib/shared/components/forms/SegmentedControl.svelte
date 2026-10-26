@@ -67,7 +67,10 @@
 		openTimeout = setTimeout(() => openPopover(anchor, content), 300);
 	}
 
-	function handlePointerLeave() {
+	// A touch pointer leaves as soon as the finger lifts, so a tap-opened popover
+	// would close the moment it appeared. It closes on a tap outside instead.
+	function handlePointerLeave(e?: PointerEvent) {
+		if (e?.pointerType === 'touch') return;
 		clearTimeout(openTimeout);
 		closeTimeout = setTimeout(() => {
 			if (!popoverEntered) closePopover();
