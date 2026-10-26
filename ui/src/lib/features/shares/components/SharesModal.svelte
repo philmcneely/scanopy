@@ -27,7 +27,6 @@
 	import { useTopologiesQuery } from '$lib/features/topology/queries';
 	import { billingPlans, entities } from '$lib/shared/stores/metadata';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
-	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import {
 		common_close,
@@ -302,13 +301,13 @@
 
 	{#if !hasShareViews}
 		<div class="flex min-h-0 flex-1 flex-col items-center justify-center p-6">
-			<EmptyState title={shares_noSharesYet()} subtitle={shares_noSharesSubtitle()}>
-				<CreateButton
-					onclick={handleCreateNew}
-					label={common_createNew()}
-					upgrade={{ feature: 'share_views', surface: 'shares_modal' }}
-				/>
-			</EmptyState>
+			<EmptyState
+				title={shares_noSharesYet()}
+				subtitle={shares_noSharesSubtitle()}
+				onClick={handleCreateNew}
+				cta={common_createNew()}
+				upgrade={{ feature: 'share_views', surface: 'shares_modal' }}
+			/>
 		</div>
 	{:else}
 		<div class="flex min-h-0 flex-1 flex-col">
