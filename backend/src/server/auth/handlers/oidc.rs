@@ -438,7 +438,7 @@ async fn handle_login_flow(
                 let plan = org
                     .base
                     .plan
-                    .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+                    ;
                 if plan.is_demo() && !is_demo_host(&host) {
                     return Err(ErrorRedirect::to(&format!(
                         "{}?error={}",

@@ -1,3 +1,4 @@
+use crate::server::auth::middleware::features::ensure_tagging_allowed;
 use crate::server::auth::middleware::permissions::{Authorized, Member, Viewer};
 use crate::server::hosts::r#impl::base::{Host, host_primary_address_join};
 use crate::server::services::definitions::ServiceDefinitionRegistry;
@@ -423,6 +424,13 @@ pub async fn create_service(
         && host.base.site_id != request.site_id()
     {
         return Err(ApiError::entity_site_mismatch::<Host>());
+    }
+
+    if !request.tags.is_empty() {
+        let organization_id = auth
+            .organization_id()
+            .ok_or_else(ApiError::organization_required)?;
+        ensure_tagging_allowed(&state, &organization_id).await?;
     }
 
     // Convert request to Service entity

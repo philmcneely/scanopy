@@ -333,7 +333,7 @@ impl OrganizationService {
                 locked.org.base.license_key_issued_at = Some(issued_at);
                 let organization = locked.save_quietly().await?;
                 let issued = BillingOperation::LicenseKeyIssued {
-                    plan: organization.base.plan,
+                    plan: Some(organization.base.plan),
                     key_version: organization.base.license_key_version,
                 };
                 (issued_at, Some(issued))
@@ -554,7 +554,7 @@ impl OrganizationService {
                     .org
                     .base
                     .plan
-                    .unwrap_or_else(crate::server::billing::plans::get_community_plan);
+                    ;
                 if current == target {
                     locked.release().await?;
                     return Ok(false);

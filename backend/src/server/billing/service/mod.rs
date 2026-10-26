@@ -1,6 +1,5 @@
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::billing::plans::YEARLY_DISCOUNT;
-use crate::server::billing::plans::default_trial_plan;
 use crate::server::billing::plans::get_enterprise_plan;
 use crate::server::billing::plans::get_free_plan;
 use crate::server::billing::types::api::{

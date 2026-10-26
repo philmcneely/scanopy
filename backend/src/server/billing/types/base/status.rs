@@ -35,10 +35,10 @@ pub enum PlanStatus {
     PastDue,
     Paused,
     PendingCancellation,
-    /// The subscription has ended (an unpaid trial ran out, or a scheduled
-    /// cancellation reached its period end) and the org has not chosen a
-    /// paid plan since. The org keeps its plan; the billing middleware makes
-    /// the app read-only until it does.
+    /// A license plan's subscription has ended (an unpaid trial ran out, or a
+    /// scheduled cancellation reached its period end) and the org has not
+    /// chosen a paid plan since. The org keeps its plan and its key runs out on
+    /// schedule. A cloud plan that ends lands on Free with no status instead.
     ///
     /// `canceled` (American) is the legacy spelling Stripe's
     /// `SubscriptionStatus` serializes with, and pre-Phase-5 writers

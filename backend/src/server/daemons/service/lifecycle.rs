@@ -122,26 +122,41 @@ impl DaemonService {
             })
     }
 
-    /// Whether an unverified org has reached its daemon limit (1 daemon): it already has a
-    /// daemon and no owner has verified their email. The first daemon is always allowed so
-    /// users can experience core product value. Never reached on a server with no email
-    /// transport, where no owner could receive a verification link.
-    pub async fn unverified_daemon_limit_reached(&self, org_id: Uuid) -> Result<bool, ApiError> {
-        if !self.has_email_service {
-            return Ok(false);
+    /// Which limit, if any, stops this org adding another daemon. An org gets one daemon
+    /// while it is on Free, and one while no owner has verified their email. The first daemon
+    /// is always allowed so users can experience core product value. Free comes first, because
+    /// verifying an email would not lift it. The email limit is never reached on a server with
+    /// no email transport, where no owner could receive a verification link.
+    pub async fn daemon_limit_reached(&self, org_id: Uuid) -> Result<Option<DaemonLimit>, ApiError> {
+        if !self.org_has_daemon(org_id).await {
+            return Ok(None);
         }
 
+        let on_free = self
+            .organization_service
+            .get_by_id(&org_id)
+            .await
+            .map_err(|e| ApiError::internal_error(&e.to_string()))?
+            .is_some_and(|org| org.base.plan.is_free());
+        if on_free {
+            return Ok(Some(DaemonLimit::PlanRequired));
+        }
+
+        if !self.has_email_service {
+            return Ok(None);
+        }
         let owners = self
             .user_service
             .get_organization_owners(&org_id)
             .await
             .map_err(|e| ApiError::internal_error(&e.to_string()))?;
-
-        let any_verified = owners.iter().any(|u| u.base.email_verified);
-        if any_verified {
-            return Ok(false);
+        if owners.iter().any(|u| u.base.email_verified) {
+            return Ok(None);
         }
+        Ok(Some(DaemonLimit::EmailVerification))
+    }
 
+    async fn org_has_daemon(&self, org_id: Uuid) -> bool {
         // Get sites for this org, then count daemons on those sites
         let sites = self
             .site_service
@@ -151,26 +166,25 @@ impl DaemonService {
 
         let site_ids: Vec<Uuid> = sites.iter().map(|n| n.id).collect();
         if site_ids.is_empty() {
-            return Ok(false);
+            return false;
         }
 
-        let all_daemons = self
+        !self
             .get_all(StorableFilter::<Daemon>::new_from_site_ids(&site_ids))
             .await
-            .unwrap_or_default();
-
-        Ok(!all_daemons.is_empty())
+            .unwrap_or_default()
+            .is_empty()
     }
 
-    /// Refuse a new daemon while [`Self::unverified_daemon_limit_reached`].
-    pub async fn check_unverified_daemon_limit(&self, org_id: Uuid) -> Result<(), ApiError> {
-        if self.unverified_daemon_limit_reached(org_id).await? {
-            return Err(ApiError::coded(
-                axum::http::StatusCode::FORBIDDEN,
-                crate::server::shared::types::error_codes::ErrorCode::AuthEmailVerificationRequired,
-            ));
-        }
-        Ok(())
+    /// Refuse a new daemon while [`Self::daemon_limit_reached`].
+    pub async fn check_daemon_limit(&self, org_id: Uuid) -> Result<(), ApiError> {
+        use crate::server::shared::types::error_codes::ErrorCode;
+        let code = match self.daemon_limit_reached(org_id).await? {
+            None => return Ok(()),
+            Some(DaemonLimit::PlanRequired) => ErrorCode::DaemonPlanRequired,
+            Some(DaemonLimit::EmailVerification) => ErrorCode::AuthEmailVerificationRequired,
+        };
+        Err(ApiError::coded(axum::http::StatusCode::FORBIDDEN, code))
     }
 
     /// Logs a warning if a daemon URL uses HTTP (credentials sent in plaintext).

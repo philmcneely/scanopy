@@ -19,11 +19,7 @@ impl BillingService {
             .get_by_id(&organization_id)
             .await?
         {
-            let has_non_free_plan = organization
-                .base
-                .plan
-                .as_ref()
-                .is_some_and(|p| !p.is_free());
+            let has_non_free_plan = !organization.base.plan.is_free();
             let has_trialed = organization.base.trial_end_date.is_some();
             has_non_free_plan || has_trialed
         } else {
@@ -119,83 +115,45 @@ impl BillingService {
         Ok(session)
     }
 
-    /// Activate the Free plan directly without Stripe.
-    /// Plan/status is now derived from the subscriptions ledger via the
-    /// CheckoutCompleted billing event below.
-    pub async fn activate_free_plan(
-        &self,
-        organization_id: Uuid,
-        plan: BillingPlan,
-        authentication: AuthenticatedEntity,
-    ) -> Result<String, Error> {
-        let locked = self
-            .organization_service
-            .lock_for_update(organization_id)
-            .await?
-            .ok_or_else(|| anyhow!("Organization {} doesn't exist.", organization_id))?;
-
-        // PlanSelected onboarding milestone, published only the first time
-        let milestone = Event::new(
-            OrgScope { organization_id },
-            OnboardingOperation::PlanSelected { plan },
-            authentication.clone(),
-        );
-
-        // CheckoutCompleted billing event
-        let plan_config = plan.config();
-        let checkout = Event::new(
-            OrgScope { organization_id },
-            BillingOperation::CheckoutCompleted {
-                plan,
-                included_sites: plan_config.included_sites,
-                included_seats: plan_config.included_seats,
-                mrr_amount_cents: 0,
-                is_trialing: false,
-                // Free direct-activation has no Stripe sub.
-                next_renewal_at: None,
-            },
-            authentication,
-        );
-        self.organization_service
-            .commit_billing(locked, Some(milestone), vec![checkout])
-            .await?;
-
-        Ok("Free plan activated!".to_string())
-    }
-
-    /// Create a trial subscription directly via the Stripe API, skipping Checkout
+    /// Create a trial subscription directly via the Stripe API, skipping Checkout. A cloud
+    /// plan's trial needs a payment method on file first, so it converts when the trial ends;
+    /// the picker collects the card before asking for the trial. A license plan's trial needs
+    /// none.
     pub async fn create_trial_subscription(
         &self,
         organization_id: Uuid,
         plan: BillingPlan,
         authentication: AuthenticatedEntity,
     ) -> Result<String, Error> {
+        // Asked of Stripe rather than the `has_payment_method` mirror, which lags a card the
+        // payment dialog has just saved.
+        if plan.license_plan().is_none()
+            && !self.customer_has_payment_method(organization_id).await?
+        {
+            return Err(crate::server::shared::types::api::ValidationError::new(
+                "Add a payment method to start a trial of this plan.",
+            )
+            .into());
+        }
         self.start_trial(organization_id, plan, authentication, false)
             .await
     }
 
-    /// Start a plan-less org's trial on its default plan ([`default_trial_plan`]), so a new
-    /// user reaches the app without picking one. `license` picks the self-hosted tier: signup
-    /// names no site only for a self-hosted license buyer. Returns `Ok(None)` when the org
-    /// already has a plan. A repeat before the webhook writes the plan reaches Stripe with the
-    /// same per-org idempotency key and gets the first subscription back.
+    /// Start the trial of the license plan a self-hosted license buyer signed up on, so they
+    /// get their key without picking a plan. Returns `Ok(None)` when the org is not on a
+    /// license plan, or its subscription has already started. A repeat before the
+    /// subscription lands reaches Stripe with the same per-org idempotency key and gets the
+    /// first subscription back.
     pub async fn start_default_trial(
         &self,
         organization_id: Uuid,
-        license: bool,
         authentication: AuthenticatedEntity,
     ) -> Result<Option<String>, Error> {
-        if self
-            .get_organization(organization_id)
-            .await?
-            .base
-            .plan
-            .is_some()
-        {
+        let organization = self.get_organization(organization_id).await?;
+        let plan = organization.base.plan;
+        if plan.license_plan().is_none() || organization.base.plan_status.is_some() {
             return Ok(None);
         }
-        let plan = default_trial_plan(&self.get_plans(), license)
-            .ok_or_else(|| anyhow!("No default trial plan is configured"))?;
         self.start_trial(organization_id, plan, authentication, true)
             .await
             .map(Some)
@@ -365,7 +323,7 @@ impl BillingService {
         let plan = organization
             .base
             .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+            ;
         if plan.is_free() {
             // Free plan has no addons to update.
             return Ok(());

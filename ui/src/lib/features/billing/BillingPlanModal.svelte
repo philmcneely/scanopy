@@ -139,7 +139,15 @@
 		// go to Stripe Checkout. The payment-method dialog collects the card here
 		// instead (and offers invoice billing on self-hosted plans), then the
 		// backend creates the subscription. Cloud and self-hosted behave alike.
-		if (plan.base_cents > 0 && isReturningCustomer && !canPay(organization)) {
+		// A cloud plan's trial needs the card first too; a license trial doesn't.
+		const cloudTrialNeedsCard =
+			plan.trial_days > 0 && billingPlanHelpers.getMetadata(plan.type)?.license_plan == null;
+		if (
+			plan.base_cents > 0 &&
+			(isReturningCustomer || cloudTrialNeedsCard) &&
+			!canPay(organization) &&
+			!isCurrentlyTrialing
+		) {
 			// Closed without the plan: nothing is bought yet, so the page must not lock
 			// onto the License tab over the dialog. The lock follows the webhook.
 			onClose();

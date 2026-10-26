@@ -73,7 +73,7 @@ impl Subscriber<EntityOperation> for BillingService {
             let plan = org
                 .base
                 .plan
-                .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+                ;
             if plan.config().seat_cents.is_none() && plan.config().site_cents.is_none() {
                 continue;
             }
@@ -93,9 +93,10 @@ impl Subscriber<EntityOperation> for BillingService {
 }
 inventory::submit!(SubscriberRegistration::new::<BillingService, EntityOperation>());
 
-/// Starts a new cloud org's trial at signup, so the user reaches the app without picking a plan.
-/// Only cloud runs a `BillingService`, and a self-hosted server's org already carries its license
-/// plan. A failure leaves the org without a plan, on the plan picker the app shows for that case.
+/// Starts a self-hosted license buyer's trial at signup, on the license plan the org was created
+/// with, so the key is ready without a plan pick. A cloud signup starts on Free and starts its own
+/// trial from the plan picker. Only cloud runs a `BillingService`. A failure leaves the org on its
+/// license plan with no subscription, which the app shows with the plan picker.
 #[async_trait]
 impl Subscriber<OnboardingOperation> for BillingService {
     fn filter(&self) -> EventFilter<OnboardingOperation> {
@@ -104,25 +105,19 @@ impl Subscriber<OnboardingOperation> for BillingService {
 
     async fn handle(&self, events: Vec<Event<OnboardingOperation>>) -> Result<(), Error> {
         for event in events {
-            let OnboardingOperation::OrgCreated {
-                plan: None, site, ..
-            } = &event.operation
-            else {
+            // Signup names no site only for a license buyer.
+            let OnboardingOperation::OrgCreated { site: None, .. } = &event.operation else {
                 continue;
             };
             let organization_id = event.scope.organization_id;
             if let Err(e) = self
-                .start_default_trial(
-                    organization_id,
-                    site.is_none(),
-                    event.authentication.clone(),
-                )
+                .start_default_trial(organization_id, event.authentication.clone())
                 .await
             {
                 tracing::warn!(
                     %organization_id,
                     error = %e,
-                    "Could not start the default trial at signup; the org stays on the plan picker"
+                    "Could not start the license trial at signup; the org stays on the plan picker"
                 );
             }
         }

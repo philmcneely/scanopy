@@ -1,7 +1,7 @@
 use super::{Body, Content, Email, EmailCategory, links};
 
-/// Sent when a cancelled subscription reaches its period end: the org keeps
-/// its plan and is read-only until it chooses a paid plan, with a resubscribe
+/// Sent when a cancelled cloud subscription reaches its period end: the org
+/// moves to Free, with a resubscribe
 /// CTA.
 pub struct SubscriptionCancelled<'a> {
     pub period_end_date: &'a str,
@@ -27,7 +27,7 @@ impl Email for SubscriptionCancelled<'_> {
                     .heading("Subscription Cancelled")
                     .paragraph("Hi there,")
                     .paragraph(&format!(
-                        "Your Scanopy subscription ended on {}. Your account is now read-only: you can still see everything Scanopy found, but scans, edits and daemon work are paused.",
+                        "Your Scanopy subscription ended on {}, and your organization is now on Free. Everything Scanopy found is still here, and your daemons still run the scans you start. The topology view, tagging and scheduled scans come back when you choose a plan.",
                         self.period_end_date
                     ))
                     .paragraph("Choose a paid plan from Settings to resume. Your sites, hosts and schedules are all still there."),

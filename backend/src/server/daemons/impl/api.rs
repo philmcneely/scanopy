@@ -715,6 +715,9 @@ pub struct ProvisionEligibility {
     /// The organization already has a daemon and no owner has verified their email, so a new
     /// daemon is refused until one does.
     pub email_verification_required: bool,
+    /// The organization already has a daemon and is on Free, which runs one, so a new daemon
+    /// is refused until it chooses a plan.
+    pub plan_required: bool,
 }
 
 /// Response from a reachability test.

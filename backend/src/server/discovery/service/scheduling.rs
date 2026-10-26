@@ -188,8 +188,8 @@ impl DiscoveryService {
                             Some(o) if o.discovery_paused(service.deployment_type) => {
                                 Some("cloud organization is on a self-hosted license plan")
                             }
-                            Some(o) if o.base.plan.is_none_or(|p| p.is_free()) => {
-                                Some("organization has no paid plan")
+                            Some(o) if o.base.plan.is_free() => {
+                                Some("organization is on the Free plan")
                             }
                             Some(_) => None,
                         }

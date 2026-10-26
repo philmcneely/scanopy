@@ -46,7 +46,7 @@ pub(crate) async fn login(
             .organization_service
             .get_by_id(&user.base.organization_id)
             .await?
-            .and_then(|o| o.base.plan)
+            .map(|o| o.base.plan)
             .unwrap_or_else(crate::server::billing::plans::get_free_plan);
         if plan.is_demo() && !is_demo_host(&host) {
             return Err(ApiError::forbidden(
@@ -205,6 +205,6 @@ async fn with_org_terms_gate(state: &AppState, user: User) -> ApiResult<User> {
         .organization_service
         .get_by_id(&user.base.organization_id)
         .await?
-        .and_then(|o| o.base.plan);
+        .map(|o| o.base.plan);
     Ok(with_terms_gate(state, user, plan.as_ref()))
 }

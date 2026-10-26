@@ -487,7 +487,7 @@ impl Subscriber<EntityOperation> for OrgSetupService {
                         .await?;
                     if reset_gets_cloud_setup(
                         self.deployment_type,
-                        org.base.plan.as_ref(),
+                        Some(&org.base.plan),
                         *had_sites,
                     ) {
                         self.seed_cloud_setup(organization_id, None, event.authentication.clone())

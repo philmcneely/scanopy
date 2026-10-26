@@ -236,7 +236,7 @@ impl LicenseResumeCase {
         checked_out_org(state, org_id).await;
         let service = &state.services.organization_service;
         let mut org = service.get_by_id(&org_id).await.unwrap().unwrap();
-        org.base.plan = Some(plan);
+        org.base.plan = plan;
         org.base.plan_status = Some(PlanStatus::Cancelled);
         service
             .update(
@@ -334,7 +334,7 @@ async fn a_failed_subscription_lookup_creates_nothing() {
 /// it, instead of answering 200 and leaving the org on a plan it no longer
 /// pays for.
 #[tokio::test]
-async fn a_failed_deletion_is_redelivered_and_lapses_the_org() {
+async fn a_failed_deletion_is_redelivered_and_lands_the_org_on_free() {
     let (state, _container) = test_state_with_email_dir(None).await;
     let org_id = Uuid::new_v4();
     let subscription = Endpoint::new(subscription_for(org_id));
@@ -377,8 +377,7 @@ async fn a_failed_deletion_is_redelivered_and_lapses_the_org() {
 
     try_deliver(&billing, &deleted).await.unwrap();
     assert_eq!(published(&mut events, is_cancellation), 1);
-    assert_eq!(
-        reload(&state, org_id).await.base.plan_status,
-        Some(PlanStatus::Cancelled)
-    );
+    let ended = reload(&state, org_id).await;
+    assert!(ended.base.plan.is_free());
+    assert_eq!(ended.base.plan_status, None);
 }

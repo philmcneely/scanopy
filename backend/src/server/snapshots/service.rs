@@ -363,7 +363,7 @@ impl SnapshotService {
             let plan = org
                 .base
                 .plan
-                .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+                ;
             let days = plan.snapshot_retention_days(env_override);
             if let Err(e) = self.trim_org(org.id, days).await {
                 tracing::error!(

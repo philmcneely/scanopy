@@ -7,12 +7,9 @@ use crate::server::billing::types::api::{
 use crate::server::billing::types::base::BillingPlan;
 use crate::server::config::AppState;
 use crate::server::openapi::tags as api_tags;
-use crate::server::shared::services::traits::CrudService;
-use crate::server::shared::storage::filter::StorableFilter;
 use crate::server::shared::types::ErrorCode;
 use crate::server::shared::types::api::{ApiError, ApiJson, ApiResult};
 use crate::server::shared::types::api::{ApiErrorResponse, ApiResponse, EmptyApiResponse};
-use crate::server::sites::r#impl::Site;
 use axum::Json;
 use axum::extract::State;
 use axum::http::HeaderMap;
@@ -33,7 +30,6 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(create_portal_session))
         .routes(routes!(pause_subscription))
         .routes(routes!(resume_subscription))
-        .routes(routes!(start_default_trial))
         .routes(routes!(extend_trial))
         .routes(routes!(end_trial))
         .routes(routes!(cancel_subscription))
@@ -116,25 +112,21 @@ async fn create_checkout_session(
             ));
         }
 
+        // Free is where a cloud org starts and where an ended cloud plan
+        // lands; nobody picks it. Ending a subscription is Cancel Subscription.
+        if request.plan.is_free() {
+            return Err(ApiError::bad_request(
+                "Free can't be chosen. Cancel your subscription to move to Free when it ends.",
+            ));
+        }
+
         let plan_status = org.base.plan_status;
         // A lapsed org has no live subscription to modify or schedule against:
-        // its way back is a new paid subscription, never Free.
+        // its way back is a new paid subscription.
         let is_lapsed = org.is_lapsed();
 
         if plan_status.is_some() && org.base.stripe_customer_id.is_some() {
-            if request.plan.is_free() {
-                if is_lapsed {
-                    return Err(ApiError::bad_request(
-                        "A lapsed organization needs a paid plan",
-                    ));
-                }
-                // Cancel at the end of the billing cycle; the org then lapses
-                // on its plan.
-                let result = billing_service
-                    .schedule_downgrade(organization_id, auth.into_entity())
-                    .await?;
-                Ok(Json(ApiResponse::success(result)))
-            } else {
+            {
                 // Paid target — check trial eligibility and payment state
                 use crate::server::billing::types::base::PlanStatus;
                 let is_currently_trialing = plan_status == Some(PlanStatus::Trialing);
@@ -147,7 +139,7 @@ async fn create_checkout_session(
                     return Ok(Json(ApiResponse::success(result)));
                 }
 
-                let has_non_free_plan = org.base.plan.as_ref().is_some_and(|p| !p.is_free());
+                let has_non_free_plan = !org.base.plan.is_free();
                 let is_returning = has_non_free_plan || org.base.trial_end_date.is_some();
                 let is_trial_eligible = !is_returning && request.plan.config().trial_days > 0;
 
@@ -211,17 +203,23 @@ async fn create_checkout_session(
                 }
             }
         } else {
-            // First-time subscriber
-            if request.plan.is_free() {
-                // Free plan — activate directly, no Stripe needed
-                let result = billing_service
-                    .activate_free_plan(organization_id, request.plan, auth.into_entity())
-                    .await?;
-                Ok(Json(ApiResponse::success(result)))
-            } else if request.plan.config().trial_days > 0 {
-                // Trial plan — create subscription directly, skip Checkout
+            // No subscription: an org on Free, or a license signup whose
+            // trial hasn't started. A trial is offered once per org.
+            if request.plan.config().trial_days > 0 && org.base.trial_end_date.is_none() {
+                // Trial plan — create subscription directly, skip Checkout. A
+                // cloud plan's trial refuses without a card on file.
                 let result = billing_service
                     .create_trial_subscription(organization_id, request.plan, auth.into_entity())
+                    .await?;
+                Ok(Json(ApiResponse::success(result)))
+            } else if org.base.stripe_customer_id.is_some()
+                && billing_service
+                    .customer_has_payment_method(organization_id)
+                    .await?
+            {
+                // Trial used, card on file — subscribe here rather than in Checkout.
+                let result = billing_service
+                    .create_paid_subscription(organization_id, request.plan, auth.into_entity())
                     .await?;
                 Ok(Json(ApiResponse::success(result)))
             } else {
@@ -554,44 +552,6 @@ async fn reactivate_subscription(
     } else {
         Err(ApiError::billing_setup_incomplete())
     }
-}
-
-/// Start the default trial for an org that has no plan
-///
-/// Signup starts it on its own; this covers orgs created before that, and a signup whose start
-/// failed. A cloud org without a site is a self-hosted license buyer's, so it gets the license
-/// trial. Returns `null` when the org already has a plan.
-#[utoipa::path(
-    post,
-    path = "/start-trial",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
-    responses(
-        (status = 200, description = "Trial started, or `null` when the org already has a plan", body = ApiResponse<Option<String>>),
-        (status = 400, description = "Trial already used or billing not enabled", body = ApiErrorResponse),
-    ),
-    security(("user_api_key" = []), ("session" = []))
-)]
-async fn start_default_trial(
-    State(state): State<Arc<AppState>>,
-    auth: Authorized<Owner>,
-) -> ApiResult<Json<ApiResponse<Option<String>>>> {
-    let organization_id = auth
-        .organization_id()
-        .ok_or_else(ApiError::organization_required)?;
-
-    let Some(billing_service) = state.services.billing_service.clone() else {
-        return Err(ApiError::billing_setup_incomplete());
-    };
-    let has_site = !state
-        .services
-        .site_service
-        .get_all(StorableFilter::<Site>::new_from_org_id(&organization_id))
-        .await?
-        .is_empty();
-    let result = billing_service
-        .start_default_trial(organization_id, !has_site, auth.into_entity())
-        .await?;
-    Ok(Json(ApiResponse::success(result)))
 }
 
 /// Self-serve trial extend (+7 days, once per org lifetime)

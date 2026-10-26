@@ -86,9 +86,17 @@ pub fn get_free_plan() -> BillingPlan {
         host_cents: None,
         included_seats: Some(1),
         included_sites: Some(1),
-        included_hosts: Some(25),
+        included_hosts: None,
         included_orgs: None,
     })
+}
+
+/// Free is where a cloud organization starts and where a lapsed cloud plan
+/// lands, so it is the plan an organization has when nothing else is known.
+impl Default for BillingPlan {
+    fn default() -> Self {
+        get_free_plan()
+    }
 }
 
 pub fn get_community_plan() -> BillingPlan {
@@ -205,34 +213,4 @@ pub fn get_purchasable_plans() -> Vec<BillingPlan> {
     all_plans.push(get_self_hosted_plus_plan());
 
     all_plans
-}
-
-/// The plan a new cloud org's trial starts on, so signup needs no plan pick: monthly Pro, or
-/// Self-Hosted Standard for a self-hosted license buyer. Taken from `plans`, the configured list,
-/// so price and trial length come from the same rows checkout validates against. `None` before
-/// Stripe products are initialized, when the list is empty.
-pub fn default_trial_plan(plans: &[BillingPlan], license: bool) -> Option<BillingPlan> {
-    plans.iter().copied().find(|plan| match plan {
-        BillingPlan::SelfHostedStandard(_) => license,
-        BillingPlan::Pro(config) => !license && config.rate == BillingRate::Month,
-        _ => false,
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Signup starts its trial on this plan, so it has to offer a trial and sit
-    /// on the hosting the signup asked for.
-    #[test]
-    fn the_default_trial_plan_trials_on_the_requested_hosting() {
-        let plans = get_purchasable_plans();
-        for license in [false, true] {
-            let plan = default_trial_plan(&plans, license).expect("a default trial plan");
-            assert!(plan.config().trial_days > 0, "{plan:?}");
-            assert_eq!(plan.license_plan().is_some(), license, "{plan:?}");
-        }
-        assert_eq!(default_trial_plan(&[], false), None);
-    }
 }

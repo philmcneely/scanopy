@@ -56,7 +56,7 @@ async fn sign_up(state: &AppState, email: &str) -> anyhow::Result<Uuid> {
     Ok(user.base.organization_id)
 }
 
-async fn plan_of(state: &AppState, organization_id: Uuid) -> Option<BillingPlan> {
+async fn plan_of(state: &AppState, organization_id: Uuid) -> BillingPlan {
     state
         .services
         .organization_service
@@ -87,7 +87,7 @@ async fn a_self_hosted_server_gives_the_license_plan_and_caps_new_orgs() {
     let org = sign_up(&state, "first@example.com").await.unwrap();
     assert!(matches!(
         plan_of(&state, org).await,
-        Some(BillingPlan::Community(_))
+        BillingPlan::Community(_)
     ));
     assert!(org_limit_reached(&state).await);
 
@@ -108,13 +108,13 @@ async fn a_self_hosted_server_gives_the_license_plan_and_caps_new_orgs() {
 }
 
 #[tokio::test]
-async fn cloud_leaves_new_orgs_without_a_plan_and_never_caps_them() {
+async fn cloud_starts_new_orgs_on_free_and_never_caps_them() {
     let (state, _container) = cloud_test_state().await;
 
     let first = sign_up(&state, "first@example.com").await.unwrap();
     let second = sign_up(&state, "second@example.com").await.unwrap();
-    assert!(plan_of(&state, first).await.is_none());
-    assert!(plan_of(&state, second).await.is_none());
+    assert!(plan_of(&state, first).await.is_free());
+    assert!(plan_of(&state, second).await.is_free());
     assert!(!org_limit_reached(&state).await);
 
     assert_eq!(

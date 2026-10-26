@@ -11,7 +11,7 @@ use axum::body::Body;
 use axum::extract::State;
 use axum::http::{HeaderMap, Request, StatusCode};
 use axum::middleware::{self, Next};
-use axum::routing::{get, put};
+use axum::routing::get;
 use axum::{Json, Router};
 use axum_client_ip::ClientIp;
 use chrono::{DateTime, Duration, Utc};
@@ -23,7 +23,7 @@ use super::{organization, setup_test_db, user};
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::auth::middleware::billing::require_billing_for_users;
 use crate::server::billing::plans::{
-    get_enterprise_plan, get_self_hosted_plus_plan, get_self_hosted_standard_plan,
+    get_enterprise_plan, get_free_plan, get_self_hosted_plus_plan, get_self_hosted_standard_plan,
 };
 use crate::server::billing::types::base::{
     BillingInvoice, BillingInvoiceLineItem, BillingPlan, BillingReason, InvoiceCollection,
@@ -98,7 +98,7 @@ pub(super) async fn create_org(
     paid_through: Option<DateTime<Utc>>,
 ) -> Organization {
     let mut org = organization();
-    org.base.plan = Some(plan);
+    org.base.plan = plan;
     org.base.plan_status = Some(PlanStatus::Trialing);
     org.base.license_paid_through = paid_through;
     state
@@ -112,7 +112,7 @@ pub(super) async fn create_org(
 async fn set_plan(state: &AppState, organization_id: Uuid, plan: BillingPlan) {
     let service = &state.services.organization_service;
     let mut org = service.get_by_id(&organization_id).await.unwrap().unwrap();
-    org.base.plan = Some(plan);
+    org.base.plan = plan;
     service
         .update(
             &mut org,
@@ -457,10 +457,11 @@ fn pro_plan() -> BillingPlan {
         .unwrap()
 }
 
-/// A cloud org whose subscription ends stays on its plan, lapsed, rather
-/// than moving to Free; the subscription mirrors are cleared.
+/// A cloud org whose subscription ends lands on Free with no status, records
+/// the plan it came from, and is not lapsed; the subscription mirrors are
+/// cleared.
 #[tokio::test]
-async fn a_cloud_org_lapses_on_its_plan_when_the_subscription_ends() {
+async fn a_cloud_org_lands_on_free_when_the_subscription_ends() {
     let (state, _container) = test_state().await;
     let service = &state.services.organization_service;
     let org = create_org(&state, pro_plan(), None).await;
@@ -504,75 +505,15 @@ async fn a_cloud_org_lapses_on_its_plan_when_the_subscription_ends() {
         .await
         .unwrap();
 
-    let lapsed = reload(&state, org.id).await;
-    assert_eq!(lapsed.base.plan, Some(pro_plan()));
-    assert_eq!(lapsed.base.plan_status, Some(PlanStatus::Cancelled));
-    assert!(lapsed.is_lapsed());
-    assert!(lapsed.base.last_downgrade_from_plan.is_none());
-    assert!(lapsed.base.next_renewal_at.is_none());
-    assert!(lapsed.base.discount_save_offer_percent_off.is_none());
-    assert!(lapsed.base.discount_save_offer_active_until.is_none());
-}
-
-/// A lapsed cloud org reads everything, edits nothing, and keeps the
-/// Settings routes it needs to choose a plan again.
-#[tokio::test]
-async fn billing_middleware_makes_a_lapsed_cloud_org_read_only() {
-    let (state, _container) = test_state().await;
-    let org = create_org(&state, pro_plan(), None).await;
-    set_plan_status(&state, org.id, Some(PlanStatus::Cancelled)).await;
-    let owner = AuthenticatedEntity::User {
-        user_id: Uuid::new_v4(),
-        organization_id: org.id,
-        permissions: UserOrgPermissions::Owner,
-        site_ids: vec![],
-        email: EmailAddress::new_unchecked("owner@example.com"),
-        email_verified: true,
-        terms_accepted_at: None,
-    };
-    let org_path = format!("/api/v1/organizations/{}", org.id);
-
-    let app = Router::new()
-        .route(
-            "/api/v1/hosts",
-            get(|| async { "ok" }).post(|| async { "ok" }),
-        )
-        .route("/api/v1/organizations/{id}", put(|| async { "ok" }))
-        .layer(middleware::from_fn_with_state(
-            state.clone(),
-            require_billing_for_users,
-        ))
-        .layer(middleware::from_fn(
-            move |mut request: Request<Body>, next: Next| {
-                let owner = owner.clone();
-                async move {
-                    request.extensions_mut().insert(owner);
-                    next.run(request).await
-                }
-            },
-        ))
-        .with_state(state.clone());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-
-    assert_eq!(get_status(addr, "/api/v1/hosts").await.0, 200);
-    let (status, body) = send_status(addr, reqwest::Method::POST, "/api/v1/hosts").await;
-    assert_eq!(status, 402);
-    assert!(body.contains("billing_plan_lapsed"), "{body}");
-    assert_eq!(
-        send_status(addr, reqwest::Method::PUT, &org_path).await.0,
-        200
-    );
-
-    // Choosing a plan again lifts the lock.
-    set_plan_status(&state, org.id, Some(PlanStatus::Active)).await;
-    assert_eq!(
-        send_status(addr, reqwest::Method::POST, "/api/v1/hosts")
-            .await
-            .0,
-        200
-    );
+    let ended = reload(&state, org.id).await;
+    assert!(ended.base.plan.is_free());
+    assert_eq!(ended.base.plan_status, None);
+    assert!(!ended.is_lapsed());
+    assert_eq!(ended.base.last_downgrade_from_plan, Some(pro_plan()));
+    assert!(ended.base.last_downgrade_at.is_some());
+    assert!(ended.base.next_renewal_at.is_none());
+    assert!(ended.base.discount_save_offer_percent_off.is_none());
+    assert!(ended.base.discount_save_offer_active_until.is_none());
 }
 
 #[tokio::test]
@@ -625,20 +566,13 @@ async fn billing_middleware_locks_main_app_routes_for_self_hosted_plans() {
     assert_eq!(get_status(addr, "/api/v1/hosts").await.0, 403);
 }
 
-/// A cloud org that hasn't chosen a plan reaches only the Settings routes
-/// until it does.
+/// A cloud org on Free uses the app, but the topology view and its snapshots
+/// wait for a plan that includes them.
 #[tokio::test]
-async fn billing_middleware_locks_main_app_routes_until_a_plan_is_chosen() {
+async fn billing_middleware_keeps_free_out_of_the_topology_view() {
     let (state, _container) = test_state().await;
-    let mut org = organization();
-    org.base.plan = None;
-    org.base.plan_status = None;
-    let org = state
-        .services
-        .organization_service
-        .create(org, AuthenticatedEntity::System)
-        .await
-        .unwrap();
+    let org = create_org(&state, get_free_plan(), None).await;
+    set_plan_status(&state, org.id, None).await;
     let owner = AuthenticatedEntity::User {
         user_id: Uuid::new_v4(),
         organization_id: org.id,
@@ -648,20 +582,14 @@ async fn billing_middleware_locks_main_app_routes_until_a_plan_is_chosen() {
         email_verified: true,
         terms_accepted_at: None,
     };
-    let org_path = format!("/api/v1/organizations/{}", org.id);
-    let user_path = format!("/api/v1/users/{}", Uuid::new_v4());
 
     let app = Router::new()
         .route(
             "/api/v1/hosts",
             get(|| async { "ok" }).post(|| async { "ok" }),
         )
-        .route("/api/v1/organizations", get(|| async { "ok" }))
-        .route(
-            "/api/v1/organizations/{id}",
-            put(|| async { "ok" }).delete(|| async { "ok" }),
-        )
-        .route("/api/v1/users/{id}", put(|| async { "ok" }))
+        .route("/api/v1/topology/data", get(|| async { "ok" }))
+        .route("/api/v1/snapshots", get(|| async { "ok" }))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             require_billing_for_users,
@@ -680,32 +608,23 @@ async fn billing_middleware_locks_main_app_routes_until_a_plan_is_chosen() {
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
 
-    let (status, body) = get_status(addr, "/api/v1/hosts").await;
-    assert_eq!(status, 403);
-    assert!(body.contains("billing_plan_required"), "{body}");
+    assert_eq!(get_status(addr, "/api/v1/hosts").await.0, 200);
     assert_eq!(
         send_status(addr, reqwest::Method::POST, "/api/v1/hosts")
             .await
             .0,
-        403
+        200
     );
-    assert_eq!(get_status(addr, "/api/v1/organizations").await.0, 200);
-    for (method, path) in [
-        (reqwest::Method::PUT, &org_path),
-        (reqwest::Method::DELETE, &org_path),
-        (reqwest::Method::PUT, &user_path),
-    ] {
-        assert_eq!(
-            send_status(addr, method.clone(), path).await.0,
-            200,
-            "{method} {path}"
-        );
+    for path in ["/api/v1/topology/data", "/api/v1/snapshots"] {
+        let (status, body) = get_status(addr, path).await;
+        assert_eq!(status, 402, "{path}");
+        assert!(body.contains("billing_feature_not_available"), "{body}");
     }
 
-    // Choosing a plan unlocks the main app.
+    // A plan with the topology view opens it.
     set_plan(&state, org.id, pro_plan()).await;
     set_plan_status(&state, org.id, Some(PlanStatus::Trialing)).await;
-    assert_eq!(get_status(addr, "/api/v1/hosts").await.0, 200);
+    assert_eq!(get_status(addr, "/api/v1/topology/data").await.0, 200);
 }
 
 #[tokio::test]
@@ -1198,7 +1117,7 @@ async fn sent_invoices_license_until_due_and_give_back_on_void() {
     assert!(!cancelled.can_pay());
     // The org lapses on its plan rather than moving to Free, and the period
     // it was licensed for is left alone so the key runs out on schedule.
-    assert_eq!(cancelled.base.plan, Some(get_self_hosted_standard_plan()));
+    assert_eq!(cancelled.base.plan, get_self_hosted_standard_plan());
     assert_eq!(cancelled.base.plan_status, Some(PlanStatus::Cancelled));
     assert!(cancelled.is_lapsed());
     assert_eq!(cancelled.base.license_paid_through, term_end);

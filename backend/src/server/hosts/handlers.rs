@@ -1,5 +1,6 @@
 use crate::daemon::runtime::state::BufferedEntities;
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
+use crate::server::auth::middleware::features::{ensure_tagging_allowed, tags_changed};
 use crate::server::auth::middleware::permissions::{Authorized, IsDaemon, Member, Or, Viewer};
 use crate::server::billing::types::base::{LimitSource, LimitType};
 use crate::server::hosts::r#impl::os::HostOsFamily;
@@ -499,6 +500,12 @@ async fn create_host(
             // Validate user has access to the site
             validate_site_access(Some(request.site_id), &site_ids, "create")?;
 
+            if let Some(org_id) = organization_id
+                && (!request.tags.is_empty() || request.services.iter().any(|s| !s.tags.is_empty()))
+            {
+                ensure_tagging_allowed(&state, &org_id).await?;
+            }
+
             // Validate site_id exists
             let _site = state
                 .services
@@ -516,7 +523,7 @@ async fn create_host(
                     .organization_service
                     .get_by_id(&org_id)
                     .await?
-                    .and_then(|o| o.base.plan)
+                    .map(|o| o.base.plan)
                     .unwrap_or_else(crate::server::billing::plans::get_free_plan);
                 if let Some(limit) = plan.host_limit() {
                     // Counted the way the dashboard counts and the way the discovery path gates:
@@ -685,6 +692,28 @@ async fn create_host(
     }
 }
 
+/// Whether a host update changes the host's tags or any of its services' tags.
+/// A service the request adds counts as a change only when it carries tags.
+async fn host_update_changes_tags(
+    state: &AppState,
+    existing_host: &Host,
+    request: &UpdateHostRequest,
+) -> Result<bool, ApiError> {
+    if tags_changed(existing_host.get_tags(), Some(&request.tags)) {
+        return Ok(true);
+    }
+    for input in request.services.iter().flatten() {
+        let existing = state.services.service_service.get_by_id(&input.id).await?;
+        if tags_changed(
+            existing.as_ref().and_then(|s| s.get_tags()),
+            Some(&input.tags),
+        ) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 /// Update a host
 ///
 /// Updates host properties. Children (ip_addresses, ports, services, interfaces) are synced
@@ -742,6 +771,10 @@ async fn update_host(
         &site_ids,
         organization_id,
     )?;
+
+    if host_update_changes_tags(&state, &existing_host, &request).await? {
+        ensure_tagging_allowed(&state, &organization_id).await?;
+    }
 
     let credential_assignments = request.credential_assignments.clone();
 

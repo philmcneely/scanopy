@@ -101,7 +101,7 @@ async fn load_organization(
         .get_by_id(&organization_id)
         .await?
         .ok_or_else(|| ApiError::entity_not_found::<Organization>(organization_id))?;
-    if organization.base.plan.is_some_and(|plan| plan.is_demo()) {
+    if organization.base.plan.is_demo() {
         return Err(ApiError::demo_mode_blocked());
     }
     Ok(organization)

@@ -94,7 +94,7 @@ pub async fn demo_mode_middleware(
     let plan = organization
         .base
         .plan
-        .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        ;
 
     let request = Request::from_parts(parts, body);
 

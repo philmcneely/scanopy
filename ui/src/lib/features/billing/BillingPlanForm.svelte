@@ -36,6 +36,7 @@
 		billing_showFeatures,
 		billing_hideFeatures,
 		billing_snapshotRetention,
+		billing_startFreeTrial,
 		billing_startTrialNoCreditCard,
 		billing_switchPlan,
 		billing_trialContinues,
@@ -579,7 +580,14 @@
 										{:else if isCurrentlyTrialing}
 											{billing_switchPlan()}
 										{:else}
-											{trial ? billing_startTrialNoCreditCard() : common_getStarted()}
+											{#if !trial}
+												{common_getStarted()}
+											{:else if getHosting(plan) === 'SelfHosted'}
+												{billing_startTrialNoCreditCard()}
+											{:else}
+												<!-- A cloud trial collects a card first. -->
+												{billing_startFreeTrial()}
+											{/if}
 										{/if}
 									</button>
 									{#if trial && !isCurrentlyTrialing}
