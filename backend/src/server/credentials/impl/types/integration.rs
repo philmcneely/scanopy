@@ -32,7 +32,8 @@ use super::{CredentialCategory, CredentialTypeDiscriminants, Target};
 ///
 /// The single source of the type → integration mapping
 /// ([`CredentialTypeDiscriminants::integration`]); the associated service, category, fallback
-/// icon, discovery text and docs guide all derive from it. The id is an identifier-safe code name
+/// icon, discovery text and docs guide all derive from it. Its display name is the service's
+/// unless [`TypeMetadataProvider::name`] says otherwise. The id is an identifier-safe code name
 /// rather than the service's display name, so it can key `meta_credential_integrations_*`
 /// messages.
 #[derive(
@@ -491,8 +492,21 @@ impl EntityMetadataProvider for CredentialIntegration {
 }
 
 impl TypeMetadataProvider for CredentialIntegration {
+    /// The service's name, except where owners know the product by its vendor: the Instant On
+    /// service stays "Instant On" on host badges, but the integration names Aruba so the picker
+    /// and plan cards say whose portal it connects to.
     fn name(&self) -> &'static str {
-        ServiceDefinition::name(&*self.service())
+        match self {
+            Self::InstantOn => "Aruba Instant On",
+            Self::Snmp
+            | Self::Gnmi
+            | Self::Docker
+            | Self::Podman
+            | Self::UnifiController
+            | Self::Ssh
+            | Self::WakeOnLan
+            | Self::Proxmox => ServiceDefinition::name(&*self.service()),
+        }
     }
 
     fn description(&self) -> &'static str {
