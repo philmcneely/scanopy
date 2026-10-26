@@ -48,12 +48,12 @@ pub async fn trigger_discovery(
         integration_targets: vec![],
     };
 
-    let created_discovery: Discovery = client.post("/api/v1/discovery", &discovery).await?;
+    let created_discovery: Discovery = client.post("/api/v1/discoveries", &discovery).await?;
     println!("✅ Created Discovery record: {}", created_discovery.id);
 
     // Start the discovery session
     let update: DiscoveryUpdatePayload = client
-        .post("/api/v1/discovery/start-session", &created_discovery.id)
+        .post("/api/v1/discoveries/start-session", &created_discovery.id)
         .await?;
     println!("✅ Started discovery session: {}", update.session_id);
 
@@ -72,7 +72,7 @@ pub async fn run_discovery(client: &TestClient, session_id: Option<Uuid>) -> Res
 
     let mut event_source = client
         .client
-        .get(format!("{}/api/v1/discovery/stream", BASE_URL))
+        .get(format!("{}/api/v1/discoveries/stream", BASE_URL))
         .send()
         .await
         .map_err(|e| format!("Failed to connect to SSE: {}", e))?;

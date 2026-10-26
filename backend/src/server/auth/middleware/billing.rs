@@ -153,7 +153,7 @@ pub async fn require_billing_for_users(
 /// The topology view's routes and the snapshots captured from it, which need
 /// the topology view on the plan.
 fn topology_route(path: &str) -> bool {
-    ["/api/v1/topology", "/api/v1/snapshots"]
+    ["/api/v1/topologies", "/api/v1/snapshots"]
         .iter()
         .any(|prefix| {
             path.strip_prefix(prefix)
@@ -166,7 +166,7 @@ fn topology_route(path: &str) -> bool {
 /// behind its plan prompt. The stream, saving options, exports and snapshots
 /// stay closed to it.
 fn topology_preview_route(method: &Method, path: &str) -> bool {
-    const TOPOLOGY: &str = "/api/v1/topology";
+    const TOPOLOGY: &str = "/api/v1/topologies";
     *method == Method::GET
         && (path == TOPOLOGY
             || path
@@ -182,6 +182,7 @@ fn topology_preview_route(method: &Method, path: &str) -> bool {
 /// licenses, config) sits outside this middleware already.
 pub(crate) fn settings_route(method: &Method, path: &str) -> bool {
     const ORGANIZATIONS: &str = "/api/v1/organizations";
+    const CURRENT_ORGANIZATION: &str = "/api/v1/organizations/current";
     const USERS: &str = "/api/v1/users";
     let single_entity = |prefix: &str| {
         path.strip_prefix(prefix)
@@ -190,7 +191,7 @@ pub(crate) fn settings_route(method: &Method, path: &str) -> bool {
     };
 
     match *method {
-        Method::GET => path == ORGANIZATIONS,
+        Method::GET => path == CURRENT_ORGANIZATION,
         Method::PUT => single_entity(ORGANIZATIONS) || single_entity(USERS),
         Method::DELETE => single_entity(ORGANIZATIONS),
         _ => false,

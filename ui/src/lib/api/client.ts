@@ -91,23 +91,23 @@ const TIMEOUT_OVERRIDES: {
 	{ method: 'POST', path: '/api/v1/organizations/{id}/reset', timeoutMs: null },
 	{ method: 'POST', path: '/api/v1/organizations/{id}/populate-demo', timeoutMs: null },
 	{ method: 'POST', path: '/api/v1/daemons/bulk-delete', timeoutMs: null },
-	{ method: 'POST', path: '/api/v1/discovery/bulk-delete', timeoutMs: null },
+	{ method: 'POST', path: '/api/v1/discoveries/bulk-delete', timeoutMs: null },
 	{ method: 'POST', path: '/api/v1/hosts/bulk-delete', timeoutMs: null },
 	{ method: 'POST', path: '/api/v1/subnets/bulk-delete', timeoutMs: null },
 	// These can contact a daemon, retrying for up to about two and a half minutes.
-	{ method: 'POST', path: '/api/v1/discovery/start-session', timeoutMs: 180_000 },
+	{ method: 'POST', path: '/api/v1/discoveries/start-session', timeoutMs: 180_000 },
 	{ method: 'POST', path: '/api/v1/hosts/{id}/rescan', timeoutMs: 180_000 },
 	{ method: 'POST', path: '/api/v1/daemons/{id}/retry-connection', timeoutMs: 180_000 },
-	{ method: 'POST', path: '/api/v1/discovery/{session_id}/cancel', timeoutMs: 60_000 },
+	{ method: 'POST', path: '/api/v1/discoveries/{session_id}/cancel', timeoutMs: 60_000 },
 	{ method: 'POST', path: '/api/v1/daemons/test-reachability', timeoutMs: 60_000 },
 	{ method: 'POST', path: '/api/v1/daemons/provision', timeoutMs: 120_000 },
 	// Sends an email over the organisation's mail server.
 	{ method: 'POST', path: '/api/v1/daemons/email-install-command', timeoutMs: 120_000 },
 	{ method: 'POST', path: '/api/v1/subnets/{id}/merge', timeoutMs: 120_000 },
 	// Graph builds over the whole site.
-	{ method: 'GET', path: '/api/v1/topology', timeoutMs: 120_000 },
-	{ method: 'GET', path: '/api/v1/topology/data', timeoutMs: 120_000 },
-	{ method: 'GET', path: '/api/v1/topology/{id}', timeoutMs: 120_000 }
+	{ method: 'GET', path: '/api/v1/topologies', timeoutMs: 120_000 },
+	{ method: 'GET', path: '/api/v1/topologies/data', timeoutMs: 120_000 },
+	{ method: 'GET', path: '/api/v1/topologies/{id}', timeoutMs: 120_000 }
 ];
 
 /** Billing calls go to Stripe from inside the request, and a plan change can take a while. */

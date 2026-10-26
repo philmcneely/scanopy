@@ -147,7 +147,7 @@
 	// Single bundle query for the topology view's entity set. `snapshot_id =
 	// undefined` returns live entities; `snapshot_id = <id>` returns the
 	// captured set as-of that snapshot's `taken_at`. Same code path for both
-	// — see backend `GET /api/v1/topology/data`.
+	// — see backend `GET /api/v1/topologies/data`.
 	// Gated on `isActive`: this is the heaviest query in the app and it is the only
 	// subscriber to its key, so holding it while the tab is off-screen keeps the
 	// bundle — and the discovery SSE stream's throttled refetch of it — off pages

@@ -375,7 +375,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .merge(super::rescan::create_router())
 }
 
-/// List all hosts
+/// List hosts
 ///
 /// Returns all hosts the authenticated user has access to, with their
 /// ip_addresses, ports, services and interfaces included — pass
@@ -385,6 +385,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 /// via `group_by`, `order_by`, and `order_direction`.
 #[utoipa::path(
     get,
+    operation_id = "list_hosts",
     path = "",
     tag = Host::ENTITY_NAME_PLURAL,
     params(HostFilterQuery),
@@ -402,7 +403,7 @@ async fn get_all_hosts(
     Ok(Json(list_page::<Host>(&state, &scope, &query).await?))
 }
 
-/// Get a host by ID
+/// Get host by ID
 ///
 /// Returns a single host with its ip_addresses, ports, and services.
 #[utoipa::path(
@@ -456,7 +457,7 @@ async fn get_host_by_id(
     Ok(Json(ApiResponse::success(host)))
 }
 
-/// Create a new host
+/// Create host
 ///
 /// Creates a host with optional ip_addresses, ports, and services.
 /// The `source` field is automatically set to `Manual`.
@@ -714,7 +715,7 @@ async fn host_update_changes_tags(
     Ok(false)
 }
 
-/// Update a host
+/// Update host
 ///
 /// Updates host properties. Children (ip_addresses, ports, services, interfaces) are synced
 /// from the fields on this same request body when provided — omit a field to leave that child
@@ -814,7 +815,7 @@ async fn update_host(
     Ok(Json(ApiResponse::success(host_response)))
 }
 
-/// Internal endpoint for daemon discovery
+/// Upsert host from daemon discovery
 ///
 /// Used by daemons to report discovered hosts. Accepts full entities with
 /// pre-generated IDs. Uses upsert behavior to merge with existing hosts.
@@ -901,9 +902,8 @@ async fn create_host_discovery(
 
 /// Consolidate hosts
 ///
-/// Merges all ip_addresses, ports, and services from `other_host` into
-/// `destination_host`, then deletes `other_host`. Both hosts must be
-/// on the same site.
+/// Merges all IP addresses, ports, and services from the host `other_id` into the host `id`,
+/// then deletes `other_id`. Both hosts must be on the same site.
 ///
 /// ### Merge Behavior
 ///
@@ -919,12 +919,12 @@ async fn create_host_discovery(
 /// - Cannot consolidate a host with itself.
 /// - Cannot consolidate a host that has a daemon - consolidate into it instead.
 #[utoipa::path(
-    put,
-    path = "/{destination_host}/consolidate/{other_host}",
+    post,
+    path = "/{id}/consolidate/{other_id}",
     tag = Host::ENTITY_NAME_PLURAL,
     params(
-        ("destination_host" = Uuid, Path, description = "Destination host ID - will receive all children"),
-        ("other_host" = Uuid, Path, description = "Host to merge into destination - will be deleted")
+        ("id" = Uuid, Path, description = "Host that receives all children"),
+        ("other_id" = Uuid, Path, description = "Host merged into `id`, then deleted")
     ),
     responses(
         (status = 200, description = "Hosts consolidated successfully", body = ApiResponse<HostResponse>),
@@ -1005,7 +1005,7 @@ async fn consolidate_hosts(
     Ok(Json(ApiResponse::success(host_response)))
 }
 
-/// Delete a host
+/// Delete host
 ///
 /// Prevents deletion if the host has a daemon associated with it
 #[utoipa::path(

@@ -197,7 +197,7 @@ impl DaemonRuntimeService {
         payload.finished_at = Some(chrono::Utc::now());
         payload.reason = Some(DiscoveryTerminalReason::DaemonBusy);
 
-        let path = format!("/api/v1/discovery/{}/update", request.session_id);
+        let path = format!("/api/v1/discoveries/{}/update", request.session_id);
         if let Err(e) = api_client
             .post_no_data(
                 &path,

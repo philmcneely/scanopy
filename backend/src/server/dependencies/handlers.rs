@@ -140,13 +140,14 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(generated::export_csv))
 }
 
-/// List all Dependencies
+/// List dependencies
 ///
 /// Returns all dependencies the authenticated user has access to.
 /// Supports pagination via `limit` and `offset` query parameters,
 /// and ordering via `group_by`, `order_by`, and `order_direction`.
 #[utoipa::path(
     get,
+    operation_id = "list_dependencies",
     path = "",
     tag = Dependency::ENTITY_NAME_PLURAL,
     params(DependencyFilterQuery),
@@ -195,7 +196,7 @@ async fn get_all_dependencies(
     )))
 }
 
-/// Create a new Dependency
+/// Create dependency
 #[utoipa::path(
     post,
     path = "",
@@ -250,7 +251,7 @@ async fn create_dependency(
     Ok(response)
 }
 
-/// Update a Dependency
+/// Update dependency
 #[utoipa::path(
     put,
     path = "/{id}",

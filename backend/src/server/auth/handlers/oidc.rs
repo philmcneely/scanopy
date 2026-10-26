@@ -672,10 +672,11 @@ async fn handle_register_flow(
     }
 }
 
+/// Unlink OIDC account
 #[utoipa::path(
     post,
     path = "/oidc/{slug}/unlink",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     params(("slug" = String, Path, description = "OIDC provider slug")),
     responses(
         (status = 200, description = "OIDC account unlinked", body = ApiResponse<User>),

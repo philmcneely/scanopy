@@ -63,7 +63,9 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(generated::get_by_id, generated::delete))
 }
 
-/// Take a snapshot of the current live topology + entity state for a site.
+/// Create snapshot
+///
+/// Takes a snapshot of the current live topology and entity state for a site.
 /// Acquires the discovery snapshot lock, creates the snapshots row, runs
 /// close-and-clone to stamp every Snapshotable entity row with `snapshot_id`
 /// and close them. The topology subscriber inserts the snapshot's topology

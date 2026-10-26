@@ -1,4 +1,5 @@
 use crate::server::auth::middleware::permissions::{Admin, Authorized, Member, Viewer};
+use crate::server::openapi::tags as api_tags;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::extractors::Query;
 use crate::server::shared::handlers::list::{ListOrdering, PaginatedList, list_page};
@@ -249,12 +250,13 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(set_tag_order))
 }
 
-/// List all tag groups
+/// List tag groups
 ///
 /// Returns every tag group in your organization: the system groups (Application, Status) first,
 /// then the groups your organization named, by name.
 #[utoipa::path(
     get,
+    operation_id = "list_tag_groups",
     path = "",
     tag = TagGroup::ENTITY_NAME_PLURAL,
     params(TagGroupFilterQuery),
@@ -273,7 +275,7 @@ async fn get_all_tag_groups(
     Ok(Json(list_page::<TagGroup>(&state, &scope, &query).await?))
 }
 
-/// Create a tag group
+/// Create tag group
 ///
 /// Creates a group your organization names. Group names are unique within the organization, and
 /// "Application" and "Status" are reserved for the system groups.
@@ -308,13 +310,13 @@ pub struct TagOrderRequest {
     pub tag_ids: Vec<Uuid>,
 }
 
-/// Set the order of a tag group's tags
+/// Reorder tag group tags
 ///
 /// Tables, pickers and the topology list a group's tags in this order.
 #[utoipa::path(
     put,
     path = "/{id}/tag-order",
-    tag = TagGroup::ENTITY_NAME_PLURAL,
+    tags = [TagGroup::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     params(("id" = Uuid, Path, description = "Tag group ID")),
     request_body = TagOrderRequest,
     responses(

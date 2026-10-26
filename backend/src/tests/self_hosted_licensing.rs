@@ -535,7 +535,7 @@ async fn billing_middleware_locks_main_app_routes_for_self_hosted_plans() {
     // entity from request extensions).
     let app = Router::new()
         .route("/api/v1/hosts", get(|| async { "ok" }))
-        .route("/api/v1/organizations", get(|| async { "ok" }))
+        .route("/api/v1/organizations/current", get(|| async { "ok" }))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             require_billing_for_users,
@@ -557,7 +557,10 @@ async fn billing_middleware_locks_main_app_routes_for_self_hosted_plans() {
     let (status, body) = get_status(addr, "/api/v1/hosts").await;
     assert_eq!(status, 403);
     assert!(body.contains("billing_self_hosted_plan_locked"));
-    assert_eq!(get_status(addr, "/api/v1/organizations").await.0, 200);
+    assert_eq!(
+        get_status(addr, "/api/v1/organizations/current").await.0,
+        200
+    );
 
     // Switching to a cloud plan unlocks the main app; switching back locks it.
     set_plan(&state, org.id, get_enterprise_plan()).await;
@@ -588,9 +591,9 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
             "/api/v1/hosts",
             get(|| async { "ok" }).post(|| async { "ok" }),
         )
-        .route("/api/v1/topology/data", get(|| async { "ok" }))
-        .route("/api/v1/topology/stream", get(|| async { "ok" }))
-        .route("/api/v1/topology/export/csv", get(|| async { "ok" }))
+        .route("/api/v1/topologies/data", get(|| async { "ok" }))
+        .route("/api/v1/topologies/stream", get(|| async { "ok" }))
+        .route("/api/v1/topologies/export/csv", get(|| async { "ok" }))
         .route("/api/v1/snapshots", get(|| async { "ok" }))
         .layer(middleware::from_fn_with_state(
             state.clone(),
@@ -618,10 +621,10 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
         200
     );
     // The diagram the app draws behind its plan prompt.
-    assert_eq!(get_status(addr, "/api/v1/topology/data").await.0, 200);
+    assert_eq!(get_status(addr, "/api/v1/topologies/data").await.0, 200);
     for path in [
-        "/api/v1/topology/stream",
-        "/api/v1/topology/export/csv",
+        "/api/v1/topologies/stream",
+        "/api/v1/topologies/export/csv",
         "/api/v1/snapshots",
     ] {
         let (status, body) = get_status(addr, path).await;
@@ -632,7 +635,7 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
     // A plan with the topology view opens the rest.
     set_plan(&state, org.id, pro_plan()).await;
     set_plan_status(&state, org.id, Some(PlanStatus::Trialing)).await;
-    assert_eq!(get_status(addr, "/api/v1/topology/stream").await.0, 200);
+    assert_eq!(get_status(addr, "/api/v1/topologies/stream").await.0, 200);
 }
 
 #[tokio::test]

@@ -37,9 +37,7 @@ import {
 
 import type { DiscoveryRunOrderField } from '../../queries';
 /** The discovery list endpoint's query params, which the filters are sent and linked as. */
-type DiscoveryListParam = keyof NonNullable<
-	operations['get_all_discoveries']['parameters']['query']
->;
+type DiscoveryListParam = keyof NonNullable<operations['list_discoveries']['parameters']['query']>;
 type DiscoveryResults = Extract<Discovery['run_type'], { type: 'Historical' }>['results'];
 
 /** What the run history columns read from the tab, each as a getter or function so values stay live. */

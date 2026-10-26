@@ -1446,7 +1446,7 @@ impl DiscoveryOps {
     ) -> Result<(), Error> {
         use std::sync::atomic::Ordering;
 
-        let path = format!("/api/v1/discovery/{}/update", session.info.session_id);
+        let path = format!("/api/v1/discoveries/{}/update", session.info.session_id);
         let result = api_client
             .post_no_data(&path, payload, "Failed to report discovery update")
             .await;

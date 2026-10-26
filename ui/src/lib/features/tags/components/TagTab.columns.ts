@@ -9,7 +9,7 @@ import { common_created, common_updated, tags_tagGroup } from '$lib/paraglide/me
 
 type TagOrderField = components['schemas']['TagOrderField'];
 /** The tags list endpoint's query params, which the filters are sent and linked as. */
-type TagListParam = keyof NonNullable<operations['get_all_tags']['parameters']['query']>;
+type TagListParam = keyof NonNullable<operations['list_tags']['parameters']['query']>;
 
 /** What the tag columns read from the tab, each as a getter so values stay live. */
 export interface TagColumnsContext {

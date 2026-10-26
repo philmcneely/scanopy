@@ -89,7 +89,7 @@ async fn retry_connection(
     post,
     path = "/bulk-retry-connection",
     tag = Daemon::ENTITY_NAME_PLURAL,
-    operation_id = "bulk_retry_daemon_connection",
+    operation_id = "bulk_retry_daemon_connections",
     summary = "Retry connection to unreachable daemons",
     request_body(content = Vec<Uuid>, description = "IDs of the daemons to retry"),
     responses(

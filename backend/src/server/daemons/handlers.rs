@@ -474,9 +474,9 @@ const WINDOWS_MSI_CACHE_KEY: &str = "windows_msi_bytes";
 #[utoipa::path(
     get,
     path = "/api/install/windows-msi",
-    tag = Daemon::ENTITY_NAME_PLURAL,
+    tags = [Daemon::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     operation_id = "get_windows_msi",
-    summary = "Download the Windows daemon MSI",
+    summary = "Download Windows daemon MSI",
     description = "Proxies the Windows daemon MSI from GitHub so the browser can save it under a caller-chosen filename. Cached for an hour to avoid refetching from GitHub on every request.",
     responses(
         (status = 200, description = "Windows daemon MSI installer", content_type = "application/octet-stream", body = Vec<u8>),
@@ -656,7 +656,7 @@ pub struct EmailInstallCommandRequest {
 #[utoipa::path(
     post,
     path = "/email-install-command",
-    tag = Daemon::ENTITY_NAME_PLURAL,
+    tags = [Daemon::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     operation_id = "email_install_command",
     summary = "Email install command to current user",
     request_body = EmailInstallCommandRequest,
@@ -788,8 +788,8 @@ pub fn create_internal_router() -> OpenApiRouter<Arc<AppState>> {
     get,
     path = "",
     tag = Daemon::ENTITY_NAME_PLURAL,
-    operation_id = "get_daemons",
-    summary = "Get all daemons",
+    operation_id = "list_daemons",
+    summary = "List daemons",
     params(DaemonFilterQuery),
     responses(
         (status = 200, description = "List of daemons", body = PaginatedApiResponse<DaemonResponse>),
@@ -866,7 +866,7 @@ async fn get_by_id(
     ))))
 }
 
-/// Register a new Daemon
+/// Register daemon
 ///
 /// Internal endpoint for daemon self-registration. Creates a host entry
 /// and sets up default discovery jobs for the daemon.
@@ -944,7 +944,7 @@ async fn daemon_startup(
     Ok(Json(ApiResponse::success(capabilities)))
 }
 
-/// Update Daemon capabilities
+/// Update daemon capabilities
 ///
 /// Legacy internal endpoint for pre-0.15 daemons to report their interfaced
 /// subnets as bare ids. Modern daemons report them via the status heartbeat's
@@ -1139,7 +1139,7 @@ async fn receive_work_request(
     ))))
 }
 
-/// Receive daemon heartbeat (DEPRECATED - for backwards compatibility with pre-v0.14.0 daemons)
+/// Receive daemon heartbeat (deprecated)
 ///
 /// Internal endpoint for legacy daemons to send periodic heartbeats.
 /// New daemons (v0.14.0+) use the /request-work endpoint which includes heartbeat functionality.
@@ -1147,7 +1147,7 @@ async fn receive_work_request(
 #[utoipa::path(
     post,
     path = "/{id}/heartbeat",
-    tags = [Daemon::ENTITY_NAME_PLURAL, api_tags::INTERNAL, api_tags::DEPRECATED],
+    tags = [Daemon::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     params(("id" = Uuid, Path, description = "Daemon ID")),
     request_body = DaemonHeartbeatPayload,
     responses(
@@ -1285,7 +1285,7 @@ async fn get_provision_eligibility(
     path = "/provision",
     tags = [Daemon::ENTITY_NAME_PLURAL],
     operation_id = "provision_daemon",
-    summary = "Provision a daemon, or re-provision an existing one",
+    summary = "Provision or re-provision daemon",
     request_body = ProvisionDaemonRequest,
     responses(
         (status = 201, description = "Daemon provisioned successfully", body = ApiResponse<ProvisionDaemonResponse>),
@@ -1348,7 +1348,7 @@ async fn provision_daemon(
 #[utoipa::path(
     post,
     path = "/test-reachability",
-    tag = Daemon::ENTITY_NAME_PLURAL,
+    tags = [Daemon::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     operation_id = "test_daemon_reachability",
     summary = "Test reachability of a daemon URL",
     request_body = TestReachabilityRequest,

@@ -77,7 +77,7 @@ import type { Discovery } from '$lib/features/discovery/types/base';
 
 type HostOrderField = components['schemas']['HostOrderField'];
 /** The host list endpoint's query params, which the filters are sent and linked as. */
-type HostListParam = keyof NonNullable<operations['get_all_hosts']['parameters']['query']>;
+type HostListParam = keyof NonNullable<operations['list_hosts']['parameters']['query']>;
 
 /** What the host columns read from the tab, each as a getter so values stay live. */
 export interface HostColumnsContext {

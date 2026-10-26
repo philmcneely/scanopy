@@ -35,7 +35,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 #[utoipa::path(
     get,
     path = "/summary",
-    tags = [api_tags::DASHBOARD, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Dashboard summary", body = ApiResponse<DashboardSummary>),
     ),

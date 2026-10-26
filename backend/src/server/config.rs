@@ -828,7 +828,7 @@ pub fn get_deployment_type(config: &ServerConfig) -> DeploymentType {
 #[utoipa::path(
     get,
     path = "/api/config",
-    tags = [api_tags::CONFIG, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Public server configuration", body = ApiResponse<PublicConfigResponse>)
     )

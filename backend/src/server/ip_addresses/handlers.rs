@@ -93,7 +93,8 @@ async fn validate_ip_address_consistency(
     Ok(())
 }
 
-/// Create a new IP address
+/// Create IP address
+///
 /// Position is automatically assigned to the end of the host's IP address list.
 #[utoipa::path(
     post,
@@ -138,7 +139,8 @@ async fn create_ip_address(
     response
 }
 
-/// Update an IP address
+/// Update IP address
+///
 /// Position must be within valid range and not conflict with other IP addresses.
 #[utoipa::path(
     put,
@@ -171,7 +173,8 @@ async fn update_ip_address(
     update_handler::<IPAddress>(State(state), auth, path, ApiJson(ip_address)).await
 }
 
-/// Delete an IP address
+/// Delete IP address
+///
 /// Remaining IP addresses for the host are renumbered to maintain sequential positions.
 #[utoipa::path(
     delete,
@@ -224,6 +227,7 @@ pub async fn delete_ip_address(
 }
 
 /// Bulk delete IP addresses
+///
 /// Remaining IP addresses for affected hosts are renumbered to maintain sequential positions.
 #[utoipa::path(
     post,

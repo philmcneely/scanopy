@@ -81,7 +81,7 @@ pub(crate) async fn unsubscribe(
     Ok(Json(ApiResponse::success(())))
 }
 
-/// Open an unsubscribe link in a browser
+/// Open unsubscribe link in browser
 ///
 /// A mail client that does not support one-click opens the `List-Unsubscribe`
 /// URL with a GET. That changes nothing: it redirects to Settings → Email,
