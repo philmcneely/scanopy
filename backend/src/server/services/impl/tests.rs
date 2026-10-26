@@ -733,12 +733,13 @@ fn a_virtualizer_definition_is_never_generic() {
 /// same URL has resolved, so only the rest are fetched.
 #[tokio::test]
 async fn test_service_definition_logo_urls_resolve() {
-    use crate::server::shared::fixtures::logo_is_cached;
+    use crate::server::shared::fixtures::{LOGO_FETCH_USER_AGENT, logo_is_cached};
     use backon::{ExponentialBuilder, Retryable};
     use futures::stream::{self, StreamExt};
 
     let registry = ServiceDefinitionRegistry::all_service_definitions();
     let client = reqwest::Client::builder()
+        .user_agent(LOGO_FETCH_USER_AGENT)
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .expect("Failed to create HTTP client");

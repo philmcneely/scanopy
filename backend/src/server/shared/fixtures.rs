@@ -593,6 +593,10 @@ pub(crate) fn logo_ext(url: &str) -> &str {
 /// Record of the URL each logo file in a directory was downloaded from, kept beside the logos.
 const LOGO_CACHE_FILE: &str = ".logo-cache.json";
 
+/// Sent on every logo request. Wikimedia refuses requests without a User-Agent, and CDNs
+/// fronting Simple Icons refuse some anonymous requests from CI runners.
+pub(crate) const LOGO_FETCH_USER_AGENT: &str = "scanopy-fixtures (https://scanopy.net)";
+
 /// Whether `url` was already downloaded into `catalog_dir` as `<stem>.<ext>`: the file is there and
 /// the cache record names this URL for it, the same test `plan_logos` uses to skip a download.
 #[cfg(test)]
@@ -690,8 +694,7 @@ fn download_logos(logos: &[(String, &str)], static_dir: &Path, force: bool) {
 
     if !download.is_empty() {
         let client = reqwest::blocking::Client::builder()
-            // Wikimedia refuses requests without a User-Agent.
-            .user_agent("scanopy-fixtures (https://scanopy.net)")
+            .user_agent(LOGO_FETCH_USER_AGENT)
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .expect("Failed to create HTTP client");
