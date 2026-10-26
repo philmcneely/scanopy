@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { formatLongDate } from '$lib/shared/utils/formatting';
 	/**
 	 * BillingPlanForm Component
 	 *
@@ -15,7 +14,6 @@
 		billing_dayFreeTrial,
 		billing_daysCount,
 		billing_everythingInPlanPlus,
-		billing_firstInvoiceOn,
 		billing_siteUnit,
 		billing_siteUnitPlural,
 		billing_notIncluded,
@@ -135,11 +133,6 @@
 
 	let loadingPlanType = $state<string | null>(null);
 	let showFullComparison = $state(false);
-
-	function firstInvoiceCaption(plan: BillingPlan): string {
-		const ms = Date.now() + plan.trial_days * 24 * 60 * 60 * 1000;
-		return billing_firstInvoiceOn({ date: formatLongDate(new Date(ms)) });
-	}
 
 	type BillingPeriod = 'monthly' | 'yearly';
 	let billingPeriod = $state<BillingPeriod>('yearly');
@@ -678,11 +671,6 @@
 											{billing_startFreeTrial()}
 										{/if}
 									</button>
-									{#if trial && !isCurrentlyTrialing}
-										<div class="pt-2 text-center text-xs text-tertiary">
-											{firstInvoiceCaption(plan)}
-										</div>
-									{/if}
 								{/if}
 							{:else}
 								<a
