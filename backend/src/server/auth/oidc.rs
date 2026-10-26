@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::server::{
     auth::{
+        disposable_email::is_disposable_email,
         r#impl::{
             base::{LoginRegisterParams, ProvisionUserParams},
             oidc::{
@@ -183,7 +184,7 @@ impl OidcService {
             None => true,
         };
 
-        if !mailchecker::is_valid(email.as_str()) && deployment_type == DeploymentType::Cloud {
+        if deployment_type == DeploymentType::Cloud && is_disposable_email(&email) {
             return Err(anyhow!(
                 "Email address uses a disposable domain. Please register with a non-disposable email address."
             ));

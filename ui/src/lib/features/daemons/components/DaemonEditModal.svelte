@@ -34,7 +34,9 @@
 		useUpdateApiKeyMutation,
 		useRotateApiKeyMutation
 	} from '$lib/features/daemon_api_keys/queries';
-	import { useUsersQuery } from '$lib/features/users/queries';
+	import { useUsersByIds, useUsersQuery } from '$lib/features/users/queries';
+	import { canListUsers } from '$lib/features/users/types';
+	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import ApiKeyFormFields from '$lib/features/daemon_api_keys/components/ApiKeyFormFields.svelte';
 	import { createApiKeyForm } from '$lib/features/daemon_api_keys/form';
 	import DaemonKeyAssociation from './DaemonKeyAssociation.svelte';
@@ -76,7 +78,17 @@
 	const updateApiKeyMutation = useUpdateApiKeyMutation();
 	const rotateApiKeyMutation = useRotateApiKeyMutation();
 	const apiKeysQuery = useApiKeysQuery();
-	const usersQuery = useUsersQuery();
+	const currentUserQuery = useCurrentUserQuery();
+	let currentUser = $derived(currentUserQuery.data);
+	let canListAllUsers = $derived(currentUser ? canListUsers(currentUser.permissions) : false);
+	// The users list needs Admin. Below that, the picker offers the current maintainer and the
+	// user themselves, fetched by id.
+	const usersQuery = useUsersQuery({ enabled: () => isOpen && canListAllUsers });
+	const maintainerCandidatesQuery = useUsersByIds(() =>
+		isOpen && currentUser && !canListAllUsers
+			? [...new Set([daemon?.user_id, currentUser.id].filter((id): id is string => !!id))]
+			: []
+	);
 
 	let activeTab = $state('details');
 	let loading = $state(false);
@@ -96,7 +108,9 @@
 			: null
 	);
 
-	let usersData = $derived(usersQuery.data ?? []);
+	let usersData = $derived(
+		(canListAllUsers ? usersQuery.data : maintainerCandidatesQuery.data) ?? []
+	);
 
 	// Reconfigure command for the Details tab. Only fetched while the modal is open, and only
 	// meaningful for an installed daemon — one that has never checked in is still following its
