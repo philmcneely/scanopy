@@ -23,7 +23,13 @@
 			role: 'secondary',
 			label: common_logout(),
 			icon: LogOut,
-			onClick: () => logoutMutation.mutate(),
+			// A full load, as the Account tab does: AppShell stays mounted across a
+			// client-side navigation and would keep the old session's queries.
+			onClick: () =>
+				logoutMutation.mutateAsync().then(
+					() => window.location.reload(),
+					() => {}
+				),
 			disabled: busy
 		},
 		{
