@@ -17,7 +17,6 @@
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import {
 		billing_startDayFreeTrial,
-		common_firstDiscoveryEmailHint,
 		common_upgrade,
 		topology_planRequiredBody,
 		topology_planRequiredTitle
@@ -58,12 +57,11 @@
 		<p class="text-sm text-secondary">{topology_planRequiredBody()}</p>
 		{#if sessions.length > 0}
 			<!-- A running scan's status in a panel of its own, apart from the pitch above. With no
-			     scan running there is nothing to report or email about. -->
+			     scan running there is nothing to report. -->
 			<InfoCard variant="compact">
 				{#each sessions as session (session.session_id)}
 					<SessionPhaseProgress {session} />
 				{/each}
-				<p class="text-xs text-tertiary">{common_firstDiscoveryEmailHint()}</p>
 			</InfoCard>
 		{/if}
 	</div>

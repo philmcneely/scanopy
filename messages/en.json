@@ -3143,7 +3143,7 @@
 	"topology_optionDisabledRebuildRequired": "Rebuild topology to change this option",
 	"topology_optionsHint": "These settings apply to the entire topology",
 	"topology_parseFailed": "Failed to parse topology data: {error}",
-	"topology_planRequiredBody": "Map the physical links between your devices, IP connectivity across subnets, the services, VMs and containers on each host, and the dependencies between your applications.",
+	"topology_planRequiredBody": "Map the physical links between your devices, IP connectivity across subnets, the workloads on each host, and the dependencies between your applications.",
 	"topology_planRequiredTitle": "See your network diagram",
 	"topology_searchContainerMatches": "{count} found inside",
 	"topology_searchMatchCount": "{current} of {total}",
