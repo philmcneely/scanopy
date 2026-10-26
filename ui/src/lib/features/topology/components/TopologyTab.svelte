@@ -88,17 +88,12 @@
 	import DependencyTutorial from './DependencyTutorial.svelte';
 	import { TUTORIAL_TOPOLOGY } from './dependency-tutorial-data';
 	import { useUsersQuery } from '$lib/features/users/queries';
+	import { canListUsers } from '$lib/features/users/types';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
 	import type { components } from '$lib/api/schema';
-	import {
-		billingPlans,
-		edgeTypes,
-		entities,
-		permissions,
-		views
-	} from '$lib/shared/stores/metadata';
+	import { billingPlans, edgeTypes, entities, views } from '$lib/shared/stores/metadata';
 	import { getInspectorConfig } from './panel/inspectors/view-config';
 	import type { TabProps } from '$lib/shared/types';
 	import {
@@ -119,12 +114,7 @@
 	// Get current user to check permissions
 	const currentUserQuery = useCurrentUserQuery();
 	let currentUser = $derived(currentUserQuery.data);
-	let canViewUsers = $derived(
-		currentUser
-			? (permissions.getMetadata(currentUser.permissions)?.grantable_user_permissions?.length ??
-					0) > 0
-			: false
-	);
+	let canViewUsers = $derived(currentUser ? canListUsers(currentUser.permissions) : false);
 
 	// Snapshot selection drives as-of-T entity reads. When a snapshot is
 	// selected, entity queries read SCD2 state as of its `taken_at` instead of
