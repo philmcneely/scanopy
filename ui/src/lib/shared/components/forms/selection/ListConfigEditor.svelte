@@ -1,14 +1,15 @@
 <script lang="ts" generics="TItem">
+	import { onMount } from 'svelte';
+	import { ArrowLeft } from 'lucide-svelte';
+	import { common_back } from '$lib/paraglide/messages';
 	import Loading from '../../feedback/Loading.svelte';
 
 	// Core data
 	export let items: TItem[] = [];
 
 	// Layout configuration
-	// Below `md` the panes stack, each full width, so the list keeps room on a phone.
-	export let listPanelWidth: string =
-		'w-full max-h-[40%] shrink-0 md:max-h-none md:w-2/5 md:shrink';
-	export let configPanelWidth: string = 'w-full flex-1 md:flex-initial md:w-3/5';
+	export let listPanelWidth: string = 'md:w-2/5';
+	export let configPanelWidth: string = 'md:w-3/5';
 	export let loading: boolean = false;
 
 	// Event handlers
@@ -22,6 +23,12 @@
 	// Internal state
 	let selectedIndex: number = -1;
 
+	// Below `md` one pane shows at a time: the list, or the selected item's config over it.
+	// Opens on an item the user picked or added, or a deep link; never on load or auto-select.
+	let detailOpen = false;
+	let mounted = false;
+	onMount(() => (mounted = true));
+
 	// Computed values for slot consumers
 	$: selectedItem = selectedIndex >= 0 ? items[selectedIndex] : null;
 
@@ -31,12 +38,14 @@
 		if (items.length > previousItemsLength) {
 			// Items were added, select the last one
 			selectedIndex = items.length - 1;
+			if (mounted && items.length === previousItemsLength + 1) detailOpen = true;
 		} else if (items.length === 1 && selectedIndex === -1) {
 			// Auto-select the first (and only) item when there's exactly one item
 			selectedIndex = 0;
 		} else if (items.length === 0) {
 			// Clear selection when no items
 			selectedIndex = -1;
+			detailOpen = false;
 		}
 		previousItemsLength = items.length; // eslint-disable-line no-useless-assignment
 	}
@@ -47,6 +56,7 @@
 		const index = items.findIndex((item: any) => item.id === targetEntityId);
 		if (index >= 0) {
 			selectedIndex = index;
+			detailOpen = true;
 			targetEntityId = null;
 		}
 	}
@@ -54,6 +64,7 @@
 	// Event handlers
 	function handleEdit(item: TItem, index: number) {
 		selectedIndex = index;
+		detailOpen = true;
 	}
 
 	function handleItemChange(updatedItem: TItem) {
@@ -100,9 +111,13 @@
 	</div>
 {:else}
 	<div class="relative min-h-0 flex-1">
-		<div class="absolute inset-0 flex flex-col md:flex-row md:gap-6">
+		<div class="absolute inset-0 flex md:gap-6">
 			<!-- Left Panel - List Manager -->
-			<div class="list-config-pane {listPanelWidth} min-h-0 overflow-y-auto">
+			<div
+				class="list-config-pane w-full {listPanelWidth} min-h-0 overflow-y-auto {detailOpen
+					? 'max-md:hidden'
+					: ''}"
+			>
 				<div class="p-4 md:p-6">
 					<slot
 						name="list"
@@ -123,8 +138,18 @@
 
 			<!-- Right Panel - Configuration -->
 			<div
-				class="list-config-pane {configPanelWidth} min-h-0 overflow-y-auto border-t border-(--color-border) p-4 md:border-t-0 md:border-l md:p-6"
+				class="list-config-pane w-full {configPanelWidth} min-h-0 overflow-y-auto border-(--color-border) p-4 md:border-l md:p-6 {detailOpen
+					? ''
+					: 'max-md:hidden'}"
 			>
+				<button
+					type="button"
+					class="btn-secondary mb-4 flex items-center gap-2 md:hidden"
+					onclick={() => (detailOpen = false)}
+				>
+					<ArrowLeft class="h-4 w-4" />
+					{common_back()}
+				</button>
 				<slot name="config" {selectedItem} {selectedIndex} onChange={handleItemChange}>
 					<div class="flex h-32 items-center justify-center text-tertiary">
 						<p>Select an item to configure</p>
