@@ -132,7 +132,6 @@
 	"billing_showFeatures": "Show features",
 	"billing_snapshotRetention": "Snapshot Retention",
 	"billing_startDayFreeTrial": "Start {days}-day free trial",
-	"billing_startFreeTrial": "Start free trial",
 	"billing_startTrialNoCreditCard": "Start free trial — no card required",
 	"billing_subscriptionActivated": "Subscription activated successfully!",
 	"billing_subscriptionDelayed": "Subscription is taking longer than expected to activate. Please refresh the page.",
