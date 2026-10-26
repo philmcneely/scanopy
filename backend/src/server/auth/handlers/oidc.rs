@@ -98,12 +98,7 @@ pub(crate) async fn oidc_authorize(
                 ));
             }
 
-            if state.config.disable_registration {
-                return Err(ApiError::coded(
-                    StatusCode::FORBIDDEN,
-                    ErrorCode::AuthRegistrationDisabled,
-                ));
-            }
+            ensure_registration_allowed(&state, &session).await?;
 
             let terms_accepted = params.terms_accepted.unwrap_or(false);
 
@@ -531,6 +526,21 @@ async fn handle_register_flow(
         return_url,
         host: _,
     } = params;
+
+    // Checked again here: the invite may have expired or been revoked since authorize.
+    if let Err(e) = ensure_registration_allowed(&state, &session).await {
+        let code = e
+            .error_code
+            .as_ref()
+            .map(ErrorCode::code)
+            .unwrap_or_default();
+        return Err(ErrorRedirect::to(&format!(
+            "{}?error={}&error_code={}",
+            return_url,
+            urlencoding::encode(&e.message),
+            code
+        )));
+    }
 
     // Process pending invite if present
     let (org_id, permissions, site_ids, invited_as) =

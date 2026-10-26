@@ -15,7 +15,8 @@
 		useSetupMutation,
 		useRegisterMutation,
 		useOnboardingStepMutation,
-		useOnboardingStateQuery
+		useOnboardingStateQuery,
+		useCurrentUserQuery
 	} from '$lib/features/auth/queries';
 	import { fetchOrganization } from '$lib/features/organizations/queries';
 	import { navigate } from '$lib/shared/utils/navigation';
@@ -88,6 +89,20 @@
 	// is at its org cap. Invited users join an existing org, so they are exempt.
 	let showOrgLimitGate = $derived((onboardingConfigData?.org_limit_reached ?? false) && !invitedBy);
 	let adminContactEmail = $derived(onboardingConfigData?.server_admin_contact_email ?? null);
+
+	// With registration disabled, only an invitee may sign up. A signed-out visitor
+	// without an invite goes to login instead of a new-org flow the server refuses.
+	const currentUserQuery = useCurrentUserQuery();
+	$effect(() => {
+		if (
+			onboardingConfigData?.disable_registration &&
+			!isInviteFlow &&
+			currentUserQuery.isSuccess &&
+			!currentUserQuery.data
+		) {
+			goto(resolve('/login'), { replaceState: true });
+		}
+	});
 
 	// Step tracking
 	type Step = OnboardingStep;

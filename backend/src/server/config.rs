@@ -81,7 +81,7 @@ pub struct ServerCli {
     #[arg(long)]
     use_secure_session_cookies: Option<bool>,
 
-    /// Turn off sign-up for new users.
+    /// Turn off sign-up for new users. Invited users can still sign up.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     disable_registration: Option<bool>,
 
