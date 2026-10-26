@@ -421,6 +421,201 @@ mod context_name {
     }
 }
 
+/// SCANOPY LOCAL PATCH tests: RFC 3414 §3.2 step 7 timeliness, as the non-authoritative side.
+///
+/// GH #813: MikroTik RouterOS always reports snmpEngineBoots = 0, which §2.2.1 allows. Upstream
+/// read 0 as "not discovered yet" and rejected every authenticated message from such an agent.
+/// An "agent" `Security` builds each message the way the device would; a "client" `Security`
+/// parses it, as the daemon's session does.
+#[cfg(feature = "v3")]
+mod engine_time {
+    use super::*;
+    use crate::v3::{self, AuthErrorKind};
+
+    const ENGINE_ID: &[u8] = &[0x80, 0x00, 0x3a, 0x8c, 0x04, 0x01];
+    const USER: &[u8] = b"scanopyv3";
+    const AUTH_PASSWORD: &[u8] = b"authpass12345";
+
+    /// The reporter's setup: AuthPriv, SHA1 and AES128.
+    fn user(auth_password: &[u8]) -> v3::Security {
+        v3::Security::new(USER, auth_password)
+            .with_auth_protocol(v3::AuthProtocol::Sha1)
+            .with_auth(v3::Auth::AuthPriv {
+                cipher: v3::Cipher::Aes128,
+                privacy_password: b"privpass12345".to_vec(),
+            })
+    }
+
+    fn agent(boots: i64, time: i64) -> v3::Security {
+        user(AUTH_PASSWORD)
+            .with_engine_id(ENGINE_ID)
+            .unwrap()
+            .with_engine_boots_and_time(boots, time)
+    }
+
+    /// A client already synchronized with the agent at `boots` and `time`.
+    fn synced_client(boots: i64, time: i64) -> v3::Security {
+        agent(boots, time)
+    }
+
+    /// A message from `sender`, authenticated (and encrypted) when `sender` has keys.
+    fn message(ident: u8, sender: &v3::Security) -> Vec<u8> {
+        let mut buf = pdu::Buf::default();
+        v3::build(ident, 4242, &[], 0, 0, &mut buf, Some(sender)).unwrap();
+        buf.to_vec()
+    }
+
+    /// What `client` makes of `bytes`: the message type, or the error.
+    fn parse(client: &mut v3::Security, bytes: &[u8]) -> Result<MessageType, Error> {
+        let bytes = bytes.to_vec();
+        Pdu::from_bytes_with_security(&bytes, Some(client)).map(|pdu| pdu.message_type)
+    }
+
+    /// A client that has done RFC 3414 §4 step 1: it holds the engine id and the boots and time
+    /// hint the unauthenticated discovery Report carried, and nothing it has authenticated yet.
+    fn discovered_client(boots: i64, time: i64) -> v3::Security {
+        let report = v3::Security::new(b"", b"")
+            .with_auth(v3::Auth::NoAuthNoPriv)
+            .with_engine_id(ENGINE_ID)
+            .unwrap()
+            .with_engine_boots_and_time(boots, time);
+        let mut client = user(AUTH_PASSWORD);
+        assert_eq!(
+            parse(&mut client, &message(snmp::MSG_REPORT, &report)),
+            Err(Error::AuthUpdated)
+        );
+        assert_eq!(client.engine_id(), ENGINE_ID);
+        client
+    }
+
+    #[test]
+    fn a_response_from_an_engine_with_zero_boots_is_accepted() {
+        let mut client = discovered_client(0, 1000);
+
+        assert_eq!(
+            parse(&mut client, &message(snmp::MSG_RESPONSE, &agent(0, 1010))),
+            Ok(MessageType::Response)
+        );
+        assert_eq!((client.engine_boots(), client.engine_time()), (0, 1010));
+    }
+
+    /// The discovery Report's hint is adopted even when boots is 0, so the first authenticated
+    /// request already carries the agent's time.
+    #[test]
+    fn the_discovery_hint_is_adopted_when_boots_is_zero() {
+        let client = discovered_client(0, 1000);
+
+        assert_eq!((client.engine_boots(), client.engine_time()), (0, 1000));
+    }
+
+    /// An agent whose discovery Report carried no usable time answers the first authenticated
+    /// request with a notInTimeWindow Report. That Report synchronizes the client, which then
+    /// repeats the request.
+    #[test]
+    fn a_report_from_an_engine_with_zero_boots_synchronizes_the_client() {
+        let mut client = discovered_client(0, 0);
+
+        assert_eq!(
+            parse(&mut client, &message(snmp::MSG_REPORT, &agent(0, 5000))),
+            Err(Error::AuthUpdated)
+        );
+        assert_eq!((client.engine_boots(), client.engine_time()), (0, 5000));
+
+        // Synchronized now: a message older than the window is refused.
+        assert_eq!(
+            parse(&mut client, &message(snmp::MSG_RESPONSE, &agent(0, 4800))),
+            Err(Error::AuthFailure(AuthErrorKind::EngineTimeMismatch))
+        );
+    }
+
+    #[test]
+    fn a_time_older_than_the_window_is_rejected() {
+        let mut client = synced_client(3, 1000);
+
+        assert_eq!(
+            parse(&mut client, &message(snmp::MSG_RESPONSE, &agent(3, 800))),
+            Err(Error::AuthFailure(AuthErrorKind::EngineTimeMismatch))
+        );
+    }
+
+    #[test]
+    fn a_time_inside_the_window_is_accepted() {
+        let mut client = synced_client(3, 1000);
+
+        assert_eq!(
+            parse(&mut client, &message(snmp::MSG_RESPONSE, &agent(3, 900))),
+            Ok(MessageType::Response)
+        );
+        // An older time inside the window does not wind the clock back.
+        assert_eq!(client.engine_time(), 1000);
+    }
+
+    #[test]
+    fn a_boots_value_lower_than_the_cached_one_is_rejected() {
+        let mut client = synced_client(3, 1000);
+
+        assert_eq!(
+            parse(&mut client, &message(snmp::MSG_RESPONSE, &agent(2, 1000))),
+            Err(Error::AuthFailure(AuthErrorKind::EngineBootsMismatch))
+        );
+    }
+
+    /// RFC 3414 §2.2.2: an engine whose boots reached 2147483647 is outside every time window.
+    #[test]
+    fn boots_at_its_maximum_is_rejected() {
+        let max = i64::from(i32::MAX);
+        let mut client = synced_client(3, 1000);
+
+        assert_eq!(
+            parse(&mut client, &message(snmp::MSG_RESPONSE, &agent(max, 1000))),
+            Err(Error::AuthFailure(AuthErrorKind::EngineBootsMismatch))
+        );
+        assert_eq!(client.engine_boots(), 3);
+    }
+
+    /// Step 7 runs after step 6: a message that fails authentication must not move the clock.
+    #[test]
+    fn a_message_that_fails_authentication_leaves_the_clock_alone() {
+        let mut client = synced_client(3, 1000);
+        let forger = user(b"not-the-password")
+            .with_engine_id(ENGINE_ID)
+            .unwrap()
+            .with_engine_boots_and_time(5, 9000);
+
+        assert_eq!(
+            parse(&mut client, &message(snmp::MSG_RESPONSE, &forger)),
+            Err(Error::AuthFailure(AuthErrorKind::SignatureMismatch))
+        );
+        assert_eq!((client.engine_boots(), client.engine_time()), (3, 1000));
+    }
+
+    /// An unauthenticated message cannot move a synchronized clock either.
+    #[test]
+    fn an_unauthenticated_report_leaves_a_synchronized_clock_alone() {
+        let mut client = synced_client(3, 1000);
+        let spoof = v3::Security::new(b"", b"")
+            .with_auth(v3::Auth::NoAuthNoPriv)
+            .with_engine_id(ENGINE_ID)
+            .unwrap()
+            .with_engine_boots_and_time(9, 9000);
+
+        assert!(parse(&mut client, &message(snmp::MSG_REPORT, &spoof)).is_err());
+        assert_eq!((client.engine_boots(), client.engine_time()), (3, 1000));
+    }
+
+    /// An agent that rebooted reports a higher boots; the client adopts it and repeats.
+    #[test]
+    fn a_higher_boots_value_is_adopted() {
+        let mut client = synced_client(3, 1000);
+
+        assert_eq!(
+            parse(&mut client, &message(snmp::MSG_REPORT, &agent(4, 10))),
+            Err(Error::AuthUpdated)
+        );
+        assert_eq!((client.engine_boots(), client.engine_time()), (4, 10));
+    }
+}
+
 #[test]
 #[cfg(feature = "v3")]
 fn test_v3_pdu_to_bytes() {
