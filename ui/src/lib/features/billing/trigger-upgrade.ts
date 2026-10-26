@@ -2,7 +2,11 @@ import { queryClient, queryKeys } from '$lib/api/query-client';
 import { isCloud, type PublicServerConfig } from '$lib/shared/stores/config-query';
 import { trackEvent } from '$lib/shared/utils/analytics';
 import { openModal } from '$lib/shared/stores/modal-registry';
-import { reopenSettingsAfterBilling } from '$lib/features/billing/stores';
+import {
+	billingOpensOverModal,
+	openBillingModal,
+	reopenSettingsAfterBilling
+} from '$lib/features/billing/stores';
 import type { UpgradeFeature } from '$lib/shared/stores/metadata';
 import type { PlanPickerHosting } from '$lib/features/billing/types';
 
@@ -46,7 +50,10 @@ export interface TriggerUpgradeOptions {
 	gate_type?: PaywallGateType;
 	/** If true, reopens settings modal after billing modal closes. */
 	reopenSettings?: boolean;
-	/** Callback to run before opening the billing modal (e.g., close another modal). */
+	/**
+	 * Callback to run before opening the billing modal (e.g., close another modal). Skipped when
+	 * the plan picker opens over the open modal instead of replacing it.
+	 */
 	beforeModal?: () => void;
 	/** Hosting tab the plan picker opens on, overriding the org's current plan's. */
 	hosting?: PlanPickerHosting;
@@ -79,14 +86,19 @@ export function triggerUpgrade(options: TriggerUpgradeOptions): void {
 		return;
 	}
 
+	const entityData = options.hosting ? { hosting: options.hosting } : undefined;
+
+	// Over a form, the plan picker stacks on it and the form keeps what was entered.
+	if (billingOpensOverModal()) {
+		openBillingModal('billing-plan', entityData);
+		return;
+	}
+
 	options.beforeModal?.();
 
 	if (options.reopenSettings) {
 		reopenSettingsAfterBilling.set(true);
 	}
 
-	openModal(
-		'billing-plan',
-		options.hosting ? { entityData: { hosting: options.hosting } } : undefined
-	);
+	openModal('billing-plan', entityData ? { entityData } : undefined);
 }

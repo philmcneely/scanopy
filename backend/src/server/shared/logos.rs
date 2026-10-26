@@ -431,7 +431,7 @@ impl Logo {
             Self::HomeKit => (SelfhstIcons("svg/apple-homekit.svg"), Clear),
             Self::Homepage => (DashboardIcons("webp/homepage.webp"), Clear),
             Self::Hp => (DashboardIcons("svg/hp.svg"), Solid("#ffffff")),
-            Self::Hpe => (DashboardIcons("svg/hpe.svg"), Clear),
+            Self::Hpe => (DashboardIcons("svg/hpe.svg"), Solid("#ffffff")),
             Self::Huawei => (SimpleIcons("huawei"), Solid("#ffffff")),
             Self::Huntarr => (DashboardIcons("png/huntarr.png"), Clear),
             Self::Icinga => (DashboardIcons("svg/icinga.svg"), Solid("#ffffff")),
