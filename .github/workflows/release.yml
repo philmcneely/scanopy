@@ -636,7 +636,7 @@ jobs:
   build-docker-server:
     name: Build Server
     runs-on: ${{ matrix.runner }}
-    needs: [build-binaries, test-and-update-fixtures, migration-branch-test]
+    needs: [test-and-update-fixtures, migration-branch-test]
     permissions:
       contents: read
       packages: write
@@ -657,12 +657,6 @@ jobs:
         run: |
           git fetch origin ${{ github.event.release.target_commitish }}
           git reset --hard origin/${{ github.event.release.target_commitish }}
-
-      - name: Download generated UI fixtures
-        uses: actions/download-artifact@v8
-        with:
-          name: ui-fixtures
-          path: ui/src/lib/data/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -703,8 +697,6 @@ jobs:
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.scanopy.deploy_mode=${{ needs.migration-branch-test.outputs.deploy_mode }}
-          cache-from: type=gha,scope=server-${{ matrix.suffix }}
-          cache-to: type=gha,mode=max,scope=server-${{ matrix.suffix }}
 
   build-docker-daemon:
     name: Build Daemon Docker
@@ -807,6 +799,15 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v8
 
+      # The website sync (promote_to_latest.yml) reads the fixtures and logos from here, so it
+      # gets what this tag shipped without compiling the generator again.
+      - name: Bundle UI fixtures and logos
+        run: |
+          mkdir -p bundle/ui/src/lib/data bundle/ui/static/logos/catalog
+          cp ui-fixtures/*.json bundle/ui/src/lib/data/
+          cp -r ui-logos/. bundle/ui/static/logos/catalog/
+          tar -czf ui-fixtures.tar.gz -C bundle ui
+
       - name: Upload binaries to release
         uses: softprops/action-gh-release@v3
         with:
@@ -819,22 +820,22 @@ jobs:
           files: |
             scanopy-daemon-*/scanopy-daemon-*
             scanopy-server-*/scanopy-server-*
+            ui-fixtures.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # Computed alongside the builds; the PR is opened by open-db-enum-baseline-pr once the
+  # images are published, so a release that fails to publish never refreshes the baseline.
   regenerate-db-enum-baseline:
     name: Regenerate DB-enum baseline for next release cycle
     runs-on: ubuntu-latest
-    needs: [create-manifests]
-    permissions:
-      contents: write
-      pull-requests: write
+    needs: [test-and-update-fixtures]
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: dev
-          fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.90.0
@@ -861,8 +862,38 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Open PR with refreshed baseline
+      - name: Upload refreshed baseline
         if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: db-enum-baseline
+          path: backend/tests/fixtures/db_enum_baseline.json
+          retention-days: 1
+
+  open-db-enum-baseline-pr:
+    name: Open DB-enum baseline PR
+    runs-on: ubuntu-latest
+    needs: [regenerate-db-enum-baseline, create-manifests]
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        if: needs.regenerate-db-enum-baseline.outputs.changed == 'true'
+        with:
+          ref: dev
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Download refreshed baseline
+        if: needs.regenerate-db-enum-baseline.outputs.changed == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: db-enum-baseline
+          path: backend/tests/fixtures/
+
+      - name: Open PR with refreshed baseline
+        if: needs.regenerate-db-enum-baseline.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         working-directory: backend
@@ -885,7 +916,7 @@ jobs:
           {
             echo "## DB-enum baseline"
             echo ""
-            if [ "${{ steps.diff.outputs.changed }}" = "true" ]; then
+            if [ "${{ needs.regenerate-db-enum-baseline.outputs.changed }}" = "true" ]; then
               echo "Baseline changed — PR opened against \`dev\`."
             else
               echo "No baseline changes (no DB-backed enum variants added/removed in this release)."
