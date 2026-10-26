@@ -46,8 +46,6 @@
 		settings_billing_currentPlan,
 		settings_billing_discount_active,
 		settings_billing_discount_active_yearly,
-		settings_billing_downgrade_pending,
-		settings_billing_downgrade_pendingLicense,
 		settings_billing_paymentAndInvoices,
 		settings_billing_needHelp,
 		settings_billing_pastDue,
@@ -64,10 +62,16 @@
 		settings_billing_reactivateSubscription,
 		settings_billing_extendTrial_link,
 		settings_billing_extendTrial_confirmBody,
-		settings_billing_addPaymentMethodSubtitle,
-		settings_billing_license_addPaymentMethodSubtitle,
-		settings_billing_trialCountdown,
 		settings_billing_trialEndsOn,
+		settings_billing_trialEndsOnDaysLeft,
+		billing_trialPillToday,
+		billing_trialPillOneDay,
+		settings_billing_cancellingLicense,
+		settings_billing_cancellingToFree,
+		settings_billing_pausedSince,
+		settings_billing_lapsedReadOnly,
+		settings_billing_lapsedLicense,
+		settings_billing_lapsedLicenseUnpaid,
 		settings_billing_pastDueInvoice,
 		settings_billing_payInvoice,
 		billing_addPaymentMethod,
@@ -79,12 +83,10 @@
 		billing_invoice_downloadQuote,
 		billing_invoice_quoteCancelled,
 		common_processing,
-		billing_noPaymentMethodBannerBody,
 		billing_requestAccepted,
 		billing_subscriptionReactivated,
 		billing_trialExtended
 	} from '$lib/paraglide/messages';
-	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import InlineDanger from '$lib/shared/components/feedback/InlineDanger.svelte';
 	import ButtonMenu, { type ButtonMenuItem } from '$lib/shared/components/ButtonMenu.svelte';
 	import { pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
@@ -381,40 +383,48 @@
 		return items;
 	});
 
-	// Single source of status messaging for the whole tab. One button-less
-	// banner replaces the former trial/no-payment cards and the in-card
-	// Inline* chain so each state shows exactly one status message.
-	let statusBanner = $derived.by(() => {
+	// The tab's one notice. No banner says a payment is past due, so it is said
+	// here. Every other plan state is the status line under the plan name, and
+	// the app banners carry the call to action.
+	//
+	// Nobody attempted a charge on a sent invoice, so telling an invoice buyer
+	// to update a payment method names something they never had.
+	let pastDueNotice = $derived(
+		isPastDue
+			? openInvoiceUrl
+				? settings_billing_pastDueInvoice()
+				: settings_billing_pastDue()
+			: null
+	);
+
+	// The plan's state in one line under the plan name, drawn in the status
+	// pill's colour so the two read as one signal.
+	let statusLine = $derived.by((): string | null => {
 		if (!org) return null;
-		if (isTrialing && !hasPaymentMethod) {
-			const date = trialEndDate ? formatLongDate(trialEndDate) : '';
-			// A licensed org's trial ends in a dead license key, not a downgraded cloud
-			// account, so it gets the license wording.
-			return {
-				type: 'warning' as const,
-				message: `${settings_billing_trialCountdown({ days: trialDaysLeft ?? 0, date })} ${
-					isLicensedPlan
-						? settings_billing_license_addPaymentMethodSubtitle()
-						: settings_billing_addPaymentMethodSubtitle()
-				}`
-			};
+		if (isTrialing && trialEndDate) {
+			const date = formatLongDate(trialEndDate);
+			// With a way to pay, the trial ending is just the first charge.
+			if (hasPaymentMethod) return settings_billing_trialEndsOn({ date });
+			if (trialDaysLeft === 0) return billing_trialPillToday();
+			if (trialDaysLeft === 1) return billing_trialPillOneDay();
+			return settings_billing_trialEndsOnDaysLeft({ date, days: trialDaysLeft ?? 0 });
 		}
-		// Nobody attempted a charge on a sent invoice, so telling an invoice
-		// buyer to update a payment method names something they never had.
-		if (isPastDue && openInvoiceUrl)
-			return { type: 'danger' as const, message: settings_billing_pastDueInvoice() };
-		if (isPastDue) return { type: 'danger' as const, message: settings_billing_pastDue() };
-		if (missingCard)
-			return { type: 'warning' as const, message: billing_noPaymentMethodBannerBody() };
-		// No lapsed branch: PlanLapsedBanner renders in this same modal frame
-		// and says it already, so a second copy sat directly above it.
-		if (isPendingCancellation)
-			return {
-				type: 'warning' as const,
-				message: isLicensedPlan
-					? settings_billing_downgrade_pendingLicense()
-					: settings_billing_downgrade_pending()
-			};
+		if (isPendingCancellation && org.next_renewal_at) {
+			const date = formatLongDate(org.next_renewal_at);
+			return isLicensedPlan
+				? settings_billing_cancellingLicense({ date })
+				: settings_billing_cancellingToFree({ date });
+		}
+		if (isPaused && org.last_paused_at)
+			return settings_billing_pausedSince({ date: formatLongDate(org.last_paused_at) });
+		if (isLapsed) {
+			if (!isLicensedPlan) return settings_billing_lapsedReadOnly();
+			// The same test as PlanLapsedBanner: a write-off takes the paid-through
+			// date back into the past.
+			const unpaid =
+				org.license_paid_through != null && Date.parse(org.license_paid_through) <= Date.now();
+			return unpaid ? settings_billing_lapsedLicenseUnpaid() : settings_billing_lapsedLicense();
+		}
 		return null;
 	});
 
@@ -648,13 +658,8 @@
 	<div class="flex-1 overflow-auto p-6">
 		{#if org}
 			<div class="space-y-6">
-				<!-- Single status banner: one message per state, no embedded action. -->
-				{#if statusBanner}
-					{#if statusBanner.type === 'danger'}
-						<InlineDanger title={statusBanner.message} />
-					{:else}
-						<InlineWarning title={statusBanner.message} />
-					{/if}
+				{#if pastDueNotice}
+					<InlineDanger title={pastDueNotice} />
 				{/if}
 
 				<!-- Current Plan: status, price, and the single CTA section. -->
@@ -662,12 +667,15 @@
 					<svelte:fragment slot="default">
 						<div class="mb-3 flex items-center justify-between">
 							<h3 class="text-sm font-semibold text-primary">{settings_billing_currentPlan()}</h3>
-							<div class="flex items-center gap-2">
-								<StatusIcon class={`h-4 w-4 ${planStatusColor}`} />
-								<span class={`text-sm font-medium ${planStatusColor}`}>
-									{planStatuses.getName(org.plan_status ?? null)}
-								</span>
-							</div>
+							<!-- Free, Community and Enterprise have no subscription status to show. -->
+							{#if org.plan_status}
+								<div class="flex items-center gap-2">
+									<StatusIcon class={`h-4 w-4 ${planStatusColor}`} />
+									<span class={`text-sm font-medium ${planStatusColor}`}>
+										{planStatuses.getName(org.plan_status)}
+									</span>
+								</div>
+							{/if}
 						</div>
 
 						<div class="space-y-4">
@@ -678,10 +686,8 @@
 										<p class="text-lg font-semibold text-primary">
 											{billingPlans.getName(org.plan.type || null)}
 										</p>
-										{#if isTrialing && trialEndDate}
-											<p class="mt-1 text-xs text-secondary">
-												{settings_billing_trialEndsOn({ date: formatLongDate(trialEndDate) })}
-											</p>
+										{#if statusLine}
+											<p class={`mt-1 text-sm font-medium ${planStatusColor}`}>{statusLine}</p>
 										{:else if currentPlanRenewalLine}
 											<p class="mt-1 text-xs text-secondary">{currentPlanRenewalLine}</p>
 										{/if}

@@ -26,19 +26,19 @@
 
 	// `isMissingPaymentMethod` is the shared predicate (Stripe-managed plan that
 	// requires a card but has none) used by every payment-method nag so they
-	// stay in sync. The final clause defers to TrialEndingBanner in its window
-	// (trialing + no card + <= 3 days) so the two never render together.
+	// stay in sync. Two states are left to other surfaces:
+	// - A trial without a card belongs to TrialEndingBanner, which shows in its
+	//   last three days. Before then the trial date on the Billing and License
+	//   tabs and the Billing tab dot are the ask.
+	// - A past-due org sees the Billing tab's past-due notice, which says more.
 	// An org with a quote out is already arranging payment, and accepting it is
 	// the Billing tab's primary action, so this would talk it out of that.
 	const hasPendingQuote = useHasPendingQuote();
 	let shouldShow = $derived(
 		isMissingPaymentMethod(org, isCloudDeployment) &&
 			!hasPendingQuote.current &&
-			!(
-				isTrialingWithoutPayment(org, isCloudDeployment) &&
-				trialDaysLeft !== null &&
-				trialDaysLeft <= 3
-			)
+			!isTrialingWithoutPayment(org, isCloudDeployment) &&
+			org?.plan_status !== 'past_due'
 	);
 
 	$effect(() => {

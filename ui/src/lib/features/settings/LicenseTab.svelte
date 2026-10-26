@@ -2,12 +2,10 @@
 	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import { Copy, RefreshCw } from 'lucide-svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
-	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import ConfirmationDialog from '$lib/shared/components/feedback/ConfirmationDialog.svelte';
 	import SegmentedControl from '$lib/shared/components/forms/SegmentedControl.svelte';
 	import LicenseInstancesCard from './LicenseInstancesCard.svelte';
-	import EmailVerificationNotice from '$lib/features/auth/components/EmailVerificationNotice.svelte';
 	import { useEmailVerificationPending } from '$lib/features/auth/queries';
 	import {
 		useCreateLicenseKeyMutation,
@@ -47,20 +45,18 @@
 		settings_billing_changePlan,
 		settings_billing_license_airGappedCurrentUntil,
 		settings_billing_license_airGappedNeedsCard,
-		settings_billing_license_airGappedNeedsCardLink,
 		settings_billing_license_airGappedOpenInvoice,
 		settings_billing_license_airGappedPastDue,
 		settings_billing_license_installHint,
 		settings_billing_license_verifyEmailForKey,
 		settings_billing_license_installLinkText,
 		settings_billing_license_keyLabel,
-		settings_billing_license_lapsed,
-		settings_billing_license_lapsedUnpaid,
 		settings_billing_license_keyTypeChanged,
 		settings_billing_license_keyTypeLabel,
 		settings_billing_license_lastCheckIn,
 		settings_billing_license_offlineKeyUpsell,
 		settings_billing_license_onlineLockedUntil,
+		settings_billing_license_trialEnds,
 		settings_billing_license_validThrough,
 		settings_billing_license_viewSelfHostedPlans,
 		settings_billing_license_paymentDeclined,
@@ -115,6 +111,13 @@
 	let maskedKey = $derived(
 		currentKey ? `${currentKey.slice(0, 8)}${'•'.repeat(32)}` : preview ? '•'.repeat(40) : ''
 	);
+	// Why the field is empty, said inside it. The banner above carries the Resend.
+	let keyPlaceholder = $derived(
+		!preview && emailVerification.pending ? settings_billing_license_verifyEmailForKey() : ''
+	);
+	// Until a server has used the key there is nothing to rotate it away from, and
+	// "Last check-in: Never" says nothing the empty server list doesn't.
+	let hasCheckedIn = $derived(org?.license_checkin_at != null);
 
 	let planType = $derived(org?.plan?.type ?? null);
 	let airGappedIncluded = $derived(
@@ -125,20 +128,11 @@
 	let hasCard = $derived(canPay(org));
 	let isTrialing = $derived(org?.plan_status === 'trialing');
 	let isPastDue = $derived(org?.plan_status === 'past_due');
-	// A lapsed org is told its plan ended and its key has stopped, and no date
-	// is quoted anywhere on the card. A date here only invites the question of
-	// what it means: after a write-off it is in the past, and after an ordinary
-	// lapse it is a deadline the org can no longer act on. Lapsed and stopped
-	// is the whole message.
+	// A lapsed org is told its plan ended and its key has stopped by
+	// PlanLapsedBanner, which renders in this modal's frame. No date is quoted on
+	// the card: after a write-off it is in the past, and after an ordinary lapse
+	// it is a deadline the org can no longer act on.
 	let isLapsed = $derived(!preview && org != null && isPlanLapsed(org));
-	// Which of the two lapse messages to show. A write-off takes the date back
-	// to the start of the period it covered, so a date already past says the
-	// invoice went unpaid rather than that the plan simply ended.
-	let lapsedKeyAlreadyStopped = $derived(
-		isLapsed &&
-			org?.license_paid_through != null &&
-			Date.parse(org.license_paid_through) <= Date.now()
-	);
 	// The server also refuses an air-gapped mint until the subscription is out of
 	// trial, but choosing the option during a trial is what ends the trial. A card
 	// on file is the one thing the user has to do first.
@@ -175,6 +169,19 @@
 			: null
 	);
 
+	// Why Air-gapped can't be picked, in the order the server would refuse it.
+	// Shown in a popover on the option itself, with the action that unlocks it.
+	// Nothing when the org already holds an air-gapped key: the line under the
+	// selector says what that key locks instead.
+	let airGappedBlocker = $derived.by((): 'plan' | 'payment' | 'pastDue' | 'openInvoice' | null => {
+		if (preview || airGappedCurrentUntil) return null;
+		if (!airGappedIncluded) return 'plan';
+		if (!hasCard) return 'payment';
+		if (isPastDue) return 'pastDue';
+		if (hasOpenInvoice) return 'openInvoice';
+		return null;
+	});
+
 	let keyTypeOptions = $derived([
 		{
 			value: 'Online',
@@ -184,10 +191,15 @@
 				? settings_billing_license_onlineLockedUntil({ date: switchBackDate })
 				: undefined
 		},
-		{ value: 'Offline', label: common_airGapped(), disabled: !airGappedAvailable }
+		{
+			value: 'Offline',
+			label: common_airGapped(),
+			disabled: !airGappedAvailable,
+			popover: airGappedBlocker ? airGappedPopover : undefined
+		}
 	]);
 
-	// Withheld once lapsed: the warning above already says the licence ended,
+	// Withheld once lapsed: the banner above already says the licence ended,
 	// and a "Valid through" date beside it either sits in the past or reads as
 	// a deadline the org can no longer meet.
 	let validThrough = $derived(
@@ -328,6 +340,38 @@
 	usePreloadStripe();
 </script>
 
+{#snippet airGappedPopover()}
+	<div class="space-y-2 px-3 py-2 text-xs text-secondary">
+		{#if airGappedBlocker === 'plan'}
+			<p>{settings_billing_license_offlineKeyUpsell()}</p>
+			<button type="button" class="text-link hover:underline" onclick={openPlanPicker}>
+				{settings_billing_changePlan()}
+			</button>
+		{:else if airGappedBlocker === 'payment'}
+			<p>{settings_billing_license_airGappedNeedsCard()}</p>
+			<button type="button" class="text-link hover:underline" onclick={handleAddPaymentMethod}>
+				{billing_addPaymentMethod()}
+			</button>
+		{:else if airGappedBlocker === 'pastDue'}
+			<p>{settings_billing_license_airGappedPastDue()}</p>
+		{:else if airGappedBlocker === 'openInvoice'}
+			<p>{settings_billing_license_airGappedOpenInvoice()}</p>
+			{#if openInvoiceUrl}
+				<!-- eslint-disable svelte/no-navigation-without-resolve -->
+				<a
+					href={openInvoiceUrl}
+					target="_blank"
+					rel="external noopener noreferrer"
+					class="text-link hover:underline"
+				>
+					{settings_billing_payInvoice()}
+				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			{/if}
+		{/if}
+	</div>
+{/snippet}
+
 <div class="flex min-h-0 flex-1 flex-col">
 	<div class="flex-1 overflow-auto p-6">
 		{#if org}
@@ -346,26 +390,18 @@
 			>
 				<InfoCard title={common_license()}>
 					<div class="space-y-4">
-						{#if lapsedKeyAlreadyStopped}
-							<InlineWarning
-								title={settings_billing_license_lapsedUnpaid({
-									plan: billingPlans.getName(planType)
-								})}
-							/>
-						{:else if isLapsed}
-							<InlineWarning
-								title={settings_billing_license_lapsed({
-									plan: billingPlans.getName(planType)
-								})}
-							/>
-						{/if}
 						<dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
 							{#if !preview}
 								<dt class="text-secondary">{common_tier()}</dt>
 								<dd class="font-medium text-primary">{billingPlans.getName(planType)}</dd>
 							{/if}
 							{#if validThrough}
-								<dt class="text-secondary">{settings_billing_license_validThrough()}</dt>
+								<!-- During a trial the date is the trial's end, not how long a paid licence runs. -->
+								<dt class="text-secondary">
+									{isTrialing
+										? settings_billing_license_trialEnds()
+										: settings_billing_license_validThrough()}
+								</dt>
 								<dd class="flex flex-wrap items-center gap-3 text-primary">
 									<span>{validThrough}</span>
 									<!-- Whatever is required to keep that date moving, beside the
@@ -392,8 +428,10 @@
 									{/if}
 								</dd>
 							{/if}
-							<dt class="text-secondary">{settings_billing_license_lastCheckIn()}</dt>
-							<dd class="text-primary">{lastCheckIn}</dd>
+							{#if hasCheckedIn}
+								<dt class="text-secondary">{settings_billing_license_lastCheckIn()}</dt>
+								<dd class="text-primary">{lastCheckIn}</dd>
+							{/if}
 						</dl>
 
 						<div class="space-y-3 border-t pt-3" style="border-color: var(--color-border)">
@@ -410,65 +448,17 @@
 								</div>
 							</div>
 
-							<!-- One line, one slot: the plan upsell, or (on a plan that already
-							     includes air-gapped) what makes the option selectable. A tooltip on
-							     the disabled option can't carry this — the message has to be readable
-							     without hovering something that isn't clickable. -->
-							{#if preview}
-								<!-- A preview has no plan to explain; the prompt above says what unlocks it. -->
-							{:else if airGappedCurrentUntil}
-								<!-- The org already holds the key, so this slot says what is locked
-								     rather than why air-gapped is unavailable. It has to come first:
-								     such an org has a card and is not past due, so it falls through
-								     every branch below to no line at all. -->
+							<!-- Why Air-gapped is unavailable lives in its popover. This line is
+							     only for an org already holding an air-gapped key: it says what
+							     that key locks. -->
+							{#if !preview && airGappedCurrentUntil}
 								<p class="text-sm text-secondary">
 									{settings_billing_license_airGappedCurrentUntil({
 										date: formatLongDate(airGappedCurrentUntil)
 									})}
 								</p>
-							{:else if !airGappedIncluded}
-								<p class="text-sm text-secondary">
-									{settings_billing_license_offlineKeyUpsell()}
-									<button type="button" onclick={openPlanPicker} class="text-link hover:underline">
-										{settings_billing_changePlan()}
-									</button>
-								</p>
-							{:else if !hasCard}
-								{@const [beforeLink, afterLink] =
-									settings_billing_license_airGappedNeedsCard().split('%link%')}
-								<p class="text-sm text-secondary">
-									{beforeLink}<button
-										type="button"
-										class="text-link hover:underline"
-										onclick={handleAddPaymentMethod}
-										>{settings_billing_license_airGappedNeedsCardLink()}</button
-									>{afterLink ?? ''}
-								</p>
-							{:else if isPastDue}
-								<p class="text-sm text-secondary">
-									{settings_billing_license_airGappedPastDue()}
-								</p>
-							{:else if hasOpenInvoice}
-								<p class="text-sm text-secondary">
-									{settings_billing_license_airGappedOpenInvoice()}
-									{#if openInvoiceUrl}
-										<!-- eslint-disable svelte/no-navigation-without-resolve -->
-										<a
-											href={openInvoiceUrl}
-											target="_blank"
-											rel="external noopener noreferrer"
-											class="text-link hover:underline"
-										>
-											{settings_billing_payInvoice()}
-										</a>
-										<!-- eslint-enable svelte/no-navigation-without-resolve -->
-									{/if}
-								</p>
 							{/if}
 
-							{#if !preview}
-								<EmailVerificationNotice body={settings_billing_license_verifyEmailForKey()} />
-							{/if}
 							<div>
 								<label class="text-sm text-secondary" for="license-key">
 									{settings_billing_license_keyLabel()}
@@ -478,6 +468,7 @@
 										id="license-key"
 										class="input-field min-w-0 flex-1 font-mono text-sm sm:min-w-[16rem]"
 										value={maskedKey}
+										placeholder={keyPlaceholder}
 										readonly
 									/>
 									<button
@@ -489,15 +480,17 @@
 										<Copy class="h-4 w-4" />
 										{common_copy()}
 									</button>
-									<button
-										type="button"
-										class="btn-secondary flex items-center gap-2"
-										onclick={() => (showRotateConfirm = true)}
-										disabled={!currentKey || rotateMutation.isPending}
-									>
-										<RefreshCw class="h-4 w-4" />
-										{apiKeys_rotateKey()}
-									</button>
+									{#if hasCheckedIn}
+										<button
+											type="button"
+											class="btn-secondary flex items-center gap-2"
+											onclick={() => (showRotateConfirm = true)}
+											disabled={!currentKey || rotateMutation.isPending}
+										>
+											<RefreshCw class="h-4 w-4" />
+											{apiKeys_rotateKey()}
+										</button>
+									{/if}
 								</div>
 								<DocsHint
 									class="mt-2"
