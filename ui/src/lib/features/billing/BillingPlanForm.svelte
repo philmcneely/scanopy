@@ -620,7 +620,9 @@
 						<div class="border-b pb-4" style="border-color: var(--color-border)">
 							<div class="-mx-2">
 								<!-- Seats -->
-								<div class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30">
+								<div
+									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+								>
 									<span
 										class="explainer text-secondary"
 										data-tooltip={limitHelpers.getDescription('seats')}
@@ -640,7 +642,9 @@
 								</div>
 
 								<!-- Sites -->
-								<div class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30">
+								<div
+									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+								>
 									<span
 										class="explainer text-secondary"
 										data-tooltip={limitHelpers.getDescription('sites')}
@@ -661,7 +665,9 @@
 								{#if getHosting(plan) === 'SelfHosted'}
 									{@const production = metadata?.included_instances}
 									{@const nonProduction = metadata?.included_non_production_instances}
-									<div class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30">
+									<div
+										class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+									>
 										<span
 											class="explainer text-secondary"
 											data-tooltip={limitHelpers.getDescription('servers')}
@@ -683,7 +689,9 @@
 								{/if}
 
 								<!-- Snapshot Retention -->
-								<div class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30">
+								<div
+									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+								>
 									<span
 										class="explainer text-secondary"
 										data-tooltip={featureHelpers.getDescription('snapshot_retention_days')}
