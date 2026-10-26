@@ -258,6 +258,19 @@ impl BillingService {
             .await?
             .ok_or_else(|| anyhow!("Organization not found"))?;
 
+        // Every cloud trial needs a card on file, including one reached by
+        // switching plan mid-trial (a license trial, which needs none, moving
+        // to a cloud plan keeps the trial running).
+        if organization.base.plan_status == Some(PlanStatus::Trialing)
+            && target_plan.license_plan().is_none()
+            && !self.customer_has_payment_method(organization_id).await?
+        {
+            return Err(ValidationError::new(
+                "Add a payment method to start a trial of this plan.",
+            )
+            .into());
+        }
+
         // An air-gapped key already minted runs to its own expiry whatever the
         // cloud says, so dropping a tier under it would sell Standard while
         // Plus caps keep working. The key cannot be surrendered early either:

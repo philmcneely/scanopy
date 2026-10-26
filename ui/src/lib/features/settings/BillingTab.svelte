@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import { CreditCard } from 'lucide-svelte';
 	import ProgressTrack from '$lib/shared/components/data/ProgressTrack.svelte';
@@ -581,6 +582,9 @@
 			// The mutation toasts the failure.
 		}
 	}
+
+	// Stripe.js is ready before anyone opens the payment dialog from here.
+	usePreloadStripe();
 </script>
 
 {#snippet usageRow(label: string, used: number, included: number, overageCents: number | null)}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import { Copy, RefreshCw } from 'lucide-svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
@@ -311,6 +312,9 @@
 			beforeModal: () => onClose()
 		});
 	}
+
+	// Stripe.js is ready before anyone opens the payment dialog from here.
+	usePreloadStripe();
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
