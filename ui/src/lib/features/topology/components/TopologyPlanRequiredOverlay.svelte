@@ -10,7 +10,7 @@
 	import SessionPhaseProgress from '$lib/features/discovery/components/cards/SessionPhaseProgress.svelte';
 	import { useActiveSessionsQuery } from '$lib/features/discovery/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import { ArrowUpCircle } from 'lucide-svelte';
+	import PaidCrownOnPrimary from '$lib/shared/components/PaidCrownOnPrimary.svelte';
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { canTrialTopology, topologyTrialDays } from '$lib/shared/utils/trial';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
@@ -35,8 +35,7 @@
 		{
 			role: 'primary',
 			label: trial ? billing_startFreeTrial() : common_upgrade(),
-			icon: ArrowUpCircle,
-			tone: 'upgrade',
+			icon: PaidCrownOnPrimary,
 			onClick: () =>
 				triggerUpgrade({
 					feature: 'topology_view',

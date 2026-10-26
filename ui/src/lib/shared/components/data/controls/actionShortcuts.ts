@@ -106,15 +106,13 @@ const ICON_BUTTON_CLASS: Record<ActionTone, string> = {
 	danger: 'btn-icon-danger',
 	warning: 'btn-icon-warning',
 	success: 'btn-icon-success',
-	info: 'btn-icon-info',
-	upgrade: 'btn-icon-upgrade'
+	info: 'btn-icon-info'
 };
 const TOOLBAR_BUTTON_CLASS: Record<ActionTone, string> = {
 	danger: 'btn-danger',
 	warning: 'btn-warning',
 	success: 'btn-success',
-	info: 'btn-info',
-	upgrade: 'btn-upgrade'
+	info: 'btn-info'
 };
 
 /** The class of an action's icon button in a table row. */

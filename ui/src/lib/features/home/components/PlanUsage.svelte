@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { components } from '$lib/api/schema';
-	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
+	import PaidCrown from '$lib/shared/components/PaidCrown.svelte';
+	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
+	import { common_plans, home_planUsage } from '$lib/paraglide/messages';
 	import ProgressTrack from '$lib/shared/components/data/ProgressTrack.svelte';
 
 	type PlanUsage = components['schemas']['PlanUsage'];
@@ -83,9 +85,22 @@
 {#if hasLimits}
 	<section>
 		<div class="mb-3 flex items-center justify-between">
-			<h3 class="text-base font-semibold text-primary">Plan Usage</h3>
+			<h3 class="text-base font-semibold text-primary">{home_planUsage()}</h3>
 			{#if showUpgrade}
-				<UpgradeButton feature="plan_usage" surface="home_plan_usage" gate_type="limit_hit" />
+				<button
+					type="button"
+					class="btn-secondary flex items-center gap-2"
+					onclick={() =>
+						triggerUpgrade({
+							feature: 'plan_usage',
+							source: 'home_plan_usage',
+							surface: 'home_plan_usage',
+							gate_type: 'limit_hit'
+						})}
+				>
+					<PaidCrown />
+					{common_plans()}
+				</button>
 			{/if}
 		</div>
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

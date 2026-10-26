@@ -38,7 +38,7 @@ export interface TagProps {
 	href?: string;
 	entityRef?: EntityRef;
 	pill?: boolean;
-	/** An upgrade prompt, drawn in the upgrade button's colours instead of `color`. */
+	/** A paid feature's badge (`upgradeTagProps`): an amber chip around its crown, instead of `color`. */
 	upgrade?: boolean;
 	/** Hover text, or structured tooltip content. */
 	title?: string | TooltipContent;
@@ -54,7 +54,7 @@ export interface TagProps {
 }
 
 /** An action's colour. Omitted, it renders neutral. The row and the toolbar both render from it. */
-export type ActionTone = 'danger' | 'warning' | 'success' | 'info' | 'upgrade';
+export type ActionTone = 'danger' | 'warning' | 'success' | 'info';
 
 export interface CardAction {
 	label: string;
