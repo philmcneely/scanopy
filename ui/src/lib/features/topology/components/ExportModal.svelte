@@ -51,18 +51,14 @@
 		topology_noNodesToExport
 	} from '$lib/paraglide/messages';
 	import { getResolvedTheme } from '$lib/shared/stores/theme.svelte';
-	import {
-		common_light,
-		common_dark,
-		common_export,
-		common_upgrade
-	} from '$lib/paraglide/messages';
+	import { common_light, common_dark, common_export } from '$lib/paraglide/messages';
 	import { trackEvent } from '$lib/shared/utils/analytics';
 	import { downloadTopologyExport } from '$lib/shared/utils/csvExport';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import { closeModal } from '$lib/shared/stores/modal-registry';
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
+	import { upgradeTagProps } from '$lib/features/billing/upgrade-tag';
 	import type { UpgradeFeature } from '$lib/shared/stores/metadata';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	import {
@@ -283,7 +279,7 @@
 	};
 
 	let formatOptions = $derived.by(() => {
-		const upgradeTags = [{ label: common_upgrade(), color: 'Yellow' as const }];
+		const upgradeTags = [upgradeTagProps()];
 		return allFormats
 			.filter((f) => {
 				// In share view, hide formats the plan doesn't support

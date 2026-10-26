@@ -8,9 +8,9 @@
 	import {
 		getStabilityTagProps,
 		getTargetTagProps,
-		getUpgradeTagProps,
 		getUpstreamSupportTagProps
 	} from '$lib/features/credentials/types/base';
+	import { upgradeTagProps } from '$lib/features/billing/upgrade-tag';
 	import { credentials_planRequired } from '$lib/paraglide/messages';
 
 	export type CredentialTypeOption = TypedTypeMetadata<CredentialTypeMetadata>;
@@ -39,7 +39,7 @@
 		// the type dropdown, and dropdown search (RichSelect folds tag labels into its filter text)
 		// in a single definition. Beta and unofficial are independent, so a type may carry both.
 		getTags: (item, context) => {
-			const upgrade = context?.upgradeFeature ? getUpgradeTagProps() : null;
+			const upgrade = context?.upgradeFeature ? upgradeTagProps(credentials_planRequired()) : null;
 			const stability = getStabilityTagProps(item.metadata?.stability);
 			const upstream = getUpstreamSupportTagProps(item.metadata?.upstream_support);
 			const targets = (item.metadata?.targets ?? []).map((t: string) => getTargetTagProps(t));
