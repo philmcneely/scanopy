@@ -1,6 +1,7 @@
 // `/pure`: importing this module injects nothing. Stripe.js loads only when
 // `preloadStripe` first runs (see StripeCardForm for why that matters).
 import { loadStripe } from '@stripe/stripe-js/pure';
+import { untrack } from 'svelte';
 import type {
 	Stripe,
 	StripeElements,
@@ -42,19 +43,42 @@ let setupIntent: { organizationId: string; clientSecret: Promise<string> } | nul
 // Bumped when the cached intent is spent, so surfaces still showing prefetch
 // the next one rather than leaving the next open to fetch it.
 let setupIntentGeneration = $state(0);
+// The cached intent's client secret once it has arrived.
+let readySetupIntent = $state<{ organizationId: string; clientSecret: string } | null>(null);
+// How many surfaces that open the payment dialog are showing for an owner.
+let warmSurfaces = $state(0);
 
 /**
  * The client secret for `organizationId`'s payment form, created now unless
  * one is already in flight or ready. A failure is forgotten, so the next
  * caller retries.
  */
-export function takeSetupIntent(organizationId: string): Promise<string> {
+export function takeSetupIntent(organizationId: string, caller: string): Promise<string> {
 	if (setupIntent == null || setupIntent.organizationId !== organizationId) {
+		// TEMPORARY (remove once the prefetch is confirmed reused): why a new intent.
+		console.debug(
+			`[payment-form] setup intent: new for ${caller} (${setupIntent == null ? 'none cached' : 'another org'})`
+		);
 		const clientSecret = createSetupIntent().catch((error: unknown) => {
-			if (setupIntent?.clientSecret === clientSecret) setupIntent = null;
+			if (setupIntent?.clientSecret === clientSecret) {
+				console.debug(`[payment-form] setup intent: failed for ${caller}, forgotten`);
+				setupIntent = null;
+			}
 			throw error;
 		});
 		setupIntent = { organizationId, clientSecret };
+		void clientSecret.then(
+			(secret) => {
+				if (setupIntent?.clientSecret === clientSecret) {
+					readySetupIntent = { organizationId, clientSecret: secret };
+				}
+			},
+			() => {
+				// The catch above has forgotten it.
+			}
+		);
+	} else {
+		console.debug(`[payment-form] setup intent: reused for ${caller}`);
 	}
 	return setupIntent.clientSecret;
 }
@@ -62,9 +86,26 @@ export function takeSetupIntent(organizationId: string): Promise<string> {
 /** Drop the cached SetupIntent, and the form built on it, once a card has been saved with it. */
 export function clearSetupIntent(): void {
 	setupIntent = null;
+	readySetupIntent = null;
 	preparedForm = null;
 	setupIntentGeneration += 1;
 }
+
+/**
+ * The payment dialog's head start: whether a surface that opens it is showing
+ * for an owner (so the dialog keeps its card form mounted, drawn and hidden),
+ * and the prefetched client secret that form mounts on, once it has arrived.
+ */
+export const paymentDialogPreload = {
+	get warm(): boolean {
+		return warmSurfaces > 0;
+	},
+	clientSecretFor(organizationId: string | undefined): string | null {
+		return readySetupIntent != null && readySetupIntent.organizationId === organizationId
+			? readySetupIntent.clientSecret
+			: null;
+	}
+};
 
 /** The Payment Element's options: the same in a prepared form and one built on open. */
 export function paymentElementOptions(email: string | undefined): StripePaymentElementOptions {
@@ -144,12 +185,14 @@ export function usePreloadStripe(showing: () => boolean = () => true): void {
 		const organizationId = organizationQuery.data?.id;
 		const email = currentUserQuery.data?.email;
 		if (publishableKey && organizationId && currentUserQuery.data?.permissions === 'Owner') {
-			void takeSetupIntent(organizationId)
+			void takeSetupIntent(organizationId, 'prefetch')
 				.then((clientSecret) => preparePaymentForm(publishableKey, clientSecret, email))
 				.catch(() => {
 					// The API client toasts a failed intent, and the dialog retries
 					// both when it opens.
 				});
+			untrack(() => (warmSurfaces += 1));
+			return () => untrack(() => (warmSurfaces -= 1));
 		}
 	});
 }

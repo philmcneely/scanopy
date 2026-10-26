@@ -289,6 +289,17 @@ impl Organization {
                 == Some(crate::server::billing::types::base::PlanStatus::Cancelled)
     }
 
+    /// Whether the org is inside its trial at `now`. A trial with a cancellation scheduled is
+    /// still a trial (Stripe keeps it `trialing`; we mirror `cancel_at` as `PendingCancellation`),
+    /// so a plan switch keeps it running and still owes a card for a cloud plan.
+    pub fn is_in_trial(&self, now: DateTime<Utc>) -> bool {
+        use crate::server::billing::types::base::PlanStatus;
+        matches!(
+            self.base.plan_status,
+            Some(PlanStatus::Trialing) | Some(PlanStatus::PendingCancellation)
+        ) && self.base.trial_end_date.is_some_and(|end| end > now)
+    }
+
     /// When the org's trial began, worked back from its end date, the plan's trial length and any
     /// extension. `None` when the org has never trialed. An org's trial can start well after the
     /// org was created (one created before signup started trials begins at the owner's next visit).
@@ -520,6 +531,30 @@ mod tests {
         assert!(!with(get_self_hosted_standard_plan(), None).is_lapsed());
         assert!(!with(get_free_plan(), Some(PlanStatus::Cancelled)).is_lapsed());
         assert!(!Organization::default().is_lapsed());
+    }
+
+    /// `change_plan`'s card requirement reads this. A cancellation scheduled mid-trial leaves the
+    /// trial running; one scheduled on a paid subscription after its trial does not.
+    #[test]
+    fn a_trial_with_a_scheduled_cancellation_is_still_a_trial() {
+        use crate::server::billing::types::base::PlanStatus;
+
+        let now = Utc::now();
+        let with = |status: Option<PlanStatus>, trial_end: Option<DateTime<Utc>>| {
+            let mut org = Organization::default();
+            org.base.plan_status = status;
+            org.base.trial_end_date = trial_end;
+            org
+        };
+        let future = Some(now + chrono::Duration::days(5));
+        let past = Some(now - chrono::Duration::days(5));
+
+        assert!(with(Some(PlanStatus::Trialing), future).is_in_trial(now));
+        assert!(with(Some(PlanStatus::PendingCancellation), future).is_in_trial(now));
+        assert!(!with(Some(PlanStatus::PendingCancellation), past).is_in_trial(now));
+        assert!(!with(Some(PlanStatus::Active), past).is_in_trial(now));
+        assert!(!with(Some(PlanStatus::Cancelled), future).is_in_trial(now));
+        assert!(!with(None, None).is_in_trial(now));
     }
 
     /// Two refusals read this: switching back to an online key, and changing

@@ -7,7 +7,11 @@
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import { trialChargeDate } from '$lib/shared/utils/trial';
 	import { useDelayedFlag } from '$lib/shared/utils/delayed-flag.svelte';
-	import { clearSetupIntent, takeSetupIntent } from '$lib/features/billing/stripe.svelte';
+	import {
+		clearSetupIntent,
+		paymentDialogPreload,
+		takeSetupIntent
+	} from '$lib/features/billing/stripe.svelte';
 	import {
 		useCheckoutMutation,
 		useCreateSetupIntentMutation,
@@ -114,7 +118,13 @@
 	// as soon as the dialog opens. Invoice is a text link under it.
 	type Method = 'card' | 'invoice';
 	let method = $state<Method>('card');
-	let clientSecret = $state<string | null>(null);
+	// The intent this open is bound to: one fetched on open, or the prefetched
+	// one pinned when its card is saved, so the form keeps it while finalize
+	// runs and the next intent is prefetched.
+	let pinnedSecret = $state<string | null>(null);
+	// While a surface that opens this is showing, the form mounts on the
+	// prefetched intent behind the closed dialog, so opening shows it drawn.
+	let clientSecret = $derived(pinnedSecret ?? paymentDialogPreload.clientSecretFor(org?.id));
 	// The intent is usually prefetched, so a wheel only shows for a slow fetch.
 	const showSpinner = useDelayedFlag(() => isOpen && clientSecret == null, 400);
 
@@ -123,9 +133,10 @@
 	// close). Naming it again puts the registry and the URL back on what is
 	// visible, whichever way this dialog ends.
 	function closeAndReturn() {
-		// A SetupIntent is single-use. The next open fetches a fresh one rather
-		// than remounting the form on one that may already have succeeded.
-		clientSecret = null;
+		// An unconfirmed intent can back the next open. A saved card has already
+		// spent it (clearSetupIntent), and the next one is prefetched.
+		pinnedSecret = null;
+		method = 'card';
 		const tab = $reopenSettingsTabAfterPayment;
 		closeModal();
 		if (tab) {
@@ -145,8 +156,10 @@
 			// Usually made already, by the surface that opened this (usePreloadStripe).
 			// TEMPORARY timing log (remove after the preload is confirmed).
 			const openedAt = performance.now();
-			clientSecret =
-				org != null ? await takeSetupIntent(org.id) : await setupIntentMutation.mutateAsync();
+			pinnedSecret =
+				org != null
+					? await takeSetupIntent(org.id, 'dialog')
+					: await setupIntentMutation.mutateAsync();
 			console.debug(
 				`[payment-form] SetupIntent ready after ${Math.round(performance.now() - openedAt)}ms`
 			);
@@ -165,7 +178,9 @@
 		// Read before the await: the registry can move on while the card is
 		// finalizing, and the plan this dialog was opened for must not go with it.
 		const plan = pendingPlan;
-		// Stripe has confirmed this intent, so it can't back another form.
+		// Stripe has confirmed this intent, so it can't back another form. This
+		// form keeps it, so a finalize retry confirms nothing twice.
+		pinnedSecret = clientSecret;
 		clearSetupIntent();
 		try {
 			await finalizeMutation.mutateAsync(setupIntentId);
@@ -221,6 +236,7 @@
 
 <GenericModal
 	{isOpen}
+	keepMounted={paymentDialogPreload.warm}
 	name="payment-method"
 	title={billing_addPaymentMethod()}
 	size="md"
@@ -252,25 +268,28 @@
 				/>
 			</div>
 		{/if}
-		<StripeCardForm
-			{clientSecret}
-			notice={trialEndsAt
-				? billing_notChargedUntilTrialEnds({ date: formatLongDate(trialEndsAt) })
-				: undefined}
-			email={userEmail}
-			submitLabel={common_save()}
-			onSuccess={handleCardSuccess}
-			onConfirmFailed={handleConfirmFailed}
-			onCancel={closeAndReturn}
-			altAction={payOutstandingUrl
-				? {
-						label: billing_invoice_payOutstanding(),
-						onclick: () => window.open(payOutstandingUrl, '_blank', 'noopener,noreferrer')
-					}
-				: invoiceEligible
-					? { label: billing_payByInvoice(), onclick: () => (method = 'invoice') }
-					: null}
-		/>
+		{#key clientSecret}
+			<StripeCardForm
+				{clientSecret}
+				active={isOpen}
+				notice={trialEndsAt
+					? billing_notChargedUntilTrialEnds({ date: formatLongDate(trialEndsAt) })
+					: undefined}
+				email={userEmail}
+				submitLabel={common_save()}
+				onSuccess={handleCardSuccess}
+				onConfirmFailed={handleConfirmFailed}
+				onCancel={closeAndReturn}
+				altAction={payOutstandingUrl
+					? {
+							label: billing_invoice_payOutstanding(),
+							onclick: () => window.open(payOutstandingUrl, '_blank', 'noopener,noreferrer')
+						}
+					: invoiceEligible
+						? { label: billing_payByInvoice(), onclick: () => (method = 'invoice') }
+						: null}
+			/>
+		{/key}
 	{:else}
 		<div class="flex min-h-[12rem] items-center justify-center p-6">
 			{#if showSpinner.current}

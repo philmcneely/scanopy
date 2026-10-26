@@ -19,7 +19,7 @@
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { isLicenseSigningAvailable, useConfigQuery } from '$lib/shared/stores/config-query';
 	import { modalState, openModal } from '$lib/shared/stores/modal-registry';
-	import { canPay } from '$lib/shared/utils/trial';
+	import { canPay, isInTrial } from '$lib/shared/utils/trial';
 
 	let {
 		isOpen = false,
@@ -93,7 +93,8 @@
 			: plansData.filter((p) => billingPlanHelpers.getMetadata(p.type)?.license_plan == null)
 	);
 
-	let isCurrentlyTrialing = $derived(organization?.plan_status === 'trialing');
+	// A trial with a cancellation scheduled still runs, and a switch keeps it.
+	let isCurrentlyTrialing = $derived(isInTrial(organization));
 
 	// Only show trial offers to orgs that have never had a non-Free paid plan and never trialed.
 	// trial_end_date is set by Stripe webhook only for subscriptions with trial periods

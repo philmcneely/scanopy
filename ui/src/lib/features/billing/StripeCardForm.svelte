@@ -13,6 +13,7 @@
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
+	import { untrack } from 'svelte';
 	import { useDelayedFlag } from '$lib/shared/utils/delayed-flag.svelte';
 	import type { PaymentFormFailure } from '$lib/shared/billing/setup-payment';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
@@ -30,6 +31,7 @@
 		clientSecret,
 		description = undefined,
 		notice = undefined,
+		active = true,
 		email = undefined,
 		submitLabel = common_continue(),
 		onSuccess,
@@ -43,6 +45,11 @@
 		description?: string;
 		/** Optional info note rendered at the top, above the description. */
 		notice?: string;
+		/**
+		 * Whether the form is on screen. A form kept mounted behind a closed
+		 * dialog is cleared when hidden and takes the current theme when shown.
+		 */
+		active?: boolean;
 		/** Prefills the Link email so returning users skip re-typing it. */
 		email?: string;
 		submitLabel?: string;
@@ -153,6 +160,27 @@
 			console.debug(`[payment-form] element ready after ${since()}`);
 			ready = true;
 		}
+	});
+
+	// Shown: the theme may have changed while hidden. Hidden: drop what was
+	// typed, so the next open starts blank.
+	let wasActive = false;
+	$effect(() => {
+		const isActive = active;
+		untrack(() => {
+			if (isActive && !wasActive) {
+				// TEMPORARY (remove after the preload is confirmed).
+				console.debug(
+					`[payment-form] dialog opened, form ${ready ? 'already drawn' : 'still loading'}`
+				);
+				elements?.update({ appearance: buildStripeAppearance() });
+			} else if (!isActive && wasActive && !confirmedSetupIntentId) {
+				mountedElement?.clear();
+				errorMessage = '';
+				busy = false;
+			}
+		});
+		wasActive = isActive;
 	});
 
 	function handleChange(event: { collapsed?: boolean }) {
