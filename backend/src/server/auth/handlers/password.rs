@@ -68,7 +68,7 @@ pub(crate) async fn update_password_auth(
     tags = [api_tags::INTERNAL],
     request_body = RequestEmailChangeRequest,
     responses(
-        (status = 200, description = "Verification email sent to new address", body = EmptyApiResponse),
+        (status = 200, description = "Verification email sent to the new address, or the change applied at once when the server has no email transport", body = EmptyApiResponse),
         (status = 400, description = "Invalid request", body = ApiErrorResponse),
         (status = 401, description = "Not authenticated", body = ApiErrorResponse),
     )

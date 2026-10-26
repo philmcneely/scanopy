@@ -745,7 +745,11 @@ impl AuthService {
         Ok(())
     }
 
-    /// Helper to generate verification token and set on user prior to emitting event that will send a verification email
+    /// Helper to generate verification token and set on user prior to emitting event that will send a verification email.
+    ///
+    /// The returned address is the one `verify_email` applies when the token comes back: the
+    /// pending address during an email change, the current one otherwise. Mailing the token
+    /// anywhere else would let the current inbox confirm an address nobody has proved.
     pub(crate) async fn set_user_email_verification_params(
         &self,
         user: &mut User,
@@ -767,7 +771,11 @@ impl AuthService {
 
         Ok(EmailAndToken {
             token: token.into(),
-            email: user.base.email.clone(),
+            email: user
+                .base
+                .pending_email
+                .clone()
+                .unwrap_or_else(|| user.base.email.clone()),
         })
     }
 
@@ -816,30 +824,53 @@ impl AuthService {
             return Err(anyhow!("This email address is already in use"));
         }
 
+        let scope = AuthScope {
+            user_id: Some(user.id),
+            organization_id: Some(user.base.organization_id),
+            ip_address: ip,
+            user_agent,
+        };
+
+        // Without an email transport no link can reach the new address, so the change applies
+        // at once, as sign-up verifies new accounts at once on such a server.
+        if !self.has_email_service {
+            let old_email = std::mem::replace(&mut user.base.email, new_email.clone());
+            user.base.email_verified = true;
+            user.base.pending_email = None;
+            user.base.email_verification_token = None;
+            user.base.email_verification_expires = None;
+            self.user_service
+                .update(
+                    &mut user,
+                    AuthenticatedEntity::System,
+                    UpdateReason::UserEmailChanged,
+                )
+                .await?;
+            self.event_bus
+                .publish(Event::new(
+                    scope,
+                    AuthOperation::EmailChanged {
+                        old_email,
+                        new_email,
+                    },
+                    user.clone().into(),
+                ))
+                .await;
+            return Ok(());
+        }
+
         // Each request mails the new address, so it shares the resend cooldown.
         self.claim_resend_cooldown(&new_email).await?;
 
-        user.base.pending_email = Some(new_email.clone());
+        user.base.pending_email = Some(new_email);
 
-        let params = self.set_user_email_verification_params(&mut user).await?;
+        let email_and_token = self.set_user_email_verification_params(&mut user).await?;
 
-        // Publish event
         let authentication: AuthenticatedEntity = user.clone().into();
         self.event_bus
             .publish(Event::new(
-                AuthScope {
-                    user_id: Some(user.id),
-                    organization_id: Some(user.base.organization_id),
-                    ip_address: ip,
-                    user_agent,
-                },
-                AuthOperation::EmailChangeRequested {
-                    // Send verification email to new address
-                    email_and_token: EmailAndToken {
-                        email: new_email,
-                        token: params.token,
-                    },
-                },
+                scope,
+                AuthOperation::EmailChangeRequested { email_and_token },
                 authentication,
             ))
             .await;
