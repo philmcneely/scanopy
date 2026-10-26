@@ -140,7 +140,13 @@
 	let isBillingEnabled = $derived(organization ? isBillingPlanActive(organization) : false);
 	let planMeta = $derived(billingPlans.getMetadata(organization?.plan?.type ?? null));
 	let isDemoOrg = $derived(planMeta.is_demo === true);
-	let isFreePlan = $derived(planMeta.is_free === true);
+	// A free tier: cloud Free (`is_free`), or self-hosted Community, the one plan that is neither
+	// commercial nor billed through Stripe. Both have plans to move up to; Starter, though not
+	// commercial, is a paid Stripe plan.
+	let isFreePlan = $derived(
+		planMeta.is_free === true ||
+			(planMeta.is_commercial === false && planMeta.is_stripe_managed === false)
+	);
 	let isOwner = $derived(userPermissions === 'Owner');
 	let trialDaysLeft = $derived(getTrialDaysLeft(organization));
 	let showTrialPill = $derived(
