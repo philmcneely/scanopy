@@ -206,6 +206,14 @@
 			right: var(--pin-right, 0px);
 		}
 
+		/* Below `md` only the left pins hold: pinned tags and actions on both sides left a phone
+		   no room for the columns between. */
+		@media (width < 48rem) {
+			& .pin-right {
+				position: static;
+			}
+		}
+
 		/* A group header spans the whole row; its label stays at the left edge while the row scrolls. */
 		& .pin-content {
 			position: sticky;
