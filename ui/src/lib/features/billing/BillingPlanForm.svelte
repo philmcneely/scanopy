@@ -382,11 +382,6 @@
 	}
 
 	function formatSnapshotRetention(plan: BillingPlan): string {
-		// Self-hosted deployments set their own retention window, so no fixed number is
-		// published for them — unless this deployment carries the universal override,
-		// which getFeatureValue already applies and which wins for every plan.
-		const override = configQuery.data?.snapshot_retention_days_override;
-		if (override == null && getHosting(plan) === 'SelfHosted') return common_custom();
 		const value = getFeatureValue(plan.type, 'snapshot_retention_days');
 		if (value === 0) return billing_notIncluded();
 		if (typeof value === 'number') return billing_daysCount({ count: value });
@@ -693,19 +688,21 @@
 									</div>
 								{/if}
 
-								<!-- Snapshot Retention -->
-								<div
-									class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
-								>
-									<span
-										class="explainer text-secondary"
-										data-tooltip={featureHelpers.getDescription('snapshot_retention_days')}
-										use:tooltip>{billing_snapshotRetention()}</span
+								<!-- Snapshot Retention (cloud only: a self-hosted deployment sets its own window) -->
+								{#if getHosting(plan) !== 'SelfHosted'}
+									<div
+										class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
 									>
-									<span class="text-right font-medium text-primary">
-										{formatSnapshotRetention(plan)}
-									</span>
-								</div>
+										<span
+											class="explainer text-secondary"
+											data-tooltip={featureHelpers.getDescription('snapshot_retention_days')}
+											use:tooltip>{billing_snapshotRetention()}</span
+										>
+										<span class="text-right font-medium text-primary">
+											{formatSnapshotRetention(plan)}
+										</span>
+									</div>
+								{/if}
 							</div>
 						</div>
 
