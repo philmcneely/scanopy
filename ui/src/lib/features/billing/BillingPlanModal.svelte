@@ -3,6 +3,7 @@
 	import billingPlansJson from '$lib/data/billing-plans.json';
 	import featuresJson from '$lib/data/features.json';
 	import credentialIntegrationsJson from '$lib/data/credential-integrations.json';
+	import planLimitsJson from '$lib/data/plan-limits.json';
 	import BillingPlanForm from '$lib/features/billing/BillingPlanForm.svelte';
 	import type { BillingPlan, PlanPickerHosting } from '$lib/features/billing/types';
 	import {
@@ -52,6 +53,7 @@
 		'credential_integrations',
 		credentialIntegrationsJson
 	);
+	const limitHelpers = createStaticHelpers<object>('plan_limits', planLimitsJson);
 
 	// Transform fixture data to BillingPlan[] format (exclude plans that can't be obtained
 	// in-app, deduplicate). purchase_flow 'none' is Community (GitHub) and Free; Free
@@ -261,6 +263,7 @@
 			{billingPlanHelpers}
 			{featureHelpers}
 			{integrationHelpers}
+			{limitHelpers}
 			showHosting={signingAvailable}
 			{initialHosting}
 			onPlanSelect={handlePlanSelect}

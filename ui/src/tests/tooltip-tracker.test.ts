@@ -52,6 +52,21 @@ describe('TooltipTracker', () => {
 		expect(events).toEqual(['show member', 'show a', 'hide']);
 	});
 
+	it('keeps a tapped tooltip open after the touch ends, until a tap lands elsewhere', () => {
+		const { tracker, events } = track();
+		tracker.moveTo(cardA);
+		tracker.leave(null, 'touch');
+		tracker.moveTo(canvas);
+		expect(events).toEqual(['show a', 'hide']);
+	});
+
+	it('closes when a mouse pointer leaves', () => {
+		const { tracker, events } = track();
+		tracker.moveTo(cardA);
+		tracker.leave(null, 'mouse');
+		expect(events).toEqual(['show a', 'hide']);
+	});
+
 	it('closes when the shown element is destroyed, and ignores others going away', () => {
 		const { tracker, events } = track();
 		tracker.moveTo(cardA);
