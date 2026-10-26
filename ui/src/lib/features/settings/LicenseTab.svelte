@@ -510,8 +510,9 @@
 					</div>
 				</InfoCard>
 
-				<!-- Only an online key checks in, so only an online key has servers to list. -->
-				{#if keyType === 'Online'}
+				<!-- Only an online key checks in, so only an online key has servers to list,
+				     and none can until there is a key. The preview keeps it, like the install hint. -->
+				{#if keyType === 'Online' && (currentKey || preview)}
 					<LicenseInstancesCard enabled={hasLicensedPlan(org)} />
 				{/if}
 			</fieldset>
