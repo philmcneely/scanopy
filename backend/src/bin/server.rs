@@ -610,24 +610,6 @@ async fn main() -> anyhow::Result<()> {
             .initialize_products(get_purchasable_plans())
             .await?;
         tracing::info!(target: LOG_TARGET, "  Billing service initialized");
-
-        // ONE-SHOT (remove next release): Free has no Stripe subscription any more, so the
-        // $0 ones left from when picking Free made one get cancelled.
-        let cleanup = billing_service.clone();
-        tokio::spawn(async move {
-            match cleanup.cancel_free_plan_subscriptions().await {
-                Ok(count) => tracing::info!(
-                    target: LOG_TARGET,
-                    count,
-                    "Cancelled leftover Free plan subscriptions"
-                ),
-                Err(e) => tracing::error!(
-                    target: LOG_TARGET,
-                    error = %e,
-                    "Could not cancel leftover Free plan subscriptions"
-                ),
-            }
-        });
     }
 
     // Reconcile self-hosted org plan(s) to the license entitlement. An offline

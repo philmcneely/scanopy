@@ -848,46 +848,6 @@ impl BillingService {
             invoice_id: snapshot.stripe_invoice_id.to_string(),
         }))
     }
-
-    /// ONE-SHOT (remove next release): cancel the live $0 subscriptions left on Free orgs from
-    /// when picking Free created one. Free has no subscription now; each cancellation's webhook
-    /// clears the org's status and sends nothing. Cancelling an already-cancelled subscription
-    /// can't happen, because only live ones are listed, so this is safe to run at every boot.
-    pub async fn cancel_free_plan_subscriptions(&self) -> Result<usize, Error> {
-        let organizations = self
-            .organization_service
-            .get_all(StorableFilter::<Organization>::new())
-            .await?;
-        let mut cancelled = 0;
-        for organization in organizations
-            .into_iter()
-            .filter(|org| org.base.plan.is_free())
-        {
-            let Some(customer_id) = organization.base.stripe_customer_id else {
-                continue;
-            };
-            let subscriptions = ListSubscription::new()
-                .customer(CustomerId::from(customer_id))
-                .send(&self.stripe)
-                .await?;
-            for subscription in subscriptions.data.iter().filter(|s| {
-                matches!(
-                    s.status,
-                    SubscriptionStatus::Active
-                        | SubscriptionStatus::Trialing
-                        | SubscriptionStatus::PastDue
-                        | SubscriptionStatus::Unpaid
-                        | SubscriptionStatus::Paused
-                )
-            }) {
-                CancelSubscription::new(&subscription.id)
-                    .send(&self.stripe)
-                    .await?;
-                cancelled += 1;
-            }
-        }
-        Ok(cancelled)
-    }
 }
 
 /// A lapsed licence brought back by settling its written-off invoice.
