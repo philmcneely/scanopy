@@ -318,13 +318,25 @@ fn describe_installed(installed: &[Installed]) -> String {
     out
 }
 
-/// Dispatch an `install`/`uninstall`/`restart`/`list` subcommand.
+/// Dispatch an `install`/`uninstall`/`restart`/`list`/`licenses` subcommand.
 pub async fn run_command(command: DaemonCommand) -> Result<()> {
     match command {
         DaemonCommand::Install(args) => run_install(args).await,
         DaemonCommand::Uninstall(args) => run_uninstall(args).await,
         DaemonCommand::Restart(args) => run_restart(args),
         DaemonCommand::List => run_list(),
+        DaemonCommand::Licenses => {
+            // Bare binaries (get.scanopy.net, install.sh, the standalone .exe) ship with no other
+            // file, so the notices travel inside the binary. `make third-party-notices` writes it.
+            print!(
+                "{}",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/THIRD-PARTY-NOTICES.txt"
+                ))
+            );
+            Ok(())
+        }
     }
 }
 

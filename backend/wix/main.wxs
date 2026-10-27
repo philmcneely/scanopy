@@ -107,6 +107,14 @@
                               Source="$(sys.SOURCEFILEDIR)scanopy-daemon.exe"
                               KeyPath="yes" />
                     </Component>
+                    <!-- Licences of the third-party software and data compiled into the exe,
+                         staged next to this .wxs by the same CI step. -->
+                    <Component Id="ThirdPartyNoticesComponent" Guid="*">
+                        <File Id="ThirdPartyNotices"
+                              Name="THIRD-PARTY-NOTICES.txt"
+                              Source="$(sys.SOURCEFILEDIR)THIRD-PARTY-NOTICES.txt"
+                              KeyPath="yes" />
+                    </Component>
                     <!-- Persist the daemon name so uninstall can target the right service. -->
                     <Component Id="RememberConfigComponent" Guid="*">
                         <RegistryValue Root="HKLM" Key="Software\Scanopy\Daemon"
@@ -119,6 +127,7 @@
 
         <Feature Id="MainFeature" Title="Scanopy Daemon" Level="1">
             <ComponentRef Id="ScanopyExeComponent" />
+            <ComponentRef Id="ThirdPartyNoticesComponent" />
             <ComponentRef Id="RememberConfigComponent" />
         </Feature>
 
