@@ -684,10 +684,10 @@
 						<!-- Included limits, striped so each value reads against its label. Each label explains its
 						     limit and sits level with its value; extras bill at the unit price noted under the count. -->
 						<div class="pb-4">
-							<div class="-mx-2">
+							<div class="-mx-5">
 								<!-- Seats -->
 								<div
-									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25"
+									class="flex items-start justify-between gap-2 px-5 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25"
 								>
 									<span
 										class="explainer text-secondary"
@@ -711,7 +711,7 @@
 
 								<!-- Sites -->
 								<div
-									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25"
+									class="flex items-start justify-between gap-2 px-5 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25"
 								>
 									<span
 										class="explainer text-secondary"
@@ -738,7 +738,7 @@
 									{@const production = metadata?.included_instances}
 									{@const nonProduction = metadata?.included_non_production_instances}
 									<div
-										class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25 {selfHosted
+										class="flex items-start justify-between gap-2 px-5 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25 {selfHosted
 											? ''
 											: 'invisible'}"
 										aria-hidden={!selfHosted}
@@ -803,13 +803,9 @@
 
 							<!-- One block per category, striped like the limits so each group reads as one. The
 							     integrations sit in the Discovery group. -->
-							<ul
-								class="-mx-2 space-y-1 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}"
-							>
+							<ul class="-mx-5 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}">
 								{#each groupCardFeatures(displayFeatures, displayIntegrations.length > 0) as group (group.category)}
-									<li
-										class="space-y-1.5 rounded-sm px-2 py-2 odd:bg-gray-100 dark:odd:bg-gray-700/25"
-									>
+									<li class="space-y-1.5 px-5 py-2 odd:bg-gray-100 dark:odd:bg-gray-700/25">
 										{@render categoryHeading(group.category)}
 										<ul class="space-y-1.5">
 											{#each group.features as featureKey (featureKey)}
