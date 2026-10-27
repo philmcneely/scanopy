@@ -231,20 +231,24 @@ pub struct BillingPlanFeatures {
     pub discovery_integrations: bool,
     /// Aruba Instant On credentials can be created (existing ones keep working on any plan).
     pub instant_on_integration: bool,
+    pub service_detection: bool,
+    // Map: the topology views. A plan includes all three or none (`includes_topology`).
+    pub network_topology: bool,
+    pub workload_mapping: bool,
+    pub application_mapping: bool,
     // Inventory
     pub device_inventory: bool,
+    pub vlan_subnet_inventory: bool,
     pub tagging: bool,
+    // Track & share
     /// How many days of snapshots the plan retains before the daily sweep
     /// deletes them. `0` means snapshots are unavailable on this plan. The
     /// env-var override (`SCANOPY_SNAPSHOT_RETENTION_DAYS_OVERRIDE`) takes
     /// precedence at runtime — see `BillingPlan::snapshot_retention_days`.
     pub snapshot_retention_days: u32,
-    // Diagrams
-    pub topology_view: bool,
     pub share_views: bool,
     pub embeds: bool,
     pub remove_created_with: bool,
-    // Export
     pub png_export: bool,
     pub svg_export: bool,
     pub pdf_export: bool,
@@ -714,7 +718,11 @@ impl BillingPlan {
                 priority_support: false,
                 device_inventory: true,
                 tagging: true,
-                topology_view: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -752,7 +760,11 @@ impl BillingPlan {
                 device_inventory: true,
                 tagging: false,
                 // Diagram exports come from the topology view, which Free lacks.
-                topology_view: false,
+                network_topology: false,
+                workload_mapping: false,
+                application_mapping: false,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: false,
                 svg_export: false,
                 mermaid_export: false,
@@ -789,7 +801,11 @@ impl BillingPlan {
                 priority_support: false,
                 device_inventory: true,
                 tagging: true,
-                topology_view: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: false,
@@ -826,7 +842,11 @@ impl BillingPlan {
                 priority_support: false,
                 device_inventory: true,
                 tagging: true,
-                topology_view: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -863,7 +883,11 @@ impl BillingPlan {
                 priority_support: true,
                 device_inventory: true,
                 tagging: true,
-                topology_view: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -900,7 +924,11 @@ impl BillingPlan {
                 priority_support: true,
                 device_inventory: true,
                 tagging: true,
-                topology_view: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -937,7 +965,11 @@ impl BillingPlan {
                 priority_support: true,
                 device_inventory: true,
                 tagging: true,
-                topology_view: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -974,7 +1006,11 @@ impl BillingPlan {
                 priority_support: true,
                 device_inventory: true,
                 tagging: true,
-                topology_view: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -1011,7 +1047,11 @@ impl BillingPlan {
                 priority_support: true,
                 device_inventory: true,
                 tagging: true,
-                topology_view: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -1048,7 +1088,11 @@ impl BillingPlan {
                 priority_support: false,
                 device_inventory: true,
                 tagging: true,
-                topology_view: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -1085,7 +1129,11 @@ impl BillingPlan {
                 priority_support: true,
                 device_inventory: true,
                 tagging: true,
-                topology_view: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -1105,6 +1153,14 @@ impl BillingPlan {
                 snapshot_retention_days: 90,
             },
         }
+    }
+}
+
+impl BillingPlanFeatures {
+    /// Whether the plan includes the topology view. Its three views are separate features on the
+    /// plan cards, but every plan includes all of them or none.
+    pub fn includes_topology(&self) -> bool {
+        self.network_topology && self.workload_mapping && self.application_mapping
     }
 }
 
@@ -1131,7 +1187,11 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             priority_support,
             device_inventory,
             tagging,
-            topology_view,
+            network_topology,
+            workload_mapping,
+            application_mapping,
+            vlan_subnet_inventory,
+            service_detection,
             png_export,
             svg_export,
             mermaid_export,
@@ -1235,8 +1295,24 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             features.push(Feature::Tagging)
         }
 
-        if topology_view {
-            features.push(Feature::TopologyView)
+        if network_topology {
+            features.push(Feature::NetworkTopology)
+        }
+
+        if workload_mapping {
+            features.push(Feature::WorkloadMapping)
+        }
+
+        if application_mapping {
+            features.push(Feature::ApplicationMapping)
+        }
+
+        if vlan_subnet_inventory {
+            features.push(Feature::VlanSubnetInventory)
+        }
+
+        if service_detection {
+            features.push(Feature::ServiceDetection)
         }
 
         if png_export {
@@ -1402,6 +1478,7 @@ impl TypeMetadataProvider for BillingPlan {
             "included_non_production_instances": instance_limits.non_production,
             // Feature flags and metadata
             "features": self.features(),
+            "includes_topology": self.features().includes_topology(),
             "is_commercial": self.is_commercial(),
             "is_stripe_managed": self.is_stripe_managed(),
             "is_free": self.is_free(),
@@ -1418,5 +1495,26 @@ impl TypeMetadataProvider for BillingPlan {
             "incremental_integrations": self.incremental_integration_ids(),
             "previous_tier": previous_tier
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use strum::IntoEnumIterator;
+
+    /// The topology gates check the three map features together (`includes_topology`), so a plan
+    /// that sets them differently would advertise a view its gates refuse, or the reverse.
+    #[test]
+    fn plans_include_every_topology_view_or_none() {
+        for plan in BillingPlan::iter() {
+            let f = plan.features();
+            assert!(
+                f.network_topology == f.workload_mapping
+                    && f.workload_mapping == f.application_mapping,
+                "{} sets the map features differently",
+                plan.id()
+            );
+        }
     }
 }

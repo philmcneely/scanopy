@@ -50,7 +50,7 @@ export function isPlanLapsed(organization: Organization): boolean {
 export function hasTopologyAccess(organization: Organization | null | undefined): boolean {
 	const type = organization?.plan?.type;
 	if (type == null) return false;
-	return billingPlans.getMetadata(type).features?.topology_view === true;
+	return billingPlans.getMetadata(type).includes_topology === true;
 }
 
 export function hasLicensedPlan(organization: Organization): boolean {

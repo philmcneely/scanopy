@@ -9,25 +9,114 @@ use strum::Display;
 use strum::EnumIter;
 use strum::IntoStaticStr;
 
-/// Declaration order is display order: grouped by [`category`](TypeMetadataProvider::category),
-/// and within a category in the order plan cards list them (`BillingPlan::incremental_features`).
+/// The groups plan cards list features under, which are also the groups of the website's Product
+/// menu. Variant order is display order.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumIter,
+    IntoStaticStr,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FeatureCategory {
+    Discovery,
+    Map,
+    Inventory,
+    TrackAndShare,
+    ApiAndAutomation,
+    Support,
+    Security,
+    Deployment,
+    Billing,
+}
+
+impl HasId for FeatureCategory {
+    fn id(&self) -> &'static str {
+        self.into()
+    }
+}
+
+impl EntityMetadataProvider for FeatureCategory {
+    fn color(&self) -> Color {
+        Color::Gray
+    }
+
+    fn icon(&self) -> Icon {
+        match self {
+            Self::Discovery => Icon::Radar,
+            Self::Map => Icon::Map,
+            Self::Inventory => Icon::Server,
+            Self::TrackAndShare => Icon::History,
+            Self::ApiAndAutomation => Icon::Code,
+            Self::Support => Icon::Headset,
+            Self::Security => Icon::ShieldCheck,
+            Self::Deployment => Icon::Rocket,
+            Self::Billing => Icon::Receipt,
+        }
+    }
+}
+
+impl TypeMetadataProvider for FeatureCategory {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Discovery => "Discovery",
+            Self::Map => "Map",
+            Self::Inventory => "Inventory",
+            Self::TrackAndShare => "Track & share",
+            Self::ApiAndAutomation => "API & automation",
+            Self::Support => "Support",
+            Self::Security => "Security",
+            Self::Deployment => "Deployment",
+            Self::Billing => "Billing",
+        }
+    }
+
+    fn description(&self) -> &'static str {
+        match self {
+            Self::Discovery => "How Scanopy finds hosts, services and devices on your network",
+            Self::Map => "Diagrams of your network, workloads and applications",
+            Self::Inventory => "Searchable records of every host, VLAN and subnet discovery finds",
+            Self::TrackAndShare => "Snapshots of how the network changes, and ways to share it",
+            Self::ApiAndAutomation => "Programmatic access to your Scanopy data",
+            Self::Support => "Ways to reach the Scanopy team",
+            Self::Security => "Sign-in and audit controls for your organization",
+            Self::Deployment => "Ways to run Scanopy in your own environment",
+            Self::Billing => "Payment and procurement terms",
+        }
+    }
+}
+
+/// Declaration order is display order: grouped by [`category`](Feature::category), and within a
+/// category in the order plan cards list them (`BillingPlan::incremental_features`).
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, IntoStaticStr, Display, Default)]
 pub enum Feature {
     // Discovery
     ScheduledDiscovery,
     DiscoveryIntegrations,
     InstantOnIntegration,
+    ServiceDetection,
+    // Map
+    NetworkTopology,
+    WorkloadMapping,
+    ApplicationMapping,
     // Inventory
     DeviceInventory,
+    VlanSubnetInventory,
     Tagging,
+    // Track & share
     SnapshotRetentionDays,
-    // Diagrams
-    TopologyView,
     #[default]
     ShareViews,
     Embeds,
     RemoveCreatedWith,
-    // Export
     PngExport,
     SvgExport,
     PdfExport,
@@ -79,8 +168,12 @@ impl HasId for Feature {
             Feature::PrioritySupport => "priority_support",
             Feature::ApiAccess => "api_access",
             Feature::DeviceInventory => "device_inventory",
+            Feature::VlanSubnetInventory => "vlan_subnet_inventory",
             Feature::Tagging => "tagging",
-            Feature::TopologyView => "topology_view",
+            Feature::NetworkTopology => "network_topology",
+            Feature::WorkloadMapping => "workload_mapping",
+            Feature::ApplicationMapping => "application_mapping",
+            Feature::ServiceDetection => "service_detection",
             Feature::PngExport => "png_export",
             Feature::SvgExport => "svg_export",
             Feature::MermaidExport => "mermaid_export",
@@ -103,6 +196,55 @@ impl HasId for Feature {
 }
 
 impl Feature {
+    pub fn category(&self) -> FeatureCategory {
+        match self {
+            Feature::ScheduledDiscovery
+            | Feature::DiscoveryIntegrations
+            | Feature::InstantOnIntegration
+            | Feature::ServiceDetection => FeatureCategory::Discovery,
+
+            Feature::NetworkTopology | Feature::WorkloadMapping | Feature::ApplicationMapping => {
+                FeatureCategory::Map
+            }
+
+            Feature::DeviceInventory | Feature::VlanSubnetInventory | Feature::Tagging => {
+                FeatureCategory::Inventory
+            }
+
+            Feature::SnapshotRetentionDays
+            | Feature::ShareViews
+            | Feature::Embeds
+            | Feature::RemoveCreatedWith
+            | Feature::PngExport
+            | Feature::SvgExport
+            | Feature::PdfExport
+            | Feature::HtmlExport
+            | Feature::MermaidExport
+            | Feature::ConfluenceExport
+            | Feature::DrawioExport
+            | Feature::VsdxExport
+            | Feature::CsvExport => FeatureCategory::TrackAndShare,
+
+            Feature::ApiAccess | Feature::Webhooks => FeatureCategory::ApiAndAutomation,
+
+            Feature::EmailSupport
+            | Feature::LiveChatSupport
+            | Feature::PrioritySupport
+            | Feature::OnboardingCall
+            | Feature::SignedSla => FeatureCategory::Support,
+
+            Feature::CustomSso | Feature::Saml | Feature::AuditLogs => FeatureCategory::Security,
+
+            Feature::AirGappedDeployment | Feature::ManagedDeployment | Feature::Whitelabeling => {
+                FeatureCategory::Deployment
+            }
+
+            Feature::InvoiceBilling | Feature::CustomBilling | Feature::ProcurementDocuments => {
+                FeatureCategory::Billing
+            }
+        }
+    }
+
     pub fn is_coming_soon(&self) -> bool {
         matches!(
             self,
@@ -156,48 +298,7 @@ impl EntityMetadataProvider for Feature {
 
 impl TypeMetadataProvider for Feature {
     fn category(&self) -> &'static str {
-        match self {
-            Feature::ScheduledDiscovery
-            | Feature::DiscoveryIntegrations
-            | Feature::InstantOnIntegration => "Discovery",
-
-            Feature::DeviceInventory | Feature::Tagging | Feature::SnapshotRetentionDays => {
-                "Inventory"
-            }
-
-            Feature::TopologyView
-            | Feature::ShareViews
-            | Feature::Embeds
-            | Feature::RemoveCreatedWith => "Diagrams",
-
-            Feature::PngExport
-            | Feature::SvgExport
-            | Feature::PdfExport
-            | Feature::HtmlExport
-            | Feature::MermaidExport
-            | Feature::ConfluenceExport
-            | Feature::DrawioExport
-            | Feature::VsdxExport
-            | Feature::CsvExport => "Export",
-
-            Feature::ApiAccess | Feature::Webhooks => "API & Automation",
-
-            Feature::EmailSupport
-            | Feature::LiveChatSupport
-            | Feature::PrioritySupport
-            | Feature::OnboardingCall
-            | Feature::SignedSla => "Support",
-
-            Feature::CustomSso | Feature::Saml | Feature::AuditLogs => "Security",
-
-            Feature::AirGappedDeployment | Feature::ManagedDeployment | Feature::Whitelabeling => {
-                "Deployment"
-            }
-
-            Feature::InvoiceBilling | Feature::CustomBilling | Feature::ProcurementDocuments => {
-                "Billing"
-            }
-        }
+        Feature::category(self).id()
     }
 
     fn name(&self) -> &'static str {
@@ -218,8 +319,12 @@ impl TypeMetadataProvider for Feature {
             Feature::EmailSupport => "Email Support",
             Feature::PrioritySupport => "Priority Support",
             Feature::DeviceInventory => "Device Inventory",
+            Feature::VlanSubnetInventory => "VLAN & Subnet Inventory",
             Feature::Tagging => "Tagging",
-            Feature::TopologyView => "Network Topology",
+            Feature::NetworkTopology => "Network Topology",
+            Feature::WorkloadMapping => "Workload Mapping",
+            Feature::ApplicationMapping => "Application Mapping",
+            Feature::ServiceDetection => "Service Detection",
             Feature::PngExport => "PNG Export",
             Feature::SvgExport => "SVG Export",
             Feature::MermaidExport => "Mermaid Export",
@@ -279,8 +384,20 @@ impl TypeMetadataProvider for Feature {
             Feature::Tagging => {
                 "Apply tags to hosts, services and other entities to group and filter them"
             }
-            Feature::TopologyView => {
-                "Explore your network as interactive topology diagrams, with snapshots of how it changes"
+            Feature::VlanSubnetInventory => {
+                "VLANs read from your switches, linked to the subnets behind them"
+            }
+            Feature::NetworkTopology => {
+                "Physical (L2) and logical (L3) diagrams of your network, drawn from the network itself"
+            }
+            Feature::WorkloadMapping => {
+                "Diagrams of hypervisors, VMs and containers, nested the way they run"
+            }
+            Feature::ApplicationMapping => {
+                "Diagrams of each application, the services it depends on and the hosts they run on"
+            }
+            Feature::ServiceDetection => {
+                "Identify the services running on each host from their open ports and responses"
             }
             Feature::PngExport => "Export network diagrams as high-resolution PNG images",
             Feature::SvgExport => "Export network diagrams as scalable SVG vector images",
@@ -390,7 +507,7 @@ mod tests {
     /// away from its category's other variants lands out of place in that list.
     #[test]
     fn features_are_declared_grouped_by_category() {
-        let mut seen: Vec<&str> = Vec::new();
+        let mut seen: Vec<FeatureCategory> = Vec::new();
         for feature in Feature::iter() {
             let category = feature.category();
             if seen.last() != Some(&category) {
@@ -402,5 +519,10 @@ mod tests {
                 seen.push(category);
             }
         }
+        assert_eq!(
+            seen,
+            FeatureCategory::iter().collect::<Vec<_>>(),
+            "features must be declared in FeatureCategory order, with every category used"
+        );
     }
 }
