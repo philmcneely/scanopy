@@ -327,3 +327,25 @@ mod tests {
         }
     }
 }
+
+/// Integrations in the order the website's Integrations page lists them: grouped by category,
+/// categories in the order [`all_integrations`] first reaches them, and that order within each.
+/// Plan cards list a plan's integrations in this order too.
+pub fn integrations_in_page_order() -> Vec<CredentialIntegration> {
+    let all = all_integrations();
+    let mut categories: Vec<&str> = Vec::new();
+    for integration in &all {
+        if !categories.contains(&integration.category.as_str()) {
+            categories.push(&integration.category);
+        }
+    }
+    let mut ordered: Vec<CredentialIntegration> = Vec::new();
+    for category in categories {
+        for integration in all.iter().filter(|i| i.category == category) {
+            if !ordered.contains(&integration.integration) {
+                ordered.push(integration.integration);
+            }
+        }
+    }
+    ordered
+}

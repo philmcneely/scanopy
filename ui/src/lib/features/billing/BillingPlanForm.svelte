@@ -28,7 +28,6 @@
 		billing_selfHosted,
 		billing_showFeatures,
 		billing_hideFeatures,
-		billing_snapshotRetention,
 		billing_startDayFreeTrial,
 		billing_startTrialNoCreditCard,
 		billing_switchPlan,
@@ -233,12 +232,29 @@
 		);
 	}
 
-	/** Every integration any shown plan includes, in the order the plans list them. */
-	let comparisonIntegrations = $derived([
-		...new Set(
-			filteredPlans.flatMap((p) => billingPlanHelpers.getMetadata(p.type)?.integrations ?? [])
-		)
-	]);
+	/**
+	 * Each plan lists its integrations in the Integrations page's order. A merged list sorts by the
+	 * longest plan list, which holds every integration the others do.
+	 */
+	let integrationRank = $derived.by(() => {
+		const lists = plans.map((p) => billingPlanHelpers.getMetadata(p.type)?.integrations ?? []);
+		const longest = lists.reduce<string[]>((a, b) => (b.length > a.length ? b : a), []);
+		return new SvelteMap(longest.map((id, i) => [id, i]));
+	});
+
+	function sortIntegrations(ids: string[]): string[] {
+		const rank = (id: string) => integrationRank.get(id) ?? Number.MAX_SAFE_INTEGER;
+		return [...ids].sort((a, b) => rank(a) - rank(b));
+	}
+
+	/** Every integration any shown plan includes, in the Integrations page's order. */
+	let comparisonIntegrations = $derived(
+		sortIntegrations([
+			...new Set(
+				filteredPlans.flatMap((p) => billingPlanHelpers.getMetadata(p.type)?.integrations ?? [])
+			)
+		])
+	);
 
 	function planHasIntegration(planType: string, integration: string): boolean {
 		return (billingPlanHelpers.getMetadata(planType)?.integrations ?? []).some(
@@ -374,12 +390,42 @@
 		return value == null ? common_unlimited() : String(value);
 	}
 
+	const SNAPSHOT_RETENTION = 'snapshot_retention_days';
+
 	function formatSnapshotRetention(plan: BillingPlan): string {
-		const value = getFeatureValue(plan.type, 'snapshot_retention_days');
+		const value = getFeatureValue(plan.type, SNAPSHOT_RETENTION);
 		if (value === 0) return billing_notIncluded();
 		if (typeof value === 'number') return billing_daysCount({ count: value });
 		return '—';
 	}
+
+	/**
+	 * Whether a card lists snapshot retention under Track & share: a cloud plan that keeps
+	 * snapshots, for a different window than the visible tier below it. A self-hosted deployment
+	 * sets its own window.
+	 */
+	function listsSnapshotRetention(
+		plan: BillingPlan,
+		prevTier: string | null | undefined,
+		prevTierVisible: boolean
+	): boolean {
+		if (getHosting(plan) === 'SelfHosted') return false;
+		const days = getFeatureValue(plan.type, SNAPSHOT_RETENTION);
+		if (typeof days !== 'number' || days === 0) return false;
+		return !(prevTier && prevTierVisible && getFeatureValue(prevTier, SNAPSHOT_RETENTION) === days);
+	}
+
+	// A row or line that some visible card has renders on every card, invisible where it doesn't
+	// apply, so the cards' rows line up across the grid.
+	let anySeatAddon = $derived(filteredPlans.some((p) => p.seat_cents));
+	let anySiteAddon = $derived(filteredPlans.some((p) => p.site_cents));
+	let anySelfHosted = $derived(filteredPlans.some((p) => getHosting(p) === 'SelfHosted'));
+	let anyEverythingIn = $derived(
+		filteredPlans.some((p) => {
+			const prev = billingPlanHelpers.getMetadata(p.type)?.previous_tier;
+			return !!prev && filteredPlans.some((q) => q.type === prev);
+		})
+	);
 
 	function sortFeaturesByCategory(features: string[]): string[] {
 		const order: string[] = categoryOrder;
@@ -419,7 +465,18 @@
 				{#each integrations as integration (integration)}
 					{@const Logo = integrationHelpers.getIconComponent(integration)}
 					<li class="flex items-center gap-2 text-xs text-tertiary">
-						<Logo class="h-4 w-4 shrink-0 {integrationHelpers.getColorHelper(integration).icon}" />
+						{#if integrationHelpers.getMetadata(integration)?.logo}
+							<!-- A logo draws in its own round frame. -->
+							<Logo size={20} />
+						{:else}
+							<!-- An integration without one gets the same frame around its icon. -->
+							<span
+								class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
+								style="background: var(--color-topology-node-bg)"
+							>
+								<Logo class="h-3 w-3 {integrationHelpers.getColorHelper(integration).icon}" />
+							</span>
+						{/if}
 						{integrationHelpers.getName(integration)}
 					</li>
 				{/each}
@@ -484,27 +541,28 @@
 						prevTier && !prevTierVisible
 							? (billingPlanHelpers.getMetadata(prevTier)?.incremental_features ?? [])
 							: []}
-					{@const displayFeatures = sortFeaturesByCategory(
-						(prevTierFeatures.length > 0
+					{@const displayFeatures = sortFeaturesByCategory([
+						...(prevTierFeatures.length > 0
 							? [...new Set([...prevTierFeatures, ...incrementalFeatures])]
 							: incrementalFeatures
-						).filter((key) => !isItemizedAsIntegrations(key))
-					)}
+						).filter((key) => !isItemizedAsIntegrations(key) && key !== SNAPSHOT_RETENTION),
+						...(listsSnapshotRetention(plan, prevTier, prevTierVisible) ? [SNAPSHOT_RETENTION] : [])
+					])}
 					{@const incrementalIntegrations = metadata?.incremental_integrations ?? []}
 					{@const displayIntegrations =
 						prevTier && !prevTierVisible
-							? [
+							? sortIntegrations([
 									...new Set([
 										...(billingPlanHelpers.getMetadata(prevTier)?.incremental_integrations ?? []),
 										...incrementalIntegrations
 									])
-								]
+								])
 							: incrementalIntegrations}
 					{@const leadsWithIntegrations =
 						displayIntegrations.length > 0 &&
 						!displayFeatures.some((key) => featureHelpers.getCategory(key) === discoveryCategory)}
 
-					<div class="plan-card card-static card flex flex-col">
+					<div class="plan-card card-static card">
 						<!-- Plan Header -->
 						<div class="flex flex-col items-center gap-2 pb-4">
 							<div class="flex items-center gap-2">
@@ -545,12 +603,10 @@
 							</div>
 						</div>
 
-						<!-- Description -->
-						{#if description}
-							<p class="pb-4 text-center text-xs leading-relaxed text-tertiary lg:text-sm">
-								{description}
-							</p>
-						{/if}
+						<!-- Description: always rendered, so every card keeps the same grid rows -->
+						<p class="pb-4 text-center text-xs leading-relaxed text-tertiary lg:text-sm">
+							{description}
+						</p>
 
 						<!-- CTA Button -->
 						<div class="py-4" style="border-color: var(--color-border)">
@@ -616,12 +672,14 @@
 										<span class="font-medium text-primary">
 											{formatIncludedLimit(plan.included_seats, plan.seat_cents, plan)}
 										</span>
-										<!-- Always rendered, invisible on plans that sell no extras, so every card's
-										     rows line up. -->
-										<span
-											class={`text-xs text-tertiary ${plan.seat_cents ? 'opacity-100' : 'opacity-0'}`}
-											aria-hidden={!plan.seat_cents}>{formatSeatAddonPricing(plan) || ' '}</span
-										>
+										<!-- Invisible on a plan that sells no extras while another card does, so the rows
+										     line up. -->
+										{#if anySeatAddon}
+											<span
+												class={`text-xs text-tertiary ${plan.seat_cents ? 'opacity-100' : 'opacity-0'}`}
+												aria-hidden={!plan.seat_cents}>{formatSeatAddonPricing(plan) || ' '}</span
+											>
+										{/if}
 									</div>
 								</div>
 
@@ -638,19 +696,26 @@
 										<span class="font-medium text-primary">
 											{formatIncludedLimit(plan.included_sites, plan.site_cents, plan)}
 										</span>
-										<span
-											class={`text-xs text-tertiary ${plan.site_cents ? 'opacity-100' : 'opacity-0'}`}
-											aria-hidden={!plan.site_cents}>{formatSiteAddonPricing(plan) || ' '}</span
-										>
+										{#if anySiteAddon}
+											<span
+												class={`text-xs text-tertiary ${plan.site_cents ? 'opacity-100' : 'opacity-0'}`}
+												aria-hidden={!plan.site_cents}>{formatSiteAddonPricing(plan) || ' '}</span
+											>
+										{/if}
 									</div>
 								</div>
 
-								<!-- Servers (self-hosted only: how many servers one license key covers) -->
-								{#if getHosting(plan) === 'SelfHosted'}
+								<!-- Servers (self-hosted only: how many servers one license key covers).
+								     Invisible on a cloud card beside a self-hosted one. -->
+								{#if anySelfHosted}
+									{@const selfHosted = getHosting(plan) === 'SelfHosted'}
 									{@const production = metadata?.included_instances}
 									{@const nonProduction = metadata?.included_non_production_instances}
 									<div
-										class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+										class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30 {selfHosted
+											? ''
+											: 'invisible'}"
+										aria-hidden={!selfHosted}
 									>
 										<span
 											class="explainer text-secondary"
@@ -671,30 +736,24 @@
 										</span>
 									</div>
 								{/if}
-
-								<!-- Snapshot Retention (cloud only: a self-hosted deployment sets its own window) -->
-								{#if getHosting(plan) !== 'SelfHosted'}
-									<div
-										class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
-									>
-										<span
-											class="explainer text-secondary"
-											data-tooltip={featureHelpers.getDescription('snapshot_retention_days')}
-											use:tooltip>{billing_snapshotRetention()}</span
-										>
-										<span class="text-right font-medium text-primary">
-											{formatSnapshotRetention(plan)}
-										</span>
-									</div>
-								{/if}
 							</div>
 						</div>
 
 						<!-- Incremental Features -->
 						<div class="flex-1 py-4">
-							{#if prevTier && prevTierVisible}
-								<p class="mb-2 text-xs font-medium text-secondary">
-									{billing_everythingInPlanPlus({ planName: billingPlanHelpers.getName(prevTier) })}
+							{#if anyEverythingIn}
+								<!-- Invisible on a card with no visible tier below it, so feature lists start level. -->
+								<p
+									class="mb-2 text-xs font-medium text-secondary {prevTier && prevTierVisible
+										? ''
+										: 'invisible'}"
+									aria-hidden={!(prevTier && prevTierVisible)}
+								>
+									{prevTier && prevTierVisible
+										? billing_everythingInPlanPlus({
+												planName: billingPlanHelpers.getName(prevTier)
+											})
+										: ' '}
 								</p>
 							{/if}
 
@@ -744,6 +803,11 @@
 											data-tooltip={featureHelpers.getDescription(featureKey)}
 											use:tooltip>{featureHelpers.getName(featureKey)}</span
 										>
+										{#if featureKey === SNAPSHOT_RETENTION}
+											<span class="ml-auto shrink-0 font-medium text-primary"
+												>{formatSnapshotRetention(plan)}</span
+											>
+										{/if}
 										{#if comingSoon}
 											<Tag label={common_comingSoon()} color="Gray" />
 										{/if}
@@ -898,10 +962,15 @@
 		}
 	}
 
-	/* Individual plan card */
+	/* Individual plan card. Its six sections (name, price, description, action, limits, features)
+	   share the grid's rows with the cards beside it, so each section starts level across them. */
 	.plan-card {
 		padding: 1.25rem;
 		position: relative;
+		display: grid;
+		grid-template-rows: subgrid;
+		grid-row: span 6;
+		row-gap: 0;
 	}
 
 	/* ============================================ */

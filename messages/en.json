@@ -129,7 +129,6 @@
 	"billing_requestAccepted": "Request accepted. It may take a moment to reflect across your account.",
 	"billing_selfHosted": "Self-Hosted",
 	"billing_showFeatures": "Show features",
-	"billing_snapshotRetention": "Snapshot Retention",
 	"billing_startDayFreeTrial": "Start {days}-day free trial",
 	"billing_startTrialNoCreditCard": "Start free trial — no card required",
 	"billing_subscriptionActivated": "Subscription activated successfully!",

@@ -560,16 +560,16 @@ impl BillingPlan {
             .collect()
     }
 
-    /// The discovery integrations this plan can create a credential for, in declaration order:
-    /// each one with at least one credential type available on the plan.
+    /// The discovery integrations this plan can create a credential for, in the Integrations
+    /// page's order: each one with at least one credential type available on the plan.
     pub fn integration_ids(&self) -> Vec<&'static str> {
-        use crate::server::credentials::r#impl::types::{
-            CredentialIntegration, CredentialTypeDiscriminants,
-        };
+        use crate::server::credentials::r#impl::integrations::integrations_in_page_order;
+        use crate::server::credentials::r#impl::types::CredentialTypeDiscriminants;
         use crate::server::shared::types::metadata::HasId;
         use strum::IntoEnumIterator;
 
-        CredentialIntegration::iter()
+        integrations_in_page_order()
+            .into_iter()
             .filter(|integration| {
                 CredentialTypeDiscriminants::iter()
                     .any(|t| t.integration() == *integration && t.available_on(self))
