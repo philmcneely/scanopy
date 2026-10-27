@@ -687,7 +687,7 @@
 							<div class="-mx-2">
 								<!-- Seats -->
 								<div
-									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-800/70"
+									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25"
 								>
 									<span
 										class="explainer text-secondary"
@@ -711,7 +711,7 @@
 
 								<!-- Sites -->
 								<div
-									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-800/70"
+									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25"
 								>
 									<span
 										class="explainer text-secondary"
@@ -738,7 +738,7 @@
 									{@const production = metadata?.included_instances}
 									{@const nonProduction = metadata?.included_non_production_instances}
 									<div
-										class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-800/70 {selfHosted
+										class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25 {selfHosted
 											? ''
 											: 'invisible'}"
 										aria-hidden={!selfHosted}
@@ -808,7 +808,7 @@
 							>
 								{#each groupCardFeatures(displayFeatures, displayIntegrations.length > 0) as group (group.category)}
 									<li
-										class="space-y-1.5 rounded-sm px-2 py-2 odd:bg-gray-100 dark:odd:bg-gray-800/70"
+										class="space-y-1.5 rounded-sm px-2 py-2 odd:bg-gray-100 dark:odd:bg-gray-700/25"
 									>
 										{@render categoryHeading(group.category)}
 										<ul class="space-y-1.5">
