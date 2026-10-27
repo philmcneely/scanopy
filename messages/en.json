@@ -78,6 +78,7 @@
 	"billing_dayRetention": "{count} day retention",
 	"billing_discountApplied": "Discount applied to your subscription.",
 	"billing_everythingInPlanPlus": "Everything in {planName}, plus:",
+	"billing_exports": "Exports",
 	"billing_extraSeatsMonthly": "Extra seats ${amount} / seat / mo",
 	"billing_extraSitesMonthly": "Extra sites ${amount} / site / mo",
 	"billing_hideFeatures": "Hide features",

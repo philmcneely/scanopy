@@ -243,6 +243,22 @@ impl Feature {
         }
     }
 
+    /// The format a diagram export writes; `None` for any other feature, CSV export included,
+    /// which exports inventory data rather than a diagram.
+    pub fn export_format(&self) -> Option<&'static str> {
+        match self {
+            Feature::PngExport => Some("PNG"),
+            Feature::SvgExport => Some("SVG"),
+            Feature::PdfExport => Some("PDF"),
+            Feature::HtmlExport => Some("HTML"),
+            Feature::MermaidExport => Some("Mermaid"),
+            Feature::ConfluenceExport => Some("Confluence"),
+            Feature::DrawioExport => Some("draw.io"),
+            Feature::VsdxExport => Some("Visio"),
+            _ => None,
+        }
+    }
+
     pub fn is_coming_soon(&self) -> bool {
         matches!(
             self,
@@ -446,7 +462,9 @@ impl TypeMetadataProvider for Feature {
             "is_coming_soon": self.is_coming_soon(),
             "minimum_plan": self.minimum_plan(),
             // Plan cards list the integrations themselves, so they skip this feature's line.
-            "gates_integration": self.gates_integration()
+            "gates_integration": self.gates_integration(),
+            // Plan cards list diagram exports as formats under one Exports line.
+            "export_format": self.export_format()
         })
     }
 }

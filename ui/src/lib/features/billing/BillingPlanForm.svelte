@@ -13,6 +13,7 @@
 		billing_compareAllFeatures,
 		billing_dayFreeTrial,
 		billing_dayRetention,
+		billing_exports,
 		billing_everythingInPlanPlus,
 		billing_extraSeatsMonthly,
 		billing_extraSitesMonthly,
@@ -425,6 +426,11 @@
 		})
 	);
 
+	/** The format a diagram export writes; null for any other feature, CSV export included. */
+	function exportFormat(featureKey: string): string | null {
+		return featureHelpers.getMetadata(featureKey)?.export_format ?? null;
+	}
+
 	/** A category's place in display order; unknown ones sort last. */
 	function categoryRank(category: string): number {
 		const i = categoryOrder.indexOf(category);
@@ -513,6 +519,32 @@
 							</span>
 						{/if}
 						{integrationHelpers.getName(integration)}
+					</li>
+				{/each}
+			</ul>
+		</div>
+	</li>
+{/snippet}
+
+<!-- A card's diagram exports under one Exports line, one format per row, laid out like the
+     integrations. -->
+{#snippet exportRows(features: string[])}
+	<li class="flex items-start gap-2 text-sm">
+		<Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />
+		<div class="flex flex-col gap-1">
+			<span class="text-secondary">{billing_exports()}</span>
+			<ul class="space-y-1">
+				{#each features as featureKey (featureKey)}
+					<!-- pl-7: the integration logo (20px) and its gap, so the names line up -->
+					<li class="flex items-center gap-2 pl-7 text-xs text-tertiary">
+						<span
+							class="explainer"
+							data-tooltip={featureHelpers.getDescription(featureKey)}
+							use:tooltip>{exportFormat(featureKey)}</span
+						>
+						{#if isComingSoon(featureKey)}
+							<Tag label={common_comingSoon()} color="Gray" />
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -809,10 +841,11 @@
 							     integrations sit in the Discovery group. -->
 							<ul class="-mx-5 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}">
 								{#each groupCardFeatures(displayFeatures, displayIntegrations.length > 0) as group (group.category)}
+									{@const exports = group.features.filter((key) => exportFormat(key))}
 									<li class="space-y-1.5 px-5 py-2 odd:bg-gray-100 dark:odd:bg-gray-700/25">
 										{@render categoryHeading(group.category)}
 										<ul class="space-y-1.5">
-											{#each group.features as featureKey (featureKey)}
+											{#each group.features.filter((key) => !exportFormat(key)) as featureKey (featureKey)}
 												{@const comingSoon = isComingSoon(featureKey)}
 												<li class="flex items-start gap-2 text-sm">
 													<Check
@@ -833,6 +866,9 @@
 													{/if}
 												</li>
 											{/each}
+											{#if exports.length > 0}
+												{@render exportRows(exports)}
+											{/if}
 											{#if group.category === discoveryCategory && displayIntegrations.length > 0}
 												{@render integrationRows(displayIntegrations)}
 											{/if}

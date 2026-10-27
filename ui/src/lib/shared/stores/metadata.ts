@@ -274,6 +274,8 @@ export interface FeatureMetadata {
 	minimum_plan: string | null;
 	/** A credential type needs this feature; plan cards list the integration instead of it. */
 	gates_integration: boolean;
+	/** The format a diagram export writes; plan cards list these under one Exports line. */
+	export_format: string | null;
 }
 
 export interface PortTypeMetadata {
