@@ -567,8 +567,8 @@ fn render_readme(readme: &str) -> String {
 pub fn update_readme() {
     let path = readme_path();
     let readme = fs::read_to_string(&path).expect("Failed to read README.md");
-    // Name the file a missing marker was looked for in. The v0.19.3 release failed here in CI
-    // with the markers present in the committed README, and the panic alone didn't say why.
+    // Show what was read when no marker is present at all: in the v0.19.3 release a tool's
+    // archive had overwritten README.md, and the marker panic alone didn't show it.
     if !readme.contains("<!-- generated:") {
         let start: String = readme.chars().take(400).collect();
         panic!(

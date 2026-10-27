@@ -33,9 +33,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
 
       - name: Install tbls
+        # Extract only the binary, outside the checkout: the archive also ships README.md,
+        # LICENSE and CHANGELOG.md, which overwrote ours (v0.19.3 failed on the README).
         run: |
-          curl -sL https://github.com/k1LoW/tbls/releases/download/v1.79.3/tbls_v1.79.3_linux_amd64.tar.gz | tar xz
-          sudo mv tbls /usr/local/bin/
+          curl -sL https://github.com/k1LoW/tbls/releases/download/v1.79.3/tbls_v1.79.3_linux_amd64.tar.gz \
+            | sudo tar xz -C /usr/local/bin tbls
           tbls version
 
       - name: Free up disk space
