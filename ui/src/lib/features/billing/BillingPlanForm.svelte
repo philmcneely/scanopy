@@ -19,7 +19,6 @@
 		billing_extraSitesMonthly,
 		billing_includedCount,
 		billing_nonProductionCount,
-		billing_planIntegrations,
 		billing_rateMonthly,
 		billing_rateMonthlyEquivalent,
 		billing_rateYearly,
@@ -86,6 +85,9 @@
 		plans: BillingPlan[];
 		billingPlanHelpers: MetadataHelpers<BillingPlanMetadata>;
 		featureHelpers: MetadataHelpers<FeatureMetadata>;
+		/** Names and icons of the category headings features are grouped under, in display order
+		 * (`feature-categories.json`). */
+		featureCategoryHelpers: MetadataHelpers<object> & { getIds: () => string[] };
 		/** Names the discovery integrations itemized on each card (`credential-integrations.json`). */
 		integrationHelpers: MetadataHelpers<CredentialIntegrationMetadata>;
 		/** Explains each counted limit on the cards (`plan-limits.json`). */
@@ -116,6 +118,7 @@
 		plans,
 		billingPlanHelpers,
 		featureHelpers,
+		featureCategoryHelpers,
 		integrationHelpers,
 		limitHelpers,
 		onPlanSelect,
@@ -214,17 +217,7 @@
 	const DISCOVERY_INTEGRATIONS = 'discovery_integrations';
 
 	/** Feature categories in display order; unknown ones sort last. */
-	const CATEGORY_ORDER = [
-		'Discovery',
-		'Inventory',
-		'Diagrams',
-		'Export',
-		'API & Automation',
-		'Support',
-		'Security',
-		'Deployment',
-		'Billing'
-	];
+	let categoryOrder = $derived(featureCategoryHelpers.getIds());
 
 	/** The category the integrations sit under, on the cards and in the comparison. */
 	let discoveryCategory = $derived(featureHelpers.getCategory(DISCOVERY_INTEGRATIONS));
@@ -279,7 +272,7 @@
 		}
 		// Sort categories into display order
 		const sortedEntries = [...groups.entries()].sort(([a], [b]) => {
-			const order: string[] = CATEGORY_ORDER;
+			const order: string[] = categoryOrder;
 			const aIdx = order.indexOf(a);
 			const bIdx = order.indexOf(b);
 			if (aIdx === -1 && bIdx === -1) return a.localeCompare(b);
@@ -389,7 +382,7 @@
 	}
 
 	function sortFeaturesByCategory(features: string[]): string[] {
-		const order: string[] = CATEGORY_ORDER;
+		const order: string[] = categoryOrder;
 		return [...features].sort((a, b) => {
 			const catA = order.indexOf(featureHelpers.getCategory(a));
 			const catB = order.indexOf(featureHelpers.getCategory(b));
@@ -414,46 +407,37 @@
 		}
 		expandedFeatures = next;
 	}
-
-	let expandedIntegrations = new SvelteSet<string>();
-
-	function toggleIntegrations(planType: string) {
-		if (expandedIntegrations.has(planType)) {
-			expandedIntegrations.delete(planType);
-		} else {
-			expandedIntegrations.add(planType);
-		}
-	}
 </script>
 
-<!-- One line per card for its integrations, expanding to their names. -->
-{#snippet integrationsLine(planType: string, integrations: string[])}
-	{@const expanded = expandedIntegrations.has(planType)}
+<!-- A card's integrations under the discovery-integrations feature, one row each with its logo. -->
+{#snippet integrationRows(integrations: string[])}
 	<li class="flex items-start gap-2 text-sm">
 		<Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />
-		<div class="flex flex-col gap-0.5">
-			<button
-				type="button"
-				class="flex cursor-pointer items-center gap-1 text-left text-secondary"
-				aria-expanded={expanded}
-				onclick={() => toggleIntegrations(planType)}
-			>
-				{billing_planIntegrations({
-					planName: billingPlanHelpers.getName(planType),
-					count: integrations.length
-				})}
-				{#if expanded}
-					<ChevronUp class="h-3 w-3" />
-				{:else}
-					<ChevronDown class="h-3 w-3" />
-				{/if}
-			</button>
-			{#if expanded}
-				<span class="text-xs text-tertiary">
-					{integrations.map((id) => integrationHelpers.getName(id)).join(' · ')}
-				</span>
-			{/if}
+		<div class="flex flex-col gap-1">
+			<span class="text-secondary">{featureHelpers.getName(DISCOVERY_INTEGRATIONS)}</span>
+			<ul class="space-y-1">
+				{#each integrations as integration (integration)}
+					{@const Logo = integrationHelpers.getIconComponent(integration)}
+					<li class="flex items-center gap-2 text-xs text-tertiary">
+						<Logo class="h-4 w-4 shrink-0 {integrationHelpers.getColorHelper(integration).icon}" />
+						{integrationHelpers.getName(integration)}
+					</li>
+				{/each}
+			</ul>
 		</div>
+	</li>
+{/snippet}
+
+<!-- A feature category's heading on a card: its icon and name. -->
+{#snippet categoryHeading(category: string, spaced: boolean)}
+	{@const CategoryIcon = featureCategoryHelpers.getIconComponent(category)}
+	<li
+		class="flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-tertiary uppercase {spaced
+			? 'mt-2'
+			: ''}"
+	>
+		<CategoryIcon class="h-3 w-3 shrink-0" />
+		{featureCategoryHelpers.getName(category)}
 	</li>
 {/snippet}
 
@@ -733,13 +717,11 @@
 							{/if}
 
 							<ul class="space-y-1.5 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}">
-								<!-- The integrations line closes the Discovery group, or opens it when the
-								     card lists no other Discovery feature. -->
+								<!-- The integrations close the Discovery group, or open it when the card lists
+								     no other Discovery feature. -->
 								{#if leadsWithIntegrations}
-									<li class="text-[10px] font-medium tracking-wider text-tertiary uppercase">
-										{discoveryCategory}
-									</li>
-									{@render integrationsLine(plan.type, displayIntegrations)}
+									{@render categoryHeading(discoveryCategory, false)}
+									{@render integrationRows(displayIntegrations)}
 								{/if}
 								{#each displayFeatures as featureKey, i (featureKey)}
 									{@const category = featureHelpers.getCategory(featureKey)}
@@ -748,14 +730,7 @@
 											? featureHelpers.getCategory(displayFeatures[i + 1])
 											: null}
 									{#if i === 0 || category !== featureHelpers.getCategory(displayFeatures[i - 1])}
-										<li
-											class="text-[10px] font-medium tracking-wider text-tertiary uppercase {i >
-												0 || leadsWithIntegrations
-												? 'mt-2'
-												: ''}"
-										>
-											{category}
-										</li>
+										{@render categoryHeading(category, i > 0 || leadsWithIntegrations)}
 									{/if}
 									{@const comingSoon = isComingSoon(featureKey)}
 									<li class="flex items-start gap-2 text-sm">
@@ -774,7 +749,7 @@
 										{/if}
 									</li>
 									{#if displayIntegrations.length > 0 && category === discoveryCategory && nextCategory !== discoveryCategory}
-										{@render integrationsLine(plan.type, displayIntegrations)}
+										{@render integrationRows(displayIntegrations)}
 									{/if}
 								{/each}
 							</ul>
@@ -821,12 +796,14 @@
 				</div>
 
 				{#each [...groupedFeatures.entries()] as [category, categoryFeatures] (category)}
+					{@const CategoryIcon = featureCategoryHelpers.getIconComponent(category)}
 					<!-- Category Header -->
 					<div class="comparison-category-row">
 						<span
-							class="p-2 text-xs font-semibold tracking-wide text-secondary uppercase lg:p-3 lg:text-sm"
+							class="flex items-center gap-2 p-2 text-xs font-semibold tracking-wide text-secondary uppercase lg:p-3 lg:text-sm"
 						>
-							{category}
+							<CategoryIcon class="h-4 w-4 shrink-0" />
+							{featureCategoryHelpers.getName(category)}
 						</span>
 					</div>
 

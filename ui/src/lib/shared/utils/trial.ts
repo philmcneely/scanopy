@@ -122,7 +122,7 @@ export function isReturningCustomer(org: Organization | null | undefined): boole
 export function topologyTrialDays(): number {
 	const days = pickablePlans
 		.map((plan) => plan.metadata)
-		.filter((meta) => meta.license_plan == null && !meta.is_free && meta.features.topology_view)
+		.filter((meta) => meta.license_plan == null && !meta.is_free && meta.includes_topology)
 		.map((meta) => meta.trial_days);
 	return Math.max(0, ...days);
 }

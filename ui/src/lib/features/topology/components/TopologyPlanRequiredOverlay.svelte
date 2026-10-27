@@ -37,7 +37,7 @@
 			icon: PaidCrownOnPrimary,
 			onClick: () =>
 				triggerUpgrade({
-					feature: 'topology_view',
+					feature: 'network_topology',
 					source: 'topology_plan_required',
 					surface: 'topology_tab',
 					gate_type: 'plan_required'

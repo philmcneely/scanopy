@@ -111,13 +111,13 @@ pub async fn require_billing_for_users(
     // without it can still read the diagram, which the app draws behind its
     // plan prompt.
     if topology_route(request.uri().path())
-        && !plan.features().topology_view
+        && !plan.features().includes_topology()
         && !topology_preview_route(request.method(), request.uri().path())
     {
         return ApiError::coded(
             StatusCode::PAYMENT_REQUIRED,
             ErrorCode::BillingFeatureNotAvailable {
-                feature: Feature::TopologyView.name().to_string(),
+                feature: Feature::NetworkTopology.name().to_string(),
             },
         )
         .into_response();

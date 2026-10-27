@@ -164,6 +164,8 @@ export type UpgradeFeature = FeatureId | 'seats' | 'sites' | 'hosts' | 'plan_usa
 
 export interface BillingPlanMetadata {
 	features: BillingPlanFeatures;
+	/** The plan includes the topology view (all three map features). */
+	includes_topology: boolean;
 	is_commercial: boolean;
 	is_stripe_managed: boolean;
 	is_free: boolean;
@@ -405,6 +407,13 @@ type EntityMetadataKeys = {
 	[K in keyof MetadataRegistry]: MetadataRegistry[K][number] extends EntityMetadata ? K : never;
 }[keyof MetadataRegistry];
 
+/** The logo id an entry names in `metadata.logo`, which its icon falls back from. */
+function metadataLogo(meta: unknown): string | null {
+	return meta && typeof meta === 'object' && 'logo' in meta && typeof meta.logo === 'string'
+		? meta.logo
+		: null;
+}
+
 // Full TypeMetadata helpers (includes color methods + other methods)
 function createTypeMetadataHelpers<T extends TypeMetadataKeys, M = unknown>(category: T) {
 	const sharedHelpers = createSharedHelpers(category);
@@ -415,14 +424,7 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys, M = unknown>(cate
 		getIconComponent: (id: string | null) => {
 			const $registry = get(metadata);
 			const item = ($registry?.[category] as TypeMetadata[])?.find((item) => item.id === id);
-			const iconName = item?.icon || null;
-
-			const meta = item?.metadata;
-			const logo =
-				meta && typeof meta === 'object' && 'logo' in meta && typeof meta.logo === 'string'
-					? meta.logo
-					: null;
-			return logoIcon(logo, createIconComponent(iconName));
+			return logoIcon(metadataLogo(item?.metadata), createIconComponent(item?.icon || null));
 		},
 
 		getItems: (): TypedTypeMetadata<M>[] => {
@@ -713,6 +715,8 @@ interface StaticMetadataItem {
 export function createStaticHelpers<M>(fixtureKey: string, items: StaticMetadataItem[]) {
 	const map = new Map(items.map((i) => [i.id, i]));
 	return {
+		/** Every id, in fixture order. */
+		getIds: () => items.map((i) => i.id),
 		getMetadata: (id: string | null): M => (map.get(id ?? '')?.metadata as M) ?? ({} as M),
 		getName: (id: string | null) => metaName(fixtureKey, id, map.get(id ?? '')?.name ?? id ?? ''),
 		getDescription: (id: string | null) =>
@@ -720,7 +724,7 @@ export function createStaticHelpers<M>(fixtureKey: string, items: StaticMetadata
 		getCategory: (id: string | null) => map.get(id ?? '')?.category ?? '',
 		getIconComponent: (id: string | null) => {
 			const item = map.get(id ?? '');
-			return createIconComponent(item?.icon ?? null);
+			return logoIcon(metadataLogo(item?.metadata), createIconComponent(item?.icon ?? null));
 		},
 		getColorHelper: (id: string | null) => {
 			const item = map.get(id ?? '');
