@@ -567,6 +567,16 @@ fn render_readme(readme: &str) -> String {
 pub fn update_readme() {
     let path = readme_path();
     let readme = fs::read_to_string(&path).expect("Failed to read README.md");
+    // Show what was read when no marker is present at all: in the v0.19.3 release a tool's
+    // archive had overwritten README.md, and the marker panic alone didn't show it.
+    if !readme.contains("<!-- generated:") {
+        let start: String = readme.chars().take(400).collect();
+        panic!(
+            "README.md at {} ({} bytes) has no generated markers. It starts:\n{start}",
+            path.display(),
+            readme.len()
+        );
+    }
     let rendered = render_readme(&readme);
     if rendered != readme {
         fs::write(&path, rendered).expect("Failed to write README.md");
