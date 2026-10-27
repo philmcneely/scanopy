@@ -230,7 +230,7 @@
 	keepMounted={paymentDialogPreload.warm}
 	name={overModal ? undefined : 'payment-method'}
 	title={billing_addPaymentMethod()}
-	size="md"
+	size="xl"
 	compactPadding={true}
 	showCloseButton={true}
 	onClose={closeAndReturn}

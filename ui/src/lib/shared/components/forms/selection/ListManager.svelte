@@ -5,7 +5,12 @@
 	import ListSelectItem from './ListSelectItem.svelte';
 	import type { EntityDisplayComponent } from './types';
 	import type { Snippet } from 'svelte';
-	import { common_edit, common_noEntityAddedYet, common_remove } from '$lib/paraglide/messages';
+	import {
+		common_createNew,
+		common_edit,
+		common_noEntityAddedYet,
+		common_remove
+	} from '$lib/paraglide/messages';
 	import { lowercasePreservingAcronyms } from '$lib/shared/utils/formatting';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 
@@ -109,7 +114,7 @@
 		getItemSelectionDisabledReason = () => null,
 		showSelectAll = true,
 		disableCreateNewButton = false,
-		createNewLabel = 'Create New',
+		createNewLabel = common_createNew(),
 		highlightedIndex = -1,
 		emptyMessage = '',
 		error = '',

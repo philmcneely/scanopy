@@ -26,7 +26,7 @@ use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::r#impl::patterns::ClientProbe;
 
 /// The agent's default port.
-const BESZEL_AGENT_PORT: u16 = 45876;
+pub(crate) const BESZEL_AGENT_PORT: u16 = 45876;
 
 /// The identification string every SSH server opens with.
 const SSH_BANNER: &[u8] = b"SSH-";
@@ -39,16 +39,12 @@ pub struct BeszelAgentProbe;
 
 #[async_trait]
 impl AppProbe for BeszelAgentProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(BESZEL_AGENT_PORT)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::BeszelAgent
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::BeszelAgent)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        Ok(parse_banner(&read_greeting(ctx, self.port(), 512).await))
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        Ok(parse_banner(&read_greeting(ctx, port, 512).await))
     }
 }
 

@@ -7,6 +7,7 @@
 import type { InternalNode, Node } from '@xyflow/svelte';
 import type { DiagramIcon, DiagramSourceNode } from './model';
 import { knownCardGlyph } from '../card-glyph';
+import type { DiagramTheme } from './describe';
 
 /**
  * Absolute position and measured size of every node. `getNodes()` carries neither: positions are
@@ -100,12 +101,13 @@ export interface CapturedIcons {
 /**
  * The first icon each node draws (a container's header icon, a card's service logo), keyed so
  * repeated icons are stored once. `png` also rasterizes each icon, for formats that need bitmaps.
+ * A `Paired` logo gives the file for the export's `theme`.
  * A logo that fails to load leaves its node without an icon.
  */
 export async function captureNodeIcons(
 	flowElement: HTMLElement,
 	nodeIds: Set<string>,
-	options: { png: boolean }
+	options: { png: boolean; theme: DiagramTheme }
 ): Promise<CapturedIcons> {
 	const iconKeys = new Map<string, string>();
 	const sources = new Map<string, { svg?: string; src?: string }>();
@@ -118,8 +120,9 @@ export async function captureNodeIcons(
 		// A card icon drawn on one element (`card-glyph.ts`): its source by the key it carries.
 		const glyph = icon.dataset.glyph ? knownCardGlyph(icon.dataset.glyph) : undefined;
 		if (glyph?.type === 'image') {
-			iconKeys.set(id, glyph.src);
-			sources.set(glyph.src, { src: glyph.src });
+			const src = options.theme === 'dark' && glyph.darkSrc ? glyph.darkSrc : glyph.src;
+			iconKeys.set(id, src);
+			sources.set(src, { src });
 		} else if (glyph?.type === 'mask') {
 			const color = getComputedStyle(icon).color || '#64748b';
 			const svg = glyph.svg.replaceAll('currentColor', color);

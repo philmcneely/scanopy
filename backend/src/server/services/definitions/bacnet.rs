@@ -3,7 +3,7 @@ use crate::daemon::utils::app_probe::udp::BacnetProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct BACnet;
@@ -20,10 +20,10 @@ impl ServiceDefinition for BACnet {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Industrial
     }
-    /// Derived from the probe, so a container that only declares 47808/udp is not claimed as this
+    /// Matches on the probe's answer, so a container that only declares 47808/udp is not claimed as this
     /// service.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        probe_pattern(&BacnetProbe)
+        Pattern::ClientResponse(ClientProbe::Bacnet)
     }
     fn is_generic(&self) -> bool {
         true

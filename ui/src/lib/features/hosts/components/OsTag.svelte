@@ -12,7 +12,7 @@
 </script>
 
 <Tag
-	icon={hostOsIcon(os.family)}
+	icon={hostOsIcon(os.family, { framed: false })}
 	label={hostOsLabel(os)}
 	color="Gray"
 	title={hostOsTooltip(os, source)}

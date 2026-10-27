@@ -18,7 +18,7 @@ use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::r#impl::patterns::ClientProbe;
 
 /// The Channel Access server port. Searches go to UDP 5064 and circuits to TCP 5064.
-const CA_SERVER_PORT: u16 = 5064;
+pub(crate) const CA_SERVER_PORT: u16 = 5064;
 
 const HEADER_LEN: usize = 16;
 
@@ -33,16 +33,12 @@ pub struct EpicsCaProbe;
 
 #[async_trait]
 impl AppProbe for EpicsCaProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(CA_SERVER_PORT)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::EpicsCa
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::EpicsCa)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &version_request(), 256).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &version_request(), 256).await;
         Ok(presence(is_version_reply(&reply)))
     }
 }

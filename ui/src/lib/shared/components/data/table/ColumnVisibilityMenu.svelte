@@ -219,12 +219,14 @@
 	aria-haspopup="dialog"
 >
 	<Columns3Cog class="h-3.5 w-3.5" />
-	{common_columns()}
+	<span class="max-md:sr-only">{common_columns()}</span>
 	{#if listShortcuts}
 		{@const paused = listShortcuts.isPaused()}
 		<!-- Same key hint as the other controls in the summary row (`PaginationBar`). -->
 		<span
-			class="font-normal text-tertiary transition-opacity {paused ? 'opacity-40' : ''}"
+			class="font-normal text-tertiary transition-opacity max-md:hidden {paused
+				? 'opacity-40'
+				: ''}"
 			title={paused ? common_shortcutsPausedInSearch() : undefined}>({columnsShortcut})</span
 		>
 	{/if}

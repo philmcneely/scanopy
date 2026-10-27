@@ -10,6 +10,7 @@ use crate::server::auth::r#impl::oidc::IdentityProviderLogo;
 use crate::server::billing::plans::get_website_fixture_plans;
 use crate::server::billing::types::base::{BillingPlan, CancelReason, PlanStatus, SaveOffer};
 use crate::server::billing::types::features::Feature;
+use crate::server::billing::types::limits::PlanLimit;
 use crate::server::credentials::r#impl::integrations::all_integrations;
 use crate::server::credentials::r#impl::mapping::CredentialQueryPayloadDiscriminants;
 use crate::server::credentials::r#impl::types::{
@@ -30,7 +31,7 @@ use crate::server::shared::attribution::{AttributeMethod, AttributeSourceDiscrim
 use crate::server::shared::concepts::Concept;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::shared::entity_metadata::EntityCategory;
-use crate::server::shared::logos::{Logo, logo_credits, logo_entries};
+use crate::server::shared::logos::{Logo, Theming, logo_credits, logo_entries};
 use crate::server::shared::types::entities::EntitySourceDiscriminants;
 use crate::server::shared::types::entity_field::FieldGroup;
 use crate::server::shared::types::metadata::{
@@ -111,21 +112,41 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
     write_fixture(&services_catalog, output_dir, "services.json");
 
     // Every logo, once, into ui/static/logos/catalog/<id>.<ext> (output_dir is ui/src/lib/data),
-    // and logos.json, which every logo consumer looks a logo id up in.
+    // a `Paired` logo's dark-theme file beside it as <id>.dark.<ext>, and logos.json, which every
+    // logo consumer looks a logo id up in.
     let urls: Vec<(String, String)> = Logo::iter()
         .filter(Logo::is_downloaded)
-        .map(|logo| (<&'static str>::from(logo).to_string(), logo.url()))
+        .flat_map(|logo| {
+            let id: &'static str = logo.into();
+            std::iter::once((id.to_string(), logo.url()))
+                .chain(logo.dark_url().map(|url| (format!("{id}.dark"), url)))
+        })
         .collect();
     let wanted: Vec<(String, &str)> = urls
         .iter()
         .map(|(stem, url)| (stem.clone(), url.as_str()))
         .collect();
-    download_logos(
-        &wanted,
-        &output_dir.join("../../../static/logos/catalog"),
-        force_logos,
-    );
-    write_fixture(&logo_entries(), output_dir, "logos.json");
+    let catalog_dir = output_dir.join("../../../static/logos/catalog");
+    download_logos(&wanted, &catalog_dir, force_logos);
+    // A `TextColor` logo's markup goes into logos.json, so the UI draws it inline in the text
+    // colour as it draws its own icons. That only works while the file uses `currentColor`.
+    let mut entries = logo_entries();
+    for entry in entries
+        .iter_mut()
+        .filter(|e| e.theming == Theming::TextColor)
+    {
+        let file = catalog_dir.join(entry.id.file_name());
+        let Ok(svg) = fs::read_to_string(&file) else {
+            continue;
+        };
+        assert!(
+            svg.contains("currentColor") && !svg.contains("<script"),
+            "{} is drawn in the text colour, so it must use currentColor and carry no script",
+            file.display()
+        );
+        entry.markup = Some(svg);
+    }
+    write_fixture(&entries, output_dir, "logos.json");
 
     // The website's OIDC guide lists these from identity-provider-logos.json, as paths oidc.toml
     // can name for a provider's logo.
@@ -447,6 +468,9 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
     let plan_statuses: Vec<TypeMetadata> = PlanStatus::iter().map(|s| s.to_metadata()).collect();
     write_fixture(&plan_statuses, output_dir, "plan-statuses.json");
 
+    let plan_limits: Vec<TypeMetadata> = PlanLimit::iter().map(|l| l.to_metadata()).collect();
+    write_fixture(&plan_limits, output_dir, "plan-limits.json");
+
     let email_categories: Vec<TypeMetadata> =
         EmailCategory::iter().map(|c| c.to_metadata()).collect();
     write_fixture(&email_categories, output_dir, "email-categories.json");
@@ -489,6 +513,67 @@ fn write_fixture<T: serde::Serialize + ?Sized>(items: &T, output_dir: &Path, fil
     println!("  {}", filename);
 }
 
+/// The repo README, whose `<!-- generated:<key> -->` spans `update_readme` fills.
+fn readme_path() -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../README.md")
+}
+
+/// The README's generated spans, by key. Each value matches what the website derives from the
+/// same fixtures: `getServiceCountLabel` and `getIntegrationsLabel` in the website's `schemas.ts`.
+fn readme_spans() -> Vec<(&'static str, String)> {
+    // The `services.json` catalog: definitions a user can add, floored to ten ("300+").
+    let services = ServiceDefinitionRegistry::all_service_definitions()
+        .iter()
+        .filter(|s| s.can_be_manually_added())
+        .count();
+    let integrations: Vec<String> = all_integrations().into_iter().map(|i| i.name).collect();
+    vec![
+        ("service-count", format!("{}+", services / 10 * 10)),
+        ("integrations", list_label(&integrations)),
+    ]
+}
+
+/// "A, B, and C", as the website joins names.
+fn list_label(names: &[String]) -> String {
+    match names {
+        [] => String::new(),
+        [one] => one.clone(),
+        [a, b] => format!("{a} and {b}"),
+        [rest @ .., last] => format!("{}, and {last}", rest.join(", ")),
+    }
+}
+
+/// `readme` with every generated span replaced by its current value. Panics on a missing marker,
+/// so a README edit that drops one fails instead of leaving a stale value.
+fn render_readme(readme: &str) -> String {
+    const END: &str = "<!-- /generated -->";
+    let mut out = readme.to_string();
+    for (key, value) in readme_spans() {
+        let start = format!("<!-- generated:{key} -->");
+        let open = out
+            .find(&start)
+            .unwrap_or_else(|| panic!("README.md has no {start} marker"))
+            + start.len();
+        let close = out[open..]
+            .find(END)
+            .unwrap_or_else(|| panic!("README.md marker {start} has no {END}"))
+            + open;
+        out.replace_range(open..close, &value);
+    }
+    out
+}
+
+/// Rewrite the README's generated spans from the current definitions.
+pub fn update_readme() {
+    let path = readme_path();
+    let readme = fs::read_to_string(&path).expect("Failed to read README.md");
+    let rendered = render_readme(&readme);
+    if rendered != readme {
+        fs::write(&path, rendered).expect("Failed to write README.md");
+        println!("  README.md");
+    }
+}
+
 /// Convert a service name to a URL-safe filename slug.
 /// "Home Assistant" → "home-assistant", "Docker Container" → "docker-container"
 pub fn logo_slug(name: &str) -> String {
@@ -507,6 +592,22 @@ pub(crate) fn logo_ext(url: &str) -> &str {
 
 /// Record of the URL each logo file in a directory was downloaded from, kept beside the logos.
 const LOGO_CACHE_FILE: &str = ".logo-cache.json";
+
+/// Sent on every logo request. Wikimedia refuses requests without a User-Agent, and CDNs
+/// fronting Simple Icons refuse some anonymous requests from CI runners.
+pub(crate) const LOGO_FETCH_USER_AGENT: &str = "scanopy-fixtures (https://scanopy.net)";
+
+/// Whether `url` was already downloaded into `catalog_dir` as `<stem>.<ext>`: the file is there and
+/// the cache record names this URL for it, the same test `plan_logos` uses to skip a download.
+#[cfg(test)]
+pub(crate) fn logo_is_cached(catalog_dir: &Path, stem: &str, url: &str) -> bool {
+    let filename = format!("{stem}.{}", logo_ext(url));
+    let cache: BTreeMap<String, String> = fs::read(catalog_dir.join(LOGO_CACHE_FILE))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default();
+    catalog_dir.join(&filename).is_file() && cache.get(&filename).map(String::as_str) == Some(url)
+}
 
 /// What `download_logos` does with a logo directory, worked out from the wanted logos, the cache
 /// record and the files already on disk.
@@ -593,8 +694,7 @@ fn download_logos(logos: &[(String, &str)], static_dir: &Path, force: bool) {
 
     if !download.is_empty() {
         let client = reqwest::blocking::Client::builder()
-            // Wikimedia refuses requests without a User-Agent.
-            .user_agent("scanopy-fixtures (https://scanopy.net)")
+            .user_agent(LOGO_FETCH_USER_AGENT)
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .expect("Failed to create HTTP client");
@@ -637,6 +737,23 @@ fn download_logos(logos: &[(String, &str)], static_dir: &Path, force: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn readme_generated_spans_are_current() {
+        let readme = fs::read_to_string(readme_path()).unwrap();
+        assert!(
+            render_readme(&readme) == readme,
+            "README.md is stale: run `make generate-fixtures`"
+        );
+    }
+
+    #[test]
+    fn list_label_joins_like_the_website() {
+        let names = |n: &[&str]| n.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(list_label(&names(&["A"])), "A");
+        assert_eq!(list_label(&names(&["A", "B"])), "A and B");
+        assert_eq!(list_label(&names(&["A", "B", "C"])), "A, B, and C");
+    }
 
     fn files(names: &[&str]) -> BTreeSet<String> {
         names.iter().map(|n| n.to_string()).collect()

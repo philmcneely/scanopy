@@ -47,16 +47,12 @@ pub struct CassandraProbe;
 
 #[async_trait]
 impl AppProbe for CassandraProbe {
-    fn port(&self) -> PortType {
-        PortType::Cassandra
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Cassandra
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Cassandra)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &options_frame(), 4096).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &options_frame(), 4096).await;
         Ok(parse_frame(&reply, STREAM_ID))
     }
 }

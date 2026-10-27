@@ -10,9 +10,10 @@
 //! **A probe is a method on the [`ServiceDefinition`] it belongs to.** That gives one registry
 //! rather than two and makes the invariants that matter structural: a probe cannot exist without a
 //! service definition, because a definition is the only thing that can hand one out; and the port
-//! that gets probed is the port that gets scanned, because
-//! [`probe_pattern`](crate::server::services::r#impl::patterns::probe_pattern) derives the
-//! definition's discovery pattern from [`AppProbe::port`]. What stays outside is HTTP endpoint
+//! that gets probed is the port that gets scanned, because both are read from
+//! [`ClientProbe::ports`]: the runner probes those ports, and a definition's
+//! [`Pattern::ClientResponse`](crate::server::services::r#impl::patterns::Pattern::ClientResponse)
+//! puts them in its scan. What stays outside is HTTP endpoint
 //! probing, which is already declarative, and the credentialed integrations, which have their own
 //! registry keyed on credential type — a split that means something, unlike the one this replaces.
 //!
@@ -279,28 +280,18 @@ pub fn identity_field<T: AttributeValue + From<String>>(
 /// A non-credentialed application probe.
 #[async_trait]
 pub trait AppProbe: Send + Sync {
-    /// The port this probe speaks on. Also the port the definition's discovery pattern scans, so
-    /// the two cannot disagree.
-    fn port(&self) -> PortType;
-
-    /// The evidence a successful probe contributes to service matching, for protocols whose
-    /// definition matches on [`Pattern::ClientResponse`](crate::server::services::r#impl::patterns::Pattern::ClientResponse).
-    ///
-    /// `None` makes [`probe_pattern`](crate::server::services::r#impl::patterns::probe_pattern)
-    /// match on the port alone, which the container scan satisfies from a declared port with no
-    /// probe run. Every UDP probe returns one for that reason, and
-    /// `test_no_service_matches_on_udp_openness_alone` fails on a definition whose UDP probe does
-    /// not.
-    fn client_probe(&self) -> Option<ClientProbe> {
-        None
-    }
+    /// The evidence a successful probe contributes to service matching, which a definition reads
+    /// with [`Pattern::ClientResponse`](crate::server::services::r#impl::patterns::Pattern::ClientResponse).
+    /// Its [`ClientProbe::ports`] are the ports the probe runs on: [`probe_runs`] pairs the probe
+    /// with each, and `run` receives the one it is speaking on.
+    fn client_probe(&self) -> ClientProbe;
 
     /// Whether this probe applies to this target at all. DHCP overrides it.
     fn applies(&self, _ctx: &ProbeContext) -> bool {
         true
     }
 
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error>;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error>;
 }
 
 /// What one answered probe contributes back to the scan.
@@ -510,21 +501,40 @@ pub fn all_app_probes() -> Vec<Box<dyn AppProbe>> {
         .collect()
 }
 
-/// The probes [`scan_app_probes`] runs against one address. Every probe passes through here, so
+/// Every probe paired with each port it runs on, from its [`ClientProbe::ports`].
+pub fn probe_runs() -> Vec<(Arc<dyn AppProbe>, PortType)> {
+    all_app_probes()
+        .into_iter()
+        .flat_map(|probe| {
+            let probe: Arc<dyn AppProbe> = Arc::from(probe);
+            probe
+                .client_probe()
+                .ports()
+                .into_iter()
+                .map(move |port| (Arc::clone(&probe), port))
+        })
+        .collect()
+}
+
+/// The probe runs [`scan_app_probes`] makes against one address. Every run passes through here, so
 /// the raw-socket gate covers each one, TCP or UDP, without the probe having to know about it.
 ///
 /// TCP probes gate on the connect scan having found the port open; UDP has no connect scan to gate
 /// on, so its probes run whenever `udp` is set — which is what `scan_udp_ports` did for the same four probes.
-fn select_probes(ctx: &ProbeContext, open_ports: &[PortType], udp: bool) -> Vec<Box<dyn AppProbe>> {
-    all_app_probes()
+fn select_probes(
+    ctx: &ProbeContext,
+    open_ports: &[PortType],
+    udp: bool,
+) -> Vec<(Arc<dyn AppProbe>, PortType)> {
+    probe_runs()
         .into_iter()
-        .filter(|p| ctx.probe_raw_socket_ports || !p.port().is_raw_socket())
-        .filter(|p| p.applies(ctx))
-        .filter(|p| {
-            if p.port().is_udp() {
+        .filter(|(_, port)| ctx.probe_raw_socket_ports || !port.is_raw_socket())
+        .filter(|(probe, _)| probe.applies(ctx))
+        .filter(|(_, port)| {
+            if port.is_udp() {
                 udp
             } else {
-                open_ports.contains(&p.port())
+                open_ports.contains(port)
             }
         })
         .collect()
@@ -555,16 +565,15 @@ pub async fn scan_app_probes(
         probe_batch_size,
         scan_rate_pps,
         ctx.cancel.clone(),
-        move |probe| {
+        move |(probe, port)| {
             let ctx = ctx.clone();
             async move {
-                let port = probe.port();
-                match probe.run(&ctx).await {
+                match probe.run(&ctx, port).await {
                     Ok(AppProbeOutcome::Answered { identity }) => {
                         tracing::trace!(ip = %ctx.ip, port = %port.number(), "Application probe answered");
                         Some(AppProbeResult {
                             port,
-                            client_probe: probe.client_probe(),
+                            client_probe: Some(probe.client_probe()),
                             identity,
                         })
                     }
@@ -729,7 +738,10 @@ mod tests {
         let reply = request_response(&ctx, PortType::DnsTcp, b"query", 1024).await;
         assert_eq!(reply.len(), 19, "prefix and message both read");
         assert_eq!(
-            DnsTcpProbe.run(&ctx).await.expect("probe runs"),
+            DnsTcpProbe
+                .run(&ctx, PortType::DnsTcp)
+                .await
+                .expect("probe runs"),
             AppProbeOutcome::Answered { identity: None }
         );
     }
@@ -748,7 +760,10 @@ mod tests {
             ..tunnelled(None)
         };
         assert_eq!(
-            TelnetProbe.run(&ctx).await.expect("probe runs"),
+            TelnetProbe
+                .run(&ctx, PortType::Telnet)
+                .await
+                .expect("probe runs"),
             AppProbeOutcome::Answered { identity: None }
         );
     }
@@ -798,8 +813,15 @@ mod tests {
             !probes.is_empty(),
             "the registry should expose the migrated UDP probes at minimum"
         );
+        for probe in &probes {
+            assert!(
+                !probe.client_probe().ports().is_empty(),
+                "{:?} names no port, so its probe never runs",
+                probe.client_probe()
+            );
+        }
 
-        let mut ports: Vec<_> = probes.iter().map(|p| p.port()).collect();
+        let mut ports: Vec<_> = probe_runs().into_iter().map(|(_, port)| port).collect();
         let before = ports.len();
         ports.sort_by_key(|p| (p.number(), p.protocol()));
         ports.dedup();
@@ -812,7 +834,7 @@ mod tests {
 
     /// A gateway address with every registered probe's port open, so nothing but the raw-socket
     /// gate stands between a probe and selection.
-    fn selection_for(probe_raw_socket_ports: bool) -> Vec<Box<dyn AppProbe>> {
+    fn selection_for(probe_raw_socket_ports: bool) -> Vec<(Arc<dyn AppProbe>, PortType)> {
         let ctx = ProbeContext {
             ip: IpAddr::V4(std::net::Ipv4Addr::new(192, 168, 1, 1)),
             subnet_cidr: "192.168.1.0/24".parse().unwrap(),
@@ -823,7 +845,7 @@ mod tests {
             port_map: Default::default(),
             tunnel: None,
         };
-        let open_ports: Vec<PortType> = all_app_probes().iter().map(|p| p.port()).collect();
+        let open_ports: Vec<PortType> = probe_runs().into_iter().map(|(_, port)| port).collect();
         select_probes(&ctx, &open_ports, true)
     }
 
@@ -832,8 +854,8 @@ mod tests {
     #[test]
     fn raw_socket_probes_do_not_run_with_the_setting_off() {
         let offending: Vec<u16> = selection_for(false)
-            .iter()
-            .map(|p| p.port())
+            .into_iter()
+            .map(|(_, port)| port)
             .filter(PortType::is_raw_socket)
             .map(|p| p.number())
             .collect();
@@ -845,19 +867,18 @@ mod tests {
 
     #[test]
     fn raw_socket_probes_run_with_the_setting_on() {
-        let raw_socket_ports = |probes: &[Box<dyn AppProbe>]| -> Vec<PortType> {
-            probes
-                .iter()
-                .map(|p| p.port())
+        let raw_socket_ports = |runs: Vec<(Arc<dyn AppProbe>, PortType)>| -> Vec<PortType> {
+            runs.into_iter()
+                .map(|(_, port)| port)
                 .filter(PortType::is_raw_socket)
                 .collect()
         };
-        let registered = raw_socket_ports(&all_app_probes());
+        let registered = raw_socket_ports(probe_runs());
         assert!(
             !registered.is_empty(),
             "no registered probe targets a raw-socket port, so the gate is untested"
         );
-        assert_eq!(raw_socket_ports(&selection_for(true)), registered);
+        assert_eq!(raw_socket_ports(selection_for(true)), registered);
     }
 
     /// Devices routinely pad a fixed-width identity field with spaces or return it empty, and an

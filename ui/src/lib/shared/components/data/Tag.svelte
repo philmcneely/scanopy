@@ -16,6 +16,7 @@
 		title = '',
 		removable = false,
 		isShiny = false,
+		upgrade = false,
 		nativeTooltip = false,
 		faded = false,
 		onclick = undefined,
@@ -34,6 +35,8 @@
 		title?: string | TooltipContent | null;
 		removable?: boolean;
 		isShiny?: boolean;
+		/** A paid feature's badge (`upgradeTagProps`): an amber chip around its crown, instead of `color`. */
+		upgrade?: boolean;
 		nativeTooltip?: boolean;
 		faded?: boolean;
 		onclick?: ((e: MouseEvent) => void) | undefined;
@@ -53,12 +56,16 @@
 
 	// An icon carries the meaning on its own, so a tag with one is not unknown for lacking text.
 	// Without either there is nothing to show, which is what `common_unknown` is for.
-	let isUnknown = $derived((!label && !icon) || !color);
+	let isUnknown = $derived((!label && !icon) || (!color && !upgrade));
 	// Null collapses the text element entirely rather than rendering an empty span.
 	let displayLabel = $derived(label ?? (icon ? null : common_unknown()));
 	let colorHelper = $derived(color ? createColorHelper(color) : null);
-	let bgColor = $derived(colorHelper?.bg ?? '');
-	let textColor = $derived(colorHelper?.text ?? '');
+	let bgColor = $derived(
+		upgrade
+			? 'border border-amber-300 bg-amber-100 dark:border-amber-400/45 dark:bg-amber-500/15'
+			: (colorHelper?.bg ?? '')
+	);
+	let textColor = $derived(upgrade ? '' : (colorHelper?.text ?? ''));
 
 	/**
 	 * Names the full label on hover, but only while the chip is too narrow to

@@ -4,7 +4,7 @@ use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct H323;
@@ -31,7 +31,7 @@ impl ServiceDefinition for H323 {
     /// no probe covered, which was read as proof that a host existed. See
     /// [`crate::daemon::utils::app_probe::h323`].
     fn discovery_pattern(&self) -> Pattern<'_> {
-        probe_pattern(&H323Probe)
+        Pattern::ClientResponse(ClientProbe::H323)
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(H323Probe)]

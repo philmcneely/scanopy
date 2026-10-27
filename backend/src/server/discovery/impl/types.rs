@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
-use strum::{Display, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
+use strum::{Display, EnumIter, IntoStaticStr, VariantNames};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -29,7 +29,6 @@ use crate::server::{
     PartialEq,
     Hash,
     IntoStaticStr,
-    EnumDiscriminants,
     EnumIter,
     VariantNames,
     ToSchema,

@@ -3,7 +3,7 @@ use crate::daemon::utils::app_probe::ipp::IppProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{DnsSdServiceType, Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, DnsSdServiceType, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct IppPrinter;
@@ -19,7 +19,7 @@ impl ServiceDefinition for IppPrinter {
         ServiceCategory::Printer
     }
 
-    /// Derived from the probe, so a listener on 631 that does not answer in IPP is not claimed.
+    /// Matches on the probe's answer, so a listener on 631 that does not answer in IPP is not claimed.
     /// Generic, so CUPS and the vendor printer definitions, which match the same port with more
     /// specific evidence, claim it first: a CUPS server answers IPP too, and is a server.
     ///
@@ -34,7 +34,7 @@ impl ServiceDefinition for IppPrinter {
                 DnsSdServiceType::PDL_DATASTREAM,
                 None,
             ))),
-            probe_pattern(&IppProbe),
+            Pattern::ClientResponse(ClientProbe::Ipp),
         ])
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {

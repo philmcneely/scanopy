@@ -81,31 +81,25 @@
 	import ApplicationSetupWizard from './application-wizard/ApplicationSetupWizard.svelte';
 	import L2EmptyStateOverlay from './L2EmptyStateOverlay.svelte';
 	import TopologyPlanRequiredOverlay from './TopologyPlanRequiredOverlay.svelte';
-	import TopologyDiscoveryPendingOverlay from './TopologyDiscoveryPendingOverlay.svelte';
+	import { upgradeTagProps } from '$lib/features/billing/upgrade-tag';
 	import { hasTopologyAccess } from '$lib/features/organizations/types';
 	import ViewFiltersEmptyState from './ViewFiltersEmptyState.svelte';
 	import ViewSwitcherHint from './ViewSwitcherHint.svelte';
 	import DependencyTutorial from './DependencyTutorial.svelte';
 	import { TUTORIAL_TOPOLOGY } from './dependency-tutorial-data';
 	import { useUsersQuery } from '$lib/features/users/queries';
+	import { canListUsers } from '$lib/features/users/types';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
 	import type { components } from '$lib/api/schema';
-	import {
-		billingPlans,
-		edgeTypes,
-		entities,
-		permissions,
-		views
-	} from '$lib/shared/stores/metadata';
+	import { billingPlans, edgeTypes, entities, views } from '$lib/shared/stores/metadata';
 	import { getInspectorConfig } from './panel/inspectors/view-config';
 	import type { TabProps } from '$lib/shared/types';
 	import {
 		common_delete,
 		common_firstDiscoveryEmailHint,
 		common_share,
-		common_upgrade,
 		daemons_installPromptTopology,
 		topology_asOf,
 		common_current,
@@ -120,12 +114,7 @@
 	// Get current user to check permissions
 	const currentUserQuery = useCurrentUserQuery();
 	let currentUser = $derived(currentUserQuery.data);
-	let canViewUsers = $derived(
-		currentUser
-			? (permissions.getMetadata(currentUser.permissions)?.grantable_user_permissions?.length ??
-					0) > 0
-			: false
-	);
+	let canViewUsers = $derived(currentUser ? canListUsers(currentUser.permissions) : false);
 
 	// Snapshot selection drives as-of-T entity reads. When a snapshot is
 	// selected, entity queries read SCD2 state as of its `taken_at` instead of
@@ -810,7 +799,8 @@
 						>
 							<Camera class="h-5 w-5" />
 							{#if !snapshotsEnabled}
-								<Tag label={common_upgrade()} color="Yellow" />
+								<!-- The button names the action; the badge only marks it as an upgrade. -->
+								<Tag {...upgradeTagProps()} title={null} />
 							{/if}
 						</button>
 					{/if}
@@ -872,12 +862,12 @@
 						/>
 					{/if}
 					<TopologyViewer bind:this={topologyViewer} topology={currentTopology} {isActive} />
-					{#if !topologyAccess && !onboarding.includes('FirstDiscoveryCompleted')}
-						<!-- Free before its first scan finishes: progress, not the plan prompt. -->
-						<TopologyDiscoveryPendingOverlay />
-					{:else if !topologyAccess}
-						<!-- Free: the org's own diagram, shrouded, behind the plan prompt. -->
-						<TopologyPlanRequiredOverlay />
+					{#if !topologyAccess}
+						<!-- Free: the plan prompt from the first scan on, with its progress while it runs,
+						     then over the org's own diagram, shrouded. -->
+						<TopologyPlanRequiredOverlay
+							scanning={!onboarding.includes('FirstDiscoveryCompleted')}
+						/>
 					{:else if $showDependencyTutorial}
 						<DependencyTutorial
 							onDismiss={dismissDependencyTutorial}

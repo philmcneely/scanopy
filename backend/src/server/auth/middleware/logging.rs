@@ -40,9 +40,7 @@ fn daemon_version_label(raw: Option<&str>) -> String {
     let Some(version) = raw.and_then(|v| semver::Version::parse(v).ok()) else {
         return "none".to_string();
     };
-    let server = semver::Version::parse(crate::server::openapi::SERVER_VERSION)
-        .expect("CARGO_PKG_VERSION is semver");
-    if (version.major, version.minor) > (server.major, server.minor) {
+    if crate::server::daemons::r#impl::version::is_beyond_server_release_line(&version) {
         return "unknown".to_string();
     }
     format!("{}.{}", version.major, version.minor)

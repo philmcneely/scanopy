@@ -56,16 +56,12 @@ pub struct GoogleWifiProbe;
 
 #[async_trait]
 impl AppProbe for GoogleWifiProbe {
-    fn port(&self) -> PortType {
-        PortType::Http
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::GoogleWifi
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::GoogleWifi)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &request(ctx, self.port()), MAX_REPLY).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &request(ctx, port), MAX_REPLY).await;
         Ok(match parse_reply(&reply) {
             Some(identity) => AppProbeOutcome::Answered {
                 identity: Some(identity),

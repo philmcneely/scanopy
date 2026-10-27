@@ -59,7 +59,8 @@
 	import { required, max } from '$lib/shared/components/forms/validators';
 	import type { Node, Edge } from '@xyflow/svelte';
 	import type { Color } from '$lib/shared/utils/styling';
-	import { AVAILABLE_COLORS, createColorHelper } from '$lib/shared/utils/styling';
+	import { createColorHelper } from '$lib/shared/utils/styling';
+	import { dependencyColors } from '$lib/features/dependencies/utils';
 	import { browser } from '$app/environment';
 	import { v4 as uuidv4 } from 'uuid';
 	import {
@@ -421,11 +422,11 @@
 
 	// Edge styling lives outside the TanStack form: EdgeStyleForm manages it via
 	// bindable callbacks. Seeded from editingDependency in edit mode (snapshot at
-	// open), otherwise a random palette pick.
+	// open), otherwise a random pick from the colours a dependency can take.
+	const colorChoices = dependencyColors();
 	// svelte-ignore state_referenced_locally
 	let dependencyColor: Color = $state(
-		editingDependency?.color ??
-			AVAILABLE_COLORS[Math.floor(Math.random() * AVAILABLE_COLORS.length)]
+		editingDependency?.color ?? colorChoices[Math.floor(Math.random() * colorChoices.length)]
 	);
 	// svelte-ignore state_referenced_locally
 	let dependencyEdgeStyle: EdgeStyle = $state(editingDependency?.edge_style ?? 'Bezier');

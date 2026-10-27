@@ -180,6 +180,22 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
+    // Daemon version distribution gauge. The first tick fires at once, so it is set at boot.
+    let version_gauge_service = state.services.daemon_service.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(15 * 60)); // 15 minutes
+        let mut previous = std::collections::BTreeSet::new();
+        loop {
+            interval.tick().await;
+            if let Err(e) = version_gauge_service
+                .record_daemon_versions(&mut previous)
+                .await
+            {
+                tracing::warn!(error = %e, "Failed to record daemon version gauge");
+            }
+        }
+    });
+
     // Start daemon polling loop for ServerPoll mode daemons
     let daemon_service = state.services.daemon_service.clone();
     let poll_email_service = state.services.email_service.clone();
@@ -610,24 +626,6 @@ async fn main() -> anyhow::Result<()> {
             .initialize_products(get_purchasable_plans())
             .await?;
         tracing::info!(target: LOG_TARGET, "  Billing service initialized");
-
-        // ONE-SHOT (remove next release): Free has no Stripe subscription any more, so the
-        // $0 ones left from when picking Free made one get cancelled.
-        let cleanup = billing_service.clone();
-        tokio::spawn(async move {
-            match cleanup.cancel_free_plan_subscriptions().await {
-                Ok(count) => tracing::info!(
-                    target: LOG_TARGET,
-                    count,
-                    "Cancelled leftover Free plan subscriptions"
-                ),
-                Err(e) => tracing::error!(
-                    target: LOG_TARGET,
-                    error = %e,
-                    "Could not cancel leftover Free plan subscriptions"
-                ),
-            }
-        });
     }
 
     // Reconcile self-hosted org plan(s) to the license entitlement. An offline

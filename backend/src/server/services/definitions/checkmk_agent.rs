@@ -3,7 +3,7 @@ use crate::daemon::utils::app_probe::checkmk::CheckMkAgentProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 use crate::server::shared::logos::Logo;
 
 /// CheckMK Agent - Monitoring agent for CheckMK server
@@ -30,10 +30,10 @@ impl ServiceDefinition for CheckmkAgent {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Monitoring
     }
-    /// Derived from the probe, so a listener on this port that does not speak the protocol is
+    /// Matches on the probe's answer, so a listener on this port that does not speak the protocol is
     /// not claimed as this service.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        probe_pattern(&CheckMkAgentProbe)
+        Pattern::ClientResponse(ClientProbe::CheckMkAgent)
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(CheckMkAgentProbe)]

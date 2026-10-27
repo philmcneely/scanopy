@@ -64,16 +64,12 @@ pub struct SipProbe;
 
 #[async_trait]
 impl AppProbe for SipProbe {
-    fn port(&self) -> PortType {
-        PortType::Sip
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Sip
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Sip)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let Some(mut stream) = ctx.connect(self.port().number()).await else {
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let Some(mut stream) = ctx.connect(port.number()).await else {
             return Ok(AppProbeOutcome::NoAnswer);
         };
 

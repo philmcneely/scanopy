@@ -52,6 +52,14 @@
    same specificity, later rule wins), and any Tailwind utility on the element overrides both from
    the utilities layer. The cost: these take no variants (`hover:btn-secondary` doesn't exist). */
 @layer components {
+	.explainer {
+		/* A term with a tooltip explaining it: hover, or tap on touch, shows the explanation. */
+		cursor: help;
+		text-decoration: underline dotted;
+		text-decoration-color: var(--color-border-input);
+		text-underline-offset: 2px;
+	}
+
 	.btn-primary {
 		/* Primary action button - blue accent for emphasis */
 		@apply bg-blue-700 hover:bg-blue-600;
@@ -206,6 +214,14 @@
 			right: var(--pin-right, 0px);
 		}
 
+		/* Below `md` only the left pins hold: pinned tags and actions on both sides left a phone
+		   no room for the columns between. */
+		@media (width < 48rem) {
+			& .pin-right {
+				position: static;
+			}
+		}
+
 		/* A group header spans the whole row; its label stays at the left edge while the row scrolls. */
 		& .pin-content {
 			position: sticky;
@@ -264,7 +280,7 @@
 
 	.sidebar {
 		/* Sidebar component */
-		@apply fixed top-0 left-0 z-10 flex h-screen w-48 flex-col;
+		@apply fixed top-0 left-0 z-10 flex h-dvh w-48 flex-col;
 		border-right: 1px solid var(--color-border);
 		background-color: var(--color-bg-sidebar);
 	}
@@ -285,7 +301,7 @@
 	}
 
 	.modal-page {
-		@apply fixed inset-0 z-50 flex items-center justify-center overscroll-contain px-3 py-4 sm:px-0 sm:py-16;
+		@apply fixed inset-0 z-50 flex items-center justify-center overscroll-contain px-2 py-2 sm:px-0 sm:py-16;
 	}
 
 	.modal-page-anchored {
@@ -303,7 +319,7 @@
 	}
 
 	.modal-header {
-		@apply flex shrink-0 items-center justify-between p-6;
+		@apply flex shrink-0 items-center justify-between p-4 sm:p-6;
 		border-bottom: 1px solid var(--color-border);
 	}
 
@@ -312,7 +328,7 @@
 	}
 
 	.modal-footer {
-		@apply shrink-0 p-6;
+		@apply shrink-0 p-4 sm:p-6;
 		border-top: 1px solid var(--color-border);
 	}
 

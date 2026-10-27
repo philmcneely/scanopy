@@ -21,7 +21,9 @@
 </script>
 
 <nav
-	class={inline ? 'flex flex-1 items-center' : 'flex w-full items-start pt-4 pb-4'}
+	class={inline
+		? 'flex flex-1 items-center'
+		: 'flex w-full [scrollbar-width:none] items-start overflow-x-auto pt-4 pb-4'}
 	aria-label={common_progressSteps()}
 >
 	{#each tabs as tab, i (tab.id)}
@@ -68,9 +70,11 @@
 				{/if}
 			</div>
 
-			<!-- Label -->
+			<!-- Label. Below `md` only the current step shows its label, so five or six steps fit
+			     a phone; the others stay readable to screen readers. -->
 			<span
 				class="text-center text-xs whitespace-nowrap
+				{isCurrent ? '' : 'sr-only md:not-sr-only'}
 				{isCurrent
 					? 'font-semibold text-primary'
 					: isCompleted

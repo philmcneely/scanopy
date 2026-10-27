@@ -33,16 +33,12 @@ pub struct DockerSwarmProbe;
 
 #[async_trait]
 impl AppProbe for DockerSwarmProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(2377)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::DockerSwarm
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::DockerSwarm)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let handshake = capture_certificate(ctx, self.port()).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let handshake = capture_certificate(ctx, port).await;
         Ok(presence(
             handshake.subject().as_deref().is_some_and(names_a_swarm),
         ))

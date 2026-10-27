@@ -9,7 +9,10 @@
 	import Checkbox from '$lib/shared/components/forms/input/Checkbox.svelte';
 	import DateInput from '$lib/shared/components/forms/input/DateInput.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
-	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
+	import Tag from '$lib/shared/components/data/Tag.svelte';
+	import PaidCrown from '$lib/shared/components/PaidCrown.svelte';
+	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
+	import { upgradeTagProps } from '$lib/features/billing/upgrade-tag';
 	import CodeContainer from '$lib/shared/components/data/CodeContainer.svelte';
 	import CollapsibleCard from '$lib/shared/components/data/CollapsibleCard.svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
@@ -37,8 +40,9 @@
 		shares_cacheInfoTitle,
 		shares_displayOptions,
 		shares_embedCode,
+		shares_getEmbedCode,
+		common_availableOnPaidPlans,
 		shares_embedDimensions,
-		shares_embedsRequirePlan,
 		shares_enabledHelp,
 		shares_expirationDate,
 		shares_expirationHelp,
@@ -52,7 +56,6 @@
 		shares_showExportButton,
 		shares_showInspectPanel,
 		shares_showZoomControls,
-		shares_upgradeForEmbeds,
 		shares_topologyViews,
 		shares_enabledViews,
 		shares_enabledViewsHelp,
@@ -194,12 +197,24 @@
 				/>
 			</div>
 			<div class="space-y-2">
-				<span class="mb-1 block text-sm font-medium text-secondary">{shares_embedCode()}</span>
+				<span class="mb-1 flex items-center gap-2 text-sm font-medium text-secondary">
+					{shares_embedCode()}
+					{#if !hasEmbedsFeature}
+						<Tag {...upgradeTagProps()} />
+					{/if}
+				</span>
 				{#if !hasEmbedsFeature}
-					<InlineInfo title={shares_embedsRequirePlan()} body={shares_upgradeForEmbeds()} />
-					<div class="mt-2">
-						<UpgradeButton feature="embeds" surface="share_panel" />
-					</div>
+					<!-- The plan lacks embeds: the action reads as usual and opens the plans. -->
+					<button
+						type="button"
+						class="btn-primary flex items-center gap-2"
+						title={common_availableOnPaidPlans()}
+						onclick={() =>
+							triggerUpgrade({ feature: 'embeds', source: 'share_panel', surface: 'share_panel' })}
+					>
+						<PaidCrown onPrimary />
+						{shares_getEmbedCode()}
+					</button>
 				{:else}
 					<CodeContainer
 						language="html"

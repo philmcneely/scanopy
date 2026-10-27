@@ -36,20 +36,16 @@ pub struct OpenVpnProbe;
 
 #[async_trait]
 impl AppProbe for OpenVpnProbe {
-    fn port(&self) -> PortType {
-        PortType::OpenVPN
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::OpenVpn
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::OpenVpn)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
         let socket = match UdpSocket::bind("0.0.0.0:0").await {
             Ok(socket) => socket,
             Err(_) => return Ok(AppProbeOutcome::NoAnswer),
         };
-        let target = ctx.target(self.port().number());
+        let target = ctx.target(port.number());
 
         if socket.send_to(&hard_reset(), target).await.is_err() {
             return Ok(AppProbeOutcome::NoAnswer);

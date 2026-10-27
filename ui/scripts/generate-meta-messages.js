@@ -73,6 +73,7 @@ export const COVERED_FIXTURES = [
 	{ file: 'cancel-reasons.json', key: 'cancel_reasons', kind: 'typeMetadata' },
 	{ file: 'save-offers.json', key: 'save_offers', kind: 'typeMetadata' },
 	{ file: 'plan-statuses.json', key: 'plan_statuses', kind: 'typeMetadata' },
+	{ file: 'plan-limits.json', key: 'plan_limits', kind: 'typeMetadata' },
 	// Provenance tiers. The `metadata.sources` list under each is data the UI looks values up in,
 	// not copy — only the name and description are translated.
 	{ file: 'attribute-methods.json', key: 'attribute_methods', kind: 'typeMetadata' },

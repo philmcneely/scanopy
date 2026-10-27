@@ -66,6 +66,7 @@
 		// A tooltip is mounted once and kept, so a dropdown opened later sits after it in the body;
 		// the higher layer keeps a tooltip on a dropdown row above the dropdown.
 		portalContainer.style.zIndex = role === 'tooltip' ? '10000' : '9999';
+		portalContainer.dataset.popoverPortal = '';
 		document.body.appendChild(portalContainer);
 
 		return () => {
@@ -147,13 +148,35 @@
 		};
 	});
 
+	/**
+	 * Whether `node` sits in a popover opened from inside this one, such as a tag picker's
+	 * suggestions inside a popover holding the picker. Portalled, it is outside this popover's
+	 * element, but a click or focus there must not close this one: it would unmount the picker
+	 * before the click lands. A nested popover mounts after its parent, so its portal follows.
+	 */
+	function inNestedPopover(node: Node | null): boolean {
+		const host = node instanceof Element ? node.closest('[data-popover-portal]') : null;
+		return (
+			!!host &&
+			!!portalContainer &&
+			host !== portalContainer &&
+			!!(portalContainer.compareDocumentPosition(host) & Node.DOCUMENT_POSITION_FOLLOWING)
+		);
+	}
+
 	function handleFocusOut(e: FocusEvent) {
 		if (role !== 'dialog') return;
 		// No related target is a click on non-focusable content, such as a
 		// checkbox's label text, or a focused row moved in the DOM; a click
 		// outside is handled on mousedown.
 		const next = e.relatedTarget as Node | null;
-		if (!next || popoverEl?.contains(next) || triggerElement?.contains(next)) return;
+		if (
+			!next ||
+			popoverEl?.contains(next) ||
+			triggerElement?.contains(next) ||
+			inNestedPopover(next)
+		)
+			return;
 		onClose();
 	}
 
@@ -166,7 +189,8 @@
 				popoverEl &&
 				!popoverEl.contains(e.target as Node) &&
 				triggerElement &&
-				!triggerElement.contains(e.target as Node)
+				!triggerElement.contains(e.target as Node) &&
+				!inNestedPopover(e.target as Node)
 			) {
 				onClose();
 			}

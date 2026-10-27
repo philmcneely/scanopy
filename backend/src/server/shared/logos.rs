@@ -26,6 +26,8 @@ pub enum Logo {
     Ansible,
     Apc,
     Apple,
+    AppleMobileDevice,
+    AppleTv,
     Appwrite,
     ArgoCd,
     Aruba,
@@ -112,11 +114,14 @@ pub enum Logo {
     Homarr,
     HomeAssistant,
     HomeKit,
+    HomePod,
     Homepage,
     Hp,
     Hpe,
     Huawei,
     Huntarr,
+    IPad,
+    IPhone,
     Icinga,
     Immich,
     InfluxDb,
@@ -270,11 +275,10 @@ enum LogoSource {
     DashboardIcons(&'static str),
     /// A file in selfh.st/icons, by its path in the set.
     SelfhstIcons(&'static str),
-    /// A Simple Icons icon, by its slug.
+    /// A Simple Icons icon, by its slug. Its files are monochrome: a `Fixed` logo is the set's
+    /// brand-colour render, a `Paired` one the black file plus the set's render in its `dark`
+    /// colour. Renders are served by slug with no extension; always SVG.
     SimpleIcons(&'static str),
-    /// A Simple Icons icon in its brand colour, by its slug: the set's own CDN colours it, where
-    /// `SimpleIcons` files are black. Served by slug with no extension; always SVG.
-    SimpleIconsBrand(&'static str),
     /// A VectorLogoZone file, by its path under `/logos/`.
     VectorLogoZone(&'static str),
     /// A file under libvirt.org/logos/.
@@ -305,10 +309,28 @@ pub enum Background {
     /// A free-standing mark, on the card's own colour.
     Clear,
     /// The frame takes this colour and the logo keeps its size: the colour of a logo drawn on its
-    /// own square or tile, or white behind a dark mark that would vanish on a dark card.
+    /// own square or tile.
     Solid(&'static str),
     /// The logo is a disc, drawn at the frame's size so it fills the circle.
     Round,
+}
+
+/// How a logo's colours meet the light and dark themes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(tag = "type")]
+pub enum Theming {
+    /// One file, drawn as it is in both themes: a colour logo or a brand-colour render.
+    Fixed,
+    /// A black mark, and the file its own set publishes for the dark theme. `dark` addresses it
+    /// the way the logo's source addresses its files: a path in a file-addressed set, the render
+    /// colour in Simple Icons. The sets name these files inconsistently (`-light` or `-dark`), so
+    /// each is stated rather than derived.
+    Paired {
+        #[serde(skip)]
+        dark: &'static str,
+    },
+    /// Drawn in the surrounding text colour, as the app's own icons are: a `currentColor` file.
+    TextColor,
 }
 
 /// Whose a logo is and on what terms, as Settings > System lists it.
@@ -335,11 +357,31 @@ impl Logo {
             ),
             Self::ActualBudget => (DashboardIcons("svg/actual-budget.svg"), Solid("#805ad5")),
             Self::AdguardHome => (DashboardIcons("svg/adguard-home.svg"), Clear),
-            Self::AirPlay => (SimpleIcons("airplayvideo"), Solid("#ffffff")),
+            Self::AirPlay => (SimpleIcons("airplayvideo"), Clear),
             Self::Alexa => (DashboardIcons("svg/alexa.svg"), Round),
             Self::Ansible => (DashboardIcons("svg/ansible.svg"), Round),
             Self::Apc => (DashboardIcons("svg/apc.svg"), Clear),
-            Self::Apple => (DashboardIcons("svg/apple.svg"), Solid("#ffffff")),
+            Self::Apple => (DashboardIcons("svg/apple.svg"), Clear),
+            Self::AppleMobileDevice => (
+                Wikimedia {
+                    path: "c/c1/Tabler-icons_device-mobile.svg",
+                    page: "https://commons.wikimedia.org/wiki/File:Tabler-icons_device-mobile.svg",
+                    title: "Device mobile",
+                    author: "Tabler (https://github.com/tabler)",
+                    terms: "MIT",
+                },
+                Clear,
+            ),
+            Self::AppleTv => (
+                Wikimedia {
+                    path: "d/da/Apple_TV_console.svg",
+                    page: "https://commons.wikimedia.org/wiki/File:Apple_TV_console.svg",
+                    title: "Apple TV console",
+                    author: "Enriq766",
+                    terms: "CC0",
+                },
+                Clear,
+            ),
             Self::Appwrite => (DashboardIcons("svg/appwrite.svg"), Clear),
             Self::ArgoCd => (DashboardIcons("svg/argo-cd.svg"), Clear),
             Self::Aruba => (DashboardIcons("svg/aruba.svg"), Clear),
@@ -358,7 +400,7 @@ impl Logo {
             Self::Bitwarden => (DashboardIcons("svg/bitwarden.svg"), Solid("#175ddc")),
             Self::BookLore => (DashboardIcons("svg/book-lore.svg"), Clear),
             Self::Bookstack => (DashboardIcons("svg/bookstack.svg"), Clear),
-            Self::Bose => (SimpleIcons("bose"), Solid("#ffffff")),
+            Self::Bose => (SimpleIcons("bose"), Clear),
             Self::Brocade => (DashboardIcons("svg/brocade.svg"), Clear),
             Self::Brother => (DashboardIcons("svg/brother.svg"), Solid("#1535a3")),
             Self::Caddy => (DashboardIcons("svg/caddy.svg"), Clear),
@@ -369,7 +411,7 @@ impl Logo {
             Self::Celery => (DashboardIcons("png/celery.png"), Clear),
             Self::Ceph => (DashboardIcons("svg/ceph.svg"), Clear),
             Self::Checkmk => (DashboardIcons("svg/checkmk.svg"), Clear),
-            Self::Cisco => (SimpleIcons("cisco"), Solid("#ffffff")),
+            Self::Cisco => (SimpleIcons("cisco"), Clear),
             Self::Cleanuperr => (DashboardIcons("svg/cleanuperr.svg"), Round),
             Self::Cloudflare => (DashboardIcons("svg/cloudflare.svg"), Clear),
             Self::Cockpit => (DashboardIcons("svg/cockpit.svg"), Round),
@@ -405,7 +447,7 @@ impl Logo {
             Self::Forgejo => (DashboardIcons("svg/forgejo.svg"), Clear),
             Self::Fortinet => (DashboardIcons("svg/fortinet.svg"), Solid("#ffffff")),
             // FreeBSD's red mark, as the daemon OS icon drew it before logos were downloaded.
-            Self::FreeBsd => (SimpleIconsBrand("freebsd"), Clear),
+            Self::FreeBsd => (SimpleIcons("freebsd"), Clear),
             Self::FreeIpa => (DashboardIcons("svg/freeipa.svg"), Clear),
             Self::FreePbx => (DashboardIcons("svg/freepbx.svg"), Clear),
             Self::FreshRss => (DashboardIcons("svg/freshrss.svg"), Clear),
@@ -418,7 +460,7 @@ impl Logo {
             Self::Glance => (DashboardIcons("svg/glance.svg"), Clear),
             Self::Glances => (DashboardIcons("svg/glances.svg"), Clear),
             Self::Google => (DashboardIcons("svg/google.svg"), Clear),
-            Self::GoogleCast => (SimpleIcons("googlecast"), Solid("#ffffff")),
+            Self::GoogleCast => (SimpleIcons("googlecast"), Clear),
             Self::GoogleHome => (DashboardIcons("svg/google-home.svg"), Clear),
             Self::Grafana => (DashboardIcons("svg/grafana.svg"), Clear),
             Self::Graylog => (DashboardIcons("svg/graylog.svg"), Round),
@@ -429,11 +471,41 @@ impl Logo {
             Self::HomeAssistant => (DashboardIcons("svg/home-assistant.svg"), Clear),
             // Apple Home's house mark: Dashboard Icons has no HomeKit icon.
             Self::HomeKit => (SelfhstIcons("svg/apple-homekit.svg"), Clear),
+            Self::HomePod => (
+                Wikimedia {
+                    path: "1/14/Tabler-icons_device-speaker.svg",
+                    page: "https://commons.wikimedia.org/wiki/File:Tabler-icons_device-speaker.svg",
+                    title: "Device speaker",
+                    author: "Tabler (https://github.com/tabler)",
+                    terms: "MIT",
+                },
+                Clear,
+            ),
             Self::Homepage => (DashboardIcons("webp/homepage.webp"), Clear),
             Self::Hp => (DashboardIcons("svg/hp.svg"), Solid("#ffffff")),
             Self::Hpe => (DashboardIcons("svg/hpe.svg"), Solid("#ffffff")),
-            Self::Huawei => (SimpleIcons("huawei"), Solid("#ffffff")),
+            Self::Huawei => (SimpleIcons("huawei"), Clear),
             Self::Huntarr => (DashboardIcons("png/huntarr.png"), Clear),
+            Self::IPad => (
+                Wikimedia {
+                    path: "a/a2/Tabler-icons_device-ipad.svg",
+                    page: "https://commons.wikimedia.org/wiki/File:Tabler-icons_device-ipad.svg",
+                    title: "Device iPad",
+                    author: "Tabler (https://github.com/tabler)",
+                    terms: "MIT",
+                },
+                Clear,
+            ),
+            Self::IPhone => (
+                Wikimedia {
+                    path: "4/4f/Phone-apple-iphone-v2.svg",
+                    page: "https://commons.wikimedia.org/wiki/File:Phone-apple-iphone-v2.svg",
+                    title: "iPhone",
+                    author: "Remagoxer",
+                    terms: "CC BY-SA 4.0",
+                },
+                Clear,
+            ),
             Self::Icinga => (DashboardIcons("svg/icinga.svg"), Solid("#ffffff")),
             Self::Immich => (DashboardIcons("svg/immich.svg"), Clear),
             Self::InfluxDb => (DashboardIcons("svg/influxdb.svg"), Solid("#ffffff")),
@@ -445,13 +517,13 @@ impl Logo {
             Self::Jira => (DashboardIcons("svg/jira.svg"), Clear),
             Self::JitsiMeet => (DashboardIcons("svg/jitsi-meet.svg"), Clear),
             Self::Jotty => (DashboardIcons("svg/jotty.svg"), Solid("#8b3bd0")),
-            Self::JuniperNetworks => (SimpleIcons("junipernetworks"), Solid("#ffffff")),
-            Self::Kafka => (SimpleIcons("apachekafka"), Solid("#ffffff")),
+            Self::JuniperNetworks => (SimpleIcons("junipernetworks"), Clear),
+            Self::Kafka => (DashboardIcons("svg/kafka.svg"), Clear),
             Self::Kanidm => (DashboardIcons("svg/kanidm.svg"), Clear),
             Self::Karakeep => (DashboardIcons("svg/karakeep.svg"), Clear),
             Self::Keycloak => (DashboardIcons("svg/keycloak.svg"), Clear),
             Self::Komga => (DashboardIcons("svg/komga.svg"), Round),
-            Self::Kong => (SimpleIcons("kong"), Solid("#ffffff")),
+            Self::Kong => (DashboardIcons("svg/kong.svg"), Clear),
             Self::Kubernetes => (DashboardIcons("svg/kubernetes.svg"), Clear),
             // LGPL-2.1+; the licence ships as `backend/assets/libvirt/LICENSE`. Remove it if this
             // logo is replaced.
@@ -488,10 +560,10 @@ impl Logo {
             Self::Mysql => (DashboardIcons("svg/mysql.svg"), Solid("#ffffff")),
             Self::N8n => (DashboardIcons("svg/n8n.svg"), Clear),
             Self::Nagios => (DashboardIcons("svg/nagios.svg"), Clear),
-            Self::Nats => (SimpleIcons("natsdotio"), Solid("#ffffff")),
+            Self::Nats => (SimpleIcons("natsdotio"), Clear),
             Self::Neo4j => (DashboardIcons("png/neo4j.png"), Clear),
-            Self::NetApp => (SimpleIcons("netapp"), Solid("#ffffff")),
-            Self::NetBsd => (SimpleIcons("netbsd"), Solid("#ffffff")),
+            Self::NetApp => (DashboardIcons("svg/netapp.svg"), Clear),
+            Self::NetBsd => (SimpleIcons("netbsd"), Clear),
             Self::NetbootXyz => (DashboardIcons("svg/netbootxyz.svg"), Clear),
             Self::Netdata => (DashboardIcons("svg/netdata.svg"), Clear),
             Self::Nextcloud => (DashboardIcons("svg/nextcloud.svg"), Clear),
@@ -503,7 +575,7 @@ impl Logo {
             Self::Okta => (DashboardIcons("svg/okta.svg"), Clear),
             Self::Ollama => (DashboardIcons("svg/ollama-dark.svg"), Clear),
             Self::Ombi => (DashboardIcons("svg/ombi.svg"), Round),
-            Self::OpenBsd => (SimpleIcons("openbsd"), Solid("#ffffff")),
+            Self::OpenBsd => (SimpleIcons("openbsd"), Clear),
             Self::OpenHab => (DashboardIcons("svg/openhab.svg"), Clear),
             Self::OpenLdap => (DashboardIcons("svg/openldap.svg"), Clear),
             Self::OpenMediaVault => (DashboardIcons("svg/openmediavault.svg"), Solid("#5dacdf")),
@@ -516,11 +588,11 @@ impl Logo {
             Self::Oracle => (DashboardIcons("svg/oracle.svg"), Solid("#ffffff")),
             Self::Overseerr => (DashboardIcons("svg/overseerr.svg"), Round),
             Self::Owncloud => (DashboardIcons("svg/owncloud.svg"), Solid("#ffffff")),
-            Self::PaloAltoNetworks => (SimpleIcons("paloaltonetworks"), Solid("#ffffff")),
+            Self::PaloAltoNetworks => (SimpleIcons("paloaltonetworks"), Clear),
             Self::PaperlessNgx => (DashboardIcons("svg/paperless-ngx.svg"), Solid("#ffffff")),
             Self::Peanut => (DashboardIcons("svg/peanut.svg"), Clear),
             Self::PfSense => (DashboardIcons("svg/pfsense.svg"), Solid("#1a1a1a")),
-            Self::PhilipsHue => (SimpleIcons("philipshue"), Solid("#ffffff")),
+            Self::PhilipsHue => (SelfhstIcons("svg/philips-hue.svg"), Clear),
             Self::PiHole => (DashboardIcons("svg/pi-hole.svg"), Clear),
             Self::Plex => (DashboardIcons("svg/plex.svg"), Solid("#282a2d")),
             Self::PocketId => (DashboardIcons("svg/pocket-id-light.svg"), Round),
@@ -540,7 +612,7 @@ impl Logo {
             Self::Rancher => (DashboardIcons("svg/rancher.svg"), Clear),
             Self::Redis => (DashboardIcons("svg/redis.svg"), Clear),
             Self::Restic => (DashboardIcons("png/restic.png"), Round),
-            Self::Ring => (SimpleIcons("ring"), Solid("#ffffff")),
+            Self::Ring => (SelfhstIcons("svg/ring.svg"), Clear),
             // Roborock's site serves its assets from this Webflow bucket.
             Self::Roborock => (
                 Vendor {
@@ -551,7 +623,7 @@ impl Logo {
                 Clear,
             ),
             Self::RocketChat => (DashboardIcons("svg/rocket-chat.svg"), Clear),
-            Self::Roku => (SimpleIcons("roku"), Solid("#ffffff")),
+            Self::Roku => (SimpleIcons("roku"), Clear),
             Self::RolleaseAcmeda => (
                 Vendor {
                     owner: "Rollease Acmeda",
@@ -571,9 +643,9 @@ impl Logo {
             Self::Sidekiq => (SimpleIcons("sidekiq"), Round),
             Self::Slskd => (DashboardIcons("svg/slskd.svg"), Clear),
             Self::Sonarr => (DashboardIcons("svg/sonarr.svg"), Round),
-            Self::SonicWall => (SimpleIcons("sonicwall"), Solid("#ffffff")),
-            Self::Sonos => (SimpleIcons("sonos"), Solid("#ffffff")),
-            Self::Spinnaker => (SimpleIcons("spinnaker"), Solid("#ffffff")),
+            Self::SonicWall => (SimpleIcons("sonicwall"), Clear),
+            Self::Sonos => (DashboardIcons("svg/sonos.svg"), Clear),
+            Self::Spinnaker => (SimpleIcons("spinnaker"), Clear),
             Self::Splunk => (DashboardIcons("svg/splunk.svg"), Solid("#8dc151")),
             Self::Spotify => (DashboardIcons("svg/spotify.svg"), Round),
             Self::Spring => (VectorLogoZone("springio/springio-icon.svg"), Clear),
@@ -639,8 +711,12 @@ impl Logo {
             LogoSource::SelfhstIcons(path) => {
                 format!("https://cdn.jsdelivr.net/gh/selfhst/icons/{path}")
             }
-            LogoSource::SimpleIcons(slug) => format!("https://simpleicons.org/icons/{slug}.svg"),
-            LogoSource::SimpleIconsBrand(slug) => format!("https://cdn.simpleicons.org/{slug}"),
+            LogoSource::SimpleIcons(slug) => match self.theming() {
+                Theming::Paired { .. } => format!("https://simpleicons.org/icons/{slug}.svg"),
+                Theming::Fixed | Theming::TextColor => {
+                    format!("https://cdn.simpleicons.org/{slug}")
+                }
+            },
             LogoSource::VectorLogoZone(path) => format!("https://www.vectorlogo.zone/logos/{path}"),
             LogoSource::Libvirt(path) => format!("https://libvirt.org/logos/{path}"),
             LogoSource::Wikimedia { path, .. } => {
@@ -653,11 +729,81 @@ impl Logo {
         }
     }
 
+    /// How it meets the light and dark themes. Every logo not named here is one file drawn as it is.
+    pub fn theming(&self) -> Theming {
+        match self {
+            Self::Apple => Theming::Paired {
+                dark: "svg/apple-light.svg",
+            },
+            Self::Kafka => Theming::Paired {
+                dark: "svg/kafka-dark.svg",
+            },
+            // Kong's own dark-background mark is its brand lime.
+            Self::Kong => Theming::Paired {
+                dark: "svg/kong-dark.svg",
+            },
+            Self::NetApp => Theming::Paired {
+                dark: "svg/netapp-light.svg",
+            },
+            Self::Sonos => Theming::Paired {
+                dark: "svg/sonos-dark.svg",
+            },
+            Self::PhilipsHue => Theming::Paired {
+                dark: "svg/philips-hue-light.svg",
+            },
+            Self::Ring => Theming::Paired {
+                dark: "svg/ring-light.svg",
+            },
+            Self::AirPlay | Self::Bose | Self::BigBlueButton | Self::Sidekiq => {
+                Theming::Paired { dark: "white" }
+            }
+            Self::IPad | Self::AppleMobileDevice | Self::HomePod => Theming::TextColor,
+            _ => Theming::Fixed,
+        }
+    }
+
+    /// Where the dark-theme file is downloaded from: a `Paired` logo's `dark`, addressed within
+    /// its own source. None for a source that publishes no theme pairs.
+    pub fn dark_url(&self) -> Option<String> {
+        let Theming::Paired { dark } = self.theming() else {
+            return None;
+        };
+        match self.spec().0 {
+            LogoSource::DashboardIcons(_) => Some(format!(
+                "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/{dark}"
+            )),
+            LogoSource::SelfhstIcons(_) => {
+                Some(format!("https://cdn.jsdelivr.net/gh/selfhst/icons/{dark}"))
+            }
+            LogoSource::SimpleIcons(slug) => {
+                Some(format!("https://cdn.simpleicons.org/{slug}/{dark}"))
+            }
+            LogoSource::VectorLogoZone(_)
+            | LogoSource::Libvirt(_)
+            | LogoSource::Wikimedia { .. }
+            | LogoSource::Vendor { .. }
+            | LogoSource::Scanopy => None,
+        }
+    }
+
     /// The downloaded copy's name: the variant's id and the file's extension. Keyed by the variant,
     /// so a change of source keeps the path.
     pub fn file_name(&self) -> String {
         let id: &'static str = self.into();
         format!("{id}.{}", logo_ext(&self.url()))
+    }
+
+    /// The dark-theme copy's name, beside the light one: `Apple.dark.svg`.
+    pub fn dark_file_name(&self) -> Option<String> {
+        let id: &'static str = self.into();
+        self.dark_url()
+            .map(|url| format!("{id}.dark.{}", logo_ext(&url)))
+    }
+
+    /// Where the UI serves the dark-theme copy.
+    pub fn dark_path(&self) -> Option<String> {
+        self.dark_file_name()
+            .map(|name| format!("/logos/catalog/{name}"))
     }
 
     /// Where the UI serves it. Scanopy's own logo ships with the UI rather than being downloaded.
@@ -695,7 +841,7 @@ impl Logo {
                 license: Some("CC BY 4.0"),
                 license_url: Some("https://github.com/selfhst/icons/blob/main/LICENSE"),
             },
-            LogoSource::SimpleIcons(_) | LogoSource::SimpleIconsBrand(_) => Credit {
+            LogoSource::SimpleIcons(_) => Credit {
                 name: "Simple Icons",
                 homepage: "https://github.com/simple-icons/simple-icons",
                 copyright: "Simple Icons contributors",
@@ -759,6 +905,12 @@ pub struct LogoEntry {
     pub id: Logo,
     pub path: String,
     pub background: Background,
+    pub theming: Theming,
+    /// The dark-theme copy, for a `Paired` logo.
+    pub dark_path: Option<String>,
+    /// A `TextColor` logo's SVG, drawn inline in the text colour. Filled in from the downloaded
+    /// file when `logos.json` is written.
+    pub markup: Option<String>,
 }
 
 /// Every logo, for `logos.json`.
@@ -768,6 +920,9 @@ pub fn logo_entries() -> Vec<LogoEntry> {
             id: logo,
             path: logo.path(),
             background: logo.background(),
+            theming: logo.theming(),
+            dark_path: logo.dark_path(),
+            markup: None,
         })
         .collect()
 }
@@ -842,9 +997,13 @@ mod tests {
     #[test]
     fn every_logo_builds_a_url_to_an_image_file() {
         let bad: Vec<(Logo, String)> = Logo::iter()
-            // A slug-addressed source has no file path to get wrong.
-            .filter(|logo| !matches!(logo.spec().0, LogoSource::SimpleIconsBrand(_)))
-            .map(|logo| (logo, logo.url()))
+            .flat_map(|logo| {
+                std::iter::once(logo.url())
+                    .chain(logo.dark_url())
+                    .map(move |url| (logo, url))
+            })
+            // A Simple Icons render is addressed by slug: no file path to get wrong.
+            .filter(|(_, url)| !url.starts_with("https://cdn.simpleicons.org/"))
             .filter(|(_, url)| {
                 !reqwest::Url::parse(url).is_ok_and(|u| {
                     [".svg", ".png", ".webp"]
@@ -854,5 +1013,18 @@ mod tests {
             })
             .collect();
         assert!(bad.is_empty(), "logos without an image URL: {bad:?}");
+    }
+
+    /// A pair on a source that publishes none would draw its black mark alone on a dark card.
+    #[test]
+    fn every_paired_logo_has_a_dark_file() {
+        let unpaired: Vec<Logo> = Logo::iter()
+            .filter(|logo| matches!(logo.theming(), Theming::Paired { .. }))
+            .filter(|logo| logo.dark_url().is_none())
+            .collect();
+        assert!(
+            unpaired.is_empty(),
+            "Paired without a dark file: {unpaired:?}"
+        );
     }
 }

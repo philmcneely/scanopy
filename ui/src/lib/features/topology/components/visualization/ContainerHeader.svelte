@@ -168,9 +168,18 @@
 
 	onMount(() => {
 		if (needsTruncation && inlineContainerEl) {
-			const observer = new ResizeObserver(() => calculateVisibleLabels());
+			// Recount on the next frame, not inside the delivery: showing or hiding a label resizes
+			// the observed container, which inside the callback raises the ResizeObserver loop error.
+			let frame = 0;
+			const observer = new ResizeObserver(() => {
+				cancelAnimationFrame(frame);
+				frame = requestAnimationFrame(calculateVisibleLabels);
+			});
 			observer.observe(inlineContainerEl);
-			return () => observer.disconnect();
+			return () => {
+				observer.disconnect();
+				cancelAnimationFrame(frame);
+			};
 		}
 	});
 

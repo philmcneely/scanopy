@@ -34,8 +34,7 @@ pub(super) fn generate_dependencies(
                       description: &str,
                       dependency_type: DependencyType,
                       members: DependencyMembers,
-                      color: Color,
-                      edge_style: EdgeStyle| Dependency {
+                      color: Color| Dependency {
         valid_from: now,
         valid_to: None,
         lineage_id: None,
@@ -50,7 +49,7 @@ pub(super) fn generate_dependencies(
             members,
             source: EntitySource::Manual,
             color,
-            edge_style,
+            edge_style: EdgeStyle::Bezier,
             tags: vec![],
         },
     };
@@ -74,7 +73,6 @@ pub(super) fn generate_dependencies(
                 ],
             },
             Color::Purple,
-            EdgeStyle::Straight,
         ),
         // CI/CD: a push to GitLab triggers a Jenkins build
         dependency(
@@ -89,7 +87,6 @@ pub(super) fn generate_dependencies(
                 ],
             },
             Color::Pink,
-            EdgeStyle::Bezier,
         ),
         // Identity & Access: Vaultwarden signs users in through Keycloak, which stores them in
         // PostgreSQL
@@ -105,8 +102,7 @@ pub(super) fn generate_dependencies(
                     binding("db-vm", "PostgreSQL"),
                 ],
             },
-            Color::Indigo,
-            EdgeStyle::Bezier,
+            Color::Violet,
         ),
         // File Sharing: Nextcloud (hub) → Redis file locking, NFS data directory
         dependency(
@@ -121,8 +117,7 @@ pub(super) fn generate_dependencies(
                     service("truenas-primary", "NFS"),
                 ],
             },
-            Color::Teal,
-            EdgeStyle::SmoothStep,
+            Color::Emerald,
         ),
         // Backups: TrueNAS replicates to the Synology each week
         dependency(
@@ -137,7 +132,6 @@ pub(super) fn generate_dependencies(
                 ],
             },
             Color::Green,
-            EdgeStyle::SmoothStep,
         ),
         // Wiki: Confluence → its database
         dependency(
@@ -152,7 +146,6 @@ pub(super) fn generate_dependencies(
                 ],
             },
             Color::Cyan,
-            EdgeStyle::Bezier,
         ),
         // Service Desk: Jira → its database
         dependency(
@@ -166,8 +159,7 @@ pub(super) fn generate_dependencies(
                     binding("atlassian-vm", "Jira Database"),
                 ],
             },
-            Color::Amber,
-            EdgeStyle::Bezier,
+            Color::Fuchsia,
         ),
         // ===== DC =====
         // Customer Portal: Cloudflare tunnel → HAProxy → Tomcat → MariaDB
@@ -185,7 +177,6 @@ pub(super) fn generate_dependencies(
                 ],
             },
             Color::Blue,
-            EdgeStyle::Bezier,
         ),
         // Customer Portal: Tomcat → RabbitMQ → order worker → Elasticsearch
         dependency(
@@ -202,7 +193,6 @@ pub(super) fn generate_dependencies(
                 ],
             },
             Color::Orange,
-            EdgeStyle::Bezier,
         ),
         // Monitoring: Prometheus (container hub) → Grafana, Jaeger (containers)
         dependency(
@@ -218,7 +208,6 @@ pub(super) fn generate_dependencies(
                 ],
             },
             Color::Purple,
-            EdgeStyle::Straight,
         ),
     ]
 }

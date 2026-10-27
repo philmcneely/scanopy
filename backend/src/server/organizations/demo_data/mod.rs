@@ -542,24 +542,11 @@ fn scan_match(service_definition_id: &str) -> Option<MatchDetails> {
     let probe =
         |probe: ClientProbe| MatchReason::Reason(format!("Client probe {probe:?} succeeded"));
     let all_of = |reasons: Vec<MatchReason>| MatchReason::Container("All of".to_string(), reasons);
-    // `probe_pattern`: the app probe's port, then the probe itself.
-    let probed = |port: PortType, client_probe: ClientProbe| {
-        (all_of(vec![port_open(port), probe(client_probe)]), Certain)
-    };
+    let probed = |client_probe: ClientProbe| (probe(client_probe), Certain);
     let (reason, confidence) = match service_definition_id {
-        // `AnyOf`: the banner probe on 22 satisfies both branches, so both are recorded.
-        "SSH" => (
-            MatchReason::Container(
-                "Any of".to_string(),
-                vec![
-                    probe(ClientProbe::Ssh),
-                    all_of(vec![port_open(PortType::Ssh), probe(ClientProbe::Ssh)]),
-                ],
-            ),
-            Certain,
-        ),
-        "OpenVPN" => probed(PortType::OpenVPN, ClientProbe::OpenVpn),
-        "Modbus TCP" => probed(PortType::ModbusTcp, ClientProbe::ModbusTcp),
+        "SSH" => probed(ClientProbe::Ssh),
+        "OpenVPN" => probed(ClientProbe::OpenVpn),
+        "Modbus TCP" => probed(ClientProbe::ModbusTcp),
         "Workstation" => (
             all_of(vec![probe(ClientProbe::Rdp), probe(ClientProbe::Smb)]),
             Certain,

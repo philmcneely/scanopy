@@ -30,18 +30,12 @@ pub struct TelnetProbe;
 
 #[async_trait]
 impl AppProbe for TelnetProbe {
-    fn port(&self) -> PortType {
-        PortType::Telnet
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Telnet
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Telnet)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        Ok(parse_negotiation(
-            &read_greeting(ctx, self.port(), 256).await,
-        ))
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        Ok(parse_negotiation(&read_greeting(ctx, port, 256).await))
     }
 }
 

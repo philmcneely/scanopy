@@ -35,9 +35,17 @@ export type PaywallSurface =
 	| 'api_keys_tab'
 	| 'shares_modal'
 	| 'topology_tab'
-	| 'credential_form';
+	| 'credential_form'
+	| 'app_banner';
 
 export type PaywallGateType = 'limit_hit' | 'plan_required';
+
+/** What a control the plan lacks opens the plans for: its feature, where it is, and why. */
+export interface UpgradeGate {
+	feature: UpgradeFeature;
+	surface: PaywallSurface;
+	gate_type?: PaywallGateType;
+}
 
 export interface TriggerUpgradeOptions {
 	/** Feature the upgrade CTA gates, for analytics. Null/undefined = generic upgrade. */

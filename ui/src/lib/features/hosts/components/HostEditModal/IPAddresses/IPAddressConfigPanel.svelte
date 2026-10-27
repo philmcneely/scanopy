@@ -116,7 +116,7 @@
 				{/snippet}
 			</form.Field>
 
-			<div class="grid grid-cols-2 items-start gap-4">
+			<div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
 				<form.Field
 					name={ipFieldName}
 					validators={{

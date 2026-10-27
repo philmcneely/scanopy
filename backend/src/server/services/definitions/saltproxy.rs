@@ -25,11 +25,10 @@ impl ServiceDefinition for SaltProxy {
     /// The same two ZeroMQ ports as a master, plus Salt SSH on 8022 — the port that distinguishes
     /// the two.
     ///
-    /// `ClientResponse` rather than [`probe_pattern`]: the ZMTP probes are registered by
-    /// [`SaltMaster`], since a port may only be claimed once, and the evidence they produce is keyed
-    /// by [`ClientProbe`] rather than by which definition asked for it.
+    /// The ZMTP probe is registered by [`SaltMaster`], since a port may only be claimed once, and
+    /// the evidence it produces is keyed by [`ClientProbe`] rather than by which definition asked
+    /// for it.
     ///
-    /// [`probe_pattern`]: crate::server::services::r#impl::patterns::probe_pattern
     /// [`SaltMaster`]: crate::server::services::definitions::saltmaster::SaltMaster
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![

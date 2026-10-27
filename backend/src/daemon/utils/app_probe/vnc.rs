@@ -21,18 +21,12 @@ pub struct VncProbe;
 
 #[async_trait]
 impl AppProbe for VncProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(5900)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Vnc
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Vnc)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        Ok(parse_version(
-            &read_greeting(ctx, self.port(), VERSION_LEN).await,
-        ))
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        Ok(parse_version(&read_greeting(ctx, port, VERSION_LEN).await))
     }
 }
 

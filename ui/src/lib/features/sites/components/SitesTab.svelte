@@ -15,7 +15,6 @@
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { permissions } from '$lib/shared/stores/metadata';
-	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import type { TabProps } from '$lib/shared/types';
 	import {
 		common_confirmBulkDelete,
@@ -234,23 +233,21 @@
 		{#if siteLimit !== null && !canBuyMore}
 			<span
 				class="text-sm {isAtSiteLimit
-					? 'text-amber-400'
+					? 'text-amber-700 dark:text-amber-400'
 					: isNearSiteLimit
-						? 'text-yellow-400'
+						? 'text-yellow-700 dark:text-yellow-400'
 						: 'text-tertiary'}"
 			>
 				{sitesData.length} / {siteLimit}
 			</span>
 		{/if}
 		{#if canManageSites}
-			{#if isAtSiteLimit}
-				<UpgradeButton feature="sites" surface="sites_tab" gate_type="limit_hit" />
-			{:else}
-				{#if isNearSiteLimit}
-					<UpgradeButton feature="sites" surface="sites_tab" gate_type="limit_hit" />
-				{/if}
-				<CreateButton onclick={handleCreateSite} />
-			{/if}
+			<CreateButton
+				onclick={handleCreateSite}
+				upgrade={isAtSiteLimit
+					? { feature: 'sites', surface: 'sites_tab', gate_type: 'limit_hit' }
+					: null}
+			/>
 		{/if}
 	</div>
 {/snippet}

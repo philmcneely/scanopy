@@ -146,6 +146,31 @@ impl AsyncSession {
             if security.need_init() {
                 return Err(Error::AuthFailure(v3::AuthErrorKind::NotAuthenticated));
             }
+            // SCANOPY LOCAL PATCH (GH #813): RFC 3414 §4's second step. The discovery Report is
+            // unauthenticated, so its boots and time are only a hint; an agent that sends none
+            // answers the first authenticated request with a notInTimeWindow Report, and the
+            // caller would see `AuthUpdated` instead of its answer. An authenticated GET with
+            // no varbinds synchronizes the clock here, whichever way the agent answers.
+            if security.need_auth() && !security.is_time_synchronized() {
+                let req_id = self.req_id.0;
+                self.req_id += Wrapping(1);
+                v3::build(
+                    crate::snmp::MSG_GET,
+                    req_id,
+                    &[],
+                    0,
+                    0,
+                    &mut self.send_pdu,
+                    Some(security),
+                )?;
+                if let Err(e) = Pdu::from_bytes_inner(
+                    Self::send_and_recv(&self.socket, &self.send_pdu, &mut self.recv_buf).await?,
+                    Some(security),
+                ) && e != Error::AuthUpdated
+                {
+                    return Err(e);
+                }
+            }
         }
         Ok(())
     }

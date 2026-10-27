@@ -21,7 +21,6 @@
 	import { Trash2, RefreshCw, Replace, Edit } from 'lucide-svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import type { TabProps } from '$lib/shared/types';
 	import {
 		common_confirmDeleteName,
@@ -472,23 +471,21 @@
 			{#if hostLimit !== null && !canBuyMoreHosts}
 				<span
 					class="text-sm {isAtHostLimit
-						? 'text-amber-400'
+						? 'text-amber-700 dark:text-amber-400'
 						: isNearHostLimit
-							? 'text-yellow-400'
+							? 'text-yellow-700 dark:text-yellow-400'
 							: 'text-tertiary'}"
 				>
 					{totalHostCount} / {hostLimit}
 				</span>
 			{/if}
 			{#if !isReadOnly}
-				{#if isAtHostLimit}
-					<UpgradeButton feature="hosts" surface="hosts_tab" gate_type="limit_hit" />
-				{:else}
-					{#if isNearHostLimit}
-						<UpgradeButton feature="hosts" surface="hosts_tab" gate_type="limit_hit" />
-					{/if}
-					<CreateButton onclick={handleCreateHost} />
-				{/if}
+				<CreateButton
+					onclick={handleCreateHost}
+					upgrade={isAtHostLimit
+						? { feature: 'hosts', surface: 'hosts_tab', gate_type: 'limit_hit' }
+						: null}
+				/>
 			{/if}
 		</div>
 	{/if}

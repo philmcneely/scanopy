@@ -41,16 +41,12 @@ pub struct RtspProbe;
 
 #[async_trait]
 impl AppProbe for RtspProbe {
-    fn port(&self) -> PortType {
-        PortType::Rtsp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Rtsp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Rtsp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &options_request(), 1024).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &options_request(), 1024).await;
         Ok(parse_response(&reply))
     }
 }

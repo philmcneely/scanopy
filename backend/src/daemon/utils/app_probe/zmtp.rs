@@ -70,34 +70,20 @@ fn greeting() -> Vec<u8> {
     out
 }
 
-/// A probe for one of the ports a ZeroMQ service listens on.
-pub struct ZmtpProbe {
-    port: PortType,
-}
-
-impl ZmtpProbe {
-    pub fn new(port: u16) -> Self {
-        Self {
-            port: PortType::new_tcp(port),
-        }
-    }
-}
+/// A probe for the ports a ZeroMQ service listens on, which [`ClientProbe::Zmtp`] names.
+pub struct ZmtpProbe;
 
 #[async_trait]
 impl AppProbe for ZmtpProbe {
-    fn port(&self) -> PortType {
-        self.port
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Zmtp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Zmtp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
         // `request_exact` rather than a single read: a peer may send the signature, wait for ours,
         // and only then send the rest. Salt's 4506 does exactly that where its 4505 does not, so a
         // one-read probe recognised half a real Salt master.
-        let reply = request_exact(ctx, self.port(), &greeting(), GREETING_LEN).await;
+        let reply = request_exact(ctx, port, &greeting(), GREETING_LEN).await;
         Ok(parse_greeting(&reply))
     }
 }

@@ -1,4 +1,6 @@
 import type { DependencyType } from './types/base';
+import { edgeTypes } from '$lib/shared/stores/metadata';
+import { AVAILABLE_COLORS, type Color } from '$lib/shared/utils/styling';
 
 type NameGenerator = (names: string[]) => string;
 
@@ -21,4 +23,18 @@ const nameGenerators: Record<DependencyType, NameGenerator> = {
  */
 export function generateDependencyName(type: DependencyType, names: string[]): string {
 	return nameGenerators[type](names);
+}
+
+/**
+ * The colours a dependency edge can take: the palette less every colour a non-dependency edge
+ * type draws in, so a dependency never reads as a host, container or physical-link edge.
+ */
+export function dependencyColors(): Color[] {
+	const claimed = new Set(
+		edgeTypes
+			.getItems()
+			.filter((type) => !type.metadata.is_dependency_edge)
+			.map((type) => type.color)
+	);
+	return AVAILABLE_COLORS.filter((color) => !claimed.has(color));
 }

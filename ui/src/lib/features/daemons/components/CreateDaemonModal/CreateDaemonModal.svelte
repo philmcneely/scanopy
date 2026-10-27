@@ -6,7 +6,9 @@
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import type { ModalTab } from '$lib/shared/components/layout/GenericModal.svelte';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
-	import { pushError, pushSuccess } from '$lib/shared/stores/feedback';
+	import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
+	import { copyText } from '$lib/shared/utils/clipboard';
+	import { common_failedToCopy } from '$lib/paraglide/messages';
 	import { trackEvent } from '$lib/shared/utils/analytics';
 	import { entities } from '$lib/shared/stores/metadata';
 	import {
@@ -599,12 +601,12 @@
 	async function handleCopyCommand() {
 		if (!currentInstallCommand) return;
 		try {
-			await navigator.clipboard.writeText(currentInstallCommand);
+			await copyText(currentInstallCommand);
 			hasCopied = true;
 			trackEvent('daemon_install_command_copied', { os: selectedOS, context: 'footer-cta' });
 			pushSuccess(getCopiedToastMessage());
-		} catch {
-			// Clipboard API failed — user can still use inline copy icon
+		} catch (error) {
+			pushWarning(common_failedToCopy({ error: String(error) }));
 		}
 	}
 

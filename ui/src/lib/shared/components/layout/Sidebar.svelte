@@ -16,17 +16,9 @@
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { startSetupPayment } from '$lib/shared/billing/setup-payment';
 	import type { IconComponent } from '$lib/shared/utils/types';
-	import {
-		Menu,
-		ChevronDown,
-		History,
-		Settings,
-		ArrowUpCircle,
-		Clock,
-		Home,
-		Search
-	} from 'lucide-svelte';
+	import { Menu, ChevronDown, History, Settings, Clock, Home, Search } from 'lucide-svelte';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
+	import PaidCrown from '$lib/shared/components/PaidCrown.svelte';
 	import { GLOBAL_SEARCH_KEY, globalSearchOpen } from '$lib/features/search/results';
 	import { tableSearchFocused } from '$lib/shared/components/data/controls/listShortcuts';
 	import { onMount } from 'svelte';
@@ -34,7 +26,7 @@
 	import type { UserOrgPermissions } from '$lib/features/users/types';
 	import type { SubTab } from '$lib/shared/components/layout/ContentSubTabs.svelte';
 	import {
-		common_upgrade,
+		common_plans,
 		billing_trialPill,
 		billing_trialPillOneDay,
 		billing_trialPillToday,
@@ -148,7 +140,13 @@
 	let isBillingEnabled = $derived(organization ? isBillingPlanActive(organization) : false);
 	let planMeta = $derived(billingPlans.getMetadata(organization?.plan?.type ?? null));
 	let isDemoOrg = $derived(planMeta.is_demo === true);
-	let isFreePlan = $derived(planMeta.is_free === true);
+	// A free tier: cloud Free (`is_free`), or self-hosted Community, the one plan that is neither
+	// commercial nor billed through Stripe. Both have plans to move up to; Starter, though not
+	// commercial, is a paid Stripe plan.
+	let isFreePlan = $derived(
+		planMeta.is_free === true ||
+			(planMeta.is_commercial === false && planMeta.is_stripe_managed === false)
+	);
 	let isOwner = $derived(userPermissions === 'Owner');
 	let trialDaysLeft = $derived(getTrialDaysLeft(organization));
 	let showTrialPill = $derived(
@@ -735,7 +733,7 @@
 	class:w-48={!collapsed}
 >
 	<!-- Logo/Brand -->
-	<div class="flex min-h-0 flex-1 flex-col">
+	<div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
 		<div class="px-2 py-4">
 			<button
 				onclick={toggleCollapse}
@@ -905,7 +903,7 @@
 				onclick: () => void;
 			})}
 				<button
-					class="{baseClasses} text-amber-400 hover:bg-amber-500/10"
+					class="{baseClasses} text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
 					style="height: 2rem; padding: 0.375rem 0.75rem;"
 					title={collapsed ? label : ''}
 					{onclick}
@@ -933,12 +931,19 @@
 					})}
 				</li>
 			{:else if showFreeUpgradeButton}
+				<!-- The way to the plans: a nav entry like the others, marked with the paid crown. -->
 				<li>
-					{@render sidebarAmberCta({
-						Icon: ArrowUpCircle,
-						label: common_upgrade(),
-						onclick: () => triggerUpgrade({ source: 'sidebar', surface: 'sidebar' })
-					})}
+					<button
+						class="{baseClasses} {inactiveButtonClass}"
+						style="height: 2rem; padding: 0.375rem 0.75rem;"
+						title={collapsed ? common_plans() : ''}
+						onclick={() => triggerUpgrade({ source: 'sidebar', surface: 'sidebar' })}
+					>
+						<PaidCrown size={20} />
+						{#if !collapsed}
+							<span class="ml-3 truncate">{common_plans()}</span>
+						{/if}
+					</button>
 				</li>
 			{/if}
 			{#each bottomNavItems as item (item.id)}

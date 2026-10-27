@@ -840,7 +840,7 @@ impl BillingService {
         };
         // A legacy $0 Free subscription ending is not a cancellation: the org
         // stays on Free, now with no subscription behind it, and nobody is
-        // told. The one-shot cleanup at boot cancels these.
+        // told. v0.19.2 cancelled these at boot.
         if locked.org.base.plan.is_free() {
             let mut locked = locked;
             locked.org.base.plan_status = None;

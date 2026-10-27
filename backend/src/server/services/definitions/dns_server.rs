@@ -4,7 +4,7 @@ use crate::daemon::utils::app_probe::udp::DnsProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct DnsServer;
@@ -25,7 +25,10 @@ impl ServiceDefinition for DnsServer {
     /// alone identifies a DNS server, which is why this is `AnyOf` — a resolver reachable only over
     /// TCP is a deliberate configuration, not an edge case.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyOf(vec![probe_pattern(&DnsProbe), probe_pattern(&DnsTcpProbe)])
+        Pattern::AnyOf(vec![
+            Pattern::ClientResponse(ClientProbe::DnsUdp),
+            Pattern::ClientResponse(ClientProbe::DnsTcp),
+        ])
     }
 
     fn is_generic(&self) -> bool {

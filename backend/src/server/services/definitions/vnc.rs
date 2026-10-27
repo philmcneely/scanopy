@@ -3,7 +3,7 @@ use crate::daemon::utils::app_probe::vnc::VncProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Vnc;
@@ -18,10 +18,10 @@ impl ServiceDefinition for Vnc {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::RemoteAccess
     }
-    /// Derived from the probe, so a listener on 5900 that does not greet with an RFB version is
+    /// Matches on the probe's answer, so a listener on 5900 that does not greet with an RFB version is
     /// not claimed as this service.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        probe_pattern(&VncProbe)
+        Pattern::ClientResponse(ClientProbe::Vnc)
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(VncProbe)]

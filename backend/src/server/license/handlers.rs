@@ -27,7 +27,7 @@ use super::online::{
 };
 use super::types::LicenseKeyType;
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
-use crate::server::auth::middleware::permissions::{Authorized, Owner};
+use crate::server::auth::middleware::permissions::{Authorized, Owner, RequireVerified};
 use crate::server::config::AppState;
 use crate::server::openapi::tags as api_tags;
 use crate::server::organizations::r#impl::base::Organization;
@@ -261,7 +261,7 @@ pub async fn get_entitlement(
 )]
 pub async fn create_license_key(
     State(state): State<Arc<AppState>>,
-    auth: Authorized<Owner>,
+    auth: Authorized<RequireVerified<Owner>>,
     ApiJson(request): ApiJson<CreateLicenseKeyRequest>,
 ) -> ApiResult<Json<ApiResponse<LicenseKeyResponse>>> {
     let organization_id = auth.require_organization_id()?;
@@ -338,7 +338,7 @@ pub async fn create_license_key(
 )]
 pub async fn get_current_license_key(
     State(state): State<Arc<AppState>>,
-    auth: Authorized<Owner>,
+    auth: Authorized<RequireVerified<Owner>>,
 ) -> ApiResult<Json<ApiResponse<LicenseKeyResponse>>> {
     let organization_id = auth.require_organization_id()?;
     let organization = load_organization(&state, organization_id).await?;
@@ -439,7 +439,7 @@ async fn mint_key(
 )]
 pub async fn rotate_license_key(
     State(state): State<Arc<AppState>>,
-    auth: Authorized<Owner>,
+    auth: Authorized<RequireVerified<Owner>>,
 ) -> ApiResult<Json<EmptyApiResponse>> {
     let organization_id = auth.require_organization_id()?;
     load_organization(&state, organization_id).await?;

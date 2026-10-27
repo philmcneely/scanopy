@@ -62,16 +62,12 @@ pub struct KafkaProbe;
 
 #[async_trait]
 impl AppProbe for KafkaProbe {
-    fn port(&self) -> PortType {
-        PortType::Kafka
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Kafka
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Kafka)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &api_versions_request(), 1024).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &api_versions_request(), 1024).await;
         Ok(parse_reply(&reply, CORRELATION_ID))
     }
 }

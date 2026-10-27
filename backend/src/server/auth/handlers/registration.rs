@@ -1,5 +1,6 @@
 //! Email chck, registration, onboarding setup, and pending-setup application.
 use super::*;
+use crate::server::auth::disposable_email::is_disposable_email;
 use crate::server::auth::email_domain::{DomainCheck, check_email_domain};
 use crate::server::auth::r#impl::api::CheckEmailResponse;
 use crate::server::openapi::tags as api_tags;
@@ -77,12 +78,7 @@ pub(crate) async fn register(
         ));
     }
 
-    if state.config.disable_registration {
-        return Err(ApiError::coded(
-            StatusCode::FORBIDDEN,
-            ErrorCode::AuthRegistrationDisabled,
-        ));
-    }
+    ensure_registration_allowed(&state, &session).await?;
 
     let deployment_type = get_deployment_type(&state.config);
 
@@ -115,7 +111,7 @@ pub(crate) async fn register(
         ));
     }
 
-    if !mailchecker::is_valid(request.email.as_str()) && deployment_type == DeploymentType::Cloud {
+    if deployment_type == DeploymentType::Cloud && is_disposable_email(&request.email) {
         return Err(ApiError::conflict(
             "Email address uses a disposable domain. Please register with a non-disposable email address.",
         ));
@@ -230,6 +226,35 @@ pub(crate) async fn register(
     }
 
     Ok(Json(ApiResponse::success(user)))
+}
+
+/// Refuse sign-up when registration is disabled, unless the session holds a pending invite
+/// that is still valid. Fails closed: no invite, an expired or deleted one, or an error
+/// reading either is a refusal.
+pub(crate) async fn ensure_registration_allowed(
+    state: &AppState,
+    session: &Session,
+) -> Result<(), ApiError> {
+    if !state.config.disable_registration {
+        return Ok(());
+    }
+
+    let refused = || ApiError::coded(StatusCode::FORBIDDEN, ErrorCode::AuthRegistrationDisabled);
+
+    let invite_id = session
+        .get::<Uuid>("pending_invite_id")
+        .await
+        .ok()
+        .flatten()
+        .ok_or_else(refused)?;
+
+    state
+        .services
+        .invite_service
+        .get_valid_invite(invite_id)
+        .await
+        .map(|_| ())
+        .map_err(|_| refused())
 }
 
 /// Store pre-registration setup in session

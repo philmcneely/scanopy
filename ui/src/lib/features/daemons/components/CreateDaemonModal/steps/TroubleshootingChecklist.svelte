@@ -355,73 +355,76 @@
 
 			<div class="mt-3">
 				<p class="text-sm font-medium text-secondary">{daemons_troubleshoot_commonErrors()}</p>
-				<table class="mt-1 w-full text-xs text-tertiary">
-					<thead>
-						<tr class="border-b border-gray-200 text-left text-secondary dark:border-gray-700">
-							<th class="pr-3 pb-1 font-medium">{common_error()}</th>
-							<th class="pr-3 pb-1 font-medium">{common_cause()}</th>
-							<th class="pb-1 font-medium">{common_fix()}</th>
-						</tr>
-					</thead>
-					<tbody
-						class="[&>tr:nth-child(even)]:bg-gray-50 dark:[&>tr:nth-child(even)]:bg-gray-800/30"
-					>
-						<tr>
-							<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errConnRefused()}</td>
-							<td class="py-1.5 pr-3">{daemons_troubleshoot_errConnRefusedCause()}</td>
-							<td class="py-1.5">{daemons_troubleshoot_errConnRefusedFix()}</td>
-						</tr>
-						<tr>
-							<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errTimeout()}</td>
-							<td class="py-1.5 pr-3">{daemons_troubleshoot_errTimeoutCause()}</td>
-							<td class="py-1.5">
-								{daemons_troubleshoot_errTimeoutFix({ portDesc: serverPortDesc })}
-							</td>
-						</tr>
-						<tr>
-							<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errTls()}</td>
-							<td class="py-1.5 pr-3">{daemons_troubleshoot_errTlsCause()}</td>
-							<td class="py-1.5">
-								{daemons_troubleshoot_errTlsFix()}
-								{#if onEnableSelfSigned}
-									<button
-										type="button"
-										class="ml-1 text-blue-400 underline hover:text-blue-300"
-										onclick={onEnableSelfSigned}
-									>
-										{daemons_troubleshoot_enableSelfSigned()}
-									</button>
-								{/if}
-							</td>
-						</tr>
-						<tr>
-							<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errApiKey()}</td>
-							<td class="py-1.5 pr-3">{daemons_troubleshoot_errApiKeyCause()}</td>
-							<td class="py-1.5">
-								{daemons_troubleshoot_errApiKeyFix()}
-								{#if onReviewCommands}
-									<button
-										type="button"
-										class="ml-1 text-blue-400 underline hover:text-blue-300"
-										onclick={onReviewCommands}
-									>
-										{daemons_troubleshoot_reviewInstallCommand()}
-									</button>
-								{/if}
-							</td>
-						</tr>
-						<tr>
-							<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errDns()}</td>
-							<td class="py-1.5 pr-3">{daemons_troubleshoot_errDnsCause()}</td>
-							<td class="py-1.5">{daemons_troubleshoot_errDnsFix()}</td>
-						</tr>
-						<tr>
-							<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errNotScanopy()}</td>
-							<td class="py-1.5 pr-3">{daemons_troubleshoot_errNotScanopyCause()}</td>
-							<td class="py-1.5">{daemons_troubleshoot_errNotScanopyFix()}</td>
-						</tr>
-					</tbody>
-				</table>
+				<!-- Scrolls sideways on a phone rather than squeezing the mono error column. -->
+				<div class="mt-1 overflow-x-auto">
+					<table class="w-full min-w-md text-xs text-tertiary">
+						<thead>
+							<tr class="border-b border-gray-200 text-left text-secondary dark:border-gray-700">
+								<th class="pr-3 pb-1 font-medium">{common_error()}</th>
+								<th class="pr-3 pb-1 font-medium">{common_cause()}</th>
+								<th class="pb-1 font-medium">{common_fix()}</th>
+							</tr>
+						</thead>
+						<tbody
+							class="[&>tr:nth-child(even)]:bg-gray-50 dark:[&>tr:nth-child(even)]:bg-gray-800/30"
+						>
+							<tr>
+								<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errConnRefused()}</td>
+								<td class="py-1.5 pr-3">{daemons_troubleshoot_errConnRefusedCause()}</td>
+								<td class="py-1.5">{daemons_troubleshoot_errConnRefusedFix()}</td>
+							</tr>
+							<tr>
+								<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errTimeout()}</td>
+								<td class="py-1.5 pr-3">{daemons_troubleshoot_errTimeoutCause()}</td>
+								<td class="py-1.5">
+									{daemons_troubleshoot_errTimeoutFix({ portDesc: serverPortDesc })}
+								</td>
+							</tr>
+							<tr>
+								<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errTls()}</td>
+								<td class="py-1.5 pr-3">{daemons_troubleshoot_errTlsCause()}</td>
+								<td class="py-1.5">
+									{daemons_troubleshoot_errTlsFix()}
+									{#if onEnableSelfSigned}
+										<button
+											type="button"
+											class="ml-1 text-blue-400 underline hover:text-blue-300"
+											onclick={onEnableSelfSigned}
+										>
+											{daemons_troubleshoot_enableSelfSigned()}
+										</button>
+									{/if}
+								</td>
+							</tr>
+							<tr>
+								<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errApiKey()}</td>
+								<td class="py-1.5 pr-3">{daemons_troubleshoot_errApiKeyCause()}</td>
+								<td class="py-1.5">
+									{daemons_troubleshoot_errApiKeyFix()}
+									{#if onReviewCommands}
+										<button
+											type="button"
+											class="ml-1 text-blue-400 underline hover:text-blue-300"
+											onclick={onReviewCommands}
+										>
+											{daemons_troubleshoot_reviewInstallCommand()}
+										</button>
+									{/if}
+								</td>
+							</tr>
+							<tr>
+								<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errDns()}</td>
+								<td class="py-1.5 pr-3">{daemons_troubleshoot_errDnsCause()}</td>
+								<td class="py-1.5">{daemons_troubleshoot_errDnsFix()}</td>
+							</tr>
+							<tr>
+								<td class="py-1.5 pr-3 font-mono">{daemons_troubleshoot_errNotScanopy()}</td>
+								<td class="py-1.5 pr-3">{daemons_troubleshoot_errNotScanopyCause()}</td>
+								<td class="py-1.5">{daemons_troubleshoot_errNotScanopyFix()}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
 			</div>
 		{/snippet}
 	</ChecklistItem>

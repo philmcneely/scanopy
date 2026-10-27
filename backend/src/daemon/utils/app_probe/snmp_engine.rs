@@ -32,18 +32,12 @@ pub struct SnmpEngineProbe;
 
 #[async_trait]
 impl AppProbe for SnmpEngineProbe {
-    fn port(&self) -> PortType {
-        PortType::Snmp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::SnmpEngine
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::SnmpEngine)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        Ok(presence(
-            discovers_engine(ctx.target(self.port().number())).await,
-        ))
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        Ok(presence(discovers_engine(ctx.target(port.number())).await))
     }
 }
 

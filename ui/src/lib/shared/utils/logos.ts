@@ -9,6 +9,9 @@ import type { IconComponent } from '$lib/shared/utils/types';
 
 type LogoEntry = (typeof logos)[number];
 
+/** How a logo meets the light and dark themes (the backend's `Theming`). */
+export type LogoTheming = LogoEntry['theming']['type'];
+
 const byId = new Map<string, LogoEntry>(logos.map((logo) => [logo.id, logo]));
 
 /** What fills a logo's frame: a colour (`Solid`), the logo itself (`Round`), or nothing. */
@@ -28,8 +31,23 @@ export function logoPath(id: string): string | null {
 	return byId.get(id)?.path ?? null;
 }
 
-/** The logo with this id as an icon component, or `fallback` when there is none. */
-export function logoIcon(id: string | null | undefined, fallback: IconComponent): IconComponent {
+/**
+ * The logo with this id as an icon component, or `fallback` when there is none. `framed: false`
+ * draws it bare, for a host that cannot pass the prop itself, such as a `Tag` icon.
+ */
+export function logoIcon(
+	id: string | null | undefined,
+	fallback: IconComponent,
+	{ framed = true }: { framed?: boolean } = {}
+): IconComponent {
 	const logo = id ? byId.get(id) : undefined;
-	return logo ? createLogoIconComponent(logo.id, logo.path, logoFrame(logo.background)) : fallback;
+	return logo
+		? createLogoIconComponent(logo.id, logo.path, {
+				...logoFrame(logo.background),
+				theming: logo.theming.type,
+				darkUrl: logo.dark_path,
+				markup: logo.markup,
+				framed
+			})
+		: fallback;
 }

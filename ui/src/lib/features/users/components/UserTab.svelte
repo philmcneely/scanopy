@@ -19,7 +19,6 @@
 	import InviteModal from './InviteModal.svelte';
 	import { metadata, permissions } from '$lib/shared/stores/metadata';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import UserEditModal from './UserEditModal.svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import {
@@ -286,16 +285,20 @@
 {#snippet toolbarActions()}
 	<div class="flex items-center gap-3">
 		{#if seatLimit !== null && !canBuyMoreSeats}
-			<span class="text-sm {isAtSeatLimit ? 'text-amber-400' : 'text-tertiary'}">
+			<span
+				class="text-sm {isAtSeatLimit ? 'text-amber-700 dark:text-amber-400' : 'text-tertiary'}"
+			>
 				{userCount} / {seatLimit}
 			</span>
 		{/if}
 		{#if canInviteUsers}
-			{#if isAtSeatLimit}
-				<UpgradeButton feature="seats" surface="users_tab" gate_type="limit_hit" />
-			{:else}
-				<CreateButton onclick={handleCreateInvite} label={users_inviteUser()} />
-			{/if}
+			<CreateButton
+				onclick={handleCreateInvite}
+				label={users_inviteUser()}
+				upgrade={isAtSeatLimit
+					? { feature: 'seats', surface: 'users_tab', gate_type: 'limit_hit' }
+					: null}
+			/>
 		{/if}
 	</div>
 {/snippet}

@@ -29,15 +29,12 @@
 		common_confirmBulkDelete,
 		common_confirmDeleteName,
 		common_create,
-		userApiKeys_apiAccessUnavailableSubtitle,
-		userApiKeys_apiAccessUnavailableTitle,
 		userApiKeys_noApiKeysSubtitle,
 		userApiKeys_noApiKeysYet,
 		userApiKeys_subtitle
 	} from '$lib/paraglide/messages';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { billingPlans } from '$lib/shared/stores/metadata';
-	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
 	import type { components } from '$lib/api/schema';
 
@@ -170,21 +167,16 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if !hasApiAccess}
-		<EmptyState
-			title={userApiKeys_apiAccessUnavailableTitle()}
-			subtitle={userApiKeys_apiAccessUnavailableSubtitle()}
-		>
-			<UpgradeButton feature="api_access" surface="api_keys_tab" />
-		</EmptyState>
-	{:else if isLoading}
+	{#if hasApiAccess && isLoading}
 		<Loading />
-	{:else if page.isEmpty(userApiKeysQuery)}
+	{:else if !hasApiAccess || page.isEmpty(userApiKeysQuery)}
+		<!-- Without API access the plan lacks keys: the same empty state, its Create opening the plans. -->
 		<EmptyState
 			title={userApiKeys_noApiKeysYet()}
 			subtitle={userApiKeys_noApiKeysSubtitle()}
 			onClick={handleCreate}
 			cta={common_create()}
+			upgrade={hasApiAccess ? null : { feature: 'api_access', surface: 'api_keys_tab' }}
 		/>
 	{:else}
 		<DataControls

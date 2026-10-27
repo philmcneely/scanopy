@@ -38,6 +38,8 @@
 		settings_account_credentialsUpdated,
 		settings_account_currentPasswordPlaceholder,
 		settings_account_emailChangeIntro,
+		settings_account_emailChangeIntroImmediate,
+		settings_account_emailChanged,
 		settings_account_enterEmail,
 		settings_account_linkedOn,
 		settings_account_loadingUser,
@@ -129,7 +131,14 @@
 					body: { current_password: value.currentPassword, new_email: newEmail }
 				});
 				if (data?.success) {
-					pushSuccess(settings_account_verificationSentTo({ email: newEmail }));
+					// A server with no email transport applies the change at once instead of
+					// mailing a link to the new address.
+					if (configData?.has_email_service) {
+						pushSuccess(settings_account_verificationSentTo({ email: newEmail }));
+					} else {
+						pushSuccess(settings_account_emailChanged({ email: newEmail }));
+						await queryClient.invalidateQueries({ queryKey: queryKeys.auth.currentUser() });
+					}
 					emailChangeForm.reset({ currentPassword: '', newEmail: '' });
 					subView = 'main';
 				}
@@ -231,7 +240,7 @@
 				<div class="space-y-6">
 					<!-- Email & Password. A linked OIDC account owns the address, so it can't be changed here. -->
 					<InfoCard title={common_emailAndPassword()}>
-						<div class="flex items-center justify-between gap-4">
+						<div class="flex flex-wrap items-center justify-between gap-4">
 							<div class="flex min-w-0 items-center gap-4">
 								<Mail class="h-5 w-5 shrink-0 text-secondary" />
 								<div class="min-w-0">
@@ -252,7 +261,7 @@
 								</button>
 							{/if}
 						</div>
-						<div class="flex items-center justify-between gap-4">
+						<div class="flex flex-wrap items-center justify-between gap-4">
 							<div class="flex items-center gap-4">
 								<Key class="h-5 w-5 shrink-0 text-secondary" />
 								<p class="text-sm font-medium text-primary">{common_password()}</p>
@@ -427,7 +436,9 @@
 		{:else if subView === 'email-change'}
 			<div class="space-y-2">
 				<p class="mb-2 text-sm text-secondary">
-					{settings_account_emailChangeIntro()}
+					{configData?.has_email_service
+						? settings_account_emailChangeIntro()
+						: settings_account_emailChangeIntroImmediate()}
 				</p>
 				<div class="space-y-6">
 					<emailChangeForm.Field

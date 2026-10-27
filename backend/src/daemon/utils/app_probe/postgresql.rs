@@ -39,16 +39,12 @@ pub struct PostgresProbe;
 
 #[async_trait]
 impl AppProbe for PostgresProbe {
-    fn port(&self) -> PortType {
-        PortType::PostgreSQL
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::PostgreSql
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::PostgreSql)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &ssl_request(), READ_LIMIT).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &ssl_request(), READ_LIMIT).await;
         Ok(parse_reply(&reply))
     }
 }

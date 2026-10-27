@@ -1,42 +1,36 @@
 <script lang="ts">
-	import { formatLongDate } from '$lib/shared/utils/formatting';
 	/**
 	 * BillingPlanForm Component
 	 *
-	 * Card-based layout with pricing simulator, incremental feature highlights,
+	 * Card-based layout with explained plan limits, incremental feature highlights,
 	 * and expandable full comparison grid. Responsive: 1 col mobile, 2 col tablet,
 	 * auto-fit desktop.
 	 */
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { Check, X, ChevronDown, ChevronUp, Loader2, Minus, Plus } from 'lucide-svelte';
+	import { Check, X, ChevronDown, ChevronUp, Info, Loader2 } from 'lucide-svelte';
 	import {
 		billing_compareAllFeatures,
 		billing_dayFreeTrial,
 		billing_daysCount,
 		billing_everythingInPlanPlus,
-		billing_firstInvoiceOn,
-		billing_siteUnit,
-		billing_siteUnitPlural,
 		billing_notIncluded,
-		billing_perSiteMonthly,
-		billing_perSeatMonthly,
+		billing_extraSeatsMonthly,
+		billing_extraSitesMonthly,
+		billing_includedCount,
+		billing_nonProductionCount,
 		billing_planIntegrations,
-		billing_priceBase,
 		billing_rateMonthly,
 		billing_rateMonthlyEquivalent,
 		billing_rateYearly,
 		billing_rateYearlyBilled,
-		billing_seatUnit,
-		billing_serversIncluded,
-		billing_seatUnitPlural,
 		billing_hostingCloudTooltip,
 		billing_hostingSelfHostedTooltip,
 		billing_selfHosted,
 		billing_showFeatures,
 		billing_hideFeatures,
 		billing_snapshotRetention,
-		billing_startFreeTrial,
+		billing_startDayFreeTrial,
 		billing_startTrialNoCreditCard,
 		billing_switchPlan,
 		billing_trialContinues,
@@ -56,7 +50,6 @@
 		common_unlimited,
 		common_yearly
 	} from '$lib/paraglide/messages';
-	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import ToggleGroup from './ToggleGroup.svelte';
 	import type { BillingPlan, PlanPickerHosting } from './types';
@@ -95,6 +88,8 @@
 		featureHelpers: MetadataHelpers<FeatureMetadata>;
 		/** Names the discovery integrations itemized on each card (`credential-integrations.json`). */
 		integrationHelpers: MetadataHelpers<CredentialIntegrationMetadata>;
+		/** Explains each counted limit on the cards (`plan-limits.json`). */
+		limitHelpers: MetadataHelpers<object>;
 		onPlanSelect: (plan: BillingPlan) => void | Promise<void>;
 		showGithubStars?: boolean;
 		/** Show the Cloud / Self-Hosted toggle (and hosting tags on each card). */
@@ -122,6 +117,7 @@
 		billingPlanHelpers,
 		featureHelpers,
 		integrationHelpers,
+		limitHelpers,
 		onPlanSelect,
 		showGithubStars = true,
 		class: className = '',
@@ -135,11 +131,6 @@
 
 	let loadingPlanType = $state<string | null>(null);
 	let showFullComparison = $state(false);
-
-	function firstInvoiceCaption(plan: BillingPlan): string {
-		const ms = Date.now() + plan.trial_days * 24 * 60 * 60 * 1000;
-		return billing_firstInvoiceOn({ date: formatLongDate(new Date(ms)) });
-	}
 
 	type BillingPeriod = 'monthly' | 'yearly';
 	let billingPeriod = $state<BillingPeriod>('yearly');
@@ -192,55 +183,10 @@
 		return result;
 	});
 
-	// ============================================================================
-	// Pricing simulator state
-	// ============================================================================
-
-	let extraSeats = $state<Record<string, number>>({});
-	let extraSites = $state<Record<string, number>>({});
-
-	function adjustExtra(
-		store: Record<string, number>,
-		planType: string,
-		delta: number
-	): Record<string, number> {
-		const current = store[planType] ?? 0;
-		const next = Math.max(0, current + delta);
-		return { ...store, [planType]: next };
-	}
-
-	function getExtraSeats(planType: string): number {
-		return extraSeats[planType] ?? 0;
-	}
-
-	function getExtraSites(planType: string): number {
-		return extraSites[planType] ?? 0;
-	}
-
-	function hasExtras(plan: BillingPlan): boolean {
-		return getExtraSeats(plan.type) > 0 || getExtraSites(plan.type) > 0;
-	}
-
-	function getEstimatedTotal(plan: BillingPlan): number {
-		const seatExtra = getExtraSeats(plan.type) * (plan.seat_cents ?? 0);
-		const netExtra = getExtraSites(plan.type) * (plan.site_cents ?? 0);
-		return plan.base_cents + seatExtra + netExtra;
-	}
-
 	function formatCents(cents: number): string {
 		const dollars = cents / 100;
 		return dollars % 1 === 0 ? `$${dollars}` : `$${dollars.toFixed(2)}`;
 	}
-
-	// Reset extras when billing period changes
-	let prevBillingPeriod = $state(untrack(() => billingPeriod));
-	$effect(() => {
-		if (billingPeriod !== prevBillingPeriod) {
-			prevBillingPeriod = billingPeriod;
-			extraSeats = {};
-			extraSites = {};
-		}
-	});
 
 	// ============================================================================
 	// Full comparison data
@@ -386,7 +332,7 @@
 	function formatSeatAddonPricing(plan: BillingPlan): string {
 		if (plan.seat_cents) {
 			const monthly = plan.rate === 'Year' ? plan.seat_cents / 12 : plan.seat_cents;
-			return billing_perSeatMonthly({ amount: String(monthly / 100) });
+			return billing_extraSeatsMonthly({ amount: String(monthly / 100) });
 		}
 		return '';
 	}
@@ -394,9 +340,19 @@
 	function formatSiteAddonPricing(plan: BillingPlan): string {
 		if (plan.site_cents) {
 			const monthly = plan.rate === 'Year' ? plan.site_cents / 12 : plan.site_cents;
-			return billing_perSiteMonthly({ amount: String(monthly / 100) });
+			return billing_extraSitesMonthly({ amount: String(monthly / 100) });
 		}
 		return '';
+	}
+
+	/** The included count, worded as such when more can be bought past it. */
+	function formatIncludedLimit(
+		included: number | null | undefined,
+		unitCents: number | null | undefined,
+		plan: BillingPlan
+	): string {
+		if (unitCents && included != null) return billing_includedCount({ count: included });
+		return formatIncludedValue(included, plan);
 	}
 
 	function getHosting(plan: BillingPlan): string {
@@ -425,20 +381,7 @@
 		return value == null ? common_unlimited() : String(value);
 	}
 
-	function formatIncludedServers(plan: BillingPlan): string {
-		const metadata = billingPlanHelpers.getMetadata(plan.type);
-		const production = metadata?.included_instances;
-		const nonProduction = metadata?.included_non_production_instances;
-		if (production == null || nonProduction == null) return formatIncludedValue(null, plan);
-		return billing_serversIncluded({ production, nonProduction });
-	}
-
 	function formatSnapshotRetention(plan: BillingPlan): string {
-		// Self-hosted deployments set their own retention window, so no fixed number is
-		// published for them — unless this deployment carries the universal override,
-		// which getFeatureValue already applies and which wins for every plan.
-		const override = configQuery.data?.snapshot_retention_days_override;
-		if (override == null && getHosting(plan) === 'SelfHosted') return common_custom();
 		const value = getFeatureValue(plan.type, 'snapshot_retention_days');
 		if (value === 0) return billing_notIncluded();
 		if (typeof value === 'number') return billing_daysCount({ count: value });
@@ -592,42 +535,17 @@
 						<div class="flex flex-col items-center gap-1 pb-4">
 							<div class="flex items-baseline gap-1">
 								<span class="text-2xl font-bold text-primary lg:text-3xl">
-									{hasExtras(plan)
-										? formatCents(
-												plan.rate === 'Year'
-													? getEstimatedTotal(plan) / 12
-													: getEstimatedTotal(plan)
-											)
-										: formatBasePricing(plan)}
+									{formatBasePricing(plan)}
 								</span>
 								{#if formatRate(plan)}
 									<span class="text-sm text-tertiary">{formatRate(plan)}</span>
 								{/if}
 							</div>
-							{#if hasExtras(plan)}
-								<div class="text-center text-xs text-tertiary">
-									{billing_priceBase()}
-									{formatCents(plan.rate === 'Year' ? plan.base_cents / 12 : plan.base_cents)}
-									{#if getExtraSeats(plan.type) > 0}
-										{@const seatCost = getExtraSeats(plan.type) * (plan.seat_cents ?? 0)}
-										+ {getExtraSeats(plan.type)}
-										{getExtraSeats(plan.type) === 1 ? billing_seatUnit() : billing_seatUnitPlural()}
-										({formatCents(plan.rate === 'Year' ? seatCost / 12 : seatCost)})
-									{/if}
-									{#if getExtraSites(plan.type) > 0}
-										{@const netCost = getExtraSites(plan.type) * (plan.site_cents ?? 0)}
-										+ {getExtraSites(plan.type)}
-										{getExtraSites(plan.type) === 1 ? billing_siteUnit() : billing_siteUnitPlural()} ({formatCents(
-											plan.rate === 'Year' ? netCost / 12 : netCost
-										)})
-									{/if}
-								</div>
-							{/if}
 							{#if selfHostedActive}
 								<!-- Annual price on the card, monthly equivalent under it. The
 								     invisible copy keeps card rows aligned for plans with no annual price. -->
 								<div
-									class={`text-center text-xs text-tertiary ${isSelfHostedAnnual(plan) && !hasExtras(plan) ? 'opacity-100' : 'opacity-0'}`}
+									class={`text-center text-xs text-tertiary ${isSelfHostedAnnual(plan) ? 'opacity-100' : 'opacity-0'}`}
 								>
 									{billing_rateMonthlyEquivalent({
 										amount: isSelfHostedAnnual(plan) ? formatCents(plan.base_cents / 12) : ''
@@ -655,7 +573,13 @@
 							{#if metadata?.purchase_flow === 'stripe' || metadata?.is_free}
 								<!-- Free has purchase_flow 'none' but activates in-app like a Stripe plan -->
 								{#if plan.type === currentPlanType && !currentPlanLapsed}
-									<InlineInfo title="" body={billing_yourCurrentPlan()} />
+									<!-- Sized like the CTA buttons (border, py-2, text-sm) so every card's header is the same height. -->
+									<div
+										class="flex w-full items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-info dark:border-blue-600/30 dark:bg-blue-900/20"
+									>
+										<Info class="h-4 w-4 shrink-0" />
+										{billing_yourCurrentPlan()}
+									</div>
 								{:else}
 									<button
 										type="button"
@@ -675,14 +599,9 @@
 											{billing_startTrialNoCreditCard()}
 										{:else}
 											<!-- A cloud trial collects a card first. -->
-											{billing_startFreeTrial()}
+											{billing_startDayFreeTrial({ days: plan.trial_days })}
 										{/if}
 									</button>
-									{#if trial && !isCurrentlyTrialing}
-										<div class="pt-2 text-center text-xs text-tertiary">
-											{firstInvoiceCaption(plan)}
-										</div>
-									{/if}
 								{/if}
 							{:else}
 								<a
@@ -696,96 +615,94 @@
 							{/if}
 						</div>
 
-						<!-- Included Resources with Stepper Controls -->
-						<div class="space-y-2 border-b pb-4" style="border-color: var(--color-border)">
-							<!-- Seats -->
-							<div class="flex items-center justify-between text-sm">
-								<div class="flex flex-col">
-									<span class="text-secondary">{common_seats()}</span>
-									{#if plan.seat_cents}
-										<span class="text-xs text-tertiary">{formatSeatAddonPricing(plan)}</span>
-									{/if}
-								</div>
-								{#if plan.seat_cents && plan.included_seats !== null}
-									<div class="stepper">
-										<button
-											type="button"
-											class="stepper-btn"
-											disabled={getExtraSeats(plan.type) === 0}
-											onclick={() => (extraSeats = adjustExtra(extraSeats, plan.type, -1))}
-										>
-											<Minus class="h-3 w-3" />
-										</button>
-										<span class="w-8 text-center text-sm font-medium text-primary">
-											{(plan.included_seats ?? 0) + getExtraSeats(plan.type)}
+						<!-- Included limits, striped so each value reads against its label. Each label explains
+						     its limit; extras bill at the unit price noted under the included count. -->
+						<div class="pb-4">
+							<div class="-mx-2">
+								<!-- Seats -->
+								<div
+									class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+								>
+									<span
+										class="explainer text-secondary"
+										data-tooltip={limitHelpers.getDescription('seats')}
+										use:tooltip>{common_seats()}</span
+									>
+									<div class="flex flex-col items-end text-right">
+										<span class="font-medium text-primary">
+											{formatIncludedLimit(plan.included_seats, plan.seat_cents, plan)}
 										</span>
-										<button
-											type="button"
-											class="stepper-btn"
-											onclick={() => (extraSeats = adjustExtra(extraSeats, plan.type, 1))}
+										<!-- Always rendered, invisible on plans that sell no extras, so every card's
+										     rows line up. -->
+										<span
+											class={`text-xs text-tertiary ${plan.seat_cents ? 'opacity-100' : 'opacity-0'}`}
+											aria-hidden={!plan.seat_cents}>{formatSeatAddonPricing(plan) || ' '}</span
 										>
-											<Plus class="h-3 w-3" />
-										</button>
 									</div>
-								{:else}
-									<span class="font-medium text-primary">
-										{formatIncludedValue(plan.included_seats, plan)}
-									</span>
-								{/if}
-							</div>
-
-							<!-- Sites -->
-							<div class="flex items-center justify-between text-sm">
-								<div class="flex flex-col">
-									<span class="text-secondary">{common_sites()}</span>
-									{#if plan.site_cents}
-										<span class="text-xs text-tertiary">{formatSiteAddonPricing(plan)}</span>
-									{/if}
 								</div>
-								{#if plan.site_cents && plan.included_sites !== null}
-									<div class="stepper">
-										<button
-											type="button"
-											class="stepper-btn"
-											disabled={getExtraSites(plan.type) === 0}
-											onclick={() => (extraSites = adjustExtra(extraSites, plan.type, -1))}
-										>
-											<Minus class="h-3 w-3" />
-										</button>
-										<span class="w-8 text-center text-sm font-medium text-primary">
-											{(plan.included_sites ?? 0) + getExtraSites(plan.type)}
+
+								<!-- Sites -->
+								<div
+									class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+								>
+									<span
+										class="explainer text-secondary"
+										data-tooltip={limitHelpers.getDescription('sites')}
+										use:tooltip>{common_sites()}</span
+									>
+									<div class="flex flex-col items-end text-right">
+										<span class="font-medium text-primary">
+											{formatIncludedLimit(plan.included_sites, plan.site_cents, plan)}
 										</span>
-										<button
-											type="button"
-											class="stepper-btn"
-											onclick={() => (extraSites = adjustExtra(extraSites, plan.type, 1))}
+										<span
+											class={`text-xs text-tertiary ${plan.site_cents ? 'opacity-100' : 'opacity-0'}`}
+											aria-hidden={!plan.site_cents}>{formatSiteAddonPricing(plan) || ' '}</span
 										>
-											<Plus class="h-3 w-3" />
-										</button>
 									</div>
-								{:else}
-									<span class="font-medium text-primary">
-										{formatIncludedValue(plan.included_sites, plan)}
-									</span>
-								{/if}
-							</div>
-
-							<!-- Servers (self-hosted only: how many servers one license key covers) -->
-							{#if getHosting(plan) === 'SelfHosted'}
-								<div class="flex items-center justify-between text-sm">
-									<span class="text-secondary">{common_servers()}</span>
-									<span class="font-medium text-primary">
-										{formatIncludedServers(plan)}
-									</span>
 								</div>
-							{/if}
 
-							<!-- Snapshot Retention -->
-							<div class="flex items-center justify-between text-sm">
-								<span class="text-secondary">{billing_snapshotRetention()}</span>
-								<span class="font-medium text-primary">
-									{formatSnapshotRetention(plan)}
-								</span>
+								<!-- Servers (self-hosted only: how many servers one license key covers) -->
+								{#if getHosting(plan) === 'SelfHosted'}
+									{@const production = metadata?.included_instances}
+									{@const nonProduction = metadata?.included_non_production_instances}
+									<div
+										class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+									>
+										<span
+											class="explainer text-secondary"
+											data-tooltip={limitHelpers.getDescription('servers')}
+											use:tooltip>{common_servers()}</span
+										>
+										<span class="text-right font-medium text-primary">
+											{#if production == null || nonProduction == null}
+												{formatIncludedValue(null, plan)}
+											{:else}
+												{production} +
+												<span
+													class="explainer"
+													data-tooltip={limitHelpers.getDescription('non_production_servers')}
+													use:tooltip>{billing_nonProductionCount({ count: nonProduction })}</span
+												>
+											{/if}
+										</span>
+									</div>
+								{/if}
+
+								<!-- Snapshot Retention (cloud only: a self-hosted deployment sets its own window) -->
+								{#if getHosting(plan) !== 'SelfHosted'}
+									<div
+										class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+									>
+										<span
+											class="explainer text-secondary"
+											data-tooltip={featureHelpers.getDescription('snapshot_retention_days')}
+											use:tooltip>{billing_snapshotRetention()}</span
+										>
+										<span class="text-right font-medium text-primary">
+											{formatSnapshotRetention(plan)}
+										</span>
+									</div>
+								{/if}
 							</div>
 						</div>
 
@@ -848,7 +765,7 @@
 												: 'text-success'}"
 										/>
 										<span
-											class={comingSoon ? 'text-tertiary' : 'text-secondary'}
+											class="explainer {comingSoon ? 'text-tertiary' : 'text-secondary'}"
 											data-tooltip={featureHelpers.getDescription(featureKey)}
 											use:tooltip>{featureHelpers.getName(featureKey)}</span
 										>
@@ -918,7 +835,7 @@
 						<div class="comparison-row" style="grid-template-columns: {gridColumns}">
 							<div class="comparison-label-cell">
 								<div
-									class="text-xs font-medium lg:text-sm"
+									class="explainer text-xs font-medium lg:text-sm"
 									data-tooltip={featureHelpers.getDescription(featureKey)}
 									use:tooltip
 								>
@@ -1010,39 +927,6 @@
 		position: relative;
 	}
 
-	/* Stepper controls for pricing simulator */
-	.stepper {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-	}
-
-	.stepper-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.5rem;
-		height: 1.5rem;
-		border-radius: 0.25rem;
-		border: 1px solid var(--color-border-input);
-		color: var(--color-text-secondary);
-		background: transparent;
-		cursor: pointer;
-		transition:
-			background-color 150ms,
-			border-color 150ms;
-	}
-
-	.stepper-btn:hover:not(:disabled) {
-		background: var(--color-bg-surface-hover);
-		border-color: var(--color-border-input);
-	}
-
-	.stepper-btn:disabled {
-		opacity: 0.3;
-		cursor: not-allowed;
-	}
-
 	/* ============================================ */
 	/* Full comparison grid                         */
 	/* ============================================ */
@@ -1099,14 +983,5 @@
 		.comparison-value-cell {
 			padding: 0.75rem;
 		}
-	}
-
-	/* Feature tooltips */
-	[data-tooltip] {
-		position: relative;
-		cursor: help;
-		text-decoration: underline dotted;
-		text-decoration-color: var(--color-border-input);
-		text-underline-offset: 2px;
 	}
 </style>

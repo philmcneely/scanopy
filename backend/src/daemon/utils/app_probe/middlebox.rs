@@ -22,8 +22,9 @@ use cidr::{IpCidr, Ipv4Cidr};
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
-use crate::daemon::utils::app_probe::{AppProbe, AppProbeOutcome, ProbeContext, all_app_probes};
+use crate::daemon::utils::app_probe::{AppProbeOutcome, ProbeContext, probe_runs};
 use crate::daemon::utils::scanner::ScanConcurrencyController;
+use crate::server::ports::r#impl::base::PortType;
 
 /// A context pointed at a listener on loopback.
 fn context_for(addr: SocketAddr) -> ProbeContext {
@@ -47,11 +48,10 @@ async fn tcp_probes_against(listener_addr: SocketAddr) -> Vec<(&'static str, App
     let ctx = context_for(listener_addr);
     let mut outcomes = Vec::new();
 
-    for probe in all_app_probes().into_iter().filter(|p| p.port().is_tcp()) {
+    for (probe, port) in probe_runs().into_iter().filter(|(_, port)| port.is_tcp()) {
         // The probe addresses `ctx.ip` on its own port, so the listener has to be on that port for
         // the probe to reach it. Rebinding per probe is what lets one test cover them all.
-        let Ok(listener) = TcpListener::bind((listener_addr.ip(), probe.port().number())).await
-        else {
+        let Ok(listener) = TcpListener::bind((listener_addr.ip(), port.number())).await else {
             // The port is in use on this machine, or is privileged and we are not root. Skipping is
             // correct rather than failing: the probe is still covered by its own parser tests.
             continue;
@@ -66,16 +66,19 @@ async fn tcp_probes_against(listener_addr: SocketAddr) -> Vec<(&'static str, App
             }
         });
 
-        let outcome = probe.run(&ctx).await.unwrap_or(AppProbeOutcome::NoAnswer);
+        let outcome = probe
+            .run(&ctx, port)
+            .await
+            .unwrap_or(AppProbeOutcome::NoAnswer);
         accept.abort();
-        outcomes.push((probe_name(probe.as_ref()), outcome));
+        outcomes.push((probe_name(port), outcome));
     }
     outcomes
 }
 
 /// The probe's port, as a stable label for failure output.
-fn probe_name(probe: &dyn AppProbe) -> &'static str {
-    Box::leak(format!("{:?}", probe.port()).into_boxed_str())
+fn probe_name(port: PortType) -> &'static str {
+    Box::leak(format!("{:?}", port).into_boxed_str())
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -90,9 +93,9 @@ async fn no_tcp_probe_treats_a_silent_listener_as_its_service() {
     eprintln!(
         "exercised {} of {} TCP probes against a silent listener",
         outcomes.len(),
-        all_app_probes()
+        probe_runs()
             .iter()
-            .filter(|p| p.port().is_tcp())
+            .filter(|(_, port)| port.is_tcp())
             .count()
     );
 

@@ -23,13 +23,32 @@ Local patches (all marked in-source with `SCANOPY LOCAL PATCH`):
     hard-codes it empty, so no caller could address a non-default context; Cisco
     IOS-XE keeps its per-VLAN bridge FDB in one. `build_init` still sends the null
     context, as engine discovery requires.
+  * src/v3.rs `parse_v3` — RFC 3414 §3.2 step 7 timeliness (GH #813). Upstream
+    read snmpEngineBoots = 0 as "not discovered" and rejected every authenticated
+    message from an engine reporting it (`EngineBootsNotProvided`, now removed);
+    MikroTik RouterOS always reports 0, which §2.2.1 allows. An explicit
+    `time_synchronized` flag on `AuthoritativeState` now marks discovery. The
+    message's boots and time are written to the cache only after its digest
+    verifies, the boots = 2147483647 rule upstream lacked is enforced, and the
+    window is RFC 7b's one-sided check against the extrapolated local time.
+    `decrypt_aes` takes the message's boots and time for the IV (RFC 3826
+    §3.1.4) instead of the cache.
+  * src/asyncsession.rs, src/syncsession.rs `init` — RFC 3414 §4's second step:
+    an authenticated GET with no varbinds, so a session leaves `init`
+    time-synchronized even when the agent's discovery Report carried no clock.
+    Without it the caller's first request drew a notInTimeWindow Report and an
+    `AuthUpdated` error, which the daemon does not repeat.
 
-The first is the only one that blocks compilation. The other two are behaviour
+The first is the only one that blocks compilation. The others are behaviour
 upstream does not offer, so returning to crates.io means re-applying them or
-getting them upstreamed.
+getting them upstreamed. Upstream 0.5.2 (2026-07-12) ships the `calculate_hmac`
+fix and 0.5.1 a context name, but master still rejects boots = 0.
 
-Remove this vendored copy and return to a crates.io dependency once upstream
-publishes a release that compiles with `crypto-rust`.
+`cargo test --lib` in backend/ does not run this crate's tests (it has
+dev-dependencies and is not a workspace member). Run them standalone:
+
+  cargo test --manifest-path vendor/snmp2/Cargo.toml --target-dir <scratch> \
+    --no-default-features --features crypto-rust,tokio,heap_buffers --lib
 ====================================================================
 -->
 <h2>

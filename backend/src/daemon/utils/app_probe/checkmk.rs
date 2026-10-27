@@ -25,16 +25,12 @@ pub struct CheckMkAgentProbe;
 
 #[async_trait]
 impl AppProbe for CheckMkAgentProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(6556)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::CheckMkAgent
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::CheckMkAgent)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        Ok(parse_dump(&read_greeting(ctx, self.port(), 512).await))
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        Ok(parse_dump(&read_greeting(ctx, port, 512).await))
     }
 }
 

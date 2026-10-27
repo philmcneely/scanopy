@@ -30,7 +30,7 @@ impl ServiceDefinition for IPhone {
     }
 
     fn logo(&self) -> Option<Logo> {
-        Some(Logo::Apple)
+        Some(Logo::IPhone)
     }
 }
 

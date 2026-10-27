@@ -31,10 +31,31 @@ use crate::server::credentials::r#impl::types::{CredentialType, SecretValue, Snm
 
 /// The agent's engine id: enterprise 8072 (net-snmp) in the RFC 3411 text format, then a name.
 const ENGINE_ID: &[u8] = b"\x80\x00\x1f\x88\x04scanopy-sim";
-const ENGINE_BOOTS: i64 = 1;
-const ENGINE_TIME: i64 = 1000;
 /// `usmStatsUnknownEngineIDs.0`, the counter an agent reports in answer to engine discovery.
 const USM_STATS_UNKNOWN_ENGINE_IDS: &str = "1.3.6.1.6.3.15.1.1.4.0";
+/// `usmStatsNotInTimeWindows.0`, the counter an agent reports for an authenticated request whose
+/// boots or time is outside its window.
+const USM_STATS_NOT_IN_TIME_WINDOWS: &str = "1.3.6.1.6.3.15.1.1.2.0";
+/// RFC 3414 §2.2.3: how far a request's time may stray from the agent's.
+const TIME_WINDOW: i64 = 150;
+
+/// The agent's snmpEngineBoots and snmpEngineTime. Frozen: no test runs long enough to need the
+/// clock to move.
+#[derive(Clone, Copy)]
+pub struct EngineClock {
+    pub boots: i64,
+    pub time: i64,
+    /// Whether the discovery Report carries `boots` and `time`, as net-snmp's does, or zeroes,
+    /// which RFC 3414 §4 permits. Without them the first authenticated request is out of window.
+    pub discovery_carries_clock: bool,
+}
+
+/// What every lab device runs on.
+const LAB_CLOCK: EngineClock = EngineClock {
+    boots: 1,
+    time: 1000,
+    discovery_carries_clock: true,
+};
 
 /// A running agent. Stops when dropped.
 pub struct UdpAgent {
@@ -51,6 +72,11 @@ impl Drop for UdpAgent {
 impl UdpAgent {
     /// Serve `device`'s data on a loopback port, to its own credential.
     pub async fn start(device: &SimDevice) -> Self {
+        Self::start_with_clock(device, LAB_CLOCK).await
+    }
+
+    /// Serve `device` from an engine whose clock reads `clock`.
+    pub async fn start_with_clock(device: &SimDevice, clock: EngineClock) -> Self {
         let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))
             .await
             .expect("bind a loopback port");
@@ -60,11 +86,12 @@ impl UdpAgent {
                 community: exposed(community).into_bytes(),
                 versions: device.community_versions,
             },
-            CredentialType::SnmpV3 { .. } => Front::Usm(Box::new(agent_security(device))),
+            CredentialType::SnmpV3 { .. } => Front::Usm(Box::new(agent_security(device, clock))),
             other => panic!("{} has a non-SNMP credential: {other:?}", device.name),
         };
         let responder = Responder {
             front,
+            clock,
             agent: device.agent(),
             device: device.clone(),
         };
@@ -92,7 +119,7 @@ impl UdpAgent {
 ///
 /// Its own mapping from level to `Auth` rather than the daemon's, so a credential the daemon maps
 /// to the wrong level fails against this.
-fn agent_security(device: &SimDevice) -> Security {
+fn agent_security(device: &SimDevice, clock: EngineClock) -> Security {
     let CredentialType::SnmpV3 {
         security_name,
         security,
@@ -125,7 +152,7 @@ fn agent_security(device: &SimDevice) -> Security {
     };
     user.with_engine_id(ENGINE_ID)
         .expect("localize the device's keys")
-        .with_engine_boots_and_time(ENGINE_BOOTS, ENGINE_TIME)
+        .with_engine_boots_and_time(clock.boots, clock.time)
 }
 
 fn exposed(secret: &SecretValue) -> String {
@@ -166,6 +193,7 @@ enum Front {
 
 struct Responder {
     front: Front,
+    clock: EngineClock,
     agent: SimAgent,
     device: SimDevice,
 }
@@ -216,15 +244,18 @@ impl Responder {
     }
 
     fn respond_usm(&self, user: &Security, datagram: &[u8]) -> Option<Vec<u8>> {
-        if request_engine_id(datagram)?.is_empty() {
+        let (engine_id, boots, time) = request_engine(datagram)?;
+        if engine_id.is_empty() {
             return self.discovery_report(datagram);
         }
 
         // Parsing checks the digest and decrypts in place, zeroing the digest as it goes, so each
-        // parse gets a fresh copy of the datagram and of the user.
+        // parse gets a fresh copy of the datagram and of the user. The user is set to the
+        // request's own clock: snmp2 judges timeliness as a manager would, and the agent's
+        // judgement (RFC 3414 §3.2 step 7a) is made below instead.
         let request = {
             let bytes = datagram.to_vec();
-            let mut security = user.clone();
+            let mut security = user.clone().with_engine_boots_and_time(boots, time);
             let pdu = Pdu::from_bytes_with_security(&bytes, Some(&mut security)).ok()?;
             Request {
                 message_type: pdu.message_type,
@@ -232,21 +263,48 @@ impl Responder {
                 max_repetitions: pdu.error_index,
             }
         };
-        let varbinds = encode_varbinds(&self.answer(&request));
+
+        // Only an authenticated request is held to the time window.
+        let authenticated = !matches!(
+            self.device.credential,
+            CredentialType::SnmpV3 {
+                security: SnmpV3Security::NoAuthNoPriv,
+                ..
+            }
+        );
+        let in_window = !authenticated
+            || (boots == self.clock.boots
+                && boots < i64::from(i32::MAX)
+                && (time - self.clock.time).abs() <= TIME_WINDOW);
+        let (message_type, varbinds) = if in_window {
+            (
+                MessageType::Response,
+                encode_varbinds(&self.answer(&request)),
+            )
+        } else {
+            (
+                MessageType::Report,
+                encode_varbinds(&[(
+                    oid_parts(USM_STATS_NOT_IN_TIME_WINDOWS),
+                    tlv(0x41, &unsigned(1)),
+                )]),
+            )
+        };
 
         // The reply reuses the request's own PDU, which carries its request id and the v3 version
         // `Pdu` will not let a caller set.
         let bytes = datagram.to_vec();
-        let mut security = user.clone();
+        let mut security = user.clone().with_engine_boots_and_time(boots, time);
         let mut reply = Pdu::from_bytes_with_security(&bytes, Some(&mut security)).ok()?;
-        reply.message_type = MessageType::Response;
+        reply.message_type = message_type;
         reply.error_status = 0;
         reply.error_index = 0;
         reply.varbinds = Varbinds::from_bytes(&varbinds);
         reply.to_bytes_with_security(Some(user)).ok()
     }
 
-    /// RFC 3414 §4: an unauthenticated Report carrying this engine's id, boots and time.
+    /// RFC 3414 §4: an unauthenticated Report carrying this engine's id, and its boots and time
+    /// unless the clock says to leave them zero.
     fn discovery_report(&self, datagram: &[u8]) -> Option<Vec<u8>> {
         let varbinds = encode_varbinds(&[(
             oid_parts(USM_STATS_UNKNOWN_ENGINE_IDS),
@@ -257,8 +315,18 @@ impl Responder {
         let mut report = Pdu::from_bytes_with_security(&bytes, Some(&mut security)).ok()?;
         report.message_type = MessageType::Report;
         report.varbinds = Varbinds::from_bytes(&varbinds);
+        let EngineClock {
+            boots,
+            time,
+            discovery_carries_clock,
+        } = self.clock;
+        let (boots, time) = if discovery_carries_clock {
+            (boots, time)
+        } else {
+            (0, 0)
+        };
         report
-            .to_bytes_with_security(Some(&discovery_security(ENGINE_BOOTS, ENGINE_TIME)))
+            .to_bytes_with_security(Some(&discovery_security(boots, time)))
             .ok()
     }
 
@@ -323,9 +391,10 @@ impl Responder {
     }
 }
 
-/// `msgAuthoritativeEngineID` from a v3 message, without checking anything else about it.
-/// Empty on the discovery request, which is how an agent tells one apart.
-fn request_engine_id(datagram: &[u8]) -> Option<&[u8]> {
+/// `msgAuthoritativeEngineID`, `msgAuthoritativeEngineBoots` and `msgAuthoritativeEngineTime`
+/// from a v3 message, without checking anything else about it. The engine id is empty on the
+/// discovery request, which is how an agent tells one apart.
+fn request_engine(datagram: &[u8]) -> Option<(&[u8], i64, i64)> {
     use snmp2::asn1::TYPE_SEQUENCE;
 
     let message = AsnReader::from_bytes(datagram)
@@ -336,7 +405,11 @@ fn request_engine_id(datagram: &[u8]) -> Option<&[u8]> {
     message.read_raw(TYPE_SEQUENCE).ok()?; // msgGlobalData
     let params = message.read_asn_octetstring().ok()?;
     let params = AsnReader::from_bytes(params).read_raw(TYPE_SEQUENCE).ok()?;
-    AsnReader::from_bytes(params).read_asn_octetstring().ok()
+    let mut params = AsnReader::from_bytes(params);
+    let engine_id = params.read_asn_octetstring().ok()?;
+    let boots = params.read_asn_integer().ok()?;
+    let time = params.read_asn_integer().ok()?;
+    Some((engine_id, boots, time))
 }
 
 fn oid_vec(oid: &snmp2::Oid) -> Vec<u64> {
@@ -459,14 +532,21 @@ mod tests {
         let CredentialQueryPayload::Snmp(snmp) = credential.to_query_payload() else {
             panic!("not an SNMP credential");
         };
-        let mut session =
-            create_session(agent.ip(), &snmp, agent.port(), SnmpContext::Default).await?;
+        let silence = |_| anyhow::anyhow!("the agent did not answer");
+        // Session creation authenticates too (RFC 3414 §4's second step), so it gets the same
+        // short deadline.
+        let mut session = tokio::time::timeout(
+            Duration::from_secs(2),
+            create_session(agent.ip(), &snmp, agent.port(), SnmpContext::Default),
+        )
+        .await
+        .map_err(silence)??;
         let read = tokio::time::timeout(
             Duration::from_secs(2),
             session.get_scalar(&oid_parts(system::SYS_NAME)),
         )
         .await
-        .map_err(|_| anyhow::anyhow!("the agent did not answer"))??;
+        .map_err(silence)??;
         match read {
             Some(Value::OctetString(name)) => Ok(String::from_utf8_lossy(name).into_owned()),
             other => anyhow::bail!("sysName read back as {other:?}"),
@@ -594,6 +674,49 @@ mod tests {
                 sys_name(&agent, &credential).await.is_err(),
                 "{credential:?} read a device configured for another user"
             );
+        }
+    }
+
+    /// GH #813: MikroTik RouterOS reports snmpEngineBoots = 0, which RFC 3414 §2.2.1 allows. The
+    /// reporter's user: AuthPriv, SHA1 and AES128. Both through the liveness probe, which is
+    /// where the reporter's discovery stopped, and through a collection's session.
+    ///
+    /// With and without the clock in the discovery Report: without it, only the authenticated
+    /// second discovery step learns the agent's time.
+    #[tokio::test]
+    async fn an_engine_reporting_zero_boots_answers() {
+        use crate::daemon::utils::scanner::{SnmpProbeOutcome, try_snmp_with_credential_on_port};
+
+        let credential = v3(SnmpV3Security::AuthPriv {
+            auth_protocol: SnmpV3AuthProtocol::Sha1,
+            auth_password: secret("sha1authpass"),
+            priv_protocol: SnmpV3PrivProtocol::Aes128,
+            priv_password: secret("sha1privpass"),
+        });
+        let CredentialQueryPayload::Snmp(snmp) = credential.to_query_payload() else {
+            panic!("not an SNMP credential");
+        };
+        let device = switch_with(credential.clone());
+
+        for discovery_carries_clock in [true, false] {
+            let clock = EngineClock {
+                boots: 0,
+                time: 5000,
+                discovery_carries_clock,
+            };
+            let agent = UdpAgent::start_with_clock(&device, clock).await;
+
+            match try_snmp_with_credential_on_port(agent.ip(), &snmp, agent.port()).await {
+                SnmpProbeOutcome::Answered(_) => {}
+                SnmpProbeOutcome::Failed(outcome, message) => panic!(
+                    "probe with the clock in discovery = {discovery_carries_clock}: \
+                     {outcome:?} {message}"
+                ),
+            }
+            let name = sys_name(&agent, &credential).await.unwrap_or_else(|e| {
+                panic!("read with the clock in discovery = {discovery_carries_clock}: {e:#}")
+            });
+            assert_eq!(name, "secure-switch-01");
         }
     }
 
