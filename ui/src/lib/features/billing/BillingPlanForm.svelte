@@ -491,7 +491,11 @@
 	<li class="flex items-start gap-2 text-sm">
 		<Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />
 		<div class="flex flex-col gap-1">
-			<span class="text-secondary">{featureHelpers.getName(DISCOVERY_INTEGRATIONS)}</span>
+			<span
+				class="explainer self-start text-secondary"
+				data-tooltip={featureHelpers.getDescription(DISCOVERY_INTEGRATIONS)}
+				use:tooltip>{featureHelpers.getName(DISCOVERY_INTEGRATIONS)}</span
+			>
 			<ul class="space-y-1">
 				{#each integrations as integration (integration)}
 					{@const Logo = integrationHelpers.getIconComponent(integration)}
