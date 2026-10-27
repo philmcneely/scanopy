@@ -226,21 +226,10 @@ impl BillingRate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BillingPlanFeatures {
     // Field order follows `Feature`, the order plan cards list them.
-    // Map: the topology views. A plan includes all three or none (`includes_topology`).
+    // Map. The three topology views: a plan includes all three or none (`includes_topology`).
     pub network_topology: bool,
     pub workload_mapping: bool,
     pub application_mapping: bool,
-    // Inventory
-    pub device_inventory: bool,
-    pub vlan_subnet_inventory: bool,
-    pub tagging: bool,
-    // Discovery
-    pub scheduled_discovery: bool,
-    pub discovery_integrations: bool,
-    /// Aruba Instant On credentials can be created (existing ones keep working on any plan).
-    pub instant_on_integration: bool,
-    pub service_detection: bool,
-    // Track & share
     /// How many days of snapshots the plan retains before the daily sweep
     /// deletes them. `0` means snapshots are unavailable on this plan. The
     /// env-var override (`SCANOPY_SNAPSHOT_RETENTION_DAYS_OVERRIDE`) takes
@@ -257,7 +246,17 @@ pub struct BillingPlanFeatures {
     pub confluence_export: bool,
     pub drawio_export: bool,
     pub vsdx_export: bool,
+    // Inventory
+    pub device_inventory: bool,
+    pub vlan_subnet_inventory: bool,
+    pub tagging: bool,
     pub csv_export: bool,
+    // Discovery
+    pub scheduled_discovery: bool,
+    pub discovery_integrations: bool,
+    /// Aruba Instant On credentials can be created (existing ones keep working on any plan).
+    pub instant_on_integration: bool,
+    pub service_detection: bool,
     // API & Automation
     pub api_access: bool,
     pub webhooks: bool,

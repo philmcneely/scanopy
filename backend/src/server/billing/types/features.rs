@@ -30,7 +30,6 @@ pub enum FeatureCategory {
     Map,
     Inventory,
     Discovery,
-    TrackAndShare,
     ApiAndAutomation,
     Support,
     Security,
@@ -54,7 +53,6 @@ impl EntityMetadataProvider for FeatureCategory {
             Self::Discovery => Icon::Radar,
             Self::Map => Icon::Map,
             Self::Inventory => Icon::Server,
-            Self::TrackAndShare => Icon::History,
             Self::ApiAndAutomation => Icon::Code,
             Self::Support => Icon::Headset,
             Self::Security => Icon::ShieldCheck,
@@ -70,7 +68,6 @@ impl TypeMetadataProvider for FeatureCategory {
             Self::Discovery => "Discovery",
             Self::Map => "Map",
             Self::Inventory => "Inventory",
-            Self::TrackAndShare => "Track & share",
             Self::ApiAndAutomation => "API & automation",
             Self::Support => "Support",
             Self::Security => "Security",
@@ -82,9 +79,12 @@ impl TypeMetadataProvider for FeatureCategory {
     fn description(&self) -> &'static str {
         match self {
             Self::Discovery => "How Scanopy finds hosts, services and devices on your network",
-            Self::Map => "Diagrams of your network, workloads and applications",
-            Self::Inventory => "Searchable records of every host, VLAN and subnet discovery finds",
-            Self::TrackAndShare => "Snapshots of how the network changes, and ways to share it",
+            Self::Map => {
+                "Diagrams of your network, workloads and applications, their snapshots, and ways to share them"
+            }
+            Self::Inventory => {
+                "Searchable records of every host, VLAN and subnet discovery finds, and CSV export of them"
+            }
             Self::ApiAndAutomation => "Programmatic access to your Scanopy data",
             Self::Support => "Ways to reach the Scanopy team",
             Self::Security => "Sign-in and audit controls for your organization",
@@ -98,20 +98,10 @@ impl TypeMetadataProvider for FeatureCategory {
 /// category in the order plan cards list them (`BillingPlan::incremental_features`).
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, IntoStaticStr, Display, Default)]
 pub enum Feature {
-    // Map
+    // Map: the diagrams, their snapshots, and ways to share and export them
     NetworkTopology,
     WorkloadMapping,
     ApplicationMapping,
-    // Inventory
-    DeviceInventory,
-    VlanSubnetInventory,
-    Tagging,
-    // Discovery
-    ScheduledDiscovery,
-    DiscoveryIntegrations,
-    InstantOnIntegration,
-    ServiceDetection,
-    // Track & share
     SnapshotRetentionDays,
     #[default]
     ShareViews,
@@ -125,7 +115,16 @@ pub enum Feature {
     ConfluenceExport,
     DrawioExport,
     VsdxExport,
+    // Inventory
+    DeviceInventory,
+    VlanSubnetInventory,
+    Tagging,
     CsvExport,
+    // Discovery
+    ScheduledDiscovery,
+    DiscoveryIntegrations,
+    InstantOnIntegration,
+    ServiceDetection,
     // API & Automation
     ApiAccess,
     Webhooks,
@@ -203,15 +202,10 @@ impl Feature {
             | Feature::InstantOnIntegration
             | Feature::ServiceDetection => FeatureCategory::Discovery,
 
-            Feature::NetworkTopology | Feature::WorkloadMapping | Feature::ApplicationMapping => {
-                FeatureCategory::Map
-            }
-
-            Feature::DeviceInventory | Feature::VlanSubnetInventory | Feature::Tagging => {
-                FeatureCategory::Inventory
-            }
-
-            Feature::SnapshotRetentionDays
+            Feature::NetworkTopology
+            | Feature::WorkloadMapping
+            | Feature::ApplicationMapping
+            | Feature::SnapshotRetentionDays
             | Feature::ShareViews
             | Feature::Embeds
             | Feature::RemoveCreatedWith
@@ -222,8 +216,12 @@ impl Feature {
             | Feature::MermaidExport
             | Feature::ConfluenceExport
             | Feature::DrawioExport
-            | Feature::VsdxExport
-            | Feature::CsvExport => FeatureCategory::TrackAndShare,
+            | Feature::VsdxExport => FeatureCategory::Map,
+
+            Feature::DeviceInventory
+            | Feature::VlanSubnetInventory
+            | Feature::Tagging
+            | Feature::CsvExport => FeatureCategory::Inventory,
 
             Feature::ApiAccess | Feature::Webhooks => FeatureCategory::ApiAndAutomation,
 
