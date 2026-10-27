@@ -230,16 +230,16 @@ pub struct BillingPlanFeatures {
     pub network_topology: bool,
     pub workload_mapping: bool,
     pub application_mapping: bool,
+    // Inventory
+    pub device_inventory: bool,
+    pub vlan_subnet_inventory: bool,
+    pub tagging: bool,
     // Discovery
     pub scheduled_discovery: bool,
     pub discovery_integrations: bool,
     /// Aruba Instant On credentials can be created (existing ones keep working on any plan).
     pub instant_on_integration: bool,
     pub service_detection: bool,
-    // Inventory
-    pub device_inventory: bool,
-    pub vlan_subnet_inventory: bool,
-    pub tagging: bool,
     // Track & share
     /// How many days of snapshots the plan retains before the daily sweep
     /// deletes them. `0` means snapshots are unavailable on this plan. The

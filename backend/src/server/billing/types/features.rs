@@ -28,8 +28,8 @@ use strum::IntoStaticStr;
 #[strum(serialize_all = "snake_case")]
 pub enum FeatureCategory {
     Map,
-    Discovery,
     Inventory,
+    Discovery,
     TrackAndShare,
     ApiAndAutomation,
     Support,
@@ -102,15 +102,15 @@ pub enum Feature {
     NetworkTopology,
     WorkloadMapping,
     ApplicationMapping,
+    // Inventory
+    DeviceInventory,
+    VlanSubnetInventory,
+    Tagging,
     // Discovery
     ScheduledDiscovery,
     DiscoveryIntegrations,
     InstantOnIntegration,
     ServiceDetection,
-    // Inventory
-    DeviceInventory,
-    VlanSubnetInventory,
-    Tagging,
     // Track & share
     SnapshotRetentionDays,
     #[default]
