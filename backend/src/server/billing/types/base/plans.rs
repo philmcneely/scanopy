@@ -226,16 +226,16 @@ impl BillingRate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BillingPlanFeatures {
     // Field order follows `Feature`, the order plan cards list them.
+    // Map: the topology views. A plan includes all three or none (`includes_topology`).
+    pub network_topology: bool,
+    pub workload_mapping: bool,
+    pub application_mapping: bool,
     // Discovery
     pub scheduled_discovery: bool,
     pub discovery_integrations: bool,
     /// Aruba Instant On credentials can be created (existing ones keep working on any plan).
     pub instant_on_integration: bool,
     pub service_detection: bool,
-    // Map: the topology views. A plan includes all three or none (`includes_topology`).
-    pub network_topology: bool,
-    pub workload_mapping: bool,
-    pub application_mapping: bool,
     // Inventory
     pub device_inventory: bool,
     pub vlan_subnet_inventory: bool,

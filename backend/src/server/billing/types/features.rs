@@ -27,8 +27,8 @@ use strum::IntoStaticStr;
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FeatureCategory {
-    Discovery,
     Map,
+    Discovery,
     Inventory,
     TrackAndShare,
     ApiAndAutomation,
@@ -98,15 +98,15 @@ impl TypeMetadataProvider for FeatureCategory {
 /// category in the order plan cards list them (`BillingPlan::incremental_features`).
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, IntoStaticStr, Display, Default)]
 pub enum Feature {
+    // Map
+    NetworkTopology,
+    WorkloadMapping,
+    ApplicationMapping,
     // Discovery
     ScheduledDiscovery,
     DiscoveryIntegrations,
     InstantOnIntegration,
     ServiceDetection,
-    // Map
-    NetworkTopology,
-    WorkloadMapping,
-    ApplicationMapping,
     // Inventory
     DeviceInventory,
     VlanSubnetInventory,
@@ -337,7 +337,7 @@ impl TypeMetadataProvider for Feature {
             Feature::DiscoveryIntegrations => "Discovery Integrations",
             Feature::InstantOnIntegration => "Aruba Instant On",
             Feature::CsvExport => "CSV Export",
-            Feature::SnapshotRetentionDays => "Snapshot Retention",
+            Feature::SnapshotRetentionDays => "Snapshots",
             Feature::InvoiceBilling => "Invoice & PO Billing",
             Feature::CustomBilling => "Custom Billing",
             Feature::ProcurementDocuments => "Procurement Documents",
@@ -428,7 +428,7 @@ impl TypeMetadataProvider for Feature {
                 "Download host, service, and network data as CSV for use in spreadsheets and other tools"
             }
             Feature::SnapshotRetentionDays => {
-                "How long captured snapshots are retained before automatic deletion"
+                "Point-in-time copies of your network, kept for the plan's retention window before automatic deletion"
             }
             Feature::InvoiceBilling => "Pay by invoice against a purchase order instead of by card",
             Feature::CustomBilling => {

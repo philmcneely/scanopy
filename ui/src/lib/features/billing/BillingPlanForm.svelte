@@ -12,9 +12,8 @@
 	import {
 		billing_compareAllFeatures,
 		billing_dayFreeTrial,
-		billing_daysCount,
+		billing_dayRetention,
 		billing_everythingInPlanPlus,
-		billing_notIncluded,
 		billing_extraSeatsMonthly,
 		billing_extraSitesMonthly,
 		billing_includedCount,
@@ -392,11 +391,10 @@
 
 	const SNAPSHOT_RETENTION = 'snapshot_retention_days';
 
-	function formatSnapshotRetention(plan: BillingPlan): string {
-		const value = getFeatureValue(plan.type, SNAPSHOT_RETENTION);
-		if (value === 0) return billing_notIncluded();
-		if (typeof value === 'number') return billing_daysCount({ count: value });
-		return '—';
+	/** "30 day retention", beside the Snapshots feature. */
+	function formatSnapshotRetention(planType: string): string {
+		const value = getFeatureValue(planType, SNAPSHOT_RETENTION);
+		return typeof value === 'number' ? billing_dayRetention({ count: value }) : '';
 	}
 
 	/**
@@ -426,6 +424,39 @@
 			return !!prev && filteredPlans.some((q) => q.type === prev);
 		})
 	);
+
+	/** A category's place in display order; unknown ones sort last. */
+	function categoryRank(category: string): number {
+		const i = categoryOrder.indexOf(category);
+		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+	}
+
+	/**
+	 * A card's features under their category headings, in display order. The integrations sit in
+	 * the Discovery group, which a card listing no other Discovery feature still gets.
+	 */
+	function groupCardFeatures(
+		features: string[],
+		hasIntegrations: boolean
+	): { category: string; features: string[] }[] {
+		const groups: { category: string; features: string[] }[] = [];
+		for (const key of features) {
+			const category = featureHelpers.getCategory(key);
+			const last = groups[groups.length - 1];
+			if (last?.category === category) last.features.push(key);
+			else groups.push({ category, features: [key] });
+		}
+		if (hasIntegrations && !groups.some((g) => g.category === discoveryCategory)) {
+			const at = groups.findIndex(
+				(g) => categoryRank(g.category) > categoryRank(discoveryCategory)
+			);
+			groups.splice(at === -1 ? groups.length : at, 0, {
+				category: discoveryCategory,
+				features: []
+			});
+		}
+		return groups;
+	}
 
 	function sortFeaturesByCategory(features: string[]): string[] {
 		const order: string[] = categoryOrder;
@@ -486,16 +517,14 @@
 {/snippet}
 
 <!-- A feature category's heading on a card: its icon and name. -->
-{#snippet categoryHeading(category: string, spaced: boolean)}
+{#snippet categoryHeading(category: string)}
 	{@const CategoryIcon = featureCategoryHelpers.getIconComponent(category)}
-	<li
-		class="flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-tertiary uppercase {spaced
-			? 'mt-2'
-			: ''}"
+	<div
+		class="flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-tertiary uppercase"
 	>
 		<CategoryIcon class="h-3 w-3 shrink-0" />
 		{featureCategoryHelpers.getName(category)}
-	</li>
+	</div>
 {/snippet}
 
 <div class="flex min-h-0 flex-1 flex-col {className}">
@@ -558,9 +587,6 @@
 									])
 								])
 							: incrementalIntegrations}
-					{@const leadsWithIntegrations =
-						displayIntegrations.length > 0 &&
-						!displayFeatures.some((key) => featureHelpers.getCategory(key) === discoveryCategory)}
 
 					<div class="plan-card card-static card">
 						<!-- Plan Header -->
@@ -655,13 +681,13 @@
 							{/if}
 						</div>
 
-						<!-- Included limits, striped so each value reads against its label. Each label explains
-						     its limit; extras bill at the unit price noted under the included count. -->
+						<!-- Included limits, striped so each value reads against its label. Each label explains its
+						     limit and sits level with its value; extras bill at the unit price noted under the count. -->
 						<div class="pb-4">
 							<div class="-mx-2">
 								<!-- Seats -->
 								<div
-									class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-800/70"
 								>
 									<span
 										class="explainer text-secondary"
@@ -685,7 +711,7 @@
 
 								<!-- Sites -->
 								<div
-									class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+									class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-800/70"
 								>
 									<span
 										class="explainer text-secondary"
@@ -712,7 +738,7 @@
 									{@const production = metadata?.included_instances}
 									{@const nonProduction = metadata?.included_non_production_instances}
 									<div
-										class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30 {selfHosted
+										class="flex items-start justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-800/70 {selfHosted
 											? ''
 											: 'invisible'}"
 										aria-hidden={!selfHosted}
@@ -775,46 +801,43 @@
 								</button>
 							{/if}
 
-							<ul class="space-y-1.5 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}">
-								<!-- The integrations close the Discovery group, or open it when the card lists
-								     no other Discovery feature. -->
-								{#if leadsWithIntegrations}
-									{@render categoryHeading(discoveryCategory, false)}
-									{@render integrationRows(displayIntegrations)}
-								{/if}
-								{#each displayFeatures as featureKey, i (featureKey)}
-									{@const category = featureHelpers.getCategory(featureKey)}
-									{@const nextCategory =
-										i + 1 < displayFeatures.length
-											? featureHelpers.getCategory(displayFeatures[i + 1])
-											: null}
-									{#if i === 0 || category !== featureHelpers.getCategory(displayFeatures[i - 1])}
-										{@render categoryHeading(category, i > 0 || leadsWithIntegrations)}
-									{/if}
-									{@const comingSoon = isComingSoon(featureKey)}
-									<li class="flex items-start gap-2 text-sm">
-										<Check
-											class="mt-0.5 h-4 w-4 shrink-0 {comingSoon
-												? 'text-gray-500'
-												: 'text-success'}"
-										/>
-										<span
-											class="explainer {comingSoon ? 'text-tertiary' : 'text-secondary'}"
-											data-tooltip={featureHelpers.getDescription(featureKey)}
-											use:tooltip>{featureHelpers.getName(featureKey)}</span
-										>
-										{#if featureKey === SNAPSHOT_RETENTION}
-											<span class="ml-auto shrink-0 font-medium text-primary"
-												>{formatSnapshotRetention(plan)}</span
-											>
-										{/if}
-										{#if comingSoon}
-											<Tag label={common_comingSoon()} color="Gray" />
-										{/if}
+							<!-- One block per category, striped like the limits so each group reads as one. The
+							     integrations sit in the Discovery group. -->
+							<ul
+								class="-mx-2 space-y-1 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}"
+							>
+								{#each groupCardFeatures(displayFeatures, displayIntegrations.length > 0) as group (group.category)}
+									<li
+										class="space-y-1.5 rounded-sm px-2 py-2 odd:bg-gray-100 dark:odd:bg-gray-800/70"
+									>
+										{@render categoryHeading(group.category)}
+										<ul class="space-y-1.5">
+											{#each group.features as featureKey (featureKey)}
+												{@const comingSoon = isComingSoon(featureKey)}
+												<li class="flex items-start gap-2 text-sm">
+													<Check
+														class="mt-0.5 h-4 w-4 shrink-0 {comingSoon
+															? 'text-gray-500'
+															: 'text-success'}"
+													/>
+													<span
+														class="explainer {comingSoon ? 'text-tertiary' : 'text-secondary'}"
+														data-tooltip={featureHelpers.getDescription(featureKey)}
+														use:tooltip>{featureHelpers.getName(featureKey)}</span
+													>
+													{#if featureKey === SNAPSHOT_RETENTION}
+														<span class="text-tertiary">{formatSnapshotRetention(plan.type)}</span>
+													{/if}
+													{#if comingSoon}
+														<Tag label={common_comingSoon()} color="Gray" />
+													{/if}
+												</li>
+											{/each}
+											{#if group.category === discoveryCategory && displayIntegrations.length > 0}
+												{@render integrationRows(displayIntegrations)}
+											{/if}
+										</ul>
 									</li>
-									{#if displayIntegrations.length > 0 && category === discoveryCategory && nextCategory !== discoveryCategory}
-										{@render integrationRows(displayIntegrations)}
-									{/if}
 								{/each}
 							</ul>
 						</div>
@@ -898,6 +921,10 @@
 										<X class="mx-auto h-4 w-4 text-muted lg:h-5 lg:w-5" />
 									{:else if value === null}
 										<span class="text-tertiary">&mdash;</span>
+									{:else if featureKey === SNAPSHOT_RETENTION}
+										<span class="text-xs text-secondary lg:text-sm"
+											>{formatSnapshotRetention(plan.type)}</span
+										>
 									{:else}
 										<span class="text-xs text-secondary lg:text-sm">{value}</span>
 									{/if}
