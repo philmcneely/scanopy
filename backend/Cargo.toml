@@ -3,6 +3,11 @@ name = "scanopy-server"
 version = "0.19.3"
 edition = "2024"
 description = "Scanopy HTTP API server"
+# LICENSE.md (AGPL-3.0) or COMMERCIAL-LICENSE.md.
+license = "AGPL-3.0-only OR LicenseRef-Scanopy-Commercial"
+# Not on crates.io. cargo-about (about.toml) skips unpublished crates, so Scanopy is not listed
+# among its own third parties.
+publish = false
 
 [[bin]]
 name = "daemon"

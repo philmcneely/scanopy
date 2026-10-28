@@ -1,4 +1,4 @@
-.PHONY: daemon-build daemon-rebuild daemon-dev daemon-fix-perms help build test test-unit clean format lint lint-migrations generate-schema generate-messages generate-fixtures refresh-vendored-data seed-dev set-plan-community set-plan-starter set-plan-pro set-plan-team set-plan-business set-plan-enterprise set-plan-self-hosted-standard set-plan-self-hosted-plus test-plan test-merge test-results install-dev-mac install-dev-linux install-dev-windows snmp-seed-credentials snmp-fixtures snmp-deploy snmp-verify snmp-status ssh-lab-deploy ssh-lab-verify ssh-lab-status ssh-lab-rotate-hostkey wol-lab-provision wol-lab-listener wol-lab-sleep wol-lab-hibernate wol-lab-verify wol-lab-status wol-lab-log dcp-start dcp-stop dcp-verify dcp-status docker-proxy-up docker-proxy-up-tls docker-proxy-down docker-proxy-status podman-proxy-up podman-proxy-up-tls podman-proxy-down podman-proxy-status podman-workload-up podman-workload-down unifi-status unifi-capture issue-license new-terms-update daemon-clean daemon-purge daemon-logs daemon-restart daemon-config
+.PHONY: daemon-build daemon-rebuild daemon-dev daemon-fix-perms help build test test-unit clean format lint lint-migrations generate-schema generate-messages generate-fixtures refresh-vendored-data third-party-notices seed-dev set-plan-community set-plan-starter set-plan-pro set-plan-team set-plan-business set-plan-enterprise set-plan-self-hosted-standard set-plan-self-hosted-plus test-plan test-merge test-results install-dev-mac install-dev-linux install-dev-windows snmp-seed-credentials snmp-fixtures snmp-deploy snmp-verify snmp-status ssh-lab-deploy ssh-lab-verify ssh-lab-status ssh-lab-rotate-hostkey wol-lab-provision wol-lab-listener wol-lab-sleep wol-lab-hibernate wol-lab-verify wol-lab-status wol-lab-log dcp-start dcp-stop dcp-verify dcp-status docker-proxy-up docker-proxy-up-tls docker-proxy-down docker-proxy-status podman-proxy-up podman-proxy-up-tls podman-proxy-down podman-proxy-status podman-workload-up podman-workload-down unifi-status unifi-capture issue-license new-terms-update daemon-clean daemon-purge daemon-logs daemon-restart daemon-config
 
 DAYS ?= 365
 PLAN ?= standard
@@ -458,6 +458,11 @@ refresh-vendored-data:
 	@echo "Refreshing vendored data assets (oui.csv)..."
 	backend/scripts/refresh-vendored-data.sh
 	@echo "✅ Vendored data refreshed. Rebuild to embed new data."
+
+# Needs cargo-about: cargo install cargo-about --version 0.9.3 --locked --features cli
+third-party-notices:
+	@echo "Generating backend/THIRD-PARTY-NOTICES.txt..."
+	$(SCANOPY_BUILD_WRAPPER) backend/scripts/third-party-notices.sh
 
 # Forwards events in the account's default API version, as the live endpoint
 # receives them. The server reads only the event envelope and fetches each

@@ -55,6 +55,16 @@ jobs:
       - name: Refresh vendored data (oui.csv)
         run: backend/scripts/refresh-vendored-data.sh
 
+      # Licences of every crate and bundled data file: compiled into the daemon (`scanopy-daemon
+      # licenses`), copied into both images and the MSI, and the top of the UI's
+      # /third-party-licenses.txt. Committed below, before any build job pulls the branch. Fails
+      # when a dependency's licence is not in backend/about.toml.
+      - name: Install cargo-about
+        run: cargo install cargo-about --version 0.9.3 --locked --features cli
+
+      - name: Generate third-party notices
+        run: make third-party-notices
+
       # Pull the test images up front, retrying a rate-limited registry (a homeassistant pull hit
       # toomanyrequests on the v0.17.21 release), so a transient limit can't fail the test run.
       - name: Pre-pull test images
@@ -92,6 +102,7 @@ jobs:
           git add backend/src/tests/scanopy.sql backend/src/tests/daemon_config.json ui/static/schema.mermaid ui/static/schema-er.mermaid ui/static/entity-metadata.json
           git add backend/tests/integration/compat/fixtures/
           git add backend/assets/oui.csv
+          git add backend/THIRD-PARTY-NOTICES.txt
 
           if git diff --staged --quiet; then
             echo "No fixture changes to commit"
@@ -119,6 +130,14 @@ jobs:
           name: ui-logos
           # A single path uploads relative to itself, so the download restores into the same dir.
           path: ui/static/logos/catalog/
+          retention-days: 1
+
+      # Attached to the GitHub release next to the binaries (upload-assets).
+      - name: Upload third-party notices
+        uses: actions/upload-artifact@v7
+        with:
+          name: third-party-notices
+          path: backend/THIRD-PARTY-NOTICES.txt
           retention-days: 1
 
   migration-branch-test:
@@ -557,7 +576,9 @@ jobs:
       - name: Stage daemon exe for WiX
         if: matrix.target == 'x86_64-pc-windows-msvc'
         shell: bash
-        run: cp backend/target/${{ matrix.target }}/release/daemon.exe backend/wix/scanopy-daemon.exe
+        run: |
+          cp backend/target/${{ matrix.target }}/release/daemon.exe backend/wix/scanopy-daemon.exe
+          cp backend/THIRD-PARTY-NOTICES.txt backend/wix/THIRD-PARTY-NOTICES.txt
 
       # Sign the .exe BEFORE it is embedded in the MSI so the binary inside is trusted too.
       - name: Sign daemon exe (WiX-staged, OSSign)
@@ -823,6 +844,7 @@ jobs:
             scanopy-daemon-*/scanopy-daemon-*
             scanopy-server-*/scanopy-server-*
             ui-fixtures.tar.gz
+            third-party-notices/THIRD-PARTY-NOTICES.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

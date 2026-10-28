@@ -28,7 +28,7 @@ use tower_http::{
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() -> anyhow::Result<()> {
-    // Parse CLI. The `install`/`uninstall`/`list` subcommands short-circuit here (own logging to
+    // Parse CLI. The `install`/`uninstall`/`list`/`licenses` subcommands short-circuit here (own logging to
     // stdout); with no subcommand we fall through to running the daemon.
     let cli = DaemonCli::parse();
     if let Some(command) = cli.command {
