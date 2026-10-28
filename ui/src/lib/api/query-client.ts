@@ -44,7 +44,12 @@ export function createQueryClient(): QueryClient {
 				// Refetch on window focus (useful for keeping data fresh)
 				refetchOnWindowFocus: true,
 				// Don't refetch on mount if data is fresh
-				refetchOnMount: true
+				refetchOnMount: true,
+				// Tell the component about every change, not only changes to the properties it has
+				// read. svelte-query refreshes a component's result only when told, so a property the
+				// component first reads after the query settled (a hidden tab's loading check that
+				// stops at an earlier condition) would read the stale value and never be corrected.
+				notifyOnChangeProps: 'all'
 			},
 			mutations: {
 				// Don't retry mutations by default
