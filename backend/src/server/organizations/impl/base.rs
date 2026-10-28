@@ -300,18 +300,6 @@ impl Organization {
         ) && self.base.trial_end_date.is_some_and(|end| end > now)
     }
 
-    /// When the org's trial began, worked back from its end date, the plan's trial length and any
-    /// extension. `None` when the org has never trialed. An org's trial can start well after the
-    /// org was created (one created before signup started trials begins at the owner's next visit).
-    pub fn trial_started_at(&self) -> Option<DateTime<Utc>> {
-        let trial_end = self.base.trial_end_date?;
-        let mut days = i64::from(self.base.plan.config().trial_days);
-        if self.base.trial_extended_used {
-            days += i64::from(crate::server::billing::plans::TRIAL_EXTENSION_DAYS);
-        }
-        Some(trial_end - chrono::Duration::days(days))
-    }
-
     /// Whether the org gets no new discovery: it is lapsed, or it is a Scanopy Cloud org on a
     /// self-hosted license plan, whose app is closed beyond Settings and whose scans belong on
     /// its own server. Schedules and daemons stay configured, so landing on a live cloud plan
@@ -656,35 +644,6 @@ mod tests {
         let lapsed = on(get_self_hosted_standard_plan(), Some(PlanStatus::Cancelled));
         assert!(lapsed.discovery_paused(DeploymentType::Cloud));
         assert!(!Organization::default().discovery_paused(DeploymentType::Cloud));
-    }
-
-    /// The trial can start long after the org was created, so its start is
-    /// worked back from the end date, counting a used extension.
-    #[test]
-    fn trial_start_is_worked_back_from_its_end() {
-        use crate::server::billing::plans::{TRIAL_EXTENSION_DAYS, get_purchasable_plans};
-
-        let end = at(100);
-        for plan in get_purchasable_plans()
-            .into_iter()
-            .filter(|plan| plan.config().trial_days > 0)
-        {
-            let days = i64::from(plan.config().trial_days);
-            let mut org = Organization::default();
-            org.base.plan = plan;
-            org.base.trial_end_date = Some(end);
-            assert_eq!(
-                org.trial_started_at(),
-                Some(end - chrono::Duration::days(days))
-            );
-
-            org.base.trial_extended_used = true;
-            assert_eq!(
-                org.trial_started_at(),
-                Some(end - chrono::Duration::days(days + i64::from(TRIAL_EXTENSION_DAYS)))
-            );
-        }
-        assert_eq!(Organization::default().trial_started_at(), None);
     }
 
     fn at(day: i64) -> DateTime<Utc> {

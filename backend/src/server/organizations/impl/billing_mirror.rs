@@ -28,7 +28,7 @@ use crate::server::{
     shared::{
         events::{
             traits::Event,
-            types::{BillingOperation, OnboardingOperation, UpdateReason},
+            types::{BillingOperation, OnboardingOperation, TrialExtensionSource, UpdateReason},
         },
         services::traits::EventBusService,
     },
@@ -152,8 +152,14 @@ impl BillingOperation {
                     changed = true;
                 }
             }
-            BillingOperation::TrialExtended { new_trial_end, .. } => {
-                if !organization.base.trial_extended_used {
+            BillingOperation::TrialExtended {
+                new_trial_end,
+                source,
+                ..
+            } => {
+                // The flag is the org's one self-serve extension. Staff
+                // extending the trial leaves it available.
+                if *source == TrialExtensionSource::User && !organization.base.trial_extended_used {
                     organization.base.trial_extended_used = true;
                     changed = true;
                 }

@@ -19,7 +19,7 @@ use super::messages::{
     SelfHostedLicenseResumed, SelfHostedPaymentFailed, SelfHostedPlanChanged,
     SelfHostedTrialEnding, SelfHostedWelcome, SubscriptionCancelled, SubscriptionPaused,
     SubscriptionReactivated, SubscriptionResumed, TrialConverted, TrialEnding, TrialExpired,
-    TrialStarted, UsageSummary, Verification, links,
+    TrialExtended, TrialStarted, UsageSummary, Verification, links,
 };
 use super::transport::{EmailTransport, ses_message_tags};
 use crate::server::{
@@ -398,8 +398,11 @@ impl EmailService {
         plan_name: &str,
         has_payment: bool,
         billing_period: &str,
+        trial_started_at: Option<DateTime<Utc>>,
     ) -> Result<()> {
-        let metrics = self.compute_trial_recap_metrics(org_id).await?;
+        let metrics = self
+            .compute_trial_recap_metrics(org_id, trial_started_at)
+            .await?;
         self.dispatch(
             to,
             &TrialEnding {
@@ -495,6 +498,14 @@ impl EmailService {
             },
         )
         .await
+    }
+
+    pub async fn send_trial_extended_email(
+        &self,
+        to: EmailAddress,
+        email: &TrialExtended<'_>,
+    ) -> Result<()> {
+        self.dispatch(to, email).await
     }
 
     pub async fn send_trial_expired_email(
@@ -1452,9 +1463,14 @@ impl EmailService {
     }
 
     /// Counts of entities discovered/created during the trial, plus how many
-    /// days have elapsed since org creation. Used to populate the trial-ending
-    /// email and the in-app trial value recap card.
-    async fn compute_trial_recap_metrics(&self, org_id: Uuid) -> Result<TrialRecapMetrics> {
+    /// days have elapsed since `trial_started_at` (Stripe's `trial_start`), or
+    /// since org creation when Stripe gave none. Used to populate the
+    /// trial-ending email.
+    async fn compute_trial_recap_metrics(
+        &self,
+        org_id: Uuid,
+        trial_started_at: Option<DateTime<Utc>>,
+    ) -> Result<TrialRecapMetrics> {
         let org = self
             .organization_service
             .get_by_id(&org_id)
@@ -1476,7 +1492,7 @@ impl EmailService {
 
         let daemons_count = self.daemon_service.count_for_sites(&site_ids).await?;
 
-        let trial_started_at = org.trial_started_at().unwrap_or(org.created_at);
+        let trial_started_at = trial_started_at.unwrap_or(org.created_at);
         let days_into_trial = (chrono::Utc::now() - trial_started_at).num_days();
 
         Ok(TrialRecapMetrics {
