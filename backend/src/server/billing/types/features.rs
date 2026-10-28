@@ -94,6 +94,63 @@ impl TypeMetadataProvider for FeatureCategory {
     }
 }
 
+/// Features plan cards list together under one titled line, one item per row, inside their
+/// category. Variant order is display order.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumIter,
+    IntoStaticStr,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FeatureSubgroup {
+    Sharing,
+    Exports,
+}
+
+impl HasId for FeatureSubgroup {
+    fn id(&self) -> &'static str {
+        self.into()
+    }
+}
+
+impl EntityMetadataProvider for FeatureSubgroup {
+    fn color(&self) -> Color {
+        Color::Gray
+    }
+
+    fn icon(&self) -> Icon {
+        match self {
+            Self::Sharing => Icon::Share2,
+            Self::Exports => Icon::FileOutput,
+        }
+    }
+}
+
+impl TypeMetadataProvider for FeatureSubgroup {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Sharing => "Sharing",
+            Self::Exports => "Exports",
+        }
+    }
+
+    fn description(&self) -> &'static str {
+        match self {
+            Self::Sharing => "Ways to share live diagrams with people outside Scanopy",
+            Self::Exports => "File formats diagrams export to",
+        }
+    }
+}
+
 /// Declaration order is display order: grouped by [`category`](Feature::category), and within a
 /// category in the order plan cards list them (`BillingPlan::incremental_features`).
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, IntoStaticStr, Display, Default)]
@@ -243,8 +300,19 @@ impl Feature {
         }
     }
 
-    /// The format a diagram export writes; `None` for any other feature, CSV export included,
-    /// which exports inventory data rather than a diagram.
+    /// The titled line plan cards list this feature under, if any.
+    pub fn subgroup(&self) -> Option<FeatureSubgroup> {
+        if self.export_format().is_some() {
+            return Some(FeatureSubgroup::Exports);
+        }
+        match self {
+            Feature::ShareViews | Feature::Embeds => Some(FeatureSubgroup::Sharing),
+            _ => None,
+        }
+    }
+
+    /// The format a diagram export writes, which names its row under Exports; `None` for any
+    /// other feature, CSV export included, which exports inventory data rather than a diagram.
     pub fn export_format(&self) -> Option<&'static str> {
         match self {
             Feature::PngExport => Some("PNG"),
@@ -463,7 +531,9 @@ impl TypeMetadataProvider for Feature {
             "minimum_plan": self.minimum_plan(),
             // Plan cards list the integrations themselves, so they skip this feature's line.
             "gates_integration": self.gates_integration(),
-            // Plan cards list diagram exports as formats under one Exports line.
+            // Plan cards list a subgroup's features under its title (`feature-subgroups.json`),
+            // an export by its format and any other by its name.
+            "subgroup": self.subgroup().map(|s| s.id()),
             "export_format": self.export_format()
         })
     }

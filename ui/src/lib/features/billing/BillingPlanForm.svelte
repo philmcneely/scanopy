@@ -13,7 +13,6 @@
 		billing_compareAllFeatures,
 		billing_dayFreeTrial,
 		billing_dayRetention,
-		billing_exports,
 		billing_everythingInPlanPlus,
 		billing_extraSeatsMonthly,
 		billing_extraSitesMonthly,
@@ -87,6 +86,8 @@
 		/** Names and icons of the category headings features are grouped under, in display order
 		 * (`feature-categories.json`). */
 		featureCategoryHelpers: MetadataHelpers<object> & { getIds: () => string[] };
+		/** Titles of the lines some features are listed under on the cards (`feature-subgroups.json`). */
+		featureSubgroupHelpers: MetadataHelpers<object>;
 		/** Names the discovery integrations itemized on each card (`credential-integrations.json`). */
 		integrationHelpers: MetadataHelpers<CredentialIntegrationMetadata>;
 		/** Explains each counted limit on the cards (`plan-limits.json`). */
@@ -118,6 +119,7 @@
 		billingPlanHelpers,
 		featureHelpers,
 		featureCategoryHelpers,
+		featureSubgroupHelpers,
 		integrationHelpers,
 		limitHelpers,
 		onPlanSelect,
@@ -278,14 +280,7 @@
 			if (!groups.has(category)) groups.set(category, []);
 			groups.get(category)!.push(featureKey);
 		}
-		// Sort features within each category by how many plans enable them (most first)
-		for (const [, features] of groups) {
-			features.sort((a, b) => {
-				const countA = filteredPlans.filter((p) => getFeatureValue(p.type, a)).length;
-				const countB = filteredPlans.filter((p) => getFeatureValue(p.type, b)).length;
-				return countB - countA;
-			});
-		}
+		// Features keep the backend's declaration order within each category.
 		// Sort categories into display order
 		const sortedEntries = [...groups.entries()].sort(([a], [b]) => {
 			const order: string[] = categoryOrder;
@@ -426,6 +421,11 @@
 		})
 	);
 
+	/** The titled line a card lists this feature under (`feature-subgroups.json`); null for none. */
+	function subgroupOf(featureKey: string): string | null {
+		return featureHelpers.getMetadata(featureKey)?.subgroup ?? null;
+	}
+
 	/** The format a diagram export writes; null for any other feature, CSV export included. */
 	function exportFormat(featureKey: string): string | null {
 		return featureHelpers.getMetadata(featureKey)?.export_format ?? null;
@@ -526,13 +526,17 @@
 	</li>
 {/snippet}
 
-<!-- A card's diagram exports under one Exports line, one format per row, laid out like the
-     integrations. -->
-{#snippet exportRows(features: string[])}
+<!-- A subgroup of a card's features under its title, one per row, laid out like the integrations.
+     An export reads as its format, any other feature as its name. -->
+{#snippet subgroupRows(subgroup: string, features: string[])}
 	<li class="flex items-start gap-2 text-sm">
 		<Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />
 		<div class="flex flex-col gap-1">
-			<span class="text-secondary">{billing_exports()}</span>
+			<span
+				class="explainer self-start text-secondary"
+				data-tooltip={featureSubgroupHelpers.getDescription(subgroup)}
+				use:tooltip>{featureSubgroupHelpers.getName(subgroup)}</span
+			>
 			<ul class="space-y-1">
 				{#each features as featureKey (featureKey)}
 					<!-- pl-7: the integration logo (20px) and its gap, so the names line up -->
@@ -540,7 +544,7 @@
 						<span
 							class="explainer"
 							data-tooltip={featureHelpers.getDescription(featureKey)}
-							use:tooltip>{exportFormat(featureKey)}</span
+							use:tooltip>{exportFormat(featureKey) ?? featureHelpers.getName(featureKey)}</span
 						>
 						{#if isComingSoon(featureKey)}
 							<Tag label={common_comingSoon()} color="Gray" />
@@ -841,11 +845,13 @@
 							     integrations sit in the Discovery group. -->
 							<ul class="-mx-5 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}">
 								{#each groupCardFeatures(displayFeatures, displayIntegrations.length > 0) as group (group.category)}
-									{@const exports = group.features.filter((key) => exportFormat(key))}
+									{@const subgroups = [
+										...new Set(group.features.map(subgroupOf).filter((s) => s !== null))
+									]}
 									<li class="space-y-1.5 px-5 py-2 odd:bg-gray-100 dark:odd:bg-gray-700/25">
 										{@render categoryHeading(group.category)}
 										<ul class="space-y-1.5">
-											{#each group.features.filter((key) => !exportFormat(key)) as featureKey (featureKey)}
+											{#each group.features.filter((key) => !subgroupOf(key)) as featureKey (featureKey)}
 												{@const comingSoon = isComingSoon(featureKey)}
 												<li class="flex items-start gap-2 text-sm">
 													<Check
@@ -866,9 +872,12 @@
 													{/if}
 												</li>
 											{/each}
-											{#if exports.length > 0}
-												{@render exportRows(exports)}
-											{/if}
+											{#each subgroups as subgroup (subgroup)}
+												{@render subgroupRows(
+													subgroup,
+													group.features.filter((key) => subgroupOf(key) === subgroup)
+												)}
+											{/each}
 											{#if group.category === discoveryCategory && displayIntegrations.length > 0}
 												{@render integrationRows(displayIntegrations)}
 											{/if}

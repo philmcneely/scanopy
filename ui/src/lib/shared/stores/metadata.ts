@@ -276,6 +276,8 @@ export interface FeatureMetadata {
 	gates_integration: boolean;
 	/** The format a diagram export writes; plan cards list these under one Exports line. */
 	export_format: string | null;
+	/** The titled line plan cards list this feature under (`feature-subgroups.json`); null for none. */
+	subgroup: string | null;
 }
 
 export interface PortTypeMetadata {

@@ -9,7 +9,7 @@ use crate::daemon::discovery::types::warnings::{
 use crate::server::auth::r#impl::oidc::IdentityProviderLogo;
 use crate::server::billing::plans::get_website_fixture_plans;
 use crate::server::billing::types::base::{BillingPlan, CancelReason, PlanStatus, SaveOffer};
-use crate::server::billing::types::features::{Feature, FeatureCategory};
+use crate::server::billing::types::features::{Feature, FeatureCategory, FeatureSubgroup};
 use crate::server::billing::types::limits::PlanLimit;
 use crate::server::credentials::r#impl::integrations::all_integrations;
 use crate::server::credentials::r#impl::mapping::CredentialQueryPayloadDiscriminants;
@@ -83,6 +83,14 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
         &feature_category_metadata,
         output_dir,
         "feature-categories.json",
+    );
+
+    let feature_subgroup_metadata: Vec<TypeMetadata> =
+        FeatureSubgroup::iter().map(|s| s.to_metadata()).collect();
+    write_fixture(
+        &feature_subgroup_metadata,
+        output_dir,
+        "feature-subgroups.json",
     );
 
     write_fixture(
