@@ -55,6 +55,7 @@
 		common_services,
 		common_unbound,
 		daemons_installPromptServices,
+		gettingStarted_stepDiscoveryLabel,
 		services_subtitle
 	} from '$lib/paraglide/messages';
 	import { serviceDefinitions, ports as ports_metadata } from '$lib/shared/stores/metadata';
@@ -454,7 +455,12 @@
 		<Loading />
 	{:else if servicesData.length === 0 && !servicesPagination}
 		<!-- Empty state -->
-		<EmptyState title={common_noEntityYet({ entity: common_services() })} subtitle="" />
+		<EmptyState
+			title={common_noEntityYet({ entity: common_services() })}
+			subtitle=""
+			onClick={isReadOnly ? undefined : () => (window.location.hash = 'discovery-scans')}
+			cta={isReadOnly ? '' : gettingStarted_stepDiscoveryLabel()}
+		/>
 	{:else}
 		<DataControls
 			title={common_services()}

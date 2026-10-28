@@ -7,7 +7,7 @@
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import type { components } from '$lib/api/schema';
 	import type { Credential } from '../types/base';
-	import { createDefaultCredential, getCredentialTypeId } from '../types/base';
+	import { createDefaultCredential, getCredentialTypeId, isDaemonHostOnly } from '../types/base';
 	import { credentialIntegrations, credentialTypes, entities } from '$lib/shared/stores/metadata';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
@@ -33,12 +33,12 @@
 		common_next,
 		common_saving,
 		common_update,
-		credentials_assignmentRequired,
 		credentials_assignmentsClearedOnTypeChange,
 		credentials_createCredential,
 		credentials_description,
 		credentials_docsGuide,
-		credentials_docsGuideLinkText
+		credentials_docsGuideLinkText,
+		credentials_typeNeedsDaemon
 	} from '$lib/paraglide/messages';
 
 	type CredentialHostAssignment = components['schemas']['CredentialHostAssignment'];
@@ -112,6 +112,15 @@
 	// never mistaken for "there are none", which would strip legitimate assignments on save.
 	const daemonsQuery = useDaemonsQuery();
 	let daemonHostIds = $derived(daemonsQuery.data?.map((d) => d.host_id));
+
+	// With no daemon, a daemon-host-only type has nowhere it could ever apply, so it can't be
+	// picked. The daemon setup creates those credentials alongside the daemon.
+	function typeDisabledReason(typeId: string): string | null {
+		if (daemonHostIds === undefined || daemonHostIds.length > 0) return null;
+		return isDaemonHostOnly(credentialTypes.getMetadata(typeId)?.targets)
+			? credentials_typeNeedsDaemon()
+			: null;
+	}
 
 	let title = $derived(
 		isEditing ? common_editName({ name: credential?.name ?? '' }) : credentials_createCredential()
@@ -195,18 +204,6 @@
 				{ assignedSiteIds, hostAssignments },
 				daemonHostIds
 			);
-
-			// A credential created here with no assignment is never sent to a daemon. The daemon and
-			// discovery flows create theirs with discovery targets instead, so this is the one
-			// create path that has to insist.
-			if (
-				!isEditing &&
-				permitted.assignedSiteIds.length === 0 &&
-				permitted.hostAssignments.length === 0
-			) {
-				pushError(credentials_assignmentRequired());
-				return;
-			}
 
 			// `value` also carries CredentialForm's scratch state — `fields` (raw per-field
 			// strings) and `targetIps` — because those inputs register under this form. Neither
@@ -360,6 +357,7 @@
 				{form}
 				{credential}
 				{typeChoices}
+				{typeDisabledReason}
 				onTypeChange={handleTypeChange}
 				section={activeTab === 'credential' ? 'fields' : 'identity'}
 				onSubmitRequest={handlePrimary}

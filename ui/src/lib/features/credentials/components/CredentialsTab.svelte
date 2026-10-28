@@ -32,6 +32,7 @@
 	import { getCredentialTypeId } from '$lib/features/credentials/types/base';
 	import {
 		modalState,
+		openModal,
 		resolveModalDeepLink,
 		type ModalState
 	} from '$lib/shared/stores/modal-registry';
@@ -49,14 +50,20 @@
 		credentials_bulkDeleteConfirm,
 		credentials_bulkDeleteImpact,
 		credentials_deleteImpact,
+		credentials_emptyNoDaemonHint,
 		credentials_emptySubtitle,
 		credentials_subtitle,
 		common_credentials,
 		common_notApplicable,
 		common_noEntityYet,
-		credentials_defaultCantDelete
+		credentials_defaultCantDelete,
+		gettingStarted_stepDaemonLabel
 	} from '$lib/paraglide/messages';
 	import { useTagsQuery } from '$lib/features/tags/queries';
+	import { hasDaemon } from '$lib/shared/onboarding/checklist';
+	import type { components } from '$lib/api/schema';
+
+	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 
 	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
@@ -87,6 +94,14 @@
 
 	const organizationQuery = useOrganizationQuery();
 	let organization = $derived(organizationQuery.data);
+	let onboarding = $derived((organization?.onboarding ?? []) as OnboardingOperation[]);
+
+	// With no daemon there are no hosts to assign to yet. The daemon setup's credentials step
+	// targets devices by IP address instead, so the empty page points there too.
+	function handleInstallDaemon() {
+		window.location.hash = 'daemons';
+		openModal('create-daemon');
+	}
 
 	// Every credential, for the deep link: it can name one on another page.
 	const credentialsQuery = useCredentialsQuery();
@@ -317,6 +332,14 @@
 			onClick={canManage ? handleCreateCredential : undefined}
 			cta={canManage ? common_create() : ''}
 		/>
+		{#if canManage && !hasDaemon(onboarding)}
+			<p class="-mt-6 text-center text-sm text-tertiary">
+				{credentials_emptyNoDaemonHint()}
+				<button type="button" class="text-link hover:underline" onclick={handleInstallDaemon}>
+					{gettingStarted_stepDaemonLabel()}
+				</button>
+			</p>
+		{/if}
 	{:else}
 		<DataControls
 			title={common_credentials()}

@@ -99,6 +99,8 @@
 		/** Limit the type picker to these types and pre-select the first, for a create flow opened
 		 *  for one integration. Ignored when editing or when `fixedCredentialType` is set. */
 		typeChoices?: string[];
+		/** Why a type can't be picked here, or null. Shown as the option's tooltip. */
+		typeDisabledReason?: (typeId: string) => string | null;
 		fixedName?: string;
 		compact?: boolean;
 		hideFields?: boolean;
@@ -148,6 +150,7 @@
 		credential = null,
 		fixedCredentialType,
 		typeChoices,
+		typeDisabledReason,
 		fixedName,
 		compact = false,
 		hideFields = false,
@@ -1193,7 +1196,10 @@
 			showSearch={true}
 			disabled={isEditing}
 			onSelect={handleTypeChange}
-			getOptionContext={(option) => ({ upgradeFeature: upgradeFeatureFor(option.id) })}
+			getOptionContext={(option) => ({
+				upgradeFeature: upgradeFeatureFor(option.id),
+				disabledReason: isEditing ? null : (typeDisabledReason?.(option.id) ?? null)
+			})}
 			onDisabledClick={handleGatedTypeClick}
 		/>
 		{#if !isEditing}
