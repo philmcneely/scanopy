@@ -919,13 +919,17 @@ fn duplicate_binding_map(
 /// An interface that presents a live network identity (its `virtualization_interface_id`) is left
 /// out too: the identity's own rows carry the same MAC, both are one NIC seen from two sides, and
 /// the identity is the device a MAC-only payload from that NIC describes.
+///
+/// So is any row on a guest carrying a MAC its hypervisor did not give it
+/// ([`HostCandidate::mac_is_foreign`]), from either table: a macvlan link inside a VM, filed from
+/// the guest agent, names the device on that link, never the VM.
 pub(crate) fn mac_carriers(
     ip_rows: &[IPAddress],
     interface_rows: &[Interface],
     incoming_ip_addresses: &[IPAddress],
     candidates: &[HostCandidate],
 ) -> Vec<(Uuid, MacEvidence)> {
-    let identifying_host_ids: HashSet<Uuid> = candidates
+    let identifying: HashMap<Uuid, &HostCandidate> = candidates
         .iter()
         .filter(|c| c.macs_identify_host())
         .filter(|c| {
@@ -933,7 +937,7 @@ pub(crate) fn mac_carriers(
                 .iter()
                 .any(|incoming| c.lists_other_addresses_for(incoming))
         })
-        .map(|c| c.id)
+        .map(|c| (c.id, c))
         .collect();
     let presenting_interface_ids: HashSet<Uuid> = candidates
         .iter()
@@ -948,7 +952,11 @@ pub(crate) fn mac_carriers(
                 .filter(|r| !presenting_interface_ids.contains(&r.id))
                 .filter_map(|r| r.base.mac_address.clone().map(|m| (r.base.host_id, m))),
         )
-        .filter(|(host_id, _)| identifying_host_ids.contains(host_id))
+        .filter(|(host_id, mac)| {
+            identifying
+                .get(host_id)
+                .is_some_and(|c| !c.mac_is_foreign(&mac.value().0))
+        })
         .collect()
 }
 
