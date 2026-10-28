@@ -95,6 +95,7 @@
 		unsavedState = undefined,
 		headerIcon,
 		banners,
+		noBanners = false,
 		children,
 		footer,
 		actions = [],
@@ -153,6 +154,11 @@
 		 * passes this.
 		 */
 		banners?: Snippet;
+		/**
+		 * Shows no banner at all, the server-update banner included, which otherwise shows over
+		 * every modal. The tab still reloads once the modal closes.
+		 */
+		noBanners?: boolean;
 		children?: Snippet<[number]>;
 		/** A hand-built footer, for one the actions below can't describe. */
 		footer?: Snippet;
@@ -595,7 +601,7 @@
 					<X class="h-5 w-5" />
 				</button>
 			{/if}
-			{#if banners || $serverUpdatePending}
+			{#if !noBanners && (banners || $serverUpdatePending)}
 				<!-- Clipped here rather than by putting overflow-hidden on the panel,
 				     which ~42 modals share: AppBanner is full-bleed with square corners
 				     and the panel is rounded. The server-update banner shows over every

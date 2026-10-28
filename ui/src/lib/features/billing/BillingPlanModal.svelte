@@ -245,10 +245,12 @@
 	usePreloadStripe(() => isOpen);
 </script>
 
+<!-- The plan picker shows no banners of any kind. -->
 <GenericModal
 	{isOpen}
 	title=""
 	{name}
+	noBanners
 	onClose={dismissible ? () => onClose() : null}
 	size="max"
 	preventCloseOnClickOutside={!dismissible}
