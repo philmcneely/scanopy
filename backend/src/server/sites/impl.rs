@@ -353,7 +353,7 @@ impl Entity for Site {
     const ENTITY_DESCRIPTION: &'static str = "Site containers. Top-level organizational unit that contains subnets, hosts, and other entities.";
 
     fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+        EntityCategory::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

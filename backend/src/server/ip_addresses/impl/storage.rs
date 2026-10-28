@@ -185,7 +185,7 @@ impl Entity for IPAddress {
     const ENTITY_DESCRIPTION: &'static str = "IP addresses assigned to hosts. Each address belongs to a host and a subnet, optionally has a MAC address, and represents an observed or configured address on the network.";
 
     fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+        EntityCategory::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

@@ -366,7 +366,7 @@ impl Entity for Host {
         "Network hosts (devices). Manage discovered or manually created hosts on your network.";
 
     fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+        EntityCategory::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

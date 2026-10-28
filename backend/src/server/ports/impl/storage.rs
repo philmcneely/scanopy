@@ -231,7 +231,7 @@ impl Entity for Port {
         "Ports that have been scanned and found open on a host.";
 
     fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+        EntityCategory::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

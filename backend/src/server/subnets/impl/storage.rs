@@ -275,7 +275,7 @@ impl Entity for Subnet {
         "IP subnets within sites. Define address ranges and organize hosts by subnet.";
 
     fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+        EntityCategory::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

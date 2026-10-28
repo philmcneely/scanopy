@@ -27,7 +27,7 @@ use strum::IntoStaticStr;
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FeatureCategory {
-    Map,
+    Topology,
     Inventory,
     Discovery,
     Api,
@@ -51,7 +51,7 @@ impl EntityMetadataProvider for FeatureCategory {
     fn icon(&self) -> Icon {
         match self {
             Self::Discovery => Icon::Radar,
-            Self::Map => Icon::Map,
+            Self::Topology => Icon::Map,
             Self::Inventory => Icon::Server,
             Self::Api => Icon::Code,
             Self::Support => Icon::Headset,
@@ -66,7 +66,7 @@ impl TypeMetadataProvider for FeatureCategory {
     fn name(&self) -> &'static str {
         match self {
             Self::Discovery => "Discovery",
-            Self::Map => "Map",
+            Self::Topology => "Topology",
             Self::Inventory => "Inventory",
             Self::Api => "API",
             Self::Support => "Support",
@@ -79,7 +79,7 @@ impl TypeMetadataProvider for FeatureCategory {
     fn description(&self) -> &'static str {
         match self {
             Self::Discovery => "How Scanopy finds hosts, services and devices on your network",
-            Self::Map => {
+            Self::Topology => {
                 "Diagrams of your network, workloads and applications, their snapshots, and ways to share them"
             }
             Self::Inventory => {
@@ -110,7 +110,7 @@ impl TypeMetadataProvider for FeatureCategory {
     Default,
 )]
 pub enum Feature {
-    // Map: the diagrams, their snapshots, and ways to share and export them
+    // Topology: the diagrams, their snapshots, and ways to share and export them
     NetworkTopology,
     WorkloadMapping,
     ApplicationMapping,
@@ -240,7 +240,7 @@ impl Feature {
             | Feature::MermaidExport
             | Feature::ConfluenceExport
             | Feature::DrawioExport
-            | Feature::VsdxExport => FeatureCategory::Map,
+            | Feature::VsdxExport => FeatureCategory::Topology,
 
             Feature::DeviceInventory
             | Feature::VlanSubnetInventory
@@ -388,7 +388,7 @@ impl TypeMetadataProvider for Feature {
             Feature::DeviceInventory => "Device Inventory",
             Feature::VlanSubnetInventory => "VLAN & Subnet Inventory",
             Feature::Tagging => "Tagging",
-            Feature::NetworkTopology => "Network Topology",
+            Feature::NetworkTopology => "Network Map",
             Feature::WorkloadMapping => "Workload Mapping",
             Feature::ApplicationMapping => "Application Mapping",
             Feature::ServiceDetection => "Service Detection",
