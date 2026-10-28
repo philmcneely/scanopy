@@ -2,7 +2,7 @@
 	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import billingPlansJson from '$lib/data/billing-plans.json';
 	import featuresJson from '$lib/data/features.json';
-	import featureCategoriesJson from '$lib/data/feature-categories.json';
+	import productAreasJson from '$lib/data/product-areas.json';
 	import credentialIntegrationsJson from '$lib/data/credential-integrations.json';
 	import planLimitsJson from '$lib/data/plan-limits.json';
 	import BillingPlanForm from '$lib/features/billing/BillingPlanForm.svelte';
@@ -50,10 +50,7 @@
 		billingPlansJson
 	);
 	const featureHelpers = createStaticHelpers<FeatureMetadata>('features', featuresJson);
-	const featureCategoryHelpers = createStaticHelpers<object>(
-		'feature_categories',
-		featureCategoriesJson
-	);
+	const productAreaHelpers = createStaticHelpers<object>('product_areas', productAreasJson);
 	const integrationHelpers = createStaticHelpers<CredentialIntegrationMetadata>(
 		'credential_integrations',
 		credentialIntegrationsJson
@@ -267,7 +264,7 @@
 				: pickablePlans.filter((p) => billingPlanHelpers.getMetadata(p.type)?.is_free !== true)}
 			{billingPlanHelpers}
 			{featureHelpers}
-			{featureCategoryHelpers}
+			{productAreaHelpers}
 			{integrationHelpers}
 			{limitHelpers}
 			showHosting={signingAvailable}

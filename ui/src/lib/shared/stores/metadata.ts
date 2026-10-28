@@ -5,7 +5,7 @@ import subnetTypesJson from '$lib/data/subnet-types.json';
 import edgeTypesJson from '$lib/data/edge-types.json';
 import dependencyTypesJson from '$lib/data/dependency-types.json';
 import entitiesJson from '$lib/data/entities.json';
-import entityCategoriesJson from '$lib/data/entity-categories.json';
+import productAreasJson from '$lib/data/product-areas.json';
 import fieldGroupsJson from '$lib/data/field-groups.json';
 import entitySourcesJson from '$lib/data/entity-sources.json';
 import portsJson from '$lib/data/ports.json';
@@ -117,7 +117,7 @@ export interface MetadataRegistry {
 	edge_types: TypeMetadata[];
 	dependency_types: TypeMetadata[];
 	entities: TypeMetadata[];
-	entity_categories: TypeMetadata[];
+	product_areas: TypeMetadata[];
 	field_groups: TypeMetadata[];
 	entity_sources: TypeMetadata[];
 	ports: TypeMetadata[];
@@ -331,7 +331,7 @@ export const metadata = writable<MetadataRegistry>({
 	edge_types: edgeTypesJson,
 	dependency_types: dependencyTypesJson,
 	entities: entitiesJson,
-	entity_categories: entityCategoriesJson,
+	product_areas: productAreasJson,
 	field_groups: fieldGroupsJson,
 	entity_sources: entitySourcesJson,
 	ports: portsJson,
@@ -540,10 +540,8 @@ export interface EntityTypeMetadata {
 	display_fields: string[];
 }
 export const entities = createTypeMetadataHelpers<'entities', EntityTypeMetadata>('entities');
-/** The parts of the product entities belong to, in display order: the sidebar's sections. */
-export const entityCategories = createTypeMetadataHelpers<'entity_categories', object>(
-	'entity_categories'
-);
+/** The parts of the product entities and features belong to, in display order: the sidebar's sections and the plan cards' headings. */
+export const productAreas = createTypeMetadataHelpers<'product_areas', object>('product_areas');
 /** Headings a field is listed under, in display order: the column menu's sections. */
 export const fieldGroups = createTypeMetadataHelpers<'field_groups', object>('field_groups');
 /** How an entity came to exist, keyed by `source.type`. */

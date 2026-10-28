@@ -49,7 +49,6 @@ export interface EntityUIConfig {
 export const TAB_LABELS: Record<string, string> = {
 	home: 'Home',
 	topology: 'Topology',
-	shares: 'Sharing',
 	discovery: 'Scans',
 	'discovery-scans': 'Scans',
 	'discovery-history': 'Historical',
@@ -136,8 +135,8 @@ export const entityUIConfig: Record<EntityDiscriminants, EntityUIConfig | null> 
 		modalName: 'tag-group-editor',
 		displayComponent: TagGroupDisplay
 	},
-	// Shares are edited in SharesModal, which no URL opens.
-	Share: { tabId: 'shares' },
+	// Shares are edited in SharesModal, opened from the topology tab.
+	Share: { tabId: 'topology' },
 	// No modal opens a topology by URL; it shows in its tab.
 	Topology: { tabId: 'topology', displayComponent: TopologyDisplay },
 	Snapshot: { tabId: 'topology' },

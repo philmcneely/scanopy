@@ -4,7 +4,7 @@ use std::str::FromStr;
 use crate::server::{
     shared::{
         entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants},
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
     users::r#impl::{
@@ -463,8 +463,8 @@ impl Entity for User {
     const ENTITY_DESCRIPTION: &'static str =
         "User account management. Manage user profiles and permissions within organizations.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Platform
+    fn product_area() -> ProductArea {
+        ProductArea::Platform
     }
 
     fn site_id(&self) -> Option<Uuid> {

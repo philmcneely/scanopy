@@ -1,4 +1,5 @@
 use crate::server::billing::types::base::BillingPlanDiscriminants;
+use crate::server::shared::product_area::ProductArea;
 use crate::server::shared::types::metadata::EntityMetadataProvider;
 use crate::server::shared::types::metadata::HasId;
 use crate::server::shared::types::metadata::TypeMetadataProvider;
@@ -9,93 +10,8 @@ use strum::Display;
 use strum::EnumIter;
 use strum::IntoStaticStr;
 
-/// The groups plan cards list features under, which are also the groups of the website's Product
-/// menu. Variant order is display order.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    Display,
-    EnumIter,
-    IntoStaticStr,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum FeatureCategory {
-    Topology,
-    Inventory,
-    Discovery,
-    Api,
-    Support,
-    Security,
-    Deployment,
-    Billing,
-}
-
-impl HasId for FeatureCategory {
-    fn id(&self) -> &'static str {
-        self.into()
-    }
-}
-
-impl EntityMetadataProvider for FeatureCategory {
-    fn color(&self) -> Color {
-        Color::Gray
-    }
-
-    fn icon(&self) -> Icon {
-        match self {
-            Self::Discovery => Icon::Radar,
-            Self::Topology => Icon::Map,
-            Self::Inventory => Icon::Server,
-            Self::Api => Icon::Code,
-            Self::Support => Icon::Headset,
-            Self::Security => Icon::ShieldCheck,
-            Self::Deployment => Icon::Rocket,
-            Self::Billing => Icon::Receipt,
-        }
-    }
-}
-
-impl TypeMetadataProvider for FeatureCategory {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::Discovery => "Discovery",
-            Self::Topology => "Topology",
-            Self::Inventory => "Inventory",
-            Self::Api => "API",
-            Self::Support => "Support",
-            Self::Security => "Security",
-            Self::Deployment => "Deployment",
-            Self::Billing => "Billing",
-        }
-    }
-
-    fn description(&self) -> &'static str {
-        match self {
-            Self::Discovery => "How Scanopy finds hosts, services and devices on your network",
-            Self::Topology => {
-                "Diagrams of your network, workloads and applications, their snapshots, and ways to share them"
-            }
-            Self::Inventory => {
-                "Searchable records of every host, VLAN and subnet discovery finds, and CSV export of them"
-            }
-            Self::Api => "Programmatic access to your Scanopy data",
-            Self::Support => "Ways to reach the Scanopy team",
-            Self::Security => "Sign-in and audit controls for your organization",
-            Self::Deployment => "Ways to run Scanopy in your own environment",
-            Self::Billing => "Payment and procurement terms",
-        }
-    }
-}
-
-/// Declaration order is display order: grouped by [`category`](Feature::category), and within a
-/// category in the order plan cards list them (`BillingPlan::incremental_features`).
+/// Declaration order is display order: grouped by [`area`](Feature::area), and within a
+/// area in the order plan cards list them (`BillingPlan::incremental_features`).
 #[derive(
     Debug,
     Clone,
@@ -215,14 +131,14 @@ impl HasId for Feature {
 }
 
 impl Feature {
-    pub fn category(&self) -> FeatureCategory {
+    pub fn area(&self) -> ProductArea {
         match self {
             Feature::NetworkDiscovery
             | Feature::ScanDigests
             | Feature::ScheduledDiscovery
             | Feature::DiscoveryIntegrations
             | Feature::InstantOnIntegration
-            | Feature::ServiceDetection => FeatureCategory::Discovery,
+            | Feature::ServiceDetection => ProductArea::Discovery,
 
             Feature::NetworkTopology
             | Feature::WorkloadMapping
@@ -240,29 +156,29 @@ impl Feature {
             | Feature::MermaidExport
             | Feature::ConfluenceExport
             | Feature::DrawioExport
-            | Feature::VsdxExport => FeatureCategory::Topology,
+            | Feature::VsdxExport => ProductArea::Topology,
 
             Feature::DeviceInventory
             | Feature::VlanSubnetInventory
             | Feature::Tagging
-            | Feature::CsvExport => FeatureCategory::Inventory,
+            | Feature::CsvExport => ProductArea::Inventory,
 
-            Feature::ApiAccess | Feature::Webhooks => FeatureCategory::Api,
+            Feature::ApiAccess | Feature::Webhooks => ProductArea::Api,
 
             Feature::EmailSupport
             | Feature::LiveChatSupport
             | Feature::PrioritySupport
             | Feature::OnboardingCall
-            | Feature::SignedSla => FeatureCategory::Support,
+            | Feature::SignedSla => ProductArea::Support,
 
-            Feature::CustomSso | Feature::Saml | Feature::AuditLogs => FeatureCategory::Security,
+            Feature::CustomSso | Feature::Saml | Feature::AuditLogs => ProductArea::Security,
 
             Feature::AirGappedDeployment | Feature::ManagedDeployment | Feature::Whitelabeling => {
-                FeatureCategory::Deployment
+                ProductArea::Deployment
             }
 
             Feature::InvoiceBilling | Feature::CustomBilling | Feature::ProcurementDocuments => {
-                FeatureCategory::Billing
+                ProductArea::Billing
             }
         }
     }
@@ -365,7 +281,7 @@ impl EntityMetadataProvider for Feature {
 
 impl TypeMetadataProvider for Feature {
     fn category(&self) -> &'static str {
-        Feature::category(self).id()
+        self.area().id()
     }
 
     fn name(&self) -> &'static str {
@@ -618,8 +534,8 @@ mod tests {
                 feature.id()
             );
             assert_eq!(
-                parent.category(),
-                feature.category(),
+                parent.area(),
+                feature.area(),
                 "{} nests across categories",
                 feature.id()
             );
@@ -632,26 +548,14 @@ mod tests {
         }
     }
 
-    /// Plan cards list features in declaration order within each category, so a feature declared
-    /// away from its category's other variants lands out of place in that list.
+    /// Plan cards list features in declaration order within each area, so a feature declared
+    /// away from its area's other variants lands out of place in that list.
     #[test]
     fn features_are_declared_grouped_by_category() {
-        let mut seen: Vec<FeatureCategory> = Vec::new();
-        for feature in Feature::iter() {
-            let category = feature.category();
-            if seen.last() != Some(&category) {
-                assert!(
-                    !seen.contains(&category),
-                    "{} is declared apart from the other {category} features",
-                    feature.id()
-                );
-                seen.push(category);
-            }
-        }
-        assert_eq!(
-            seen,
-            FeatureCategory::iter().collect::<Vec<_>>(),
-            "features must be declared in FeatureCategory order, with every category used"
+        let areas: Vec<(&str, ProductArea)> = Feature::iter().map(|f| (f.id(), f.area())).collect();
+        assert!(
+            areas.is_sorted_by_key(|(_, area)| *area),
+            "declare each feature among its area, areas in ProductArea order: {areas:?}"
         );
     }
 }

@@ -9,7 +9,7 @@ use crate::daemon::discovery::types::warnings::{
 use crate::server::auth::r#impl::oidc::IdentityProviderLogo;
 use crate::server::billing::plans::get_website_fixture_plans;
 use crate::server::billing::types::base::{BillingPlan, CancelReason, PlanStatus, SaveOffer};
-use crate::server::billing::types::features::{Feature, FeatureCategory};
+use crate::server::billing::types::features::Feature;
 use crate::server::billing::types::limits::PlanLimit;
 use crate::server::credentials::r#impl::integrations::all_integrations;
 use crate::server::credentials::r#impl::mapping::CredentialQueryPayloadDiscriminants;
@@ -30,8 +30,8 @@ use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::{AttributeMethod, AttributeSourceDiscriminants};
 use crate::server::shared::concepts::Concept;
 use crate::server::shared::entities::EntityDiscriminants;
-use crate::server::shared::entity_metadata::EntityCategory;
 use crate::server::shared::logos::{Logo, Theming, logo_credits, logo_entries};
+use crate::server::shared::product_area::ProductArea;
 use crate::server::shared::types::entities::EntitySourceDiscriminants;
 use crate::server::shared::types::entity_field::FieldGroup;
 use crate::server::shared::types::metadata::{
@@ -76,14 +76,6 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
 
     let feature_metadata: Vec<TypeMetadata> = Feature::iter().map(|f| f.to_metadata()).collect();
     write_fixture(&feature_metadata, output_dir, "features.json");
-
-    let feature_category_metadata: Vec<TypeMetadata> =
-        FeatureCategory::iter().map(|c| c.to_metadata()).collect();
-    write_fixture(
-        &feature_category_metadata,
-        output_dir,
-        "feature-categories.json",
-    );
 
     write_fixture(
         &crate::server::daemons::r#impl::version::UiVersionGates::current(),
@@ -367,11 +359,10 @@ pub fn generate_ui_data_fixtures(output_dir: &Path, force_logos: bool) {
         .collect();
     write_fixture(&entity_sources, output_dir, "entity-sources.json");
 
-    // The parts of the product entities belong to, in display order: the sidebar's sections and
-    // the global search's group order.
-    let entity_categories: Vec<TypeMetadata> =
-        EntityCategory::iter().map(|c| c.to_metadata()).collect();
-    write_fixture(&entity_categories, output_dir, "entity-categories.json");
+    // The parts of the product entities and plan features belong to, in display order: the
+    // sidebar's sections, the global search's group order and the plan cards' headings.
+    let product_areas: Vec<TypeMetadata> = ProductArea::iter().map(|a| a.to_metadata()).collect();
+    write_fixture(&product_areas, output_dir, "product-areas.json");
 
     // Headings a field is listed under wherever fields are picked, in display order. Each field
     // in `entities.json` and `edge-types.json` names one in its `group`.
