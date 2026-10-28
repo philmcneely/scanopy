@@ -2,9 +2,10 @@ use crate::server::credentials::r#impl::types::CredentialAssignment;
 use crate::server::hosts::r#impl::attributes::{
     HostAssetTagAttributed, HostChassisIdAttributed, HostFirmwareRevisionAttributed,
     HostHostnameAttributed, HostManagementUrlAttributed, HostManufacturerAttributed,
-    HostModelAttributed, HostOsAttributed, HostOsValue, HostSerialNumberAttributed,
-    HostSoftwareRevisionAttributed, HostSysContactAttributed, HostSysDescrAttributed,
-    HostSysLocationAttributed, HostSysNameAttributed, HostSysObjectIdAttributed,
+    HostMatchedDeviceTypeAttributed, HostModelAttributed, HostOsAttributed, HostOsValue,
+    HostSerialNumberAttributed, HostSoftwareRevisionAttributed, HostSysContactAttributed,
+    HostSysDescrAttributed, HostSysLocationAttributed, HostSysNameAttributed,
+    HostSysObjectIdAttributed,
 };
 use crate::server::hosts::r#impl::name::{HostName, HostNameSources};
 use crate::server::hosts::r#impl::os::recog::RecogDatabase;
@@ -165,6 +166,12 @@ pub struct HostBase {
     #[serde(flatten, deserialize_with = "attribution::optional")]
     #[schema(value_type = HostOsAttributed)]
     pub os: Option<HostOsAttributed>,
+    /// The device class a fingerprint of something the host emitted names. One rung of the
+    /// device type the host shows; see
+    /// [`HostMatchedDeviceTypeValue`](super::attributes::HostMatchedDeviceTypeValue).
+    #[serde(flatten, deserialize_with = "attribution::optional")]
+    #[schema(value_type = HostMatchedDeviceTypeAttributed)]
+    pub matched_device_type: Option<HostMatchedDeviceTypeAttributed>,
     /// Credential assignments for this host (hydrated from junction table).
     #[serde(default)]
     #[schema(required)]
@@ -197,6 +204,7 @@ impl Default for HostBase {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: Vec::new(),
         }
     }
@@ -327,6 +335,7 @@ impl HostBase {
             firmware_revision,
             software_revision,
             os,
+            matched_device_type,
         } = incoming;
 
         // A macro rather than a closure: each field is a different carrier type, so every call is
@@ -359,6 +368,7 @@ impl HostBase {
             firmware_revision,
             software_revision,
             os,
+            matched_device_type,
         );
         changed
     }

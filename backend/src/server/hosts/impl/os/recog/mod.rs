@@ -1,15 +1,22 @@
-//! OS fingerprints from Rapid7 Recog, matched against strings a host emits about itself.
+//! Fingerprints from Rapid7 Recog, matched against strings a host emits about itself.
 //!
 //! Recog (BSD-2-Clause, `assets/recog/LICENSE`) publishes one XML database per kind of string: SNMP
-//! `sysDescr`, SSH banners, HTTP `Server` headers and so on. Each fingerprint is a regex plus the
-//! params a match yields (`os.family`, `os.product`, `os.version`), and carries `<example>` strings
-//! stating the params they must yield, which the tests below run as a corpus. The files are
-//! vendored unmodified from upstream commit `2d1967780c16b13c998966cf0e878768a896c2e2`; refresh by
-//! replacing them, and the tests say what a refresh broke.
+//! `sysDescr`, SSH banners, HTTP `Server` headers, certificate subjects, page titles, favicon
+//! hashes and so on. Each fingerprint is a regex plus the params a match yields (`os.family`,
+//! `hw.vendor`, `hw.device`, `service.product`…), and carries `<example>` strings stating the
+//! params they must yield, which the tests below run as a corpus. The files are vendored from
+//! upstream commit `1714aaed118861b4567bb6754920b4b929f59380` (release 3.3.2); refresh by
+//! replacing them, and the tests say what a refresh broke. One file is not vendored unmodified:
+//! `favicons.xml` has every hash it shares with the OWASP Favicon Database removed, because those
+//! are OWASP's CC BY data and Recog's BSD-2 notice does not grant them. Its header says how.
 //!
-//! What a match yields is an inference: the string was the host's own, but the OS is our reading of
-//! it. Only fingerprints Recog does not mark below [`MIN_CERTAINTY`] are used, and only families
-//! that name an operating system ([`classify`]) produce one.
+//! What a match yields is an inference: the string was the host's own, but the OS, vendor, model,
+//! device type or software is our reading of it. An OS needs [`MIN_OS_CERTAINTY`]; hardware and
+//! software need [`MIN_SHARED_CERTAINTY`], and only families that name an operating system
+//! ([`families::classify`]) produce one.
+
+mod devices;
+mod families;
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -17,16 +24,25 @@ use std::sync::LazyLock;
 use quick_xml::XmlVersion;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use super::{HostOs, HostOsFamily};
+use crate::server::hosts::r#impl::device_type::DeviceType;
+use devices::{RecogDevice, classify_device};
+use families::{RecogFamily, classify};
 
 /// The lowest `os.certainty` a fingerprint may carry and still name an OS. Recog leaves it unset on
 /// fingerprints it treats as certain; the ones it marks lower identify a product line from a
 /// string that other operating systems also emit.
-const MIN_CERTAINTY: f32 = 0.9;
+const MIN_OS_CERTAINTY: f32 = 0.9;
+
+/// The lowest `hw.certainty` or `service.certainty` a fingerprint may carry and still name
+/// hardware or software. Lower than the OS bar because of how Recog grades these: every favicon
+/// match is 0.5, since an icon can be reused by a fork, while 0.0 to 0.4 mark a string Recog
+/// itself calls vague ("Ubiquiti WAP (Vague)", a bare "login:" prompt).
+const MIN_SHARED_CERTAINTY: f32 = 0.5;
 
 /// One vendored Recog database: the kind of string it matches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
@@ -43,19 +59,50 @@ pub enum RecogDatabase {
     ApacheOs,
     /// One `key=value` pair from an mDNS `_device-info._tcp` TXT record.
     MdnsDeviceInfo,
+    /// A TLS certificate's subject, as `CN=…,OU=…,O=…,C=…`.
+    X509Subject,
+    /// A TLS certificate's issuer, in the same form.
+    X509Issuer,
+    /// The text of an HTML page's `<title>`.
+    HtmlTitle,
+    /// An HTTP `WWW-Authenticate` header value.
+    HttpWwwAuth,
+    /// One HTTP `Set-Cookie` header value.
+    HttpCookie,
+    /// The lowercase hex MD5 of a server's `/favicon.ico`.
+    Favicon,
+    /// An FTP greeting, after the reply code.
+    FtpBanner,
+    /// A Telnet banner, trimmed.
+    TelnetBanner,
+    /// An RTSP `Server` header value.
+    RtspServer,
 }
 
 impl RecogDatabase {
     fn xml(&self) -> &'static str {
         match self {
-            Self::SnmpSysDescr => include_str!("../../../../../assets/recog/snmp_sysdescr.xml"),
-            Self::SnmpSysObjectId => include_str!("../../../../../assets/recog/snmp_sysobjid.xml"),
-            Self::SshBanner => include_str!("../../../../../assets/recog/ssh_banners.xml"),
-            Self::HttpServer => include_str!("../../../../../assets/recog/http_servers.xml"),
-            Self::ApacheOs => include_str!("../../../../../assets/recog/apache_os.xml"),
-            Self::MdnsDeviceInfo => {
-                include_str!("../../../../../assets/recog/mdns_device-info_txt.xml")
+            Self::SnmpSysDescr => include_str!("../../../../../../assets/recog/snmp_sysdescr.xml"),
+            Self::SnmpSysObjectId => {
+                include_str!("../../../../../../assets/recog/snmp_sysobjid.xml")
             }
+            Self::SshBanner => include_str!("../../../../../../assets/recog/ssh_banners.xml"),
+            Self::HttpServer => include_str!("../../../../../../assets/recog/http_servers.xml"),
+            Self::ApacheOs => include_str!("../../../../../../assets/recog/apache_os.xml"),
+            Self::MdnsDeviceInfo => {
+                include_str!("../../../../../../assets/recog/mdns_device-info_txt.xml")
+            }
+            Self::X509Subject => include_str!("../../../../../../assets/recog/x509_subjects.xml"),
+            Self::X509Issuer => include_str!("../../../../../../assets/recog/x509_issuers.xml"),
+            Self::HtmlTitle => include_str!("../../../../../../assets/recog/html_title.xml"),
+            Self::HttpWwwAuth => include_str!("../../../../../../assets/recog/http_wwwauth.xml"),
+            Self::HttpCookie => include_str!("../../../../../../assets/recog/http_cookies.xml"),
+            Self::Favicon => include_str!("../../../../../../assets/recog/favicons.xml"),
+            Self::FtpBanner => include_str!("../../../../../../assets/recog/ftp_banners.xml"),
+            Self::TelnetBanner => {
+                include_str!("../../../../../../assets/recog/telnet_banners.xml")
+            }
+            Self::RtspServer => include_str!("../../../../../../assets/recog/rtsp_servers.xml"),
         }
     }
 
@@ -85,6 +132,14 @@ impl RecogDatabase {
     /// is consulted first because its specific fingerprints name more (a distribution, a product)
     /// than the supplement's broad ones, which exist only to fill what Recog leaves unnamed.
     pub fn os(&self, input: &str) -> Option<HostOs> {
+        self.identify(input)
+            .and_then(|m| m.os)
+            .or_else(|| super::supplement::os(*self, input.trim()))
+    }
+
+    /// Everything the first matching fingerprint names about the host, each part held to its
+    /// certainty bar. `None` when nothing matches or the match names nothing usable.
+    pub fn identify(&self, input: &str) -> Option<RecogMatch> {
         let input = input.trim();
         if input.is_empty() {
             return None;
@@ -92,8 +147,97 @@ impl RecogDatabase {
         self.fingerprints()
             .iter()
             .find_map(|fp| fp.extract(input))
-            .and_then(|params| os_from_params(&params))
-            .or_else(|| super::supplement::os(*self, input))
+            .map(|params| RecogMatch::from_params(&params))
+            .filter(|m| !m.is_empty())
+    }
+
+    /// Every fixed `service.vendor` and `service.product` pair this database can name, for
+    /// checking the software a service definition matches on exists.
+    pub fn software(self) -> impl Iterator<Item = (&'static str, &'static str)> {
+        self.fingerprints().iter().filter_map(|fp| {
+            let fixed = |name: &str| {
+                fp.params
+                    .iter()
+                    .find(|p| p.name == name && p.pos == 0)
+                    .and_then(|p| p.value.as_deref())
+            };
+            Some((
+                fixed("service.vendor").unwrap_or_default(),
+                fixed("service.product")?,
+            ))
+        })
+    }
+}
+
+/// The software a fingerprint names: Recog's `service.vendor` (empty when it gives none) and
+/// `service.product`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RecogSoftware {
+    pub vendor: String,
+    pub product: String,
+}
+
+/// What one Recog match names about the host that emitted the string.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RecogMatch {
+    pub os: Option<HostOs>,
+    /// `hw.vendor`: who made the device.
+    pub manufacturer: Option<String>,
+    /// `hw.product`: the device's model.
+    pub model: Option<String>,
+    /// `hw.device`, where it names a class of device.
+    pub device_type: Option<DeviceType>,
+    /// `service.vendor` and `service.product`: the software answering on the port, such as a web
+    /// application. A pair because Recog's product names repeat across vendors ("Dashboard" is
+    /// Kubernetes', OpenStack's and InfluxData's).
+    pub software: Option<RecogSoftware>,
+}
+
+impl RecogMatch {
+    fn from_params(params: &HashMap<String, String>) -> Self {
+        let certain = |key: &str| {
+            params
+                .get(key)
+                .and_then(|c| c.parse::<f32>().ok())
+                .is_none_or(|c| c >= MIN_SHARED_CERTAINTY)
+        };
+        let value = |key: &str| {
+            params
+                .get(key)
+                .map(|v| v.trim())
+                .filter(|v| !v.is_empty())
+                .map(str::to_string)
+        };
+        let hardware = certain("hw.certainty");
+        let device_type = value("hw.device").and_then(|d| match classify_device(&d) {
+            RecogDevice::Type(device_type) => Some(device_type),
+            RecogDevice::Generic | RecogDevice::Unlisted => None,
+        });
+        RecogMatch {
+            os: os_from_params(params),
+            manufacturer: value("hw.vendor").filter(|_| hardware),
+            model: value("hw.product").filter(|_| hardware),
+            device_type: device_type.filter(|_| hardware),
+            software: value("service.product")
+                .filter(|_| certain("service.certainty"))
+                .map(|product| RecogSoftware {
+                    vendor: value("service.vendor").unwrap_or_default(),
+                    product,
+                }),
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        *self == RecogMatch::default()
+    }
+
+    /// Whether the match names anything about the host itself, as opposed to only the software
+    /// answering on one of its ports.
+    pub fn names_host(&self) -> bool {
+        self.os.is_some()
+            || self.manufacturer.is_some()
+            || self.model.is_some()
+            || self.device_type.is_some()
     }
 }
 
@@ -117,7 +261,7 @@ struct Param {
 struct Example {
     input: String,
     expected: Vec<(String, String)>,
-    /// Base64-encoded or file-backed examples are not run; none of the vendored OS ones are.
+    /// Base64-encoded or file-backed examples are not run.
     runnable: bool,
 }
 
@@ -155,7 +299,7 @@ fn os_from_params(params: &HashMap<String, String>) -> Option<HostOs> {
     let certainty = params
         .get("os.certainty")
         .and_then(|c| c.parse::<f32>().ok());
-    if certainty.is_some_and(|c| c < MIN_CERTAINTY) {
+    if certainty.is_some_and(|c| c < MIN_OS_CERTAINTY) {
         return None;
     }
     let family_text = params.get("os.family")?;
@@ -192,253 +336,25 @@ fn os_from_params(params: &HashMap<String, String>) -> Option<HostOs> {
     })
 }
 
-/// How a Recog `os.family` value reads as a host OS.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RecogFamily {
-    /// The value names an operating system.
-    Os(HostOsFamily),
-    /// The value names a hardware line or a product family, not an OS. A match writes no OS.
-    NotAnOs,
-    /// The value is in neither list. A match writes no OS; the vendored data must contain none
-    /// (`every_vendored_family_is_classified`), so meeting one at runtime means a family captured
-    /// from the matched string that the examples did not cover.
-    Unlisted,
+/// A Recog pattern as a Rust regex. Recog's patterns are Ruby regexes, where `^` and `$` always
+/// match at line boundaries, so every pattern runs multi-line. Recog's `flags` map onto Ruby's:
+/// `REG_ICASE` ignores case, and `REG_MULTILINE` and `REG_DOT_NEWLINE` let `.` match a newline.
+fn compile(pattern: &str, flags: Option<&str>) -> Result<Regex, String> {
+    let mut inline = String::from("m");
+    for flag in flags.into_iter().flat_map(|f| f.split(',')).map(str::trim) {
+        match flag {
+            "REG_ICASE" => inline.push('i'),
+            "REG_MULTILINE" | "REG_DOT_NEWLINE" | "REG_LINE_ANY_CRLF" => inline.push('s'),
+            _ => {}
+        }
+    }
+    // Ruby's `\w` and `\d` are ASCII and the regex crate's are Unicode, so a bounded repeat of one
+    // (`[\w.-]{1,512}` in an FTP banner) compiles far larger here than Recog wrote it for.
+    RegexBuilder::new(&format!("(?{inline}){pattern}"))
+        .size_limit(64 << 20)
+        .build()
+        .map_err(|err| format!("pattern {pattern:?} does not compile: {err}"))
 }
-
-/// Classify a Recog `os.family`, refined by `os.product` where Recog files several OSes under one
-/// family. Case-sensitive on purpose: Recog writes Apple's `iOS` and Cisco's `IOS` as two families.
-fn classify(family: &str, product: Option<&str>) -> RecogFamily {
-    use HostOsFamily as F;
-    let os = match family {
-        "Linux" | "OpenWRT" | "UCOS" => F::Linux,
-        "Windows" => F::Windows,
-        "Mac OS X" => F::MacOs,
-        "iOS" => F::Ios,
-        "iPadOS" => F::IpadOs,
-        "tvOS" => F::TvOs,
-        "audioOS" => F::AudioOs,
-        "FreeBSD" => F::FreeBsd,
-        "OpenBSD" => F::OpenBsd,
-        "NetBSD" => F::NetBsd,
-        "Solaris" => F::Solaris,
-        "AIX" => F::Aix,
-        "HP-UX" => F::HpUx,
-        "IRIX" => F::Irix,
-        "OpenVMS" => F::OpenVms,
-        "z/OS" => F::ZOs,
-        "OS/400" => F::IbmI,
-        "UnixWare" => F::UnixWare,
-        "OpenServer" => F::OpenServer,
-        "NetWare" => F::NetWare,
-        "PalmOS" => F::PalmOs,
-        "VMware ESX/ESXi" => F::Esxi,
-        "IOS" => match product {
-            Some("IOS-XE") => F::CiscoIosXe,
-            Some("IOS-XR") => F::CiscoIosXr,
-            _ => F::CiscoIos,
-        },
-        "NX-OS" | "SAN-OS" => F::CiscoNxOs,
-        "CatOS" => F::CiscoCatOs,
-        "Adaptive Security Appliance" => F::CiscoAsa,
-        "Secure Firewall" => F::CiscoFtd,
-        "Junos" => F::Junos,
-        "ScreenOS" => F::ScreenOs,
-        "Aruba" => F::ArubaOs,
-        "Comware" => F::Comware,
-        "ProCurve" | "Procurve" => F::ProCurve,
-        "EOS" => F::AristaEos,
-        "RouterOS" => F::RouterOs,
-        "VRP" => F::HuaweiVrp,
-        "IronWare" => F::IronWare,
-        "NetworkOS" => F::BrocadeNetworkOs,
-        "BayRS" => F::BayRs,
-        "PAN-OS" => F::PanOs,
-        "FortiOS" => F::FortiOs,
-        "SonicOS" => F::SonicOs,
-        "IPSO" => F::Ipso,
-        "Data ONTAP" => F::DataOntap,
-        // Families Recog uses for several things, of which only some are an OS.
-        "Unix" => match product {
-            Some("Tru64 Unix") | Some("Digital Unix") => F::Tru64,
-            _ => return RecogFamily::NotAnOs,
-        },
-        "Firewall-1" => match product {
-            Some("GAiA OS") => F::GaiaOs,
-            _ => return RecogFamily::NotAnOs,
-        },
-        "Embedded" => match product {
-            Some("eCos") => F::Ecos,
-            _ => return RecogFamily::NotAnOs,
-        },
-        other if NOT_AN_OS.contains(&other) => return RecogFamily::NotAnOs,
-        _ => return RecogFamily::Unlisted,
-    };
-    RecogFamily::Os(os)
-}
-
-/// Every `os.family` in the vendored databases that names a hardware line or product family rather
-/// than an operating system: printers, KVMs, serial servers, switch and appliance model lines.
-const NOT_AN_OS: &[&str] = &[
-    "1000C",
-    "3155 Series",
-    "3165 Series",
-    "760 Series",
-    "Accelar",
-    "Access Point",
-    "Aficio",
-    "AirPort",
-    "Application Switch",
-    "AR Series",
-    "ATM ADSL Unit",
-    "ATM ReachDSL Unit",
-    "BayStack",
-    "BitStorm",
-    "bizhub",
-    "Blade Switch",
-    "BladeCenter",
-    "Blue Coat",
-    "BOSS",
-    "Clariion",
-    "CM Series",
-    "Color Laser Printer",
-    "ColorWave",
-    "Connectrix",
-    "Copier",
-    "CryptoStore",
-    "CS 1000",
-    "CS Series",
-    "Dell Remote Access Controller",
-    "Designjet",
-    "Device Server",
-    "DMT Router",
-    "Document Centre",
-    "DocuPrint",
-    "DS60 Series",
-    "e-STUDIO",
-    "EDS",
-    "ERS",
-    "Ethernet Interface",
-    "Ethernet Routing Switch",
-    "ETS",
-    "Fiery",
-    "Forms Printer",
-    "FrameSaver",
-    "FRITZ!Box",
-    "G.SHDSL [ATM]",
-    "GigaVUE HD",
-    "GigaVUE TA",
-    "GranDSLAM",
-    "HFA",
-    "HiPath",
-    "HomeConnect",
-    "HotWire",
-    "HP3000",
-    "I-Class",
-    "iLO",
-    "ILOM",
-    "IM Series",
-    "imageCLASS",
-    "Imagio",
-    "Infoprint",
-    "Integrity",
-    "Intel(R) Active Management Technology",
-    "IntelliJack",
-    "IP Console Switch",
-    "IP KVM",
-    "iPR Series",
-    "IPSIO",
-    "iR Series",
-    "JetDirect",
-    "Laser Printer",
-    "Laser Shot",
-    "LaserJet",
-    "LinkBuilder",
-    "LRS",
-    "MarkNet",
-    "MatchPort",
-    "MCNS Cable Modem",
-    "Meraki",
-    "Meridian 1",
-    "MSA",
-    "MSS",
-    "Multifunction",
-    "MX",
-    "MX Series",
-    "NC Series",
-    "NEO",
-    "NetCache",
-    "Netopia",
-    "NetportExpress",
-    "NetQue",
-    "Netscaler",
-    "NetScaler",
-    "NetVanta",
-    "Network Printer",
-    "NTS",
-    "OfficeConnect",
-    "Officejet",
-    "OPTI-MX",
-    "optiPoint",
-    "Optra",
-    "Packet-Optical",
-    "Phaser",
-    "Photosmart",
-    "PLC",
-    "PowerEdge Integrated",
-    "PowerVault",
-    "Pro",
-    "ProLiant",
-    "RackBotz",
-    "Raptor",
-    "Router",
-    "RT",
-    "RTP Power Controller",
-    "SageNET",
-    "Scalance",
-    "SCS",
-    "SDS",
-    "SDSL [ATM] Router",
-    "Secure Network Access Switch",
-    "Secure Router",
-    "ShoreGear",
-    "SLS",
-    "Small Business RV Series Routers",
-    "SNMP-Link",
-    "SpectraComm",
-    "SSL-VPN",
-    "ST9000 Series",
-    "StorageWorks",
-    "StorEdge",
-    "Subscriber Networks",
-    "Succession 1000/M",
-    "Switch",
-    "System Storage",
-    "T1E1 [COMBO] Router",
-    "T3 Termination",
-    "TDS750 Series",
-    "TelePresence",
-    "Time Capsule",
-    "TippingPoint",
-    "Total Access",
-    "TrafficWare",
-    "UDS",
-    "V1905",
-    "V1910",
-    "Vantage",
-    "VarioPrint",
-    "VCX",
-    "VG200",
-    "VPN",
-    "WaveCore",
-    "WiBox",
-    "Wide Format Printer",
-    "WLSE",
-    "WorkCentre",
-    "WorkCentre Pro",
-    "XPort",
-    "XPress",
-    "ZebraNet",
-];
 
 /// Parse one Recog XML database.
 fn parse(xml: &str) -> Result<Vec<Fingerprint>, String> {
@@ -455,8 +371,7 @@ fn parse(xml: &str) -> Result<Vec<Fingerprint>, String> {
                 let pattern = attrs
                     .get("pattern")
                     .ok_or("fingerprint without a pattern")?;
-                let pattern = Regex::new(pattern)
-                    .map_err(|err| format!("pattern {pattern:?} does not compile: {err}"))?;
+                let pattern = compile(pattern, attrs.get("flags").map(String::as_str))?;
                 current = Some(Fingerprint {
                     pattern,
                     params: Vec::new(),
@@ -603,6 +518,64 @@ mod tests {
         assert!(
             unlisted.is_empty(),
             "classify() or NOT_AN_OS must list: {unlisted:?}"
+        );
+    }
+
+    /// A refresh that adds a device class fails here until someone maps it to a device type.
+    #[test]
+    fn every_vendored_device_is_classified() {
+        let mut unlisted = std::collections::BTreeSet::new();
+        for db in RecogDatabase::iter() {
+            for fp in db.fingerprints() {
+                let fixed = fp
+                    .params
+                    .iter()
+                    .filter(|p| p.name == "hw.device")
+                    .filter_map(|p| p.value.clone());
+                for device in fixed {
+                    if classify_device(&device) == RecogDevice::Unlisted {
+                        unlisted.insert(device);
+                    }
+                }
+            }
+        }
+        assert!(
+            unlisted.is_empty(),
+            "classify_device() must list: {unlisted:?}"
+        );
+    }
+
+    #[test]
+    fn a_certificate_subject_names_the_device() {
+        let m = RecogDatabase::X509Subject
+            .identify("CN=00:22:6b:ef:1e:d0,OU=RV042,O=Cisco-Linksys\\, LLC,L=Irvine,C=US")
+            .expect("a Linksys RV042 certificate is fingerprinted");
+        assert_eq!(m.model.as_deref(), Some("RV042"));
+        assert!(m.manufacturer.is_some());
+        assert!(m.device_type.is_some());
+    }
+
+    #[test]
+    fn a_vague_fingerprint_names_no_hardware() {
+        let params = HashMap::from([
+            ("hw.vendor".to_string(), "Ubiquiti".to_string()),
+            ("hw.device".to_string(), "WAP".to_string()),
+            ("hw.certainty".to_string(), "0.25".to_string()),
+        ]);
+        assert!(RecogMatch::from_params(&params).is_empty());
+    }
+
+    #[test]
+    fn case_insensitive_and_multiline_flags_apply() {
+        let icase = compile("^foo$", Some("REG_ICASE")).unwrap();
+        assert!(icase.is_match("FOO"));
+        let dotall = compile("^a.b$", Some("REG_MULTILINE")).unwrap();
+        assert!(dotall.is_match("a\nb"));
+        // Ruby anchors match at every line, which multi-line banners depend on.
+        assert!(
+            compile("^login:$", None)
+                .unwrap()
+                .is_match("Welcome\nlogin:")
         );
     }
 

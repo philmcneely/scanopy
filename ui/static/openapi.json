@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Scanopy API",
-    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.1\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.1\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.19.1)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
+    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.3\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.3\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.19.3)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
     "license": {
       "name": "Dual (AGPL3.0, Commercial License Available)"
     },
@@ -23195,12 +23195,12 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.19.1"
+            "example": "0.19.3"
           }
         },
         "example": {
           "api_version": 1,
-          "server_version": "0.19.1"
+          "server_version": "0.19.3"
         }
       },
       "ApiResponse": {
@@ -23332,19 +23332,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-26T05:36:24.444998Z",
+              "created_at": "2026-10-28T00:42:41.755884Z",
               "first_discovery_id": null,
-              "id": "956c0acd-7001-4077-b7b7-809c090e2f02",
+              "id": "bcc539d7-970d-4d4d-9284-c9e82aa4b5a8",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-26T05:36:24.444998Z",
+              "last_seen_at": "2026-10-28T00:42:41.755884Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-26T05:36:24.444998Z",
-              "valid_from": "2026-10-26T05:36:24.444998Z",
+              "updated_at": "2026-10-28T00:42:41.755884Z",
+              "valid_from": "2026-10-28T00:42:41.755884Z",
               "valid_to": null
             }
           },
@@ -25125,19 +25125,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-26T05:36:24.406607Z",
+                      "created_at": "2026-10-28T00:42:41.723827Z",
                       "first_discovery_id": null,
-                      "id": "02ef33ac-639a-4e45-a4bc-e4182ed631fa",
+                      "id": "910ece85-79d2-4187-b76c-e040cde0ef0a",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-26T05:36:24.406607Z",
+                      "last_seen_at": "2026-10-28T00:42:41.723827Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-26T05:36:24.406607Z",
-                      "valid_from": "2026-10-26T05:36:24.406607Z",
+                      "updated_at": "2026-10-28T00:42:41.723827Z",
+                      "valid_from": "2026-10-28T00:42:41.723827Z",
                       "valid_to": null
                     }
                   ],
@@ -25150,7 +25150,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Scanopy Server",
+                  "service_definition": "Wizarr",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -26642,19 +26642,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-26T05:36:24.439171Z",
+                  "created_at": "2026-10-28T00:42:41.750643Z",
                   "first_discovery_id": null,
-                  "id": "2e10e6b8-6a05-450a-86b4-1c4dde0f0f1b",
+                  "id": "135ebc02-c051-41c2-995f-e39d4bc92d66",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-26T05:36:24.439171Z",
+                  "last_seen_at": "2026-10-28T00:42:41.750643Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-26T05:36:24.439171Z",
-                  "valid_from": "2026-10-26T05:36:24.439171Z",
+                  "updated_at": "2026-10-28T00:42:41.750643Z",
+                  "valid_from": "2026-10-28T00:42:41.750643Z",
                   "valid_to": null
                 }
               ],
@@ -26667,7 +26667,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Scanopy Server",
+              "service_definition": "Wizarr",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -29268,6 +29268,76 @@
           },
           {
             "type": "string",
+            "description": "A device or OS matched in the subject of a TLS certificate the host served, such as the\n`OU=RV042` a Linksys router's self-signed certificate carries.",
+            "enum": [
+              "X509SubjectMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in the issuer of a TLS certificate the host served: an appliance\nwhose factory certificate names its own maker as the CA.",
+            "enum": [
+              "X509IssuerMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in the `<title>` of a page the host's web server returned.",
+            "enum": [
+              "HtmlTitleMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in the realm of an HTTP `WWW-Authenticate` challenge.",
+            "enum": [
+              "HttpWwwAuthMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in a cookie the host's web server set.",
+            "enum": [
+              "HttpCookieMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched by the MD5 hash of the host's `/favicon.ico`.",
+            "enum": [
+              "FaviconMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in an FTP server's greeting.",
+            "enum": [
+              "FtpBannerMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in a Telnet banner.",
+            "enum": [
+              "TelnetBannerMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in an RTSP server's `Server` header.",
+            "enum": [
+              "RtspServerMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "An operating system family matched in the TCP/IP stack's reply to a connection: the initial\nTTL, window, MSS and TCP option layout of its SYN-ACK. The weakest match: it names only a\nfamily, and is applied only to a host nothing else names an OS for.",
+            "enum": [
+              "TcpStackMatch"
+            ]
+          },
+          {
+            "type": "string",
             "description": "An operating system matched in an mDNS `_device-info._tcp` record, such as a Mac's\n`model=MacBookPro18,3`.",
             "enum": [
               "DnsSdDeviceInfoMatch"
@@ -29794,19 +29864,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-26T05:36:24.407299Z",
+          "created_at": "2026-10-28T00:42:41.724415Z",
           "first_discovery_id": null,
-          "id": "1f7559d6-0098-4317-83de-9c1e596421f6",
+          "id": "ec36645c-68f7-4259-b8cb-05917d767366",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-26T05:36:24.407299Z",
+          "last_seen_at": "2026-10-28T00:42:41.724415Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-26T05:36:24.407299Z",
-          "valid_from": "2026-10-26T05:36:24.407299Z",
+          "updated_at": "2026-10-28T00:42:41.724415Z",
+          "valid_from": "2026-10-28T00:42:41.724415Z",
           "valid_to": null
         }
       },
@@ -30714,7 +30784,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Scanopy Server",
+              "service_definition": "Wizarr",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -32930,22 +33000,89 @@
         "type": "string",
         "description": "What a host is, as a device: the class its icon stands for on the map.\n\nDeclaration order is precedence, highest first. A host whose services claim several device types takes\nthe first one here, so a firewall that also serves files reads as a firewall, and `Server`,\nwhich any application implies, never hides a more specific device type.\n\n`Unidentified` means no evidence yet, not a device class outside this list: every class the\nevidence names gets its own variant.",
         "enum": [
+          "Ips",
+          "SecurityAppliance",
+          "Vpn",
           "Firewall",
+          "SdWanAppliance",
+          "BroadbandRouter",
+          "CableModem",
+          "DslModem",
+          "VoipGateway",
+          "SipGateway",
+          "Multiplexer",
+          "Telecom",
           "Router",
           "Switch",
+          "NetworkManagementDevice",
+          "LightsOutManagement",
+          "Kvm",
+          "DeviceServer",
+          "WirelessController",
+          "WlanRepeater",
+          "Powerline",
           "AccessPoint",
           "Hypervisor",
+          "Nas",
+          "StorageAppliance",
+          "TapeLibrary",
           "Storage",
+          "MultifunctionDevice",
+          "PrintServer",
+          "Scanner",
+          "HandheldScanner",
+          "CheckScanner",
           "Printer",
+          "NetworkVideoRecorder",
+          "Dvr",
+          "WebCam",
           "Camera",
+          "VideoConferencing",
+          "VideoEncoder",
+          "VideoDecoder",
+          "DisplayController",
+          "WirelessPresenter",
+          "Whiteboard",
+          "VoipServer",
+          "VoiceAppliance",
           "Phone",
+          "Laptop",
+          "Desktop",
           "Workstation",
           "Tablet",
           "Mobile",
+          "DataTerminal",
+          "SmartTv",
+          "Iptv",
+          "MediaReceiver",
+          "AvReceiver",
+          "MediaServer",
           "MediaPlayer",
+          "NetworkAudio",
+          "AudioEncoder",
           "Speaker",
+          "Plc",
+          "HmiController",
           "Industrial",
+          "BuildingAutomation",
+          "AccessControl",
+          "AlarmPanel",
+          "EnvironmentControl",
+          "Ups",
+          "PowerDevice",
+          "PowerMeter",
+          "PowerRelay",
+          "RelayController",
+          "DeviceHub",
+          "Sensor",
+          "LightBulb",
           "IoT",
+          "Medical",
+          "TestInstrument",
+          "JtagAdapter",
+          "EthernetAdapter",
+          "SupportAppliance",
+          "Monitoring",
           "Server",
           "Unidentified"
         ]
@@ -37415,6 +37552,10 @@
             "description": "The host's operating system, from whichever source read or matched it. See\n[`HostOsValue`](super::attributes::HostOsValue) for who writes it and how they rank."
           },
           {
+            "$ref": "#/components/schemas/HostMatchedDeviceType",
+            "description": "The device class a fingerprint of something the host emitted names. One rung of the\ndevice type the host shows; see\n[`HostMatchedDeviceTypeValue`](super::attributes::HostMatchedDeviceTypeValue)."
+          },
+          {
             "type": "object",
             "required": [
               "site_id",
@@ -37547,6 +37688,105 @@
             "description": "ENTITY-MIB entPhysicalMfgName - hardware manufacturer"
           },
           "manufacturer_source": {
+            "$ref": "#/components/schemas/AttributeSource"
+          }
+        }
+      },
+      "HostMatchedDeviceType": {
+        "type": "object",
+        "properties": {
+          "matched_device_type": {
+            "type": "string",
+            "description": "What a host is, as a device: the class its icon stands for on the map.\n\nDeclaration order is precedence, highest first. A host whose services claim several device types takes\nthe first one here, so a firewall that also serves files reads as a firewall, and `Server`,\nwhich any application implies, never hides a more specific device type.\n\n`Unidentified` means no evidence yet, not a device class outside this list: every class the\nevidence names gets its own variant.",
+            "enum": [
+              "Ips",
+              "SecurityAppliance",
+              "Vpn",
+              "Firewall",
+              "SdWanAppliance",
+              "BroadbandRouter",
+              "CableModem",
+              "DslModem",
+              "VoipGateway",
+              "SipGateway",
+              "Multiplexer",
+              "Telecom",
+              "Router",
+              "Switch",
+              "NetworkManagementDevice",
+              "LightsOutManagement",
+              "Kvm",
+              "DeviceServer",
+              "WirelessController",
+              "WlanRepeater",
+              "Powerline",
+              "AccessPoint",
+              "Hypervisor",
+              "Nas",
+              "StorageAppliance",
+              "TapeLibrary",
+              "Storage",
+              "MultifunctionDevice",
+              "PrintServer",
+              "Scanner",
+              "HandheldScanner",
+              "CheckScanner",
+              "Printer",
+              "NetworkVideoRecorder",
+              "Dvr",
+              "WebCam",
+              "Camera",
+              "VideoConferencing",
+              "VideoEncoder",
+              "VideoDecoder",
+              "DisplayController",
+              "WirelessPresenter",
+              "Whiteboard",
+              "VoipServer",
+              "VoiceAppliance",
+              "Phone",
+              "Laptop",
+              "Desktop",
+              "Workstation",
+              "Tablet",
+              "Mobile",
+              "DataTerminal",
+              "SmartTv",
+              "Iptv",
+              "MediaReceiver",
+              "AvReceiver",
+              "MediaServer",
+              "MediaPlayer",
+              "NetworkAudio",
+              "AudioEncoder",
+              "Speaker",
+              "Plc",
+              "HmiController",
+              "Industrial",
+              "BuildingAutomation",
+              "AccessControl",
+              "AlarmPanel",
+              "EnvironmentControl",
+              "Ups",
+              "PowerDevice",
+              "PowerMeter",
+              "PowerRelay",
+              "RelayController",
+              "DeviceHub",
+              "Sensor",
+              "LightBulb",
+              "IoT",
+              "Medical",
+              "TestInstrument",
+              "JtagAdapter",
+              "EthernetAdapter",
+              "SupportAppliance",
+              "Monitoring",
+              "Server",
+              "Unidentified"
+            ]
+          },
+          "matched_device_type_source": {
             "$ref": "#/components/schemas/AttributeSource"
           }
         }
@@ -38355,19 +38595,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-26T05:36:24.405765Z",
+                  "created_at": "2026-10-28T00:42:41.723110Z",
                   "first_discovery_id": null,
-                  "id": "6a43d303-5813-456b-a0c7-bb5e08f7e8d8",
+                  "id": "823365da-8a61-4f9b-b70b-64fd375c67f2",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-26T05:36:24.405765Z",
+                  "last_seen_at": "2026-10-28T00:42:41.723110Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-26T05:36:24.405765Z",
-                  "valid_from": "2026-10-26T05:36:24.405765Z",
+                  "updated_at": "2026-10-28T00:42:41.723110Z",
+                  "valid_from": "2026-10-28T00:42:41.723110Z",
                   "valid_to": null
                 }
               ],
@@ -38380,7 +38620,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Scanopy Server",
+              "service_definition": "Wizarr",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -41765,7 +42005,7 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.19.1"
+            "example": "0.19.3"
           }
         },
         "example": {
@@ -41776,7 +42016,7 @@
             "offset": 0,
             "total_count": 142
           },
-          "server_version": "0.19.1"
+          "server_version": "0.19.3"
         }
       },
       "PaginatedApiResponse_Credential": {
@@ -42688,19 +42928,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-26T05:36:24.392381Z",
+                        "created_at": "2026-10-28T00:42:41.711187Z",
                         "first_discovery_id": null,
-                        "id": "1ca48201-07e4-47d3-848f-d67f701f7447",
+                        "id": "ee4b0ffb-516f-496c-838d-135bbb4b4005",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-26T05:36:24.392381Z",
+                        "last_seen_at": "2026-10-28T00:42:41.711187Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-26T05:36:24.392381Z",
-                        "valid_from": "2026-10-26T05:36:24.392381Z",
+                        "updated_at": "2026-10-28T00:42:41.711187Z",
+                        "valid_from": "2026-10-28T00:42:41.711187Z",
                         "valid_to": null
                       }
                     ],
@@ -42713,7 +42953,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Scanopy Server",
+                    "service_definition": "Wizarr",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -42960,19 +43200,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-26T05:36:24.438370Z",
+                    "created_at": "2026-10-28T00:42:41.749851Z",
                     "first_discovery_id": null,
-                    "id": "ae0829b0-ccc3-4c78-a022-070cd089f0c9",
+                    "id": "d198b584-0442-49f0-9d55-511e71c737a2",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-26T05:36:24.438370Z",
+                    "last_seen_at": "2026-10-28T00:42:41.749851Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-26T05:36:24.438370Z",
-                    "valid_from": "2026-10-26T05:36:24.438370Z",
+                    "updated_at": "2026-10-28T00:42:41.749851Z",
+                    "valid_from": "2026-10-28T00:42:41.749851Z",
                     "valid_to": null
                   }
                 ],
@@ -42985,7 +43225,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Scanopy Server",
+                "service_definition": "Wizarr",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -45682,19 +45922,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-26T05:36:24.407091Z",
+              "created_at": "2026-10-28T00:42:41.724236Z",
               "first_discovery_id": null,
-              "id": "f3aa999f-2900-4cf9-bc9e-f9c902dd523d",
+              "id": "476f6de7-bedf-45a1-b9ef-1e26dc9fc06a",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-26T05:36:24.407091Z",
+              "last_seen_at": "2026-10-28T00:42:41.724236Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-26T05:36:24.407091Z",
-              "valid_from": "2026-10-26T05:36:24.407091Z",
+              "updated_at": "2026-10-28T00:42:41.724236Z",
+              "valid_from": "2026-10-28T00:42:41.724236Z",
               "valid_to": null
             }
           ],
@@ -45707,7 +45947,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Scanopy Server",
+          "service_definition": "Wizarr",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -48054,7 +48294,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "43930029-1d03-4799-975f-5ab69074046d",
+                  "id": "d2c1b8e6-617c-4394-ba94-9925cd66f1a7",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -48064,23 +48304,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "7598f048-2aaf-45b3-90d2-2791cb6f506d",
+                  "id": "d50dff9d-2c19-4de4-a729-75554774034e",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "12eeeb3d-68aa-4aa4-a026-64895b3c3a7a",
+                  "id": "e196df25-8f05-4ece-aeea-c185a767912c",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "f325cec9-d841-4631-8292-6af3abe7d4fc",
+                  "id": "94b26af4-62f0-4b56-b4e5-6b0b7b3510c1",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "7598f048-2aaf-45b3-90d2-2791cb6f506d",
+                  "id": "d50dff9d-2c19-4de4-a729-75554774034e",
                   "rule": "ByHost"
                 }
               ]
@@ -48110,19 +48350,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "b81d664d-b24d-4b4a-a03b-197a1f03d91d",
+                "id": "346948de-0cc6-4193-a77a-9514db9da76e",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "282c5a80-bb7f-485a-b4d2-e47fc96fdaf7",
+                "id": "3726f09e-ee90-4c46-a70a-6f3eac3b244c",
                 "rule": "ByVLAN"
               },
               {
-                "id": "4dadc7fb-67d3-4eac-8790-83537ca6f657",
+                "id": "ab52c561-77f2-40ea-8f86-7513b6c36909",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "8c66135d-71a8-434d-aaf5-d322314062fb",
+                "id": "4713a672-2f56-45d4-b829-0573a95587cc",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -48143,7 +48383,7 @@
                 }
               },
               {
-                "id": "8b9e0b8d-22d9-41ce-9a7a-0794d952eac9",
+                "id": "51845e1f-8f38-492d-acc7-520ad802d88f",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -48152,19 +48392,19 @@
                 }
               },
               {
-                "id": "b3016b7d-7019-4ac8-8dec-1e5e3398f33b",
+                "id": "59e78070-26d1-473d-ae22-a6eefceb97cd",
                 "rule": "ByDeviceType"
               },
               {
-                "id": "ae77d814-bf83-40b1-9935-b09fd756c6a7",
+                "id": "cf02629e-0d91-4edf-ae61-2b2a724e31d5",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "62328bbe-114b-4956-895c-992d03fcc813",
+                "id": "e70f437d-2fff-4493-bf7a-64e591977c13",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "c04f8977-42eb-4ec8-8c98-1f0e8c06324c",
+                "id": "321c9a9c-0a33-407c-b520-1363c5196435",
                 "rule": "ByStack"
               }
             ]

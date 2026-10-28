@@ -142,6 +142,8 @@ impl HostResponse {
                 os: os
                     .clone()
                     .map(|v| Attributed::new(HostOsValue(v), *os_source)),
+                // Not on the response; the daemon never writes back what it reads here.
+                matched_device_type: None,
                 credential_assignments: credential_assignments.clone(),
             },
         }
@@ -227,6 +229,9 @@ impl HostResponse {
             firmware_revision,
             software_revision,
             os,
+            // A rung of the device type the response carries (`Host::device_type`), not a field
+            // of its own.
+            matched_device_type: _,
             credential_assignments,
         } = base;
 

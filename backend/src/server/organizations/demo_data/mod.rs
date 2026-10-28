@@ -359,6 +359,7 @@ fn create_host(
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: vec![],
         },
     };
@@ -431,6 +432,25 @@ fn with_ssh_inventory(
         source,
     ));
     host.base.os = Some(Attributed::new(HostOsValue(os), source));
+    (host, ip_address)
+}
+
+/// Wraps a `create_host()` result to add what a Recog fingerprint of something the device emitted
+/// names, attributed to that match as a real scan would: the maker and the device class.
+fn with_fingerprint(
+    (mut host, ip_address): (Host, IPAddress),
+    source: AttributeSource,
+    manufacturer: &str,
+    device_type: crate::server::hosts::r#impl::device_type::DeviceType,
+) -> (Host, IPAddress) {
+    host.base.manufacturer = Some(Attributed::new(
+        HostManufacturerValue(manufacturer.into()),
+        source,
+    ));
+    host.base.matched_device_type = Some(Attributed::new(
+        crate::server::hosts::r#impl::attributes::HostMatchedDeviceTypeValue(device_type),
+        source,
+    ));
     (host, ip_address)
 }
 

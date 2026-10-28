@@ -4144,7 +4144,7 @@ export interface components {
          * @description API metadata included in all responses
          * @example {
          *       "api_version": 1,
-         *       "server_version": "0.19.1"
+         *       "server_version": "0.19.3"
          *     }
          */
         ApiMeta: {
@@ -4155,7 +4155,7 @@ export interface components {
             api_version: number;
             /**
              * @description Server version (semver)
-             * @example 0.19.1
+             * @example 0.19.3
              */
             server_version: string;
         };
@@ -4184,19 +4184,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-26T05:36:24.444998Z",
+             *       "created_at": "2026-10-28T00:42:41.755884Z",
              *       "first_discovery_id": null,
-             *       "id": "956c0acd-7001-4077-b7b7-809c090e2f02",
+             *       "id": "bcc539d7-970d-4d4d-9284-c9e82aa4b5a8",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-26T05:36:24.444998Z",
+             *       "last_seen_at": "2026-10-28T00:42:41.755884Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-26T05:36:24.444998Z",
-             *       "valid_from": "2026-10-26T05:36:24.444998Z",
+             *       "updated_at": "2026-10-28T00:42:41.755884Z",
+             *       "valid_from": "2026-10-28T00:42:41.755884Z",
              *       "valid_to": null
              *     }
              */
@@ -5074,19 +5074,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-26T05:36:24.406607Z",
+             *               "created_at": "2026-10-28T00:42:41.723827Z",
              *               "first_discovery_id": null,
-             *               "id": "02ef33ac-639a-4e45-a4bc-e4182ed631fa",
+             *               "id": "910ece85-79d2-4187-b76c-e040cde0ef0a",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-26T05:36:24.406607Z",
+             *               "last_seen_at": "2026-10-28T00:42:41.723827Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-26T05:36:24.406607Z",
-             *               "valid_from": "2026-10-26T05:36:24.406607Z",
+             *               "updated_at": "2026-10-28T00:42:41.723827Z",
+             *               "valid_from": "2026-10-28T00:42:41.723827Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5099,7 +5099,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Scanopy Server",
+             *           "service_definition": "Wizarr",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -6103,19 +6103,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-26T05:36:24.439171Z",
+             *           "created_at": "2026-10-28T00:42:41.750643Z",
              *           "first_discovery_id": null,
-             *           "id": "2e10e6b8-6a05-450a-86b4-1c4dde0f0f1b",
+             *           "id": "135ebc02-c051-41c2-995f-e39d4bc92d66",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-26T05:36:24.439171Z",
+             *           "last_seen_at": "2026-10-28T00:42:41.750643Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-26T05:36:24.439171Z",
-             *           "valid_from": "2026-10-26T05:36:24.439171Z",
+             *           "updated_at": "2026-10-28T00:42:41.750643Z",
+             *           "valid_from": "2026-10-28T00:42:41.750643Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6128,7 +6128,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Scanopy Server",
+             *       "service_definition": "Wizarr",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7508,7 +7508,7 @@ export interface components {
          *     that do carry a [`ClientProbe`] keep it under their own name, `{"Probe":"Snmp"}`, which tells them
          *     apart from each other and from every bare name.
          */
-        AttributeSource: "Unspecified" | "OwnAddress" | "ServiceMatch" | "LldpNeighbourAddress" | "CipVendorId" | "SysDescrMatch" | "SysObjectIdMatch" | "LldpSysDescMatch" | "SshBannerMatch" | "HttpServerMatch" | "DnsSdDeviceInfoMatch" | "DnsSdAirPlayMatch" | "InterfaceNameMatch" | "DnsSdInstanceName" | "DnsSdHostname" | "DnsSdServicePort" | "LldpChassisId" | "Lldpd" | "ReverseDns" | "ForwardingTable" | "ArpReply" | "IcmpEcho" | "PortScan" | "DaemonSelfReport" | "ProfinetDcp" | "ContainerRuntimeInfo" | "HypervisorConfig" | "GuestAgent" | "SshScript" | {
+        AttributeSource: "Unspecified" | "OwnAddress" | "ServiceMatch" | "LldpNeighbourAddress" | "CipVendorId" | "SysDescrMatch" | "SysObjectIdMatch" | "LldpSysDescMatch" | "SshBannerMatch" | "HttpServerMatch" | "X509SubjectMatch" | "X509IssuerMatch" | "HtmlTitleMatch" | "HttpWwwAuthMatch" | "HttpCookieMatch" | "FaviconMatch" | "FtpBannerMatch" | "TelnetBannerMatch" | "RtspServerMatch" | "TcpStackMatch" | "DnsSdDeviceInfoMatch" | "DnsSdAirPlayMatch" | "InterfaceNameMatch" | "DnsSdInstanceName" | "DnsSdHostname" | "DnsSdServicePort" | "LldpChassisId" | "Lldpd" | "ReverseDns" | "ForwardingTable" | "ArpReply" | "IcmpEcho" | "PortScan" | "DaemonSelfReport" | "ProfinetDcp" | "ContainerRuntimeInfo" | "HypervisorConfig" | "GuestAgent" | "SshScript" | {
             /** @description A value the thing emitted about itself, over whatever transport [`ClientProbe`] names. */
             Probe: components["schemas"]["ClientProbe"];
         } | {
@@ -7570,19 +7570,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-26T05:36:24.407299Z",
+         *       "created_at": "2026-10-28T00:42:41.724415Z",
          *       "first_discovery_id": null,
-         *       "id": "1f7559d6-0098-4317-83de-9c1e596421f6",
+         *       "id": "ec36645c-68f7-4259-b8cb-05917d767366",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-26T05:36:24.407299Z",
+         *       "last_seen_at": "2026-10-28T00:42:41.724415Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-26T05:36:24.407299Z",
-         *       "valid_from": "2026-10-26T05:36:24.407299Z",
+         *       "updated_at": "2026-10-28T00:42:41.724415Z",
+         *       "valid_from": "2026-10-28T00:42:41.724415Z",
          *       "valid_to": null
          *     }
          */
@@ -7972,7 +7972,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Scanopy Server",
+         *           "service_definition": "Wizarr",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -9019,7 +9019,7 @@ export interface components {
          *     evidence names gets its own variant.
          * @enum {string}
          */
-        DeviceType: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Tablet" | "Mobile" | "MediaPlayer" | "Speaker" | "Industrial" | "IoT" | "Server" | "Unidentified";
+        DeviceType: "Ips" | "SecurityAppliance" | "Vpn" | "Firewall" | "SdWanAppliance" | "BroadbandRouter" | "CableModem" | "DslModem" | "VoipGateway" | "SipGateway" | "Multiplexer" | "Telecom" | "Router" | "Switch" | "NetworkManagementDevice" | "LightsOutManagement" | "Kvm" | "DeviceServer" | "WirelessController" | "WlanRepeater" | "Powerline" | "AccessPoint" | "Hypervisor" | "Nas" | "StorageAppliance" | "TapeLibrary" | "Storage" | "MultifunctionDevice" | "PrintServer" | "Scanner" | "HandheldScanner" | "CheckScanner" | "Printer" | "NetworkVideoRecorder" | "Dvr" | "WebCam" | "Camera" | "VideoConferencing" | "VideoEncoder" | "VideoDecoder" | "DisplayController" | "WirelessPresenter" | "Whiteboard" | "VoipServer" | "VoiceAppliance" | "Phone" | "Laptop" | "Desktop" | "Workstation" | "Tablet" | "Mobile" | "DataTerminal" | "SmartTv" | "Iptv" | "MediaReceiver" | "AvReceiver" | "MediaServer" | "MediaPlayer" | "NetworkAudio" | "AudioEncoder" | "Speaker" | "Plc" | "HmiController" | "Industrial" | "BuildingAutomation" | "AccessControl" | "AlarmPanel" | "EnvironmentControl" | "Ups" | "PowerDevice" | "PowerMeter" | "PowerRelay" | "RelayController" | "DeviceHub" | "Sensor" | "LightBulb" | "IoT" | "Medical" | "TestInstrument" | "JtagAdapter" | "EthernetAdapter" | "SupportAppliance" | "Monitoring" | "Server" | "Unidentified";
         Discovery: components["schemas"]["DiscoveryBase"] & {
             /**
              * Format: date-time
@@ -10708,7 +10708,7 @@ export interface components {
          *     Child entities (ip_addresses, ports, services) are stored in their own tables
          *     and queried by `host_id`. They are NOT stored on the host.
          */
-        HostBase: components["schemas"]["HostName"] & components["schemas"]["HostHostname"] & components["schemas"]["HostSysDescr"] & components["schemas"]["HostSysObjectId"] & components["schemas"]["HostSysLocation"] & components["schemas"]["HostSysContact"] & components["schemas"]["HostManagementUrl"] & components["schemas"]["HostChassisId"] & components["schemas"]["HostSysName"] & components["schemas"]["HostManufacturer"] & components["schemas"]["HostModel"] & components["schemas"]["HostSerialNumber"] & components["schemas"]["HostAssetTag"] & components["schemas"]["HostFirmwareRevision"] & components["schemas"]["HostSoftwareRevision"] & components["schemas"]["HostOperatingSystem"] & {
+        HostBase: components["schemas"]["HostName"] & components["schemas"]["HostHostname"] & components["schemas"]["HostSysDescr"] & components["schemas"]["HostSysObjectId"] & components["schemas"]["HostSysLocation"] & components["schemas"]["HostSysContact"] & components["schemas"]["HostManagementUrl"] & components["schemas"]["HostChassisId"] & components["schemas"]["HostSysName"] & components["schemas"]["HostManufacturer"] & components["schemas"]["HostModel"] & components["schemas"]["HostSerialNumber"] & components["schemas"]["HostAssetTag"] & components["schemas"]["HostFirmwareRevision"] & components["schemas"]["HostSoftwareRevision"] & components["schemas"]["HostOperatingSystem"] & components["schemas"]["HostMatchedDeviceType"] & {
             /** @description Credential assignments for this host (hydrated from junction table). */
             credential_assignments: components["schemas"]["CredentialAssignment"][];
             /** @description Free-text notes about the host. */
@@ -10766,6 +10766,21 @@ export interface components {
             /** @description ENTITY-MIB entPhysicalMfgName - hardware manufacturer */
             manufacturer?: string;
             manufacturer_source?: components["schemas"]["AttributeSource"];
+        };
+        HostMatchedDeviceType: {
+            /**
+             * @description What a host is, as a device: the class its icon stands for on the map.
+             *
+             *     Declaration order is precedence, highest first. A host whose services claim several device types takes
+             *     the first one here, so a firewall that also serves files reads as a firewall, and `Server`,
+             *     which any application implies, never hides a more specific device type.
+             *
+             *     `Unidentified` means no evidence yet, not a device class outside this list: every class the
+             *     evidence names gets its own variant.
+             * @enum {string}
+             */
+            matched_device_type?: "Ips" | "SecurityAppliance" | "Vpn" | "Firewall" | "SdWanAppliance" | "BroadbandRouter" | "CableModem" | "DslModem" | "VoipGateway" | "SipGateway" | "Multiplexer" | "Telecom" | "Router" | "Switch" | "NetworkManagementDevice" | "LightsOutManagement" | "Kvm" | "DeviceServer" | "WirelessController" | "WlanRepeater" | "Powerline" | "AccessPoint" | "Hypervisor" | "Nas" | "StorageAppliance" | "TapeLibrary" | "Storage" | "MultifunctionDevice" | "PrintServer" | "Scanner" | "HandheldScanner" | "CheckScanner" | "Printer" | "NetworkVideoRecorder" | "Dvr" | "WebCam" | "Camera" | "VideoConferencing" | "VideoEncoder" | "VideoDecoder" | "DisplayController" | "WirelessPresenter" | "Whiteboard" | "VoipServer" | "VoiceAppliance" | "Phone" | "Laptop" | "Desktop" | "Workstation" | "Tablet" | "Mobile" | "DataTerminal" | "SmartTv" | "Iptv" | "MediaReceiver" | "AvReceiver" | "MediaServer" | "MediaPlayer" | "NetworkAudio" | "AudioEncoder" | "Speaker" | "Plc" | "HmiController" | "Industrial" | "BuildingAutomation" | "AccessControl" | "AlarmPanel" | "EnvironmentControl" | "Ups" | "PowerDevice" | "PowerMeter" | "PowerRelay" | "RelayController" | "DeviceHub" | "Sensor" | "LightBulb" | "IoT" | "Medical" | "TestInstrument" | "JtagAdapter" | "EthernetAdapter" | "SupportAppliance" | "Monitoring" | "Server" | "Unidentified";
+            matched_device_type_source?: components["schemas"]["AttributeSource"];
         };
         HostModel: {
             /** @description ENTITY-MIB entPhysicalModelName - hardware model */
@@ -10982,19 +10997,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-26T05:36:24.405765Z",
+         *               "created_at": "2026-10-28T00:42:41.723110Z",
          *               "first_discovery_id": null,
-         *               "id": "6a43d303-5813-456b-a0c7-bb5e08f7e8d8",
+         *               "id": "823365da-8a61-4f9b-b70b-64fd375c67f2",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-26T05:36:24.405765Z",
+         *               "last_seen_at": "2026-10-28T00:42:41.723110Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-26T05:36:24.405765Z",
-         *               "valid_from": "2026-10-26T05:36:24.405765Z",
+         *               "updated_at": "2026-10-28T00:42:41.723110Z",
+         *               "valid_from": "2026-10-28T00:42:41.723110Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -11007,7 +11022,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Scanopy Server",
+         *           "service_definition": "Wizarr",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -12825,7 +12840,7 @@ export interface components {
          *         "offset": 0,
          *         "total_count": 142
          *       },
-         *       "server_version": "0.19.1"
+         *       "server_version": "0.19.3"
          *     }
          */
         PaginatedApiMeta: {
@@ -12838,7 +12853,7 @@ export interface components {
             pagination: components["schemas"]["PaginationMeta"];
             /**
              * @description Server version (semver)
-             * @example 0.19.1
+             * @example 0.19.3
              */
             server_version: string;
         };
@@ -14584,19 +14599,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-26T05:36:24.407091Z",
+         *           "created_at": "2026-10-28T00:42:41.724236Z",
          *           "first_discovery_id": null,
-         *           "id": "f3aa999f-2900-4cf9-bc9e-f9c902dd523d",
+         *           "id": "476f6de7-bedf-45a1-b9ef-1e26dc9fc06a",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-26T05:36:24.407091Z",
+         *           "last_seen_at": "2026-10-28T00:42:41.724236Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-26T05:36:24.407091Z",
-         *           "valid_from": "2026-10-26T05:36:24.407091Z",
+         *           "updated_at": "2026-10-28T00:42:41.724236Z",
+         *           "valid_from": "2026-10-28T00:42:41.724236Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14609,7 +14624,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Scanopy Server",
+         *       "service_definition": "Wizarr",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15789,7 +15804,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "43930029-1d03-4799-975f-5ab69074046d",
+             *           "id": "d2c1b8e6-617c-4394-ba94-9925cd66f1a7",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15799,23 +15814,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "7598f048-2aaf-45b3-90d2-2791cb6f506d",
+             *           "id": "d50dff9d-2c19-4de4-a729-75554774034e",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "12eeeb3d-68aa-4aa4-a026-64895b3c3a7a",
+             *           "id": "e196df25-8f05-4ece-aeea-c185a767912c",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "f325cec9-d841-4631-8292-6af3abe7d4fc",
+             *           "id": "94b26af4-62f0-4b56-b4e5-6b0b7b3510c1",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "7598f048-2aaf-45b3-90d2-2791cb6f506d",
+             *           "id": "d50dff9d-2c19-4de4-a729-75554774034e",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15829,19 +15844,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "b81d664d-b24d-4b4a-a03b-197a1f03d91d",
+             *         "id": "346948de-0cc6-4193-a77a-9514db9da76e",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "282c5a80-bb7f-485a-b4d2-e47fc96fdaf7",
+             *         "id": "3726f09e-ee90-4c46-a70a-6f3eac3b244c",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "4dadc7fb-67d3-4eac-8790-83537ca6f657",
+             *         "id": "ab52c561-77f2-40ea-8f86-7513b6c36909",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "8c66135d-71a8-434d-aaf5-d322314062fb",
+             *         "id": "4713a672-2f56-45d4-b829-0573a95587cc",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15862,7 +15877,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "8b9e0b8d-22d9-41ce-9a7a-0794d952eac9",
+             *         "id": "51845e1f-8f38-492d-acc7-520ad802d88f",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15871,19 +15886,19 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "b3016b7d-7019-4ac8-8dec-1e5e3398f33b",
+             *         "id": "59e78070-26d1-473d-ae22-a6eefceb97cd",
              *         "rule": "ByDeviceType"
              *       },
              *       {
-             *         "id": "ae77d814-bf83-40b1-9935-b09fd756c6a7",
+             *         "id": "cf02629e-0d91-4edf-ae61-2b2a724e31d5",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "62328bbe-114b-4956-895c-992d03fcc813",
+             *         "id": "e70f437d-2fff-4493-bf7a-64e591977c13",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "c04f8977-42eb-4ec8-8c98-1f0e8c06324c",
+             *         "id": "321c9a9c-0a33-407c-b520-1363c5196435",
              *         "rule": "ByStack"
              *       }
              *     ]

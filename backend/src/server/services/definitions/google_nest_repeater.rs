@@ -1,5 +1,6 @@
 use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::google_wifi::GoogleWifiProbe;
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
@@ -21,6 +22,9 @@ impl ServiceDefinition for GoogleHome {
 
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkAccess
+    }
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::WlanRepeater)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {

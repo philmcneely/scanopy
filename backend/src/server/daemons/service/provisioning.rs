@@ -242,6 +242,7 @@ impl DaemonService {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: vec![],
         });
         host.base.apply_name(HostName::unattributed(name.clone()));

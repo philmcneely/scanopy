@@ -534,6 +534,7 @@ mod tests {
                 firmware_revision: None,
                 software_revision: None,
                 os: None,
+                matched_device_type: None,
                 credential_assignments: vec![],
             }),
             ip_addresses: vec![],
@@ -595,6 +596,7 @@ mod tests {
                             firmware_revision: None,
                             software_revision: None,
                             os: None,
+                            matched_device_type: None,
                             credential_assignments: vec![],
                         }),
                         ip_addresses: vec![],
@@ -991,6 +993,7 @@ mod tests {
                 firmware_revision: None,
                 software_revision: None,
                 os: None,
+                matched_device_type: None,
                 credential_assignments: vec![],
             }),
             ip_addresses: vec![
@@ -1093,6 +1096,7 @@ mod tests {
                 firmware_revision: None,
                 software_revision: None,
                 os: None,
+                matched_device_type: None,
                 credential_assignments: vec![],
             }),
             ip_addresses: vec![IPAddress {
@@ -1311,6 +1315,7 @@ mod tests {
                 firmware_revision: None,
                 software_revision: None,
                 os: None,
+                matched_device_type: None,
                 credential_assignments: vec![],
             }),
             ip_addresses: vec![IPAddress {
@@ -1416,6 +1421,7 @@ mod tests {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: vec![],
         });
         let pending_id = host.id;

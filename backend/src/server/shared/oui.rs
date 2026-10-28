@@ -1,8 +1,25 @@
+//! MAC vendor lookup from the IEEE registries.
+//!
+//! IEEE assigns MAC blocks at three sizes: MA-L (24-bit prefix, `oui.csv`), MA-M (28-bit,
+//! `mam.csv`) and MA-S (36-bit, `oui36.csv`), plus the retired IAB blocks (36-bit, `iab.csv`). The
+//! MA-L rows that hold the smaller blocks name "IEEE Registration Authority", not the maker, so a
+//! lookup takes the longest assigned prefix. CIDs are not loaded: they sit in locally administered
+//! space, which never names a vendor.
+
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-const OUI_CSV: &str = include_str!("../../../assets/oui.csv");
+/// Each registry, longest prefix first, which is the order a lookup tries them in.
+const REGISTRIES: [&str; 4] = [
+    include_str!("../../../assets/oui36.csv"),
+    include_str!("../../../assets/iab.csv"),
+    include_str!("../../../assets/mam.csv"),
+    include_str!("../../../assets/oui.csv"),
+];
+
+/// Assignment lengths in hex digits: MA-S and IAB, MA-M, MA-L.
+const PREFIX_LENGTHS: [usize; 3] = [9, 7, 6];
 
 #[derive(Debug, Clone, Deserialize)]
 struct OuiRecord {
@@ -21,40 +38,37 @@ pub struct OuiEntry {
     pub company_name: String,
 }
 
-type OuiDatabase = HashMap<[u8; 3], OuiEntry>;
+/// Keyed by the assignment's uppercase hex digits, whose length says which registry it came from.
+type OuiDatabase = HashMap<String, OuiEntry>;
 
 static OUI_DB: OnceLock<OuiDatabase> = OnceLock::new();
 
-fn parse_oui_prefix(hex: &str) -> Option<[u8; 3]> {
+/// An assignment as uppercase hex, if it is one of the lengths IEEE assigns.
+fn parse_assignment(hex: &str) -> Option<String> {
     let hex = hex.trim();
-    if hex.len() != 6 {
-        return None;
-    }
-    let bytes = [
-        u8::from_str_radix(&hex[0..2], 16).ok()?,
-        u8::from_str_radix(&hex[2..4], 16).ok()?,
-        u8::from_str_radix(&hex[4..6], 16).ok()?,
-    ];
-    Some(bytes)
+    (PREFIX_LENGTHS.contains(&hex.len()) && hex.chars().all(|c| c.is_ascii_hexdigit()))
+        .then(|| hex.to_ascii_uppercase())
 }
 
 fn load_database() -> OuiDatabase {
     let mut db = HashMap::new();
-    let mut reader = csv::Reader::from_reader(OUI_CSV.as_bytes());
 
-    for result in reader.deserialize::<OuiRecord>() {
-        let Ok(record) = result else {
-            continue;
-        };
-        let Some(prefix) = parse_oui_prefix(&record.assignment) else {
-            continue;
-        };
-        db.insert(
-            prefix,
-            OuiEntry {
-                company_name: record.organization_name,
-            },
-        );
+    for csv in REGISTRIES {
+        let mut reader = csv::Reader::from_reader(csv.as_bytes());
+        for result in reader.deserialize::<OuiRecord>() {
+            let Ok(record) = result else {
+                continue;
+            };
+            let Some(assignment) = parse_assignment(&record.assignment) else {
+                continue;
+            };
+            db.insert(
+                assignment,
+                OuiEntry {
+                    company_name: record.organization_name,
+                },
+            );
+        }
     }
 
     db
@@ -64,20 +78,19 @@ fn get_database() -> &'static OuiDatabase {
     OUI_DB.get_or_init(load_database)
 }
 
-/// Parse a MAC address string into its 3-byte OUI prefix.
+/// Look up the vendor for a MAC address: the holder of the longest IEEE block that contains it.
 /// Supports formats: "AA:BB:CC:DD:EE:FF", "AA-BB-CC-DD-EE-FF", "AABBCCDDEEFF", "AA:BB:CC"
-fn mac_to_prefix(mac: &str) -> Option<[u8; 3]> {
-    let hex: String = mac.chars().filter(|c| c.is_ascii_hexdigit()).collect();
-    if hex.len() < 6 {
-        return None;
-    }
-    parse_oui_prefix(&hex[..6])
-}
-
-/// Look up the vendor for a MAC address.
 pub fn lookup_by_mac(mac: &str) -> Option<&'static OuiEntry> {
-    let prefix = mac_to_prefix(mac)?;
-    get_database().get(&prefix)
+    let hex: String = mac
+        .chars()
+        .filter(|c| c.is_ascii_hexdigit())
+        .map(|c| c.to_ascii_uppercase())
+        .collect();
+    let db = get_database();
+    PREFIX_LENGTHS
+        .iter()
+        .filter(|&&len| hex.len() >= len)
+        .find_map(|&len| db.get(&hex[..len]))
 }
 
 /// Return the number of entries in the OUI database.
@@ -149,6 +162,16 @@ mod tests {
                 "Vendor constant '{}' not found in OUI database",
                 vendor
             );
+        }
+    }
+
+    #[test]
+    fn a_mac_in_a_smaller_block_resolves_to_the_block_holder() {
+        // C8:5C:E2 is an MA-L that IEEE holds and sells on as MA-M blocks; 8C:1F:64 the same as
+        // MA-S blocks. Each MAC names the maker that bought the block, not the registrar.
+        for mac in ["C8:5C:E2:70:00:01", "8C:1F:64:AF:A0:01"] {
+            let entry = lookup_by_mac(mac).expect("assigned block");
+            assert_ne!(entry.company_name, "IEEE Registration Authority", "{mac}");
         }
     }
 

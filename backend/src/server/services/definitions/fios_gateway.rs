@@ -20,7 +20,7 @@ impl ServiceDefinition for FiosGateway {
         ServiceCategory::NetworkAccess
     }
     fn device_type(&self) -> Option<DeviceType> {
-        Some(DeviceType::Router)
+        Some(DeviceType::BroadbandRouter)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {

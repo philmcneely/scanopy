@@ -292,6 +292,8 @@ tower-sessions-sqlx-store = { version = "0.15", features = ["postgres"] }
 # `oid` lets rsa's PKCS#1 v1.5 verifier name SHA-256 in the DigestInfo it checks.
 sha2 = { version = "0.10.9", features = ["oid"] }
 hex = "0.4.3"
+# MD5 of a host's /favicon.ico, the key Recog's favicon fingerprints are written against.
+md-5 = "0.10.6"
 hmac = "0.12"
 # SigV4 for the SES v2 email validation call, sent over the existing reqwest client. Pulled in
 # without the SDK so no second HTTP/TLS stack (and no `aws-lc-rs`) enters the tree.

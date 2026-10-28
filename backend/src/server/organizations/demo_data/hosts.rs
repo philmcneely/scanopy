@@ -1031,6 +1031,7 @@ pub(super) fn generate_hosts_and_services(
                 firmware_revision: None,
                 software_revision: None,
                 os: docker_engine_host_os(),
+                matched_device_type: None,
                 credential_assignments: docker_proxy_cred
                     .into_iter()
                     .map(|id| CredentialAssignment {
@@ -1712,22 +1713,28 @@ pub(super) fn generate_hosts_and_services(
         &[legacy_printers_cred],
     ));
 
-    // 27. Camera Entrance
+    // 27. Camera Entrance. Its web interface's page title ("AXIS") is a Recog fingerprint, which
+    // names the maker and the device class without credentials.
     result.push(host_with_services!(
-        with_mac(
-            create_host(
-                "cam-entrance",
-                None,
-                Some("Entrance security camera"),
-                hq,
-                hq_iot,
-                Ipv4Addr::new(10, 0, 30, 60),
-                iot_tag.into_iter().collect(),
-                None,
-                None,
-                now
+        with_fingerprint(
+            with_mac(
+                create_host(
+                    "cam-entrance",
+                    None,
+                    Some("Entrance security camera"),
+                    hq,
+                    hq_iot,
+                    Ipv4Addr::new(10, 0, 30, 60),
+                    iot_tag.into_iter().collect(),
+                    None,
+                    None,
+                    now
+                ),
+                [0xc0, 0x56, 0xe3, 0x30, 0x27, 0x01],
             ),
-            [0xc0, 0x56, 0xe3, 0x30, 0x27, 0x01],
+            AttributeSource::HtmlTitleMatch,
+            "AXIS",
+            crate::server::hosts::r#impl::device_type::DeviceType::Camera,
         ),
         now,
         (
@@ -2006,6 +2013,7 @@ pub(super) fn generate_hosts_and_services(
                 firmware_revision: None,
                 software_revision: None,
                 os: None,
+                matched_device_type: None,
                 credential_assignments: vec![],
             },
         };
@@ -2148,6 +2156,37 @@ pub(super) fn generate_hosts_and_services(
     ));
 
     // -- DMZ (172.16.30.x) --
+
+    // 3b. NetScaler in front of the DMZ: the edge the portal's traffic enters through, ahead of
+    // HAProxy. Found by a scan, which matched its login page against Recog's NetScaler fingerprint.
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "netscaler-adc01",
+                Some("adc01.dc.acme.io"),
+                Some("Citrix NetScaler ADC"),
+                dc,
+                dc_dmz,
+                Ipv4Addr::new(172, 16, 30, 4),
+                production_tag
+                    .into_iter()
+                    .chain(critical_tag)
+                    .chain(portal_tag)
+                    .collect(),
+                None,
+                None,
+                now,
+            ),
+            [0xf8, 0xbc, 0x12, 0xdc, 0x0a, 0x01],
+        ),
+        now,
+        (
+            "Citrix NetScaler",
+            "Citrix NetScaler",
+            Some(PortType::Https),
+            portal_tag.into_iter().collect()
+        ),
+    ));
 
     // 4. HAProxy Load Balancer
     {
@@ -2706,6 +2745,7 @@ pub(super) fn generate_hosts_and_services(
                 firmware_revision: None,
                 software_revision: None,
                 os: docker_engine_host_os(),
+                matched_device_type: None,
                 credential_assignments: docker_proxy_cred
                     .into_iter()
                     .map(|id| CredentialAssignment {

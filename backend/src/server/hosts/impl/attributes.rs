@@ -6,6 +6,7 @@
 //! first own the value permanently, and there was no record of which one that was.
 
 use crate::attributed_value;
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::hosts::r#impl::os::HostOs;
 use crate::server::shared::attribution::string_schema;
 
@@ -243,5 +244,22 @@ attributed_value! {
         blank: |_: &HostOs| false,
         refines: HostOs::refines,
         schema: <HostOs as ::utoipa::PartialSchema>::schema(),
+    }
+}
+
+attributed_value! {
+    /// The device class a fingerprint of something the host emitted names: Recog's `hw.device`
+    /// for a certificate subject, page title, favicon or banner ("IP Camera", "NAS").
+    ///
+    /// Stored, unlike the device type a host shows, which is derived on read from its services,
+    /// OS, name and MAC ([`Host::device_type`](super::base::Host::device_type)); this is one rung
+    /// of that ladder. Refreshable: a better fingerprint on a later scan replaces a weaker one.
+    pub struct HostMatchedDeviceTypeValue(DeviceType) as HostMatchedDeviceTypeAttributed {
+        key: "matched_device_type",
+        source_key: "matched_device_type_source",
+        schema_name: "HostMatchedDeviceType",
+        refreshable: true,
+        blank: |d: &DeviceType| *d == DeviceType::Unidentified,
+        schema: <DeviceType as ::utoipa::PartialSchema>::schema(),
     }
 }

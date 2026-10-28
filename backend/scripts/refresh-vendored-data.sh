@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Refresh the vendored data files embedded into the server binary:
-#   backend/assets/oui.csv                       IEEE MAC-address registry
+#   backend/assets/{oui,mam,oui36,iab}.csv       IEEE MAC-address registries
 #
 # Curl-only file drop: all parsing happens at load time in
 # backend/src/server/shared/oui.rs.
@@ -37,23 +37,36 @@ install_if_sane() {
     fi
 }
 
-# --- IEEE OUI registry (MAC-address vendor lookup) ---
+# --- IEEE MAC registries (MAC-address vendor lookup) ---
 # IEEE sits behind bot protection that instantly rejects default-UA curl from
 # datacenter IPs (seen as a ~300ms failure on GitHub runners) — always send
 # the UA, and report HTTP status + curl exit on failure so the release log
 # says exactly why a refresh was skipped.
-tmp=$(mktemp)
-http_code=$("${CURL[@]}" -A "$UA" -o "$tmp" -w '%{http_code}' \
-    "https://standards-oui.ieee.org/oui/oui.csv")
-curl_exit=$?
-if [ "$curl_exit" = 0 ] && head -1 "$tmp" | grep -q "Registry"; then
-    install_if_sane "$tmp" assets/oui.csv 20000
-elif [ "$curl_exit" != 0 ]; then
-    echo "WARN: assets/oui.csv download failed (curl exit $curl_exit, HTTP ${http_code:-?}) — keeping committed copy" >&2
-    rm -f "$tmp"
-else
-    echo "WARN: assets/oui.csv malformed (HTTP $http_code, starts: $(head -c 60 "$tmp" | tr -d '\n')) — keeping committed copy" >&2
-    rm -f "$tmp"
-fi
+#
+# refresh_registry <url-path> <dest> <line-floor>
+refresh_registry() {
+    local path="$1" dest="$2" floor="$3" tmp http_code curl_exit
+    tmp=$(mktemp)
+    http_code=$("${CURL[@]}" -A "$UA" -o "$tmp" -w '%{http_code}' \
+        "https://standards-oui.ieee.org/$path")
+    curl_exit=$?
+    if [ "$curl_exit" = 0 ] && head -1 "$tmp" | grep -q "Registry"; then
+        install_if_sane "$tmp" "$dest" "$floor"
+    elif [ "$curl_exit" != 0 ]; then
+        echo "WARN: $dest download failed (curl exit $curl_exit, HTTP ${http_code:-?}) — keeping committed copy" >&2
+        rm -f "$tmp"
+    else
+        echo "WARN: $dest malformed (HTTP $http_code, starts: $(head -c 60 "$tmp" | tr -d '\n')) — keeping committed copy" >&2
+        rm -f "$tmp"
+    fi
+}
+
+# MA-L (24-bit), MA-M (28-bit), MA-S (36-bit) and the retired IAB (36-bit)
+# blocks. oui.rs looks up the longest prefix first. CIDs are skipped: they sit
+# in locally administered space and never name a vendor.
+refresh_registry oui/oui.csv assets/oui.csv 20000
+refresh_registry oui28/mam.csv assets/mam.csv 4000
+refresh_registry oui36/oui36.csv assets/oui36.csv 4000
+refresh_registry iab/iab.csv assets/iab.csv 3000
 
 echo "done"

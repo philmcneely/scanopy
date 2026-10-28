@@ -247,6 +247,7 @@ const USER_SET: &str = "set by a person in Scanopy";
 const VIRTUALIZATION: &str = "set by the hypervisor and container integrations";
 const NEIGHBOURS: &str = "neighbour data comes from LLDP, CDP and forwarding tables";
 const PROVENANCE: &str = "recorded by Scanopy from what read the value";
+const FINGERPRINTED: &str = "matched by Scanopy from what the host emits on its ports";
 const ASSET_TAG: &str = "read from ENTITY-MIB entPhysicalAssetID or set by a person in Scanopy";
 
 pub fn host_coverage() -> Vec<(&'static str, ScriptCoverage)> {
@@ -276,6 +277,7 @@ pub fn host_coverage() -> Vec<(&'static str, ScriptCoverage)> {
         firmware_revision => Writable(F::FirmwareRevision),
         software_revision => Writable(F::SoftwareRevision),
         os => Writable(F::Os),
+        matched_device_type => NotWritable(FINGERPRINTED),
         credential_assignments => NotWritable(USER_SET),
     })
 }

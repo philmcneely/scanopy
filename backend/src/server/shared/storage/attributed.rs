@@ -187,6 +187,25 @@ impl AttributeColumn for HostOsValue {
     }
 }
 
+use crate::server::hosts::r#impl::attributes::HostMatchedDeviceTypeValue;
+
+impl AttributeColumn for HostMatchedDeviceTypeValue {
+    /// `text` holding the device type's id (`"Nas"`), as `subnet_type` holds its type's.
+    fn value_param(value: Option<&Self>) -> SqlValue {
+        use crate::server::shared::types::metadata::HasId;
+        SqlValue::OptionalString(value.map(|v| v.0.id().to_string()))
+    }
+
+    /// An id this binary does not know (a type a newer server wrote) reads as `Unidentified`, which
+    /// is blank, so the host keeps no matched type rather than failing to load.
+    fn read_value(row: &PgRow) -> Result<Option<Self>> {
+        let raw: Option<String> = row.try_get(Self::VALUE_KEY)?;
+        Ok(raw
+            .and_then(|id| serde_json::from_value(serde_json::Value::String(id)).ok())
+            .map(Self))
+    }
+}
+
 use crate::server::interfaces::r#impl::base::FdbMacsValue;
 
 impl AttributeColumn for FdbMacsValue {

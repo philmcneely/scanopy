@@ -7353,6 +7353,7 @@ dependencies = [
  "lucide-icons",
  "mac_address",
  "mailchecker",
+ "md-5 0.10.6",
  "metrics",
  "metrics-exporter-prometheus",
  "mime_guess",

@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
@@ -19,6 +20,9 @@ impl ServiceDefinition for NestThermostat {
 
     fn category(&self) -> ServiceCategory {
         ServiceCategory::IoT
+    }
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::EnvironmentControl)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
