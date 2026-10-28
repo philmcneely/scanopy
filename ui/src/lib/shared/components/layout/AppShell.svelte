@@ -17,7 +17,11 @@
 	import { pushError, pushSuccess } from '$lib/shared/stores/feedback';
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
 	import { displaySettings } from '$lib/shared/stores/display-settings.svelte';
-	import { isBillingPlanActive, isPaidSubscriptionActive } from '$lib/features/organizations/types';
+	import {
+		hasLicensedPlan,
+		isBillingPlanActive,
+		isPaidSubscriptionActive
+	} from '$lib/features/organizations/types';
 	import { getRoute } from '$lib/shared/utils/navigation';
 	import type { PostHog } from 'posthog-js';
 	import { browser } from '$app/environment';
@@ -61,6 +65,14 @@
 	// TanStack Query for organization
 	const organizationQuery = useOrganizationQuery();
 	let organization = $derived(organizationQuery.data);
+
+	// Only a license plan has a key. When the org is on any other plan, at load or
+	// after a plan change, drop any key still cached from an earlier license plan.
+	$effect(() => {
+		if (organization && !hasLicensedPlan(organization)) {
+			queryClient.removeQueries({ queryKey: queryKeys.licenses.all });
+		}
+	});
 
 	// TanStack Query for config
 	const configQuery = useConfigQuery();

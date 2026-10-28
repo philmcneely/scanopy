@@ -44,6 +44,7 @@ use crate::server::shared::events::traits::{Event, OrgScope, Subscriber};
 use crate::server::shared::events::types::BillingOperation;
 use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::types::api::ApiJson;
+use crate::server::shared::types::error_codes::ErrorCode;
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
 
 /// App state on a fresh database, billing enforced, signing with the test key.
@@ -419,6 +420,52 @@ async fn entitlement_endpoint_accepts_current_keys_and_rejects_the_rest() {
     assert_eq!(
         request_entitlement(&state, current_key).await,
         Err(StatusCode::FORBIDDEN)
+    );
+}
+
+/// A server still running the key of an org that moved to a cloud plan is
+/// refused with a code, and the refused check-in leaves no record: no check-in
+/// time, no instance row.
+#[tokio::test]
+async fn a_cloud_plan_check_in_is_refused_and_not_recorded() {
+    let (state, _container) = test_state().await;
+    let issuer = state.license_issuer.clone().unwrap();
+    let org = create_org(
+        &state,
+        get_self_hosted_standard_plan(),
+        Some(whole_seconds_from_now(30)),
+    )
+    .await;
+    let key = issuer.mint_online_key(&org, Utc::now()).unwrap();
+    set_plan(&state, org.id, get_free_plan()).await;
+
+    let error = get_entitlement(
+        State(state.clone()),
+        ClientIp("203.0.113.7".parse().unwrap()),
+        HeaderMap::new(),
+        ApiJson(EntitlementRequest {
+            key,
+            instance_id: Some(Uuid::new_v4()),
+            non_production: None,
+        }),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.status, StatusCode::FORBIDDEN);
+    assert!(matches!(
+        error.error_code,
+        Some(ErrorCode::LicensePlanHasNoKey)
+    ));
+
+    assert_eq!(reload(&state, org.id).await.base.license_checkin_at, None);
+    assert!(
+        state
+            .services
+            .license_instance_service
+            .list(org.id)
+            .await
+            .unwrap()
+            .is_empty()
     );
 }
 

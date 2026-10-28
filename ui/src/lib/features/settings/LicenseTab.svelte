@@ -93,8 +93,11 @@
 	// lands returns 403 NotLicensed. The tab opens on a provisional signal from the
 	// plan picker, so this can be false for the first second or two.
 	const keyQuery = useCurrentLicenseKeyQuery(() => org != null && hasLicensedPlan(org));
-	let currentKey = $derived(keyQuery.data?.key ?? null);
-	let keyType = $derived<LicenseKeyType>(keyQuery.data?.key_type ?? 'Online');
+	// A disabled query keeps its last data, and AppShell drops it only after this
+	// renders, so a key left over from a license plan is never read off a cloud plan.
+	let keyData = $derived(org != null && hasLicensedPlan(org) ? keyQuery.data : undefined);
+	let currentKey = $derived(keyData?.key ?? null);
+	let keyType = $derived<LicenseKeyType>(keyData?.key_type ?? 'Online');
 	// An org on a cloud plan sees the tab as a preview of what a self-hosted plan
 	// gives it: the same controls, disabled, with a placeholder key.
 	let preview = $derived(org != null && !hasLicensedPlan(org) && !licensedPlanPending);

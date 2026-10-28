@@ -12297,7 +12297,7 @@
             }
           },
           "403": {
-            "description": "Not an owner, or the plan does not include this key type",
+            "description": "Not an owner, the plan has no license key, or the plan does not include this key type",
             "content": {
               "application/json": {
                 "schema": {
@@ -12337,7 +12337,7 @@
             }
           },
           "403": {
-            "description": "Not an owner, or the organization has no license",
+            "description": "Not an owner, or the plan has no license key",
             "content": {
               "application/json": {
                 "schema": {
@@ -12377,7 +12377,7 @@
             }
           },
           "403": {
-            "description": "Not an owner",
+            "description": "Not an owner, or the plan has no license key",
             "content": {
               "application/json": {
                 "schema": {

@@ -107,6 +107,21 @@ async fn load_organization(
     Ok(organization)
 }
 
+/// Load the caller's organization for a request that reads, issues or retires
+/// a license key, refusing one whose plan carries no license. Only the
+/// self-hosted license plans have a key, so the refusal comes before any key
+/// state is written.
+async fn load_licensed_organization(
+    state: &AppState,
+    organization_id: Uuid,
+) -> Result<Organization, ApiError> {
+    let organization = load_organization(state, organization_id).await?;
+    if organization.base.plan.license_plan().is_none() {
+        return Err(ApiError::license_plan_has_no_key());
+    }
+    Ok(organization)
+}
+
 fn switch_error(error: SwitchKeyTypeError) -> ApiError {
     match error {
         // The request is well formed and the caller is entitled to make it;
@@ -124,8 +139,8 @@ fn switch_error(error: SwitchKeyTypeError) -> ApiError {
 
 fn mint_error(error: MintError) -> ApiError {
     match error {
-        MintError::NotLicensed
-        | MintError::OfflineNotIncluded
+        MintError::NotLicensed => ApiError::license_plan_has_no_key(),
+        MintError::OfflineNotIncluded
         | MintError::OfflineRequiresPayment
         | MintError::OfflineAwaitingPayment
         | MintError::NoPaidThrough => ApiError::forbidden(&error.to_string()),
@@ -182,6 +197,12 @@ pub async fn get_entitlement(
         return Err(ApiError::forbidden(
             "This license key was regenerated. Copy the current key from Scanopy Cloud.",
         ));
+    }
+    // Refused before the check-in is recorded. A 403 is final on the
+    // self-hosted side, so a server still running the key of an org that moved
+    // to a cloud plan locks at this check-in.
+    if organization.base.plan.license_plan().is_none() {
+        return Err(ApiError::license_plan_has_no_key());
     }
 
     let now = Utc::now();
@@ -255,7 +276,7 @@ pub async fn get_entitlement(
     request_body = CreateLicenseKeyRequest,
     responses(
         (status = 200, description = "Signed license key", body = ApiResponse<LicenseKeyResponse>),
-        (status = 403, description = "Not an owner, or the plan does not include this key type", body = ApiErrorResponse),
+        (status = 403, description = "Not an owner, the plan has no license key, or the plan does not include this key type", body = ApiErrorResponse),
     ),
     security(("user_api_key" = []), ("session" = []))
 )]
@@ -265,7 +286,7 @@ pub async fn create_license_key(
     ApiJson(request): ApiJson<CreateLicenseKeyRequest>,
 ) -> ApiResult<Json<ApiResponse<LicenseKeyResponse>>> {
     let organization_id = auth.require_organization_id()?;
-    let organization = load_organization(&state, organization_id).await?;
+    let organization = load_licensed_organization(&state, organization_id).await?;
     let issuer = license_issuer(&state)?;
     // Refuse an offline key before switching to it, so a refusal (unpaid
     // invoice, no payment) leaves the org's current key in service.
@@ -332,7 +353,7 @@ pub async fn create_license_key(
     tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "The organization's current license key", body = ApiResponse<LicenseKeyResponse>),
-        (status = 403, description = "Not an owner, or the organization has no license", body = ApiErrorResponse),
+        (status = 403, description = "Not an owner, or the plan has no license key", body = ApiErrorResponse),
     ),
     security(("user_api_key" = []), ("session" = []))
 )]
@@ -341,7 +362,7 @@ pub async fn get_current_license_key(
     auth: Authorized<RequireVerified<Owner>>,
 ) -> ApiResult<Json<ApiResponse<LicenseKeyResponse>>> {
     let organization_id = auth.require_organization_id()?;
-    let organization = load_organization(&state, organization_id).await?;
+    let organization = load_licensed_organization(&state, organization_id).await?;
     let issuer = license_issuer(&state)?;
 
     let key_type = organization.base.license_key_type.unwrap_or_default();
@@ -433,7 +454,7 @@ async fn mint_key(
     tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Key rotated", body = EmptyApiResponse),
-        (status = 403, description = "Not an owner", body = ApiErrorResponse),
+        (status = 403, description = "Not an owner, or the plan has no license key", body = ApiErrorResponse),
     ),
     security(("user_api_key" = []), ("session" = []))
 )]
@@ -442,7 +463,7 @@ pub async fn rotate_license_key(
     auth: Authorized<RequireVerified<Owner>>,
 ) -> ApiResult<Json<EmptyApiResponse>> {
     let organization_id = auth.require_organization_id()?;
-    load_organization(&state, organization_id).await?;
+    load_licensed_organization(&state, organization_id).await?;
     state
         .services
         .organization_service

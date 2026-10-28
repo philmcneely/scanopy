@@ -684,7 +684,12 @@ async fn email_change_applies_at_once_without_an_email_transport() {
 
 /// Status and body of `POST /keys/rotate` for an Owner whose email is or isn't verified.
 async fn rotate_license_key_as_owner(state: &Arc<AppState>, verified: bool) -> (u16, String) {
-    let org = create_org(state).await;
+    // Only a license plan has a key to rotate.
+    let org = create_org_on(
+        state,
+        crate::server::billing::plans::get_self_hosted_standard_plan(),
+    )
+    .await;
     let owner = create_user(
         state,
         org.id,
