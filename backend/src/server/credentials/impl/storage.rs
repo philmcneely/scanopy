@@ -136,7 +136,7 @@ impl Entity for Credential {
         "Credentials the daemon uses to collect from integrations during discovery.";
 
     fn product_area() -> ProductArea {
-        ProductArea::Platform
+        ProductArea::Discovery
     }
 
     fn site_id(&self) -> Option<Uuid> {
