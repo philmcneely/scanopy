@@ -117,6 +117,7 @@ async fn a_self_hosted_trial_ending_gets_the_license_email_and_no_usage_recap() 
         BillingOperation::TrialWillEnd {
             plan: get_self_hosted_standard_plan(),
             has_payment_method: false,
+            trial_started_at: None,
         },
     )
     .await;
@@ -142,6 +143,7 @@ async fn a_cloud_trial_ending_still_gets_the_usage_recap() {
         BillingOperation::TrialWillEnd {
             plan: get_enterprise_plan(),
             has_payment_method: true,
+            trial_started_at: None,
         },
     )
     .await;

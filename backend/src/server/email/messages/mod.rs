@@ -53,6 +53,7 @@ mod terms_update;
 mod trial_converted;
 mod trial_ending;
 mod trial_expired;
+mod trial_extended;
 mod trial_started;
 mod usage_summary;
 mod verification;
@@ -112,6 +113,7 @@ pub use terms_update::TermsUpdate;
 pub use trial_converted::TrialConverted;
 pub use trial_ending::TrialEnding;
 pub use trial_expired::TrialExpired;
+pub use trial_extended::{ExtendedTrialEnd, TrialExtended};
 pub use trial_started::TrialStarted;
 pub use usage_summary::UsageSummary;
 pub use verification::Verification;
@@ -446,6 +448,7 @@ mod tests {
     use super::*;
     use crate::server::digest::payload::DiscoveryDigestPayload;
     use crate::server::license::types::LicenseKeyType;
+    use crate::server::shared::events::types::TrialExtensionSource;
     use crate::server::sites::r#impl::DEFAULT_STALE_AFTER_HOURS;
     use uuid::Uuid;
 
@@ -620,6 +623,28 @@ mod tests {
                 billing_period: "Monthly",
             },
         );
+        for source in [TrialExtensionSource::User, TrialExtensionSource::Staff] {
+            for end in [
+                ExtendedTrialEnd::Converts,
+                ExtendedTrialEnd::NoPaymentMethod,
+                ExtendedTrialEnd::CancellationScheduled,
+            ] {
+                for key_expires in [None, Some("March 3, 2027")] {
+                    f(
+                        &format!("trial_extended_{source}_{end:?}_{key_expires:?}"),
+                        &TrialExtended {
+                            source,
+                            plan_name: "Pro",
+                            billing_period: "Monthly",
+                            days_added: 7,
+                            new_trial_end: "March 1, 2027",
+                            end,
+                            key_expires,
+                        },
+                    );
+                }
+            }
+        }
         f(
             "trial_converted",
             &TrialConverted {
