@@ -561,8 +561,6 @@
 					<CloudPlanRequired page={TAB_LABELS[activeTab] ?? TAB_LABELS.home} />
 				{/if}
 			</div>
-
-			<Toast />
 		</main>
 	</div>
 
@@ -648,3 +646,7 @@
 	<!-- Data still loading -->
 	<Loading />
 {/if}
+
+<!-- Outside the chain above: the verification step and the terms screen
+     replace the app, and their Resend, email change and accept still toast. -->
+<Toast />
