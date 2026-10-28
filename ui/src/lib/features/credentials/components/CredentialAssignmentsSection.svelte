@@ -18,6 +18,7 @@
 	} from '$lib/features/credentials/utils/daemonHostBlocking';
 	import { useSubnetsQuery } from '$lib/features/subnets/queries';
 	import { credentialTypes } from '$lib/shared/stores/metadata';
+	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { SiteDisplay } from '$lib/shared/components/forms/selection/display/SiteDisplay.svelte';
 	import {
@@ -40,7 +41,8 @@
 		credentials_assignDaemonHostEmpty,
 		credentials_ipTargetAllDefault,
 		credentials_ipTargetLabel,
-		credentials_ipTargetPlaceholder
+		credentials_ipTargetPlaceholder,
+		credentials_unassignedNotice
 	} from '$lib/paraglide/messages';
 
 	type CredentialHostAssignment = components['schemas']['CredentialHostAssignment'];
@@ -311,14 +313,19 @@
 	</div>
 {/snippet}
 
-<div class="flex min-h-[18rem] flex-1 gap-6">
-	{#if supportsBroadcast}
-		{@render sitesSurface()}
+<div class="flex flex-1 flex-col gap-4">
+	{#if assignedSiteIds.length === 0 && hostAssignments.length === 0}
+		<InlineInfo body={credentials_unassignedNotice()} />
 	{/if}
-	{#if supportsPerHost}
-		{@render hostsSurface()}
-	{/if}
-	{#if supportsDaemonHostOnly}
-		{@render daemonHostsSurface()}
-	{/if}
+	<div class="flex min-h-[18rem] flex-1 gap-6">
+		{#if supportsBroadcast}
+			{@render sitesSurface()}
+		{/if}
+		{#if supportsPerHost}
+			{@render hostsSurface()}
+		{/if}
+		{#if supportsDaemonHostOnly}
+			{@render daemonHostsSurface()}
+		{/if}
+	</div>
 </div>

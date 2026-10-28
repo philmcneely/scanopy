@@ -90,13 +90,13 @@ pub enum Entity {
     Discovery(Discovery),
     Daemon(Daemon),
     DaemonApiKey(DaemonApiKey),
+    Credential(Credential),
 
     // ProductArea::Platform
     Tag(Tag),
     TagGroup(TagGroup),
     User(User),
     UserApiKey(UserApiKey),
-    Credential(Credential),
     Organization(Organization),
     Invite(Invite),
 }

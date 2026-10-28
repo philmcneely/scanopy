@@ -29,6 +29,7 @@
 	import { uuidv4Sentinel } from '$lib/shared/utils/formatting';
 	import { createEmptyDiscoveryFormData, parseDayTimeCronSchedule } from '../../queries';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
+	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 	import { copyText } from '$lib/shared/utils/clipboard';
@@ -74,7 +75,8 @@
 		discovery_noDaemonSelected,
 		discovery_editActiveInfo,
 		discovery_updateDiscovery,
-		discovery_viewRun
+		discovery_viewRun,
+		daemons_installPromptDiscoveries
 	} from '$lib/paraglide/messages';
 
 	interface Props {
@@ -200,6 +202,9 @@
 	);
 
 	let daemon = $derived(daemons.find((d) => d.id === formData.daemon_id) || null);
+	// A new discovery runs on a daemon. Without one there is nothing to configure, and saving
+	// would fail on the missing site, so the modal points at daemon setup instead.
+	let noDaemon = $derived(!isEditing && !isHistoricalRun && daemons.length === 0);
 	let daemonHostId = $derived(
 		(daemon ? hosts.find((h) => h.id === daemon.host_id)?.id : null) || null
 	);
@@ -750,6 +755,10 @@
 			const label = discovery_copyDiagnostics();
 			list.push({ role: 'secondary', label, icon: Copy, onClick: copyDiagnostics });
 		}
+		if (noDaemon) {
+			list.push({ role: 'cancel', label: common_cancel(), onClick: onClose });
+			return list;
+		}
 		if (isEditing || isHistoricalRun) {
 			const label = isHistoricalRun ? common_close() : common_cancel();
 			list.push({ role: 'cancel', label, onClick: onClose, disabled: busy });
@@ -814,7 +823,9 @@
 			class:flex={wizardCredentialsActive}
 			class:flex-col={wizardCredentialsActive}
 		>
-			{#if isHistoricalRun && discovery?.run_type.type === 'Historical'}
+			{#if noDaemon}
+				<PreDaemonEmptyState title={daemons_installPromptDiscoveries()} />
+			{:else if isHistoricalRun && discovery?.run_type.type === 'Historical'}
 				<div class="space-y-8 p-6">
 					{#if activeTab === 'scan'}
 						<WarningReport payload={discovery.run_type.results} />
@@ -875,7 +886,7 @@
 					/>
 				</div>
 			{/if}
-			{#if hasCredentialsTab}
+			{#if hasCredentialsTab && !noDaemon}
 				<div class="flex min-h-0 flex-1 flex-col" class:hidden={activeTab !== 'credentials'}>
 					<CredentialsStep
 						bind:this={credentialsStep}

@@ -36,9 +36,9 @@ pub enum ProductArea {
     Topology,
     /// What is on the network: sites, VLANs, subnets, hosts and what runs on them.
     Inventory,
-    /// What finds it: discovery runs and the daemons that perform them.
+    /// What finds it: discovery runs, the daemons that perform them and the credentials they use.
     Discovery,
-    /// What runs Scanopy across the organization: tags, users, keys and credentials.
+    /// What runs Scanopy across the organization: tags, users and API keys.
     Platform,
     Api,
     Support,
@@ -96,8 +96,10 @@ impl TypeMetadataProvider for ProductArea {
             Self::Inventory => {
                 "Searchable records of every host, VLAN and subnet discovery finds, and CSV export of them"
             }
-            Self::Discovery => "How Scanopy finds hosts, services and devices on your network",
-            Self::Platform => "Tags, users, API keys and credentials across your organization",
+            Self::Discovery => {
+                "How Scanopy finds hosts, services and devices on your network, and the credentials it uses"
+            }
+            Self::Platform => "Tags, users and API keys across your organization",
             Self::Api => "Programmatic access to your Scanopy data",
             Self::Support => "Ways to reach the Scanopy team",
             Self::Security => "Sign-in and audit controls for your organization",

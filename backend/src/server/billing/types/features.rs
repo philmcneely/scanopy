@@ -301,7 +301,7 @@ impl TypeMetadataProvider for Feature {
             Feature::DeviceInventory => "Device Inventory",
             Feature::VlanSubnetInventory => "VLAN & Subnet Inventory",
             Feature::Tagging => "Tagging",
-            Feature::NetworkTopology => "Network Map",
+            Feature::NetworkTopology => "Network Mapping",
             Feature::WorkloadMapping => "Workload Mapping",
             Feature::ApplicationMapping => "Application Mapping",
             Feature::ServiceDetection => "Service Detection",

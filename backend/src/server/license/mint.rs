@@ -187,8 +187,8 @@ impl LicenseIssuer {
         now: DateTime<Utc>,
         unpaid_from: Option<DateTime<Utc>>,
     ) -> Result<String, MintError> {
-        let plan = org.base.plan;
-        if !plan.features().air_gapped_deployment {
+        let license_plan = licensed_plan(org)?;
+        if !org.base.plan.features().air_gapped_deployment {
             return Err(MintError::OfflineNotIncluded);
         }
         let paid_through = match (org.base.license_paid_through, unpaid_from) {
@@ -205,7 +205,7 @@ impl LicenseIssuer {
         if unpaid_from.is_some() && paid_through.is_none_or(|paid_through| paid_through <= now) {
             return Err(MintError::OfflineAwaitingPayment);
         }
-        self.mint_until(org, paid_through, plan.license_plan(), "offline", now)
+        self.mint_until(org, paid_through, Some(license_plan), "offline", now)
     }
 
     fn mint_paid_through(
@@ -471,6 +471,12 @@ pub(crate) mod tests {
         ));
         assert!(matches!(
             issuer.mint_entitlement(&cloud, Utc::now()),
+            Err(MintError::NotLicensed)
+        ));
+        // Enterprise includes air-gapped deployment, and an org that moved
+        // here from a license plan keeps its paid-through date. Still no key.
+        assert!(matches!(
+            issuer.mint_offline_key(&paid_org(get_enterprise_plan()), Utc::now(), None),
             Err(MintError::NotLicensed)
         ));
     }

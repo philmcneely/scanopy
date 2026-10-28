@@ -47,6 +47,8 @@ export const ERROR_CODES = {
 	license_locked: 'Your license is not active. The server is in read-only mode.',
 	license_instance_limit_reached:
 		'This license key is in use on {active} servers and your plan covers {limit}, so this server is in read-only mode. Delete a server you no longer run under License in Scanopy Cloud, then restart this one.',
+	license_plan_has_no_key:
+		"This organization's plan has no license key. License keys come with the Self-Hosted Standard and Plus plans.",
 	entity_not_found: "{entity} with ID '{id}' not found",
 	entity_already_exists: "{entity} '{name}' already exists",
 	entity_in_use: "Cannot delete {entity} '{name}' because it's used by {used_by}",
@@ -155,6 +157,7 @@ export interface ErrorParams {
 	auth_verification_email_cooldown: { seconds: string | number };
 	license_locked: Record<string, never>;
 	license_instance_limit_reached: { active: string | number; limit: string | number };
+	license_plan_has_no_key: Record<string, never>;
 	entity_not_found: { entity: string | number; id: string | number };
 	entity_already_exists: { entity: string | number; name: string | number };
 	entity_in_use: { entity: string | number; name: string | number; used_by: string | number };

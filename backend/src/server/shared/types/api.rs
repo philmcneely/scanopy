@@ -519,6 +519,12 @@ impl ApiError {
         Self::coded(StatusCode::FORBIDDEN, ErrorCode::BillingPlanRequired)
     }
 
+    /// Forbidden (403) - only the self-hosted license plans carry a license key.
+    /// The self-hosted server treats a 403 check-in as final and locks.
+    pub fn license_plan_has_no_key() -> Self {
+        Self::coded(StatusCode::FORBIDDEN, ErrorCode::LicensePlanHasNoKey)
+    }
+
     /// Conflict (409) - cannot leave an air-gapped key while it is still valid.
     /// The request is well formed and the caller is entitled to make it; the
     /// organization is in a state that forbids the transition.

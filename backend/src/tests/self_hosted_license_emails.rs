@@ -22,7 +22,9 @@ use uuid::Uuid;
 use super::self_hosted_licensing::{create_org, reload, test_state_with_email_dir};
 use super::{daemon, site, user};
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
-use crate::server::billing::plans::{get_enterprise_plan, get_self_hosted_standard_plan};
+use crate::server::billing::plans::{
+    get_enterprise_plan, get_free_plan, get_self_hosted_standard_plan,
+};
 use crate::server::billing::types::base::{BillingPlan, PlanConfig};
 use crate::server::config::{AppState, DeploymentType};
 use crate::server::email::EmailService;
@@ -34,6 +36,7 @@ use crate::server::license::types::LicenseKeyType;
 use crate::server::shared::events::traits::{Event, OrgScope, Subscriber};
 use crate::server::shared::events::types::BillingOperation;
 use crate::server::shared::services::traits::CrudService;
+use crate::server::shared::types::error_codes::ErrorCode;
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
 
 pub(super) async fn create_owner(state: &AppState, organization_id: Uuid) {
@@ -436,4 +439,59 @@ async fn license_key_routes_refuse_a_demo_organization_owner() {
         assert!(body.contains("auth_demo_mode"), "{route}: {body}");
     }
     assert_eq!(reload(&state, org.id).await.base.license_key_version, 0);
+}
+
+/// Only the license plans carry a key, so an owner on any cloud plan can't
+/// mint, read or rotate one, and no key state is written on the way.
+#[tokio::test]
+async fn license_key_routes_refuse_a_cloud_plan_owner() {
+    let (state, _container) = test_state_with_email_dir(None).await;
+    for plan in [
+        get_free_plan(),
+        BillingPlan::Starter(PlanConfig::default()),
+        BillingPlan::Pro(PlanConfig::default()),
+        BillingPlan::Team(PlanConfig::default()),
+        BillingPlan::Business(PlanConfig::default()),
+        get_enterprise_plan(),
+    ] {
+        let org = create_org(&state, plan, None).await;
+        let base = serve_key_routes(
+            state.clone(),
+            user_entity(org.id, UserOrgPermissions::Owner),
+        )
+        .await;
+        for (route, status, body) in call_key_routes(&base).await {
+            assert_eq!(status, 403, "{plan:?} {route}: {body}");
+            assert!(
+                body.contains(ErrorCode::LicensePlanHasNoKey.code()),
+                "{plan:?} {route}: {body}"
+            );
+        }
+        let org = reload(&state, org.id).await;
+        assert_eq!(org.base.license_key_version, 0, "{plan:?}");
+        assert_eq!(org.base.license_key_type, None, "{plan:?}");
+        assert_eq!(org.base.license_key_issued_at, None, "{plan:?}");
+    }
+}
+
+/// The license-plan path is untouched: an owner on Self-Hosted Standard gets
+/// a key and can rotate it.
+#[tokio::test]
+async fn license_key_routes_serve_a_license_plan_owner() {
+    let (state, _container) = test_state_with_email_dir(None).await;
+    let org = create_org(
+        &state,
+        get_self_hosted_standard_plan(),
+        Some(Utc::now() + chrono::Duration::days(30)),
+    )
+    .await;
+    let base = serve_key_routes(
+        state.clone(),
+        user_entity(org.id, UserOrgPermissions::Owner),
+    )
+    .await;
+    for (route, status, body) in call_key_routes(&base).await {
+        assert_eq!(status, 200, "{route}: {body}");
+    }
+    assert_eq!(reload(&state, org.id).await.base.license_key_version, 1);
 }
