@@ -2,13 +2,15 @@
 	import type { HostFormData } from '$lib/features/hosts/types/base';
 	import type { AttributeSource } from '$lib/shared/utils/attribute-source';
 	import AttributeSourceTag from '$lib/shared/components/data/AttributeSourceTag.svelte';
+	import Tag from '$lib/shared/components/data/Tag.svelte';
+	import type { TagProps } from '$lib/shared/components/data/types';
+	import { deviceTypeSourceTag } from '$lib/features/hosts/device-type-source';
 	import { type HostOs } from '$lib/features/hosts/host-os';
 	import OsTag from '../../OsTag.svelte';
 	import DeviceTypeLabel from '../../DeviceTypeLabel.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import CopyableValue from '$lib/shared/components/data/CopyableValue.svelte';
 	import GuestStateTag from '$lib/shared/components/virtualization/GuestStateTag.svelte';
-	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import { entityRef, type EntityRef } from '$lib/shared/components/data/types';
 	import type { Color } from '$lib/shared/utils/styling';
 	import {
@@ -93,6 +95,8 @@
 		guestState?: string;
 		/** Drawn as the chip for how the host came to exist, the Hosts table's Source column. */
 		entitySource?: components['schemas']['EntitySource']['type'];
+		/** Drawn in place of the source tag, for a value whose provenance is not an attribute source. */
+		sourceTag?: TagProps;
 	}
 
 	interface Section {
@@ -230,11 +234,16 @@
 		}
 	});
 
-	// Derived from the host's services, then its OS, so it carries no source of its own. Shown even
-	// when nothing identifies the host: "Unidentified" is the answer, not a missing value.
+	// Shown even when nothing identifies the host: "Unidentified" is the answer, not a missing value.
+	// Its tag names the stored match's source, or what the type was derived from. A host not yet
+	// saved has neither.
 	let deviceTypeFact = $derived.by((): Fact => {
 		const deviceType = host.device_type ?? 'Unidentified';
-		return { ...sourceless(hosts_deviceType(), deviceTypes.getName(deviceType)), deviceType };
+		return {
+			...sourceless(hosts_deviceType(), deviceTypes.getName(deviceType)),
+			deviceType,
+			sourceTag: host.device_type_source ? deviceTypeSourceTag(host.device_type_source) : undefined
+		};
 	});
 
 	// How the host came to exist (discovered, imported, inferred from a neighbour, or created by
@@ -366,7 +375,9 @@
 									{fact.value}
 								{/if}
 							</span>
-							{#if !fact.sourceless}
+							{#if fact.sourceTag}
+								<span class="shrink-0"><Tag {...fact.sourceTag} /></span>
+							{:else if !fact.sourceless}
 								<span class="shrink-0"><AttributeSourceTag source={fact.source} /></span>
 							{/if}
 						</div>

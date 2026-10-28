@@ -219,6 +219,8 @@ impl DaemonResponse for HostResponse {
             name_ladder: _,
             // An enum the daemon never reads; an unknown role reads as `Unidentified` (`serde(other)`).
             device_type: _,
+            // Internally tagged; an unknown rung reads as `NoEvidence` (`serde(other)`).
+            device_type_source: _,
             name_source: _,
             site_id: _,
             hostname: _,
