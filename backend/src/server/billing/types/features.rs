@@ -27,11 +27,10 @@ use strum::IntoStaticStr;
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FeatureCategory {
-    Discovery,
     Map,
     Inventory,
-    TrackAndShare,
-    ApiAndAutomation,
+    Discovery,
+    Api,
     Support,
     Security,
     Deployment,
@@ -54,8 +53,7 @@ impl EntityMetadataProvider for FeatureCategory {
             Self::Discovery => Icon::Radar,
             Self::Map => Icon::Map,
             Self::Inventory => Icon::Server,
-            Self::TrackAndShare => Icon::History,
-            Self::ApiAndAutomation => Icon::Code,
+            Self::Api => Icon::Code,
             Self::Support => Icon::Headset,
             Self::Security => Icon::ShieldCheck,
             Self::Deployment => Icon::Rocket,
@@ -70,8 +68,7 @@ impl TypeMetadataProvider for FeatureCategory {
             Self::Discovery => "Discovery",
             Self::Map => "Map",
             Self::Inventory => "Inventory",
-            Self::TrackAndShare => "Track & share",
-            Self::ApiAndAutomation => "API & automation",
+            Self::Api => "API",
             Self::Support => "Support",
             Self::Security => "Security",
             Self::Deployment => "Deployment",
@@ -82,10 +79,13 @@ impl TypeMetadataProvider for FeatureCategory {
     fn description(&self) -> &'static str {
         match self {
             Self::Discovery => "How Scanopy finds hosts, services and devices on your network",
-            Self::Map => "Diagrams of your network, workloads and applications",
-            Self::Inventory => "Searchable records of every host, VLAN and subnet discovery finds",
-            Self::TrackAndShare => "Snapshots of how the network changes, and ways to share it",
-            Self::ApiAndAutomation => "Programmatic access to your Scanopy data",
+            Self::Map => {
+                "Diagrams of your network, workloads and applications, their snapshots, and ways to share them"
+            }
+            Self::Inventory => {
+                "Searchable records of every host, VLAN and subnet discovery finds, and CSV export of them"
+            }
+            Self::Api => "Programmatic access to your Scanopy data",
             Self::Support => "Ways to reach the Scanopy team",
             Self::Security => "Sign-in and audit controls for your organization",
             Self::Deployment => "Ways to run Scanopy in your own environment",
@@ -96,27 +96,30 @@ impl TypeMetadataProvider for FeatureCategory {
 
 /// Declaration order is display order: grouped by [`category`](Feature::category), and within a
 /// category in the order plan cards list them (`BillingPlan::incremental_features`).
-#[derive(Debug, Clone, Serialize, Deserialize, EnumIter, IntoStaticStr, Display, Default)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    EnumIter,
+    IntoStaticStr,
+    Display,
+    Default,
+)]
 pub enum Feature {
-    // Discovery
-    ScheduledDiscovery,
-    DiscoveryIntegrations,
-    InstantOnIntegration,
-    ServiceDetection,
-    // Map
+    // Map: the diagrams, their snapshots, and ways to share and export them
     NetworkTopology,
     WorkloadMapping,
     ApplicationMapping,
-    // Inventory
-    DeviceInventory,
-    VlanSubnetInventory,
-    Tagging,
-    // Track & share
     SnapshotRetentionDays,
+    Sharing,
     #[default]
     ShareViews,
     Embeds,
-    RemoveCreatedWith,
+    Exports,
     PngExport,
     SvgExport,
     PdfExport,
@@ -125,8 +128,20 @@ pub enum Feature {
     ConfluenceExport,
     DrawioExport,
     VsdxExport,
+    RemoveCreatedWith,
+    // Inventory
+    DeviceInventory,
+    VlanSubnetInventory,
+    Tagging,
     CsvExport,
-    // API & Automation
+    // Discovery
+    NetworkDiscovery,
+    ScanDigests,
+    ScheduledDiscovery,
+    DiscoveryIntegrations,
+    InstantOnIntegration,
+    ServiceDetection,
+    // API
     ApiAccess,
     Webhooks,
     // Support
@@ -182,11 +197,15 @@ impl HasId for Feature {
             Feature::HtmlExport => "html_export",
             Feature::DrawioExport => "drawio_export",
             Feature::VsdxExport => "vsdx_export",
+            Feature::NetworkDiscovery => "network_discovery",
+            Feature::ScanDigests => "scan_digests",
             Feature::ScheduledDiscovery => "scheduled_discovery",
             Feature::DiscoveryIntegrations => "discovery_integrations",
             Feature::InstantOnIntegration => "instant_on_integration",
             Feature::CsvExport => "csv_export",
             Feature::SnapshotRetentionDays => "snapshot_retention_days",
+            Feature::Sharing => "sharing",
+            Feature::Exports => "exports",
             Feature::InvoiceBilling => "invoice_billing",
             Feature::CustomBilling => "custom_billing",
             Feature::ProcurementDocuments => "procurement_documents",
@@ -198,22 +217,21 @@ impl HasId for Feature {
 impl Feature {
     pub fn category(&self) -> FeatureCategory {
         match self {
-            Feature::ScheduledDiscovery
+            Feature::NetworkDiscovery
+            | Feature::ScanDigests
+            | Feature::ScheduledDiscovery
             | Feature::DiscoveryIntegrations
             | Feature::InstantOnIntegration
             | Feature::ServiceDetection => FeatureCategory::Discovery,
 
-            Feature::NetworkTopology | Feature::WorkloadMapping | Feature::ApplicationMapping => {
-                FeatureCategory::Map
-            }
-
-            Feature::DeviceInventory | Feature::VlanSubnetInventory | Feature::Tagging => {
-                FeatureCategory::Inventory
-            }
-
-            Feature::SnapshotRetentionDays
+            Feature::NetworkTopology
+            | Feature::WorkloadMapping
+            | Feature::ApplicationMapping
+            | Feature::SnapshotRetentionDays
+            | Feature::Sharing
             | Feature::ShareViews
             | Feature::Embeds
+            | Feature::Exports
             | Feature::RemoveCreatedWith
             | Feature::PngExport
             | Feature::SvgExport
@@ -222,10 +240,14 @@ impl Feature {
             | Feature::MermaidExport
             | Feature::ConfluenceExport
             | Feature::DrawioExport
-            | Feature::VsdxExport
-            | Feature::CsvExport => FeatureCategory::TrackAndShare,
+            | Feature::VsdxExport => FeatureCategory::Map,
 
-            Feature::ApiAccess | Feature::Webhooks => FeatureCategory::ApiAndAutomation,
+            Feature::DeviceInventory
+            | Feature::VlanSubnetInventory
+            | Feature::Tagging
+            | Feature::CsvExport => FeatureCategory::Inventory,
+
+            Feature::ApiAccess | Feature::Webhooks => FeatureCategory::Api,
 
             Feature::EmailSupport
             | Feature::LiveChatSupport
@@ -242,6 +264,51 @@ impl Feature {
             Feature::InvoiceBilling | Feature::CustomBilling | Feature::ProcurementDocuments => {
                 FeatureCategory::Billing
             }
+        }
+    }
+
+    /// Whether plan cards and the comparison list this feature. Remove Watermark is left off: every
+    /// plan the pricing page shows either includes it or has no diagram exports to watermark (Free);
+    /// only Community, which the page doesn't list, exports with the watermark.
+    pub fn is_listed_on_plans(&self) -> bool {
+        !matches!(self, Feature::RemoveCreatedWith)
+    }
+
+    /// The feature this one nests under. Plan cards list it indented under its parent, and the
+    /// Product menu shows only the parent.
+    pub fn parent(&self) -> Option<Feature> {
+        if self.export_format().is_some() {
+            return Some(Feature::Exports);
+        }
+        match self {
+            Feature::ShareViews | Feature::Embeds => Some(Feature::Sharing),
+            Feature::ScheduledDiscovery | Feature::ScanDigests => Some(Feature::NetworkDiscovery),
+            Feature::CsvExport => Some(Feature::DeviceInventory),
+            // A feature that unlocks one integration is part of Discovery Integrations.
+            _ if self.gates_integration() => Some(Feature::DiscoveryIntegrations),
+            _ => None,
+        }
+    }
+
+    /// A feature no plan sets on its own: it groups the features under it (Sharing, Exports) and is
+    /// on for a plan when any of them is (`BillingPlan::feature_values`).
+    pub fn is_group(&self) -> bool {
+        matches!(self, Feature::Sharing | Feature::Exports)
+    }
+
+    /// The format a diagram export writes, which names its row under Exports; `None` for any
+    /// other feature, CSV export included, which exports inventory data rather than a diagram.
+    pub fn export_format(&self) -> Option<&'static str> {
+        match self {
+            Feature::PngExport => Some("PNG"),
+            Feature::SvgExport => Some("SVG"),
+            Feature::PdfExport => Some("PDF"),
+            Feature::HtmlExport => Some("HTML"),
+            Feature::MermaidExport => Some("Mermaid"),
+            Feature::ConfluenceExport => Some("Confluence"),
+            Feature::DrawioExport => Some("draw.io"),
+            Feature::VsdxExport => Some("Visio"),
+            _ => None,
         }
     }
 
@@ -305,7 +372,7 @@ impl TypeMetadataProvider for Feature {
         match self {
             Feature::AuditLogs => "Audit Logs",
             Feature::Webhooks => "Webhooks",
-            Feature::ShareViews => "Shareable Diagrams",
+            Feature::ShareViews => "Direct Links",
             Feature::OnboardingCall => "Onboarding Call",
             Feature::RemoveCreatedWith => "Remove Watermark",
             Feature::CustomSso => "Custom SSO",
@@ -314,7 +381,7 @@ impl TypeMetadataProvider for Feature {
             Feature::ManagedDeployment => "Managed Deployment",
             Feature::Whitelabeling => "White Labeling",
             Feature::LiveChatSupport => "Live Chat Support",
-            Feature::Embeds => "Embeddable Diagrams",
+            Feature::Embeds => "Embeds",
             Feature::ApiAccess => "API Access",
             Feature::EmailSupport => "Email Support",
             Feature::PrioritySupport => "Priority Support",
@@ -333,11 +400,15 @@ impl TypeMetadataProvider for Feature {
             Feature::HtmlExport => "HTML Export",
             Feature::DrawioExport => "draw.io Export",
             Feature::VsdxExport => "Visio Export",
+            Feature::NetworkDiscovery => "Network Discovery",
+            Feature::ScanDigests => "Scan Digests",
             Feature::ScheduledDiscovery => "Scheduled Discovery",
             Feature::DiscoveryIntegrations => "Discovery Integrations",
             Feature::InstantOnIntegration => "Aruba Instant On",
             Feature::CsvExport => "CSV Export",
-            Feature::SnapshotRetentionDays => "Snapshot Retention",
+            Feature::SnapshotRetentionDays => "Snapshots",
+            Feature::Sharing => "Sharing",
+            Feature::Exports => "Exports",
             Feature::InvoiceBilling => "Invoice & PO Billing",
             Feature::CustomBilling => "Custom Billing",
             Feature::ProcurementDocuments => "Procurement Documents",
@@ -379,10 +450,10 @@ impl TypeMetadataProvider for Feature {
             Feature::Whitelabeling => "Deploy Scanopy with your logo and brand colors",
             Feature::LiveChatSupport => "Access to the Scanopy team via live chat",
             Feature::DeviceInventory => {
-                "Automatically discover hosts, services, ports and interfaces into a searchable inventory"
+                "A searchable inventory of every host discovery finds, with its addresses, services, ports and interfaces"
             }
             Feature::Tagging => {
-                "Apply tags to hosts, services and other entities to group and filter them"
+                "Tag anything in Scanopy, from hosts and VLANs to credentials and API keys, to group and filter it"
             }
             Feature::VlanSubnetInventory => {
                 "VLANs read from your switches, linked to the subnets behind them"
@@ -397,7 +468,7 @@ impl TypeMetadataProvider for Feature {
                 "Diagrams of each application, the services it depends on and the hosts they run on"
             }
             Feature::ServiceDetection => {
-                "Identify the services running on each host from their open ports and responses"
+                "Recognize the services running on each host, from databases and web servers to printers and IoT devices"
             }
             Feature::PngExport => "Export network diagrams as high-resolution PNG images",
             Feature::SvgExport => "Export network diagrams as scalable SVG vector images",
@@ -417,9 +488,15 @@ impl TypeMetadataProvider for Feature {
             Feature::VsdxExport => {
                 "Export network diagrams as editable Visio (VSDX) files with shapes, groups and connectors"
             }
+            Feature::NetworkDiscovery => {
+                "Scan your subnets for hosts, open ports and running services"
+            }
+            Feature::ScanDigests => {
+                "An email after each completed scan listing new, stale and changed hosts, services and VLANs"
+            }
             Feature::ScheduledDiscovery => "Schedule automatic network discovery scans",
             Feature::DiscoveryIntegrations => {
-                "Add credentials so discovery also collects from network devices, controllers, hypervisors, container runtimes and hosts"
+                "Credentials that let discovery read switches, controllers, hypervisors, container runtimes and hosts"
             }
             Feature::InstantOnIntegration => {
                 "Add Aruba Instant On credentials so discovery reads switches, access points and their links from the Instant On portal"
@@ -428,8 +505,10 @@ impl TypeMetadataProvider for Feature {
                 "Download host, service, and network data as CSV for use in spreadsheets and other tools"
             }
             Feature::SnapshotRetentionDays => {
-                "How long captured snapshots are retained before automatic deletion"
+                "Point-in-time copies of your network map, kept for your plan's retention window"
             }
+            Feature::Sharing => "Share live diagrams by link or embed",
+            Feature::Exports => "Export diagrams to image, document and diagram files",
             Feature::InvoiceBilling => "Pay by invoice against a purchase order instead of by card",
             Feature::CustomBilling => {
                 "Billing schedule and payment terms negotiated to fit your procurement process"
@@ -448,7 +527,12 @@ impl TypeMetadataProvider for Feature {
             "is_coming_soon": self.is_coming_soon(),
             "minimum_plan": self.minimum_plan(),
             // Plan cards list the integrations themselves, so they skip this feature's line.
-            "gates_integration": self.gates_integration()
+            "gates_integration": self.gates_integration(),
+            "listed_on_plans": self.is_listed_on_plans(),
+            // Plan cards list a feature under its parent, an export by its format and any other
+            // feature by its name.
+            "parent": self.parent().map(|p| p.id()),
+            "export_format": self.export_format()
         })
     }
 }
@@ -463,7 +547,11 @@ mod tests {
     #[test]
     fn test_feature_ids_match_billing_plan_features_fields() {
         // Get all Feature IDs
-        let feature_ids: HashSet<&str> = Feature::iter().map(|f| f.id()).collect();
+        // Group features (Sharing, Exports) have no field: their value derives from their members.
+        let feature_ids: HashSet<&str> = Feature::iter()
+            .filter(|f| !f.is_group())
+            .map(|f| f.id())
+            .collect();
 
         // Get all keys from BillingPlanFeatures by serializing an instance
         let features = get_community_plan().features();
@@ -501,6 +589,47 @@ mod tests {
             feature_ids.len(),
             billing_plan_features.len()
         );
+    }
+
+    /// A feature lists under its parent, so the parent has to be a listed, top-line feature of the
+    /// same category, declared before it. A group feature has to group something.
+    #[test]
+    fn sub_features_follow_a_top_line_parent_in_their_category() {
+        let order: Vec<&str> = Feature::iter().map(|f| f.id()).collect();
+        for group in Feature::iter().filter(|f| f.is_group()) {
+            assert!(
+                Feature::iter().any(|f| f.parent() == Some(group)),
+                "{} groups no feature",
+                group.id()
+            );
+        }
+        for feature in Feature::iter() {
+            let Some(parent) = feature.parent() else {
+                continue;
+            };
+            assert!(
+                parent.parent().is_none(),
+                "{} nests under a sub-feature",
+                feature.id()
+            );
+            assert!(
+                parent.is_listed_on_plans(),
+                "{} nests under an unlisted feature",
+                feature.id()
+            );
+            assert_eq!(
+                parent.category(),
+                feature.category(),
+                "{} nests across categories",
+                feature.id()
+            );
+            let pos = |id| order.iter().position(|o| *o == id);
+            assert!(
+                pos(parent.id()) < pos(feature.id()),
+                "{} is declared before its parent",
+                feature.id()
+            );
+        }
     }
 
     /// Plan cards list features in declaration order within each category, so a feature declared
