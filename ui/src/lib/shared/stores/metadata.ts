@@ -280,6 +280,8 @@ export interface FeatureMetadata {
 	export_format: string | null;
 	/** The titled line plan cards list this feature under (`feature-subgroups.json`); null for none. */
 	subgroup: string | null;
+	/** The feature a sub-feature extends; plan cards list it under that feature. */
+	parent: string | null;
 }
 
 export interface PortTypeMetadata {

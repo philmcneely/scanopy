@@ -145,10 +145,8 @@ impl TypeMetadataProvider for FeatureSubgroup {
 
     fn description(&self) -> &'static str {
         match self {
-            Self::Sharing => "Ways to share live diagrams with people outside Scanopy",
-            Self::Exports => {
-                "File formats diagrams export to, and the watermark on exported images"
-            }
+            Self::Sharing => "Share live diagrams by link or embed",
+            Self::Exports => "Export diagrams to image, document and diagram files",
         }
     }
 }
@@ -315,6 +313,17 @@ impl Feature {
         !matches!(self, Feature::RemoveCreatedWith)
     }
 
+    /// The feature this one extends, which plan cards list it under and the Product menu shows in
+    /// its place. A sub-feature sits in its parent's category, after it.
+    pub fn parent(&self) -> Option<Feature> {
+        match self {
+            Feature::ScheduledDiscovery => Some(Feature::NetworkDiscovery),
+            // A feature that unlocks one integration is part of Discovery Integrations.
+            _ if self.gates_integration() => Some(Feature::DiscoveryIntegrations),
+            _ => None,
+        }
+    }
+
     /// The titled line plan cards list this feature under, if any.
     pub fn subgroup(&self) -> Option<FeatureSubgroup> {
         if self.export_format().is_some() {
@@ -478,11 +487,9 @@ impl TypeMetadataProvider for Feature {
             Feature::Whitelabeling => "Deploy Scanopy with your logo and brand colors",
             Feature::LiveChatSupport => "Access to the Scanopy team via live chat",
             Feature::DeviceInventory => {
-                "Automatically discover hosts, services, ports and interfaces into a searchable inventory"
+                "A searchable inventory of every host discovery finds, with its addresses, services, ports and interfaces"
             }
-            Feature::Tagging => {
-                "Apply tags to hosts, services and other entities to group and filter them"
-            }
+            Feature::Tagging => "Tag hosts, services, subnets and VLANs to group and filter them",
             Feature::VlanSubnetInventory => {
                 "VLANs read from your switches, linked to the subnets behind them"
             }
@@ -496,7 +503,7 @@ impl TypeMetadataProvider for Feature {
                 "Diagrams of each application, the services it depends on and the hosts they run on"
             }
             Feature::ServiceDetection => {
-                "Identify the services running on each host from their open ports and responses"
+                "Recognize the services running on each host, from databases and web servers to printers and IoT devices"
             }
             Feature::PngExport => "Export network diagrams as high-resolution PNG images",
             Feature::SvgExport => "Export network diagrams as scalable SVG vector images",
@@ -517,14 +524,14 @@ impl TypeMetadataProvider for Feature {
                 "Export network diagrams as editable Visio (VSDX) files with shapes, groups and connectors"
             }
             Feature::NetworkDiscovery => {
-                "Scan your subnets for hosts, open ports and running services, on demand"
+                "Scan your subnets for hosts, open ports and running services"
             }
             Feature::ScanDigests => {
                 "An email after each completed scan listing new, stale and changed hosts, services and VLANs"
             }
             Feature::ScheduledDiscovery => "Schedule automatic network discovery scans",
             Feature::DiscoveryIntegrations => {
-                "Add credentials so discovery also collects from network devices, controllers, hypervisors, container runtimes and hosts"
+                "Credentials that let discovery read switches, controllers, hypervisors, container runtimes and hosts"
             }
             Feature::InstantOnIntegration => {
                 "Add Aruba Instant On credentials so discovery reads switches, access points and their links from the Instant On portal"
@@ -533,7 +540,7 @@ impl TypeMetadataProvider for Feature {
                 "Download host, service, and network data as CSV for use in spreadsheets and other tools"
             }
             Feature::SnapshotRetentionDays => {
-                "Point-in-time copies of your network, kept for the plan's retention window before automatic deletion"
+                "Point-in-time copies of your network map, kept for your plan's retention window"
             }
             Feature::InvoiceBilling => "Pay by invoice against a purchase order instead of by card",
             Feature::CustomBilling => {
@@ -558,6 +565,7 @@ impl TypeMetadataProvider for Feature {
             // Plan cards list a subgroup's features under its title (`feature-subgroups.json`),
             // an export by its format and any other by its name.
             "subgroup": self.subgroup().map(|s| s.id()),
+            "parent": self.parent().map(|p| p.id()),
             "export_format": self.export_format()
         })
     }
@@ -611,6 +619,40 @@ mod tests {
             feature_ids.len(),
             billing_plan_features.len()
         );
+    }
+
+    /// A sub-feature lists under its parent, so the parent has to be a listed, top-line feature of
+    /// the same category, declared before it.
+    #[test]
+    fn sub_features_follow_a_top_line_parent_in_their_category() {
+        let order: Vec<&str> = Feature::iter().map(|f| f.id()).collect();
+        for feature in Feature::iter() {
+            let Some(parent) = feature.parent() else {
+                continue;
+            };
+            assert!(
+                parent.parent().is_none(),
+                "{} nests under a sub-feature",
+                feature.id()
+            );
+            assert!(
+                parent.is_listed_on_plans(),
+                "{} nests under an unlisted feature",
+                feature.id()
+            );
+            assert_eq!(
+                parent.category(),
+                feature.category(),
+                "{} nests across categories",
+                feature.id()
+            );
+            let pos = |id| order.iter().position(|o| *o == id);
+            assert!(
+                pos(parent.id()) < pos(feature.id()),
+                "{} is declared before its parent",
+                feature.id()
+            );
+        }
     }
 
     /// Plan cards list features in declaration order within each category, so a feature declared

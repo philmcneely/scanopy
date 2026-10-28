@@ -442,6 +442,55 @@
 		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
 	}
 
+	/** The feature a sub-feature extends (`parent` in features.json); null for a top-line feature. */
+	function parentOf(featureKey: string): string | null {
+		return featureHelpers.getMetadata(featureKey)?.parent ?? null;
+	}
+
+	type CardEntry =
+		| { type: 'feature'; key: string }
+		| { type: 'group'; key: string; title: string; tooltip: string; members: string[] };
+
+	/**
+	 * One category's features on a card, in order: a feature on its own, or a titled group with
+	 * its members indented under it. A group is a subgroup (Sharing, Exports), or a parent feature
+	 * with the sub-features the card lists, and sits where its first feature would.
+	 */
+	function cardEntries(features: string[]): CardEntry[] {
+		const entries: CardEntry[] = [];
+		const groups: Record<string, Extract<CardEntry, { type: 'group' }>> = {};
+		const parents = new Set(features.map(parentOf).filter((p) => p !== null));
+		for (const key of features) {
+			const subgroup = subgroupOf(key);
+			const parent = parentOf(key) ?? (parents.has(key) ? key : null);
+			if (!subgroup && !parent) {
+				entries.push({ type: 'feature', key });
+				continue;
+			}
+			const groupKey = subgroup ? `subgroup:${subgroup}` : `feature:${parent}`;
+			if (!groups[groupKey]) {
+				groups[groupKey] = subgroup
+					? {
+							type: 'group',
+							key: groupKey,
+							title: featureSubgroupHelpers.getName(subgroup),
+							tooltip: featureSubgroupHelpers.getDescription(subgroup),
+							members: []
+						}
+					: {
+							type: 'group',
+							key: groupKey,
+							title: featureHelpers.getName(parent),
+							tooltip: featureHelpers.getDescription(parent),
+							members: []
+						};
+				entries.push(groups[groupKey]);
+			}
+			if (key !== parent) groups[groupKey].members.push(key);
+		}
+		return entries;
+	}
+
 	/**
 	 * A card's features under their category headings, in display order. The integrations sit in
 	 * the Discovery group, which a card listing no other Discovery feature still gets.
@@ -469,14 +518,22 @@
 		return groups;
 	}
 
+	/** Every feature in the backend's declaration order: the field order of a plan's features. */
+	let featureOrder = $derived(
+		Object.keys(
+			plans.length > 0 ? (billingPlanHelpers.getMetadata(plans[0].type)?.features ?? {}) : {}
+		)
+	);
+
 	function sortFeaturesByCategory(features: string[]): string[] {
 		const order: string[] = categoryOrder;
 		return [...features].sort((a, b) => {
 			const catA = order.indexOf(featureHelpers.getCategory(a));
 			const catB = order.indexOf(featureHelpers.getCategory(b));
 			if (catA !== catB) return (catA === -1 ? 99 : catA) - (catB === -1 ? 99 : catB);
-			// Within a category, coming-soon features sort to the end
-			return (isComingSoon(a) ? 1 : 0) - (isComingSoon(b) ? 1 : 0);
+			// Within a category, coming-soon features sort to the end, the rest in declaration order
+			const soon = (isComingSoon(a) ? 1 : 0) - (isComingSoon(b) ? 1 : 0);
+			return soon !== 0 ? soon : featureOrder.indexOf(a) - featureOrder.indexOf(b);
 		});
 	}
 
@@ -531,16 +588,15 @@
 	</li>
 {/snippet}
 
-<!-- A subgroup of a card's features under its title, one per row, laid out like the integrations.
+<!-- A titled group of a card's features (a subgroup, or a parent feature and its sub-features), one
+     member per row, laid out like the integrations.
      An export reads as its format, any other feature as its name. -->
-{#snippet subgroupRows(subgroup: string, features: string[])}
+{#snippet subRows(title: string, hint: string, features: string[])}
 	<li class="flex items-start gap-2 text-sm">
 		<Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />
 		<div class="flex flex-col gap-1">
-			<span
-				class="explainer self-start text-secondary"
-				data-tooltip={featureSubgroupHelpers.getDescription(subgroup)}
-				use:tooltip>{featureSubgroupHelpers.getName(subgroup)}</span
+			<span class="explainer self-start text-secondary" data-tooltip={hint} use:tooltip
+				>{title}</span
 			>
 			<ul class="space-y-1">
 				{#each features as featureKey (featureKey)}
@@ -852,38 +908,35 @@
 							     integrations sit in the Discovery group. -->
 							<ul class="-mx-5 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}">
 								{#each groupCardFeatures(displayFeatures, displayIntegrations.length > 0) as group (group.category)}
-									{@const subgroups = [
-										...new Set(group.features.map(subgroupOf).filter((s) => s !== null))
-									]}
 									<li class="space-y-1.5 px-5 py-2 odd:bg-gray-100 dark:odd:bg-gray-700/25">
 										{@render categoryHeading(group.category)}
 										<ul class="space-y-1.5">
-											{#each group.features.filter((key) => !subgroupOf(key)) as featureKey (featureKey)}
-												{@const comingSoon = isComingSoon(featureKey)}
-												<li class="flex items-start gap-2 text-sm">
-													<Check
-														class="mt-0.5 h-4 w-4 shrink-0 {comingSoon
-															? 'text-gray-500'
-															: 'text-success'}"
-													/>
-													<span
-														class="explainer {comingSoon ? 'text-tertiary' : 'text-secondary'}"
-														data-tooltip={featureHelpers.getDescription(featureKey)}
-														use:tooltip>{featureHelpers.getName(featureKey)}</span
-													>
-													{#if featureKey === SNAPSHOT_RETENTION}
-														<span class="text-tertiary">{formatSnapshotRetention(plan.type)}</span>
-													{/if}
-													{#if comingSoon}
-														<Tag label={common_comingSoon()} color="Gray" />
-													{/if}
-												</li>
-											{/each}
-											{#each subgroups as subgroup (subgroup)}
-												{@render subgroupRows(
-													subgroup,
-													group.features.filter((key) => subgroupOf(key) === subgroup)
-												)}
+											{#each cardEntries(group.features) as entry (entry.key)}
+												{#if entry.type === 'group'}
+													{@render subRows(entry.title, entry.tooltip, entry.members)}
+												{:else}
+													{@const featureKey = entry.key}
+													{@const comingSoon = isComingSoon(featureKey)}
+													<li class="flex items-start gap-2 text-sm">
+														<Check
+															class="mt-0.5 h-4 w-4 shrink-0 {comingSoon
+																? 'text-gray-500'
+																: 'text-success'}"
+														/>
+														<span
+															class="explainer {comingSoon ? 'text-tertiary' : 'text-secondary'}"
+															data-tooltip={featureHelpers.getDescription(featureKey)}
+															use:tooltip>{featureHelpers.getName(featureKey)}</span
+														>
+														{#if featureKey === SNAPSHOT_RETENTION}
+															<span class="text-tertiary">{formatSnapshotRetention(plan.type)}</span
+															>
+														{/if}
+														{#if comingSoon}
+															<Tag label={common_comingSoon()} color="Gray" />
+														{/if}
+													</li>
+												{/if}
 											{/each}
 											{#if group.category === discoveryCategory && displayIntegrations.length > 0}
 												{@render integrationRows(displayIntegrations)}
