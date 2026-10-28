@@ -11,6 +11,8 @@
 	} from '../queries';
 	import TagEditModal from './TagEditModal.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import type { Tag } from '../types/base';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
@@ -101,6 +103,7 @@
 	let pageTags = $derived(tagsPageQuery.data?.items ?? []);
 	let tagsPagination = $derived(tagsPageQuery.data?.pagination ?? null);
 	let isLoading = $derived(tagsQuery.isLoading || (tagsPageQuery.isPending && !tagsPageQuery.data));
+	let pageLoad = $derived(loadFailure(organizationQuery, tagsQuery, tagsPageQuery));
 
 	let canManage = $derived(
 		!isReadOnly && !isNonOwnerInDemo && currentUser
@@ -195,7 +198,9 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if isLoading}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if isLoading}
 		<Loading />
 	{:else if tags.length === 0}
 		<EmptyState

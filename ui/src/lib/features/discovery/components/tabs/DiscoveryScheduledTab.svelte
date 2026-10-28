@@ -11,6 +11,8 @@
 	import SessionPhaseProgress from '../cards/SessionPhaseProgress.svelte';
 	import DiscoveryEditModal from '../DiscoveryModal/DiscoveryEditModal.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import { discoveryScheduledColumns } from './DiscoveryScheduledTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import { Play, Power, Edit, Trash2, Ban } from 'lucide-svelte';
@@ -158,6 +160,9 @@
 		(discoveriesQuery.isPending && !discoveriesQuery.data) ||
 			daemonsQuery.isPending ||
 			sessionsQuery.isPending
+	);
+	let pageLoad = $derived(
+		loadFailure(organizationQuery, discoveriesQuery, daemonsQuery, sessionsQuery)
 	);
 
 	// Build lookup: discovery_id -> session (server always enriches discovery_id)
@@ -409,7 +414,9 @@
 		/>
 	{/if}
 
-	{#if !hasDaemon(onboarding)}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if !hasDaemon(onboarding)}
 		<PreDaemonEmptyState title={daemons_installPromptDiscoveries()} {isReadOnly} />
 	{:else if isLoading}
 		<Loading />

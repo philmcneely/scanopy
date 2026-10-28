@@ -1,5 +1,7 @@
 <script lang="ts">
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import PageTitle from '$lib/shared/components/layout/PageTitle.svelte';
 	import { common_home } from '$lib/paraglide/messages';
 	import { useDashboardQuery } from '$lib/features/home/queries';
@@ -43,6 +45,7 @@
 	let organization = $derived(organizationQuery.data);
 	let currentUser = $derived(currentUserQuery.data);
 	let activeSessions = $derived(sessionsQuery.data ?? []);
+	let pageLoad = $derived(loadFailure(dashboardQuery, organizationQuery));
 
 	let onboarding = $derived((organization?.onboarding ?? []) as OnboardingOperation[]);
 	let isOwner = $derived(currentUser?.permissions === 'Owner');
@@ -97,7 +100,9 @@
 	     rather than sitting on a line of its own. -->
 	<PageTitle title={common_home()} aside={organization?.name ?? null} />
 
-	{#if dashboardQuery.isPending || organizationQuery.isPending}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if dashboardQuery.isPending || organizationQuery.isPending}
 		<Loading />
 	{:else if dashboard && organization}
 		<!-- Getting Started Checklist -->

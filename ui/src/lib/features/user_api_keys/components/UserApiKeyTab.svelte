@@ -4,6 +4,8 @@
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
@@ -67,6 +69,7 @@
 	let userApiKeysPagination = $derived(userApiKeysQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let isLoading = $derived(userApiKeysQuery.isPending && !userApiKeysQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, userApiKeysQuery));
 
 	let showModal = $state(false);
 	let editingApiKey = $state<UserApiKey | null>(null);
@@ -167,7 +170,11 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if hasApiAccess && isLoading}
+	<!-- Access comes from the organization, so a failed load of it would read as a plan without
+	     API keys. -->
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if hasApiAccess && isLoading}
 		<Loading />
 	{:else if !hasApiAccess || page.isEmpty(userApiKeysQuery)}
 		<!-- Without API access the plan lacks keys: the same empty state, its Create opening the plans. -->

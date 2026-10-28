@@ -10,6 +10,8 @@
 	} from '../queries';
 	import CredentialEditModal from './CredentialEditModal.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import type { Credential } from '../types/base';
 	import type { CredentialOrderField } from '../types/base';
@@ -158,6 +160,7 @@
 		return [{ id: 'not-applicable', label: common_notApplicable(), color: 'Gray' }];
 	}
 	let isLoading = $derived(credentialsPageQuery.isPending && !credentialsPageQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, credentialsPageQuery));
 
 	// Demo mode check
 	let isDemoOrg = $derived(
@@ -303,7 +306,9 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if isLoading}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if isLoading}
 		<Loading />
 	{:else if page.isEmpty(credentialsPageQuery)}
 		<EmptyState

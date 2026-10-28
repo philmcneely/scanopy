@@ -3,6 +3,8 @@
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { siteColumns } from './SitesTab.columns';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import type { Site } from '../types';
 	import SiteEditModal from './SiteEditModal.svelte';
@@ -104,6 +106,7 @@
 	let isLoading = $derived(
 		sitesQuery.isPending || (sitesPageQuery.isPending && !sitesPageQuery.data)
 	);
+	let pageLoad = $derived(loadFailure(organizationQuery, sitesQuery, sitesPageQuery));
 	let isAtSiteLimit = $derived(siteLimit !== null && sitesData.length >= siteLimit && !canBuyMore);
 	let isNearSiteLimit = $derived(
 		siteLimit !== null && sitesData.length >= siteLimit - 2 && !isAtSiteLimit && !canBuyMore
@@ -253,8 +256,9 @@
 {/snippet}
 
 <div class="space-y-6">
-	<!-- Loading state -->
-	{#if isLoading}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if isLoading}
 		<Loading />
 	{:else if sitesData.length === 0}
 		<!-- Empty state -->
