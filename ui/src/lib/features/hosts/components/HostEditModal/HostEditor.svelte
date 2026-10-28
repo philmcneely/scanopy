@@ -20,7 +20,6 @@
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import { queryKeys } from '$lib/api/query-client';
 	import DetailsForm from './Details/HostDetailsForm.svelte';
-	import InferredHostNotice from '../InferredHostNotice.svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import IPAddressesForm from './IPAddresses/IPAddressesForm.svelte';
@@ -547,9 +546,6 @@
 			{#if activeTab === 'details'}
 				<div class="flex h-full flex-col">
 					<div class="min-h-0 flex-1 overflow-y-auto">
-						{#if isEditing && host}
-							<InferredHostNotice source={host.source} class="px-6 pt-6" />
-						{/if}
 						<DetailsForm {form} bind:formData {isEditing} />
 					</div>
 					{#if isEditing && host}

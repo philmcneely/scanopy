@@ -8,12 +8,14 @@
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import CopyableValue from '$lib/shared/components/data/CopyableValue.svelte';
 	import GuestStateTag from '$lib/shared/components/virtualization/GuestStateTag.svelte';
+	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import { entityRef, type EntityRef } from '$lib/shared/components/data/types';
 	import type { Color } from '$lib/shared/utils/styling';
 	import {
 		containerNetworkTypes,
 		deviceTypes,
 		entities,
+		entitySources,
 		guestStates,
 		hostVirtualizations,
 		proxmoxGuestTypes
@@ -42,6 +44,7 @@
 		common_manager,
 		common_presentedBy,
 		common_runtime,
+		common_source,
 		common_status,
 		common_virtualization,
 		hosts_deviceType,
@@ -88,6 +91,8 @@
 		deviceType?: DeviceType;
 		/** Drawn as the guest's run-state chip. */
 		guestState?: string;
+		/** Drawn as the chip for how the host came to exist, the Hosts table's Source column. */
+		entitySource?: components['schemas']['EntitySource']['type'];
 	}
 
 	interface Section {
@@ -232,6 +237,13 @@
 		return { ...sourceless(hosts_deviceType(), deviceTypes.getName(deviceType)), deviceType };
 	});
 
+	// How the host came to exist (discovered, imported, inferred from a neighbour, or created by
+	// hand). It describes the whole record, so it carries no per-field source of its own.
+	let entitySourceFact = $derived.by((): Fact => ({
+		...sourceless(common_source(), entitySources.getName(host.source.type)),
+		entitySource: host.source.type
+	}));
+
 	// Grouped by what each value describes, not by the protocol that carried it. A model arrives
 	// from ENTITY-MIB, a controller or an industrial probe, and each value's own tag says which.
 	let sections = $derived(
@@ -240,6 +252,7 @@
 				{
 					title: hosts_deviceFacts_identityGroup(),
 					facts: [
+						entitySourceFact,
 						deviceTypeFact,
 						registryFact('hostname'),
 						registryFact('sys_name'),
@@ -309,7 +322,13 @@
 						<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
 							<span class="w-40 shrink-0 text-sm text-secondary">{fact.label}</span>
 							<span class="min-w-0 flex-1 text-sm wrap-break-word text-primary">
-								{#if fact.guestState}
+								{#if fact.entitySource}
+									<Tag
+										{...entitySources.getTag(fact.entitySource)}
+										icon={entitySources.getIconComponent(fact.entitySource)}
+										title={entitySources.getDescription(fact.entitySource)}
+									/>
+								{:else if fact.guestState}
 									<GuestStateTag state={fact.guestState} />
 								{:else if fact.entity}
 									<EntityTag
