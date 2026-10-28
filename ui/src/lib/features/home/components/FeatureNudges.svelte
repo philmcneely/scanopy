@@ -280,7 +280,7 @@
 					onNavigate('topology');
 					openModal('topology-share');
 				},
-				visible: features.share_views && has('FirstTopologyRebuild'),
+				visible: features.sharing && has('FirstTopologyRebuild'),
 				icon: entities.getIconComponent('Share'),
 				iconColor: entities.getColorHelper('Share').icon
 			}

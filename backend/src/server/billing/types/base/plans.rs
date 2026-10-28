@@ -235,8 +235,7 @@ pub struct BillingPlanFeatures {
     /// env-var override (`SCANOPY_SNAPSHOT_RETENTION_DAYS_OVERRIDE`) takes
     /// precedence at runtime — see `BillingPlan::snapshot_retention_days`.
     pub snapshot_retention_days: u32,
-    pub share_views: bool,
-    pub embeds: bool,
+    pub sharing: bool,
     pub png_export: bool,
     pub svg_export: bool,
     pub pdf_export: bool,
@@ -253,8 +252,6 @@ pub struct BillingPlanFeatures {
     pub csv_export: bool,
     // Discovery
     pub network_discovery: bool,
-    /// Sent after every completed scan but a single-host rescan, so every plan has it.
-    pub scan_digests: bool,
     pub scheduled_discovery: bool,
     pub discovery_integrations: bool,
     /// Aruba Instant On credentials can be created (existing ones keep working on any plan).
@@ -600,7 +597,7 @@ impl BillingPlan {
     }
 
     /// Every feature's value on this plan, keyed by id: the plan's own fields, plus each group
-    /// feature (Sharing, Exports), which is on when any feature under it is.
+    /// feature (Exports), which is on when any feature under it is.
     pub fn feature_values(&self) -> serde_json::Map<String, serde_json::Value> {
         use strum::IntoEnumIterator;
 
@@ -725,7 +722,7 @@ impl BillingPlan {
             BillingPlan::Community { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: false,
                 webhooks: false,
                 audit_logs: false,
@@ -735,7 +732,6 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: false,
                 priority_support: false,
                 device_inventory: true,
@@ -754,7 +750,6 @@ impl BillingPlan {
                 drawio_export: false,
                 vsdx_export: false,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: false,
@@ -768,7 +763,7 @@ impl BillingPlan {
             BillingPlan::Free { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: false,
+                sharing: false,
                 onboarding_call: false,
                 webhooks: false,
                 audit_logs: false,
@@ -778,7 +773,6 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: false,
                 email_support: false,
                 priority_support: false,
                 device_inventory: true,
@@ -798,7 +792,6 @@ impl BillingPlan {
                 drawio_export: false,
                 vsdx_export: false,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: false,
                 discovery_integrations: true,
                 instant_on_integration: false,
@@ -812,7 +805,7 @@ impl BillingPlan {
             BillingPlan::Starter { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: false,
                 webhooks: false,
                 audit_logs: false,
@@ -822,7 +815,6 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: false,
                 email_support: true,
                 priority_support: false,
                 device_inventory: true,
@@ -841,7 +833,6 @@ impl BillingPlan {
                 drawio_export: false,
                 vsdx_export: false,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: false,
@@ -855,7 +846,7 @@ impl BillingPlan {
             BillingPlan::Pro { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: false,
                 webhooks: false,
                 audit_logs: false,
@@ -865,7 +856,6 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: false,
                 device_inventory: true,
@@ -884,7 +874,6 @@ impl BillingPlan {
                 drawio_export: false,
                 vsdx_export: false,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -898,7 +887,7 @@ impl BillingPlan {
             BillingPlan::Team { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: false,
                 audit_logs: false,
@@ -908,7 +897,6 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
                 device_inventory: true,
@@ -927,7 +915,6 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -941,7 +928,7 @@ impl BillingPlan {
             BillingPlan::Business { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: true,
                 audit_logs: true,
@@ -951,7 +938,6 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
                 device_inventory: true,
@@ -970,7 +956,6 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -984,7 +969,7 @@ impl BillingPlan {
             BillingPlan::Enterprise { .. } => BillingPlanFeatures {
                 saml: true,
                 air_gapped_deployment: true,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: true,
                 audit_logs: true,
@@ -994,7 +979,6 @@ impl BillingPlan {
                 managed_deployment: true,
                 whitelabeling: true,
                 live_chat_support: true,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
                 device_inventory: true,
@@ -1013,7 +997,6 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1027,7 +1010,7 @@ impl BillingPlan {
             BillingPlan::Demo { .. } => BillingPlanFeatures {
                 saml: true,
                 air_gapped_deployment: true,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: true,
                 audit_logs: true,
@@ -1037,7 +1020,6 @@ impl BillingPlan {
                 managed_deployment: true,
                 whitelabeling: true,
                 live_chat_support: true,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
                 device_inventory: true,
@@ -1056,7 +1038,6 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1070,7 +1051,7 @@ impl BillingPlan {
             BillingPlan::CommercialSelfHosted { .. } => BillingPlanFeatures {
                 saml: true,
                 air_gapped_deployment: true,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: true,
                 audit_logs: true,
@@ -1080,7 +1061,6 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
                 device_inventory: true,
@@ -1099,7 +1079,6 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1113,7 +1092,7 @@ impl BillingPlan {
             BillingPlan::SelfHostedStandard { .. } => BillingPlanFeatures {
                 saml: true,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: false,
                 webhooks: true,
                 audit_logs: true,
@@ -1123,7 +1102,6 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: false,
                 device_inventory: true,
@@ -1142,7 +1120,6 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1156,7 +1133,7 @@ impl BillingPlan {
             BillingPlan::SelfHostedPlus { .. } => BillingPlanFeatures {
                 saml: true,
                 air_gapped_deployment: true,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: true,
                 audit_logs: true,
@@ -1166,7 +1143,6 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: true,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
                 device_inventory: true,
@@ -1185,7 +1161,6 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
-                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1214,7 +1189,7 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
         let mut features = vec![];
 
         let BillingPlanFeatures {
-            share_views,
+            sharing,
             onboarding_call,
             webhooks,
             audit_logs,
@@ -1226,7 +1201,6 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             whitelabeling,
             api_access,
             live_chat_support,
-            embeds,
             email_support,
             priority_support,
             device_inventory,
@@ -1245,7 +1219,6 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             drawio_export,
             vsdx_export,
             network_discovery,
-            scan_digests,
             scheduled_discovery,
             discovery_integrations,
             instant_on_integration,
@@ -1257,8 +1230,8 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             snapshot_retention_days,
         } = self;
 
-        if share_views {
-            features.push(Feature::ShareViews)
+        if sharing {
+            features.push(Feature::Sharing)
         }
 
         if custom_sso {
@@ -1279,10 +1252,6 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
 
         if managed_deployment {
             features.push(Feature::ManagedDeployment)
-        }
-
-        if embeds {
-            features.push(Feature::Embeds)
         }
 
         if whitelabeling {
@@ -1395,10 +1364,6 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
 
         if network_discovery {
             features.push(Feature::NetworkDiscovery)
-        }
-
-        if scan_digests {
-            features.push(Feature::ScanDigests)
         }
 
         if scheduled_discovery {

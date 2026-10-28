@@ -87,7 +87,7 @@
 	let hasShareViews = $derived.by(() => {
 		const org = organizationQuery.data;
 		if (!org?.plan) return true;
-		return billingPlans.getMetadata(org.plan.type).features.share_views;
+		return billingPlans.getMetadata(org.plan.type).features.sharing;
 	});
 
 	// Local state — single source of truth for the list during the modal's lifetime.
@@ -306,7 +306,7 @@
 				subtitle={shares_noSharesSubtitle()}
 				onClick={handleCreateNew}
 				cta={common_createNew()}
-				upgrade={{ feature: 'share_views', surface: 'shares_modal' }}
+				upgrade={{ feature: 'sharing', surface: 'shares_modal' }}
 			/>
 		</div>
 	{:else}
