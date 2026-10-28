@@ -5,7 +5,7 @@
  */
 
 import { QueryClient } from '@tanstack/svelte-query';
-import { ApiError, RequestTimeoutError } from './client';
+import { ApiError, AUTH_EMAIL_VERIFICATION_REQUIRED, RequestTimeoutError } from './client';
 import type { components } from './schema';
 
 /**
@@ -27,6 +27,10 @@ export function createQueryClient(): QueryClient {
 					// A request the server did not answer within its budget has already waited that
 					// long and been reported; a retry repeats both.
 					if (error instanceof RequestTimeoutError) {
+						return false;
+					}
+					// Only verifying lifts it, and that brings up the current user again.
+					if (error instanceof ApiError && error.code === AUTH_EMAIL_VERIFICATION_REQUIRED) {
 						return false;
 					}
 					return failureCount < 2;

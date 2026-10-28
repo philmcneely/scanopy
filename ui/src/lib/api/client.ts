@@ -422,9 +422,10 @@ const SETTINGS_LOCK_CODES = new Set<string>([
 	'billing_plan_required'
 ] satisfies ErrorCode[]);
 const AUTH_TERMS_ACCEPTANCE_REQUIRED: ErrorCode = 'auth_terms_acceptance_required';
+export const AUTH_EMAIL_VERIFICATION_REQUIRED: ErrorCode = 'auth_email_verification_required';
 
 const errorMiddleware: Middleware = {
-	async onResponse({ response }) {
+	async onResponse({ request, response }) {
 		// Something answered for a server that is down or restarting. Told once per outage; the
 		// app refetches by itself when the server answers again (server-reachability.ts).
 		if (isUnreachableResponse(response)) {
@@ -459,6 +460,15 @@ const errorMiddleware: Middleware = {
 					const { queryClient, queryKeys } = await import('./query-client');
 					queryClient.invalidateQueries({ queryKey: queryKeys.auth.currentUser() });
 					return response;
+				}
+				// Unverified: refetching the current user brings up the verification step
+				// when the session gate is what refused (an org on a license plan). A refused
+				// read is always that gate, a background request behind the step, so it stays
+				// quiet; a refused action (an invite, an API key) still says why.
+				if (errorData.code === AUTH_EMAIL_VERIFICATION_REQUIRED) {
+					const { queryClient, queryKeys } = await import('./query-client');
+					queryClient.invalidateQueries({ queryKey: queryKeys.auth.currentUser() });
+					if (request.method === 'GET') return response;
 				}
 				pushError(translateError(errorData));
 			} catch {
