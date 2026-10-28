@@ -2384,7 +2384,7 @@
 	"meta_features_network_discovery_description": "Scan your subnets for hosts, open ports and running services",
 	"meta_features_network_discovery_name": "Network Discovery",
 	"meta_features_network_topology_description": "Physical (L2) and logical (L3) diagrams of your network, drawn from the network itself",
-	"meta_features_network_topology_name": "Network Map",
+	"meta_features_network_topology_name": "Network Mapping",
 	"meta_features_onboarding_call_description": "A call with the Scanopy team to get Scanopy set up, deployed and mapping your first network",
 	"meta_features_onboarding_call_name": "Onboarding Call",
 	"meta_features_pdf_export_description": "Export network diagrams as printable PDF documents",
