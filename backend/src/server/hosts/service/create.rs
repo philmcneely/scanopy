@@ -1902,8 +1902,6 @@ impl HostService {
         Ok(DiscoveredHost { host, subnet_ids })
     }
 
-    /// Merge `proven` into `destination` with [`Self::consolidate_hosts`], the same merge a person
-    /// triggers from the API.
     /// The live hosts across the organization's sites, the count a plan's host limit applies to.
     /// SCD2: closed historical copies don't count.
     async fn live_host_count(&self, ctx: &HostLimitContext) -> Result<u64> {
@@ -1911,6 +1909,8 @@ impl HostService {
         Ok(self.get_all(filter).await?.len() as u64)
     }
 
+    /// Merge `proven` into `destination` with [`Self::consolidate_hosts`], the same merge a person
+    /// triggers from the API.
     async fn merge_same_device(
         &self,
         destination_id: &Uuid,
