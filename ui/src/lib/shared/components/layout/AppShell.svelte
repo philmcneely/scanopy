@@ -29,7 +29,10 @@
 		markLandingPageviewDropped
 	} from '$lib/shared/utils/first-touch';
 	import PaymentMethodModal from '$lib/features/billing/PaymentMethodModal.svelte';
+	import LoadFailedState from './LoadFailedState.svelte';
 	import {
+		auth_serverUnreachableSubtitle,
+		auth_serverUnreachableTitle,
 		billing_paymentMethodAdded,
 		billing_subscriptionActivated,
 		billing_subscriptionDelayed
@@ -44,7 +47,11 @@
 	let currentUser = $derived(currentUserQuery.data);
 	let isAuthenticated = $derived(currentUser != null);
 	let isCheckingAuth = $derived(currentUserQuery.isPending);
-	let authCheckComplete = $derived(!currentUserQuery.isPending);
+	// Only an answer from the server settles who is signed in: `null` is its 401. A first load
+	// that couldn't reach the server has no answer, and must neither route to the login page nor
+	// count as a logout.
+	let authCheckComplete = $derived(currentUser !== undefined);
+	let authUnreachable = $derived(currentUserQuery.isError && currentUser === undefined);
 
 	// Dates everywhere follow the signed-in user's display settings; defaults when signed out.
 	$effect(() => {
@@ -71,6 +78,9 @@
 				// User logged out - clear data
 				resetTopologyOptions();
 				queryClient.clear();
+				// Route again: a session that expired mid-use leaves the page behind it with no
+				// data, and the routing below runs only once unless reset.
+				hasInitialized = false;
 			}
 			previouslyAuthenticated = isAuthenticated;
 		}
@@ -291,6 +301,14 @@
 {#if isCheckingAuth && !$page.url.pathname.startsWith('/onboarding')}
 	<div class="flex min-h-screen items-center justify-center bg-(--color-bg-elevated)">
 		<Loading />
+	</div>
+{:else if authUnreachable}
+	<div class="flex min-h-screen items-center justify-center bg-(--color-bg-elevated)">
+		<LoadFailedState
+			title={auth_serverUnreachableTitle()}
+			subtitle={auth_serverUnreachableSubtitle()}
+			onRetry={() => currentUserQuery.refetch()}
+		/>
 	</div>
 {:else}
 	{@render children()}

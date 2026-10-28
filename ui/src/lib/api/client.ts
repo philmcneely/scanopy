@@ -17,6 +17,12 @@ import {
 	common_requestUnconfirmed
 } from '$lib/paraglide/messages';
 import { env } from '$env/dynamic/public';
+import {
+	isUnreachableResponse,
+	reportAnswered,
+	reportUnreachable,
+	setProbeOrigin
+} from './server-reachability';
 
 // Re-export schema types for convenience
 export type { paths, components };
@@ -419,6 +425,13 @@ const AUTH_TERMS_ACCEPTANCE_REQUIRED: ErrorCode = 'auth_terms_acceptance_require
 
 const errorMiddleware: Middleware = {
 	async onResponse({ response }) {
+		// Something answered for a server that is down or restarting. Told once per outage; the
+		// app refetches by itself when the server answers again (server-reachability.ts).
+		if (isUnreachableResponse(response)) {
+			if (reportUnreachable()) pushError(common_requestUnreachable());
+			return response;
+		}
+		reportAnswered();
 		if (!response.ok) {
 			// Don't show error toasts for 401 (expected when not logged in)
 			if (response.status === 401) {
@@ -466,10 +479,12 @@ const errorMiddleware: Middleware = {
 	onError({ error }) {
 		// Already reported where the timeout was detected, with wording that depends on the method.
 		if (error instanceof RequestTimeoutError) return;
+		// The caller gave up on the request (a query whose key changed); nothing failed.
+		if (error instanceof DOMException && error.name === 'AbortError') return;
 		// Everything still here is a rejected fetch — no connection, DNS, CORS — where the browser's
 		// own message ("Failed to fetch") is neither translated nor useful. The cause is the same
-		// whichever it is: the request never reached the server.
-		pushError(common_requestUnreachable());
+		// whichever it is: the request never reached the server. Told once per outage.
+		if (reportUnreachable()) pushError(common_requestUnreachable());
 	}
 };
 
@@ -487,6 +502,8 @@ export const apiClient = createClient<paths>({
 	},
 	fetch: rateLimitedFetch
 });
+
+setProbeOrigin(getServerUrl());
 
 // Add middleware (rate limiting and timeouts handled by custom fetch wrapper above)
 apiClient.use(timeoutMiddleware);

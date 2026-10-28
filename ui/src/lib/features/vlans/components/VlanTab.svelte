@@ -1,5 +1,7 @@
 <script lang="ts">
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
@@ -111,6 +113,7 @@
 		new Map((subnetsQuery.data ?? []).filter(isUserManagedSubnet).map((s) => [s.id, s]))
 	);
 	let isLoading = $derived(vlansQuery.isPending && !vlansQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, vlansQuery));
 
 	const updateVlanMutation = useUpdateVlanMutation();
 	const deleteVlanMutation = useDeleteVlanMutation();
@@ -203,7 +206,9 @@
 <div class="space-y-6">
 	<!-- Header: no actions — VLANs are discovery-populated, so there is nothing to create -->
 
-	{#if !hasDaemon(onboarding)}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if !hasDaemon(onboarding)}
 		<PreDaemonEmptyState title={daemons_installPromptVlans()} />
 	{:else if isLoading}
 		<!-- Loading state -->

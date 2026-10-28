@@ -6,6 +6,8 @@
 		UpdateHostWithServicesRequest
 	} from '../types/base';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
@@ -232,6 +234,7 @@
 	let subnetsData = $derived(subnetsQuery.data ?? []);
 	// Only show full loading on initial load (no data yet)
 	let isInitialLoading = $derived(hostsQuery.isPending && !hostsQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, hostsQuery));
 
 	// Host limit tracking
 	let totalHostCount = $derived(hostsPagination?.total_count ?? hostsData.length);
@@ -492,7 +495,9 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if !hasDaemon(onboarding)}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if !hasDaemon(onboarding)}
 		<PreDaemonEmptyState title={daemons_installPromptHosts()} {isReadOnly} />
 	{:else if isInitialLoading}
 		<!-- Loading state (only on initial load) -->

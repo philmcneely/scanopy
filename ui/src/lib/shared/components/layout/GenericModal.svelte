@@ -36,6 +36,8 @@
 	import ConfirmationDialog from '$lib/shared/components/feedback/ConfirmationDialog.svelte';
 	import { isEditableTarget, keyLabel, shortcutLabel } from '$lib/shared/utils/shortcuts';
 	import ModalStepper from './ModalStepper.svelte';
+	import ServerUpdatedBanner from '$lib/shared/components/feedback/ServerUpdatedBanner.svelte';
+	import { serverUpdatePending } from '$lib/api/server-version';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { toolbarButtonClass } from '$lib/shared/components/data/controls/actionShortcuts';
@@ -593,12 +595,15 @@
 					<X class="h-5 w-5" />
 				</button>
 			{/if}
-			{#if banners}
+			{#if banners || $serverUpdatePending}
 				<!-- Clipped here rather than by putting overflow-hidden on the panel,
 				     which ~42 modals share: AppBanner is full-bleed with square corners
-				     and the panel is rounded. -->
+				     and the panel is rounded. The server-update banner shows over every
+				     modal, opted in or not: the page behind is covered, and the tab
+				     reloads once the modal closes. -->
 				<div class="shrink-0 overflow-hidden rounded-t-lg">
-					{@render banners()}
+					<ServerUpdatedBanner />
+					{@render banners?.()}
 				</div>
 			{/if}
 			{#if !showTitleRow}
