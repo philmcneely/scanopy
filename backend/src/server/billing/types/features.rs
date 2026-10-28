@@ -181,6 +181,7 @@ pub enum Feature {
     CsvExport,
     // Discovery
     NetworkDiscovery,
+    ScanDigests,
     ScheduledDiscovery,
     DiscoveryIntegrations,
     InstantOnIntegration,
@@ -242,6 +243,7 @@ impl HasId for Feature {
             Feature::DrawioExport => "drawio_export",
             Feature::VsdxExport => "vsdx_export",
             Feature::NetworkDiscovery => "network_discovery",
+            Feature::ScanDigests => "scan_digests",
             Feature::ScheduledDiscovery => "scheduled_discovery",
             Feature::DiscoveryIntegrations => "discovery_integrations",
             Feature::InstantOnIntegration => "instant_on_integration",
@@ -259,6 +261,7 @@ impl Feature {
     pub fn category(&self) -> FeatureCategory {
         match self {
             Feature::NetworkDiscovery
+            | Feature::ScanDigests
             | Feature::ScheduledDiscovery
             | Feature::DiscoveryIntegrations
             | Feature::InstantOnIntegration
@@ -428,6 +431,7 @@ impl TypeMetadataProvider for Feature {
             Feature::DrawioExport => "draw.io Export",
             Feature::VsdxExport => "Visio Export",
             Feature::NetworkDiscovery => "Network Discovery",
+            Feature::ScanDigests => "Scan Digests",
             Feature::ScheduledDiscovery => "Scheduled Discovery",
             Feature::DiscoveryIntegrations => "Discovery Integrations",
             Feature::InstantOnIntegration => "Aruba Instant On",
@@ -514,6 +518,9 @@ impl TypeMetadataProvider for Feature {
             }
             Feature::NetworkDiscovery => {
                 "Scan your subnets for hosts, open ports and running services, on demand"
+            }
+            Feature::ScanDigests => {
+                "An email after each completed scan listing new, stale and changed hosts, services and VLANs"
             }
             Feature::ScheduledDiscovery => "Schedule automatic network discovery scans",
             Feature::DiscoveryIntegrations => {

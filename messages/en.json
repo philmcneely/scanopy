@@ -2262,6 +2262,8 @@
 	"meta_features_remove_created_with_name": "Remove Watermark",
 	"meta_features_saml_description": "Connect your SAML 2.0 identity provider for enterprise single sign-on",
 	"meta_features_saml_name": "SAML",
+	"meta_features_scan_digests_description": "An email after each completed scan listing new, stale and changed hosts, services and VLANs",
+	"meta_features_scan_digests_name": "Scan Digests",
 	"meta_features_scheduled_discovery_description": "Schedule automatic network discovery scans",
 	"meta_features_scheduled_discovery_name": "Scheduled Discovery",
 	"meta_features_service_detection_description": "Identify the services running on each host from their open ports and responses",

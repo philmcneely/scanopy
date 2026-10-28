@@ -253,6 +253,8 @@ pub struct BillingPlanFeatures {
     pub csv_export: bool,
     // Discovery
     pub network_discovery: bool,
+    /// Sent after every completed scan but a single-host rescan, so every plan has it.
+    pub scan_digests: bool,
     pub scheduled_discovery: bool,
     pub discovery_integrations: bool,
     /// Aruba Instant On credentials can be created (existing ones keep working on any plan).
@@ -732,6 +734,7 @@ impl BillingPlan {
                 drawio_export: false,
                 vsdx_export: false,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: false,
@@ -775,6 +778,7 @@ impl BillingPlan {
                 drawio_export: false,
                 vsdx_export: false,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: false,
                 discovery_integrations: true,
                 instant_on_integration: false,
@@ -817,6 +821,7 @@ impl BillingPlan {
                 drawio_export: false,
                 vsdx_export: false,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: false,
@@ -859,6 +864,7 @@ impl BillingPlan {
                 drawio_export: false,
                 vsdx_export: false,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -901,6 +907,7 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -943,6 +950,7 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -985,6 +993,7 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1027,6 +1036,7 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1069,6 +1079,7 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1111,6 +1122,7 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1153,6 +1165,7 @@ impl BillingPlan {
                 drawio_export: true,
                 vsdx_export: true,
                 network_discovery: true,
+                scan_digests: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1212,6 +1225,7 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             drawio_export,
             vsdx_export,
             network_discovery,
+            scan_digests,
             scheduled_discovery,
             discovery_integrations,
             instant_on_integration,
@@ -1361,6 +1375,10 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
 
         if network_discovery {
             features.push(Feature::NetworkDiscovery)
+        }
+
+        if scan_digests {
+            features.push(Feature::ScanDigests)
         }
 
         if scheduled_discovery {
