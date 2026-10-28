@@ -22,6 +22,7 @@
 	import ReleaseNotesModal from '$lib/features/release-notes/ReleaseNotesModal.svelte';
 	import TermsAcceptanceModal from '$lib/features/auth/components/TermsAcceptanceModal.svelte';
 	import EmailVerificationGate from '$lib/features/auth/components/EmailVerificationGate.svelte';
+	import AuthBackground from '$lib/shared/components/layout/AuthBackground.svelte';
 	import { useQueryClient } from '@tanstack/svelte-query';
 	import { queryKeys } from '$lib/api/query-client';
 	import {
@@ -462,7 +463,10 @@
 {#if appInitialized && termsGated}
 	<TermsAcceptanceModal isOpen={true} />
 {:else if appInitialized && verificationGated}
-	<EmailVerificationGate isOpen={true} />
+	<div class="relative min-h-screen bg-(--color-bg-elevated)">
+		<AuthBackground />
+		<EmailVerificationGate isOpen={true} />
+	</div>
 {:else if appInitialized}
 	<div class="flex h-dvh">
 		<!-- Sidebar -->

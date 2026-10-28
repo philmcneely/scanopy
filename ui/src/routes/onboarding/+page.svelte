@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { themeStore } from '$lib/shared/stores/theme.svelte';
+	import AuthBackground from '$lib/shared/components/layout/AuthBackground.svelte';
 	import { ChevronLeft } from 'lucide-svelte';
 	import Toast from '$lib/shared/components/feedback/Toast.svelte';
 	import OrgSitesModal from '$lib/features/auth/components/onboarding/OrgSitesModal.svelte';
@@ -268,16 +268,7 @@
 </script>
 
 <div class="relative flex min-h-screen flex-col items-center bg-(--color-bg-elevated) p-4">
-	<!-- Background image with overlay -->
-	<div class="absolute inset-0 z-0">
-		<div
-			class="h-full w-full bg-cover bg-center bg-no-repeat blur-xs"
-			style="background-image: url('/images/background-{themeStore.resolvedTheme}.webp')"
-		></div>
-		<div
-			class="absolute inset-0 {themeStore.resolvedTheme === 'dark' ? 'bg-black/30' : 'bg-white/15'}"
-		></div>
-	</div>
+	<AuthBackground />
 
 	<!-- Progress Indicator - fixed position above modal (hidden for invite flow
 	     and when the org-limit gate replaces the whole flow) -->
