@@ -75,6 +75,18 @@ export default defineConfig({
 			}),
 			// The client bundle is what ships to browsers; the SSR build only prerenders.
 			apply: (_, env) => env.command === 'build' && !env.isSsrBuild
+		},
+		{
+			// The dev server has no build output, so serve the backend notices on their own at the
+			// same path. The npm section exists only in a production build.
+			name: 'third-party-licenses-dev',
+			apply: 'serve',
+			configureServer(server) {
+				server.middlewares.use('/third-party-licenses.txt', (_req, res) => {
+					res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+					res.end(readFileSync(BACKEND_NOTICES, 'utf8'));
+				});
+			}
 		}
 	],
 	define: {
