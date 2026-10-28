@@ -14,9 +14,11 @@ use crate::server::{
 };
 
 use super::types::{
-    DashboardSummary, PlanUsage, RecentDiscovery, SiteSummary, UncoveredIntegration,
+    DashboardSummary, PlanUsage, RecentDiscovery, SiteSummary, TargetlessCredential,
+    UncoveredIntegration,
 };
 use crate::server::credentials::service::FoundIntegration;
+use strum::IntoDiscriminant;
 
 use axum::{extract::State, response::Json};
 use std::sync::Arc;
@@ -33,7 +35,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 #[utoipa::path(
     get,
     path = "/summary",
-    tags = [api_tags::DASHBOARD, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Dashboard summary", body = ApiResponse<DashboardSummary>),
     ),
@@ -138,7 +140,7 @@ async fn get_dashboard_summary(
         .organization_service
         .get_by_id(&organization_id)
         .await?
-        .and_then(|o| o.base.plan)
+        .map(|o| o.base.plan)
         .unwrap_or_else(crate::server::billing::plans::get_free_plan);
     let (host_limit, site_limit, seat_limit) =
         (plan.host_limit(), plan.site_limit(), plan.seat_limit());
@@ -190,6 +192,21 @@ async fn get_dashboard_summary(
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
     let uncovered_integrations = group_by_integration(uncovered);
 
+    // Re-checked against today's assignments, so a target saved since clears its nudge.
+    let targetless_credentials = state
+        .services
+        .discovery_service
+        .targetless_credentials(&organization_id, None)
+        .await
+        .map_err(|e| ApiError::internal_error(&e.to_string()))?
+        .into_iter()
+        .map(|c| TargetlessCredential {
+            id: c.id,
+            integration: c.base.credential_type.discriminant().integration(),
+            name: c.base.name,
+        })
+        .collect();
+
     let plan_usage = PlanUsage {
         host_limit,
         host_count,
@@ -205,6 +222,7 @@ async fn get_dashboard_summary(
         recent_discoveries,
         plan_usage,
         uncovered_integrations,
+        targetless_credentials,
     })))
 }
 

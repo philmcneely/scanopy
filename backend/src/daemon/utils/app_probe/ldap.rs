@@ -52,16 +52,12 @@ pub struct LdapProbe;
 
 #[async_trait]
 impl AppProbe for LdapProbe {
-    fn port(&self) -> PortType {
-        PortType::Ldap
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Ldap
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Ldap)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &bind_request(), 512).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &bind_request(), 512).await;
         Ok(parse_reply(&reply, MESSAGE_ID))
     }
 }

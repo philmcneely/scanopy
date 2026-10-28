@@ -16,6 +16,8 @@
 	} from '@tanstack/table-core';
 	import { createSvelteTable, type EntityTableFeatures } from './createSvelteTable.svelte';
 	import type { Snippet } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
+	import ActionMenu from '../controls/ActionMenu.svelte';
 	import {
 		clampColumnWidth,
 		columnWidth,
@@ -284,8 +286,15 @@
 
 	function trackColumnWidth(node: HTMLElement, columnId: string) {
 		let id = columnId;
-		const observer = new ResizeObserver(() => {
+		// Record on the next frame, not inside the delivery: the width caps the column's cell
+		// content, which can resize the observed header and raise the ResizeObserver loop error.
+		let frame = 0;
+		const record = () => {
 			if (renderedWidths[id] !== node.offsetWidth) renderedWidths[id] = node.offsetWidth;
+		};
+		const observer = new ResizeObserver(() => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(record);
 		});
 		observer.observe(node);
 		return {
@@ -294,6 +303,7 @@
 			},
 			destroy() {
 				observer.disconnect();
+				cancelAnimationFrame(frame);
 				delete renderedWidths[id];
 			}
 		};
@@ -368,6 +378,9 @@
 	$effect(() => (selectHeader ? trackWidth(selectHeader, (w) => (selectWidth = w)) : undefined));
 	$effect(() => (actionsHeader ? trackWidth(actionsHeader, (w) => (actionsWidth = w)) : undefined));
 
+	// Below `md` a row's actions fold into one menu, so the row keeps room for its columns.
+	const narrowViewport = new MediaQuery('max-width: 767px');
+
 	function ariaSort(columnId: string): 'ascending' | 'descending' | 'none' {
 		if (sortState.field !== columnId) return 'none';
 		return sortState.direction === 'asc' ? 'ascending' : 'descending';
@@ -431,7 +444,7 @@
 							onchange={onToggleAll}
 							aria-label={allSelected ? common_deselectAll() : common_selectAllOnPage()}
 							title="{common_selectAllOnPage()} ({shortcutLabel('A')})"
-							class="h-4 w-4 checkbox-card"
+							class="checkbox-card h-4 w-4"
 						/>
 					</th>
 				{/if}
@@ -700,7 +713,7 @@
 						e.currentTarget.checked = selectedIds.has(itemId);
 					}}
 					aria-label={common_selectRow({ name: rowLabel(item) })}
-					class="h-4 w-4 checkbox-card"
+					class="checkbox-card h-4 w-4"
 				/>
 			</td>
 		{/if}
@@ -751,27 +764,35 @@
 		{#if rowActions}
 			{@const actions = shownActions(rowActions)}
 			<td class="pin-right px-(--cell-px) py-(--cell-py) text-right align-middle">
-				<div class="flex items-center justify-end gap-1">
-					{#each actions as action (action.label)}
-						{@const tip = resolveTooltip(action) ?? action.label}
-						<!--
+				{#if narrowViewport.current}
+					{#if actions.length > 0}
+						<ActionMenu {actions} label={common_actions()} />
+					{/if}
+				{:else}
+					<div class="flex items-center justify-end gap-1">
+						{#each actions as action (action.label)}
+							{@const tip = resolveTooltip(action) ?? action.label}
+							<!--
 									The label floats in a tooltip rather than growing inside the
 									button. An in-flow label has to span its neighbours to fit its
 									text, which is what let one action cover the rest of the row.
 								-->
-						<button
-							type="button"
-							onclick={action.onClick}
-							disabled={!!action.unavailable}
-							use:tooltip
-							data-tooltip={tip}
-							aria-label={action.label}
-							class="{iconButtonClass(action.tone)} disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							<action.icon size={16} class={action.animation || ''} />
-						</button>
-					{/each}
-				</div>
+							<button
+								type="button"
+								onclick={action.onClick}
+								disabled={!!action.unavailable}
+								use:tooltip
+								data-tooltip={tip}
+								aria-label={action.label}
+								class="{iconButtonClass(
+									action.tone
+								)} disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								<action.icon size={16} class={action.animation || ''} />
+							</button>
+						{/each}
+					</div>
+				{/if}
 			</td>
 		{/if}
 	</tr>

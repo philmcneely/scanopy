@@ -2,6 +2,8 @@
 	import { applicationGroupId, isApplicationTag } from '$lib/features/tags/groups';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import { hasDaemon } from '$lib/shared/onboarding/checklist';
 	import TopologyViewer from './visualization/TopologyViewer.svelte';
 	import TopologyOptionsPanel from './panel/TopologyOptionsPanel.svelte';
@@ -80,33 +82,31 @@
 	import { formatDate, formatTimestamp } from '$lib/shared/utils/formatting';
 	import ApplicationSetupWizard from './application-wizard/ApplicationSetupWizard.svelte';
 	import L2EmptyStateOverlay from './L2EmptyStateOverlay.svelte';
+	import TopologyPlanRequiredOverlay from './TopologyPlanRequiredOverlay.svelte';
+	import { upgradeTagProps } from '$lib/features/billing/upgrade-tag';
+	import { hasTopologyAccess } from '$lib/features/organizations/types';
 	import ViewFiltersEmptyState from './ViewFiltersEmptyState.svelte';
 	import ViewSwitcherHint from './ViewSwitcherHint.svelte';
 	import DependencyTutorial from './DependencyTutorial.svelte';
 	import { TUTORIAL_TOPOLOGY } from './dependency-tutorial-data';
 	import { useUsersQuery } from '$lib/features/users/queries';
+	import { canListUsers } from '$lib/features/users/types';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
 	import type { components } from '$lib/api/schema';
-	import {
-		billingPlans,
-		edgeTypes,
-		entities,
-		permissions,
-		views
-	} from '$lib/shared/stores/metadata';
+	import { billingPlans, edgeTypes, entities, views } from '$lib/shared/stores/metadata';
 	import { getInspectorConfig } from './panel/inspectors/view-config';
 	import type { TabProps } from '$lib/shared/types';
 	import {
 		common_delete,
 		common_firstDiscoveryEmailHint,
 		common_share,
-		common_upgrade,
 		daemons_installPromptTopology,
 		topology_asOf,
 		common_current,
-		topology_noTopologySelected,
+		topology_noSites,
+		topology_siteTopologyMissing,
 		topology_snapshotDeleteConfirm,
 		topology_takeSnapshot
 	} from '$lib/paraglide/messages';
@@ -117,12 +117,7 @@
 	// Get current user to check permissions
 	const currentUserQuery = useCurrentUserQuery();
 	let currentUser = $derived(currentUserQuery.data);
-	let canViewUsers = $derived(
-		currentUser
-			? (permissions.getMetadata(currentUser.permissions)?.grantable_user_permissions?.length ??
-					0) > 0
-			: false
-	);
+	let canViewUsers = $derived(currentUser ? canListUsers(currentUser.permissions) : false);
 
 	// Snapshot selection drives as-of-T entity reads. When a snapshot is
 	// selected, entity queries read SCD2 state as of its `taken_at` instead of
@@ -144,7 +139,7 @@
 	// Single bundle query for the topology view's entity set. `snapshot_id =
 	// undefined` returns live entities; `snapshot_id = <id>` returns the
 	// captured set as-of that snapshot's `taken_at`. Same code path for both
-	// — see backend `GET /api/v1/topology/data`.
+	// — see backend `GET /api/v1/topologies/data`.
 	// Gated on `isActive`: this is the heaviest query in the app and it is the only
 	// subscriber to its key, so holding it while the tab is off-screen keeps the
 	// bundle — and the discovery SSE stream's throttled refetch of it — off pages
@@ -159,7 +154,8 @@
 	// Derived data
 	let topologiesData = $derived(topologiesQuery.data ?? []);
 	let sitesData = $derived(sitesQuery.data ?? []);
-	let isLoading = $derived(topologiesQuery.isPending || topologyDataQuery.isPending);
+	let organizationLoad = $derived(loadFailure(organizationQuery));
+	let topologyLoad = $derived(loadFailure(sitesQuery, topologiesQuery, topologyDataQuery));
 
 	let hasEmail = $derived(configQuery.data?.has_email_service ?? false);
 
@@ -400,6 +396,7 @@
 
 	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 	let onboarding = $derived((organizationQuery.data?.onboarding ?? []) as OnboardingOperation[]);
+	let topologyAccess = $derived(hasTopologyAccess(organizationQuery.data));
 	let hasCompletedFirstDiscovery = $derived(
 		onboarding.length === 0 || onboarding.includes('FirstDiscoveryCompleted')
 	);
@@ -419,6 +416,7 @@
 			$selectedSiteId &&
 			hasHosts &&
 			onboarding.includes('FirstDiscoveryCompleted') &&
+			topologyAccess &&
 			!firstTopologyMilestoneTracked &&
 			!onboarding.includes('FirstTopologyRebuild')
 		) {
@@ -719,13 +717,17 @@
 </script>
 
 <SvelteFlowProvider>
-	{#if !hasDaemon(onboarding)}
+	{#if organizationLoad.failed}
+		<!-- Onboarding comes from the organization, and reading a failed load as an empty one
+		     would ask the user to install a daemon. -->
+		<LoadFailedState onRetry={organizationLoad.retry} />
+	{:else if !hasDaemon(onboarding)}
 		<PreDaemonEmptyState title={daemons_installPromptTopology()} {isReadOnly} />
 	{:else}
 		<div class="space-y-3">
 			<!-- Header -->
 			<div
-				class="card-static flex items-center justify-evenly gap-2 card px-2 py-2"
+				class="card-static card flex items-center justify-evenly gap-2 px-2 py-2"
 				style="border-bottom: 2px solid {viewColorStyle.rgb}; transition: border-color 0.3s ease;"
 			>
 				{#if currentTopology}
@@ -747,7 +749,7 @@
 					</div>
 
 					{#if !isReadOnly}
-						<div class="self-stretch card-divider-v"></div>
+						<div class="card-divider-v self-stretch"></div>
 						{#if activeSession}
 							{@const estimate = activeSession.estimated_remaining_secs}
 							<div
@@ -769,7 +771,7 @@
 									<span class="text-[10px]">Estimating...</span>
 								{/if}
 							</div>
-							<div class="self-stretch card-divider-v"></div>
+							<div class="card-divider-v self-stretch"></div>
 						{/if}
 					{/if}
 				{/if}
@@ -783,7 +785,7 @@
 						options={sitesData}
 					/>
 
-					<div class="self-stretch card-divider-v"></div>
+					<div class="card-divider-v self-stretch"></div>
 
 					<RichSelect
 						label=""
@@ -805,7 +807,8 @@
 						>
 							<Camera class="h-5 w-5" />
 							{#if !snapshotsEnabled}
-								<Tag label={common_upgrade()} color="Yellow" />
+								<!-- The button names the action; the badge only marks it as an upgrade. -->
+								<Tag {...upgradeTagProps()} title={null} />
 							{/if}
 						</button>
 					{/if}
@@ -823,7 +826,7 @@
 						{/if}
 					{/if}
 
-					<div class="self-stretch card-divider-v"></div>
+					<div class="card-divider-v self-stretch"></div>
 
 					<div bind:this={viewSwitcherEl}>
 						<RichSelect
@@ -842,58 +845,79 @@
 				<ViewSwitcherHint anchor={viewSwitcherEl} />
 			{/if}
 
-			{#if isLoading}
+			<!-- Each site gets its topology row when it is created, so a site without one is an
+			     error to retry, not something the user creates. -->
+			{#if topologyLoad.failed}
+				<LoadFailedState onRetry={topologyLoad.retry} />
+			{:else if sitesQuery.isPending || topologiesQuery.isPending}
 				<Loading />
+			{:else if sitesData.length === 0}
+				<div class="card-static card text-secondary">
+					{topology_noSites()}
+				</div>
+			{:else if $selectedSiteId && !currentTopologyRow}
+				<LoadFailedState
+					title={topology_siteTopologyMissing()}
+					subtitle=""
+					onRetry={() => topologiesQuery.refetch()}
+				/>
 			{:else if currentTopology}
 				<div class="relative" id="topology-view-area">
-					<TopologyOptionsPanel
-						topology={currentTopology}
-						tutorialTopology={$showDependencyTutorial ? TUTORIAL_TOPOLOGY : undefined}
-						{isReadOnly}
-						raised={showFiltersEmptyState || showL2EmptyState}
-						onClearSelection={$showDependencyTutorial
-							? dismissDependencyTutorial
-							: clearMultiSelect}
-						onGroupCreated={() => {
-							clearMultiSelect();
-							updateHiddenEdgeTypes((hidden) =>
-								hidden.filter((e) => !edgeTypes.getMetadata(e).is_dependency_edge)
-							);
-						}}
-						onDependencyTypeChange={$showDependencyTutorial
-							? () => (tutorialTypeToggled = true)
-							: undefined}
-					/>
+					{#if topologyAccess}
+						<TopologyOptionsPanel
+							topology={currentTopology}
+							tutorialTopology={$showDependencyTutorial ? TUTORIAL_TOPOLOGY : undefined}
+							{isReadOnly}
+							raised={showFiltersEmptyState || showL2EmptyState}
+							onClearSelection={$showDependencyTutorial
+								? dismissDependencyTutorial
+								: clearMultiSelect}
+							onGroupCreated={() => {
+								clearMultiSelect();
+								updateHiddenEdgeTypes((hidden) =>
+									hidden.filter((e) => !edgeTypes.getMetadata(e).is_dependency_edge)
+								);
+							}}
+							onDependencyTypeChange={$showDependencyTutorial
+								? () => (tutorialTypeToggled = true)
+								: undefined}
+						/>
+					{/if}
 					<TopologyViewer bind:this={topologyViewer} topology={currentTopology} {isActive} />
-					{#if $showDependencyTutorial}
+					{#if !topologyAccess}
+						<!-- Free: the plan prompt from the first scan on, with its progress while it runs,
+						     then over the org's own diagram, shrouded. -->
+						<TopologyPlanRequiredOverlay
+							scanning={!onboarding.includes('FirstDiscoveryCompleted')}
+						/>
+					{:else if $showDependencyTutorial}
 						<DependencyTutorial
 							onDismiss={dismissDependencyTutorial}
 							dependencyTypeToggled={tutorialTypeToggled}
 						/>
 					{/if}
-					{#if showAppWizard}
+					{#if topologyAccess && showAppWizard}
 						<ApplicationSetupWizard
 							{appTags}
 							siteId={currentTopology.site_id}
 							onComplete={handleWizardComplete}
 						/>
 					{/if}
-					{#if showFiltersEmptyState}
+					{#if topologyAccess && showFiltersEmptyState}
 						<ViewFiltersEmptyState
 							filters={emptyingFilters}
 							viewName={views.getName($activeView) ?? $activeView}
 							{isReadOnly}
 						/>
-					{:else if showL2EmptyState}
+					{:else if topologyAccess && showL2EmptyState}
 						<L2EmptyStateOverlay
 							hasInterfaceCredential={onboarding.includes('FirstInterfaceCredentialCreated')}
 						/>
 					{/if}
 				</div>
 			{:else}
-				<div class="card-static card text-secondary">
-					{topology_noTopologySelected()}
-				</div>
+				<!-- A site is being selected, or the selected view's data is on its way. -->
+				<Loading />
 			{/if}
 		</div>
 

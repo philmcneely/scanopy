@@ -6,6 +6,8 @@
 
 import type { InternalNode, Node } from '@xyflow/svelte';
 import type { DiagramIcon, DiagramSourceNode } from './model';
+import { knownCardGlyph } from '../card-glyph';
+import type { DiagramTheme } from './describe';
 
 /**
  * Absolute position and measured size of every node. `getNodes()` carries neither: positions are
@@ -99,12 +101,13 @@ export interface CapturedIcons {
 /**
  * The first icon each node draws (a container's header icon, a card's service logo), keyed so
  * repeated icons are stored once. `png` also rasterizes each icon, for formats that need bitmaps.
+ * A `Paired` logo gives the file for the export's `theme`.
  * A logo that fails to load leaves its node without an icon.
  */
 export async function captureNodeIcons(
 	flowElement: HTMLElement,
 	nodeIds: Set<string>,
-	options: { png: boolean }
+	options: { png: boolean; theme: DiagramTheme }
 ): Promise<CapturedIcons> {
 	const iconKeys = new Map<string, string>();
 	const sources = new Map<string, { svg?: string; src?: string }>();
@@ -112,14 +115,25 @@ export async function captureNodeIcons(
 	for (const el of flowElement.querySelectorAll<HTMLElement>('.svelte-flow__node[data-id]')) {
 		const id = el.dataset.id;
 		if (!id || !nodeIds.has(id)) continue;
-		const icon = el.querySelector<HTMLImageElement | SVGElement>('img, svg.lucide-icon');
+		const icon = el.querySelector<HTMLElement | SVGElement>('img, svg.lucide-icon, [data-glyph]');
 		if (!icon) continue;
-		if (icon instanceof HTMLImageElement) {
+		// A card icon drawn on one element (`card-glyph.ts`): its source by the key it carries.
+		const glyph = icon.dataset.glyph ? knownCardGlyph(icon.dataset.glyph) : undefined;
+		if (glyph?.type === 'image') {
+			const src = options.theme === 'dark' && glyph.darkSrc ? glyph.darkSrc : glyph.src;
+			iconKeys.set(id, src);
+			sources.set(src, { src });
+		} else if (glyph?.type === 'mask') {
+			const color = getComputedStyle(icon).color || '#64748b';
+			const svg = glyph.svg.replaceAll('currentColor', color);
+			iconKeys.set(id, svg);
+			sources.set(svg, { svg });
+		} else if (icon instanceof HTMLImageElement) {
 			const src = icon.currentSrc || icon.src;
 			if (!src) continue;
 			iconKeys.set(id, src);
 			sources.set(src, { src });
-		} else {
+		} else if (icon instanceof SVGElement) {
 			const svg = serializeInlineSvg(icon);
 			iconKeys.set(id, svg);
 			sources.set(svg, { svg });

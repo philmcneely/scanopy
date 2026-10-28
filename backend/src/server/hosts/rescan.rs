@@ -38,7 +38,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(bulk_rescan_hosts))
 }
 
-/// Rescan a host
+/// Rescan host
 ///
 /// Starts a one-shot scan of this host's addresses and nothing else, answering
 /// "is this host still there, and is its data current?" without sweeping the
@@ -56,7 +56,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 /// subnets they have an interface on, and the request is refused when the host
 /// has none.
 ///
-/// Returns the session, which streams progress over `/api/v1/discovery/stream`
+/// Returns the session, which streams progress over `/api/v1/live-updates/stream`
 /// like any other scan. A `Queued` phase means the daemon is busy; it will start
 /// when the running scan finishes.
 #[utoipa::path(

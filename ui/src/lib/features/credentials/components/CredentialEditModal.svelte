@@ -19,7 +19,7 @@
 	import CredentialAssignmentsSection from './CredentialAssignmentsSection.svelte';
 	import { submitForm, validateForm } from '$lib/shared/components/forms/form-context';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
-	import { ArrowRight, Info, KeyRound, Link } from 'lucide-svelte';
+	import { Info, KeyRound, Link } from 'lucide-svelte';
 	import {
 		common_assignments,
 		common_back,
@@ -33,6 +33,7 @@
 		common_next,
 		common_saving,
 		common_update,
+		credentials_assignmentRequired,
 		credentials_assignmentsClearedOnTypeChange,
 		credentials_createCredential,
 		credentials_description,
@@ -163,7 +164,7 @@
 	// Assignment state (source of truth; synced into the submit payload).
 	// The selected type drives which assignment surface(s) show; kept in sync via
 	// CredentialForm's onTypeChange and reset on open.
-	let selectedTypeId = $state('SnmpV2c');
+	let selectedTypeId = $state('SnmpCommunity');
 	let assignedSiteIds = $state<string[]>([]);
 	let hostAssignments = $state<CredentialHostAssignment[]>([]);
 
@@ -194,6 +195,18 @@
 				{ assignedSiteIds, hostAssignments },
 				daemonHostIds
 			);
+
+			// A credential created here with no assignment is never sent to a daemon. The daemon and
+			// discovery flows create theirs with discovery targets instead, so this is the one
+			// create path that has to insist.
+			if (
+				!isEditing &&
+				permitted.assignedSiteIds.length === 0 &&
+				permitted.hostAssignments.length === 0
+			) {
+				pushError(credentials_assignmentRequired());
+				return;
+			}
 
 			// `value` also carries CredentialForm's scratch state — `fields` (raw per-field
 			// strings) and `targetIps` — because those inputs register under this form. Neither
@@ -255,7 +268,9 @@
 		hostAssignments =
 			credential?.host_assignments ??
 			initialHostIds.map((host_id) => ({ host_id, ip_address_ids: null }));
-		selectedTypeId = credential ? getCredentialTypeId(credential) : (typeChoices?.[0] ?? 'SnmpV2c');
+		selectedTypeId = credential
+			? getCredentialTypeId(credential)
+			: (typeChoices?.[0] ?? 'SnmpCommunity');
 		form.reset(getDefaultValues());
 		credentialFormRef?.reset();
 		// After both resets, which each clear the shared form's name.
@@ -282,8 +297,6 @@
 		}
 	}
 
-	let isStepNext = $derived(!isEditing && !isLastStep);
-
 	let actions = $derived<ModalAction[]>([
 		...(isEditing && onDelete && credential
 			? [
@@ -302,8 +315,7 @@
 			role: 'primary',
 			label: loading ? common_saving() : saveLabel,
 			onClick: handlePrimary,
-			disabled: loading || deleting,
-			...(isStepNext ? { icon: ArrowRight, iconAfter: true } : {})
+			disabled: loading || deleting
 		}
 	]);
 </script>

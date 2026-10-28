@@ -2,11 +2,11 @@
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
 
 	/**
-	 * Software: its service definition's logo in a neutral round frame. The circle is the shape the
-	 * topology gives every entity whose `glyph` metadata is `Software`. The frame fills with the
-	 * topology card's opaque background: the dark-mode surface token is 70% translucent, which let the
-	 * tile behind a badge show through the logo. A logo gets a white backdrop only when its definition
-	 * asks for one (`LogoIcon` adds it).
+	 * Software: its service definition's logo in a round frame. The circle is the shape the
+	 * topology gives every entity whose `glyph` metadata is `Software`. A logo brings its own frame
+	 * (`LogoIcon`: the card colour or the logo's background colour, filled by a round logo); a
+	 * definition with no logo gets the same ring here around its glyph, on the card's opaque
+	 * background, since the dark-mode surface token is 70% translucent.
 	 */
 	let {
 		definition,
@@ -20,14 +20,19 @@
 	} = $props();
 
 	let Logo = $derived(serviceDefinitions.getIconComponent(definition));
-	// Pixel size, passed explicitly: `LogoIcon` sizes its image from `size` and ignores a height
-	// class. 70% of the frame is the largest square that sits inside the circle, so a square logo
-	// (pfSense) fits as well as a round one (UniFi).
-	let logoPx = $derived(size === 'lg' ? 28 : 14);
+	let hasLogo = $derived(
+		!!(serviceDefinitions.getMetadata(definition) as { logo?: string | null } | null)?.logo
+	);
+	let framePx = $derived(size === 'lg' ? 48 : 20);
+	// A logo's `LogoIcon` takes `framed`; a lucide glyph ignores it. Spread, since the icon type is
+	// lucide's and does not declare it.
+	const bare = { framed: false };
 </script>
 
 {#if !framed}
-	<Logo size={16} class="text-primary" />
+	<Logo size={16} {...bare} class="text-primary" />
+{:else if hasLogo}
+	<Logo size={framePx} class="align-top" />
 {:else}
 	<span
 		class="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-300 align-top dark:border-gray-600 {size ===
@@ -36,8 +41,8 @@
 			: 'h-5 w-5'}"
 		style="background: var(--color-topology-node-bg);"
 	>
-		<!-- A logo draws in its own colours; a definition with no logo falls back to a glyph, drawn in the
-	     text colour like a device's so the two read alike. -->
-		<Logo size={logoPx} class="text-primary" />
+		<!-- No logo: the definition's glyph, drawn in the text colour like a device's so the two
+		     read alike. -->
+		<Logo size={size === 'lg' ? 28 : 14} class="text-primary" />
 	</span>
 {/if}

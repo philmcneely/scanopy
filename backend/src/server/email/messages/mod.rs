@@ -23,6 +23,7 @@ mod invoice_credited;
 mod invoice_finalization_failed;
 mod invoice_issued;
 mod invoice_overdue;
+mod licensed_server_upgrade;
 pub mod links;
 mod oidc_linked;
 mod oidc_unlinked;
@@ -52,10 +53,12 @@ mod terms_update;
 mod trial_converted;
 mod trial_ending;
 mod trial_expired;
+mod trial_extended;
 mod trial_started;
 mod usage_summary;
 mod verification;
 
+use crate::server::shared::logos::Logo;
 use strum::{EnumIter, IntoStaticStr};
 
 use crate::server::shared::types::{
@@ -81,6 +84,7 @@ pub use invoice_credited::InvoiceCredited;
 pub use invoice_finalization_failed::InvoiceFinalizationFailed;
 pub use invoice_issued::InvoiceIssued;
 pub use invoice_overdue::InvoiceOverdue;
+pub use licensed_server_upgrade::LicensedServerUpgrade;
 pub use oidc_linked::OidcLinked;
 pub use oidc_unlinked::OidcUnlinked;
 pub use organization_deleted::OrganizationDeleted;
@@ -109,6 +113,7 @@ pub use terms_update::TermsUpdate;
 pub use trial_converted::TrialConverted;
 pub use trial_ending::TrialEnding;
 pub use trial_expired::TrialExpired;
+pub use trial_extended::{ExtendedTrialEnd, TrialExtended};
 pub use trial_started::TrialStarted;
 pub use usage_summary::UsageSummary;
 pub use verification::Verification;
@@ -191,8 +196,10 @@ impl EmailCategory {
             // Every link leads into the locked app, and the org's scans run
             // on its own server.
             Self::DiscoveryDigest => false,
-            // Its own server announces its own releases.
-            Self::ProductUpdates => false,
+            // Its owners get LicensedServerUpgrade. Its other members get no
+            // release email: `ReleaseNotesService` leaves them out, and their
+            // own server announces each release to them.
+            Self::ProductUpdates => true,
         }
     }
 
@@ -336,6 +343,10 @@ pub trait Email: Send + Sync {
             FOOTER_LEGAL_CLOUD
         };
         format!("{}{}{}", EMAIL_HEADER, self.body_html(), EMAIL_FOOTER)
+            // The logos come from the list the credits read (`shared/logos.rs`).
+            .replace("{scanopy_logo}", &Logo::Scanopy.url())
+            .replace("{discord_logo}", &Logo::Discord.url())
+            .replace("{github_logo}", &Logo::GitHub.url())
             .replace("{footer_legal}", footer_legal)
             // Before the two tokens below, which the link itself contains.
             .replace("{preferences_url}", links::SETTINGS_EMAIL)
@@ -385,7 +396,7 @@ pub const EMAIL_HEADER: &str = r#"<!DOCTYPE html>
                     <!-- Header with Logo -->
                     <tr>
                         <td align="center" style="padding: 40px 40px 30px 40px;">
-                            <img src="https://cdn.jsdelivr.net/gh/scanopy/scanopy@main/media/logo.png" alt="Scanopy" style="width: 80px; height: 80px; display: block;">
+                            <img src="{scanopy_logo}" alt="Scanopy" style="width: 80px; height: 80px; display: block;">
                         </td>
                     </tr>
 "#;
@@ -398,12 +409,12 @@ pub const EMAIL_FOOTER: &str = r#"                    <!-- Footer -->
                                 <tr>
                                     <td style="padding: 0 10px;">
                                         <a href="https://discord.com/invite/b7ffQr8AcZ" style="display: inline-block;">
-                                            <img src="https://cdn.jsdelivr.net/gh/selfhst/icons@master/png/discord.png" alt="Discord" style="width: 24px; height: 24px; display: block;">
+                                            <img src="{discord_logo}" alt="Discord" style="height: 24px; width: auto; display: block;">
                                         </a>
                                     </td>
                                     <td style="padding: 0 10px;">
                                         <a href="https://github.com/scanopy/scanopy" style="display: inline-block;">
-                                            <img src="https://cdn.jsdelivr.net/gh/selfhst/icons@master/png/github.png" alt="GitHub" style="width: 24px; height: 24px; display: block;">
+                                            <img src="{github_logo}" alt="GitHub" style="height: 24px; width: auto; display: block;">
                                         </a>
                                     </td>
                                 </tr>
@@ -437,6 +448,7 @@ mod tests {
     use super::*;
     use crate::server::digest::payload::DiscoveryDigestPayload;
     use crate::server::license::types::LicenseKeyType;
+    use crate::server::shared::events::types::TrialExtensionSource;
     use crate::server::sites::r#impl::DEFAULT_STALE_AFTER_HOURS;
     use uuid::Uuid;
 
@@ -611,6 +623,28 @@ mod tests {
                 billing_period: "Monthly",
             },
         );
+        for source in [TrialExtensionSource::User, TrialExtensionSource::Staff] {
+            for end in [
+                ExtendedTrialEnd::Converts,
+                ExtendedTrialEnd::NoPaymentMethod,
+                ExtendedTrialEnd::CancellationScheduled,
+            ] {
+                for key_expires in [None, Some("March 3, 2027")] {
+                    f(
+                        &format!("trial_extended_{source}_{end:?}_{key_expires:?}"),
+                        &TrialExtended {
+                            source,
+                            plan_name: "Pro",
+                            billing_period: "Monthly",
+                            days_added: 7,
+                            new_trial_end: "March 1, 2027",
+                            end,
+                            key_expires,
+                        },
+                    );
+                }
+            }
+        }
         f(
             "trial_converted",
             &TrialConverted {
@@ -944,12 +978,10 @@ mod tests {
             "---\nversion: 0.18.0\ndate: 2026-10-11\ntitle: 'Faster discovery'\nemail: true\n---\n\n- Fix a thing\n\n![The discovery view](https://scanopy.net/changelog/v0.18.0/discovery.png)\n",
         )
         .unwrap();
+        f("release_notes", &ReleaseNotes { note: &note });
         f(
-            "release_notes",
-            &ReleaseNotes {
-                notes: &[&note],
-                truncated: true,
-            },
+            "licensed_server_upgrade",
+            &LicensedServerUpgrade { note: &note },
         );
 
         let payload = DiscoveryDigestPayload {

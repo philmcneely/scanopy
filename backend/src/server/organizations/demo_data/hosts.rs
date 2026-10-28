@@ -191,9 +191,10 @@ pub(super) fn generate_hosts_and_services(
     let pve_hq1_svc_id = Uuid::new_v4(); // Proxmox VE on proxmox-hv01
     let pve_hq2_svc_id = Uuid::new_v4(); // Proxmox VE on proxmox-hv02
     let pve_dc_svc_id = Uuid::new_v4(); // Proxmox VE on dc-proxmox-hv01
+    let libvirt_dc_svc_id = Uuid::new_v4(); // libvirt (KVM) on dc-kvm01
 
     // ========================================================================
-    // HEADQUARTERS SITE — 31 hosts
+    // HEADQUARTERS SITE — 34 hosts
     // ========================================================================
     let hq = find_site("Headquarters");
     let hq_mgmt = find_subnet("HQ Management");
@@ -1030,6 +1031,7 @@ pub(super) fn generate_hosts_and_services(
                 firmware_revision: None,
                 software_revision: None,
                 os: docker_engine_host_os(),
+                matched_device_type: None,
                 credential_assignments: docker_proxy_cred
                     .into_iter()
                     .map(|id| CredentialAssignment {
@@ -1346,9 +1348,10 @@ pub(super) fn generate_hosts_and_services(
         ),
     ));
 
-    // 17. TrueNAS Primary
+    // 17. TrueNAS Primary — multi-homed: the bond carries storage traffic on HQ Storage, and a
+    // separate management NIC on HQ Management serves the web UI
     {
-        let (host, ip_address) = with_snmp(
+        let (host, mut storage) = with_snmp(
             with_mac(
                 create_host(
                     "truenas-primary",
@@ -1376,14 +1379,40 @@ pub(super) fn generate_hosts_and_services(
             Some("TrueNAS Mini X+"),
             Some("IX-TNMXP-2231C0087"),
         );
-        let ip_addresses = vec![ip_address];
+        storage.base.name = Some("lagg0".to_string());
+        let management = IPAddress {
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: IPAddressBase {
+                site_id: hq.id,
+                host_id: host.id,
+                subnet_id: hq_mgmt.id,
+                ip_address: IpAddr::V4(Ipv4Addr::new(10, 0, 1, 20)),
+                mac_address: Some(MacEvidence::new(
+                    MacEvidenceValue(MacAddress::new([0xd0, 0x50, 0x99, 0x40, 0x17, 0x02])),
+                    AttributeSource::ArpReply,
+                )),
+                name: Some("eno1".to_string()),
+                position: 1,
+                ip_address_source: AttributeSource::ArpReply,
+            },
+        };
+        let ip_addresses = vec![storage, management];
         let mut ports = Vec::new();
         let mut services = Vec::new();
+        // The web UI listens on the management NIC only.
         if let Some((svc, port)) = create_service(
             "TrueNAS",
             "TrueNAS",
             &host,
-            &ip_addresses[0],
+            &ip_addresses[1],
             Some(PortType::Https),
             [backup_tag, backups_tag].into_iter().flatten().collect(),
             now,
@@ -1400,6 +1429,21 @@ pub(super) fn generate_hosts_and_services(
             &ip_addresses[0],
             Some(PortType::Nfs),
             file_sharing_tag.into_iter().collect(),
+            now,
+        ) {
+            if let Some(p) = port {
+                ports.push(p);
+            }
+            services.push(svc);
+        }
+        // ZFS replication to the Synology runs over SSH on the storage network.
+        if let Some((svc, port)) = create_service(
+            "SSH",
+            "SSH",
+            &host,
+            &ip_addresses[0],
+            Some(PortType::Ssh),
+            backups_tag.into_iter().collect(),
             now,
         ) {
             if let Some(p) = port {
@@ -1669,22 +1713,28 @@ pub(super) fn generate_hosts_and_services(
         &[legacy_printers_cred],
     ));
 
-    // 27. Camera Entrance
+    // 27. Camera Entrance. Its web interface's page title ("AXIS") is a Recog fingerprint, which
+    // names the maker and the device class without credentials.
     result.push(host_with_services!(
-        with_mac(
-            create_host(
-                "cam-entrance",
-                None,
-                Some("Entrance security camera"),
-                hq,
-                hq_iot,
-                Ipv4Addr::new(10, 0, 30, 60),
-                iot_tag.into_iter().collect(),
-                None,
-                None,
-                now
+        with_fingerprint(
+            with_mac(
+                create_host(
+                    "cam-entrance",
+                    None,
+                    Some("Entrance security camera"),
+                    hq,
+                    hq_iot,
+                    Ipv4Addr::new(10, 0, 30, 60),
+                    iot_tag.into_iter().collect(),
+                    None,
+                    None,
+                    now
+                ),
+                [0xc0, 0x56, 0xe3, 0x30, 0x27, 0x01],
             ),
-            [0xc0, 0x56, 0xe3, 0x30, 0x27, 0x01],
+            AttributeSource::HtmlTitleMatch,
+            "AXIS",
+            crate::server::hosts::r#impl::device_type::DeviceType::Camera,
         ),
         now,
         (
@@ -1867,6 +1917,32 @@ pub(super) fn generate_hosts_and_services(
         ("Bind9", "Bind9", Some(PortType::DnsUdp), vec![]),
     ));
 
+    // 33. Boardroom Apple TV. Found by its AirPlay advertisement, which also names the port.
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "boardroom-appletv",
+                Some("Boardroom.local"),
+                Some("Boardroom Apple TV for screen sharing"),
+                hq,
+                hq_iot,
+                Ipv4Addr::new(10, 0, 30, 80),
+                iot_tag.into_iter().collect(),
+                None,
+                None,
+                now
+            ),
+            [0xf0, 0x18, 0x98, 0x30, 0x33, 0x01],
+        ),
+        now,
+        (
+            "Apple TV",
+            "Apple TV",
+            Some(PortType::new_tcp(7000)),
+            iot_tag.into_iter().collect()
+        ),
+    ));
+
     // -- Annex (10.0.50.x) — known only via an LLDP neighbor advertisement from the HQ core
     // switch; nothing here has been scanned directly, so this host is EntitySource::Inferred
     // rather than Manual, and its subnet (see generate_subnets) carries a provisional
@@ -1937,6 +2013,7 @@ pub(super) fn generate_hosts_and_services(
                 firmware_revision: None,
                 software_revision: None,
                 os: None,
+                matched_device_type: None,
                 credential_assignments: vec![],
             },
         };
@@ -1949,7 +2026,7 @@ pub(super) fn generate_hosts_and_services(
     }
 
     // ========================================================================
-    // DATA CENTER SITE — 21 hosts
+    // DATA CENTER SITE — 24 hosts
     // ========================================================================
     let dc = find_site("Data Center");
     let dc_mgmt = find_subnet("DC Management");
@@ -2079,6 +2156,37 @@ pub(super) fn generate_hosts_and_services(
     ));
 
     // -- DMZ (172.16.30.x) --
+
+    // 3b. NetScaler in front of the DMZ: the edge the portal's traffic enters through, ahead of
+    // HAProxy. Found by a scan, which matched its login page against Recog's NetScaler fingerprint.
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "netscaler-adc01",
+                Some("adc01.dc.acme.io"),
+                Some("Citrix NetScaler ADC"),
+                dc,
+                dc_dmz,
+                Ipv4Addr::new(172, 16, 30, 4),
+                production_tag
+                    .into_iter()
+                    .chain(critical_tag)
+                    .chain(portal_tag)
+                    .collect(),
+                None,
+                None,
+                now,
+            ),
+            [0xf8, 0xbc, 0x12, 0xdc, 0x0a, 0x01],
+        ),
+        now,
+        (
+            "Citrix NetScaler",
+            "Citrix NetScaler",
+            Some(PortType::Https),
+            portal_tag.into_iter().collect()
+        ),
+    ));
 
     // 4. HAProxy Load Balancer
     {
@@ -2401,6 +2509,152 @@ pub(super) fn generate_hosts_and_services(
         });
     }
 
+    // 10b. dc-kvm01 — a plain Ubuntu KVM host managed with libvirt (pre-generated libvirt service
+    // ID). Nothing discovers libvirt guests yet, so its two VMs were assigned to it by hand.
+    {
+        let (host, ip_address) = with_snmp(
+            with_mac(
+                create_host(
+                    "dc-kvm01",
+                    Some("kvm01.dc.acme.io"),
+                    Some("Data center KVM host (libvirt)"),
+                    dc,
+                    dc_compute,
+                    Ipv4Addr::new(172, 16, 10, 6),
+                    production_tag.into_iter().collect(),
+                    None,
+                    None,
+                    now,
+                ),
+                [0x3c, 0xec, 0xef, 0xdc, 0x0a, 0x01],
+            ),
+            Some("Linux dc-kvm01 6.8.0-45-generic #45-Ubuntu SMP x86_64"),
+            Some("1.3.6.1.4.1.8072.3.2.10"),
+            Some("DC-East, Cage 4, Rack 3"),
+            Some("sysadmin@acme-corp.com"),
+            None,
+            Some("Supermicro"),
+            Some("SYS-1029P-WTR"),
+            Some("S41208KVM0110"),
+        );
+        let ip_addresses = vec![ip_address];
+        let mut ports = Vec::new();
+        let mut services = Vec::new();
+        if let Some((svc, port)) = create_service_with_id(
+            libvirt_dc_svc_id,
+            "libvirt (KVM)",
+            "libvirt (KVM)",
+            &host,
+            &ip_addresses[0],
+            None,
+            production_tag.into_iter().collect(),
+            now,
+        ) {
+            if let Some(p) = port {
+                ports.push(p);
+            }
+            services.push(svc);
+        }
+        if let Some((svc, port)) = create_service(
+            "SSH",
+            "SSH",
+            &host,
+            &ip_addresses[0],
+            Some(PortType::Ssh),
+            vec![],
+            now,
+        ) {
+            if let Some(p) = port {
+                ports.push(p);
+            }
+            services.push(svc);
+        }
+        result.push(HostWithServices {
+            host,
+            ip_addresses,
+            ports,
+            services,
+        });
+    }
+
+    // 10c. vault-vm — libvirt domain on dc-kvm01
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "vault-vm",
+                Some("vault.dc.acme.io"),
+                Some("HashiCorp Vault (VM on dc-kvm01)"),
+                dc,
+                dc_compute,
+                Ipv4Addr::new(172, 16, 10, 12),
+                [production_tag, identity_tag]
+                    .into_iter()
+                    .flatten()
+                    .collect(),
+                None,
+                Some((
+                    HostVirtualization::Libvirt(LibvirtVirtualization {
+                        vm_name: Some("vault-vm".to_string()),
+                        vm_id: Some("6f1c2a8e-4b7d-4e3a-9c15-2d8e0b7a4f61".to_string()),
+                        state: GuestState::Running,
+                    }),
+                    libvirt_dc_svc_id,
+                )),
+                now
+            ),
+            [0x52, 0x54, 0x00, 0xdc, 0x0c, 0x01],
+        ),
+        now,
+        (
+            "Vault",
+            "Vault",
+            Some(PortType::new_tcp(8200)),
+            [production_tag, identity_tag]
+                .into_iter()
+                .flatten()
+                .collect()
+        ),
+    ));
+
+    // 10d. minio-vm — libvirt domain on dc-kvm01, object storage for backups
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "minio-vm",
+                Some("minio.dc.acme.io"),
+                Some("MinIO object storage (VM on dc-kvm01)"),
+                dc,
+                dc_compute,
+                Ipv4Addr::new(172, 16, 10, 13),
+                [production_tag, backups_tag]
+                    .into_iter()
+                    .flatten()
+                    .collect(),
+                None,
+                Some((
+                    HostVirtualization::Libvirt(LibvirtVirtualization {
+                        vm_name: Some("minio-vm".to_string()),
+                        vm_id: Some("a93e5d07-81c2-4f6b-b0d4-7e2f19c3a855".to_string()),
+                        state: GuestState::Running,
+                    }),
+                    libvirt_dc_svc_id,
+                )),
+                now
+            ),
+            [0x52, 0x54, 0x00, 0xdc, 0x0d, 0x01],
+        ),
+        now,
+        (
+            "MinIO",
+            "MinIO",
+            Some(PortType::Http9000),
+            [production_tag, backups_tag]
+                .into_iter()
+                .flatten()
+                .collect()
+        ),
+    ));
+
     // 11. dc-docker01 — Docker host (2 ip_addresses: eth0 on Compute, docker0 on DC Docker Bridge)
     {
         let host_id = Uuid::new_v4();
@@ -2491,6 +2745,7 @@ pub(super) fn generate_hosts_and_services(
                 firmware_revision: None,
                 software_revision: None,
                 os: docker_engine_host_os(),
+                matched_device_type: None,
                 credential_assignments: docker_proxy_cred
                     .into_iter()
                     .map(|id| CredentialAssignment {

@@ -32,7 +32,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::server::credentials::r#impl::mapping::CredentialQueryPayloadDiscriminants;
-use crate::server::credentials::r#impl::types::CredentialIntegration;
+use crate::server::credentials::r#impl::types::{CredentialIntegration, SnmpVersion};
 
 pub use entity_ids::EntityIdSlots;
 pub use metadata::WarningRemedy;
@@ -65,6 +65,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// The set was complete and only the attribute columns fell short, so nothing is missing —
     /// some descriptions or speeds are just blank. Kept apart from the above because reporting
@@ -80,6 +84,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
 
     // ---- SNMP walk shortfalls --------------------------------------------
@@ -96,6 +104,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// The device does not implement this MIB. Not a fault, and no later scan will change it.
     #[schema(title = "SnmpWalkUnsupported")]
@@ -108,6 +120,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// The agent answered out of step with what was asked — stale or non-advancing responses.
     #[schema(title = "SnmpWalkDesynchronised")]
@@ -120,6 +136,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// A partial read whose rows are thrown away rather than recorded, so the device contributes
     /// nothing for this group however much it answered.
@@ -133,6 +153,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// A partial read whose rows were recorded as far as they got.
     #[schema(title = "SnmpWalkPartialRecorded")]
@@ -145,6 +169,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// Every request for the root of the bridge MIB timed out, which is how switches that do not
     /// implement it commonly answer.
@@ -158,6 +186,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// The read returned nothing, and its cause was not recorded: a daemon from before causes were
     /// carried, or a read that ended without a failed request.
@@ -171,6 +203,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// The read returned nothing, and `cause` is how its last request ended.
     #[schema(title = "SnmpWalkFailed")]
@@ -184,6 +220,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
 
     // ---- Contradicted claims ---------------------------------------------
@@ -203,6 +243,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// The device published a count, the read finished, and it came up short anyway.
     #[schema(title = "ClaimedCountUnderRead")]
@@ -220,6 +264,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// The device declared the capability, and the read ended without returning any.
     #[schema(title = "ClaimedCapabilityReadCutShort")]
@@ -233,6 +281,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// The device declared the capability, the read finished, and it returned none.
     #[schema(title = "ClaimedCapabilityEmpty")]
@@ -246,6 +298,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
 
     // ---- LLDP local port numbering ---------------------------------------
@@ -263,6 +319,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// The same loss, on a device whose own account of its port numbering was only half read.
     ///
@@ -284,6 +344,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
     /// Neighbours whose local port could not be identified but did match an interface number, so
     /// they are drawn against a port that may be the wrong one.
@@ -298,6 +362,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
     },
 
     // ---- Malformed neighbour records -------------------------------------
@@ -323,6 +391,10 @@ pub enum DiscoveryWarning {
         #[serde(default)]
         #[schema(required)]
         credential_id: Option<Uuid>,
+        /// The SNMP version the device answered on. `None` from a daemon that predates it.
+        #[serde(default)]
+        #[schema(required)]
+        snmp_version: Option<SnmpVersion>,
         /// Each table whose read failed, and how. These are not reported again on their own.
         /// Empty when every read ended normally; `None` from a daemon that predates the field,
         /// which recorded only that nothing came back.
@@ -424,6 +496,17 @@ pub enum DiscoveryWarning {
             example = "0.18.0"
         )]
         daemon_version: Option<Version>,
+    },
+    /// A stored credential no scan will send to a daemon: it is assigned to no site and no host,
+    /// and no discovery targets it. Raised by the server at the end of a run, never a daemon: the
+    /// daemon never receives the credential, so it cannot report on it.
+    #[schema(title = "CredentialWithoutTarget")]
+    CredentialWithoutTarget {
+        integration: CredentialQueryPayloadDiscriminants,
+        /// The stored credential. `None` once it is deleted.
+        #[serde(default)]
+        #[schema(required)]
+        credential_id: Option<Uuid>,
     },
     /// The port the credential needs was not open, so it was never tried.
     #[schema(title = "CredentialGateClosed")]
@@ -628,6 +711,10 @@ pub struct MalformedNeighbours {
     #[serde(default)]
     #[schema(required)]
     pub credential_id: Option<Uuid>,
+    /// The SNMP version the device answered on. `None` from a daemon that predates it.
+    #[serde(default)]
+    #[schema(required)]
+    pub snmp_version: Option<SnmpVersion>,
 }
 
 /// One credential's attempt against one address, and what the client library said about it.
@@ -798,6 +885,7 @@ pub enum DiscoveryWarningCode {
     CredentialTargetNotResponding,
     CredentialDaemonOsMismatch,
     CredentialNeedsNewerDaemon,
+    CredentialWithoutTarget,
     CredentialGateClosed,
     CredentialRejected,
     CredentialMalformed,
@@ -888,6 +976,7 @@ impl DiscoveryWarning {
             Self::CredentialNeedsNewerDaemon { .. } => {
                 DiscoveryWarningCode::CredentialNeedsNewerDaemon
             }
+            Self::CredentialWithoutTarget { .. } => DiscoveryWarningCode::CredentialWithoutTarget,
             Self::CredentialGateClosed { .. } => DiscoveryWarningCode::CredentialGateClosed,
             Self::CredentialRejected(_) => DiscoveryWarningCode::CredentialRejected,
             Self::CredentialMalformed(_) => DiscoveryWarningCode::CredentialMalformed,
@@ -982,6 +1071,8 @@ impl DiscoveryWarning {
             // No integration ran: this reports the absence of a credential, and the metric label
             // is a wire payload type, which an integration with two transports has no single one of.
             | Self::IntegrationWithoutCredential { .. }
+            // No integration ran either: the daemon never received the credential.
+            | Self::CredentialWithoutTarget { .. }
             | Self::ConnectionsWithoutProtocolResponse { .. }
             | Self::ScanTimeLimitWithEstimate { .. }
             | Self::ScanTimeLimit { .. }
@@ -1010,7 +1101,8 @@ impl DiscoveryWarning {
             | Self::CredentialTargetNotResponding { credential_id, .. }
             | Self::CredentialGateClosed { credential_id, .. }
             | Self::CredentialDaemonOsMismatch { credential_id, .. }
-            | Self::CredentialNeedsNewerDaemon { credential_id, .. } => *credential_id,
+            | Self::CredentialNeedsNewerDaemon { credential_id, .. }
+            | Self::CredentialWithoutTarget { credential_id, .. } => *credential_id,
 
             Self::CredentialRejected(a)
             | Self::CredentialMalformed(a)

@@ -1,5 +1,6 @@
 //! Pause/resume, trial extension, cancellation/reactivation, save offers, and invoice-paid handling.
 use super::*;
+use crate::server::billing::plans::TRIAL_EXTENSION_DAYS;
 use crate::server::billing::service::invoicing::resumed_term_end;
 use crate::server::billing::types::base::ts_to_chrono;
 
@@ -53,11 +54,7 @@ impl BillingService {
         // describe the cloud app locking and unlocking, which says nothing
         // true about a license. The air-gapped refusal above stays separate
         // because an org that moved back to a cloud plan keeps its key type.
-        if organization
-            .base
-            .plan
-            .is_some_and(|plan| plan.license_plan().is_some())
-        {
+        if organization.base.plan.license_plan().is_some() {
             return Err(crate::server::shared::types::api::ValidationError::new(
                 "Pausing is not available on self-hosted plans.",
             )
@@ -248,9 +245,11 @@ impl BillingService {
     /// Self-serve trial extend (+7 days, once per org lifetime).
     ///
     /// Pattern A: the endpoint stashes `scanopy_trial_extended_days` in
-    /// metadata and calls Stripe. The webhook recognizes the key as a
-    /// Scanopy-driven extend and emits `BillingOperation::TrialExtended`;
-    /// applying it flips `trial_extended_used` to true.
+    /// metadata and calls Stripe. The webhook sees the trial end move, reads
+    /// the key as this extension (see `trial_extension`) and emits
+    /// `BillingOperation::TrialExtended` with `source: User`; applying it
+    /// flips `trial_extended_used` to true. An extension made by staff in the
+    /// Stripe dashboard leaves the flag alone.
     pub async fn extend_trial(
         &self,
         organization_id: Uuid,
@@ -269,11 +268,11 @@ impl BillingService {
             .trial_end_date
             .ok_or_else(|| anyhow!("Organization has no trial end date"))?;
 
-        let new_trial_end = current_trial_end + chrono::Duration::days(7);
+        let new_trial_end = current_trial_end + chrono::Duration::days(TRIAL_EXTENSION_DAYS.into());
         let sub = self.find_current_subscription(&organization).await?;
 
         let meta = StripeSubscriptionMetadata {
-            scanopy_trial_extended_days: Some(7),
+            scanopy_trial_extended_days: Some(TRIAL_EXTENSION_DAYS),
             ..Default::default()
         };
 
@@ -484,10 +483,7 @@ impl BillingService {
         };
 
         let organization = self.get_organization(organization_id).await?;
-        let Some(plan) = organization.base.plan else {
-            // No plan selected yet — nothing to discount.
-            return Ok(None);
-        };
+        let plan = organization.base.plan;
         if !plan.is_stripe_managed() {
             // No Stripe sub to attach a coupon to (Free / Community / Demo /
             // CommercialSelfHosted).
@@ -582,11 +578,7 @@ impl BillingService {
 
         // Self-hosted licences are never discounted; `get_save_offer_coupon`
         // returns nothing for them, so the panel is already hidden.
-        if organization
-            .base
-            .plan
-            .is_some_and(|plan| plan.license_plan().is_some())
-        {
+        if organization.base.plan.license_plan().is_some() {
             return Err(crate::server::shared::types::api::ValidationError::new(
                 "The retention discount is not available on self-hosted plans.",
             )
@@ -716,7 +708,7 @@ impl BillingService {
                         .map(|i| i.to_string())
                         .unwrap_or_default(),
                     amount_cents: invoice.amount_paid,
-                    plan: organization.base.plan.unwrap_or_else(get_free_plan),
+                    plan: organization.base.plan,
                     attempt_count: invoice.attempt_count as u32,
                     // The sub object isn't in scope here; Stripe fires
                     // customer.subscription.updated right after this
@@ -790,11 +782,10 @@ impl BillingService {
         invoice: &stripe_billing::Invoice,
     ) -> Result<Option<LicenseResume>, Error> {
         let snapshot = BillingInvoice::from(invoice);
-        let (Some(original_term_end), Some(plan)) =
-            (snapshot.license_paid_through(), organization.base.plan)
-        else {
+        let Some(original_term_end) = snapshot.license_paid_through() else {
             return Ok(None);
         };
+        let plan = organization.base.plan;
         if !organization.is_lapsed() {
             return Ok(None);
         }

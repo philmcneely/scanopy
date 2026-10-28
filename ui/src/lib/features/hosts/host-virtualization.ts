@@ -31,6 +31,7 @@ export function virtualizationSummary(
 			return virtualization.details.guest_type === 'Lxc'
 				? hosts_virtualizationSummary_lxc({ manager, host })
 				: hosts_virtualizationSummary_vm({ manager, host });
+		case 'Libvirt':
 		case 'VCenter':
 		case 'ESXi':
 			return hosts_virtualizationSummary_vm({ manager, host });

@@ -362,7 +362,7 @@
 		{/if}
 		<div
 			bind:this={scrollContainerEl}
-			class="min-h-0 overflow-y-auto scroll-smooth"
+			class="min-h-0 overflow-y-auto overscroll-contain scroll-smooth"
 			onscroll={handleScroll}
 		>
 			{#if loading && options.length === 0}

@@ -12,13 +12,14 @@ use super::messages::{
     AirgapExpiring, AirgapRenewal, CancellationInitiated, CheckoutCompleted, DaemonStandby,
     DaemonSunset, DaemonUnreachable, DiscoveryDigest, DiscoveryGuide, Email, EmailAttachment,
     EmailCategory, EmailChangedOld, InstallCommand, Invite, InvoiceCredited,
-    InvoiceFinalizationFailed, InvoiceIssued, InvoiceOverdue, OidcLinked, OidcUnlinked,
-    OrganizationDeleted, PasswordChanged, PasswordReset, PaymentActionRequired, PaymentFailed,
-    PaymentMethodAdded, PaymentMethodRemoved, PaymentRecovered, PlanChanged, PlanLimitApproaching,
-    PlanLimitReached, ReleaseNotes, SelfHostedLicenseEnded, SelfHostedLicenseResumed,
-    SelfHostedPaymentFailed, SelfHostedPlanChanged, SelfHostedTrialEnding, SelfHostedWelcome,
-    SubscriptionCancelled, SubscriptionPaused, SubscriptionReactivated, SubscriptionResumed,
-    TrialConverted, TrialEnding, TrialExpired, TrialStarted, UsageSummary, Verification, links,
+    InvoiceFinalizationFailed, InvoiceIssued, InvoiceOverdue, LicensedServerUpgrade, OidcLinked,
+    OidcUnlinked, OrganizationDeleted, PasswordChanged, PasswordReset, PaymentActionRequired,
+    PaymentFailed, PaymentMethodAdded, PaymentMethodRemoved, PaymentRecovered, PlanChanged,
+    PlanLimitApproaching, PlanLimitReached, ReleaseNotes, SelfHostedLicenseEnded,
+    SelfHostedLicenseResumed, SelfHostedPaymentFailed, SelfHostedPlanChanged,
+    SelfHostedTrialEnding, SelfHostedWelcome, SubscriptionCancelled, SubscriptionPaused,
+    SubscriptionReactivated, SubscriptionResumed, TrialConverted, TrialEnding, TrialExpired,
+    TrialExtended, TrialStarted, UsageSummary, Verification, links,
 };
 use super::transport::{EmailTransport, ses_message_tags};
 use crate::server::{
@@ -258,7 +259,7 @@ impl EmailService {
             .organization_service
             .get_by_id(org_id)
             .await?
-            .and_then(|organization| organization.base.plan);
+            .map(|organization| organization.base.plan);
         Ok(self.self_hosted_plan_locked(plan))
     }
 
@@ -302,6 +303,14 @@ impl EmailService {
         &self,
         to: EmailAddress,
         email: &ReleaseNotes<'_>,
+    ) -> Result<()> {
+        self.dispatch(to, email).await
+    }
+
+    pub async fn send_licensed_server_upgrade(
+        &self,
+        to: EmailAddress,
+        email: &LicensedServerUpgrade<'_>,
     ) -> Result<()> {
         self.dispatch(to, email).await
     }
@@ -389,8 +398,11 @@ impl EmailService {
         plan_name: &str,
         has_payment: bool,
         billing_period: &str,
+        trial_started_at: Option<DateTime<Utc>>,
     ) -> Result<()> {
-        let metrics = self.compute_trial_recap_metrics(org_id).await?;
+        let metrics = self
+            .compute_trial_recap_metrics(org_id, trial_started_at)
+            .await?;
         self.dispatch(
             to,
             &TrialEnding {
@@ -486,6 +498,14 @@ impl EmailService {
             },
         )
         .await
+    }
+
+    pub async fn send_trial_extended_email(
+        &self,
+        to: EmailAddress,
+        email: &TrialExtended<'_>,
+    ) -> Result<()> {
+        self.dispatch(to, email).await
     }
 
     pub async fn send_trial_expired_email(
@@ -978,7 +998,7 @@ impl EmailService {
         // A guide to discovery and topology in an app the org is locked out of
         // leads nowhere. Reachable when a daemon key made on a cloud plan is
         // first used after the switch to a self-hosted one.
-        if self.self_hosted_plan_locked(organization.base.plan) {
+        if self.self_hosted_plan_locked(Some(organization.base.plan)) {
             return Ok(());
         }
 
@@ -999,16 +1019,13 @@ impl EmailService {
             None => return Ok(()),
         };
 
-        let plan = org
-            .base
-            .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        let plan = org.base.plan;
         // On the cloud app a self-hosted plan's seat and site limits govern
         // the customer's own server. The cloud org's rows are left over from
         // before the switch (or an invite accepted after it), and an upgrade
         // nudge about them is noise. Returns before the ratchet write, so an
         // org that moves back to a cloud plan is still warned.
-        if self.self_hosted_plan_locked(org.base.plan) {
+        if self.self_hosted_plan_locked(Some(org.base.plan)) {
             return Ok(());
         }
         let plan_name = plan.to_string();
@@ -1225,10 +1242,8 @@ impl EmailService {
     /// One organization's warning, plus the ratchet write that stops it
     /// repeating for the same licence period.
     async fn warn_expiring_airgap_key(&self, organization: Organization) -> Result<()> {
-        let (Some(plan), Some(paid_through)) = (
-            organization.base.plan,
-            organization.base.license_paid_through,
-        ) else {
+        let plan = organization.base.plan;
+        let Some(paid_through) = organization.base.license_paid_through else {
             return Ok(());
         };
         if plan.license_plan().is_none() {
@@ -1367,7 +1382,7 @@ impl EmailService {
         // idle: the org is locked out of the cloud app and its scans run on
         // its own server. Skipped without advancing the ratchet, so an org
         // that returns to a cloud plan is told on the next boot.
-        if self.self_hosted_plan_locked(org.base.plan) {
+        if self.self_hosted_plan_locked(Some(org.base.plan)) {
             return Ok(());
         }
         // Ratchet: the stored value is the highest ceiling this org has been told
@@ -1448,9 +1463,14 @@ impl EmailService {
     }
 
     /// Counts of entities discovered/created during the trial, plus how many
-    /// days have elapsed since org creation. Used to populate the trial-ending
-    /// email and the in-app trial value recap card.
-    async fn compute_trial_recap_metrics(&self, org_id: Uuid) -> Result<TrialRecapMetrics> {
+    /// days have elapsed since `trial_started_at` (Stripe's `trial_start`), or
+    /// since org creation when Stripe gave none. Used to populate the
+    /// trial-ending email.
+    async fn compute_trial_recap_metrics(
+        &self,
+        org_id: Uuid,
+        trial_started_at: Option<DateTime<Utc>>,
+    ) -> Result<TrialRecapMetrics> {
         let org = self
             .organization_service
             .get_by_id(&org_id)
@@ -1472,7 +1492,8 @@ impl EmailService {
 
         let daemons_count = self.daemon_service.count_for_sites(&site_ids).await?;
 
-        let days_into_trial = (chrono::Utc::now() - org.created_at).num_days();
+        let trial_started_at = trial_started_at.unwrap_or(org.created_at);
+        let days_into_trial = (chrono::Utc::now() - trial_started_at).num_days();
 
         Ok(TrialRecapMetrics {
             hosts_count,

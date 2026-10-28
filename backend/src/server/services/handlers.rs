@@ -1,3 +1,4 @@
+use crate::server::auth::middleware::features::ensure_tagging_allowed;
 use crate::server::auth::middleware::permissions::{Authorized, Member, Viewer};
 use crate::server::hosts::r#impl::base::{Host, host_primary_address_join};
 use crate::server::services::definitions::ServiceDefinitionRegistry;
@@ -354,13 +355,14 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(generated::get_field_values))
 }
 
-/// List all services
+/// List services
 ///
 /// Returns all services the authenticated user has access to.
 /// Supports pagination via `limit` and `offset` query parameters,
 /// and ordering via `group_by`, `order_by`, and `order_direction`.
 #[utoipa::path(
     get,
+    operation_id = "list_services",
     path = "",
     tag = Service::ENTITY_NAME_PLURAL,
     params(ServiceFilterQuery),
@@ -380,7 +382,7 @@ async fn get_all_services(
     Ok(Json(list_page::<Service>(&state, &scope, &query).await?))
 }
 
-/// Create a new service
+/// Create service
 ///
 /// Creates a service with optional bindings to ip_addresses or ports.
 /// The `id`, `created_at`, `updated_at`, and `source` fields are generated server-side.
@@ -425,6 +427,13 @@ pub async fn create_service(
         return Err(ApiError::entity_site_mismatch::<Host>());
     }
 
+    if !request.tags.is_empty() {
+        let organization_id = auth
+            .organization_id()
+            .ok_or_else(ApiError::organization_required)?;
+        ensure_tagging_allowed(&state, &organization_id).await?;
+    }
+
     // Convert request to Service entity
     let service = request.into_service(EntitySource::Manual);
 
@@ -438,7 +447,7 @@ pub async fn create_service(
     Ok(Json(ApiResponse::success(created)))
 }
 
-/// Update a service
+/// Update service
 ///
 /// Updates an existing service. All binding validation rules from service creation apply here as well.
 ///

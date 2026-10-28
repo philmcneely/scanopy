@@ -6,6 +6,8 @@
 		UpdateHostWithServicesRequest
 	} from '../types/base';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
@@ -21,7 +23,6 @@
 	import { Trash2, RefreshCw, Replace, Edit } from 'lucide-svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import type { TabProps } from '$lib/shared/types';
 	import {
 		common_confirmDeleteName,
@@ -233,6 +234,7 @@
 	let subnetsData = $derived(subnetsQuery.data ?? []);
 	// Only show full loading on initial load (no data yet)
 	let isInitialLoading = $derived(hostsQuery.isPending && !hostsQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, hostsQuery));
 
 	// Host limit tracking
 	let totalHostCount = $derived(hostsPagination?.total_count ?? hostsData.length);
@@ -472,30 +474,30 @@
 			{#if hostLimit !== null && !canBuyMoreHosts}
 				<span
 					class="text-sm {isAtHostLimit
-						? 'text-amber-400'
+						? 'text-amber-700 dark:text-amber-400'
 						: isNearHostLimit
-							? 'text-yellow-400'
+							? 'text-yellow-700 dark:text-yellow-400'
 							: 'text-tertiary'}"
 				>
 					{totalHostCount} / {hostLimit}
 				</span>
 			{/if}
 			{#if !isReadOnly}
-				{#if isAtHostLimit}
-					<UpgradeButton feature="hosts" surface="hosts_tab" gate_type="limit_hit" />
-				{:else}
-					{#if isNearHostLimit}
-						<UpgradeButton feature="hosts" surface="hosts_tab" gate_type="limit_hit" />
-					{/if}
-					<CreateButton onclick={handleCreateHost} />
-				{/if}
+				<CreateButton
+					onclick={handleCreateHost}
+					upgrade={isAtHostLimit
+						? { feature: 'hosts', surface: 'hosts_tab', gate_type: 'limit_hit' }
+						: null}
+				/>
 			{/if}
 		</div>
 	{/if}
 {/snippet}
 
 <div class="space-y-6">
-	{#if !hasDaemon(onboarding)}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if !hasDaemon(onboarding)}
 		<PreDaemonEmptyState title={daemons_installPromptHosts()} {isReadOnly} />
 	{:else if isInitialLoading}
 		<!-- Loading state (only on initial load) -->

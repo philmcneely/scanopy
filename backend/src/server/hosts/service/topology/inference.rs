@@ -220,7 +220,7 @@ impl HostService {
             .get_by_id(&org_id)
             .await
             .ok()?
-            .and_then(|o| o.base.plan)
+            .map(|o| o.base.plan)
             .unwrap_or_else(crate::server::billing::plans::get_free_plan);
 
         let limit = plan.host_limit()?;

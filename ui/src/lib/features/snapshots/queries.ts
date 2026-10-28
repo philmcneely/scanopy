@@ -14,6 +14,8 @@ import { pushSuccess } from '$lib/shared/stores/feedback';
 import { formatTimestamp } from '$lib/shared/utils/formatting';
 import { topology_snapshotCreated } from '$lib/paraglide/messages';
 import type { components } from '$lib/api/schema';
+import { useOrganizationQuery } from '$lib/features/organizations/queries';
+import { hasTopologyAccess } from '$lib/features/organizations/types';
 
 export type Snapshot = components['schemas']['Snapshot'];
 
@@ -23,6 +25,8 @@ export type Snapshot = components['schemas']['Snapshot'];
  * Pass a getter so the query refetches when the site selection changes.
  */
 export function useSnapshotsQuery(siteId: () => string | undefined) {
+	// Snapshots need the topology view on the plan; Free's is refused.
+	const organizationQuery = useOrganizationQuery();
 	return createQuery(() => ({
 		queryKey: queryKeys.snapshots.bySite(siteId() ?? ''),
 		queryFn: async () => {
@@ -37,7 +41,7 @@ export function useSnapshotsQuery(siteId: () => string | undefined) {
 				(a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
 			);
 		},
-		enabled: () => !!siteId()
+		enabled: () => !!siteId() && hasTopologyAccess(organizationQuery.data)
 	}));
 }
 

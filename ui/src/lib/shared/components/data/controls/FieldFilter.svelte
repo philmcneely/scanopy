@@ -102,7 +102,7 @@
 				type="checkbox"
 				checked={staleOnly}
 				onchange={onToggleStale}
-				class="h-4 w-4 checkbox-card rounded-sm"
+				class="checkbox-card h-4 w-4 rounded-sm"
 			/>
 			<span class="text-sm text-secondary">{common_staleOnly()}</span>
 		</label>
@@ -117,7 +117,7 @@
 					type="checkbox"
 					checked={filter?.showTrue}
 					onchange={() => onToggleBoolean(fieldKey, 'showTrue')}
-					class="h-4 w-4 checkbox-card rounded-sm"
+					class="checkbox-card h-4 w-4 rounded-sm"
 				/>
 				<span class="text-sm text-secondary">{common_showTrue()}</span>
 			</label>
@@ -126,7 +126,7 @@
 					type="checkbox"
 					checked={filter?.showFalse}
 					onchange={() => onToggleBoolean(fieldKey, 'showFalse')}
-					class="h-4 w-4 checkbox-card rounded-sm"
+					class="checkbox-card h-4 w-4 rounded-sm"
 				/>
 				<span class="text-sm text-secondary">{common_showFalse()}</span>
 			</label>
@@ -162,7 +162,7 @@
 							type="checkbox"
 							checked={filter?.values.has(value)}
 							onchange={() => onToggleString(fieldKey, value)}
-							class="h-4 w-4 checkbox-card rounded-sm"
+							class="checkbox-card h-4 w-4 rounded-sm"
 						/>
 						<span class="truncate text-sm text-secondary" title={label}>{label}</span>
 					</label>

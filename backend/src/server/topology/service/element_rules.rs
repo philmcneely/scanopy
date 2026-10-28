@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::server::{
-    hosts::r#impl::base::Host,
+    hosts::r#impl::{base::Host, device_type::DeviceType},
     interfaces::r#impl::base::IfOperStatus,
     services::r#impl::{
         base::Service,
@@ -10,7 +10,10 @@ use crate::server::{
         definitions::{ServiceDefinitionExt, VirtualizationRole},
     },
     shared::entities::EntityDiscriminants,
-    shared::types::{Color, metadata::EntityMetadataProvider},
+    shared::types::{
+        Color,
+        metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
+    },
     subnets::r#impl::base::Subnet,
     topology::types::{
         grouping::{
@@ -104,6 +107,9 @@ pub struct ElementMatchData {
     pub is_trunk_port: bool,
     /// Port operational status (for ByPortOpStatus grouping).
     pub oper_status: Option<IfOperStatus>,
+    /// The host's identified device type (for ByDeviceType grouping). `None` leaves the element
+    /// out of the rule: the host is `Unidentified`, or the builder does not group by device type.
+    pub device_type: Option<DeviceType>,
 }
 
 /// Optional context for computing InlineOn placement decisions.
@@ -137,6 +143,7 @@ fn compute_placements(rule: &ElementRule, ctx: &PlacementContext) -> RulePlaceme
             compute_virtualizer_placements(rule, ctx)
         }
         ElementRule::ByStack => compute_stack_placements(ctx),
+        ElementRule::ByDeviceType => compute_device_type_placements(ctx),
         ElementRule::ByServiceCategory {
             categories, title, ..
         } => compute_service_category_placements(categories, title.as_deref(), ctx),
@@ -835,6 +842,62 @@ fn compute_port_op_status_placements(ctx: &PlacementContext) -> RulePlacement {
     result
 }
 
+/// ByDeviceType: group elements by their host's device type.
+fn compute_device_type_placements(ctx: &PlacementContext) -> RulePlacement {
+    let mut result = RulePlacement {
+        containers: Vec::new(),
+        placements: HashMap::new(),
+        claimed: HashSet::new(),
+    };
+
+    for (parent_id, element_ids) in ctx.elements_by_container {
+        let mut by_device_type: HashMap<DeviceType, Vec<Uuid>> = HashMap::new();
+        for id in element_ids.iter().filter(|id| !ctx.claimed.contains(id)) {
+            if let Some(device_type) = ctx.match_data.get(id).and_then(|d| d.device_type) {
+                by_device_type.entry(device_type).or_default().push(*id);
+            }
+        }
+
+        for (device_type, ids) in by_device_type {
+            let group_key = format!(
+                "{parent_id}:{}:device_type:{}",
+                ctx.rule_id,
+                device_type.id()
+            );
+            let group_id = Uuid::new_v5(&Uuid::NAMESPACE_OID, group_key.as_bytes());
+
+            result.containers.push(Node {
+                id: group_id,
+                node_type: NodeType::Container {
+                    container_type: ContainerType::DeviceType,
+                    parent_container_id: Some(*parent_id),
+                    entity_id: None,
+                    icon: Some(device_type.icon().to_string()),
+                    color: Some(device_type.color()),
+                    associated_service_definition: None,
+                    element_rule_id: Some(ctx.rule_id),
+                    will_accept_edges: false,
+                },
+                position: Default::default(),
+                size: Default::default(),
+                header: Some(device_type.name().to_string()),
+            });
+
+            for id in &ids {
+                result.placements.insert(
+                    *id,
+                    PlacementDecision::PlaceInContainer {
+                        container_id: group_id,
+                    },
+                );
+            }
+            result.claimed.extend(ids);
+        }
+    }
+
+    result
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -953,6 +1016,7 @@ mod tests {
             vlan_name: None,
             is_trunk_port: false,
             oper_status: None,
+            device_type: None,
         }
     }
 

@@ -3,6 +3,8 @@
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
@@ -50,7 +52,7 @@
 	const page = listPageState(() => isActive);
 	const keysPageQuery = useUnboundApiKeysListQuery(() => page.params());
 	const siteValuesQuery = useFieldValuesQuery(
-		'/api/v1/auth/daemon/field-values/{field}',
+		'/api/v1/daemon-api-keys/field-values/{field}',
 		'site_id',
 		() => ({
 			unbound: true
@@ -71,6 +73,7 @@
 	let apiKeysPagination = $derived(keysPageQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let isLoading = $derived(keysPageQuery.isPending && !keysPageQuery.data);
+	let pageLoad = $derived(loadFailure(keysPageQuery));
 	let apiKeyIdsInUse = $derived(
 		new Set(
 			(daemonsQuery.data ?? []).map((d) => d.api_key_id).filter((id): id is string => id != null)
@@ -186,8 +189,9 @@
 		subtitle rather than as a per-row tag that would say the same thing on
 		every row.
 	-->
-	<!-- Loading state -->
-	{#if isLoading}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if isLoading}
 		<Loading />
 	{:else if page.isEmpty(keysPageQuery)}
 		<!-- Empty state -->

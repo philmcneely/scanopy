@@ -9,6 +9,8 @@ use crate::server::credentials::r#impl::types::CredentialType;
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-stuck-01",
@@ -17,9 +19,10 @@ pub fn device() -> SimDevice {
             issue: "the walk's retry-then-stop guard",
             defect: "answers every request for its ARP table with the same row, whatever was asked",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Non-advancing agent, ARP table loops".into()),
             sys_object_id: Some("1.3.6.1.4.1.99999.3.1".into()),

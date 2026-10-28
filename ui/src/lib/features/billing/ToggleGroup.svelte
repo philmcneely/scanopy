@@ -20,7 +20,7 @@
 	let { options, selected, onchange, disabled = false }: Props = $props();
 </script>
 
-<div class="inline-flex gap-1 card rounded-full p-1 {disabled ? 'opacity-50' : ''}">
+<div class="card inline-flex gap-1 rounded-full p-1 {disabled ? 'opacity-50' : ''}">
 	{#each options as option (option.value)}
 		<button
 			type="button"

@@ -360,10 +360,7 @@ impl SnapshotService {
             .await?;
 
         for org in orgs {
-            let plan = org
-                .base
-                .plan
-                .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+            let plan = org.base.plan;
             let days = plan.snapshot_retention_days(env_override);
             if let Err(e) = self.trim_org(org.id, days).await {
                 tracing::error!(

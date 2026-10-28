@@ -200,6 +200,8 @@ pub enum ErrorCode {
     DaemonStandby,
     /// Daemon record not found — deleted or database was reset
     DaemonNotRegistered,
+    /// The plan runs one daemon, and the organization already has it
+    DaemonPlanRequired,
     /// Daemon version is at or below the last version this server rejects
     DaemonVersionTooOld {
         daemon_version: String,
@@ -403,6 +405,7 @@ impl ErrorCode {
             Self::DaemonNotRegistered => {
                 "Daemon not found on server. It may have been deleted or the database was reset. Reinstall or reconfigure the daemon."
             }
+            Self::DaemonPlanRequired => "Your plan includes one daemon. Choose a plan to add more.",
             Self::DaemonVersionTooOld { .. } => {
                 "Daemon version {daemon_version} is no longer supported. This server accepts daemons newer than {last_unsupported_version}. Update the daemon."
             }
@@ -443,7 +446,7 @@ impl ErrorCode {
                 "Your air-gapped key is still valid. You can switch back to an online key once the current license period ends."
             }
             Self::BillingAirGappedPlanChangeBlocked { .. } => {
-                "Your air-gapped key covers the plan you have until {date}. You can cancel now, or change plan from that date."
+                "Your air-gapped key covers the plan you have until {date}. You can cancel or move to a cloud plan now, or change license plan from that date."
             }
 
             // Rate Limiting
@@ -502,6 +505,7 @@ impl ErrorCode {
             | Self::DaemonIdentityMismatch
             | Self::DaemonStandby
             | Self::DaemonNotRegistered
+            | Self::DaemonPlanRequired
             | Self::OrganizationHasActiveSubscription
             | Self::BillingPaymentRequired
             | Self::BillingSubscriptionRequired

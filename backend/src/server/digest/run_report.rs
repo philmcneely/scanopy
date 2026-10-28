@@ -201,7 +201,7 @@ mod tests {
     fn snmp(name: &str, community: &str) -> Credential {
         Credential::new(CredentialBase {
             name: name.to_string(),
-            credential_type: CredentialType::SnmpV2c {
+            credential_type: CredentialType::SnmpCommunity {
                 community: SecretValue::Inline {
                     value: SecretString::from(community.to_string()),
                 },
@@ -264,11 +264,13 @@ mod tests {
             DiscoveryWarning::SnmpCollectedNothing {
                 address: "10.0.0.3".parse().unwrap(),
                 credential_id: None,
+                snmp_version: None,
                 failures: Some(Vec::new()),
             },
             DiscoveryWarning::ReverseDnsTimedOut { count: 4 },
             DiscoveryWarning::SnmpWalkUnsupported {
                 credential_id: None,
+                snmp_version: None,
                 address: "10.0.0.4".parse().unwrap(),
                 group: SnmpWalkGroup::Lldp,
             },

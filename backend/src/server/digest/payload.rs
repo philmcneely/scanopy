@@ -59,7 +59,7 @@ pub struct ServiceSummary {
     /// The renderer splits these into a separate "Containers" row.
     #[serde(default)]
     pub is_container: bool,
-    /// Raw value from `ServiceDefinition::logo_url()`. The renderer
+    /// URL of the definition's logo (`ServiceDefinition::logo`). The renderer
     /// rewrites relative `/logos/...` paths to absolute using the email
     /// service's `public_url`. `None` when the service has no logo.
     #[serde(default)]

@@ -8,7 +8,8 @@ use crate::daemon::discovery::service::warnings::{
 };
 use crate::daemon::discovery::types::base::DiscoveryCriticalError;
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
-use crate::daemon::utils::app_probe::{ProbeContext, scan_app_probes};
+use crate::daemon::utils::app_probe::tls::scan_certificates;
+use crate::daemon::utils::app_probe::{ProbeContext, scan_app_probes, spotify_connect};
 use crate::daemon::utils::base::{DaemonUtils, PlatformDaemonUtils, filtered_own_nics};
 use crate::daemon::utils::scanner::{
     ScanConcurrencyController, can_arp_scan, scan_endpoints, scan_tcp_ports,
@@ -31,9 +32,10 @@ use crate::server::shared::types::entities::EntitySource;
 use crate::server::{
     hosts::r#impl::{
         api::{DiscoveryHostRequest, HostResponse},
-        attributes::HostHostnameValue,
+        attributes::{HostHostnameValue, HostOsValue},
         base::{Host, HostBase},
         name::host_name_from_parts,
+        os::HostOs,
     },
     subnets::r#impl::base::Subnet,
 };
@@ -257,6 +259,15 @@ impl NetworkScan {
         // predictably low fd rather than at a scheduling-dependent one. Only the *result*, not
         // the channel open, crosses back into async code — via a oneshot that the thread fills
         // once its whole sweep (every interface) is done.
+        // SYN-ACK capture for the TCP/IP stack heuristic (see `tcp_stack`). Started here, on its
+        // own threads, for the low-fd reason DCP gives above, and stopped when the last deep scan
+        // holding it finishes.
+        let tcp_stack = Arc::new(super::tcp_stack::TcpStackCapture::start(
+            filtered_own_nics(&interface_filter)
+                .into_iter()
+                .filter(|nic| !nic.is_loopback())
+                .collect(),
+        ));
         let dcp_capable_interfaces: Vec<_> = filtered_own_nics(&interface_filter)
             .into_iter()
             .filter(dcp::is_dcp_capable)
@@ -954,6 +965,7 @@ impl NetworkScan {
                                 let site_subnets_ref = site_subnets.clone();
 
                                 let mdns_hosts_ref = mdns_hosts.clone();
+                                let tcp_stack_ref = tcp_stack.clone();
                                 let early_host_handle = early_reported_hosts.remove(&ip);
                                 pending_scans.push(Box::pin(async move {
                                     let early_host_id = match early_host_handle {
@@ -985,6 +997,7 @@ impl NetworkScan {
                                             light_scan_ports: &light_scan_ports,
 
                                             mdns_hosts: mdns_hosts_ref,
+                                            tcp_stack: tcp_stack_ref,
                                             credential_mappings: &self.credential_mappings,
                                             known_subnets: site_subnets_ref,
                                         }, ops, utils)
@@ -1069,6 +1082,7 @@ impl NetworkScan {
                         let site_subnets_ref = site_subnets.clone();
 
                         let mdns_hosts_ref = mdns_hosts.clone();
+                        let tcp_stack_ref = tcp_stack.clone();
                         let early_host_handle = early_reported_hosts.remove(&ip);
 
                         pending_scans.push(Box::pin(async move {
@@ -1101,6 +1115,7 @@ impl NetworkScan {
                                     light_scan_ports: &light_scan_ports,
 
                                     mdns_hosts: mdns_hosts_ref,
+                                    tcp_stack: tcp_stack_ref,
                                     credential_mappings: &self.credential_mappings,
                                     known_subnets: site_subnets_ref,
                                 }, ops, utils)
@@ -1499,6 +1514,7 @@ impl NetworkScan {
             known_subnets,
 
             mdns_hosts,
+            tcp_stack,
         } = params;
 
         if cancel.is_cancelled() {
@@ -1662,7 +1678,7 @@ impl NetworkScan {
             port_map: Default::default(),
             tunnel: None,
         };
-        let app_probe_results = scan_app_probes(
+        let mut app_probe_results = scan_app_probes(
             &probe_ctx,
             &open_ports,
             effective_batch_size,
@@ -1670,12 +1686,18 @@ impl NetworkScan {
             true,
         )
         .await;
+        // A probe whose port only the host's mDNS advertisement names, so it runs only where the
+        // browse reached this address.
+        if let Some(dns_sd) = mdns_hosts.get(&ip)
+            && let Some(result) = spotify_connect::probe_advertised(&probe_ctx, dns_sd).await
+        {
+            app_probe_results.push(result);
+        }
         for result in &app_probe_results {
             if !open_ports.contains(&result.port) {
                 open_ports.push(result.port);
             }
         }
-
         // Read once here rather than at the endpoint scan below: integration probes make their
         // own TLS calls and need the same policy.
         let accept_invalid_certs = ops.config_store.get_accept_invalid_scan_certs().await?;
@@ -1754,6 +1776,38 @@ impl NetworkScan {
                 open_ports.push(port);
             }
         }
+
+        // After the endpoint scan, so a port that already answered plain HTTP is not also sent a
+        // ClientHello. A myQ hub serves about one connection at a time: the hello its port 80 sat
+        // on held it while the one on 443 timed out.
+        let plaintext_ports: HashSet<u16> = endpoint_responses
+            .iter()
+            .filter(|response| !response.over_tls)
+            .map(|response| response.endpoint.port_type.number())
+            .collect();
+        let tls_candidates: Vec<PortType> = open_ports
+            .iter()
+            .copied()
+            .filter(|port| !plaintext_ports.contains(&port.number()))
+            .collect();
+        let certificates = scan_certificates(
+            &probe_ctx,
+            &tls_candidates,
+            effective_batch_size,
+            scan_rate_pps,
+        )
+        .await;
+        // One more GET per port that already answered HTTP, for Recog's favicon fingerprints.
+        let favicons = crate::daemon::utils::scanner::fetch_favicon_hashes(
+            ip,
+            &endpoint_responses,
+            accept_invalid_certs,
+        )
+        .await;
+        // Every string the ports emitted, read against Recog once: service matching reads it for
+        // `Pattern::Recog`, and the host is offered what it names below.
+        let fingerprints =
+            super::emitted_os::port_fingerprints(&endpoint_responses, &certificates, &favicons);
 
         // An address nothing answered for has to show evidence beyond the bare connect that got it
         // this far. Everything is in hand by now: the probes have spoken, the endpoints have
@@ -1893,6 +1947,8 @@ impl NetworkScan {
                     // mDNS is link-local, so a routed subnet yields `None` however live the
                     // host is.
                     dns_sd: &dns_sd,
+                    certificates: &certificates,
+                    fingerprints: &fingerprints,
                 },
                 hostname,
                 self.host_naming_fallback,
@@ -1936,13 +1992,18 @@ impl NetworkScan {
                 }
             }
 
-            // What the host sent unasked: its web servers' `Server` headers and its mDNS
-            // device-info record. Combined with the banner's match above.
-            super::emitted_os::offer_emitted_os(
-                &mut host_data,
-                &endpoint_responses,
-                dns_sd.as_ref(),
-            );
+            // What the host sent unasked: its ports' headers, titles, cookies, favicons and
+            // certificates, and its mDNS device-info record. Combined with the banners' matches
+            // above.
+            super::emitted_os::offer_emitted(&mut host_data, &fingerprints, dns_sd.as_ref());
+            // Last and weakest: the family the host's TCP/IP stack implies, for a host nothing
+            // above named an OS for.
+            if let Some(family) = tcp_stack.os_family(ip) {
+                host_data.offer_fallback_os(Attributed::new(
+                    HostOsValue(HostOs::family_only(family)),
+                    AttributeSource::TcpStackMatch,
+                ));
+            }
 
             ops.record_equal_reach_integrations(ip, &host_data).await;
 

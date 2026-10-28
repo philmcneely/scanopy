@@ -7,7 +7,7 @@ use crate::server::{
     shared::{
         attribution::AttributeSource,
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::{
             attributed,
             snapshot::{DiscoveryTracked, Snapshotable},
@@ -274,8 +274,8 @@ impl Entity for Subnet {
     const ENTITY_DESCRIPTION: &'static str =
         "IP subnets within sites. Define address ranges and organize hosts by subnet.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+    fn product_area() -> ProductArea {
+        ProductArea::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

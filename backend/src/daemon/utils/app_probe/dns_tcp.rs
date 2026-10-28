@@ -48,16 +48,12 @@ pub struct DnsTcpProbe;
 
 #[async_trait]
 impl AppProbe for DnsTcpProbe {
-    fn port(&self) -> PortType {
-        PortType::DnsTcp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::DnsTcp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::DnsTcp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &root_ns_query(), 1024).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &root_ns_query(), 1024).await;
         Ok(parse_reply(&reply, TRANSACTION_ID))
     }
 }

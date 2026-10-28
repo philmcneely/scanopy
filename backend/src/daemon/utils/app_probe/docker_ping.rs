@@ -51,18 +51,12 @@ pub struct DockerPingProbe;
 
 #[async_trait]
 impl AppProbe for DockerPingProbe {
-    fn port(&self) -> PortType {
-        PortType::Docker
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::DockerPing
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::DockerPing)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        Ok(presence(
-            ping(ctx, self.port()).await == Some(Engine::Docker),
-        ))
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        Ok(presence(ping(ctx, port).await == Some(Engine::Docker)))
     }
 }
 
@@ -71,18 +65,12 @@ pub struct PodmanPingProbe;
 
 #[async_trait]
 impl AppProbe for PodmanPingProbe {
-    fn port(&self) -> PortType {
-        PortType::Http8888
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::PodmanPing
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::PodmanPing)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        Ok(presence(
-            ping(ctx, self.port()).await == Some(Engine::Podman),
-        ))
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        Ok(presence(ping(ctx, port).await == Some(Engine::Podman)))
     }
 }
 

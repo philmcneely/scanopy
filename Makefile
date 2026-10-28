@@ -1,4 +1,4 @@
-.PHONY: daemon-build daemon-rebuild daemon-dev daemon-fix-perms help build test test-unit clean format lint lint-migrations generate-schema generate-messages generate-fixtures refresh-vendored-data seed-dev set-plan-community set-plan-starter set-plan-pro set-plan-team set-plan-business set-plan-enterprise set-plan-self-hosted-standard set-plan-self-hosted-plus test-plan test-merge test-results install-dev-mac install-dev-linux install-dev-windows snmp-seed-credentials snmp-fixtures snmp-deploy snmp-verify snmp-status ssh-lab-deploy ssh-lab-verify ssh-lab-status ssh-lab-rotate-hostkey wol-lab-provision wol-lab-listener wol-lab-sleep wol-lab-hibernate wol-lab-verify wol-lab-status wol-lab-log dcp-start dcp-stop dcp-verify dcp-status docker-proxy-up docker-proxy-up-tls docker-proxy-down docker-proxy-status podman-proxy-up podman-proxy-up-tls podman-proxy-down podman-proxy-status podman-workload-up podman-workload-down unifi-status unifi-capture issue-license new-terms-update daemon-clean daemon-purge daemon-logs daemon-restart daemon-config
+.PHONY: daemon-build daemon-rebuild daemon-dev daemon-fix-perms help build test test-unit clean format lint lint-migrations generate-schema generate-messages generate-fixtures refresh-vendored-data third-party-notices seed-dev set-plan-community set-plan-starter set-plan-pro set-plan-team set-plan-business set-plan-enterprise set-plan-self-hosted-standard set-plan-self-hosted-plus test-plan test-merge test-results install-dev-mac install-dev-linux install-dev-windows snmp-seed-credentials snmp-fixtures snmp-deploy snmp-verify snmp-status ssh-lab-deploy ssh-lab-verify ssh-lab-status ssh-lab-rotate-hostkey wol-lab-provision wol-lab-listener wol-lab-sleep wol-lab-hibernate wol-lab-verify wol-lab-status wol-lab-log dcp-start dcp-stop dcp-verify dcp-status docker-proxy-up docker-proxy-up-tls docker-proxy-down docker-proxy-status podman-proxy-up podman-proxy-up-tls podman-proxy-down podman-proxy-status podman-workload-up podman-workload-down unifi-status unifi-capture issue-license new-terms-update daemon-clean daemon-purge daemon-logs daemon-restart daemon-config
 
 DAYS ?= 365
 PLAN ?= standard
@@ -432,7 +432,7 @@ generate-messages:
 # missing logo cache record. The stamp is taken before the run, so an input edited mid-run
 # triggers one more run next time.
 FIXTURE_STAMP := ui/src/lib/data/.fixtures-stamp
-LOGO_CACHE_RECORDS := ui/static/logos/services/.logo-cache.json ui/static/logos/os-families/.logo-cache.json ui/static/logos/identity-providers/.logo-cache.json
+LOGO_CACHE_RECORDS := ui/static/logos/catalog/.logo-cache.json
 FIXTURE_INPUTS = $(shell find backend -path backend/target -prune -o -type f -print) \
 	ui/scripts/generate-meta-messages.js messages/en.json
 
@@ -455,9 +455,14 @@ $(FIXTURE_STAMP): $(FIXTURE_INPUTS)
 	@mv $@.next $@
 
 refresh-vendored-data:
-	@echo "Refreshing vendored data assets (oui.csv)..."
+	@echo "Refreshing vendored data assets (IEEE MAC registries)..."
 	backend/scripts/refresh-vendored-data.sh
 	@echo "✅ Vendored data refreshed. Rebuild to embed new data."
+
+# Needs cargo-about: cargo install cargo-about --version 0.9.3 --locked --features cli
+third-party-notices:
+	@echo "Generating backend/THIRD-PARTY-NOTICES.txt..."
+	$(SCANOPY_BUILD_WRAPPER) backend/scripts/third-party-notices.sh
 
 # Forwards events in the account's default API version, as the live endpoint
 # receives them. The server reads only the event envelope and fetches each
@@ -560,43 +565,43 @@ install-dev-windows:
 set-plan-community:
 	@echo "Setting all organizations to Community plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Community\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"network_cents\": null, \"included_seats\": null, \"included_networks\": null}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Community\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": 1, \"included_sites\": 1, \"included_hosts\": null, \"included_orgs\": 1}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-free:
 	@echo "Setting all organizations to Free plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Free\", \"base_cents\": 999, \"rate\": \"Month\", \"trial_days\": 7, \"seat_cents\": null, \"network_cents\": null, \"included_seats\": 1, \"included_networks\": 1, \"included_hosts\": 25}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Free\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": 1, \"included_sites\": 1, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-starter:
 	@echo "Setting all organizations to Starter plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Starter\", \"base_cents\": 999, \"rate\": \"Month\", \"trial_days\": 7, \"seat_cents\": null, \"network_cents\": null, \"included_seats\": 1, \"included_networks\": 1}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Starter\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": null, \"included_sites\": null, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-pro:
 	@echo "Setting all organizations to Pro plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Pro\", \"base_cents\": 1999, \"rate\": \"Month\", \"trial_days\": 7, \"seat_cents\": null, \"network_cents\": 800, \"included_seats\": 1, \"included_networks\": 3}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Pro\", \"base_cents\": 9999, \"rate\": \"Month\", \"trial_days\": 14, \"seat_cents\": null, \"site_cents\": 2500, \"host_cents\": null, \"included_seats\": 1, \"included_sites\": 3, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-business:
 	@echo "Setting all organizations to Business plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Business\", \"base_cents\": 5999, \"rate\": \"Month\", \"trial_days\": 14, \"seat_cents\": 800, \"network_cents\": 500, \"included_seats\": 5, \"included_networks\": 15}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Business\", \"base_cents\": 24999, \"rate\": \"Month\", \"trial_days\": 14, \"seat_cents\": 1500, \"site_cents\": 1500, \"host_cents\": null, \"included_seats\": 5, \"included_sites\": 15, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-enterprise:
 	@echo "Setting all organizations to Enterprise plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Enterprise\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"network_cents\": null, \"included_seats\": null, \"included_networks\": null}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Enterprise\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": null, \"included_sites\": null, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 set-plan-demo:
 	@echo "Setting all organizations to Demo plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"Demo\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"network_cents\": null, \"included_seats\": null, \"included_networks\": null}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"Demo\", \"base_cents\": 0, \"rate\": \"Month\", \"trial_days\": 0, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": null, \"included_sites\": null, \"included_hosts\": null, \"included_orgs\": null}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 # Values mirror get_self_hosted_standard_plan / get_self_hosted_plus_plan in
@@ -611,7 +616,7 @@ set-plan-self-hosted-standard:
 set-plan-self-hosted-plus:
 	@echo "Setting all organizations to Self-Hosted Plus plan..."
 	@docker exec -t scanopy-postgres psql -U postgres -d scanopy -c \
-		"UPDATE organizations SET plan = '{\"type\": \"SelfHostedPlus\", \"base_cents\": 600000, \"rate\": \"Year\", \"trial_days\": 14, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": 50, \"included_sites\": 100, \"included_hosts\": null, \"included_orgs\": 5}'::jsonb, plan_status = 'active'"
+		"UPDATE organizations SET plan = '{\"type\": \"SelfHostedPlus\", \"base_cents\": 700000, \"rate\": \"Year\", \"trial_days\": 14, \"seat_cents\": null, \"site_cents\": null, \"host_cents\": null, \"included_seats\": 50, \"included_sites\": 100, \"included_hosts\": null, \"included_orgs\": 1}'::jsonb, plan_status = 'active'"
 	@echo "Done!"
 
 # Test Environments

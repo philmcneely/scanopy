@@ -161,6 +161,7 @@ pub fn host() -> Host {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: vec![],
         },
     }
@@ -408,6 +409,7 @@ pub fn user() -> User {
             site_ids: vec![ids::SITE],
             terms_accepted_at: Some(example_timestamp()),
             terms_acceptance_required: false,
+            email_verification_required: false,
             email_verified: true,
             email_verification_token: None,
             email_verification_expires: None,
@@ -433,7 +435,7 @@ pub fn organization() -> Organization {
         base: OrganizationBase {
             name: "Acme Corp".to_string(),
             stripe_customer_id: None,
-            plan: None,
+            plan: crate::server::billing::plans::get_free_plan(),
             plan_status: None,
             onboarding: vec![],
             has_payment_method: false,

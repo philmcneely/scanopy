@@ -11,7 +11,7 @@ use crate::server::{
     },
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::{
             child::ChildStorableEntity,
             snapshot::{DiscoveryTracked, FkMaps, Snapshotable},
@@ -276,8 +276,8 @@ impl Entity for Service {
     const ENTITY_NAME_PLURAL: &'static str = "Services";
     const ENTITY_DESCRIPTION: &'static str = "Services running on hosts. Detected or manually added services like databases, web servers, etc.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+    fn product_area() -> ProductArea {
+        ProductArea::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

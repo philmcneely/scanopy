@@ -149,7 +149,7 @@
 
 	<!-- Bulk assign bar -->
 	{#if selectedHosts.length > 0}
-		<div class="card-static flex flex-wrap items-center gap-2 card border-t px-4 py-3 shadow-lg">
+		<div class="card-static card flex flex-wrap items-center gap-2 border-t px-4 py-3 shadow-lg">
 			<span class="text-sm font-medium whitespace-nowrap text-secondary">
 				{appWizard_selectedCount({
 					summary: `${selectedHosts.length} ${selectedHosts.length === 1 ? 'host' : 'hosts'}`

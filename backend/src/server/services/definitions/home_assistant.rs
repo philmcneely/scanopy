@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct HomeAssistant;
@@ -22,8 +23,8 @@ impl ServiceDefinition for HomeAssistant {
         Pattern::Endpoint(PortType::new_tcp(8123), "/", "home assistant", None)
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/home-assistant.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::HomeAssistant)
     }
 }
 

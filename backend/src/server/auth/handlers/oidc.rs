@@ -98,12 +98,7 @@ pub(crate) async fn oidc_authorize(
                 ));
             }
 
-            if state.config.disable_registration {
-                return Err(ApiError::coded(
-                    StatusCode::FORBIDDEN,
-                    ErrorCode::AuthRegistrationDisabled,
-                ));
-            }
+            ensure_registration_allowed(&state, &session).await?;
 
             let terms_accepted = params.terms_accepted.unwrap_or(false);
 
@@ -435,10 +430,7 @@ async fn handle_login_flow(
                 .get_by_id(&user.base.organization_id)
                 .await
             {
-                let plan = org
-                    .base
-                    .plan
-                    .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+                let plan = org.base.plan;
                 if plan.is_demo() && !is_demo_host(&host) {
                     return Err(ErrorRedirect::to(&format!(
                         "{}?error={}",
@@ -534,6 +526,21 @@ async fn handle_register_flow(
         return_url,
         host: _,
     } = params;
+
+    // Checked again here: the invite may have expired or been revoked since authorize.
+    if let Err(e) = ensure_registration_allowed(&state, &session).await {
+        let code = e
+            .error_code
+            .as_ref()
+            .map(ErrorCode::code)
+            .unwrap_or_default();
+        return Err(ErrorRedirect::to(&format!(
+            "{}?error={}&error_code={}",
+            return_url,
+            urlencoding::encode(&e.message),
+            code
+        )));
+    }
 
     // Process pending invite if present
     let (org_id, permissions, site_ids, invited_as) =
@@ -644,10 +651,9 @@ async fn handle_register_flow(
                 tracing::error!(error = %e, "Could not record the OIDC login");
             }
 
-            // If this is a new org, provision the integrated daemon on the site
-            // `provision_user` created
-            if let ProvisionOrg::New(setup) = provision_org
-                && let Err(e) = apply_pending_setup(&state, &user, setup).await
+            // If this is a new org, finish its onboarding
+            if matches!(provision_org, ProvisionOrg::New(_))
+                && let Err(e) = apply_pending_setup(&state, &user).await
             {
                 tracing::error!("Failed to apply pending setup: {:?}", e);
                 // Don't fail registration, just log the error — the user can
@@ -676,10 +682,11 @@ async fn handle_register_flow(
     }
 }
 
+/// Unlink OIDC account
 #[utoipa::path(
     post,
     path = "/oidc/{slug}/unlink",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     params(("slug" = String, Path, description = "OIDC provider slug")),
     responses(
         (status = 200, description = "OIDC account unlinked", body = ApiResponse<User>),

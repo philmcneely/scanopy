@@ -300,7 +300,7 @@ relay-tool perl
     #[tokio::test(flavor = "multi_thread")]
     #[ignore = "needs a local Docker and a container named in SCANOPY_LIVE_RELAY_CONTAINER"]
     async fn a_live_relay_reaches_every_probe_the_container_listens_for() {
-        use crate::daemon::utils::app_probe::{ProbeContext, all_app_probes};
+        use crate::daemon::utils::app_probe::{ProbeContext, probe_runs};
         use std::sync::Arc;
 
         let container = std::env::var("SCANOPY_LIVE_RELAY_CONTAINER").expect("name a container");
@@ -345,11 +345,11 @@ relay-tool perl
         };
         let mut missed = Vec::new();
         let mut recognised = Vec::new();
-        for probe in all_app_probes()
+        for (probe, port) in probe_runs()
             .into_iter()
-            .filter(|p| p.port().is_tcp() && survey.loopback_ports.contains(&p.port().number()))
+            .filter(|(_, port)| port.is_tcp() && survey.loopback_ports.contains(&port.number()))
         {
-            match probe.run(&ctx).await {
+            match probe.run(&ctx, port).await {
                 Ok(crate::daemon::utils::app_probe::AppProbeOutcome::Answered { .. }) => {
                     recognised.push(probe.client_probe())
                 }

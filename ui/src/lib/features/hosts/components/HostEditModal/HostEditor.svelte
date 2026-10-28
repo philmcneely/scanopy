@@ -2,7 +2,7 @@
 	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import { createForm } from '@tanstack/svelte-form';
 	import { validateForm, clearStaleFieldInfo } from '$lib/shared/components/forms/form-context';
-	import { Info, ArrowRight } from 'lucide-svelte';
+	import { Info } from 'lucide-svelte';
 	import { hostDisplayName } from '../../host-display-name';
 	import { nameToSubmit, overrideOf } from '../../host-identity';
 	import type {
@@ -506,8 +506,7 @@
 			label: loading ? common_saving() : saveLabel,
 			onClick: handleFormSubmit,
 			disabled: loading || deleting,
-			large: isWizardNext,
-			...(isWizardNext ? { icon: ArrowRight, iconAfter: true } : {})
+			large: isWizardNext
 		}
 	]);
 </script>

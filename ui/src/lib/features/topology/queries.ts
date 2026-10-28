@@ -12,7 +12,6 @@ import { unwrapData } from '$lib/api/query-helpers';
 import type { Topology, TopologyEdge, TopologyOptions, RenderableTopology } from './types/base';
 import type { ElementGraphRule } from './types/grouping';
 import type { Organization } from '$lib/features/organizations/types';
-import { BaseSSEManager, type SSEConfig } from '$lib/shared/utils/sse';
 import throttle from 'just-throttle';
 import { writable, derived, get } from 'svelte/store';
 import { registerUrlOwner, syncUrl } from '$lib/shared/stores/url-state';
@@ -188,7 +187,7 @@ export function useTopologiesQuery(enabled?: () => boolean) {
 		queryKey: queryKeys.topology.all,
 		queryFn: async () => {
 			return unwrapData(
-				await apiClient.GET('/api/v1/topology', {
+				await apiClient.GET('/api/v1/topologies', {
 					params: { query: { limit: 0 } }
 				})
 			);
@@ -205,14 +204,14 @@ export function useTopologiesQuery(enabled?: () => boolean) {
  *
  * Single endpoint, single code path. The cache key includes the snapshot id
  * so live vs snapshot data don't collide, and the view, since the server
- * builds only the requested view's graph. The SSE `live_topology_updates_stream`
- * consumer invalidates this query on live-view site updates.
+ * builds only the requested view's graph. The live-update stream's topology
+ * events (`topologyStream`) invalidate this query on live-view site updates.
  *
  * `enabled` exists so the caller can hold the fetch while the topology tab is
  * off-screen. Every tab in the app is mounted at once (inactive ones are hidden
  * with CSS), so without it this bundle — every host, service, ip-address and port
  * on the site — loads on app boot and, because it is invalidated by the
- * discovery SSE stream, refetches on a throttle for the whole of every scan, on
+ * live-update stream, refetches on a throttle for the whole of every scan, on
  * pages that are not showing a graph. A disabled query is skipped by
  * `invalidateQueries` (which refetches active queries only) and refetches when it
  * is re-enabled and stale.
@@ -256,7 +255,7 @@ function topologyDataQueryOptions(
 				throw new Error('No site ID provided');
 			}
 			return unwrapData(
-				await apiClient.GET('/api/v1/topology/data', {
+				await apiClient.GET('/api/v1/topologies/data', {
 					params: { query: { site_id: siteId, snapshot_id: snapshotId, view } }
 				})
 			);
@@ -285,7 +284,7 @@ export function loadTopologyData(
  * explicit on-tab view, never from background fetches on other tabs.
  */
 export async function markTopologyViewed(siteId: string, view: TopologyView): Promise<void> {
-	await apiClient.GET('/api/v1/topology/data', {
+	await apiClient.GET('/api/v1/topologies/data', {
 		params: { query: { site_id: siteId, mark_viewed: true, view } }
 	});
 }
@@ -302,7 +301,7 @@ export function useTopologyQuery(id: () => string | undefined) {
 				throw new Error('No topology ID provided');
 			}
 			return unwrapData(
-				await apiClient.GET('/api/v1/topology/{id}', {
+				await apiClient.GET('/api/v1/topologies/{id}', {
 					params: { path: { id: topologyId } }
 				})
 			);
@@ -316,14 +315,14 @@ export function useTopologyQuery(id: () => string | undefined) {
  *
  * After the snapshot refactor, the PUT endpoint only accepts updates to
  * `nodes` / `edges` / `options` — there's no separate rebuild/refresh/lock
- * surface. Live data updates flow through `live_topology_updates_stream`
- * (see TopologySSEManager below); option/layout edits are saved by callers
+ * surface. Live data updates flow through the live-update stream
+ * (see TopologyStream below); option/layout edits are saved by callers
  * via this mutation.
  */
 export function useUpdateTopologyMutation() {
 	return createMutation(() => ({
 		mutationFn: async (topology: Topology) => {
-			await apiClient.PUT('/api/v1/topology/{id}', {
+			await apiClient.PUT('/api/v1/topologies/{id}', {
 				params: { path: { id: topology.id } },
 				body: topology
 			});
@@ -353,7 +352,7 @@ export function useUpdateNodePositionMutation() {
 			position: { x: number; y: number };
 		}) => {
 			requireSuccess(
-				await apiClient.POST('/api/v1/topology/{id}/node-position', {
+				await apiClient.POST('/api/v1/topologies/{id}/node-position', {
 					params: { path: { id: params.topologyId } },
 					body: {
 						site_id: params.siteId,
@@ -383,7 +382,7 @@ export function useUpdateNodeResizeMutation() {
 			position: { x: number; y: number };
 		}) => {
 			requireSuccess(
-				await apiClient.POST('/api/v1/topology/{id}/node-resize', {
+				await apiClient.POST('/api/v1/topologies/{id}/node-resize', {
 					params: { path: { id: params.topologyId } },
 					body: {
 						site_id: params.siteId,
@@ -414,7 +413,7 @@ export function useUpdateEdgeHandlesMutation() {
 			targetHandle: 'Top' | 'Bottom' | 'Left' | 'Right';
 		}) => {
 			requireSuccess(
-				await apiClient.POST('/api/v1/topology/{id}/edge-handles', {
+				await apiClient.POST('/api/v1/topologies/{id}/edge-handles', {
 					params: { path: { id: params.topologyId } },
 					body: {
 						site_id: params.siteId,
@@ -849,7 +848,7 @@ function saveOptionsForCurrentTopology(): void {
 		const topology = topologies?.find((t) => t.id === topologyId);
 		if (!topology) return;
 		void apiClient
-			.PUT('/api/v1/topology/{id}', {
+			.PUT('/api/v1/topologies/{id}', {
 				params: { path: { id: topologyId } },
 				body: { ...topology, options: buildOptionsForApi() }
 			})
@@ -917,18 +916,11 @@ if (browser) {
 }
 
 // ============================================================================
-// Topology SSE Manager — live data updates
+// Topology live updates
 // ============================================================================
 
-/**
- * Payload of the `live_topology_updates_stream` SSE: the site whose
- * live entity set just changed. The frontend invalidates the topology +
- * snapshot lists for that site so TanStack Query refetches and xyflow
- * re-renders.
- */
-interface LiveTopologyUpdate {
-	site_id: string;
-}
+/** A site whose live entity set changed, from the live-update stream. */
+type LiveTopologyUpdate = components['schemas']['LiveTopologyUpdate'];
 
 // During discovery the server pings this stream ~5×/sec/site; each ping
 // otherwise refetches the uncached, full-rebuild `/topology/data`. Coalesce a
@@ -987,6 +979,27 @@ export function invalidateLiveTopology(siteIds: ReadonlySet<string>) {
 	});
 }
 
+/**
+ * Live data may have changed on any site, as after the stream was closed. Held sites are marked
+ * changed instead of refetched, as `invalidateLiveTopology` does for named sites.
+ */
+export function invalidateAllLiveTopology() {
+	const held = get(heldTopologySites);
+	if (held.size > 0) {
+		heldTopologyUpdates.update((pending) => new Set([...pending, ...held]));
+	}
+
+	queryClient.invalidateQueries({
+		predicate: (query) => {
+			const key = query.queryKey as readonly unknown[];
+			if (key[0] !== 'topology') return false;
+			if (key[1] !== 'data') return true;
+			return key[3] == null && !(typeof key[2] === 'string' && held.has(key[2]));
+		}
+	});
+	queryClient.invalidateQueries({ queryKey: queryKeys.snapshots.all });
+}
+
 /** Fetch a held site's live bundle now. The site stays held. */
 export function refreshHeldTopology(siteId: string) {
 	heldTopologyUpdates.update((pending) => {
@@ -1010,7 +1023,8 @@ export function setTopologyHeld(siteId: string, hold: boolean) {
 	if (!hold && get(heldTopologyUpdates).has(siteId)) refreshHeldTopology(siteId);
 }
 
-class TopologySSEManager extends BaseSSEManager<LiveTopologyUpdate> {
+/** Topology events on the live-update stream (`liveUpdatesSSEManager`). */
+class TopologyStream {
 	/** Site ids pinged since the last flush; drained by `flushInvalidations`. */
 	private pendingSiteIds = new Set<string>();
 
@@ -1047,25 +1061,16 @@ class TopologySSEManager extends BaseSSEManager<LiveTopologyUpdate> {
 		}
 	}
 
-	protected createConfig(): SSEConfig<LiveTopologyUpdate> {
-		return {
-			url: '/api/v1/topology/stream',
-			onMessage: (update) => {
-				this.pendingSiteIds.add(update.site_id);
-				this.flushInvalidations();
-			},
-			onError: (error) => {
-				console.error('Topology SSE error:', error);
-			},
-			onOpen: () => {}
-		};
+	handleUpdate(update: LiveTopologyUpdate) {
+		this.pendingSiteIds.add(update.site_id);
+		this.flushInvalidations();
 	}
 
-	override disconnect() {
+	/** The stream closed: drop pings not yet flushed. */
+	reset() {
 		this.flushInvalidations.cancel();
 		this.pendingSiteIds.clear();
-		super.disconnect();
 	}
 }
 
-export const topologySSEManager = new TopologySSEManager();
+export const topologyStream = new TopologyStream();

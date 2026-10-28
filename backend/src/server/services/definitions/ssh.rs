@@ -3,7 +3,7 @@ use crate::daemon::utils::app_probe::ssh::SshProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{ClientProbe, Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Ssh;
@@ -22,10 +22,7 @@ impl ServiceDefinition for Ssh {
     /// banner probe answered on 22. Both require the protocol to answer, so a listener that does
     /// not speak SSH is not claimed as this service.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyOf(vec![
-            Pattern::ClientResponse(ClientProbe::Ssh),
-            probe_pattern(&SshProbe),
-        ])
+        Pattern::ClientResponse(ClientProbe::Ssh)
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(SshProbe)]

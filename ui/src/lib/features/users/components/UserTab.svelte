@@ -6,6 +6,8 @@
 	import { Edit, UserX, Trash2 } from 'lucide-svelte';
 	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
@@ -19,7 +21,6 @@
 	import InviteModal from './InviteModal.svelte';
 	import { metadata, permissions } from '$lib/shared/stores/metadata';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import UserEditModal from './UserEditModal.svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import {
@@ -84,6 +85,7 @@
 	let isLoading = $derived(
 		membersQuery.isPending || (membersPageQuery.isPending && !membersPageQuery.data)
 	);
+	let pageLoad = $derived(loadFailure(organizationQuery, membersQuery, membersPageQuery));
 
 	// Force Svelte to track metadata reactivity
 	$effect(() => {
@@ -286,23 +288,28 @@
 {#snippet toolbarActions()}
 	<div class="flex items-center gap-3">
 		{#if seatLimit !== null && !canBuyMoreSeats}
-			<span class="text-sm {isAtSeatLimit ? 'text-amber-400' : 'text-tertiary'}">
+			<span
+				class="text-sm {isAtSeatLimit ? 'text-amber-700 dark:text-amber-400' : 'text-tertiary'}"
+			>
 				{userCount} / {seatLimit}
 			</span>
 		{/if}
 		{#if canInviteUsers}
-			{#if isAtSeatLimit}
-				<UpgradeButton feature="seats" surface="users_tab" gate_type="limit_hit" />
-			{:else}
-				<CreateButton onclick={handleCreateInvite} label={users_inviteUser()} />
-			{/if}
+			<CreateButton
+				onclick={handleCreateInvite}
+				label={users_inviteUser()}
+				upgrade={isAtSeatLimit
+					? { feature: 'seats', surface: 'users_tab', gate_type: 'limit_hit' }
+					: null}
+			/>
 		{/if}
 	</div>
 {/snippet}
 
 <div class="space-y-6">
-	<!-- Loading state -->
-	{#if isLoading}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if isLoading}
 		<Loading />
 	{:else if page.isEmpty(membersPageQuery)}
 		<!-- Empty state -->

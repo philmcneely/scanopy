@@ -1,8 +1,13 @@
 [package]
 name = "scanopy-server"
-version = "0.19.0"
+version = "0.19.3"
 edition = "2024"
 description = "Scanopy HTTP API server"
+# LICENSE.md (AGPL-3.0) or COMMERCIAL-LICENSE.md.
+license = "AGPL-3.0-only OR LicenseRef-Scanopy-Commercial"
+# Not on crates.io. cargo-about (about.toml) skips unpublished crates, so Scanopy is not listed
+# among its own third parties.
+publish = false
 
 [[bin]]
 name = "daemon"
@@ -287,6 +292,8 @@ tower-sessions-sqlx-store = { version = "0.15", features = ["postgres"] }
 # `oid` lets rsa's PKCS#1 v1.5 verifier name SHA-256 in the DigestInfo it checks.
 sha2 = { version = "0.10.9", features = ["oid"] }
 hex = "0.4.3"
+# MD5 of a host's /favicon.ico, the key Recog's favicon fingerprints are written against.
+md-5 = "0.10.6"
 hmac = "0.12"
 # SigV4 for the SES v2 email validation call, sent over the existing reqwest client. Pulled in
 # without the SDK so no second HTTP/TLS stack (and no `aws-lc-rs`) enters the tree.

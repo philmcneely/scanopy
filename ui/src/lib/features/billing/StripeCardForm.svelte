@@ -4,14 +4,17 @@
 	// merely importing this component loads Stripe — and this component is reachable from the
 	// root layout via AppShell -> PaymentMethodModal, meaning every page did. On share and embed
 	// routes, whose CSP deliberately allows no third-party scripts, that surfaced as a blocked
-	// script. `/pure` defers injection until `loadStripe()` is actually called.
-	import { loadStripe } from '@stripe/stripe-js/pure';
+	// script. The shared loader (`preloadStripe`) uses `/pure`, which defers injection until it runs.
+	import { preloadStripe, preparePaymentForm } from '$lib/features/billing/stripe.svelte';
 	// Types only — `/pure` re-exports just the runtime function. `import type` is erased at
 	// compile time, so this never pulls the injecting module into the bundle.
 	import type { Stripe, StripeElements, StripePaymentElement } from '@stripe/stripe-js';
 	import { buildStripeAppearance } from '$lib/shared/billing/stripe-appearance';
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
+	import { untrack } from 'svelte';
+	import { useDelayedFlag } from '$lib/shared/utils/delayed-flag.svelte';
 	import type { PaymentFormFailure } from '$lib/shared/billing/setup-payment';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import { useModalActions } from '$lib/shared/components/layout/modalActionsContext.svelte';
@@ -27,6 +30,8 @@
 	let {
 		clientSecret,
 		description = undefined,
+		notice = undefined,
+		active = true,
 		email = undefined,
 		submitLabel = common_continue(),
 		onSuccess,
@@ -38,6 +43,13 @@
 		clientSecret: string;
 		/** Optional lead-in text rendered above the Payment Element. */
 		description?: string;
+		/** Optional info note rendered at the top, above the description. */
+		notice?: string;
+		/**
+		 * Whether the form is on screen. A form kept mounted behind a closed
+		 * dialog is cleared when hidden and takes the current theme when shown.
+		 */
+		active?: boolean;
 		/** Prefills the Link email so returning users skip re-typing it. */
 		email?: string;
 		submitLabel?: string;
@@ -83,6 +95,8 @@
 	let confirmedSetupIntentId = $state<string | null>(null);
 	let loadFailed = $state(false);
 	let initialized = false;
+	// The prepared element draws in a few hundred ms, too short to need a wheel.
+	const showSpinner = useDelayedFlag(() => !ready, 400);
 
 	// Mount the Payment Element once we have the publishable key, a client
 	// secret, and the container node. loadStripe + element creation happen once.
@@ -106,41 +120,70 @@
 
 		initialized = true;
 		const node = container;
+		const key = publishableKey;
 		void (async () => {
-			stripe = await loadStripe(publishableKey);
+			stripe = await (preloadStripe(key) ?? Promise.resolve(null));
 			if (!stripe) {
 				loadFailed = true;
 				errorMessage = billing_cardLoadError();
 				return;
 			}
-			// `loader: 'never'` disables Stripe's optimistic skeleton so the user
-			// sees our native spinner until the element is fully ready (no flash
-			// of placeholder cards). Appearance mirrors the app theme.
-			elements = stripe.elements({
-				clientSecret,
-				appearance: buildStripeAppearance(),
-				loader: 'never'
-			});
-			const paymentElement = elements.create('payment', {
-				// `defaultCollapsed` left unset means Stripe expands whichever
-				// method it thinks converts best, and then reports that method
-				// as selected before the customer has touched anything. Open
-				// on the list instead, so "selected" means they picked it.
-				layout: { type: 'accordion', defaultCollapsed: true },
-				defaultValues: email ? { billingDetails: { email } } : undefined
-			});
-			paymentElement.on('ready', () => (ready = true));
+			// Usually built already, while the surface that opened this was showing.
+			const prepared = await preparePaymentForm(key, clientSecret, email);
+			if (!prepared) {
+				loadFailed = true;
+				errorMessage = billing_cardLoadError();
+				return;
+			}
+			elements = prepared.elements;
+			// Built earlier, the appearance may predate a theme switch.
+			elements.update({ appearance: buildStripeAppearance() });
+			const paymentElement = prepared.paymentElement;
+			paymentElement.on('ready', handleReady);
 			// Nothing to save until a method is chosen, so the submit button
 			// waits for one. `collapsed` is the only field that says whether
 			// one has been: `value.type` is a plain string that is always set,
 			// and `empty`/`complete` describe the inputs, which a method
 			// collecting none would never fill.
-			paymentElement.on('change', (event) => {
-				methodSelected = !event.collapsed;
-			});
+			paymentElement.on('change', handleChange);
 			paymentElement.mount(node);
 			mountedElement = paymentElement;
 		})();
+
+		function handleReady() {
+			ready = true;
+		}
+	});
+
+	// Shown: the theme may have changed while hidden. Hidden: drop what was
+	// typed, so the next open starts blank.
+	let wasActive = false;
+	$effect(() => {
+		const isActive = active;
+		untrack(() => {
+			if (isActive && !wasActive) {
+				elements?.update({ appearance: buildStripeAppearance() });
+			} else if (!isActive && wasActive && !confirmedSetupIntentId) {
+				mountedElement?.clear();
+				errorMessage = '';
+				busy = false;
+			}
+		});
+		wasActive = isActive;
+	});
+
+	function handleChange(event: { collapsed?: boolean }) {
+		methodSelected = !event.collapsed;
+	}
+
+	// The element may be the prepared one, shared with the next open, so it
+	// leaves this form detached and with none of this form's listeners.
+	$effect(() => () => {
+		if (!mountedElement) return;
+		mountedElement.off('ready');
+		mountedElement.off('change', handleChange);
+		mountedElement.unmount();
+		mountedElement = null;
 	});
 
 	/** Hand a confirmed SetupIntent to the caller (finalize/checkout). */
@@ -231,16 +274,20 @@
 	class="flex min-h-0 flex-1 flex-col"
 >
 	<div class="min-h-0 flex-1 space-y-4 overflow-auto p-6">
+		{#if notice}
+			<InlineInfo title={notice} />
+		{/if}
 		{#if description}
 			<p class="text-sm text-secondary">{description}</p>
 		{/if}
 
 		<!-- Stripe mounts the Payment Element iframe here. Keep it mounted (so it
-		     loads) but hidden until `ready`, with our native spinner over it — no
-		     flash of Stripe's placeholder cards. -->
+		     loads) but hidden until `ready`, with our native spinner over it once
+		     the wait is long enough to need one — no flash of Stripe's
+		     placeholder cards. -->
 		<div class="relative min-h-[8rem]">
 			<div bind:this={container} class:invisible={!ready}></div>
-			{#if !ready && !loadFailed}
+			{#if showSpinner.current && !loadFailed}
 				<div class="absolute inset-0 flex items-center justify-center">
 					<Loading />
 				</div>

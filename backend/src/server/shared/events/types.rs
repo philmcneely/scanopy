@@ -376,6 +376,9 @@ pub enum UpdateReason {
     OrganizationOnboardingMilestone,
     /// Demo data was seeded into it.
     OrganizationDemoPopulated,
+    /// Its owner reset it: everything but the organization and its owner was deleted, and it
+    /// gets back the setup data it started with. `had_sites` says whether it had a site before.
+    OrganizationReset { had_sites: bool },
     /// A notification was sent, and recorded so it isn't sent again.
     OrganizationNotificationRecorded,
     /// It turned off one email category from an unsubscribe link. `category` is the category's
@@ -500,6 +503,7 @@ impl UpdateReason {
             Self::OrganizationLicenseKeyChanged => "its licence key changed".to_string(),
             Self::OrganizationOnboardingMilestone => "it reached a milestone".to_string(),
             Self::OrganizationDemoPopulated => "demo data was seeded".to_string(),
+            Self::OrganizationReset { .. } => "its data was reset".to_string(),
             Self::OrganizationNotificationRecorded => "a notification was recorded".to_string(),
             Self::UserUnsubscribed { category } => {
                 format!("it unsubscribed from {category} emails")
@@ -534,6 +538,17 @@ fn join(addresses: &[IpAddr]) -> String {
         .join(", ")
 }
 
+/// Who moved a trial's end date.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TrialExtensionSource {
+    /// The org's own one-time extension from Billing settings.
+    User,
+    /// Scanopy staff, by moving the trial end in the Stripe dashboard.
+    Staff,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display, EnumDiscriminants)]
 #[serde(tag = "type")]
 #[strum(serialize_all = "snake_case")]
@@ -549,6 +564,10 @@ pub enum BillingOperation {
     CheckoutStarted {
         plan: BillingPlan,
         has_trial: bool,
+        /// Started by Scanopy on the default trial plan rather than picked in the plan picker,
+        /// so analytics can tell a signup's trial from a plan choice.
+        #[serde(default)]
+        auto_started: bool,
         /// The checkout session, or the subscription when checkout was skipped. Log only.
         #[serde(skip)]
         stripe_id: String,
@@ -575,6 +594,9 @@ pub enum BillingOperation {
     TrialWillEnd {
         plan: BillingPlan,
         has_payment_method: bool,
+        /// Stripe's `trial_start`. The org row keeps only the end, and a
+        /// staff extension moves that by an amount the row doesn't record.
+        trial_started_at: Option<DateTime<Utc>>,
     },
     /// A trial converted to a paid subscription. A trial that ends without
     /// converting cancels the subscription, so it arrives as
@@ -733,9 +755,19 @@ pub enum BillingOperation {
         #[serde(skip)]
         pause_credit_cents: Option<i64>,
     },
+    /// The trial end moved later while the subscription was trialing, by the
+    /// self-serve extend or by Scanopy staff in the Stripe dashboard.
     TrialExtended {
+        plan: BillingPlan,
         days_added: u32,
         new_trial_end: DateTime<Utc>,
+        source: TrialExtensionSource,
+        /// Whether the subscription can be paid at the new trial end: a card
+        /// on file or invoice billing. Decided as for `TrialWillEnd`.
+        has_payment_method: bool,
+        /// A cancellation is scheduled, so the trial ends without a charge
+        /// even with a payment method on file.
+        cancellation_scheduled: bool,
     },
     CancellationInitiated {
         /// The plan being cancelled. Subscribers segment on it: a self-hosted
@@ -938,6 +970,7 @@ impl BillingOperation {
             | Self::CheckoutCompleted { plan, .. }
             | Self::TrialStarted { plan, .. }
             | Self::TrialWillEnd { plan, .. }
+            | Self::TrialExtended { plan, .. }
             | Self::TrialEnded { plan, .. }
             | Self::SubscriptionCancelled { plan, .. }
             | Self::FeatureLimitHit { plan, .. }
@@ -1005,9 +1038,9 @@ impl BillingOperation {
             // event; the status is what makes it read-only.
             Self::SubscriptionCancelled { .. } => Some(PlanStatus::Cancelled),
 
-            Self::Reactivated { trialing: true, .. }
-            | Self::TrialStarted { .. }
-            | Self::TrialExtended { .. } => Some(PlanStatus::Trialing),
+            Self::Reactivated { trialing: true, .. } | Self::TrialStarted { .. } => {
+                Some(PlanStatus::Trialing)
+            }
             Self::TrialEnded { .. } => Some(PlanStatus::Active),
 
             Self::PaymentFailed { .. }
@@ -1042,7 +1075,12 @@ impl BillingOperation {
             // write is its arm in `BillingOperation::apply`, not `plan_status`.
             // The license key and check-in variants describe a customer
             // server, not the subscription.
+            // - `TrialExtended` fires only on a trial, which is `Trialing` or,
+            //   with a cancellation scheduled, `PendingCancellation`. Implying
+            //   `Trialing` would clear the scheduled cancellation, and the next
+            //   update would announce it a second time.
             Self::CheckoutStarted { .. }
+            | Self::TrialExtended { .. }
             | Self::PlanChanged { .. }
             | Self::LicenseReconciled { .. }
             | Self::LicenseKeyIssued { .. }

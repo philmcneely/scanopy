@@ -167,10 +167,7 @@ impl BillingService {
         else {
             return Ok(false);
         };
-        let plan = org
-            .base
-            .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        let plan = org.base.plan;
         if plan.is_free() || !plan.is_stripe_managed() {
             return Ok(false);
         }
@@ -203,41 +200,6 @@ impl BillingService {
             .send(&self.stripe)
             .await?;
         Ok(!payment_methods.data.is_empty())
-    }
-
-    /// Schedule a downgrade to Free at the end of the billing cycle.
-    ///
-    /// Sets `cancel_at = MaxPeriodEnd` on the active subscription (Stripe
-    /// computes the period-end and writes it to `cancel_at`). Stripe keeps the
-    /// subscription active until the period ends, then fires `customer.subscription.deleted`
-    /// which triggers auto-Free creation via `handle_subscription_deleted`.
-    pub async fn schedule_downgrade(
-        &self,
-        organization_id: Uuid,
-        _authentication: AuthenticatedEntity,
-    ) -> Result<String, Error> {
-        let organization = self.get_organization(organization_id).await?;
-
-        // Same lookup as every other lifecycle action, so an org that is past
-        // due can still schedule its downgrade rather than being told it has
-        // no subscription. `find_current_subscription` reports the missing
-        // customer id itself.
-        if let Ok(sub) = self.find_current_subscription(&organization).await {
-            let is_trialing = sub.status == SubscriptionStatus::Trialing;
-
-            UpdateSubscription::new(&sub.id)
-                .cancel_at(UpdateSubscriptionCancelAt::MaxPeriodEnd)
-                .send(&self.stripe)
-                .await?;
-
-            if is_trialing {
-                Ok("Your subscription ends when your trial ends. After that your account is read-only until you choose a paid plan.".to_string())
-            } else {
-                Ok("Your subscription ends at the end of your billing cycle. After that your account is read-only until you choose a paid plan.".to_string())
-            }
-        } else {
-            Err(anyhow!("No active subscription found"))
-        }
     }
 
     /// Preview what would change when switching to a different plan
@@ -296,13 +258,26 @@ impl BillingService {
             .await?
             .ok_or_else(|| anyhow!("Organization not found"))?;
 
+        // Every cloud trial needs a card on file, including one reached by
+        // switching plan mid-trial (a license trial, which needs none, moving
+        // to a cloud plan keeps the trial running).
+        if organization.is_in_trial(chrono::Utc::now())
+            && target_plan.license_plan().is_none()
+            && !self.customer_has_payment_method(organization_id).await?
+        {
+            return Err(ValidationError::new(
+                "Add a payment method to start a trial of this plan.",
+            )
+            .into());
+        }
+
         // An air-gapped key already minted runs to its own expiry whatever the
         // cloud says, so dropping a tier under it would sell Standard while
         // Plus caps keep working. The key cannot be surrendered early either:
         // `switch_license_key_type` refuses to leave an air-gapped key before
         // `license_paid_through`. So the tier waits for the same date.
         if organization.base.license_key_type == Some(LicenseKeyType::Offline)
-            && is_tier_downgrade(organization.base.plan, target_plan)
+            && is_tier_downgrade(Some(organization.base.plan), target_plan)
         {
             let until = organization
                 .base
@@ -350,7 +325,14 @@ impl BillingService {
                 false
             };
 
-            let proration = if sub.status == SubscriptionStatus::Trialing || voided_unpaid {
+            // The air-gapped key keeps the license term on the customer's server, so the move
+            // credits none of it and the cloud plan bills from now on a fresh term.
+            let keeps_air_gapped_term = organization.keeps_air_gapped_term_on_move(target_plan);
+
+            let proration = if sub.status == SubscriptionStatus::Trialing
+                || voided_unpaid
+                || keeps_air_gapped_term
+            {
                 UpdateSubscriptionProrationBehavior::None
             } else {
                 UpdateSubscriptionProrationBehavior::AlwaysInvoice
@@ -383,9 +365,10 @@ impl BillingService {
             }
 
             let mut update = UpdateSubscription::new(&sub.id);
-            if voided_unpaid {
-                // Nothing was paid for the old term, so the new plan starts a
-                // fresh one rather than inheriting its stub.
+            if voided_unpaid || keeps_air_gapped_term {
+                // Nothing was paid for the old term, or the air-gapped key keeps
+                // it, so the new plan starts a fresh one rather than inheriting
+                // its stub.
                 update = update.billing_cycle_anchor(UpdateSubscriptionBillingCycleAnchor::Now);
             }
             let updated = update
@@ -453,7 +436,7 @@ impl BillingService {
         };
 
         // Skip for Free plan orgs — legacy $0 subscriptions may still generate invoices
-        if organization.base.plan.as_ref().is_none_or(|p| p.is_free()) {
+        if organization.base.plan.is_free() {
             tracing::info!(organization_id = %organization.id, "Skipping payment_failed — Free plan (legacy subscription)");
             return Ok(());
         }
@@ -482,7 +465,7 @@ impl BillingService {
                             .map(|i| i.to_string())
                             .unwrap_or_default(),
                         amount_cents: invoice.amount_due,
-                        plan: organization.base.plan.unwrap_or_else(get_free_plan),
+                        plan: organization.base.plan,
                         attempt_count: invoice.attempt_count as u32,
                     },
                     AuthenticatedEntity::System,
@@ -503,7 +486,7 @@ impl BillingService {
         };
 
         // Skip for Free plan orgs — legacy $0 subscriptions may still generate invoices
-        if organization.base.plan.as_ref().is_none_or(|p| p.is_free()) {
+        if organization.base.plan.is_free() {
             tracing::info!(organization_id = %organization.id, "Skipping payment_action_required — Free plan (legacy subscription)");
             return Ok(());
         }

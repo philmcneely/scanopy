@@ -8,7 +8,7 @@ use crate::server::{
     daemons::r#impl::base::{Daemon, DaemonBase, DaemonMode, DaemonOs},
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
 };
@@ -182,8 +182,8 @@ impl Entity for Daemon {
     const ENTITY_DESCRIPTION: &'static str =
         "Daemons are scanning agents that connect to the server to perform network discovery.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Discover
+    fn product_area() -> ProductArea {
+        ProductArea::Discovery
     }
 
     fn site_id(&self) -> Option<Uuid> {

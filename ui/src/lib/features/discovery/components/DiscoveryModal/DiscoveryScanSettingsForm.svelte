@@ -164,7 +164,7 @@
 					checked={!!getScanValue(field.id)}
 					disabled={readOnly}
 					onchange={(e) => updateScanSetting(field.id, e.currentTarget.checked)}
-					class="h-4 w-4 checkbox-card focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+					class="checkbox-card h-4 w-4 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
 				/>
 				<div>{field.label}</div>
 			</label>
@@ -185,18 +185,18 @@
 		/>
 	</div>
 
-	<div class="grid grid-cols-2 items-start gap-4">
+	<div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
 		{@render numberField('scan_rate_pps')}
 		{@render numberField('port_scan_batch_size')}
 	</div>
 
-	<div class="grid grid-cols-3 items-start gap-4">
+	<div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
 		{@render numberField('arp_rate_pps')}
 		{@render numberField('arp_scan_cutoff')}
 		{@render numberField('arp_retries')}
 	</div>
 
-	<div class="grid grid-cols-2 items-start gap-4">
+	<div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
 		{@render numberField('max_discovery_duration')}
 		{@render booleanField('use_npcap_arp', true)}
 	</div>

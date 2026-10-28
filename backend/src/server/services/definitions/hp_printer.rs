@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct HpPrinter;
@@ -28,9 +29,9 @@ impl ServiceDefinition for HpPrinter {
                 Pattern::Endpoint(PortType::Http8080, "", "DeskJet", None),
                 Pattern::Endpoint(PortType::Http8080, "", "OfficeJet", None),
             ]),
-            // 515/udp is gone: nothing reports a UDP port open without a probe behind it, so that
-            // arm could never contribute. The remaining two qualify a page that already named the
-            // model, so neither stands alone.
+            // 515/udp is gone: no probe answers on it, so the network scan never reports it and a
+            // container that declares it is not evidence of a printer. The remaining two qualify a
+            // page that already named the model, so neither stands alone.
             Pattern::AnyOf(vec![
                 Pattern::Port(PortType::Ipp),
                 Pattern::Port(PortType::LdpTcp),
@@ -38,12 +39,8 @@ impl ServiceDefinition for HpPrinter {
         ])
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/hp.svg"
-    }
-
-    fn logo_needs_white_background(&self) -> bool {
-        true
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Hp)
     }
 }
 

@@ -14,6 +14,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-exos-01",
@@ -22,9 +24,10 @@ pub fn device() -> SimDevice {
             issue: "Issue 2, July 2026",
             defect: "ExtremeXOS numbers lldpRemTable local ports in a namespace distinct from ifIndex, so without the lldpLocPortTable remap this switch yields zero neighbours",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("ExtremeXOS version 31.7 X435-24P".into()),
             sys_object_id: Some("1.3.6.1.4.1.1916.2.219".into()),

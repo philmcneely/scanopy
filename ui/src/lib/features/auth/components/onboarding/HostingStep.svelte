@@ -11,7 +11,6 @@
 		onboarding_hostingCloudLabel,
 		onboarding_hostingSelfHostedDescription,
 		onboarding_hostingSelfHostedLabel,
-		onboarding_hostingSubtitle,
 		onboarding_logInHere,
 		onboarding_whereWillScanopyRun
 	} from '$lib/paraglide/messages';
@@ -91,15 +90,13 @@
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="flex-1 overflow-y-auto p-6">
 			<div class="space-y-6">
-				<p class="text-center text-sm text-secondary">{onboarding_hostingSubtitle()}</p>
-
 				<div class="grid gap-3">
 					{#each options as option (option.id)}
 						{@const isSelected = preselected === option.id}
 						{@const Icon = option.icon}
 						<button
 							type="button"
-							class="flex items-center gap-4 card p-4 text-left transition-all {isSelected
+							class="card flex items-center gap-4 p-4 text-left transition-all {isSelected
 								? 'ring-2 ring-blue-500'
 								: 'hover:bg-gray-100 dark:hover:bg-gray-800'}"
 							onclick={() => select(option.id)}

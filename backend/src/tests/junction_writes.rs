@@ -691,13 +691,13 @@ async fn tag_groups_write_their_tags() {
     let (org_id, _) = org_with_sites(&storage, 0).await;
 
     let all = groups
-        .ensure_groups(org_id, &[], AuthenticatedEntity::System)
+        .seed_groups(org_id, &[], AuthenticatedEntity::System)
         .await
         .unwrap();
     let visibility = all
         .iter()
         .find(|g| g.base.group_type == TagGroupType::Visibility)
-        .expect("ensure_groups creates the Visibility group");
+        .expect("seed_groups creates the Visibility group");
     let hidden = rows(
         &storage,
         StorableFilter::<Tag>::new_from_uuid_column("tag_group_id", &visibility.id),

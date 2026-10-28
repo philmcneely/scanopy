@@ -12,7 +12,6 @@ import {
 import { inlineGroupKey } from '$lib/features/topology/collapse';
 import { hiddenEntityTypesIn } from '$lib/features/topology/queries';
 import {
-	ELEMENT_WIDTH_PX,
 	elementWidthPx,
 	ICON_ELEMENT_WIDTH_PX
 } from '$lib/features/topology/pipeline/build-flow-nodes';
@@ -20,8 +19,8 @@ import { formatBitsPerSecond, formatPort } from '$lib/shared/utils/formatting';
 import { deviceTypes, hostVirtualizations } from '$lib/shared/stores/metadata';
 
 /**
- * What an icon card carries now that it is the only card: a port draws as one row with its oper
- * status, a manager box opens and closes, and the facts the detailed card used to print (an
+ * What an icon card carries now that it is the only card: a port carries its oper status, a
+ * manager box opens and closes, and the facts the detailed card used to print (an
  * address's name, each service's ports, a network identity's virtualization) reach the tooltip.
  */
 
@@ -160,11 +159,9 @@ const rowValues = (content: TooltipContent) =>
 const listItems = (content: TooltipContent) =>
 	content.sections.flatMap((s) => ('items' in s && s.items ? s.items : []));
 
-describe('a port draws as a row', () => {
-	it('is built narrower than a card with no glyph, and wider than a plain icon card', () => {
-		const width = elementWidthPx(portNode);
-		expect(width).toBeLessThan(ELEMENT_WIDTH_PX);
-		expect(width).toBeGreaterThan(ICON_ELEMENT_WIDTH_PX);
+describe('a port draws as an icon card', () => {
+	it('is built at the width of a plain icon card', () => {
+		expect(elementWidthPx(portNode)).toBe(ICON_ELEMENT_WIDTH_PX);
 	});
 
 	it('carries its oper status as the Status mark, and its speed on hover', () => {
@@ -172,9 +169,9 @@ describe('a port draws as a row', () => {
 		expect(result.iconCard?.glyph.type).toBe('port');
 		expect(result.iconCard?.label).toBe('Gi1/0/1');
 		expect(result.marks.Status?.id).toBe('Up');
-		const rows = result.iconCard!.tooltip.sections.flatMap((s) => ('rows' in s ? s.rows : []));
+		const rows = result.iconCard!.tooltip().sections.flatMap((s) => ('rows' in s ? s.rows : []));
 		expect(rows.some((r) => r?.dot)).toBe(true);
-		expect(rowValues(result.iconCard!.tooltip)).toContain(formatBitsPerSecond(1_000_000_000));
+		expect(rowValues(result.iconCard!.tooltip())).toContain(formatBitsPerSecond(1_000_000_000));
 	});
 });
 
@@ -194,11 +191,11 @@ describe('a manager box opens and closes', () => {
 describe('facts the detailed card printed reach the tooltip', () => {
 	it("names an address card's address", () => {
 		const result = render(addressNode, 'L3Logical');
-		expect(rowValues(result.iconCard!.tooltip)).toContain('mgmt');
+		expect(rowValues(result.iconCard!.tooltip())).toContain('mgmt');
 	});
 
 	it('lists each service with the ports it listens on at this address only, set apart', () => {
-		const items = listItems(render(addressNode, 'L3Logical').iconCard!.tooltip);
+		const items = listItems(render(addressNode, 'L3Logical').iconCard!.tooltip());
 		const web = items.find((i) => typeof i !== 'string' && i.text === 'web');
 		const detail = typeof web === 'string' ? undefined : web?.detail;
 		expect(detail).toContain(formatPort({ number: 80, protocol: 'Tcp' } as never));

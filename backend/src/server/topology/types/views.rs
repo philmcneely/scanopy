@@ -1044,6 +1044,7 @@ impl TopologyView {
                       show_directionality| {
             EdgeViewConfig::Active {
                 affects_layout,
+                affects_layout_within_container: false,
                 default_visibility: visibility,
                 stroke,
                 highlight_behavior: highlight,
@@ -1051,13 +1052,29 @@ impl TopologyView {
                 show_directionality,
             }
         };
+        // Places its endpoints next to each other inside the container they share, and moves no
+        // container.
+        let active_within_container =
+            |visibility, stroke, highlight, will_target_container, show_directionality| {
+                EdgeViewConfig::Active {
+                    affects_layout: false,
+                    affects_layout_within_container: true,
+                    default_visibility: visibility,
+                    stroke,
+                    highlight_behavior: highlight,
+                    will_target_container,
+                    show_directionality,
+                }
+            };
 
         match self {
             Self::L3Logical => match edge_type {
                 SameHost => active(true, Visible, Solid, WhenVisible, false, false),
                 ContainerRuntime => active(true, Visible, Solid, WhenVisible, true, false),
-                RequestPath => active(false, Visible, Dashed, WhenVisible, false, true),
-                HubAndSpoke => active(false, Visible, Dashed, WhenVisible, false, true),
+                // A dependency between two addresses in one subnet draws them side by side, but
+                // the subnets stay arranged by addressing and runtime structure.
+                RequestPath => active_within_container(Visible, Dashed, WhenVisible, false, true),
+                HubAndSpoke => active_within_container(Visible, Dashed, WhenVisible, false, true),
                 Hypervisor => active(false, Hidden, Dashed, WhenVisible, true, false),
                 // Hypervisor's stroke and highlight, shown by default: without it an identity
                 // host has no visible tie to the guest that presents it.

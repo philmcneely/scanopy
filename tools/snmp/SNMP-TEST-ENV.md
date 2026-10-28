@@ -8,8 +8,8 @@
 
 34 simulated network devices running on a Proxmox VM (VM 107, `snmp-test`), each on port 161, addressed out of a
 reserved `192.168.7.192`–`.254` block (63 addresses — see **Addressing** below for why that range
-is the lab's to take). Most speak SNMPv2c; `legacy-switch-01`/`secure-switch-01` are version-locked
-to exercise the SNMPv1 and SNMPv3 paths (#557); `switch-exos-01`/`switch-voss-01` are Extreme
+is the lab's to take). Most speak SNMPv2c; `legacy-switch-01`/`switch-access-01`/`secure-switch-01` are version-locked
+to exercise the SNMPv1 fallback, v2c without it, and SNMPv3 (#557); `switch-exos-01`/`switch-voss-01` are Extreme
 switches that exercise the LLDP local-port remap (Issue 2, July 2026); `switch-netgear-01`/
 `switch-aruba-01`/`switch-omada-01` reproduce the L2-topology failures from #664, #649 and #614;
 `switch-flaky-01` serves a deliberately malformed neighbour record; `switch-dlink-01` serves the
@@ -38,7 +38,7 @@ exactly this reason: the lab has been renumbered before and will be again.
 | 192.168.7.195 | firewall-01 | v2c | community `secret42` |
 | 192.168.7.196 | printer-lobby | v2c | community `public` |
 | 192.168.7.197 | ap-wireless-01 | v2c | community `netdefault` |
-| 192.168.7.198 | legacy-switch-01 | v1 | community `legacyv1` |
+| 192.168.7.198 | legacy-switch-01 | v1 | community `netdefault` |
 | 192.168.7.199 | secure-switch-01 | v3 | user `scanopyv3` |
 | 192.168.7.200 | switch-exos-01 | v2c | community `netdefault` |
 | 192.168.7.201 | switch-voss-01 | v2c | community `netdefault` |
@@ -626,16 +626,17 @@ That combination is what issue #663 reported: a `br-` prefixed `ifName` on a rem
 
 Because `.235` is the only agent serving its own `ipAddrTable`, it is also the only one that can fail *silently* — if the module displacement doesn't take, the `pass` directive loses the duplicate registration and the agent quietly reports just the scanned subnet. `make snmp-verify` checks this fixture explicitly for that reason; don't run a scan against it until that check passes.
 
-The two version-locked hosts use net-snmp VACM/USM so the other protocol versions are genuinely refused (a plain `rocommunity` answers both v1 and v2c, which wouldn't prove version negotiation):
+The three version-locked hosts use net-snmp VACM/USM so the other protocol versions are genuinely refused (a plain `rocommunity` answers both v1 and v2c, which wouldn't prove version negotiation):
 
-- **legacy-switch-01 (v1 only):** VACM grants access only via the v1 security model — v2c/v3 are denied.
+- **legacy-switch-01 (v1 only):** VACM grants access only via the v1 security model — v2c/v3 are denied. It shares the `netdefault` community with the v2c devices, so the one community credential reaches it only through the daemon's v1 fallback.
+- **switch-access-01 (v2c only):** VACM grants access only via the v2c security model, so the same credential reaches it over v2c and v1 is denied.
 - **secure-switch-01 (v3 only):** USM user `scanopyv3`, AuthPriv, **SHA-256 / AES-128**, auth password `authpass12345`, priv password `privpass12345`. No `rocommunity`, so v1/v2c are denied.
 
 > **AES-256 note:** the v3 host uses AES-128, which stock Debian/Ubuntu net-snmp supports out of the box. AES-256 (`createUser … AES-256`) requires net-snmp built with Blumenthal AES (`--enable-blumenthal-aes`); change `createUser`/the verify command in `lxc/setup.sh` only if your build supports it.
 
 ## Credentials
 
-The devices deliberately span five credentials so a scan exercises credential selection, the v1/v2c/v3 negotiation paths, and the "try the next credential" fallback rather than one community answering everything. Seed all five into the dev database with:
+The devices deliberately span several credentials so a scan exercises credential selection, the v1 fallback, v3, and the "try the next credential" fallback rather than one community answering everything. One community credential, `netdefault`, reaches both the v1-only and the v2c-only device. Seed every credential into the dev database with:
 
 ```bash
 make snmp-seed-credentials
@@ -685,7 +686,7 @@ Or manually — note the per-version flags. Take the addresses from the generate
 # v2c (router-gw-01)
 snmpget -v2c -c secret42 -t 2 -r 1 192.168.7.194 sysName.0
 # v1 (legacy-switch-01)
-snmpget -v1 -c legacyv1 -t 2 -r 1 192.168.7.198 sysName.0
+snmpget -v1 -c netdefault -t 2 -r 1 192.168.7.198 sysName.0
 # v3 (secure-switch-01) — SHA-256 / AES-128 AuthPriv
 snmpget -v3 -l authPriv -u scanopyv3 -a SHA-256 -A authpass12345 -x AES -X privpass12345 -t 2 -r 1 192.168.7.199 sysName.0
 ```
@@ -693,7 +694,7 @@ snmpget -v3 -l authPriv -u scanopyv3 -a SHA-256 -A authpass12345 -x AES -X privp
 To prove the version lock, confirm the wrong version is refused:
 
 ```bash
-snmpget -v2c -c legacyv1 192.168.7.198 sysName.0   # should time out (v1-only)
+snmpget -v2c -c netdefault 192.168.7.198 sysName.0   # should time out (v1-only)
 snmpget -v2c -c public   192.168.7.199 sysName.0   # should time out (v3-only)
 ```
 

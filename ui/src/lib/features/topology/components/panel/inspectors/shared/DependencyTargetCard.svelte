@@ -131,7 +131,7 @@
      content so the content column spans the full card width — otherwise the
      fade starts to the left of the X button and cuts off dropdown chevrons
      that still have room. -->
-<div class="card-static relative card p-2 text-sm">
+<div class="card-static card relative p-2 text-sm">
 	<!-- pr reserves space for the fade region (and the X button when present) so
 	     dropdown chevrons / tag tails never sit inside the fade. -->
 	<div class="dep-card-content space-y-2 overflow-hidden {onRemove ? 'pr-7' : 'pr-4'}">
@@ -199,7 +199,7 @@
 	{#if onRemove}
 		<button
 			type="button"
-			class="absolute top-2 right-2 btn-icon p-1"
+			class="btn-icon absolute top-2 right-2 p-1"
 			onclick={onRemove}
 			title={common_remove()}
 			aria-label={common_remove()}

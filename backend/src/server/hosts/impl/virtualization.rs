@@ -43,6 +43,8 @@ pub enum HostVirtualization {
     VCenter(VCenterVirtualization),
     #[schema(title = "ESXi")]
     ESXi(EsxiVirtualization),
+    #[schema(title = "Libvirt")]
+    Libvirt(LibvirtVirtualization),
     #[schema(title = "Docker")]
     Docker(ContainerHostVirtualization),
     #[schema(title = "Podman")]
@@ -105,27 +107,14 @@ impl ContainerNetworkType {
 
 impl HostVirtualization {
     /// Whether the guest was running at the last scan, for the guests whose manager reports it:
-    /// Proxmox guests and container hosts. `None` for vCenter and ESXi guests, whose integrations
-    /// record no run state, and for network identities, which are not guests.
+    /// Proxmox and libvirt guests and container hosts. `None` for vCenter and ESXi guests, whose
+    /// integrations record no run state, and for network identities, which are not guests.
     pub fn guest_state(&self) -> Option<GuestState> {
         match self {
             Self::Proxmox(proxmox) => Some(proxmox.state),
+            Self::Libvirt(libvirt) => Some(libvirt.state),
             Self::Docker(container) | Self::Podman(container) => Some(container.state),
             Self::VCenter(_) | Self::ESXi(_) | Self::NetworkIdentity(_) => None,
-        }
-    }
-
-    /// The id its manager knows the guest by, which survives the guest moving between that
-    /// manager's hosts: a Proxmox VMID, a vCenter or ESXi VM id, a container ID. `None` for a
-    /// network identity, which is its owner's interface rather than a guest, and for a guest
-    /// assigned by hand (the UI writes no id).
-    pub fn guest_id(&self) -> Option<&str> {
-        match self {
-            Self::Proxmox(p) => p.vm_id.as_deref(),
-            Self::VCenter(v) => v.vm_id.as_deref(),
-            Self::ESXi(e) => e.vm_id.as_deref(),
-            Self::Docker(c) | Self::Podman(c) => c.container_id.as_deref(),
-            Self::NetworkIdentity(_) => None,
         }
     }
 
@@ -134,6 +123,7 @@ impl HostVirtualization {
         match self {
             HostVirtualization::Docker(_) | HostVirtualization::Podman(_) => true,
             HostVirtualization::Proxmox(_)
+            | HostVirtualization::Libvirt(_)
             | HostVirtualization::VCenter(_)
             | HostVirtualization::ESXi(_)
             | HostVirtualization::NetworkIdentity(_) => false,
@@ -149,6 +139,7 @@ impl HostVirtualization {
                 c.network_type.has_own_mac()
             }
             HostVirtualization::Proxmox(_)
+            | HostVirtualization::Libvirt(_)
             | HostVirtualization::VCenter(_)
             | HostVirtualization::ESXi(_)
             | HostVirtualization::NetworkIdentity(_) => true,
@@ -235,6 +226,17 @@ pub struct EsxiVirtualization {
     pub vm_id: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash, ToSchema)]
+pub struct LibvirtVirtualization {
+    /// Domain name as configured in libvirt.
+    pub vm_name: Option<String>,
+    /// libvirt domain UUID of the guest.
+    pub vm_id: Option<String>,
+    /// Whether the domain was running at the last scan. Hand-assigned guests read as running.
+    #[serde(default)]
+    pub state: GuestState,
+}
+
 // The virtualizing service is `Host::virtualization_service_id`, a real foreign key, rather than
 // a field inside each of these payloads. Readers used to `match` a single variant to reach it —
 // `get_host_is_virtualized_by` handled only Proxmox — so vCenter and ESXi guests silently had no
@@ -270,6 +272,7 @@ impl TypeMetadataProvider for HostVirtualizationDiscriminants {
             Self::Proxmox => "Proxmox",
             Self::VCenter => "vCenter",
             Self::ESXi => "ESXi",
+            Self::Libvirt => "libvirt",
             Self::Docker => "Docker",
             Self::Podman => "Podman",
             Self::NetworkIdentity => "Network identity",
@@ -281,6 +284,7 @@ impl TypeMetadataProvider for HostVirtualizationDiscriminants {
             Self::Proxmox => "A host running as a Proxmox VM or LXC container",
             Self::VCenter => "A host running as a vCenter-managed VM",
             Self::ESXi => "A host running as an ESXi VM",
+            Self::Libvirt => "A host running as a libvirt-managed KVM virtual machine",
             Self::Docker => "A host running as a Docker container with its own LAN address",
             Self::Podman => "A host running as a Podman container with its own LAN address",
             Self::NetworkIdentity => {
@@ -397,7 +401,9 @@ impl HostVirtualizationDiscriminants {
     /// The filter state a host of this type falls under.
     pub fn state(&self) -> HostVirtualizationState {
         match self {
-            Self::Proxmox | Self::VCenter | Self::ESXi => HostVirtualizationState::Virtualized,
+            Self::Proxmox | Self::Libvirt | Self::VCenter | Self::ESXi => {
+                HostVirtualizationState::Virtualized
+            }
             Self::Docker | Self::Podman => HostVirtualizationState::Containerized,
             Self::NetworkIdentity => HostVirtualizationState::NetworkIdentity,
         }
@@ -545,7 +551,7 @@ mod tests {
         // The serde "type" tag is what the manual-assignment UI sends (sourced
         // from ServiceDefinition::virtualization_variant). Confirm each tag
         // deserializes and round-trips, and that the tag == HasId::id().
-        for tag in ["Proxmox", "VCenter", "ESXi"] {
+        for tag in ["Proxmox", "VCenter", "ESXi", "Libvirt"] {
             let json = format!(r#"{{"type":"{tag}","details":{{"vm_name":null,"vm_id":null}}}}"#);
             let v: HostVirtualization =
                 serde_json::from_str(&json).unwrap_or_else(|e| panic!("{tag}: {e}"));

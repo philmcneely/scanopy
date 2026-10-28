@@ -55,20 +55,16 @@ pub struct NfsProbe;
 
 #[async_trait]
 impl AppProbe for NfsProbe {
-    fn port(&self) -> PortType {
-        PortType::Nfs
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Nfs
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Nfs)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
         // NFSv3 first, then v4: a v4-only server answers the v3 call with a program-mismatch
         // reply, which is itself proof, but asking for the version it speaks avoids relying on
         // that.
         for version in [3u32, 4] {
-            let reply = request_response(ctx, self.port(), &null_call(version), 256).await;
+            let reply = request_response(ctx, port, &null_call(version), 256).await;
             if parse_reply(&reply, XID) == (AppProbeOutcome::Answered { identity: None }) {
                 return Ok(AppProbeOutcome::Answered { identity: None });
             }

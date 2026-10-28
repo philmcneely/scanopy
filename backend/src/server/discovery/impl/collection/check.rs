@@ -55,6 +55,7 @@ pub fn present_in(
         asset_tag,
         firmware_revision,
         software_revision,
+        matched_device_type,
         virtualization_metadata,
         // Identifiers and bookkeeping rather than collected data. The chassis id names the device
         // for neighbor matching; the management URL is where to reach it.
@@ -88,6 +89,7 @@ pub fn present_in(
         source_of(asset_tag),
         source_of(firmware_revision),
         source_of(software_revision),
+        source_of(matched_device_type),
     ]
     .into_iter()
     .flatten()
@@ -131,7 +133,9 @@ pub fn present_in(
             ),
             // No integration reports these. A producer that starts to is flagged until an
             // integration declares it.
-            HostVirtualization::VCenter(_) | HostVirtualization::ESXi(_) => {
+            HostVirtualization::Libvirt(_)
+            | HostVirtualization::VCenter(_)
+            | HostVirtualization::ESXi(_) => {
                 mark(CollectedData::VirtualMachines, AttributeSource::Unspecified)
             }
             // An address the host presents from an interface of its own. Its addresses already

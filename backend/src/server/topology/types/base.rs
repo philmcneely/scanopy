@@ -436,6 +436,7 @@ pub(crate) fn default_element_rules(use_case: UseCase) -> Vec<IdentifiedRule<Ele
             tag_ids: vec![],
             title: None,
         }),
+        IdentifiedRule::new(ElementRule::ByDeviceType),
         IdentifiedRule::new(ElementRule::ByHypervisor),
         IdentifiedRule::new(ElementRule::ByContainerRuntime),
         IdentifiedRule::new(ElementRule::ByStack),

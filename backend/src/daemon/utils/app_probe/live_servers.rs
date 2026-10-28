@@ -18,21 +18,33 @@
 //! UDP has no connect, so nothing can tell "no server there" from "the probe is wrong". Its probes
 //! are therefore only asserted when `SCANOPY_LIVE_UDP_PORTS` names the ports a server is known to
 //! be on — `SCANOPY_LIVE_UDP_PORTS=500,1194 cargo test --lib -- --ignored live_servers`.
+//! `SCANOPY_LIVE_TARGET` and `SCANOPY_LIVE_SUBNET` point the probes at a server off loopback, which
+//! DHCP needs: run the test from a container on the same Docker network as the servers.
 
 use std::net::SocketAddr;
 
 use cidr::{IpCidr, Ipv4Cidr};
 use tokio_util::sync::CancellationToken;
 
-use crate::daemon::utils::app_probe::{AppProbeOutcome, ProbeContext, all_app_probes};
+use crate::daemon::utils::app_probe::{AppProbeOutcome, ProbeContext, probe_runs};
 use crate::daemon::utils::scanner::ScanConcurrencyController;
 
 const LOOPBACK: std::net::Ipv4Addr = std::net::Ipv4Addr::new(127, 0, 0, 1);
 
+/// Loopback unless `SCANOPY_LIVE_TARGET` and `SCANOPY_LIVE_SUBNET` name a server on a real segment.
+/// The DHCP probe broadcasts on the subnet, so it can only be exercised that way, from a host on
+/// the same segment as the server.
 fn context() -> ProbeContext {
+    let target = std::env::var("SCANOPY_LIVE_TARGET").ok();
+    let subnet = std::env::var("SCANOPY_LIVE_SUBNET").ok();
     ProbeContext {
-        ip: std::net::IpAddr::V4(LOOPBACK),
-        subnet_cidr: IpCidr::V4(Ipv4Cidr::new(std::net::Ipv4Addr::new(127, 0, 0, 0), 8).unwrap()),
+        ip: target.map_or(std::net::IpAddr::V4(LOOPBACK), |t| {
+            t.parse().expect("SCANOPY_LIVE_TARGET")
+        }),
+        subnet_cidr: subnet.map_or(
+            IpCidr::V4(Ipv4Cidr::new(std::net::Ipv4Addr::new(127, 0, 0, 0), 8).unwrap()),
+            |s| s.parse().expect("SCANOPY_LIVE_SUBNET"),
+        ),
         is_gateway: false,
         cancel: CancellationToken::new(),
         scan_controller: ScanConcurrencyController::new(16),
@@ -63,13 +75,13 @@ async fn every_tcp_probe_recognises_its_own_reference_server() {
     let mut missed = Vec::new();
     let mut absent = Vec::new();
 
-    for probe in all_app_probes().into_iter().filter(|p| p.port().is_tcp()) {
-        let port = probe.port().number();
+    for (probe, port_type) in probe_runs().into_iter().filter(|(_, port)| port.is_tcp()) {
+        let port = port_type.number();
         if !is_listening(port).await {
             absent.push(port);
             continue;
         }
-        match probe.run(&ctx).await {
+        match probe.run(&ctx, port_type).await {
             Ok(AppProbeOutcome::Answered { .. }) => recognised.push(port),
             Ok(AppProbeOutcome::NoAnswer) => missed.push(port),
             Err(e) => missed.push_and_note(port, e),
@@ -113,12 +125,12 @@ async fn named_udp_probes_recognise_their_own_reference_server() {
     let mut missed = Vec::new();
     let mut recognised = Vec::new();
 
-    for probe in all_app_probes()
+    for (probe, port_type) in probe_runs()
         .into_iter()
-        .filter(|p| p.port().is_udp() && expected.contains(&p.port().number()))
+        .filter(|(_, port)| port.is_udp() && expected.contains(&port.number()))
     {
-        let port = probe.port().number();
-        match probe.run(&ctx).await {
+        let port = port_type.number();
+        match probe.run(&ctx, port_type).await {
             Ok(AppProbeOutcome::Answered { .. }) => recognised.push(port),
             _ => missed.push(port),
         }

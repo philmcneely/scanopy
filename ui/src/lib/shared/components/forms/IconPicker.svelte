@@ -86,7 +86,7 @@
 			type="button"
 			aria-haspopup="dialog"
 			aria-expanded={open}
-			class="flex input-field w-40 items-center justify-between gap-2"
+			class="input-field flex w-40 items-center justify-between gap-2"
 			{disabled}
 			onclick={() => (open = !open)}
 		>
@@ -141,7 +141,7 @@
 			{:else}
 				<div
 					bind:this={scroller}
-					class="overflow-y-auto"
+					class="overflow-y-auto overscroll-contain"
 					style="height: {VIEW_HEIGHT}px;"
 					onscroll={(e) => (scrollTop = e.currentTarget.scrollTop)}
 				>

@@ -4,7 +4,7 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { isBillingPlanActive, isPlanLapsed } from '$lib/features/organizations/types';
 	import SettingsModal from '$lib/features/settings/SettingsModal.svelte';
-	import { billingPlans, entities, entityCategories } from '$lib/shared/stores/metadata';
+	import { billingPlans, entities, productAreas } from '$lib/shared/stores/metadata';
 	import { useActiveSessionsQuery } from '$lib/features/discovery/queries';
 	import { useApiKeysQuery } from '$lib/features/daemon_api_keys/queries';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
@@ -16,17 +16,9 @@
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { startSetupPayment } from '$lib/shared/billing/setup-payment';
 	import type { IconComponent } from '$lib/shared/utils/types';
-	import {
-		Menu,
-		ChevronDown,
-		History,
-		Settings,
-		ArrowUpCircle,
-		Clock,
-		Home,
-		Search
-	} from 'lucide-svelte';
+	import { Menu, ChevronDown, History, Settings, Clock, Home, Search } from 'lucide-svelte';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
+	import PaidCrown from '$lib/shared/components/PaidCrown.svelte';
 	import { GLOBAL_SEARCH_KEY, globalSearchOpen } from '$lib/features/search/results';
 	import { tableSearchFocused } from '$lib/shared/components/data/controls/listShortcuts';
 	import { onMount } from 'svelte';
@@ -34,7 +26,7 @@
 	import type { UserOrgPermissions } from '$lib/features/users/types';
 	import type { SubTab } from '$lib/shared/components/layout/ContentSubTabs.svelte';
 	import {
-		common_upgrade,
+		common_plans,
 		billing_trialPill,
 		billing_trialPillOneDay,
 		billing_trialPillToday,
@@ -97,7 +89,8 @@
 		settingsDismissible = true,
 		mainAppLocked = false,
 		mainAppAvailable = false,
-		licensedPlanPending = false
+		licensedPlanPending = false,
+		showLockedMainNav = false
 	}: {
 		activeTab?: string;
 		collapsed?: boolean;
@@ -125,6 +118,9 @@
 		/** Passed through to the Settings modal, which shows the License tab on it
 		 * while the just-picked licensed plan is still in flight. */
 		licensedPlanPending?: boolean;
+		/** A locked org whose main navigation still shows: a licensed self-hosted
+		 * plan, where each page says it needs a cloud plan. */
+		showLockedMainNav?: boolean;
 	} = $props();
 
 	// TanStack Query for current user and organization
@@ -144,7 +140,13 @@
 	let isBillingEnabled = $derived(organization ? isBillingPlanActive(organization) : false);
 	let planMeta = $derived(billingPlans.getMetadata(organization?.plan?.type ?? null));
 	let isDemoOrg = $derived(planMeta.is_demo === true);
-	let isFreePlan = $derived(planMeta.is_free === true);
+	// A free tier: cloud Free (`is_free`), or self-hosted Community, the one plan that is neither
+	// commercial nor billed through Stripe. Both have plans to move up to; Starter, though not
+	// commercial, is a paid Stripe plan.
+	let isFreePlan = $derived(
+		planMeta.is_free === true ||
+			(planMeta.is_commercial === false && planMeta.is_stripe_managed === false)
+	);
 	let isOwner = $derived(userPermissions === 'Owner');
 	let trialDaysLeft = $derived(getTrialDaysLeft(organization));
 	let showTrialPill = $derived(
@@ -269,10 +271,17 @@
 	// Base navigation config (before filtering)
 	/**
 	 * The sidebar item each entity type gets inside its section. Which section it sits in, and where,
-	 * comes from the entity metadata (`category` and declaration order), the same order the global
+	 * comes from the entity metadata (its product area in `category`, and declaration order), the same order the global
 	 * search lists its groups in. An entity with no item here (a host's ports, say) has no tab.
 	 */
 	const entityNavItems: Partial<Record<EntityDiscriminants, NavItem>> = {
+		Topology: {
+			id: entityUIConfig.Topology!.tabId,
+			label: TAB_LABELS[entityUIConfig.Topology!.tabId],
+			icon: entities.getIconComponent('Topology'),
+			entityType: 'Topology',
+			component: TopologyTab
+		},
 		Site: {
 			id: entityUIConfig.Site!.tabId,
 			label: TAB_LABELS[entityUIConfig.Site!.tabId],
@@ -396,16 +405,20 @@
 		}
 	};
 
-	/** One section per entity category that has items, in category order, items in entity order. */
-	const entitySections: NavSection[] = entityCategories.getItems().flatMap((category) => {
-		const items = entities
-			.getItems()
-			.filter((entity) => entity.category === category.id)
-			.flatMap((entity) => entityNavItems[entity.id as EntityDiscriminants] ?? []);
-		return items.length > 0
-			? [{ id: category.id, label: entityCategories.getName(category.id), items }]
-			: [];
-	});
+	/**
+	 * One section per product area that has items, in area order, items in entity order. An area
+	 * with a single item (Topology) shows that item at the top level instead of a one-row section.
+	 */
+	const entitySections: NavConfig = productAreas
+		.getItems()
+		.flatMap<NavSection | NavItem>((area) => {
+			const items = entities
+				.getItems()
+				.filter((entity) => entity.category === area.id)
+				.flatMap((entity) => entityNavItems[entity.id as EntityDiscriminants] ?? []);
+			if (items.length === 1) return items;
+			return items.length > 0 ? [{ id: area.id, label: productAreas.getName(area.id), items }] : [];
+		});
 
 	const baseNavConfig: NavConfig = [
 		{
@@ -413,13 +426,6 @@
 			label: TAB_LABELS['home'],
 			icon: Home as IconComponent,
 			component: HomeTab
-		},
-		{
-			id: entityUIConfig.Topology!.tabId,
-			label: TAB_LABELS[entityUIConfig.Topology!.tabId],
-			icon: entities.getIconComponent('Topology'),
-			entityType: 'Topology',
-			component: TopologyTab
 		},
 		...entitySections,
 		{
@@ -606,7 +612,9 @@
 		});
 	}
 
-	let mainNavItems = $derived(mainAppLocked ? [] : filterByPosition(navConfig, 'main'));
+	let mainNavItems = $derived(
+		mainAppLocked && !showLockedMainNav ? [] : filterByPosition(navConfig, 'main')
+	);
 	let bottomNavItems = $derived(filterByPosition(navConfig, 'bottom'));
 
 	onMount(() => {
@@ -729,7 +737,7 @@
 	class:w-48={!collapsed}
 >
 	<!-- Logo/Brand -->
-	<div class="flex min-h-0 flex-1 flex-col">
+	<div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
 		<div class="px-2 py-4">
 			<button
 				onclick={toggleCollapse}
@@ -753,7 +761,7 @@
 					onclick={() => globalSearchOpen.set(true)}
 					class="{collapsed
 						? `${inactiveButtonClass} justify-center rounded-lg`
-						: 'input-field text-muted hover:border-gray-400 dark:hover:border-gray-500'} mt-2 flex toolbar-control w-full items-center gap-2 px-3"
+						: 'input-field text-muted hover:border-gray-400 dark:hover:border-gray-500'} toolbar-control mt-2 flex w-full items-center gap-2 px-3"
 					title={collapsed ? globalSearch_openWithShortcut({ shortcut: searchShortcut }) : ''}
 					aria-label={globalSearch_placeholder()}
 					aria-keyshortcuts={searchShortcut}
@@ -899,7 +907,7 @@
 				onclick: () => void;
 			})}
 				<button
-					class="{baseClasses} text-amber-400 hover:bg-amber-500/10"
+					class="{baseClasses} text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
 					style="height: 2rem; padding: 0.375rem 0.75rem;"
 					title={collapsed ? label : ''}
 					{onclick}
@@ -927,12 +935,19 @@
 					})}
 				</li>
 			{:else if showFreeUpgradeButton}
+				<!-- The way to the plans: a nav entry like the others, marked with the paid crown. -->
 				<li>
-					{@render sidebarAmberCta({
-						Icon: ArrowUpCircle,
-						label: common_upgrade(),
-						onclick: () => triggerUpgrade({ source: 'sidebar', surface: 'sidebar' })
-					})}
+					<button
+						class="{baseClasses} {inactiveButtonClass}"
+						style="height: 2rem; padding: 0.375rem 0.75rem;"
+						title={collapsed ? common_plans() : ''}
+						onclick={() => triggerUpgrade({ source: 'sidebar', surface: 'sidebar' })}
+					>
+						<PaidCrown size={20} />
+						{#if !collapsed}
+							<span class="ml-3 truncate">{common_plans()}</span>
+						{/if}
+					</button>
 				</li>
 			{/if}
 			{#each bottomNavItems as item (item.id)}

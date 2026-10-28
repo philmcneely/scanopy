@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Bug, BookOpen, Mail } from 'lucide-svelte';
+	import { Bug, BookOpen, Mail, MessageCircle } from 'lucide-svelte';
+	import { logoPath } from '$lib/shared/utils/logos';
 	import { createColorHelper, type Color } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
@@ -45,7 +46,7 @@
 					description: support_discordDesc(),
 					url: 'https://discord.gg/b7ffQr8AcZ',
 					color: 'Indigo',
-					icon: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/discord.svg'
+					icon: logoPath('Discord') ?? MessageCircle
 				},
 				{
 					title: support_reportBug(),
@@ -82,11 +83,11 @@
 	<div class="grid grid-cols-2 gap-3">
 		{#each options as option (option.description)}
 			{@const colors = createColorHelper(option.color)}
-			<button onclick={() => handleCardClick(option.url)} class="w-full card text-left">
+			<button onclick={() => handleCardClick(option.url)} class="card w-full text-left">
 				<div class="flex items-center gap-3">
 					<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {colors.bg}">
 						{#if typeof option.icon === 'string'}
-							<img src={option.icon} alt={option.title} class="h-5 w-5" />
+							<img src={option.icon} alt={option.title} class="h-5 w-5 object-contain" />
 						{:else}
 							<option.icon class="h-5 w-5 {colors.icon}" />
 						{/if}

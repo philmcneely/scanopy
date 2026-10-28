@@ -36,6 +36,7 @@ use crate::server::hosts::r#impl::virtualization::HostVirtualizationState;
 use crate::server::interfaces::r#impl::base::Interface;
 use crate::server::invites::r#impl::base::Invite;
 use crate::server::ip_addresses::r#impl::base::IPAddress;
+use crate::server::live_updates::types::{LiveTopologyUpdate, LiveUpdate};
 use crate::server::organizations::r#impl::base::Organization;
 use crate::server::ports::r#impl::base::Port;
 use crate::server::services::handlers::ServiceOrderField;
@@ -66,7 +67,6 @@ use crate::server::topology::types::views::{
     ViewHandleStrategy, ViewInspectorConfig, ViewLayoutAlgorithm, ViewLayoutConfig, ViewRootOrder,
 };
 use crate::server::user_api_keys::handlers::UserApiKeyOrderField;
-use crate::server::user_api_keys::r#impl::base::UserApiKey;
 use crate::server::users::r#impl::base::User;
 use crate::server::users::members::{MemberOrderField, MemberStatus};
 use crate::server::vlans::handlers::VlanOrderField;
@@ -79,28 +79,12 @@ use crate::server::vlans::r#impl::base::Vlan;
 /// same reason: a literal at the call site is how `"daemons"` and `"hosts"` ended up
 /// as separate, undeclared tags alongside `Daemons` and `Hosts`.
 pub mod tags {
-    /// Authentication and session management.
-    pub const AUTH: &str = "auth";
-    /// Subscription, plan and payment endpoints.
-    pub const BILLING: &str = "billing";
-    /// Server configuration exposed to clients.
-    pub const CONFIG: &str = "config";
-    /// Aggregate counts for the landing view.
-    pub const DASHBOARD: &str = "dashboard";
-    /// Superseded, still served for older clients.
-    pub const DEPRECATED: &str = "deprecated";
-    /// GitHub integration endpoints.
-    pub const GITHUB: &str = "github";
     /// Hidden from the public spec, kept in the full one for client generation.
     pub const INTERNAL: &str = "internal";
-    /// Entity metadata registry.
-    pub const METADATA: &str = "metadata";
-    /// Release notes for the version this server runs.
-    pub const RELEASE_NOTES: &str = "release-notes";
     /// Search across every entity type.
-    pub const SEARCH: &str = "search";
+    pub const SEARCH: &str = "Search";
     /// Version and compatibility checking.
-    pub const SYSTEM: &str = "system";
+    pub const SYSTEM: &str = "System";
 }
 
 /// Tag used to mark endpoints that should be hidden from public documentation
@@ -141,6 +125,10 @@ pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
         // untyped `TypeMetadata.metadata`, so nothing else pulls it into the schema; the topology
         // types its colour marks and filters from here.
         ViewElementConfig,
+        // The live-update stream's events. Its SSE route sits outside the spec, so nothing else
+        // pulls them in; the app types the stream from here.
+        LiveUpdate,
+        LiveTopologyUpdate,
         // A view's inspector sections and dependency creation mode, from the same fixture; the
         // inspector types its section registry from here rather than keeping its own union.
         ViewInspectorConfig,
@@ -349,20 +337,11 @@ Resources are scoped to your **organization** and **site(s)**:
         (name = TagGroup::ENTITY_NAME_PLURAL, description = TagGroup::ENTITY_DESCRIPTION),
         (name = Topology::ENTITY_NAME_PLURAL, description = Topology::ENTITY_DESCRIPTION),
         (name = User::ENTITY_NAME_PLURAL, description = User::ENTITY_DESCRIPTION),
-        (name = UserApiKey::ENTITY_NAME_PLURAL, description = UserApiKey::ENTITY_DESCRIPTION),
         (name = Vlan::ENTITY_NAME_PLURAL, description = Vlan::ENTITY_DESCRIPTION),
         // Non-entity tags with inline descriptions
-        (name = tags::AUTH, description = "Authentication and session management. Handle user login, logout, and session state."),
-        (name = tags::BILLING, description = "Subscription, plan and payment management for the organization."),
-        (name = tags::CONFIG, description = "Server configuration. Public configuration settings for client applications."),
-        (name = tags::DASHBOARD, description = "Aggregate counts and recent activity for the landing view."),
-        (name = tags::DEPRECATED, description = "Superseded endpoints, still served for older clients. Avoid in new integrations."),
-        (name = tags::GITHUB, description = "GitHub integration endpoints."),
         (name = tags::INTERNAL, description = "Internal endpoints for system operations. Not part of the public API."),
-        (name = tags::METADATA, description = "Entity metadata registry. Schema information for all entity types in the system."),
-        (name = tags::RELEASE_NOTES, description = "Release notes for the version this server runs, and which of them the caller has seen."),
         (name = tags::SEARCH, description = "Search every entity type the caller can list, by text and tags."),
-        (name = tags::SYSTEM, description = "System information endpoints. Version and compatibility checking."),
+        (name = tags::SYSTEM, description = "The server's release version and the API version it speaks."),
     )
 )]
 pub struct ApiDoc;
@@ -644,6 +623,8 @@ pub fn write_spec(spec: &OpenApi, path: &std::path::Path) -> std::io::Result<()>
 }
 
 #[cfg(test)]
+mod conventions;
+#[cfg(test)]
 mod lint;
 
 #[cfg(test)]
@@ -659,10 +640,7 @@ mod tests {
                 .iter()
                 .any(|p| p["schema"].to_string().contains("OrderField"))
         });
-        id.starts_with("list_")
-            || id.starts_with("get_all_")
-            || id.ends_with("_field_values")
-            || orders
+        id.starts_with("list_") || id.ends_with("_field_values") || orders
     }
 
     /// The `*OrderField` enums and the list operations' query parameters reach the frontend only

@@ -4,7 +4,7 @@ use std::str::FromStr;
 use crate::server::{
     shared::{
         entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants},
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
     users::r#impl::{
@@ -64,6 +64,12 @@ pub struct UserBase {
     #[serde(default)]
     #[schema(read_only)]
     pub terms_acceptance_required: bool,
+    /// Whether the user must verify their email before the API serves their
+    /// session (an org on a license plan, see `auth::verification_gate`).
+    /// Computed and set like `terms_acceptance_required`.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub email_verification_required: bool,
     /// Whether the user has verified their email address
     #[serde(default)]
     pub email_verified: bool,
@@ -118,6 +124,7 @@ impl Default for UserBase {
             password_hash: None,
             has_password: false,
             terms_acceptance_required: false,
+            email_verification_required: false,
             oidc_linked_at: None,
             oidc_provider: None,
             oidc_subject: None,
@@ -156,6 +163,7 @@ impl UserBase {
             password_hash: None,
             has_password: false,
             terms_acceptance_required: false,
+            email_verification_required: false,
             oidc_linked_at: Some(Utc::now()),
             permissions,
             organization_id,
@@ -192,6 +200,7 @@ impl UserBase {
             password_hash: Some(password_hash),
             has_password: true,
             terms_acceptance_required: false,
+            email_verification_required: false,
             organization_id,
             permissions,
             oidc_linked_at: None,
@@ -405,6 +414,7 @@ impl Storable for User {
                 password_hash,
                 has_password,
                 terms_acceptance_required: false,
+                email_verification_required: false,
                 permissions,
                 organization_id: row.get("organization_id"),
                 oidc_linked_at: row.get("oidc_linked_at"),
@@ -463,8 +473,8 @@ impl Entity for User {
     const ENTITY_DESCRIPTION: &'static str =
         "User account management. Manage user profiles and permissions within organizations.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Platform
+    fn product_area() -> ProductArea {
+        ProductArea::Platform
     }
 
     fn site_id(&self) -> Option<Uuid> {
@@ -496,6 +506,7 @@ impl Entity for User {
         base.password_hash = stored.password_hash.clone();
         base.has_password = stored.has_password;
         base.terms_acceptance_required = stored.terms_acceptance_required;
+        base.email_verification_required = stored.email_verification_required;
         base.oidc_provider = stored.oidc_provider.clone();
         base.oidc_subject = stored.oidc_subject.clone();
         base.oidc_linked_at = stored.oidc_linked_at;

@@ -517,10 +517,7 @@ where
         // Check email verification unless the endpoint explicitly allows unverified users
         let has_email_service = state.as_ref().services.email_service.is_some();
         if !P::allows_unverified() && !entity.meets_email_verification(has_email_service) {
-            return Err(AuthError(ApiError::coded(
-                axum::http::StatusCode::FORBIDDEN,
-                crate::server::shared::types::error_codes::ErrorCode::AuthEmailVerificationRequired,
-            )));
+            return Err(AuthError(ApiError::email_verification_required()));
         }
 
         Ok(Authorized {

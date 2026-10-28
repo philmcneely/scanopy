@@ -15,12 +15,14 @@
 	import SegmentedControl from '$lib/shared/components/forms/SegmentedControl.svelte';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
+	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	import { CredentialTypeDisplay } from '$lib/shared/components/forms/selection/display/CredentialTypeDisplay.svelte';
 	import type { Credential, CredentialType } from '../types/base';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
-	import { createDefaultCredential } from '../types/base';
+	import { createDefaultCredential, credentialTypeUpgradeFeature } from '../types/base';
+	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import { entityRef } from '$lib/shared/components/data/types';
 	import { credentialTypes, entities } from '$lib/shared/stores/metadata';
@@ -33,7 +35,7 @@
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import RadioGroup from '$lib/shared/components/forms/input/RadioGroup.svelte';
 	import type { FieldDefinition, FieldType } from '$lib/shared/stores/metadata';
-	import { Eye, EyeOff } from 'lucide-svelte';
+	import { Eye, EyeOff, HelpCircle, Plus } from 'lucide-svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import { docsUrl } from '$lib/shared/utils/docs';
 	import {
@@ -57,6 +59,9 @@
 		common_description,
 		common_details,
 		common_name,
+		common_stepNumber,
+		daemons_credentialWizardStepConfigure,
+		daemons_credentialWizardStepSelectTarget,
 		common_options,
 		credentials_credentialType,
 		credentials_daemonOs,
@@ -97,10 +102,9 @@
 		fixedName?: string;
 		compact?: boolean;
 		hideFields?: boolean;
-		/** Show the name + field inputs but render them disabled (read-only), instead of hiding
-		 *  them with `hideFields`. Used for referenced/managed credentials (e.g. a daemon-host
-		 *  socket) so the user can see values like socket_path but cannot edit them here. */
-		disabled?: boolean;
+		/** Shown in Step 2 in place of the name + field inputs. Used for a saved credential added
+		 *  by reference, whose fields are edited from the credential itself, not here. */
+		fieldsNotice?: string;
 		/** Hide the target (scope/IP) section — for daemon-host-only types (e.g. the local
 		 *  socket) whose target is implicit (127.0.0.1). Shows fields, no target picker. */
 		hideTargets?: boolean;
@@ -147,7 +151,7 @@
 		fixedName,
 		compact = false,
 		hideFields = false,
-		disabled = false,
+		fieldsNotice,
 		hideTargets = false,
 		fieldPrefix = '',
 		daemonHostUnavailable = false,
@@ -167,7 +171,7 @@
 	let isEditing = $derived(credential !== null);
 
 	// Selected credential type ID for dynamic form rendering
-	let selectedTypeId = $state<string>('SnmpV2c');
+	let selectedTypeId = $state<string>('SnmpCommunity');
 
 	// Notify the parent when the selected type changes (drives the assignments surface)
 	$effect(() => {
@@ -307,16 +311,28 @@
 			: buildFieldCards(section !== 'fields', section !== 'identity' ? groups : []);
 	}
 
-	let fieldCards = $derived(cardsFor(visibleFieldGroups));
-
 	// One card's worth of fields sits on the modal surface; two or more cards each get a title.
 	// Decided from every field of the type, so a field-set choice that hides a group (SNMPv3
 	// authNoPriv hides Privacy) shows or hides fields without switching the layout to flat.
 	let useGroupCards = $derived(cardsFor(groupFieldsByGroup(typeFields)).length > 1);
 
+	// Fields are all carded or all flat: once groups are carded, compact mode's name gets a
+	// Details card too, as standard mode's identity fields do.
+	let fieldCards = $derived(
+		compact && useGroupCards
+			? buildFieldCards(true, visibleFieldGroups)
+			: cardsFor(visibleFieldGroups)
+	);
+
 	// Track target IPs as local $state for reactivity (TanStack Form doesn't drive Svelte 5 reactivity)
 	let targetIpValues = $state<string[]>(['']);
 	let hasDaemonHostTarget = $derived(targetIpValues.some(isDaemonHostValue));
+	// Wizard cards that show both targets and fields number them: pick a target, then configure.
+	let showSteps = $derived(compact && !hideTargets && !hideFields);
+	// Until a target row exists, the add-target buttons are the card's primary action.
+	let targetCtaClass = $derived(
+		`${targetIpValues.length > 0 ? 'btn-secondary' : 'btn-primary'} px-3 py-1.5 text-sm`
+	);
 
 	// --- Secret/file field mode tracking ---
 	let secretFieldModes = $state<Record<string, 'inline' | 'filepath'>>({});
@@ -428,7 +444,7 @@
 				form.setFieldValue?.('name', defaults.name);
 			}
 		} else {
-			const typeId = fixedCredentialType ?? typeChoices?.[0] ?? 'SnmpV2c';
+			const typeId = fixedCredentialType ?? typeChoices?.[0] ?? 'SnmpCommunity';
 			selectedTypeId = typeId;
 			initDefaultFieldValues(typeId);
 		}
@@ -553,6 +569,18 @@
 			? credentialTypes.getItems().filter((t) => typeChoices.includes(t.id))
 			: credentialTypes.getItems()
 	);
+
+	// A type the plan lacks stays listed behind an upgrade badge, as export formats do, and picking
+	// it opens the plan picker. Only creating is gated; the type is locked while editing.
+	function upgradeFeatureFor(typeId: string) {
+		return isEditing ? null : credentialTypeUpgradeFeature(typeId, organization?.plan?.type);
+	}
+
+	function handleGatedTypeClick(typeId: string) {
+		const feature = upgradeFeatureFor(typeId);
+		if (!feature) return;
+		triggerUpgrade({ feature, source: 'credential_type_picker', surface: 'credential_form' });
+	}
 
 	// Whether to show type selector and name field
 	let showTypeSelector = $derived(!fixedCredentialType);
@@ -884,11 +912,36 @@
 	{/if}
 {/snippet}
 
+{#snippet stepHeading(number: number, label: string, help?: string)}
+	{#if showSteps}
+		<h3
+			class="flex items-center gap-1 border-b border-(--color-border) pb-2 text-sm font-semibold text-primary"
+		>
+			{common_stepNumber({ number: String(number) })}
+			{label}
+			{#if help}
+				<span
+					use:tooltip
+					data-tooltip={help}
+					aria-label={help}
+					class="inline-flex shrink-0 items-center p-0.5 text-tertiary"
+					><HelpCircle class="h-3.5 w-3.5" /></span
+				>
+			{/if}
+		</h3>
+	{/if}
+{/snippet}
+
 {#if compact}
 	<div class="space-y-4">
 		{@render integrationDocsHint()}
 
 		{#if !hideTargets}
+			{@render stepHeading(
+				1,
+				daemons_credentialWizardStepSelectTarget(),
+				daemons_credentialWizardTargetIpHelp()
+			)}
 			<!-- Hosts this credential already reaches through the host/credential junction.
 			     Informational, like the site-wide credential line in the wizard — these are
 			     owned elsewhere, so they are listed rather than offered as editable rows.
@@ -956,11 +1009,15 @@
 								</form.Field>
 							</div>
 						{/if}
-						<button
-							type="button"
-							class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
-							onclick={() => handleRemoveTarget(i)}>&times;</button
-						>
+						<!-- A type that can only target the daemon host keeps that row: removing it would
+						     leave the credential nothing to run on. -->
+						{#if !(isDaemonHostValue(ip) && !supportsRemoteHosts)}
+							<button
+								type="button"
+								class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
+								onclick={() => handleRemoveTarget(i)}>&times;</button
+							>
+						{/if}
 					</div>
 				{/each}
 				<div class="flex flex-wrap items-center gap-3">
@@ -974,60 +1031,46 @@
 								})}
 								use:tooltip
 							>
-								<button
-									type="button"
-									class="cursor-not-allowed text-sm text-muted opacity-40"
-									disabled>+ {daemons_credentialWizardAddDaemonHostTarget()}</button
-								>
+								<button type="button" class={targetCtaClass} disabled>
+									<Plus size={14} />
+									{daemons_credentialWizardAddDaemonHostTarget()}
+								</button>
 							</span>
 						{:else if hasDaemonHostTarget}
-							<!-- Already added: disabled, no hover state -->
-							<button
-								type="button"
-								class="cursor-not-allowed text-sm text-muted opacity-40"
-								disabled>+ {daemons_credentialWizardAddDaemonHostTarget()}</button
-							>
+							<!-- Already added: disabled -->
+							<button type="button" class={targetCtaClass} disabled>
+								<Plus size={14} />
+								{daemons_credentialWizardAddDaemonHostTarget()}
+							</button>
 						{:else}
-							<button type="button" class="text-sm text-link" onclick={handleAddDaemonHostTarget}
-								>+ {daemons_credentialWizardAddDaemonHostTarget()}</button
-							>
+							<button type="button" class={targetCtaClass} onclick={handleAddDaemonHostTarget}>
+								<Plus size={14} />
+								{daemons_credentialWizardAddDaemonHostTarget()}
+							</button>
 						{/if}
 					{/if}
 					{#if supportsRemoteHosts}
-						<button type="button" class="text-sm text-link" onclick={handleAddIpTarget}
-							>+ {daemons_credentialWizardAddRemoteHostTarget()}</button
-						>
+						<button type="button" class={targetCtaClass} onclick={handleAddIpTarget}>
+							<Plus size={14} />
+							{daemons_credentialWizardAddRemoteHostTarget()}
+						</button>
 					{/if}
 				</div>
-				<p class="text-xs text-muted">{daemons_credentialWizardTargetIpHelp()}</p>
 			{/if}
 		{/if}
 
-		<!-- Name + fields. `disabled` shows them read-only (vs `hideFields` which hides them);
-		     a disabled <fieldset> disables every descendant control, including SegmentedControls. -->
+		<!-- Name + fields, or `fieldsNotice` in their place. -->
 		{#if !hideFields}
-			<fieldset {disabled} class="m-0 min-w-0 space-y-4 border-0 p-0">
-				<form.Field
-					name={nameFieldName}
-					validators={{
-						onBlur: ({ value }: { value: string }) => required(value) || max(100)(value),
-						onSubmit: ({ value }: { value: string }) => required(value) || max(100)(value)
-					}}
-					listeners={{ onChange: ({ value }: { value: string }) => onChange?.({ name: value }) }}
-				>
-					{#snippet children(field: AnyFieldApi)}
-						<TextInput
-							label={common_name()}
-							id="credential-name-{fieldPrefix}"
-							{field}
-							{disabled}
-							required
-						/>
-					{/snippet}
-				</form.Field>
-
+			{@render stepHeading(2, daemons_credentialWizardStepConfigure())}
+			{#if fieldsNotice}
+				<InlineInfo body={fieldsNotice} />
+			{:else}
+				<!-- With carded groups the name sits in the Details card instead. -->
+				{#if !useGroupCards}
+					{@render compactNameField()}
+				{/if}
 				{@render fieldCardList()}
-			</fieldset>
+			{/if}
 		{/if}
 	</div>
 {:else}
@@ -1065,7 +1108,11 @@
 {#snippet fieldCardContents(card: FieldCard)}
 	{#if card.identity}
 		<div class="space-y-4">
-			{@render identityFields()}
+			{#if compact}
+				{@render compactNameField()}
+			{:else}
+				{@render identityFields()}
+			{/if}
 		</div>
 	{/if}
 	{#each card.groups as group (group.name ?? '_ungrouped')}
@@ -1081,6 +1128,21 @@
 	{#if showTypeSelector}
 		{@render typeField()}
 	{/if}
+{/snippet}
+
+{#snippet compactNameField()}
+	<form.Field
+		name={nameFieldName}
+		validators={{
+			onBlur: ({ value }: { value: string }) => required(value) || max(100)(value),
+			onSubmit: ({ value }: { value: string }) => required(value) || max(100)(value)
+		}}
+		listeners={{ onChange: ({ value }: { value: string }) => onChange?.({ name: value }) }}
+	>
+		{#snippet children(field: AnyFieldApi)}
+			<TextInput label={common_name()} id="credential-name-{fieldPrefix}" {field} required />
+		{/snippet}
+	</form.Field>
 {/snippet}
 
 {#snippet nameField()}
@@ -1131,6 +1193,8 @@
 			showSearch={true}
 			disabled={isEditing}
 			onSelect={handleTypeChange}
+			getOptionContext={(option) => ({ upgradeFeature: upgradeFeatureFor(option.id) })}
+			onDisabledClick={handleGatedTypeClick}
 		/>
 		{#if !isEditing}
 			<p class="mt-1 text-xs text-muted">{credentials_typeImmutableWarning()}</p>
@@ -1147,7 +1211,6 @@
 					id="{fieldPrefix}{DAEMON_OS_FIELD}"
 					field={formField}
 					options={osFamilyOptions()}
-					{disabled}
 					value={daemonOs}
 					onChange={(os) => (daemonOs = os)}
 					variant="inline"
@@ -1180,7 +1243,7 @@
 						}}
 						onblur={() => formField.handleBlur()}
 						class="select-trigger w-full rounded-md px-3 py-2 text-sm text-primary"
-						class:input-field-error={formField.state.meta.errors?.length > 0}
+						class:select-trigger-error={formField.state.meta.errors?.length > 0}
 					>
 						{#each field.options ?? [] as option (option.value)}
 							<option value={option.value}>{option.label}</option>
@@ -1380,7 +1443,6 @@
 						field={formField}
 						options={field.options ?? []}
 						required={!field.optional}
-						{disabled}
 						value={fieldValues[field.id] ?? field.default_value ?? ''}
 						onChange={(v) => handleFieldValueChange(field.id, v)}
 						variant="inline"

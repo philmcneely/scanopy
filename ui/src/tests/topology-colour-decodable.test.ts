@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import viewsJson from '$lib/data/views.json';
 import hostVirtualizationsJson from '$lib/data/host-virtualizations.json';
 import ifOperStatusesJson from '$lib/data/if-oper-statuses.json';
+import guestStatesJson from '$lib/data/guest-states.json';
 import type { components } from '$lib/api/schema';
 import type { Site } from '$lib/features/sites/types';
 import type { RenderableTopology, TopologyNode } from '$lib/features/topology/types/base';
@@ -42,6 +43,8 @@ const virtualizations: Array<string | null> = [
 	...hostVirtualizationsJson.map((v) => v.id as string)
 ];
 const operStatuses: Array<string | null> = [null, ...ifOperStatusesJson.map((s) => s.id as string)];
+/** A guest's run states, cycled over the guests so each one is drawn; bare metal has none. */
+const guestStates = guestStatesJson.map((s) => s.id as string);
 
 /** The Virtualization filter value the backend stamps on a host of `virt` type. */
 const virtualizationState = (virt: string | null): string =>
@@ -61,10 +64,13 @@ function buildTopology(): RenderableTopology {
 	const services: Record<string, unknown>[] = [];
 	const interfaces: Record<string, unknown>[] = [];
 	const base = { site_id: SITE.id, tags: [], source: { type: 'Discovery' } };
+	let guest = 0;
 
 	for (const [age, seen] of ages) {
 		for (const virt of virtualizations) {
 			const hostId = `host-${virt ?? 'bare'}-${age}`;
+			// The run state the backend stamps on a guest and on a service it runs as a container.
+			const guestState = virt ? { GuestState: guestStates[guest++ % guestStates.length] } : {};
 			hosts.push({
 				...base,
 				id: hostId,
@@ -72,7 +78,7 @@ function buildTopology(): RenderableTopology {
 				last_seen_at: seen,
 				virtualization_metadata: virt ? { type: virt, details: {} } : null,
 				virtualization_service_id: virt ? 'manager' : null,
-				filter_values: { Virtualization: virtualizationState(virt) }
+				filter_values: { Virtualization: virtualizationState(virt), ...guestState }
 			});
 			ipAddresses.push({
 				...base,
@@ -91,7 +97,7 @@ function buildTopology(): RenderableTopology {
 				bindings: [],
 				last_seen_at: seen,
 				virtualization_service_id: virt ? 'manager' : null,
-				filter_values: { Category: 'RemoteAccess' }
+				filter_values: { Category: 'RemoteAccess', ...guestState }
 			});
 			for (const status of operStatuses) {
 				interfaces.push({

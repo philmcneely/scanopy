@@ -1,5 +1,5 @@
-//! `TopologyService::ensure_cloud_setup` and the paths that run it (registration and the
-//! billing subscriber): an org ends up with one site, its two system subnets and one live
+//! `OrgSetupService::seed_cloud_setup` and the events that run it (registration, the billing
+//! subscriber, a new site): an org ends up with one site, its two system subnets and one live
 //! topology, no matter how many times setup runs or what the org already had.
 
 use uuid::Uuid;
@@ -12,6 +12,7 @@ use crate::server::{
     },
     billing::types::base::BillingPlan,
     config::DeploymentType,
+    credentials::r#impl::types::CredentialTypeDiscriminants,
     organizations::r#impl::base::UseCase,
     services::r#impl::categories::ServiceCategory,
     shared::{
@@ -103,9 +104,10 @@ async fn publish_billing(services: &ServiceFactory, organization_id: Uuid, op: B
     services.event_bus.flush().await;
 }
 
-/// Register an owner with a new org, as the signup flow does. Returns the org id.
+/// Register an owner with a new org, as the signup flow does, and wait for its setup. Returns the
+/// org id.
 async fn sign_up(services: &ServiceFactory, site: Option<PendingSiteSetup>) -> Uuid {
-    services
+    let organization_id = services
         .auth_service
         .provision_user(ProvisionUserParams {
             email: "owner@example.com".parse().unwrap(),
@@ -126,7 +128,9 @@ async fn sign_up(services: &ServiceFactory, site: Option<PendingSiteSetup>) -> U
         .await
         .unwrap()
         .base
-        .organization_id
+        .organization_id;
+    services.event_bus.flush().await;
+    organization_id
 }
 
 fn assert_fresh_signup_shape(setup: &OrgSetup) {
@@ -138,7 +142,7 @@ fn assert_fresh_signup_shape(setup: &OrgSetup) {
 }
 
 #[tokio::test]
-async fn ensure_twice_creates_the_requested_site_once() {
+async fn seeding_twice_creates_the_requested_site_once() {
     let (storage, services, _container) = test_services().await;
     let org = organization();
     storage.organizations.create(&org).await.unwrap();
@@ -149,8 +153,8 @@ async fn ensure_twice_creates_the_requested_site_once() {
     };
     for _ in 0..2 {
         services
-            .topology_service
-            .ensure_cloud_setup(org.id, Some(&requested), AuthenticatedEntity::System)
+            .org_setup_service
+            .seed_cloud_setup(org.id, Some(&requested), AuthenticatedEntity::System)
             .await
             .unwrap();
     }
@@ -162,7 +166,7 @@ async fn ensure_twice_creates_the_requested_site_once() {
 }
 
 #[tokio::test]
-async fn ensure_fills_gaps_on_existing_sites_without_adding_one() {
+async fn seeding_fills_gaps_on_existing_sites_without_adding_one() {
     let (storage, services, _container) = test_services().await;
     let org = organization();
     storage.organizations.create(&org).await.unwrap();
@@ -173,8 +177,8 @@ async fn ensure_fills_gaps_on_existing_sites_without_adding_one() {
     storage.subnets.create(&subnet(&net.id)).await.unwrap();
 
     services
-        .topology_service
-        .ensure_cloud_setup(org.id, None, AuthenticatedEntity::System)
+        .org_setup_service
+        .seed_cloud_setup(org.id, None, AuthenticatedEntity::System)
         .await
         .unwrap();
 
@@ -202,13 +206,19 @@ async fn self_hosted_signup_gets_no_site_until_it_moves_to_cloud() {
     )
     .await;
     assert!(org_setup(&services, org_id).await.sites.is_empty());
-    // Every new org gets the system tag groups, with or without a site.
+    // Every new org gets the system tag groups and default credentials, with or without a site.
     let groups = services
         .tag_group_service
         .get_for_org(&org_id)
         .await
         .unwrap();
     assert!(TagGroupType::system().all(|t| groups.iter().any(|g| g.base.group_type == t)));
+    let snmp_default = services
+        .credential_service
+        .find_default(org_id, CredentialTypeDiscriminants::SnmpCommunity)
+        .await
+        .unwrap()
+        .expect("a new org has the SNMP default");
 
     publish_billing(
         &services,
@@ -224,18 +234,25 @@ async fn self_hosted_signup_gets_no_site_until_it_moves_to_cloud() {
     )
     .await;
 
-    assert_fresh_signup_shape(&org_setup(&services, org_id).await);
+    let setup = org_setup(&services, org_id).await;
+    assert_fresh_signup_shape(&setup);
+    // The site came after the defaults, so it holds the SNMP one.
+    let site_credentials = services
+        .credential_service
+        .get_credential_ids_for_site(&setup.sites[0].id)
+        .await
+        .unwrap();
+    assert_eq!(site_credentials, vec![snmp_default.id]);
 }
 
 #[tokio::test]
-async fn cloud_signup_has_its_site_when_registration_returns() {
+async fn cloud_signup_gets_its_requested_site() {
     let (_storage, services, _container) = test_services().await;
 
     let requested = PendingSiteSetup {
         name: "Lab".to_string(),
         site_id: Uuid::new_v4(),
     };
-    // No flush: the integrated daemon is provisioned on this site right after.
     let org_id = sign_up(&services, Some(requested.clone())).await;
     let setup = org_setup(&services, org_id).await;
     assert_fresh_signup_shape(&setup);
@@ -269,10 +286,49 @@ async fn concurrent_setup_runs_create_one_site() {
         name: "Lab".to_string(),
         site_id: Uuid::new_v4(),
     };
-    let topology = &services.topology_service;
+    let setup = &services.org_setup_service;
     let (a, b) = tokio::join!(
-        topology.ensure_cloud_setup(org.id, Some(&requested), AuthenticatedEntity::System),
-        topology.ensure_cloud_setup(org.id, None, AuthenticatedEntity::System),
+        setup.seed_cloud_setup(org.id, Some(&requested), AuthenticatedEntity::System),
+        setup.seed_cloud_setup(org.id, None, AuthenticatedEntity::System),
+    );
+    a.unwrap();
+    b.unwrap();
+
+    assert_fresh_signup_shape(&org_setup(&services, org.id).await);
+}
+
+/// A site created through the service gets its system subnets and live topology from its
+/// Created event.
+#[tokio::test]
+async fn a_new_site_gets_its_subnets_and_topology() {
+    let (storage, services, _container) = test_services().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+
+    services
+        .site_service
+        .create(site(&org.id), AuthenticatedEntity::System)
+        .await
+        .unwrap();
+    services.event_bus.flush().await;
+
+    assert_fresh_signup_shape(&org_setup(&services, org.id).await);
+}
+
+/// The org's cloud setup and the site's Created event seeding one site at once must not both
+/// create its subnets.
+#[tokio::test]
+async fn concurrent_site_seeding_creates_one_set_of_subnets() {
+    let (storage, services, _container) = test_services().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let net = site(&org.id);
+    storage.sites.create(&net).await.unwrap();
+
+    let setup = &services.org_setup_service;
+    let (a, b) = tokio::join!(
+        setup.seed_site(net.id, AuthenticatedEntity::System),
+        setup.seed_site(net.id, AuthenticatedEntity::System),
     );
     a.unwrap();
     b.unwrap();
@@ -308,8 +364,8 @@ async fn new_topology_and_default_options_follow_each_orgs_use_case() {
     storage.organizations.create(&homelab).await.unwrap();
 
     services
-        .topology_service
-        .ensure_cloud_setup(msp.id, None, AuthenticatedEntity::System)
+        .org_setup_service
+        .seed_cloud_setup(msp.id, None, AuthenticatedEntity::System)
         .await
         .unwrap();
     let site_ids: Vec<Uuid> = org_setup(&services, msp.id)

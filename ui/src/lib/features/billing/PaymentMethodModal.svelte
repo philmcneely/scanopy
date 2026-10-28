@@ -4,6 +4,14 @@
 	import InvoiceBillingForm from '$lib/features/billing/InvoiceBillingForm.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
+	import { formatLongDate } from '$lib/shared/utils/formatting';
+	import { trialChargeDate } from '$lib/shared/utils/trial';
+	import { useDelayedFlag } from '$lib/shared/utils/delayed-flag.svelte';
+	import {
+		clearSetupIntent,
+		paymentDialogPreload,
+		takeSetupIntent
+	} from '$lib/features/billing/stripe.svelte';
 	import {
 		useCheckoutMutation,
 		useCreateSetupIntentMutation,
@@ -16,7 +24,7 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { isPaidSubscriptionActive, isPlanLapsed } from '$lib/features/organizations/types';
 	import { modalState, closeModal, openModal } from '$lib/shared/stores/modal-registry';
-	import { reopenSettingsTabAfterPayment } from '$lib/features/billing/stores';
+	import { billingOverModal, reopenSettingsTabAfterPayment } from '$lib/features/billing/stores';
 	import { waitForOrgUpdate } from '$lib/shared/billing/wait-for-org-update';
 	import { billingPlans } from '$lib/shared/stores/metadata';
 	import { pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
@@ -36,6 +44,7 @@
 		billing_payByInvoice,
 		billing_invoice_termsUnavailable,
 		billing_invoice_termsUnavailableSettled,
+		billing_notChargedUntilTrialEnds,
 		billing_invoice_payOutstanding
 	} from '$lib/paraglide/messages';
 
@@ -45,9 +54,13 @@
 	// openModal('payment-method'). A plan picked by an org with no live
 	// subscription rides along in `entityData.plan`, and the surface that opened
 	// it in `entityData.source` (absent after a reload mid-flow).
-	let isOpen = $derived($modalState.name === 'payment-method');
-	let pendingPlan = $derived(($modalState.entityData?.plan as BillingPlan | undefined) ?? null);
-	let source = $derived(($modalState.entityData?.source as PaymentFormSource | undefined) ?? null);
+	// Opened over a form (see `billingOverModal`), it takes no registry name and reads its plan from
+	// that store, so the form underneath stays mounted.
+	let overModal = $derived($billingOverModal?.modal === 'payment-method');
+	let isOpen = $derived(overModal || $modalState.name === 'payment-method');
+	let entityData = $derived(overModal ? $billingOverModal?.entityData : $modalState.entityData);
+	let pendingPlan = $derived((entityData?.plan as BillingPlan | undefined) ?? null);
+	let source = $derived((entityData?.source as PaymentFormSource | undefined) ?? null);
 
 	const setupIntentMutation = useCreateSetupIntentMutation();
 	const finalizeMutation = useFinalizePaymentMethodMutation();
@@ -57,10 +70,19 @@
 	const organizationQuery = useOrganizationQuery();
 	let org = $derived(organizationQuery.data);
 
+	// The plan this card is for: the one being bought, or else the one the org
+	// is on (a banner asking to pay for the current trial or subscription).
+	// Every plan-dependent choice below reads it. `pendingPlan` alone means
+	// "buy this after saving the card".
+	let cardPlan = $derived(pendingPlan ?? org?.plan ?? null);
 	// Invoice billing is offered only on the self-hosted plans sold in the app.
-	let orgPlanLicensed = $derived(
-		org?.plan?.type != null && billingPlans.getMetadata(org.plan.type).license_plan != null
+	let cardPlanLicensed = $derived(
+		cardPlan != null && billingPlans.getMetadata(cardPlan.type).license_plan != null
 	);
+	// The card starts or continues a trial, so nothing is charged until it ends:
+	// a picked plan with a trial the org can still take, or an org already
+	// trialing (a switch keeps the trial).
+	let trialEndsAt = $derived(trialChargeDate(org, pendingPlan));
 	// An org that defaulted on an invoice we wrote off has lost payment terms
 	// until it settles. The server refuses the request either way; withholding
 	// the link here is what stops the buyer walking into that refusal.
@@ -70,11 +92,9 @@
 	// exists, so paying here would buy nothing. It still cannot take terms,
 	// which is what the note has to explain without offering a payment.
 	let orgIsLapsed = $derived(org != null && isPlanLapsed(org));
-	let planAllowsInvoice = $derived(
-		(pendingPlan?.type != null &&
-			billingPlans.getMetadata(pendingPlan.type).license_plan != null) ||
-			orgPlanLicensed
-	);
+	// Decided by the plan the card is for, so an org on a license trial adding a
+	// card for a cloud plan isn't offered terms the cloud plan doesn't take.
+	let planAllowsInvoice = $derived(cardPlanLicensed);
 	let invoiceEligible = $derived(planAllowsInvoice && writtenOffInvoice.current == null);
 	// Settling is the one route back for a lapsed org, so it takes the centred
 	// slot under the element where "Pay by invoice" sits for everyone else.
@@ -86,22 +106,35 @@
 	);
 	// Nothing names the plan to invoice for: the form asks. Covers a reload
 	// mid-flow, which rebuilds modal state from the URL without the plan.
-	let needsPlanChoice = $derived(pendingPlan == null && !orgPlanLicensed);
+	let needsPlanChoice = $derived(pendingPlan == null && !cardPlanLicensed);
 
 	// Card and bank are Stripe's own tabs inside the Payment Element, which is up
 	// as soon as the dialog opens. Invoice is a text link under it.
 	type Method = 'card' | 'invoice';
 	let method = $state<Method>('card');
-	let clientSecret = $state<string | null>(null);
+	// The intent this open is bound to: one fetched on open, or the prefetched
+	// one pinned when its card is saved, so the form keeps it while finalize
+	// runs and the next intent is prefetched.
+	let pinnedSecret = $state<string | null>(null);
+	// While a surface that opens this is showing, the form mounts on the
+	// prefetched intent behind the closed dialog, so opening shows it drawn.
+	let clientSecret = $derived(pinnedSecret ?? paymentDialogPreload.clientSecretFor(org?.id));
+	// The intent is usually prefetched, so a wheel only shows for a slow fetch.
+	const showSpinner = useDelayedFlag(() => isOpen && clientSecret == null, 400);
 
 	// Opened from a tab inside Settings, this modal replaced Settings in the
 	// registry while Settings stayed on screen (a locked org's Settings can't
 	// close). Naming it again puts the registry and the URL back on what is
 	// visible, whichever way this dialog ends.
 	function closeAndReturn() {
-		// A SetupIntent is single-use. The next open fetches a fresh one rather
-		// than remounting the form on one that may already have succeeded.
-		clientSecret = null;
+		// An unconfirmed intent can back the next open. A saved card has already
+		// spent it (clearSetupIntent), and the next one is prefetched.
+		pinnedSecret = null;
+		method = 'card';
+		if (overModal) {
+			billingOverModal.set(null);
+			return;
+		}
 		const tab = $reopenSettingsTabAfterPayment;
 		closeModal();
 		if (tab) {
@@ -118,7 +151,9 @@
 	async function loadCardForm() {
 		if (clientSecret != null) return;
 		try {
-			clientSecret = await setupIntentMutation.mutateAsync();
+			// Usually made already, by the surface that opened this (usePreloadStripe).
+			pinnedSecret =
+				org != null ? await takeSetupIntent(org.id) : await setupIntentMutation.mutateAsync();
 		} catch (err) {
 			trackPaymentFormFailed('setup_intent', source, apiFailure(err));
 			// setup-intent error is toasted by the mutation; close the empty dialog
@@ -134,6 +169,10 @@
 		// Read before the await: the registry can move on while the card is
 		// finalizing, and the plan this dialog was opened for must not go with it.
 		const plan = pendingPlan;
+		// Stripe has confirmed this intent, so it can't back another form. This
+		// form keeps it, so a finalize retry confirms nothing twice.
+		pinnedSecret = clientSecret;
+		clearSetupIntent();
 		try {
 			await finalizeMutation.mutateAsync(setupIntentId);
 		} catch (err) {
@@ -188,9 +227,10 @@
 
 <GenericModal
 	{isOpen}
-	name="payment-method"
+	keepMounted={paymentDialogPreload.warm}
+	name={overModal ? undefined : 'payment-method'}
 	title={billing_addPaymentMethod()}
-	size="md"
+	size="xl"
 	compactPadding={true}
 	showCloseButton={true}
 	onClose={closeAndReturn}
@@ -219,25 +259,33 @@
 				/>
 			</div>
 		{/if}
-		<StripeCardForm
-			{clientSecret}
-			email={userEmail}
-			submitLabel={common_save()}
-			onSuccess={handleCardSuccess}
-			onConfirmFailed={handleConfirmFailed}
-			onCancel={closeAndReturn}
-			altAction={payOutstandingUrl
-				? {
-						label: billing_invoice_payOutstanding(),
-						onclick: () => window.open(payOutstandingUrl, '_blank', 'noopener,noreferrer')
-					}
-				: invoiceEligible
-					? { label: billing_payByInvoice(), onclick: () => (method = 'invoice') }
-					: null}
-		/>
+		{#key clientSecret}
+			<StripeCardForm
+				{clientSecret}
+				active={isOpen}
+				notice={trialEndsAt
+					? billing_notChargedUntilTrialEnds({ date: formatLongDate(trialEndsAt) })
+					: undefined}
+				email={userEmail}
+				submitLabel={common_save()}
+				onSuccess={handleCardSuccess}
+				onConfirmFailed={handleConfirmFailed}
+				onCancel={closeAndReturn}
+				altAction={payOutstandingUrl
+					? {
+							label: billing_invoice_payOutstanding(),
+							onclick: () => window.open(payOutstandingUrl, '_blank', 'noopener,noreferrer')
+						}
+					: invoiceEligible
+						? { label: billing_payByInvoice(), onclick: () => (method = 'invoice') }
+						: null}
+			/>
+		{/key}
 	{:else}
 		<div class="flex min-h-[12rem] items-center justify-center p-6">
-			<Loading />
+			{#if showSpinner.current}
+				<Loading />
+			{/if}
 		</div>
 	{/if}
 </GenericModal>

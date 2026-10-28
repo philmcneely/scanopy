@@ -153,9 +153,10 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(generated::get_field_values))
 }
 
-/// List all sites
+/// List sites
 #[utoipa::path(
     get,
+    operation_id = "list_sites",
     path = "",
     tag = Site::ENTITY_NAME_PLURAL,
     params(SiteListQuery),
@@ -174,9 +175,10 @@ async fn get_all_sites(
     Ok(Json(list_page::<Site>(&state, &scope, &query).await?))
 }
 
-/// Get a site by ID
+/// Get site by ID
 #[utoipa::path(
     get,
+    operation_id = "get_site_by_id",
     path = "/{id}",
     tag = Site::ENTITY_NAME_PLURAL,
     params(("id" = Uuid, Path, description = "Site ID")),
@@ -213,7 +215,7 @@ async fn get_by_id_site(
     Ok(response)
 }
 
-/// Create a new site
+/// Create site
 #[utoipa::path(
     post,
     path = "",
@@ -257,13 +259,6 @@ async fn create_site(
     if let Some(site) = response.data() {
         let service = Site::get_service(&state);
 
-        // System subnets + live-view topology row for this site.
-        state
-            .services
-            .topology_service
-            .ensure_site_setup(site.id, entity.clone())
-            .await?;
-
         // Emit SecondSiteCreated telemetry event
         if let Some(organization_id) = organization_id {
             // Count sites to confirm this is actually the second+
@@ -300,7 +295,7 @@ async fn create_site(
     Ok(response)
 }
 
-/// Update a site
+/// Update site
 #[utoipa::path(
     put,
     path = "/{id}",
@@ -370,7 +365,7 @@ async fn update_site(
     Ok(response)
 }
 
-/// Delete a site
+/// Delete site
 #[utoipa::path(
     delete,
     path = "/{id}",

@@ -16,6 +16,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "secure-switch-01",
@@ -34,6 +36,7 @@ pub fn device() -> SimDevice {
             },
             context_name: None,
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("Huawei S5000 Series, VRP V200R019C10".into()),
             sys_object_id: Some("1.3.6.1.4.1.2011.2.23.999".into()),

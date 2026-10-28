@@ -123,7 +123,9 @@
 {#snippet keyHint(shortcut: string | undefined)}
 	{#if shortcut}
 		<span
-			class="font-normal text-tertiary transition-opacity {shortcutsPaused ? 'opacity-40' : ''}"
+			class="font-normal text-tertiary transition-opacity max-md:hidden {shortcutsPaused
+				? 'opacity-40'
+				: ''}"
 			title={shortcutsPaused ? common_shortcutsPausedInSearch() : undefined}>({shortcut})</span
 		>
 	{/if}
@@ -153,7 +155,7 @@
 )}
 	<button type="button" class="summary-control btn-secondary" {onclick}>
 		{@render icon()}
-		{label}
+		<span class="max-md:sr-only">{label}</span>
 		{@render keyHint(shortcut)}
 	</button>
 {/snippet}
@@ -201,7 +203,7 @@
 	{/if}
 {/snippet}
 
-<div class="flex items-center justify-between text-sm text-tertiary">
+<div class="flex flex-wrap items-center justify-between gap-y-2 text-sm text-tertiary">
 	<!-- Left: the table's own controls, then the clears for what narrows or shapes the view. -->
 	<div class="flex items-center gap-2">
 		{#if columnMenu}
@@ -215,7 +217,7 @@
 				class="summary-control btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				<Download class="h-3.5 w-3.5" />
-				{isExporting ? common_exporting() : common_export()}
+				<span class="max-md:sr-only">{isExporting ? common_exporting() : common_export()}</span>
 				{@render keyHint(exportShortcut)}
 			</button>
 		{/if}
@@ -284,7 +286,7 @@
 				<select
 					value={pageSize}
 					onchange={(e) => onPageSizeChange(parseInt(e.currentTarget.value) as PageSizeOption)}
-					class="mx-0 summary-control input-field py-0! pr-6! pl-2!"
+					class="summary-control input-field mx-0 py-0! pr-6! pl-2!"
 				>
 					{#each PAGE_SIZE_OPTIONS as size (size)}
 						<option value={size}>{size}</option>

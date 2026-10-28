@@ -2,6 +2,8 @@
 use super::*;
 use crate::server::billing::service::invoicing::write_off_unpaid_license_invoices;
 use crate::server::billing::service::webhook_envelope::{StripeEnvelope, authenticate};
+use crate::server::shared::events::types::TrialExtensionSource;
+use chrono::DateTime;
 use stripe::StripeError;
 use stripe_billing::Invoice;
 use stripe_billing::invoice::RetrieveInvoice;
@@ -156,7 +158,7 @@ impl BillingService {
     /// subscription as fetched, carried the customer's cancellation feedback.
     /// See `StripeEnvelope::carries_cancellation_feedback`. `event_created` is
     /// the event's unix timestamp, which redeliveries repeat.
-    async fn handle_subscription_update(
+    pub(crate) async fn handle_subscription_update(
         &self,
         sub: Subscription,
         feedback_in_event: bool,
@@ -203,10 +205,7 @@ impl BillingService {
         // Snapshot pre-webhook state from the org row so we can detect
         // transitions (None plan, was-trialing, etc.) before applying
         // webhook updates.
-        let prior_plan = organization
-            .base
-            .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        let prior_plan = organization.base.plan;
         let prior_status = organization.base.plan_status;
         let prior_was_free = prior_plan.is_free();
         let prior_was_trialing = prior_status == Some(PlanStatus::Trialing);
@@ -215,6 +214,37 @@ impl BillingService {
         // (cancel reason, save-offer state, etc.) rides here from the
         // endpoint and is read back in the detection arms below.
         let meta = StripeSubscriptionMetadata::from_stripe(&sub.metadata);
+
+        // TrialExtended arm — the trial end moved past the one on the org row,
+        // by the self-serve extend or in the Stripe dashboard. Applying the
+        // event writes the new end, so a redelivery or a later unrelated
+        // update finds nothing to announce. Ahead of the cancellation branch,
+        // which returns early: staff can extend a trial with a cancellation
+        // scheduled.
+        if let Some((days_added, new_trial_end, source)) = trial_extension(
+            &organization,
+            &sub.status,
+            sub.trial_end
+                .and_then(|t| chrono::DateTime::<Utc>::from_timestamp(t, 0)),
+            &meta,
+        ) && let Some(owner) = owners.first()
+        {
+            events.push(Event::new(
+                OrgScope {
+                    organization_id: org_id,
+                },
+                BillingOperation::TrialExtended {
+                    plan,
+                    days_added,
+                    new_trial_end,
+                    source,
+                    has_payment_method: organization.can_pay()
+                        || sub.collection_method == SubscriptionCollectionMethod::SendInvoice,
+                    cancellation_scheduled: sub.cancel_at.is_some(),
+                },
+                owner.clone().into(),
+            ));
+        }
 
         // Pending cancellation — user keeps current plan until period ends.
         // `sub.cancel_at` is the universal signal for "scheduled
@@ -252,7 +282,7 @@ impl BillingService {
                             organization_id: organization.id,
                         },
                         BillingOperation::CancellationInitiated {
-                            plan: organization.base.plan,
+                            plan: Some(organization.base.plan),
                             reason_code: meta.scanopy_cancel_reason,
                             stripe_feedback: stripe_feedback.clone(),
                             stripe_reason: stripe_reason.clone(),
@@ -526,29 +556,6 @@ impl BillingService {
             ));
         }
 
-        // TrialExtended arm — endpoint stashed `scanopy_trial_extended_days`
-        // in metadata; applying the event flips `trial_extended_used` to true
-        // so subsequent webhooks skip.
-        if !organization.base.trial_extended_used
-            && let Some(days_added) = meta.scanopy_trial_extended_days
-            && let Some(owner) = owners.first()
-        {
-            let new_trial_end = sub
-                .trial_end
-                .and_then(|t| chrono::DateTime::<Utc>::from_timestamp(t, 0))
-                .unwrap_or_else(Utc::now);
-            events.push(Event::new(
-                OrgScope {
-                    organization_id: org_id,
-                },
-                BillingOperation::TrialExtended {
-                    days_added,
-                    new_trial_end,
-                },
-                owner.clone().into(),
-            ));
-        }
-
         // Reactivated arm — pending cancellation cleared. Idempotency via
         // `prior_status == pending_cancellation`; applying the event restores
         // `plan_status` via `implied_status`. Carry the live trial state so a sub
@@ -685,6 +692,9 @@ impl BillingService {
                     },
                     BillingOperation::TrialWillEnd {
                         plan,
+                        trial_started_at: current
+                            .trial_start
+                            .and_then(|t| chrono::DateTime::<Utc>::from_timestamp(t, 0)),
                         // Either way to pay keeps the subscription alive, so a
                         // buyer paying by invoice is not asked for a card.
                         //
@@ -841,12 +851,24 @@ impl BillingService {
             );
             return Ok(());
         };
+        // A legacy $0 Free subscription ending is not a cancellation: the org
+        // stays on Free, now with no subscription behind it, and nobody is
+        // told. v0.19.2 cancelled these at boot.
+        if locked.org.base.plan.is_free() {
+            let mut locked = locked;
+            locked.org.base.plan_status = None;
+            locked.org.base.next_renewal_at = None;
+            locked
+                .save(
+                    AuthenticatedEntity::System,
+                    crate::server::shared::events::types::UpdateReason::OrganizationBillingSynced,
+                )
+                .await?;
+            return Ok(());
+        }
         let organization = &locked.org;
 
-        let cancelled_plan = organization
-            .base
-            .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        let cancelled_plan = organization.base.plan;
         let was_trialing = organization.base.plan_status == Some(PlanStatus::Trialing);
         let customer_id = organization.base.stripe_customer_id.clone();
         // Whether a save-offer discount is currently applied — drives the
@@ -1087,6 +1109,43 @@ fn resubscribed(
         )
 }
 
+/// The extension this update carries, as days added, the new trial end and who
+/// made it: the subscription is still trialing and its trial end is later than
+/// the one on the org row. `None` when the org has no trial end to compare.
+///
+/// The self-serve extend is the only writer of `scanopy_trial_extended_days`,
+/// and Stripe keeps the key on the subscription afterwards. So the key means a
+/// user extension only until that extension is recorded; one seen after that
+/// is staff moving the date again.
+fn trial_extension(
+    organization: &Organization,
+    status: &SubscriptionStatus,
+    trial_end: Option<DateTime<Utc>>,
+    meta: &StripeSubscriptionMetadata,
+) -> Option<(u32, DateTime<Utc>, TrialExtensionSource)> {
+    let was_trialing = matches!(
+        organization.base.plan_status,
+        Some(PlanStatus::Trialing) | Some(PlanStatus::PendingCancellation)
+    );
+    if *status != SubscriptionStatus::Trialing || !was_trialing {
+        return None;
+    }
+    let (stored_end, new_end) = (organization.base.trial_end_date?, trial_end?);
+    if new_end <= stored_end {
+        return None;
+    }
+    // Whole days, at least one: Stripe takes any timestamp, so a dashboard
+    // edit need not be a whole number of days.
+    let days_added = (((new_end - stored_end).num_hours() as f64 / 24.0).round() as u32).max(1);
+    let source =
+        if meta.scanopy_trial_extended_days.is_some() && !organization.base.trial_extended_used {
+            TrialExtensionSource::User
+        } else {
+            TrialExtensionSource::Staff
+        };
+    Some((days_added, new_end, source))
+}
+
 /// Whether this subscription update is the moment a sent invoice's buyer fell
 /// behind: past due now, not before, on a subscription Stripe bills by
 /// invoice rather than charging.
@@ -1150,6 +1209,154 @@ mod tests {
             .into_iter()
             .find(|plan| matches!(plan, BillingPlan::Pro(_)))
             .unwrap()
+    }
+
+    fn day(n: i64) -> DateTime<Utc> {
+        DateTime::<Utc>::from_timestamp(1_800_000_000, 0).unwrap() + chrono::Duration::days(n)
+    }
+
+    fn trialing_until(end: DateTime<Utc>) -> Organization {
+        let mut org = Organization::default();
+        org.base.plan = pro();
+        org.base.plan_status = Some(PlanStatus::Trialing);
+        org.base.trial_end_date = Some(end);
+        org
+    }
+
+    fn user_extension_metadata() -> StripeSubscriptionMetadata {
+        StripeSubscriptionMetadata {
+            scanopy_trial_extended_days: Some(7),
+            ..Default::default()
+        }
+    }
+
+    /// Detect the extension the way the webhook does and apply it to `org`,
+    /// as `commit_billing` would. `None` when the update carries none.
+    fn receive_update(
+        org: &mut Organization,
+        trial_end: DateTime<Utc>,
+        meta: &StripeSubscriptionMetadata,
+    ) -> Option<TrialExtensionSource> {
+        let (days_added, new_trial_end, source) =
+            trial_extension(org, &SubscriptionStatus::Trialing, Some(trial_end), meta)?;
+        BillingOperation::TrialExtended {
+            plan: org.base.plan,
+            days_added,
+            new_trial_end,
+            source,
+            has_payment_method: false,
+            cancellation_scheduled: false,
+        }
+        .apply(org, Utc::now());
+        Some(source)
+    }
+
+    #[test]
+    fn a_self_serve_extension_is_announced_once_and_uses_up_the_extension() {
+        let mut org = trialing_until(day(14));
+        let meta = user_extension_metadata();
+
+        assert_eq!(
+            trial_extension(&org, &SubscriptionStatus::Trialing, Some(day(21)), &meta),
+            Some((7, day(21), TrialExtensionSource::User))
+        );
+        assert_eq!(
+            receive_update(&mut org, day(21), &meta),
+            Some(TrialExtensionSource::User)
+        );
+        assert!(org.base.trial_extended_used);
+        assert_eq!(org.base.trial_end_date, Some(day(21)));
+
+        // A redelivery, or any later update while the trial runs: Stripe
+        // still returns the same trial end.
+        assert_eq!(receive_update(&mut org, day(21), &meta), None);
+    }
+
+    #[test]
+    fn a_dashboard_extension_leaves_the_self_serve_extension_available() {
+        let mut org = trialing_until(day(14));
+        let meta = StripeSubscriptionMetadata::default();
+
+        assert_eq!(
+            receive_update(&mut org, day(24), &meta),
+            Some(TrialExtensionSource::Staff)
+        );
+        assert!(!org.base.trial_extended_used);
+        assert_eq!(org.base.trial_end_date, Some(day(24)));
+        assert_eq!(receive_update(&mut org, day(24), &meta), None);
+
+        // The org can still extend once itself afterwards.
+        assert_eq!(
+            receive_update(&mut org, day(31), &user_extension_metadata()),
+            Some(TrialExtensionSource::User)
+        );
+    }
+
+    /// Stripe keeps `scanopy_trial_extended_days` on the subscription after the
+    /// self-serve extension, so a later dashboard extension arrives with it.
+    #[test]
+    fn a_dashboard_extension_after_a_self_serve_one_is_announced_as_staff() {
+        let mut org = trialing_until(day(14));
+        let meta = user_extension_metadata();
+        receive_update(&mut org, day(21), &meta);
+
+        assert_eq!(
+            trial_extension(&org, &SubscriptionStatus::Trialing, Some(day(31)), &meta),
+            Some((10, day(31), TrialExtensionSource::Staff))
+        );
+    }
+
+    #[test]
+    fn only_a_later_end_on_a_running_trial_is_an_extension() {
+        let meta = StripeSubscriptionMetadata::default();
+        let org = trialing_until(day(14));
+
+        // Ended early to convert: trial end moves earlier and the status
+        // leaves trialing.
+        assert_eq!(
+            trial_extension(&org, &SubscriptionStatus::Active, Some(day(10)), &meta),
+            None
+        );
+        assert_eq!(
+            trial_extension(&org, &SubscriptionStatus::Trialing, Some(day(10)), &meta),
+            None
+        );
+        // An active subscription put back on a trial is not an extension.
+        let mut active = trialing_until(day(14));
+        active.base.plan_status = Some(PlanStatus::Active);
+        assert_eq!(
+            trial_extension(&active, &SubscriptionStatus::Trialing, Some(day(30)), &meta),
+            None
+        );
+        // No stored end to compare: the trial's first update sets it.
+        let mut unset = trialing_until(day(14));
+        unset.base.trial_end_date = None;
+        assert_eq!(
+            trial_extension(&unset, &SubscriptionStatus::Trialing, Some(day(30)), &meta),
+            None
+        );
+        // A trial with a cancellation scheduled can still be extended.
+        let mut cancelling = trialing_until(day(14));
+        cancelling.base.plan_status = Some(PlanStatus::PendingCancellation);
+        assert!(
+            trial_extension(
+                &cancelling,
+                &SubscriptionStatus::Trialing,
+                Some(day(20)),
+                &meta
+            )
+            .is_some()
+        );
+    }
+
+    /// Implying `Trialing` would clear a scheduled cancellation, and the next
+    /// update would raise `CancellationInitiated` a second time.
+    #[test]
+    fn extending_a_trial_keeps_its_scheduled_cancellation() {
+        let mut org = trialing_until(day(14));
+        org.base.plan_status = Some(PlanStatus::PendingCancellation);
+        receive_update(&mut org, day(20), &StripeSubscriptionMetadata::default());
+        assert_eq!(org.base.plan_status, Some(PlanStatus::PendingCancellation));
     }
 
     /// A Free org arrives on a plan by leaving Free. Its own renewal is an

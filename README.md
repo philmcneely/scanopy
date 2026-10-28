@@ -28,7 +28,7 @@ Scanopy replaces manual network diagrams with a continuously maintained model of
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="./media/l2.png" alt="L2 view" />
+      <img src="./media/l2.webp" alt="L2 view" />
       <p align="center"><strong>L2 (Physical)</strong><br/><sub>Every switch, every port, every link.</sub></p>
     </td>
     <td width="50%" valign="top">
@@ -50,21 +50,33 @@ Scanopy replaces manual network diagrams with a continuously maintained model of
 
 ## ✨ Features
 
-- **Automatic discovery**: Maps hosts and services by scanning the network. One scanner, no per-device agents.
-- **230+ service definitions**: Auto-detects databases, web servers, containers, network infrastructure, and enterprise applications.
-- **Four views from one scan**: L2 (physical), L3 (logical), workloads, and application dependencies.
-- **Distributed scanning**: Deploy daemons across segments to map multi-site and multi-VLAN topologies.
-- **Docker & SNMP integration**: Native discovery for containerized services and network hardware.
-- **Scheduled rescans**: Documentation stays current as infrastructure changes.
-- **Multi-user + RBAC**: Organization management, role-based access, and shareable live views for teammates or external stakeholders.
+**Map**
+- **[Network topology](https://scanopy.net/product/network-topology?utm_source=github&utm_medium=readme&utm_campaign=features)**: Physical (L2) links port to port from LLDP, CDP, and switch forwarding tables, and logical (L3) topology subnet by subnet.
+- **[Workload mapping](https://scanopy.net/product/workload-mapping?utm_source=github&utm_medium=readme&utm_campaign=features)**: VMs nested in their hypervisor, and containers inside the host that runs them.
+- **[Application dependency mapping](https://scanopy.net/product/application-mapping?utm_source=github&utm_medium=readme&utm_campaign=features)**: Tag each server with its application once and the map fills in its services. You mark the dependencies between them.
 
-## 🎯 Perfect For
+**Inventory**
+- **[Device inventory](https://scanopy.net/product/device-inventory?utm_source=github&utm_medium=readme&utm_campaign=features)**: Every host with its IP and MAC addresses, interfaces, open ports, services, and SNMP hardware facts. Search everything with `/`, filter by site or tag, and export to CSV or read it through the REST API.
+- **[<!-- generated:service-count -->400+<!-- /generated --> service definitions](https://scanopy.net/services?utm_source=github&utm_medium=readme&utm_campaign=features)**: Identifies databases, web servers, printers, cameras, and industrial devices (Modbus TCP, EtherNet/IP, OPC UA, BACnet) by open ports, service responses, and MAC vendor.
+- **[VLANs & subnets](https://scanopy.net/product/vlan-mapping?utm_source=github&utm_medium=readme&utm_campaign=features)**: Reads VLAN tables from your switches over SNMP, shows native and tagged VLANs per port, and links each VLAN to its subnets.
 
-- **Platform & DevOps teams**: Trace service dependencies without APM. Map containers, VMs, and hardware in one model.
-- **Network engineers**: Multi-VLAN, multi-site topology diagrams derived from SNMP, LLDP, and ARP. No manual drawing.
-- **IT operations**: Keep inventory, topology, and dependencies current across teams and sites.
-- **MSPs**: Per-client documentation with shareable live views.
-- **Home labs**: Document your infrastructure without opening draw.io.
+**Track & share**
+- **[Scan digests and snapshots](https://scanopy.net/product/snapshots?utm_source=github&utm_medium=readme&utm_campaign=features)**: An email after each scheduled scan lists new, stale, and changed hosts. Snapshots record the network on a date for audits and change windows.
+- **[Sharing, embeds & exports](https://scanopy.net/product/sharing-and-exports?utm_source=github&utm_medium=readme&utm_campaign=features)**: Read-only links with a password and expiry, live embeds in a wiki, and exports to image, document, diagram, and wiki formats.
+
+**Discovery**
+- **No agent per device**: A daemon on Linux, macOS, Windows, or Docker scans the networks it can reach. Deploy as many as your segments need, each on its own schedule, at the rate and subnet scope you set.
+- **[Integrations](https://scanopy.net/integrations?utm_source=github&utm_medium=readme&utm_campaign=features)**: <!-- generated:integrations -->Docker, Aruba Instant On, Podman, Proxmox VE, UniFi Controller, Wake-on-LAN, SNMP, SSH, and gNMI<!-- /generated -->.
+- **Multi-user + RBAC**: Admin, member, and viewer roles, scoped per site.
+
+## 🎯 Built for teams that manage infrastructure
+
+- **IT operations**: Network architecture and physical topology, current after every scan, across every site.
+- **MSPs**: Per-client documentation with read-only portals. No logins required.
+- **Security & compliance**: Segmentation validation and audit-ready documentation for NIS2, ISO 27001, HIPAA, and CMMC.
+- **Platform & DevOps**: Service dependencies and workload placement without APM instrumentation.
+
+Use cases: [compliance](https://scanopy.net/solutions/compliance?utm_source=github&utm_medium=readme&utm_campaign=use_cases), [multi-site networks](https://scanopy.net/solutions/multi-site-networks?utm_source=github&utm_medium=readme&utm_campaign=use_cases), [shadow IT discovery](https://scanopy.net/solutions/shadow-it?utm_source=github&utm_medium=readme&utm_campaign=use_cases), [plant & OT networks](https://scanopy.net/solutions/plant-ot-networks?utm_source=github&utm_medium=readme&utm_campaign=use_cases), [handover & onboarding](https://scanopy.net/solutions/network-handover?utm_source=github&utm_medium=readme&utm_campaign=use_cases).
 
 ## 📋 Editions and Licensing
 

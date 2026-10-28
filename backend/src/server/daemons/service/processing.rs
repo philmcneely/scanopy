@@ -2,6 +2,7 @@
 use super::*;
 use crate::daemon::discovery::types::base::DiscoveryPhase;
 use crate::daemon::discovery::types::warnings::DiscoveryWarning;
+use crate::server::credentials::r#impl::base::Credential;
 use crate::server::daemons::r#impl::api::ScannedEntityIds;
 use crate::server::shared::events::types::DeletionReason;
 
@@ -218,21 +219,6 @@ impl DaemonService {
         let filter = StorableFilter::new_from_uuid_column("daemon_id", &daemon_id).live_configs();
         let existing_discoveries = self.discovery_service.get_all(filter).await?;
         if existing_discoveries.is_empty() {
-            let site = self
-                .site_service
-                .get_by_id(&daemon.base.site_id)
-                .await?
-                .ok_or_else(|| ApiError::entity_not_found::<Site>(daemon.base.site_id))?;
-            let organization = self
-                .organization_service
-                .get_by_id(&site.base.organization_id)
-                .await?
-                .ok_or_else(|| {
-                    ApiError::entity_not_found::<
-                        crate::server::organizations::r#impl::base::Organization,
-                    >(site.base.organization_id)
-                })?;
-            let is_free_plan = organization.base.plan.map(|p| p.is_free()).unwrap_or(true);
             // Reconnect safety-net (discoveries were deleted): no registration request is in
             // scope on startup, so we can't recover the init-command targeting here. Recreate
             // with empty targeting; the daemon re-registering restores its integration_targets.
@@ -240,7 +226,6 @@ impl DaemonService {
                 daemon_id,
                 daemon.base.site_id,
                 daemon.base.host_id,
-                is_free_plan,
                 &[],
             )
             .await?;
@@ -286,10 +271,7 @@ impl DaemonService {
                         crate::server::organizations::r#impl::base::Organization,
                     >(org_id)
                 })?;
-        let plan = organization
-            .base
-            .plan
-            .unwrap_or_else(crate::server::billing::plans::get_free_plan);
+        let plan = organization.base.plan;
 
         if plan.is_demo() {
             return Err(ApiError::demo_mode_blocked());
@@ -398,8 +380,8 @@ impl DaemonService {
             return Err(ApiError::daemon_not_provisioned());
         }
 
-        // Check daemon limit for unverified orgs (allows 1st daemon)
-        self.check_unverified_daemon_limit(org_id).await?;
+        // Check the daemon limit for Free and unverified orgs (allows 1st daemon)
+        self.check_daemon_limit(org_id).await?;
 
         // New registration - create host and daemon
         let mut dummy_host = Host::new(HostBase {
@@ -429,6 +411,7 @@ impl DaemonService {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: vec![],
         });
         dummy_host
@@ -526,12 +509,10 @@ impl DaemonService {
             .await?;
 
         // Create default discovery jobs
-        let is_free_plan = plan.is_free();
         self.create_default_discovery_jobs(
             effective_daemon_id,
             effective_site_id,
             host_response.id,
-            is_free_plan,
             &request.integration_targets,
         )
         .await?;
@@ -597,6 +578,7 @@ impl DaemonService {
         if update.phase == DiscoveryPhase::Complete {
             self.report_integrations_without_credentials(&mut update)
                 .await;
+            self.report_targetless_credentials(&mut update).await;
         }
 
         if update.phase.is_terminal() {
@@ -704,6 +686,41 @@ impl DaemonService {
                 session_id = %update.session_id,
                 error = %e,
                 "Could not check which integrations this scan found without a credential"
+            ),
+        }
+    }
+
+    /// Fold `CredentialWithoutTarget` into the terminal payload: one per credential of the
+    /// organization that no future scan will send to a daemon.
+    ///
+    /// Before `update_session`, which clears this run's one-shot targets, so the check can leave
+    /// them out by session. Best-effort, like the warning above.
+    async fn report_targetless_credentials(&self, update: &mut DiscoveryUpdatePayload) {
+        let organization_id = match self.site_service.get_by_id(&update.site_id).await {
+            Ok(Some(site)) => site.base.organization_id,
+            Ok(None) => return,
+            Err(e) => {
+                tracing::warn!(
+                    session_id = %update.session_id,
+                    error = %e,
+                    "Could not look up the site to check for credentials without a target"
+                );
+                return;
+            }
+        };
+
+        match self
+            .discovery_service
+            .targetless_credentials(&organization_id, Some(&update.session_id))
+            .await
+        {
+            Ok(targetless) => update
+                .warnings
+                .extend(targetless.iter().map(Credential::targetless_warning)),
+            Err(e) => tracing::warn!(
+                session_id = %update.session_id,
+                error = %e,
+                "Could not check for credentials without a target"
             ),
         }
     }
@@ -889,7 +906,7 @@ impl DaemonService {
                     .organization_service
                     .get_by_id(&org_id)
                     .await?
-                    .and_then(|o| o.base.plan)
+                    .map(|o| o.base.plan)
                     .unwrap_or_else(crate::server::billing::plans::get_free_plan);
                 if let Some(limit) = plan.host_limit() {
                     let org_sites = self
@@ -1119,15 +1136,19 @@ impl DaemonService {
     /// When work is returned, the session is immediately transitioned to Starting phase
     /// to prevent it from being dispatched again on subsequent poll cycles.
     /// Returns None if there's already an active session running on the daemon,
-    /// or if the daemon's org is lapsed.
+    /// or if the daemon's org has discovery paused.
     pub async fn get_pending_work(&self, daemon: &Daemon) -> Option<DiscoveryUpdatePayload> {
         // A lapsed org (subscription ended, no paid plan chosen since) is
-        // read-only: it gets no new sessions, not even a daemon's initial run.
+        // read-only, and a cloud org on a license plan scans on its own server:
+        // neither gets new sessions, not even a daemon's initial run.
         // Its daemons keep reporting status through process_status so they
         // show as connected the moment it chooses a plan again. Both
         // DaemonPoll and ServerPoll funnel through here, so this is the one
         // place that decision lives.
-        if self.site_organization_is_lapsed(daemon.base.site_id).await {
+        if self
+            .site_organization_discovery_paused(daemon.base.site_id)
+            .await
+        {
             return None;
         }
         let daemon_id = daemon.id;
@@ -1167,10 +1188,11 @@ impl DaemonService {
         }
     }
 
-    /// Whether the org owning `site_id` is lapsed. A lookup failure reads as
-    /// not lapsed: the daemon then gets the work it would have got before this
-    /// check existed, and the billed result routes still refuse a lapsed org.
-    async fn site_organization_is_lapsed(&self, site_id: Uuid) -> bool {
+    /// Whether the org owning `site_id` gets no new discovery
+    /// ([`Organization::discovery_paused`]). A lookup failure reads as not paused: the daemon
+    /// then gets the work it would have got before this check existed, and the billed result
+    /// routes still refuse a lapsed or license-locked org.
+    async fn site_organization_discovery_paused(&self, site_id: Uuid) -> bool {
         let Ok(Some(site)) = self.site_service.get_by_id(&site_id).await else {
             return false;
         };
@@ -1178,7 +1200,7 @@ impl DaemonService {
             self.organization_service
                 .get_by_id(&site.base.organization_id)
                 .await,
-            Ok(Some(org)) if org.is_lapsed()
+            Ok(Some(org)) if org.discovery_paused(self.deployment_type)
         )
     }
 
@@ -1232,7 +1254,6 @@ impl DaemonService {
         daemon_id: Uuid,
         site_id: Uuid,
         host_id: Uuid,
-        is_free_plan: bool,
         integration_targets: &[IntegrationTarget],
     ) -> Result<(), ApiError> {
         // Idempotency guard: a daemon gets exactly one set of default discovery
@@ -1252,16 +1273,16 @@ impl DaemonService {
             return Ok(());
         }
 
-        // Free plans use AdHoc (run once immediately), paid plans use Scheduled
-        let default_run_type = if is_free_plan {
-            RunType::AdHoc { last_run: None }
-        } else {
-            RunType::Scheduled {
-                cron_schedule: WEEKLY_SUNDAY_MIDNIGHT_CRON.to_string(),
-                last_run: None,
-                enabled: true,
-                timezone: None,
-            }
+        // Weekly on every plan. The first run doesn't wait for the schedule: the
+        // daemon's first work pull starts every discovery that has never run
+        // (start_initial_discovery_sessions). On Free the scheduler skips the later
+        // runs and the Scans tab shows the schedule as paused, so an upgrade starts
+        // it with nothing to set up.
+        let default_run_type = RunType::Scheduled {
+            cron_schedule: WEEKLY_SUNDAY_MIDNIGHT_CRON.to_string(),
+            last_run: None,
+            enabled: true,
+            timezone: None,
         };
 
         // Create a single Unified discovery combining self-report, network, and docker

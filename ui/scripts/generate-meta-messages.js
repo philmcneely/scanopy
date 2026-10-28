@@ -51,6 +51,8 @@ export const COVERED_FIXTURES = [
 	// through the billing_plans namespace.
 	{ file: 'billing-plans-all.json', key: 'billing_plans', kind: 'typeMetadata' },
 	{ file: 'features.json', key: 'features', kind: 'typeMetadata' },
+	// The parts of the product entities and features belong to: sidebar sections, plan card headings.
+	{ file: 'product-areas.json', key: 'product_areas', kind: 'typeMetadata' },
 	{ file: 'discovery-types.json', key: 'discovery_types', kind: 'typeMetadata' },
 	// Why a scan ended. The description is the sentence a customer reads on a failed or stalled
 	// run and pastes into a support request, so it has to be translatable.
@@ -73,6 +75,7 @@ export const COVERED_FIXTURES = [
 	{ file: 'cancel-reasons.json', key: 'cancel_reasons', kind: 'typeMetadata' },
 	{ file: 'save-offers.json', key: 'save_offers', kind: 'typeMetadata' },
 	{ file: 'plan-statuses.json', key: 'plan_statuses', kind: 'typeMetadata' },
+	{ file: 'plan-limits.json', key: 'plan_limits', kind: 'typeMetadata' },
 	// Provenance tiers. The `metadata.sources` list under each is data the UI looks values up in,
 	// not copy — only the name and description are translated.
 	{ file: 'attribute-methods.json', key: 'attribute_methods', kind: 'typeMetadata' },
@@ -83,8 +86,6 @@ export const COVERED_FIXTURES = [
 	// How an entity came to exist, keyed by its `source.type`. The descriptions are operator-facing
 	// explanations (the Inferred one is the notice on an inferred host), not internal notes.
 	{ file: 'entity-sources.json', key: 'entity_sources', kind: 'typeMetadata' },
-	// The parts of the product entities belong to: the sidebar's section names.
-	{ file: 'entity-categories.json', key: 'entity_categories', kind: 'typeMetadata' },
 	// Headings a field is listed under in the column menu, keyed by `EntityField.group`.
 	{ file: 'field-groups.json', key: 'field_groups', kind: 'typeMetadata' },
 	// How confidently discovery matched a service to its definition, keyed by `MatchConfidence`.

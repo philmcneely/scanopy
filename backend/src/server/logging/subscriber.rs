@@ -329,6 +329,7 @@ mod tests {
             BillingOperation::CheckoutStarted {
                 plan: get_free_plan(),
                 has_trial: false,
+                auto_started: false,
                 stripe_id: "cs_test_log_only".to_string(),
                 subscription_status: None,
             },

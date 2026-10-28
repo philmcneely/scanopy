@@ -6,7 +6,7 @@ use crate::server::{
     ports::r#impl::base::{Port, PortBase, PortConfig, PortType, TransportProtocol},
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::{
             attributed,
             snapshot::{DiscoveryTracked, FkMaps, Snapshotable},
@@ -230,8 +230,8 @@ impl Entity for Port {
     const ENTITY_DESCRIPTION: &'static str =
         "Ports that have been scanned and found open on a host.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+    fn product_area() -> ProductArea {
+        ProductArea::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

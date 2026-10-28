@@ -9,7 +9,7 @@
 use secrecy::ExposeSecret;
 
 use super::transport::{Handler, Registration};
-use super::{SimDevice, VLAN20};
+use super::{CommunityVersions, SimDevice, VLAN20};
 use crate::daemon::discovery::integration::snmp::oids::{arp, if_mib, ip_mib, oid_parts};
 use crate::server::credentials::r#impl::types::{
     CredentialType, SecretValue, SnmpV3AuthProtocol, SnmpV3PrivProtocol, SnmpV3Security,
@@ -82,16 +82,23 @@ fn pass_line(device: &SimDevice, registration: &Registration, files: &[String]) 
 /// How a credential is expressed in an `snmpd.conf`.
 fn access_lines(device: &SimDevice) -> Vec<String> {
     match &device.credential {
-        // VACM rather than `rocommunity`, so the agent refuses v2c and v3 outright and the v1
-        // code path is the only one that can read this device (GH #557).
-        CredentialType::SnmpV1 { community } => vec![
-            format!("com2sec v1sec default {}", expose(community)),
-            "group   v1group v1 v1sec".to_string(),
-            "view    all included .1".to_string(),
-            "access  v1group \"\" v1 noauth exact all none none".to_string(),
-        ],
-        CredentialType::SnmpV2c { community } => {
-            vec![format!("rocommunity {}", expose(community))]
+        CredentialType::SnmpCommunity { community } => {
+            // VACM rather than `rocommunity`, which answers both v1 and v2c. Locked to one
+            // version, the agent refuses the other outright, so only the path that version takes
+            // can read the device: the v1 fallback (GH #557), or v2c with no fallback.
+            let locked_to = |model: &str| {
+                vec![
+                    format!("com2sec {model}sec default {}", expose(community)),
+                    format!("group   {model}group {model} {model}sec"),
+                    "view    all included .1".to_string(),
+                    format!("access  {model}group \"\" {model} noauth exact all none none"),
+                ]
+            };
+            match device.community_versions {
+                CommunityVersions::Both => vec![format!("rocommunity {}", expose(community))],
+                CommunityVersions::V1Only => locked_to("v1"),
+                CommunityVersions::V2cOnly => locked_to("v2c"),
+            }
         }
         CredentialType::SnmpV3 {
             security_name,
@@ -363,17 +370,12 @@ pub fn lab_env(devices: &[SimDevice]) -> String {
     out.push_str(&format!("HOSTS=({})\n", field(&|d| d.ip.to_string())));
     out.push_str(&format!(
         "VERSIONS=({})\n",
-        field(&|d| match d.credential {
-            CredentialType::SnmpV1 { .. } => "v1".into(),
-            CredentialType::SnmpV3 { .. } => "v3".into(),
-            _ => "v2c".to_string(),
-        })
+        field(&|d| d.snmp_version().to_string())
     ));
     out.push_str(&format!(
         "COMMUNITIES=({})\n",
         field(&|d| match &d.credential {
-            CredentialType::SnmpV1 { community } | CredentialType::SnmpV2c { community } =>
-                expose(community),
+            CredentialType::SnmpCommunity { community } => expose(community),
             _ => "-".to_string(),
         })
     ));
@@ -464,13 +466,9 @@ pub const DEVICE_TABLE_END: &str = "<!-- END GENERATED DEVICE TABLE -->";
 pub fn device_table(devices: &[SimDevice]) -> String {
     let mut out = String::from("| IP | Host | Version | Credential |\n|---|---|---|---|\n");
     for device in devices {
-        let version = match device.credential {
-            CredentialType::SnmpV1 { .. } => "v1",
-            CredentialType::SnmpV3 { .. } => "v3",
-            _ => "v2c",
-        };
+        let version = device.snmp_version();
         let credential = match &device.credential {
-            CredentialType::SnmpV1 { community } | CredentialType::SnmpV2c { community } => {
+            CredentialType::SnmpCommunity { community } => {
                 format!("community `{}`", expose(community))
             }
             CredentialType::SnmpV3 { security_name, .. } => format!("user `{security_name}`"),
@@ -525,7 +523,7 @@ fn credential_json(credential: &CredentialType) -> String {
     let exposed =
         |secret: &SecretValue| serde_json::json!({"mode": "Inline", "value": expose(secret)});
     match credential {
-        CredentialType::SnmpV1 { community } | CredentialType::SnmpV2c { community } => {
+        CredentialType::SnmpCommunity { community } => {
             value["community"] = exposed(community);
         }
         CredentialType::SnmpV3 { security, .. } => {
@@ -541,11 +539,8 @@ fn credential_json(credential: &CredentialType) -> String {
 /// A human name for a credential, used as its row key.
 fn credential_name(credential: &CredentialType) -> String {
     match credential {
-        CredentialType::SnmpV1 { community } => {
-            format!("SNMP sim — {} (v1)", expose(community))
-        }
-        CredentialType::SnmpV2c { community } => {
-            format!("SNMP sim — {} (v2c)", expose(community))
+        CredentialType::SnmpCommunity { community } => {
+            format!("SNMP sim — {} (v1/v2c)", expose(community))
         }
         CredentialType::SnmpV3 {
             security_name,
@@ -710,17 +705,21 @@ mod tests {
         }
     }
 
-    /// The v1 device must refuse v2c and v3, which `rocommunity` would not do — the whole point
-    /// of GH #557 is that one device exercises the v1 path and only the v1 path.
+    /// A version-locked device must refuse the other version, which `rocommunity` would not do.
+    /// The v1 device is only reachable through the v1 fallback (GH #557), and the v2c device is
+    /// only reachable without it, and both share the one community that proves a single
+    /// credential reaches each.
     #[test]
-    fn the_v1_device_is_locked_to_v1_by_vacm() {
-        let conf = snmpd_conf(&device("legacy-switch-01"));
-        assert!(conf.contains("com2sec v1sec default legacyv1"));
-        assert!(conf.contains("group   v1group v1 v1sec"));
-        assert!(
-            !conf.contains("rocommunity"),
-            "a rocommunity line would let v2c in:\n{conf}"
-        );
+    fn version_locked_devices_refuse_the_other_version_by_vacm() {
+        for (name, model) in [("legacy-switch-01", "v1"), ("switch-access-01", "v2c")] {
+            let conf = snmpd_conf(&device(name));
+            assert!(conf.contains(&format!("com2sec {model}sec default netdefault")));
+            assert!(conf.contains(&format!("group   {model}group {model} {model}sec")));
+            assert!(
+                !conf.contains("rocommunity"),
+                "a rocommunity line would let the other version in:\n{conf}"
+            );
+        }
     }
 
     /// Two agents, not one: `pass` registers into the default context and nothing else, so the

@@ -19,7 +19,7 @@ use crate::server::{
     auth::{
         middleware::{
             auth::AuthenticatedEntity,
-            features::{RequireFeature, ShareViewsFeature},
+            features::{RequireFeature, SharingFeature},
             permissions::{Authorized, Member, RequireVerified},
         },
         service::hash_password,
@@ -123,7 +123,7 @@ pub fn create_public_router() -> OpenApiRouter<Arc<AppState>> {
 // Authenticated Routes
 // ============================================================================
 
-/// Create a new share
+/// Create share
 #[utoipa::path(
     post,
     path = "",
@@ -137,7 +137,7 @@ pub fn create_public_router() -> OpenApiRouter<Arc<AppState>> {
 )]
 async fn create_share(
     State(state): State<Arc<AppState>>,
-    _feature: RequireFeature<ShareViewsFeature>,
+    _feature: RequireFeature<SharingFeature>,
     auth: Authorized<RequireVerified<Member>>,
     ApiJson(CreateUpdateShareRequest { mut share }): ApiJson<CreateUpdateShareRequest>,
 ) -> ApiResult<Json<ApiResponse<Share>>> {
@@ -174,7 +174,7 @@ async fn create_share(
     .await
 }
 
-/// Update a share
+/// Update share
 #[utoipa::path(
     put,
     path = "/{id}",
@@ -257,7 +257,7 @@ async fn get_share_org_plan(state: &AppState, share: &Share) -> Result<BillingPl
         .get_by_id(&site.base.organization_id)
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?
-        .and_then(|o| o.base.plan)
+        .map(|o| o.base.plan)
         .unwrap_or_else(crate::server::billing::plans::get_free_plan))
 }
 
@@ -267,7 +267,7 @@ async fn get_share_org_plan(state: &AppState, share: &Share) -> Result<BillingPl
 #[utoipa::path(
     get,
     path = "/public/{id}",
-    tag = Share::ENTITY_NAME_PLURAL,
+    tags = [Share::ENTITY_NAME_PLURAL, api_tags::INTERNAL],
     params(("id" = Uuid, Path, description = "Share ID")),
     responses(
         (status = 200, description = "Share metadata", body = ApiResponse<PublicShareMetadata>),
@@ -317,7 +317,9 @@ async fn get_public_share_metadata(
     ))))
 }
 
-/// Verify password for a password-protected share and return an access token.
+/// Verify share password
+///
+/// Returns an access token for a password-protected share.
 ///
 /// The returned token is an HS256 JWT tied to the share's current password
 /// hash; subsequent `/topology` calls send the token instead of the raw
@@ -413,12 +415,12 @@ async fn get_share_topology(
     // Get org's plan to check embed feature and export permissions
     let plan = get_share_org_plan(&state, &share).await?;
     let plan_features = plan.features();
-    let has_embeds_feature = plan_features.embeds;
+    let has_sharing_feature = plan_features.sharing;
 
-    // If requesting embed mode, check if org has embeds feature
-    if query.embed && !has_embeds_feature {
+    // Embed mode needs a plan with sharing
+    if query.embed && !has_sharing_feature {
         return Err(ApiError::payment_required(
-            "Embed access requires a plan with embeds feature",
+            "Embed access requires a plan with sharing",
         ));
     }
 
@@ -581,11 +583,11 @@ pub async fn share_html_handler(
 
     let frame_ancestors = match state.services.share_service.get_by_id(&id).await {
         Ok(Some(share)) => {
-            let has_embeds_feature = get_share_org_plan(&state, &share)
+            let has_sharing_feature = get_share_org_plan(&state, &share)
                 .await
-                .map(|p| p.features().embeds)
+                .map(|p| p.features().sharing)
                 .unwrap_or(false);
-            build_frame_ancestors(&share, has_embeds_feature)
+            build_frame_ancestors(&share, has_sharing_feature)
         }
         _ => "frame-ancestors 'none'".to_string(),
     };

@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::os::recog::RecogDatabase;
 use crate::server::shared::attribution::AttributeMethod;
 use crate::server::shared::oui;
 use crate::server::{
@@ -300,6 +301,35 @@ pub enum ClientProbe {
     /// Podman's API service answered `GET /_ping` with its `Server: Libpod/` token, before any
     /// auth. Not [`Self::Podman`], which means a credential reached it.
     PodmanPing,
+    /// A `Get-Printer-Attributes` request came back as an `application/ipp` message, whatever its
+    /// status.
+    Ipp,
+    /// A Spotify Connect receiver answered `getInfo` on the port and path its mDNS advertisement
+    /// names, with the JSON every Spotify Connect implementation returns. The reply states the
+    /// device's brand and model.
+    SpotifyConnect,
+    /// The port opened with an RFB protocol version, `RFB 003.008` and similar: a VNC server's
+    /// greeting.
+    Vnc,
+    /// The port answered a lockdown `QueryType` with `com.apple.mobile.lockdown`: the pairing and
+    /// sync service on iPhones and iPads.
+    AppleLockdown,
+    /// A DNS query over UDP was answered.
+    DnsUdp,
+    /// An SNTP request was answered with a time.
+    Ntp,
+    /// A DHCP DISCOVER broadcast on the subnet drew an OFFER.
+    Dhcp,
+    /// A BACnet Who-Is came back as a BVLC message from the address asked.
+    Bacnet,
+    /// A TFTP read request for a missing file came back as an `ERROR` or `DATA` packet.
+    Tftp,
+    /// An MGCP `AUEP` came back as a response line carrying our transaction id.
+    Mgcp,
+    /// `/api/v1/status` returned the Google Wifi private API shape — `setupState`,
+    /// `software.softwareVersion`, `system` — from which the probe reads the unit's board and
+    /// firmware. Router and mesh point both answer; `Not(IsGateway)` separates them.
+    GoogleWifi,
 }
 
 impl ClientProbe {
@@ -362,7 +392,102 @@ impl ClientProbe {
             | Self::H323
             | Self::SnmpEngine
             | Self::DockerPing
-            | Self::PodmanPing => M::Native,
+            | Self::PodmanPing
+            | Self::Ipp
+            | Self::SpotifyConnect
+            | Self::Vnc
+            | Self::AppleLockdown
+            | Self::DnsUdp
+            | Self::Ntp
+            | Self::Dhcp
+            | Self::Bacnet
+            | Self::Tftp
+            | Self::Mgcp
+            | Self::GoogleWifi => M::Native,
+        }
+    }
+
+    /// The ports this probe runs on, and so the ports a [`Pattern::ClientResponse`] reading it
+    /// scans. The one place a probe's port is written: the probe runner pairs each
+    /// [`AppProbe`](crate::daemon::utils::app_probe::AppProbe) with every port here.
+    ///
+    /// Empty for the evidence a credentialed integration produces, and for Spotify Connect, whose
+    /// port comes from the device's own mDNS advertisement. Neither runs as an app probe.
+    pub fn ports(&self) -> Vec<PortType> {
+        use crate::daemon::utils::app_probe::{
+            beszel_agent::BESZEL_AGENT_PORT,
+            epics_ca::CA_SERVER_PORT,
+            h323::H323_PORT,
+            mgcp::{MGCP_CALL_AGENT_PORT, MGCP_GATEWAY_PORT},
+        };
+        use crate::server::services::definitions::saltmaster::{
+            SALT_PUBLISH_PORT, SALT_REQUEST_PORT,
+        };
+        match self {
+            Self::Docker
+            | Self::Gnmi
+            | Self::Podman
+            | Self::Snmp
+            | Self::UnifiController
+            | Self::InstantOn
+            | Self::Proxmox
+            | Self::SpotifyConnect => vec![],
+            Self::ModbusTcp => vec![PortType::ModbusTcp],
+            Self::OpcUa => vec![PortType::OpcUa],
+            Self::EtherNetIp => vec![PortType::EtherNetIp],
+            Self::Sip => vec![PortType::Sip],
+            Self::Ssh => vec![PortType::Ssh],
+            Self::Ftp => vec![PortType::Ftp],
+            Self::Telnet => vec![PortType::Telnet],
+            Self::Rtsp => vec![PortType::Rtsp],
+            Self::Nut => vec![PortType::new_tcp(3493)],
+            Self::EpicsCa => vec![PortType::new_tcp(CA_SERVER_PORT)],
+            Self::ZabbixAgent => vec![PortType::new_tcp(10050)],
+            Self::CheckMkAgent => vec![PortType::new_tcp(6556)],
+            Self::Smb => vec![PortType::Samba],
+            Self::Ldap => vec![PortType::Ldap],
+            Self::Kerberos => vec![PortType::Kerberos],
+            Self::MySql => vec![PortType::MySql],
+            Self::PostgreSql => vec![PortType::PostgreSQL],
+            Self::MsSql => vec![PortType::MsSql],
+            Self::MongoDb => vec![PortType::MongoDB],
+            Self::Redis => vec![PortType::Redis],
+            Self::Cassandra => vec![PortType::Cassandra],
+            Self::Kafka => vec![PortType::Kafka],
+            Self::Amqp => vec![PortType::AMQP],
+            Self::Mqtt => vec![PortType::Mqtt],
+            Self::OracleTns => vec![PortType::new_tcp(1521)],
+            Self::Rdp => vec![PortType::Rdp],
+            Self::Nfs => vec![PortType::Nfs],
+            Self::DnsTcp => vec![PortType::DnsTcp],
+            Self::DockerSwarm => vec![PortType::new_tcp(2377)],
+            // Unbound's remote-control port: the TLS it speaks there is all it offers unauthenticated.
+            Self::Tls => vec![PortType::new_tcp(8953)],
+            Self::Ike => vec![PortType::new_udp(500)],
+            Self::OpenVpn => vec![PortType::OpenVPN],
+            Self::Zmtp => vec![
+                PortType::new_tcp(SALT_PUBLISH_PORT),
+                PortType::new_tcp(SALT_REQUEST_PORT),
+            ],
+            Self::Bacula => vec![PortType::new_tcp(9101)],
+            Self::BeszelAgent => vec![PortType::new_tcp(BESZEL_AGENT_PORT)],
+            Self::H323 => vec![PortType::new_tcp(H323_PORT)],
+            Self::SnmpEngine => vec![PortType::Snmp],
+            Self::DockerPing => vec![PortType::Docker],
+            Self::PodmanPing => vec![PortType::Http8888],
+            Self::Ipp => vec![PortType::Ipp],
+            Self::Vnc => vec![PortType::new_tcp(5900)],
+            Self::AppleLockdown => vec![PortType::new_tcp(62078)],
+            Self::DnsUdp => vec![PortType::DnsUdp],
+            Self::Ntp => vec![PortType::Ntp],
+            Self::Dhcp => vec![PortType::Dhcp],
+            Self::Bacnet => vec![PortType::BACnet],
+            Self::Tftp => vec![PortType::new_udp(69)],
+            Self::Mgcp => vec![
+                PortType::new_udp(MGCP_GATEWAY_PORT),
+                PortType::new_udp(MGCP_CALL_AGENT_PORT),
+            ],
+            Self::GoogleWifi => vec![PortType::Http],
         }
     }
 }
@@ -438,6 +563,9 @@ impl DnsSdServiceType {
     pub const HUE: &'static str = "_hue._tcp";
     /// Home Assistant.
     pub const HOME_ASSISTANT: &'static str = "_home-assistant._tcp";
+    /// Spotify Connect receivers. The SRV record names the port and TXT `CPath` the path of the
+    /// `getInfo` endpoint; both differ by vendor (Bose `8200` `/zc`, Sonos `1400` `/spotifyzc`).
+    pub const SPOTIFY_CONNECT: &'static str = "_spotify-connect._tcp";
 }
 
 #[derive(Debug, Clone, EnumDiscriminants)]
@@ -519,6 +647,31 @@ pub enum Pattern<'a> {
     /// so this is evidence a daemon can only gather about the segments it sits on.
     DnsSd(&'a str, Option<(&'a str, &'a str)>),
 
+    /// Whether a certificate on any of the host's TLS ports was issued by a CA whose name contains
+    /// the string (case-insensitive), e.g. `OU=Cast` or `O=Bose Corporation`.
+    ///
+    /// A vendor's devices sign every TLS port with the vendor's CA, including ports whose numbers
+    /// differ between units, so the issuer names the product where a port list cannot. Read across
+    /// every certificate the host presented, whichever service holds the port, so the answer does
+    /// not depend on match order and `Not(CertificateIssuer(..))` asks about the host. Binds the
+    /// ports with a matching certificate that are still unbound.
+    ///
+    /// The ports are where this issuer's certificates are known to appear. They are scanned, so a
+    /// light scan reaches them, and are not evidence: the certificate is. A certificate on a port
+    /// not listed still matches when a full scan finds it.
+    CertificateIssuer(&'a str, &'static [u16]),
+
+    /// Whether a Recog fingerprint of something one of the host's ports emitted (a page title, a
+    /// cookie, a login challenge, a favicon, a certificate) names one of these `service.vendor` and
+    /// `service.product` pairs, exactly as Recog writes them (the vendor empty where Recog gives none).
+    ///
+    /// Detection is Recog's: the definition names products and never copies a regex or a hash, so
+    /// a Recog refresh updates it. Binds the unbound ports a fingerprint matched on.
+    ///
+    /// The ports are where the product's web interface is known to listen. They are scanned and
+    /// requested at `/`, so a light scan reaches them, and are not evidence: the fingerprint is.
+    Recog(&'static [(&'static str, &'static str)], &'static [u16]),
+
     /// Whether a management controller reported this device as the given device class.
     /// Takes a vendor-specific class string (see [`UnifiDeviceType`]), mirroring how
     /// [`Pattern::MacVendor`] takes a vendor string. Only matches when the host was
@@ -546,6 +699,16 @@ impl Vendor {
     pub const ROBOROCK: &'static str = "Beijing Roborock Technology Co., Ltd.";
     pub const WIZ: &'static str = "WiZ";
     pub const TUYASMART: &'static str = "Tuya Smart Inc.";
+    /// The registrant on TP-Link's newer OUIs, which Kasa plugs and switches ship with.
+    pub const TPLINK_SYSTEMS: &'static str = "TP-Link Systems Inc.";
+    /// Bosch, Siemens, Neff, Gaggenau and Thermador appliances.
+    pub const BSH: &'static str = "BSH Hausgeräte GmbH";
+    /// Chamberlain and LiftMaster, including myQ.
+    pub const CHAMBERLAIN: &'static str = "The Chamberlain Group, Inc";
+    pub const BOSE: &'static str = "Bose Corporation";
+    /// ESP8266 and ESP32 Wi-Fi chips, inside most hobbyist and many commercial IoT devices.
+    pub const ESPRESSIF: &'static str = "Espressif Inc.";
+    pub const BROTHER: &'static str = "Brother industries, LTD.";
 }
 
 impl PartialEq for Pattern<'_> {
@@ -583,6 +746,12 @@ impl PartialEq for Pattern<'_> {
             (Pattern::ContainerVirtualization, Pattern::ContainerVirtualization) => true,
             (Pattern::ManagedDeviceType(a), Pattern::ManagedDeviceType(b)) => a == b,
             (Pattern::DnsSd(a, a_txt), Pattern::DnsSd(b, b_txt)) => a == b && a_txt == b_txt,
+            (Pattern::CertificateIssuer(a, a_ports), Pattern::CertificateIssuer(b, b_ports)) => {
+                a == b && a_ports == b_ports
+            }
+            (Pattern::Recog(a, a_ports), Pattern::Recog(b, b_ports)) => {
+                a == b && a_ports == b_ports
+            }
             (Pattern::None, Pattern::None) => true,
             _ => false,
         }
@@ -667,29 +836,36 @@ impl Display for Pattern<'_> {
                 ),
                 None => write!(f, "Host advertises '{}' over mDNS", service_type),
             },
+            Pattern::CertificateIssuer(issuer, _) => {
+                write!(
+                    f,
+                    "A TLS certificate on the host was issued by '{}'",
+                    issuer
+                )
+            }
+            Pattern::Recog(products, _) => {
+                write!(
+                    f,
+                    "A fingerprint of the host's web interface names {}",
+                    recog_product_names(products)
+                )
+            }
             Pattern::None => write!(f, "No match pattern provided"),
         }
     }
 }
-
-/// The discovery pattern for a service confirmed by an application probe.
-///
-/// `AllOf([Port(p), ClientResponse(c)])`: the port goes into the light scan because
-/// [`Pattern::ports`] flattens `AllOf`, *and* the service matches only once the probe has actually
-/// answered. Both halves come from the probe itself, so the port that gets scanned and the port
-/// that gets probed cannot drift apart — the failure mode that left `ClientProbe::Gnmi` with a
-/// pattern nothing can ever satisfy.
-///
-/// A probe contributing no [`ClientProbe`] degrades to the port alone, which is what the four
-/// probes migrated off the old UDP dispatch already matched on.
-pub fn probe_pattern(probe: &dyn crate::daemon::utils::app_probe::AppProbe) -> Pattern<'static> {
-    match probe.client_probe() {
-        Some(client_probe) => Pattern::AllOf(vec![
-            Pattern::Port(probe.port()),
-            Pattern::ClientResponse(client_probe),
-        ]),
-        None => Pattern::Port(probe.port()),
-    }
+/// The software a `Pattern::Recog` names, as a reader would: "Citrix NetScaler or F5 BIG-IP LTM".
+fn recog_product_names(products: &[(&str, &str)]) -> String {
+    products
+        .iter()
+        .map(|(vendor, product)| {
+            if vendor.is_empty() || product.contains(vendor) {
+                product.to_string()
+            } else {
+                format!("{vendor} {product}")
+            }
+        })
+        .join(" or ")
 }
 
 /// Whether an address can be a gateway at all: a router another host reaches. A loopback, unspecified
@@ -723,11 +899,14 @@ impl Pattern<'_> {
             virtualization_metadata,
             managed_device,
             dns_sd,
+            certificates,
+            fingerprints,
             ..
         } = baseline_params;
 
         let ServiceMatchServiceParams {
             unbound_ports,
+            claimed_ports,
             service_definition,
             ..
         } = service_params;
@@ -968,8 +1147,25 @@ impl Pattern<'_> {
                 }
             }
 
-            Pattern::Not(pattern) => match pattern.matches(params) {
-                Ok(result) => Err(anyhow!("{}", result.details.reason)),
+            // `Not(DnsSd(..))` asks whether the host advertises the service at all, so it reads
+            // the advertisement directly: a DnsSd match can stand down because another service
+            // holds its port, and that must not read as the host not advertising it.
+            Pattern::Not(pattern) => match match pattern.as_ref() {
+                Pattern::DnsSd(expected, txt) => {
+                    if dns_sd
+                        .as_ref()
+                        .is_some_and(|h| h.advertises(expected, *txt))
+                    {
+                        Ok(format!("Host advertises '{expected}' over mDNS"))
+                    } else {
+                        Err(anyhow!("Host did not advertise '{expected}' over mDNS"))
+                    }
+                }
+                other => other
+                    .matches(params)
+                    .map(|result| result.details.reason.to_string()),
+            } {
+                Ok(reason) => Err(anyhow!("{reason}")),
                 Err(e) => Ok(MatchResult {
                     ports: vec![],
                     endpoint: None,
@@ -1272,9 +1468,28 @@ impl Pattern<'_> {
             // unauthenticated and trivially spoofable by anything on the link. `High` rather than
             // the `Certain` that `ManagedDeviceType` earns, and definitions AND it with a vendor
             // or port arm where one exists.
+            // Binds the port the advertisement's SRV record names: the scanned port when the scan
+            // found it, otherwise a port taken from the advertisement itself. A port a service
+            // matched earlier this round already holds is that service's, and the earlier match
+            // is the more specific one (non-generic definitions run first), so this one stands
+            // down rather than add a second service on the same port.
             Pattern::DnsSd(expected, txt) => match dns_sd {
                 Some(host) if host.advertises(expected, *txt) => Ok(MatchResult {
-                    ports: vec![],
+                    ports: match host.advertised_port(expected) {
+                        None => vec![],
+                        Some(port) if claimed_ports.contains(&port) => {
+                            return Err(anyhow!(
+                                "Host advertises '{expected}' on {port}, which another service holds"
+                            ));
+                        }
+                        Some(port) => vec![
+                            unbound_ports
+                                .iter()
+                                .find(|p| **p == port)
+                                .copied()
+                                .unwrap_or(port),
+                        ],
+                    },
                     endpoint: None,
                     mac_vendor: None,
                     details: MatchDetails {
@@ -1293,6 +1508,92 @@ impl Pattern<'_> {
                 None => Err(anyhow!("No mDNS response was collected for this host")),
             },
 
+            // A vendor CA signing the device's certificate is the vendor's own statement, made
+            // before the device shipped, so `High`. The evidence is read across every certificate
+            // on the host; only the ports still unbound are bound.
+            Pattern::CertificateIssuer(expected, _) => {
+                let expected_lower = expected.to_lowercase();
+                let matching: Vec<_> = certificates
+                    .iter()
+                    .filter(|cert| cert.issuer.to_lowercase().contains(&expected_lower))
+                    .collect();
+                let Some(first) = matching.first() else {
+                    return Err(anyhow!(
+                        "No TLS certificate on the host was issued by '{expected}'"
+                    ));
+                };
+                Ok(MatchResult {
+                    ports: matching
+                        .iter()
+                        .map(|cert| cert.port)
+                        .filter(|port| unbound_ports.contains(port))
+                        .collect(),
+                    endpoint: None,
+                    mac_vendor: None,
+                    details: MatchDetails {
+                        reason: MatchReason::Reason(format!(
+                            "TLS certificate on {} issued by {}",
+                            first.port, first.issuer
+                        )),
+                        confidence: MatchConfidence::High,
+                    },
+                })
+            }
+
+            // A title, cookie or certificate naming the product is the product's own wording, so
+            // `High`. A favicon alone is `Medium`: forks and rebrands keep the icon they started
+            // from, which is why Recog grades every favicon match 0.5.
+            Pattern::Recog(products, _) => {
+                let matching: Vec<_> = fingerprints
+                    .iter()
+                    .filter(|fp| {
+                        fp.matched.software.as_ref().is_some_and(|software| {
+                            products
+                                .contains(&(software.vendor.as_str(), software.product.as_str()))
+                        })
+                    })
+                    .collect();
+                let Some(first) = matching.first() else {
+                    return Err(anyhow!(
+                        "No fingerprint on the host names {}",
+                        recog_product_names(products)
+                    ));
+                };
+                let confidence = if matching
+                    .iter()
+                    .any(|fp| fp.database != RecogDatabase::Favicon)
+                {
+                    MatchConfidence::High
+                } else {
+                    MatchConfidence::Medium
+                };
+                let mut ports: Vec<PortType> = matching
+                    .iter()
+                    .map(|fp| fp.port)
+                    .filter(|port| unbound_ports.contains(port))
+                    .collect();
+                ports.dedup();
+                Ok(MatchResult {
+                    ports,
+                    endpoint: None,
+                    mac_vendor: None,
+                    details: MatchDetails {
+                        reason: MatchReason::Reason(format!(
+                            "{} on {} names {}",
+                            first.source(),
+                            first.port,
+                            first
+                                .matched
+                                .software
+                                .as_ref()
+                                .map(|s| s.product.as_str())
+                                .unwrap_or_default()
+                        )),
+                        confidence,
+                    },
+                })
+            }
+
             Pattern::None => Err(anyhow!("No match pattern provided")),
         }
     }
@@ -1306,6 +1607,21 @@ impl Pattern<'_> {
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
                 patterns.iter().flat_map(|p| p.ports().to_vec()).collect()
             }
+            Pattern::ClientResponse(probe) => probe.ports(),
+            Pattern::CertificateIssuer(_, ports) | Pattern::Recog(_, ports) => {
+                ports.iter().map(|port| PortType::new_tcp(*port)).collect()
+            }
+            _ => vec![],
+        }
+    }
+
+    /// The probe evidence this pattern reads as a positive signal.
+    pub fn client_probes(&self) -> Vec<ClientProbe> {
+        match self {
+            Pattern::ClientResponse(probe) => vec![*probe],
+            Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
+                patterns.iter().flat_map(|p| p.client_probes()).collect()
+            }
             _ => vec![],
         }
     }
@@ -1313,7 +1629,7 @@ impl Pattern<'_> {
     /// Get all endpoints which need to be scanned for a given service's match pattern
     pub fn endpoints(&self) -> Vec<Endpoint> {
         match self {
-            Pattern::Endpoint(port_base, path, .., None) => {
+            Pattern::Endpoint(port_base, path, ..) => {
                 vec![Endpoint::for_pattern(*port_base, path)]
             }
             Pattern::Header(port_base_opt, ..) => {
@@ -1332,6 +1648,11 @@ impl Pattern<'_> {
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => patterns
                 .iter()
                 .flat_map(|p| p.endpoints().to_vec())
+                .collect(),
+            // The page whose title, cookies and challenge the fingerprints read.
+            Pattern::Recog(_, ports) => ports
+                .iter()
+                .map(|port| Endpoint::for_pattern(PortType::new_tcp(*port), "/"))
                 .collect(),
             _ => vec![],
         }
@@ -1419,6 +1740,29 @@ impl Pattern<'_> {
     /// Whether `port` appears anywhere in this pattern as a scanned port.
     fn references_port(&self, port: PortType) -> bool {
         self.ports().contains(&port)
+    }
+}
+
+impl<'a> Pattern<'a> {
+    /// The DNS-SD service types this pattern reads, so the mDNS browse can ask for each by name
+    /// rather than rely on another device's enumeration reply to mention it.
+    pub fn dns_sd_types(&self) -> Vec<&'a str> {
+        match self {
+            Pattern::DnsSd(service_type, _) => vec![*service_type],
+            Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
+                patterns.iter().flat_map(|p| p.dns_sd_types()).collect()
+            }
+            Pattern::Not(pattern) => pattern.dns_sd_types(),
+            _ => vec![],
+        }
+    }
+
+    /// Matches when `self` does, and also binds what `extra` matches when it matches too. For
+    /// ports a device opens only sometimes, or on numbers that vary by unit: they are claimed
+    /// alongside the evidence, never instead of it. `AnyOf` binds the ports of every arm that
+    /// matches, so the second arm adds `extra`'s ports only when both hold.
+    pub fn also_binding(self, extra: Pattern<'a>) -> Pattern<'a> {
+        Pattern::AnyOf(vec![self.clone(), Pattern::AllOf(vec![self, extra])])
     }
 }
 

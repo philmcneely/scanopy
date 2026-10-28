@@ -203,7 +203,7 @@
 					<div class="flex flex-col gap-3">
 						{#each options as option (option.id)}
 							{@const colors = createColorHelper(option.color)}
-							<button onclick={() => option.run(subnet)} class="w-full card text-left">
+							<button onclick={() => option.run(subnet)} class="card w-full text-left">
 								<div class="flex items-center gap-3">
 									<div
 										class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {colors.bg}"

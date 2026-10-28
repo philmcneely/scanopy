@@ -45,16 +45,12 @@ pub struct MqttProbe;
 
 #[async_trait]
 impl AppProbe for MqttProbe {
-    fn port(&self) -> PortType {
-        PortType::Mqtt
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Mqtt
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Mqtt)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &connect_packet(), 64).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &connect_packet(), 64).await;
         Ok(parse_connack(&reply))
     }
 }

@@ -33,9 +33,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
 
       - name: Install tbls
+        # Extract only the binary, outside the checkout: the archive also ships README.md,
+        # LICENSE and CHANGELOG.md, which overwrote ours (v0.19.3 failed on the README).
         run: |
-          curl -sL https://github.com/k1LoW/tbls/releases/download/v1.79.3/tbls_v1.79.3_linux_amd64.tar.gz | tar xz
-          sudo mv tbls /usr/local/bin/
+          curl -sL https://github.com/k1LoW/tbls/releases/download/v1.79.3/tbls_v1.79.3_linux_amd64.tar.gz \
+            | sudo tar xz -C /usr/local/bin tbls
           tbls version
 
       - name: Free up disk space
@@ -50,8 +52,18 @@ jobs:
       # Best-effort: a failed download keeps the committed copy. Runs before
       # the tests so refreshed data is tested before it is committed or baked
       # into the Docker images.
-      - name: Refresh vendored data (oui.csv)
+      - name: Refresh vendored data (IEEE MAC registries)
         run: backend/scripts/refresh-vendored-data.sh
+
+      # Licences of every crate and bundled data file: compiled into the daemon (`scanopy-daemon
+      # licenses`), copied into both images and the MSI, and the top of the UI's
+      # /third-party-licenses.txt. Committed below, before any build job pulls the branch. Fails
+      # when a dependency's licence is not in backend/about.toml.
+      - name: Install cargo-about
+        run: cargo install cargo-about --version 0.9.3 --locked --features cli
+
+      - name: Generate third-party notices
+        run: make third-party-notices
 
       # Pull the test images up front, retrying a rate-limited registry (a homeassistant pull hit
       # toomanyrequests on the v0.17.21 release), so a transient limit can't fail the test run.
@@ -89,7 +101,8 @@ jobs:
           git add backend/Cargo.toml backend/Cargo.lock ui/package.json ui/package-lock.json
           git add backend/src/tests/scanopy.sql backend/src/tests/daemon_config.json ui/static/schema.mermaid ui/static/schema-er.mermaid ui/static/entity-metadata.json
           git add backend/tests/integration/compat/fixtures/
-          git add backend/assets/oui.csv
+          git add backend/assets/oui.csv backend/assets/mam.csv backend/assets/oui36.csv backend/assets/iab.csv
+          git add backend/THIRD-PARTY-NOTICES.txt
 
           if git diff --staged --quiet; then
             echo "No fixture changes to commit"
@@ -111,15 +124,20 @@ jobs:
       # The Docker build gets them by running the generator inside its own
       # rust-builder stage; the standalone UI build (build-ui) has no Rust
       # toolchain, so it needs them as an artifact.
-      - name: Upload generated service logos
+      - name: Upload generated logos
         uses: actions/upload-artifact@v7
         with:
           name: ui-logos
-          # Several paths upload relative to their common parent, ui/static/logos/.
-          path: |
-            ui/static/logos/services/
-            ui/static/logos/os-families/
-            ui/static/logos/identity-providers/
+          # A single path uploads relative to itself, so the download restores into the same dir.
+          path: ui/static/logos/catalog/
+          retention-days: 1
+
+      # Attached to the GitHub release next to the binaries (upload-assets).
+      - name: Upload third-party notices
+        uses: actions/upload-artifact@v7
+        with:
+          name: third-party-notices
+          path: backend/THIRD-PARTY-NOTICES.txt
           retention-days: 1
 
   migration-branch-test:
@@ -338,11 +356,11 @@ jobs:
           name: ui-fixtures
           path: ui/src/lib/data/
 
-      - name: Download generated service logos
+      - name: Download generated logos
         uses: actions/download-artifact@v8
         with:
           name: ui-logos
-          path: ui/static/logos/
+          path: ui/static/logos/catalog/
 
       - uses: actions/setup-node@v7
         with:
@@ -558,7 +576,9 @@ jobs:
       - name: Stage daemon exe for WiX
         if: matrix.target == 'x86_64-pc-windows-msvc'
         shell: bash
-        run: cp backend/target/${{ matrix.target }}/release/daemon.exe backend/wix/scanopy-daemon.exe
+        run: |
+          cp backend/target/${{ matrix.target }}/release/daemon.exe backend/wix/scanopy-daemon.exe
+          cp backend/THIRD-PARTY-NOTICES.txt backend/wix/THIRD-PARTY-NOTICES.txt
 
       # Sign the .exe BEFORE it is embedded in the MSI so the binary inside is trusted too.
       - name: Sign daemon exe (WiX-staged, OSSign)
@@ -639,7 +659,7 @@ jobs:
   build-docker-server:
     name: Build Server
     runs-on: ${{ matrix.runner }}
-    needs: [build-binaries, test-and-update-fixtures, migration-branch-test]
+    needs: [test-and-update-fixtures, migration-branch-test]
     permissions:
       contents: read
       packages: write
@@ -660,12 +680,6 @@ jobs:
         run: |
           git fetch origin ${{ github.event.release.target_commitish }}
           git reset --hard origin/${{ github.event.release.target_commitish }}
-
-      - name: Download generated UI fixtures
-        uses: actions/download-artifact@v8
-        with:
-          name: ui-fixtures
-          path: ui/src/lib/data/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -706,8 +720,6 @@ jobs:
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.scanopy.deploy_mode=${{ needs.migration-branch-test.outputs.deploy_mode }}
-          cache-from: type=gha,scope=server-${{ matrix.suffix }}
-          cache-to: type=gha,mode=max,scope=server-${{ matrix.suffix }}
 
   build-docker-daemon:
     name: Build Daemon Docker
@@ -810,6 +822,15 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v8
 
+      # The website sync (promote_to_latest.yml) reads the fixtures and logos from here, so it
+      # gets what this tag shipped without compiling the generator again.
+      - name: Bundle UI fixtures and logos
+        run: |
+          mkdir -p bundle/ui/src/lib/data bundle/ui/static/logos/catalog
+          cp ui-fixtures/*.json bundle/ui/src/lib/data/
+          cp -r ui-logos/. bundle/ui/static/logos/catalog/
+          tar -czf ui-fixtures.tar.gz -C bundle ui
+
       - name: Upload binaries to release
         uses: softprops/action-gh-release@v3
         with:
@@ -822,22 +843,23 @@ jobs:
           files: |
             scanopy-daemon-*/scanopy-daemon-*
             scanopy-server-*/scanopy-server-*
+            ui-fixtures.tar.gz
+            third-party-notices/THIRD-PARTY-NOTICES.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # Computed alongside the builds; the PR is opened by open-db-enum-baseline-pr once the
+  # images are published, so a release that fails to publish never refreshes the baseline.
   regenerate-db-enum-baseline:
     name: Regenerate DB-enum baseline for next release cycle
     runs-on: ubuntu-latest
-    needs: [create-manifests]
-    permissions:
-      contents: write
-      pull-requests: write
+    needs: [test-and-update-fixtures]
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: dev
-          fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.90.0
@@ -864,8 +886,38 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Open PR with refreshed baseline
+      - name: Upload refreshed baseline
         if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: db-enum-baseline
+          path: backend/tests/fixtures/db_enum_baseline.json
+          retention-days: 1
+
+  open-db-enum-baseline-pr:
+    name: Open DB-enum baseline PR
+    runs-on: ubuntu-latest
+    needs: [regenerate-db-enum-baseline, create-manifests]
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        if: needs.regenerate-db-enum-baseline.outputs.changed == 'true'
+        with:
+          ref: dev
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Download refreshed baseline
+        if: needs.regenerate-db-enum-baseline.outputs.changed == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: db-enum-baseline
+          path: backend/tests/fixtures/
+
+      - name: Open PR with refreshed baseline
+        if: needs.regenerate-db-enum-baseline.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         working-directory: backend
@@ -888,7 +940,7 @@ jobs:
           {
             echo "## DB-enum baseline"
             echo ""
-            if [ "${{ steps.diff.outputs.changed }}" = "true" ]; then
+            if [ "${{ needs.regenerate-db-enum-baseline.outputs.changed }}" = "true" ]; then
               echo "Baseline changed — PR opened against \`dev\`."
             else
               echo "No baseline changes (no DB-backed enum variants added/removed in this release)."

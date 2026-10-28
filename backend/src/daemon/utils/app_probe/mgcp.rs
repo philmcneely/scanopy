@@ -28,6 +28,7 @@ use crate::daemon::utils::app_probe::{
     AppProbe, AppProbeOutcome, ProbeContext, presence, udp_request_response,
 };
 use crate::server::ports::r#impl::base::PortType;
+use crate::server::services::r#impl::patterns::ClientProbe;
 
 /// The gateway port and the call-agent port. Both speak the same protocol; which end is listening
 /// says which role the host plays, and either is worth finding.
@@ -48,27 +49,17 @@ fn audit_endpoint() -> Vec<u8> {
     format!("AUEP {TRANSACTION_ID} *@scanopy.invalid MGCP 1.0\r\n\r\n").into_bytes()
 }
 
-/// A probe for one of the two ports MGCP is spoken on.
-pub struct MgcpProbe {
-    port: PortType,
-}
-
-impl MgcpProbe {
-    pub fn new(port: u16) -> Self {
-        Self {
-            port: PortType::new_udp(port),
-        }
-    }
-}
+/// A probe for the two ports MGCP is spoken on, which [`ClientProbe::Mgcp`] names.
+pub struct MgcpProbe;
 
 #[async_trait]
 impl AppProbe for MgcpProbe {
-    fn port(&self) -> PortType {
-        self.port
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Mgcp
     }
 
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = udp_request_response(ctx, self.port(), &audit_endpoint(), READ_LIMIT).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = udp_request_response(ctx, port, &audit_endpoint(), READ_LIMIT).await;
         Ok(parse_response(&reply))
     }
 }

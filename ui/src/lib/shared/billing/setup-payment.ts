@@ -1,6 +1,5 @@
 import { trackEvent } from '$lib/shared/utils/analytics';
-import { openModal } from '$lib/shared/stores/modal-registry';
-import { reopenSettingsTabAfterPayment } from '$lib/features/billing/stores';
+import { openBillingModal, reopenSettingsTabAfterPayment } from '$lib/features/billing/stores';
 import { ApiError } from '$lib/api/client';
 import type { Organization } from '$lib/features/organizations/types';
 
@@ -52,7 +51,7 @@ export function startSetupPayment({
 	// The License tab lives inside Settings, which this modal replaces in the
 	// registry. Record where to go back to so the two match again afterwards.
 	reopenSettingsTabAfterPayment.set(source === 'license_tab' ? 'license' : null);
-	openModal('payment-method', { entityData: plan ? { plan, source } : { source } });
+	openBillingModal('payment-method', plan ? { plan, source } : { source });
 }
 
 /** Where in the payment-method dialog a failure happened. */

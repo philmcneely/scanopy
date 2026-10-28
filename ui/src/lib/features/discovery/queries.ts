@@ -14,9 +14,8 @@ import { useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 import type { DiscoveryUpdatePayload } from './types/api';
 import type { Organization } from '../organizations/types';
 import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
-import { BaseSSEManager, type SSEConfig } from '$lib/shared/utils/sse';
 import { discoveryTerminalReasons, discoveryTypes } from '$lib/shared/stores/metadata';
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import * as m from '$lib/paraglide/messages';
 import { siteItems } from '$lib/features/sites/columns';
 import { daemonItems } from '$lib/features/daemons/columns';
@@ -41,7 +40,7 @@ export function useDiscoveriesQuery(enabled?: () => boolean) {
 		queryKey: queryKeys.discovery.all,
 		queryFn: async () => {
 			return unwrapData(
-				await apiClient.GET('/api/v1/discovery', {
+				await apiClient.GET('/api/v1/discoveries', {
 					params: { query: { limit: 0 } }
 				})
 			);
@@ -65,7 +64,7 @@ export function useDiscoveriesByIds(idsGetter: () => string[]) {
 			queryKey: [...queryKeys.discovery.all, 'byIds', ids],
 			queryFn: async (): Promise<Discovery[]> =>
 				unwrapData(
-					await apiClient.GET('/api/v1/discovery', { params: { query: { ids, limit: 0 } } })
+					await apiClient.GET('/api/v1/discoveries', { params: { query: { ids, limit: 0 } } })
 				),
 			enabled: ids.length > 0
 		};
@@ -80,7 +79,7 @@ export function useScheduledDiscoveriesQuery(params: () => ListPageParams) {
 	return useListPageQuery<Discovery>(
 		[...queryKeys.discovery.all, 'scheduled'],
 		({ query, querySerializer }) =>
-			apiClient.GET('/api/v1/discovery', {
+			apiClient.GET('/api/v1/discoveries', {
 				params: { query: { ...query, historical: false } },
 				querySerializer
 			}),
@@ -100,7 +99,7 @@ export function useDiscoveryHistoryQuery(params: () => ListPageParams) {
 	return useListPageQuery<Discovery>(
 		[...queryKeys.discovery.all, 'history'],
 		({ query, querySerializer }) =>
-			apiClient.GET('/api/v1/discovery', {
+			apiClient.GET('/api/v1/discoveries', {
 				params: { query: { ...query, historical: true } },
 				querySerializer
 			}),
@@ -116,7 +115,7 @@ export function useCreateDiscoveryMutation() {
 
 	return createMutation(() => ({
 		mutationFn: async (discovery: Discovery) => {
-			return unwrapData(await apiClient.POST('/api/v1/discovery', { body: discovery }));
+			return unwrapData(await apiClient.POST('/api/v1/discoveries', { body: discovery }));
 		},
 		onSuccess: (newDiscovery: Discovery) => {
 			queryClient.setQueryData<Discovery[]>(queryKeys.discovery.all, (old) =>
@@ -125,6 +124,8 @@ export function useCreateDiscoveryMutation() {
 			// The history tab reads a paginated key under this prefix, which
 			// setQueryData above doesn't touch.
 			queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+			// A discovery's integration targets give a credential a target, which home's nudges re-check.
+			queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
 		}
 	}));
 }
@@ -138,7 +139,7 @@ export function useUpdateDiscoveryMutation() {
 	return createMutation(() => ({
 		mutationFn: async (discovery: Discovery) => {
 			return unwrapData(
-				await apiClient.PUT('/api/v1/discovery/{id}', {
+				await apiClient.PUT('/api/v1/discoveries/{id}', {
 					params: { path: { id: discovery.id } },
 					body: discovery
 				})
@@ -150,6 +151,7 @@ export function useUpdateDiscoveryMutation() {
 				(old) => old?.map((d) => (d.id === updatedDiscovery.id ? updatedDiscovery : d)) ?? []
 			);
 			queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+			queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
 		}
 	}));
 }
@@ -164,7 +166,7 @@ export function useBulkSetDiscoveriesEnabledMutation() {
 	return createMutation(() => ({
 		mutationFn: async ({ ids, enabled }: { ids: string[]; enabled: boolean }) => {
 			return unwrapData(
-				await apiClient.POST('/api/v1/discovery/bulk-set-enabled', { body: { ids, enabled } })
+				await apiClient.POST('/api/v1/discoveries/bulk-set-enabled', { body: { ids, enabled } })
 			);
 		},
 		onSuccess: (updated: Discovery[]) => {
@@ -186,7 +188,7 @@ export function useDeleteDiscoveryMutation() {
 	return createMutation(() => ({
 		mutationFn: async (id: string) => {
 			requireSuccess(
-				await apiClient.DELETE('/api/v1/discovery/{id}', {
+				await apiClient.DELETE('/api/v1/discoveries/{id}', {
 					params: { path: { id } }
 				})
 			);
@@ -198,6 +200,7 @@ export function useDeleteDiscoveryMutation() {
 				(old) => old?.filter((d) => d.id !== id) ?? []
 			);
 			queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+			queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
 		}
 	}));
 }
@@ -210,7 +213,7 @@ export function useBulkDeleteDiscoveriesMutation() {
 
 	return createMutation(() => ({
 		mutationFn: async (ids: string[]) => {
-			requireSuccess(await apiClient.POST('/api/v1/discovery/bulk-delete', { body: ids }));
+			requireSuccess(await apiClient.POST('/api/v1/discoveries/bulk-delete', { body: ids }));
 			return ids;
 		},
 		onSuccess: (ids: string[]) => {
@@ -219,6 +222,7 @@ export function useBulkDeleteDiscoveriesMutation() {
 				(old) => old?.filter((d) => !ids.includes(d.id)) ?? []
 			);
 			queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+			queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
 		}
 	}));
 }
@@ -419,7 +423,7 @@ export type DiscoveryOrderField = components['schemas']['DiscoveryOrderField'];
  */
 /** The discovery list endpoint's query params, which the filters are sent and linked as. */
 export type DiscoveryListParam = keyof NonNullable<
-	operations['get_all_discoveries']['parameters']['query']
+	operations['list_discoveries']['parameters']['query']
 >;
 
 export type DiscoveryFieldEntry = Partial<
@@ -556,7 +560,7 @@ export function useActiveSessionsQuery(getEnabled: () => boolean = () => true) {
 		queryKey: queryKeys.discovery.sessions(),
 		queryFn: async () => {
 			const sessions = unwrapData(
-				await apiClient.GET('/api/v1/discovery/active-sessions', {})
+				await apiClient.GET('/api/v1/discoveries/active-sessions', {})
 			) as DiscoveryUpdatePayload[];
 			observeSessions(
 				sessions.map((s) => s.session_id),
@@ -579,7 +583,7 @@ export function useInitiateDiscoveryMutation() {
 	return createMutation(() => ({
 		mutationFn: async (discoveryId: string) => {
 			return unwrapData(
-				await apiClient.POST('/api/v1/discovery/start-session', {
+				await apiClient.POST('/api/v1/discoveries/start-session', {
 					body: discoveryId
 				})
 			) as DiscoveryUpdatePayload;
@@ -594,9 +598,6 @@ export function useInitiateDiscoveryMutation() {
 				}
 				return [...old, session];
 			});
-
-			// Connect SSE to receive updates
-			discoverySSEManager.connect();
 
 			pushSuccess(
 				`${session.discovery_type.type} discovery session created with session ID ${session.session_id}`
@@ -625,7 +626,7 @@ export function useCancelDiscoveryMutation() {
 				});
 
 			const result = await apiClient
-				.POST('/api/v1/discovery/{session_id}/cancel', {
+				.POST('/api/v1/discoveries/{session_id}/cancel', {
 					params: { path: { session_id: sessionId } }
 				})
 				.catch((error: unknown) => {
@@ -683,7 +684,8 @@ function pushFailureToast(update: DiscoveryUpdatePayload) {
 // Throttle configuration for query invalidations
 const INVALIDATION_THROTTLE_MS = 1000; // At most 1 invalidation per second
 
-class DiscoverySSEManager extends BaseSSEManager<DiscoveryUpdatePayload> {
+/** Discovery events on the live-update stream (`liveUpdatesSSEManager`). */
+class DiscoveryStream {
 	private invalidationPending = false;
 	private invalidationTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -711,9 +713,10 @@ class DiscoverySSEManager extends BaseSSEManager<DiscoveryUpdatePayload> {
 	}
 
 	/**
-	 * Clean up resources on disconnect
+	 * The stream closed (disconnect, or a hidden tab): drop the pending invalidation and the
+	 * per-session tracking, which only means something while updates arrive.
 	 */
-	override disconnect() {
+	reset() {
 		// Clear any pending invalidation
 		if (this.invalidationTimeout) {
 			clearTimeout(this.invalidationTimeout);
@@ -725,125 +728,120 @@ class DiscoverySSEManager extends BaseSSEManager<DiscoveryUpdatePayload> {
 		lastProgress.clear();
 		sessionLastMessageAt.set(new Map());
 		discoveryStreamConnected.set(false);
-
-		super.disconnect();
 	}
 
-	protected createConfig(): SSEConfig<DiscoveryUpdatePayload> {
-		return {
-			url: '/api/v1/discovery/stream',
-			onMessage: async (update) => {
+	/** The stream dropped. Toasts once per lost connection, not on every reconnect attempt. */
+	lost() {
+		if (get(discoveryStreamConnected)) pushError(m.discovery_lostConnection());
+		discoveryStreamConnected.set(false);
+	}
+
+	opened() {
+		// Silence while the stream was down says nothing about the daemon, so every session
+		// starts a fresh clock from the reconnect.
+		sessionLastMessageAt.set(new Map());
+		const sessions = queryClient.getQueryData<DiscoveryUpdatePayload[]>(
+			queryKeys.discovery.sessions()
+		);
+		observeSessions(
+			(sessions ?? []).map((s) => s.session_id),
+			Date.now()
+		);
+		discoveryStreamConnected.set(true);
+	}
+
+	async handleUpdate(update: DiscoveryUpdatePayload) {
+		if (isTerminalPhase(update.phase)) {
+			forgetSession(update.session_id);
+		} else {
+			recordSessionMessage(update.session_id, Date.now());
+		}
+
+		// Check if progress increased
+		const last = lastProgress.get(update.session_id) || 0;
+		const current = update.progress || 0;
+
+		if (current > last) {
+			// Schedule throttled invalidation instead of immediate
+			this.scheduleInvalidation();
+			lastProgress.set(update.session_id, current);
+		}
+
+		// Handle terminal phases
+		if (update.phase === 'Complete') {
+			// The scan completed either way, so that is what the toast says. Warnings are
+			// not toasted: a sticky toast carrying several paragraphs is the wrong surface
+			// for detail the user needs to read at their own pace, and the run's history
+			// card already tags itself "Warnings" and lists them in full.
+			pushSuccess(m.discovery_completed({ type: update.discovery_type.type }));
+			// Final refresh on completion - do this immediately, not throttled
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeys.hosts.all }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.services.all }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.subnets.all }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.daemons.all }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all })
+			]);
+		} else if (update.phase === 'Cancelled') {
+			pushWarning(m.discovery_cancelled());
+		} else if (update.phase === 'Failed') {
+			pushFailureToast(update);
+		}
+
+		// Invalidate org cache until FirstDiscoveryCompleted milestone appears
+		const org = queryClient.getQueryData<Organization>(queryKeys.organizations.current());
+		if (org && !org.onboarding.includes('FirstDiscoveryCompleted')) {
+			queryClient.invalidateQueries({ queryKey: queryKeys.organizations.current() });
+		}
+
+		// Update sessions in TanStack cache
+		queryClient.setQueryData<DiscoveryUpdatePayload[]>(
+			queryKeys.discovery.sessions(),
+			(current) => {
+				if (!current) current = [];
+
+				// Cleanup for terminal phases
 				if (isTerminalPhase(update.phase)) {
-					forgetSession(update.session_id);
+					// Clear cancelling state
+					cancellingSessions.update((c) => {
+						const m = new Map(c);
+						m.delete(update.session_id);
+						return m;
+					});
+
+					lastProgress.delete(update.session_id);
+
+					// Remove completed/cancelled/failed sessions
+					return current.filter((session) => session.session_id !== update.session_id);
+				}
+
+				// For non-terminal phases, update or add the session
+				const existingIndex = current.findIndex((s) => s.session_id === update.session_id);
+
+				if (existingIndex >= 0) {
+					const updated = [...current];
+					updated[existingIndex] = update;
+					return updated;
 				} else {
-					recordSessionMessage(update.session_id, Date.now());
+					return [...current, update];
 				}
-
-				// Check if progress increased
-				const last = lastProgress.get(update.session_id) || 0;
-				const current = update.progress || 0;
-
-				if (current > last) {
-					// Schedule throttled invalidation instead of immediate
-					this.scheduleInvalidation();
-					lastProgress.set(update.session_id, current);
-				}
-
-				// Handle terminal phases
-				if (update.phase === 'Complete') {
-					// The scan completed either way, so that is what the toast says. Warnings are
-					// not toasted: a sticky toast carrying several paragraphs is the wrong surface
-					// for detail the user needs to read at their own pace, and the run's history
-					// card already tags itself "Warnings" and lists them in full.
-					pushSuccess(m.discovery_completed({ type: update.discovery_type.type }));
-					// Final refresh on completion - do this immediately, not throttled
-					await Promise.all([
-						queryClient.invalidateQueries({ queryKey: queryKeys.hosts.all }),
-						queryClient.invalidateQueries({ queryKey: queryKeys.services.all }),
-						queryClient.invalidateQueries({ queryKey: queryKeys.subnets.all }),
-						queryClient.invalidateQueries({ queryKey: queryKeys.daemons.all }),
-						queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all })
-					]);
-				} else if (update.phase === 'Cancelled') {
-					pushWarning(m.discovery_cancelled());
-				} else if (update.phase === 'Failed') {
-					pushFailureToast(update);
-				}
-
-				// Invalidate org cache until FirstDiscoveryCompleted milestone appears
-				const org = queryClient.getQueryData<Organization>(queryKeys.organizations.current());
-				if (org && !org.onboarding.includes('FirstDiscoveryCompleted')) {
-					queryClient.invalidateQueries({ queryKey: queryKeys.organizations.current() });
-				}
-
-				// Update sessions in TanStack cache
-				queryClient.setQueryData<DiscoveryUpdatePayload[]>(
-					queryKeys.discovery.sessions(),
-					(current) => {
-						if (!current) current = [];
-
-						// Cleanup for terminal phases
-						if (isTerminalPhase(update.phase)) {
-							// Clear cancelling state
-							cancellingSessions.update((c) => {
-								const m = new Map(c);
-								m.delete(update.session_id);
-								return m;
-							});
-
-							lastProgress.delete(update.session_id);
-
-							// Remove completed/cancelled/failed sessions
-							return current.filter((session) => session.session_id !== update.session_id);
-						}
-
-						// For non-terminal phases, update or add the session
-						const existingIndex = current.findIndex((s) => s.session_id === update.session_id);
-
-						if (existingIndex >= 0) {
-							const updated = [...current];
-							updated[existingIndex] = update;
-							return updated;
-						} else {
-							return [...current, update];
-						}
-					}
-				);
-
-				// If this session references a discovery not yet in cache
-				// (e.g. auto-created on daemon registration), refetch discoveries. A paged list
-				// holds only its page, so absence from it says nothing: each id refetches once.
-				if (update.discovery_id && !sessionDiscoveryIds.has(update.discovery_id)) {
-					sessionDiscoveryIds.add(update.discovery_id);
-					const discoveries = queryClient.getQueryData<Discovery[]>(queryKeys.discovery.all);
-					if (!discoveries?.some((d) => d.id === update.discovery_id)) {
-						queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
-					}
-				}
-			},
-			onError: (error) => {
-				console.error('Discovery SSE error:', error);
-				discoveryStreamConnected.set(false);
-				pushError(m.discovery_lostConnection());
-			},
-			onOpen: () => {
-				// Silence while the stream was down says nothing about the daemon, so every session
-				// starts a fresh clock from the reconnect.
-				sessionLastMessageAt.set(new Map());
-				const sessions = queryClient.getQueryData<DiscoveryUpdatePayload[]>(
-					queryKeys.discovery.sessions()
-				);
-				observeSessions(
-					(sessions ?? []).map((s) => s.session_id),
-					Date.now()
-				);
-				discoveryStreamConnected.set(true);
 			}
-		};
+		);
+
+		// If this session references a discovery not yet in cache
+		// (e.g. auto-created on daemon registration), refetch discoveries. A paged list
+		// holds only its page, so absence from it says nothing: each id refetches once.
+		if (update.discovery_id && !sessionDiscoveryIds.has(update.discovery_id)) {
+			sessionDiscoveryIds.add(update.discovery_id);
+			const discoveries = queryClient.getQueryData<Discovery[]>(queryKeys.discovery.all);
+			if (!discoveries?.some((d) => d.id === update.discovery_id)) {
+				queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+			}
+		}
 	}
 }
 
-export const discoverySSEManager = new DiscoverySSEManager();
+export const discoveryStream = new DiscoveryStream();
 
 /** Adds sessions to the active-sessions cache, replacing any it already holds. */
 export function upsertSessions(
@@ -867,12 +865,11 @@ export function useBulkStartDiscoveriesMutation() {
 	return createMutation(() => ({
 		mutationFn: async (discoveryIds: string[]) => {
 			return unwrapData(
-				await apiClient.POST('/api/v1/discovery/bulk-start-session', { body: discoveryIds })
+				await apiClient.POST('/api/v1/discoveries/bulk-start-session', { body: discoveryIds })
 			) as DiscoveryUpdatePayload[];
 		},
 		onSuccess: (sessions: DiscoveryUpdatePayload[]) => {
 			upsertSessions(qc, sessions);
-			discoverySSEManager.connect();
 			pushSuccess(m.discovery_sessionsStartedToast({ count: sessions.length }));
 		}
 	}));
@@ -903,7 +900,7 @@ export function useBulkCancelDiscoveriesMutation() {
 			mark(true);
 			try {
 				requireSuccess(
-					await apiClient.POST('/api/v1/discovery/bulk-cancel', { body: discoveryIds })
+					await apiClient.POST('/api/v1/discoveries/bulk-cancel', { body: discoveryIds })
 				);
 			} catch (error) {
 				// The stream only clears the mark when a session ends, which a refused request

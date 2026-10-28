@@ -84,8 +84,8 @@ pub struct Accumulator {
     advertised_types: BTreeSet<Name>,
     /// Instance name → the service type whose PTR named it.
     instance_service: BTreeMap<Name, BTreeSet<String>>,
-    /// Instance name → the hostname its SRV points at.
-    instance_target: BTreeMap<Name, Name>,
+    /// Instance name → the hostname and port its SRV points at.
+    instance_target: BTreeMap<Name, (Name, u16)>,
     /// Instance name → its TXT key/value pairs.
     instance_txt: BTreeMap<Name, BTreeMap<String, String>>,
     /// Hostname → the addresses its A/AAAA records bind.
@@ -115,7 +115,8 @@ impl Accumulator {
                     }
                 }
                 RData::SRV(srv) => {
-                    self.instance_target.insert(owner, srv.target.clone());
+                    self.instance_target
+                        .insert(owner, (srv.target.clone(), srv.port));
                 }
                 RData::TXT(txt) => {
                     let entry = self.instance_txt.entry(owner).or_default();
@@ -160,7 +161,7 @@ impl Accumulator {
         let mut hosts: HashMap<IpAddr, DnsSdHost> = HashMap::new();
 
         for (instance, services) in &self.instance_service {
-            let Some(target) = self.instance_target.get(instance) else {
+            let Some((target, port)) = self.instance_target.get(instance) else {
                 continue;
             };
             let Some(addresses) = self.host_addresses.get(target) else {
@@ -178,6 +179,9 @@ impl Accumulator {
                     let entry = host.services.entry(service.clone()).or_default();
                     if let Some(txt) = txt {
                         entry.extend(txt.iter().map(|(k, v)| (k.clone(), v.clone())));
+                    }
+                    if *port != 0 {
+                        host.ports.insert(service.clone(), *port);
                     }
                 }
                 // Only instances of a service type that names the *device* may supply a host name.
@@ -375,6 +379,7 @@ mod tests {
         let host = &hosts[&IpAddr::V4(Ipv4Addr::new(192, 168, 1, 60))];
         assert_eq!(host.instance_name.as_deref(), Some("Office Printer"));
         assert!(host.advertises("_ipp._tcp", None));
+        assert_eq!(host.ports.get("_ipp._tcp"), Some(&631));
     }
 
     /// The live failure: a scan named an iPhone "Spotify Group Session [612Gq]" from a

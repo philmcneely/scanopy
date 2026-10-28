@@ -8,6 +8,8 @@
 	import type { Discovery } from '../../types/base';
 	import DiscoveryEditModal from '../DiscoveryModal/DiscoveryEditModal.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import { formatTimestamp } from '$lib/shared/utils/formatting';
 	import { discoveryHistoryColumns } from './DiscoveryHistoryTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
@@ -52,7 +54,7 @@
 	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 	type DiscoveryOrderField = components['schemas']['DiscoveryOrderField'];
 
-	const DISCOVERY_FIELD_VALUES = '/api/v1/discovery/field-values/{field}';
+	const DISCOVERY_FIELD_VALUES = '/api/v1/discoveries/field-values/{field}';
 
 	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
@@ -146,6 +148,7 @@
 	// means it stays `isPending` forever. The server already returns only
 	// historical rows (`historical: true`), so no client-side filter is needed.
 	let isLoading = $derived(discoveriesQuery.isPending || daemonsQuery.isPending);
+	let pageLoad = $derived(loadFailure(organizationQuery, discoveriesQuery, daemonsQuery));
 
 	// Page change handler for server-side pagination
 	function handlePageChange(page: number, newPageSize: number) {
@@ -298,7 +301,9 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if !hasDaemon(onboarding)}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if !hasDaemon(onboarding)}
 		<PreDaemonEmptyState title={daemons_installPromptDiscoveries()} {isReadOnly} />
 	{:else if isLoading}
 		<Loading />

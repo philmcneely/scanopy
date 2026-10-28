@@ -43,7 +43,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 #[utoipa::path(
     get,
     path = "/plans",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "List of available billing plans", body = ApiResponse<Vec<BillingPlan>>),
         (status = 400, description = "Billing not enabled", body = ApiErrorResponse),
@@ -65,11 +65,11 @@ async fn get_billing_plans(
     }
 }
 
-/// Create a checkout session
+/// Create checkout session
 #[utoipa::path(
     post,
     path = "/checkout",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = CreateCheckoutRequest,
     responses(
         (status = 200, description = "Checkout session URL", body = ApiResponse<String>),
@@ -101,36 +101,32 @@ async fn create_checkout_session(
         let org = billing_service.get_organization(organization_id).await?;
 
         // An air-gapped key carries the plan it was issued for and validates
-        // offline, so a plan change would leave a key on the customer's server
-        // naming a plan they no longer hold, with no way to retire it. Refused
-        // until the period they paid for ends; cancelling is a separate
-        // endpoint and stays open. Checked before the routing below, because
-        // the downgrade-to-Free and Checkout branches are plan changes too.
-        if let Some(current_until) = org.air_gapped_key_current_until() {
+        // offline, so a move to another license plan would leave a key on the
+        // customer's server naming a plan they no longer hold, with no way to
+        // retire it. Refused until the period they paid for ends; a cloud plan
+        // and cancelling stay open. Checked before the routing below, because
+        // the Checkout branches are plan changes too.
+        if let Some(current_until) = org.air_gapped_plan_change_blocked_until(request.plan) {
             return Err(ApiError::air_gapped_plan_change_blocked(
                 current_until.format("%B %-d, %Y").to_string(),
             ));
         }
 
+        // Free is where a cloud org starts and where an ended cloud plan
+        // lands; nobody picks it. Ending a subscription is Cancel Subscription.
+        if request.plan.is_free() {
+            return Err(ApiError::bad_request(
+                "Free can't be chosen. Cancel your subscription to move to Free when it ends.",
+            ));
+        }
+
         let plan_status = org.base.plan_status;
         // A lapsed org has no live subscription to modify or schedule against:
-        // its way back is a new paid subscription, never Free.
+        // its way back is a new paid subscription.
         let is_lapsed = org.is_lapsed();
 
         if plan_status.is_some() && org.base.stripe_customer_id.is_some() {
-            if request.plan.is_free() {
-                if is_lapsed {
-                    return Err(ApiError::bad_request(
-                        "A lapsed organization needs a paid plan",
-                    ));
-                }
-                // Cancel at the end of the billing cycle; the org then lapses
-                // on its plan.
-                let result = billing_service
-                    .schedule_downgrade(organization_id, auth.into_entity())
-                    .await?;
-                Ok(Json(ApiResponse::success(result)))
-            } else {
+            {
                 // Paid target — check trial eligibility and payment state
                 use crate::server::billing::types::base::PlanStatus;
                 let is_currently_trialing = plan_status == Some(PlanStatus::Trialing);
@@ -143,7 +139,7 @@ async fn create_checkout_session(
                     return Ok(Json(ApiResponse::success(result)));
                 }
 
-                let has_non_free_plan = org.base.plan.as_ref().is_some_and(|p| !p.is_free());
+                let has_non_free_plan = !org.base.plan.is_free();
                 let is_returning = has_non_free_plan || org.base.trial_end_date.is_some();
                 let is_trial_eligible = !is_returning && request.plan.config().trial_days > 0;
 
@@ -207,17 +203,23 @@ async fn create_checkout_session(
                 }
             }
         } else {
-            // First-time subscriber
-            if request.plan.is_free() {
-                // Free plan — activate directly, no Stripe needed
-                let result = billing_service
-                    .activate_free_plan(organization_id, request.plan, auth.into_entity())
-                    .await?;
-                Ok(Json(ApiResponse::success(result)))
-            } else if request.plan.config().trial_days > 0 {
-                // Trial plan — create subscription directly, skip Checkout
+            // No subscription: an org on Free, or a license signup whose
+            // trial hasn't started. A trial is offered once per org.
+            if request.plan.config().trial_days > 0 && org.base.trial_end_date.is_none() {
+                // Trial plan — create subscription directly, skip Checkout. A
+                // cloud plan's trial refuses without a card on file.
                 let result = billing_service
                     .create_trial_subscription(organization_id, request.plan, auth.into_entity())
+                    .await?;
+                Ok(Json(ApiResponse::success(result)))
+            } else if org.base.stripe_customer_id.is_some()
+                && billing_service
+                    .customer_has_payment_method(organization_id)
+                    .await?
+            {
+                // Trial used, card on file — subscribe here rather than in Checkout.
+                let result = billing_service
+                    .create_paid_subscription(organization_id, request.plan, auth.into_entity())
                     .await?;
                 Ok(Json(ApiResponse::success(result)))
             } else {
@@ -240,11 +242,13 @@ async fn create_checkout_session(
     }
 }
 
-/// Create a SetupIntent for in-app card collection (Stripe Payment Element)
+/// Create payment method setup intent
+///
+/// A SetupIntent for collecting a card in the app with the Stripe Payment Element.
 #[utoipa::path(
     post,
     path = "/payment-method-setup-intent",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "SetupIntent client secret", body = ApiResponse<SetupIntentResponse>),
         (status = 400, description = "Billing not enabled", body = ApiErrorResponse),
@@ -271,11 +275,13 @@ async fn create_payment_method_setup_intent(
     }
 }
 
-/// Finalize a client-confirmed SetupIntent (set the card as default)
+/// Finalize payment method
+///
+/// Sets the card from a client-confirmed SetupIntent as the default.
 #[utoipa::path(
     post,
     path = "/finalize-payment-method",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = FinalizePaymentMethodRequest,
     responses(
         (status = 200, description = "Payment method finalized", body = EmptyApiResponse),
@@ -308,7 +314,7 @@ async fn finalize_payment_method(
 #[utoipa::path(
     post,
     path = "/change-plan",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = ChangePlanRequest,
     responses(
         (status = 200, description = "Plan change initiated", body = ApiResponse<String>),
@@ -327,9 +333,9 @@ async fn change_plan(
 
     if let Some(billing_service) = state.services.billing_service.clone() {
         // Same rule as `create_checkout_session`: an air-gapped key commits the
-        // org to its plan until the period it paid for ends.
+        // org to its license tier until the period it paid for ends.
         let org = billing_service.get_organization(organization_id).await?;
-        if let Some(current_until) = org.air_gapped_key_current_until() {
+        if let Some(current_until) = org.air_gapped_plan_change_blocked_until(request.plan) {
             return Err(ApiError::air_gapped_plan_change_blocked(
                 current_until.format("%B %-d, %Y").to_string(),
             ));
@@ -349,7 +355,7 @@ async fn change_plan(
 #[utoipa::path(
     get,
     path = "/change-plan/preview",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     params(
         ("plan" = String, Query, description = "Target plan (JSON)"),
     ),
@@ -392,7 +398,7 @@ async fn preview_plan_change(
 #[utoipa::path(
     post,
     path = "/webhooks",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Webhook processed", body = EmptyApiResponse),
         (status = 400, description = "Invalid signature or billing not enabled", body = ApiErrorResponse),
@@ -420,11 +426,11 @@ async fn handle_webhook(
     }
 }
 
-/// Create a billing portal session
+/// Create billing portal session
 #[utoipa::path(
     post,
     path = "/portal",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = String,
     responses(
         (status = 200, description = "Portal session URL", body = ApiResponse<String>),
@@ -459,7 +465,7 @@ async fn create_portal_session(
 #[utoipa::path(
     post,
     path = "/pause",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = PauseSubscriptionRequest,
     responses(
         (status = 200, description = "Subscription paused", body = ApiResponse<String>),
@@ -486,7 +492,7 @@ async fn pause_subscription(
     }
 }
 
-/// Resume a paused subscription
+/// Resume paused subscription
 ///
 /// Clears Stripe pause collection and re-activates billing. Available while
 /// `plan_status === 'paused'`. The prorated pause credit is posted to the
@@ -495,7 +501,7 @@ async fn pause_subscription(
 #[utoipa::path(
     post,
     path = "/resume",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Subscription resumed", body = ApiResponse<String>),
         (status = 400, description = "No paused subscription or billing not enabled", body = ApiErrorResponse),
@@ -520,14 +526,14 @@ async fn resume_subscription(
     }
 }
 
-/// Reactivate a subscription pending cancellation
+/// Reactivate subscription pending cancellation
 ///
 /// Clears Stripe's scheduled-cancellation state (`cancel_at` → None).
 /// Available while `plan_status === 'pending_cancellation'`.
 #[utoipa::path(
     post,
     path = "/reactivate",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Subscription reactivated", body = ApiResponse<String>),
         (status = 400, description = "No pending cancellation or billing not enabled", body = ApiErrorResponse),
@@ -556,7 +562,7 @@ async fn reactivate_subscription(
 #[utoipa::path(
     post,
     path = "/extend-trial",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Trial extended", body = ApiResponse<String>),
         (status = 400, description = "Ineligible or billing not enabled", body = ApiErrorResponse),
@@ -581,14 +587,14 @@ async fn extend_trial(
     }
 }
 
-/// End the trial now and charge the card on file
+/// End trial and charge card on file
 ///
 /// Offered to customers who want an air-gapped license key, which needs a paid
 /// subscription because it validates offline and cannot be revoked.
 #[utoipa::path(
     post,
     path = "/end-trial",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Trial ended and subscription charged", body = ApiResponse<String>),
         (status = 400, description = "Not trialing, no payment method, or billing not enabled", body = ApiErrorResponse),
@@ -622,7 +628,7 @@ async fn end_trial(
 #[utoipa::path(
     post,
     path = "/cancel",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = CancelSubscriptionRequest,
     responses(
         (status = 200, description = "Cancellation initiated", body = ApiResponse<CancelSubscriptionResponse>),
@@ -649,14 +655,14 @@ async fn cancel_subscription(
     }
 }
 
-/// Apply the discount save offer
+/// Apply discount save offer
 ///
 /// Applies the configured Stripe coupon to the subscription. Returns 400
 /// when `STRIPE_SAVE_OFFER_COUPON_ID` is unset.
 #[utoipa::path(
     post,
     path = "/cancel/apply-discount",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Discount applied", body = ApiResponse<String>),
         (status = 400, description = "Discount not configured or billing not enabled", body = ApiErrorResponse),
@@ -690,7 +696,7 @@ async fn apply_discount_save_offer(
 #[utoipa::path(
     get,
     path = "/save-offer-coupon",
-    tags = [api_tags::BILLING, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Save-offer coupon terms, or null when not configured", body = ApiResponse<Option<SaveOfferCoupon>>),
         (status = 400, description = "Billing not enabled", body = ApiErrorResponse),

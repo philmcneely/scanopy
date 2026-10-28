@@ -53,7 +53,7 @@ import {
 
 type ServiceOrderField = components['schemas']['ServiceOrderField'];
 /** The service list endpoint's query params, which the filters are sent and linked as. */
-type ServiceListParam = keyof NonNullable<operations['get_all_services']['parameters']['query']>;
+type ServiceListParam = keyof NonNullable<operations['list_services']['parameters']['query']>;
 
 /** What the service columns read from the tab, each as a getter so values stay live. */
 export interface ServiceColumnsContext {

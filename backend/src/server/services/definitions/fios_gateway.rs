@@ -4,6 +4,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct FiosGateway;
@@ -19,7 +20,7 @@ impl ServiceDefinition for FiosGateway {
         ServiceCategory::NetworkAccess
     }
     fn device_type(&self) -> Option<DeviceType> {
-        Some(DeviceType::Router)
+        Some(DeviceType::BroadbandRouter)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
@@ -29,11 +30,8 @@ impl ServiceDefinition for FiosGateway {
         ])
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/fios.svg"
-    }
-    fn logo_needs_white_background(&self) -> bool {
-        true
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Fios)
     }
 }
 

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import PageTitle from '$lib/shared/components/layout/PageTitle.svelte';
 	import { common_home } from '$lib/paraglide/messages';
 	import { useDashboardQuery } from '$lib/features/home/queries';
@@ -20,7 +22,7 @@
 	import { homeDaemonPrompt } from '$lib/shared/onboarding/checklist';
 	import type { TabProps } from '$lib/shared/types';
 	import type { components } from '$lib/api/schema';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { openModal } from '$lib/shared/stores/modal-registry';
 	import { useConfigQuery, isCloud } from '$lib/shared/stores/config-query';
 	import {
@@ -43,6 +45,7 @@
 	let organization = $derived(organizationQuery.data);
 	let currentUser = $derived(currentUserQuery.data);
 	let activeSessions = $derived(sessionsQuery.data ?? []);
+	let pageLoad = $derived(loadFailure(dashboardQuery, organizationQuery));
 
 	let onboarding = $derived((organization?.onboarding ?? []) as OnboardingOperation[]);
 	let isOwner = $derived(currentUser?.permissions === 'Owner');
@@ -61,10 +64,14 @@
 		localStorage.setItem('home-demo-topology-dismissed', 'true');
 	}
 
+	// Refetch when the tab opens. Untracked: reading `refetch` off a query subscribes to every
+	// change of its result, and each refetch changes it, so the effect would refetch in a loop.
 	$effect(() => {
 		if (isActive) {
-			organizationQuery.refetch();
-			dashboardQuery.refetch();
+			untrack(() => {
+				organizationQuery.refetch();
+				dashboardQuery.refetch();
+			});
 		}
 	});
 
@@ -97,7 +104,9 @@
 	     rather than sitting on a line of its own. -->
 	<PageTitle title={common_home()} aside={organization?.name ?? null} />
 
-	{#if dashboardQuery.isPending || organizationQuery.isPending}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if dashboardQuery.isPending || organizationQuery.isPending}
 		<Loading />
 	{:else if dashboard && organization}
 		<!-- Getting Started Checklist -->
@@ -128,7 +137,7 @@
 		<!-- Demo Topology Embed — shown before first topology rebuild -->
 		{#if configData && isCloud(configData) && !has('FirstDiscoveryCompleted') && !demoTopologyDismissed}
 			<section>
-				<div class="card-static overflow-hidden card p-0!">
+				<div class="card-static card overflow-hidden p-0!">
 					<div class="flex items-center justify-between px-4 pt-3">
 						<h3 class="text-base font-semibold text-primary">{home_demoEmbedTitle()}</h3>
 						<div class="flex items-center gap-3">

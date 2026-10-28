@@ -237,7 +237,7 @@ impl TagGroupService {
     /// Create whichever of the system groups and the `custom` named groups the organization
     /// lacks, and return every group it then has. Serialized per organization, so two callers
     /// can't both create the same group.
-    pub async fn ensure_groups(
+    pub async fn seed_groups(
         &self,
         organization_id: Uuid,
         custom: &[&str],

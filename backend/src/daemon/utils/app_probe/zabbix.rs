@@ -38,16 +38,12 @@ pub struct ZabbixAgentProbe;
 
 #[async_trait]
 impl AppProbe for ZabbixAgentProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(10050)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::ZabbixAgent
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::ZabbixAgent)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &framed(AGENT_PING), 256).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &framed(AGENT_PING), 256).await;
         Ok(parse_reply(&reply))
     }
 }

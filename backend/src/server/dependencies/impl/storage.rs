@@ -10,7 +10,7 @@ use crate::server::{
     },
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::{
             snapshot::Snapshotable,
             traits::{Entity, SqlValue, Storable},
@@ -194,8 +194,8 @@ impl Entity for Dependency {
     const ENTITY_DESCRIPTION: &'static str =
         "Service dependency relationships. Define how services depend on each other.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Visualization
+    fn product_area() -> ProductArea {
+        ProductArea::Topology
     }
 
     fn site_id(&self) -> Option<Uuid> {

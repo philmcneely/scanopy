@@ -12,12 +12,12 @@
 	import { submitForm } from '$lib/shared/components/forms/form-context';
 	import {
 		required,
-		email as emailValidator,
 		password as passwordValidator,
 		confirmPasswordMatch
 	} from '$lib/shared/components/forms/validators';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import OidcProviderLogo from '$lib/features/auth/components/OidcProviderLogo.svelte';
+	import EmailChangeForm from '$lib/features/auth/components/EmailChangeForm.svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import Password from '$lib/shared/components/forms/input/Password.svelte';
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
@@ -37,8 +37,6 @@
 		common_unlink,
 		settings_account_credentialsUpdated,
 		settings_account_currentPasswordPlaceholder,
-		settings_account_emailChangeIntro,
-		settings_account_enterEmail,
 		settings_account_linkedOn,
 		settings_account_loadingUser,
 		settings_account_noChanges,
@@ -52,7 +50,6 @@
 		settings_account_updateEmail,
 		settings_account_updatePassword,
 		settings_account_identityProviders,
-		settings_account_verificationSentTo,
 		settings_account_cookiePreferencesDesc,
 		cookies_preferences,
 		common_manage
@@ -82,6 +79,7 @@
 	let linkingProviderSlug: string | null = $state(null);
 	let savingCredentials = $state(false);
 	let emailChangeLoading = $state(false);
+	let emailChangeForm: EmailChangeForm | undefined = $state();
 
 	// Create form for password update
 	const form = createForm(() => ({
@@ -117,33 +115,11 @@
 		}
 	}));
 
-	// Create form for email change
-	const emailChangeForm = createForm(() => ({
-		defaultValues: { currentPassword: '', newEmail: '' },
-		onSubmit: async ({ value }) => {
-			const newEmail = value.newEmail.trim();
-			if (!newEmail) return;
-			emailChangeLoading = true;
-			try {
-				const { data } = await apiClient.POST('/api/auth/request-email-change', {
-					body: { current_password: value.currentPassword, new_email: newEmail }
-				});
-				if (data?.success) {
-					pushSuccess(settings_account_verificationSentTo({ email: newEmail }));
-					emailChangeForm.reset({ currentPassword: '', newEmail: '' });
-					subView = 'main';
-				}
-			} finally {
-				emailChangeLoading = false;
-			}
-		}
-	}));
-
 	// Reset form when switching to credentials view
 	export function resetForm() {
 		linkingProviderSlug = null;
 		form.reset({ currentPassword: '', password: '', confirmPassword: '' });
-		emailChangeForm.reset({ currentPassword: '', newEmail: '' });
+		emailChangeForm?.reset();
 	}
 
 	// Find which provider (if any) is linked to this user
@@ -170,7 +146,7 @@
 
 	async function handleSubmit() {
 		if (subView === 'email-change') {
-			await submitForm(emailChangeForm);
+			await emailChangeForm?.submit();
 		} else {
 			await submitForm(form);
 		}
@@ -179,7 +155,7 @@
 	function handleBack() {
 		subView = 'main';
 		form.reset({ currentPassword: '', password: '', confirmPassword: '' });
-		emailChangeForm.reset({ currentPassword: '', newEmail: '' });
+		emailChangeForm?.reset();
 	}
 
 	async function handleLogout() {
@@ -231,7 +207,7 @@
 				<div class="space-y-6">
 					<!-- Email & Password. A linked OIDC account owns the address, so it can't be changed here. -->
 					<InfoCard title={common_emailAndPassword()}>
-						<div class="flex items-center justify-between gap-4">
+						<div class="flex flex-wrap items-center justify-between gap-4">
 							<div class="flex min-w-0 items-center gap-4">
 								<Mail class="h-5 w-5 shrink-0 text-secondary" />
 								<div class="min-w-0">
@@ -243,7 +219,6 @@
 								<button
 									type="button"
 									onclick={() => {
-										emailChangeForm.reset({ currentPassword: '', newEmail: '' });
 										subView = 'email-change';
 									}}
 									class="btn-primary whitespace-nowrap"
@@ -252,7 +227,7 @@
 								</button>
 							{/if}
 						</div>
-						<div class="flex items-center justify-between gap-4">
+						<div class="flex flex-wrap items-center justify-between gap-4">
 							<div class="flex items-center gap-4">
 								<Key class="h-5 w-5 shrink-0 text-secondary" />
 								<p class="text-sm font-medium text-primary">{common_password()}</p>
@@ -425,46 +400,11 @@
 				</div>
 			</div>
 		{:else if subView === 'email-change'}
-			<div class="space-y-2">
-				<p class="mb-2 text-sm text-secondary">
-					{settings_account_emailChangeIntro()}
-				</p>
-				<div class="space-y-6">
-					<emailChangeForm.Field
-						name="currentPassword"
-						validators={{
-							onBlur: ({ value }) => required(value)
-						}}
-					>
-						{#snippet children(field)}
-							<TextInput
-								label={common_currentPassword()}
-								id="emailChangeCurrentPassword"
-								type="password"
-								{field}
-								placeholder={settings_account_currentPasswordPlaceholder()}
-							/>
-						{/snippet}
-					</emailChangeForm.Field>
-
-					<emailChangeForm.Field
-						name="newEmail"
-						validators={{
-							onBlur: ({ value }) => required(value) || emailValidator(value)
-						}}
-					>
-						{#snippet children(field)}
-							<TextInput
-								label={common_email()}
-								id="newEmail"
-								{field}
-								placeholder={settings_account_enterEmail()}
-								required
-							/>
-						{/snippet}
-					</emailChangeForm.Field>
-				</div>
-			</div>
+			<EmailChangeForm
+				bind:this={emailChangeForm}
+				bind:saving={emailChangeLoading}
+				onChanged={() => (subView = 'main')}
+			/>
 		{:else if subView === 'cookies'}
 			<CookieSettingsPanel onSave={() => (subView = 'main')} />
 		{/if}

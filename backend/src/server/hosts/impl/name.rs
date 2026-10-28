@@ -208,6 +208,16 @@ pub fn is_identifier_copy(source: AttributeSource) -> bool {
         | S::LldpSysDescMatch
         | S::SshBannerMatch
         | S::HttpServerMatch
+        | S::X509SubjectMatch
+        | S::X509IssuerMatch
+        | S::HtmlTitleMatch
+        | S::HttpWwwAuthMatch
+        | S::HttpCookieMatch
+        | S::FaviconMatch
+        | S::FtpBannerMatch
+        | S::TelnetBannerMatch
+        | S::RtspServerMatch
+        | S::TcpStackMatch
         | S::DnsSdDeviceInfoMatch
         | S::DnsSdAirPlayMatch
         | S::InterfaceNameMatch
@@ -217,6 +227,7 @@ pub fn is_identifier_copy(source: AttributeSource) -> bool {
         | S::ArpReply
         | S::IcmpEcho
         | S::PortScan
+        | S::DnsSdServicePort
         | S::SshScript => false,
     }
 }

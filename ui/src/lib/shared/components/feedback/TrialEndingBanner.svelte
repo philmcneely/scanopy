@@ -1,17 +1,22 @@
 <script lang="ts">
+	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import { AlertTriangle } from 'lucide-svelte';
 	import AppBanner from './AppBanner.svelte';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useHasPendingQuote } from '$lib/features/billing/queries';
 	import { startSetupPayment } from '$lib/shared/billing/setup-payment';
 	import { getTrialDaysLeft, isTrialingWithoutPayment } from '$lib/shared/utils/trial';
+	import { hasLicensedPlan } from '$lib/features/organizations/types';
 	import { trackOncePerSession } from '$lib/shared/utils/analytics';
 	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
 	import {
 		billing_addPaymentMethod,
 		billing_trialBannerBody,
 		billing_trialBannerBodyOneDay,
-		billing_trialBannerBodyToday
+		billing_trialBannerBodyToday,
+		billing_trialBannerBodyLicense,
+		billing_trialBannerBodyLicenseOneDay,
+		billing_trialBannerBodyLicenseToday
 	} from '$lib/paraglide/messages';
 
 	const organizationQuery = useOrganizationQuery();
@@ -30,11 +35,17 @@
 			trialDaysLeft <= 3
 	);
 
+	// A licensed trial ends in a stopped license key, not a downgraded cloud account.
+	let isLicensed = $derived(org != null && hasLicensedPlan(org));
 	let body = $derived.by(() => {
 		if (trialDaysLeft === null) return '';
-		if (trialDaysLeft <= 0) return billing_trialBannerBodyToday();
-		if (trialDaysLeft === 1) return billing_trialBannerBodyOneDay();
-		return billing_trialBannerBody({ days: trialDaysLeft });
+		if (trialDaysLeft <= 0)
+			return isLicensed ? billing_trialBannerBodyLicenseToday() : billing_trialBannerBodyToday();
+		if (trialDaysLeft === 1)
+			return isLicensed ? billing_trialBannerBodyLicenseOneDay() : billing_trialBannerBodyOneDay();
+		return isLicensed
+			? billing_trialBannerBodyLicense({ days: trialDaysLeft })
+			: billing_trialBannerBody({ days: trialDaysLeft });
 	});
 
 	$effect(() => {
@@ -48,6 +59,9 @@
 	function handleCta() {
 		startSetupPayment({ org, source: 'trial_banner', trialDaysLeft });
 	}
+
+	// Stripe.js is ready before anyone opens the payment dialog from here.
+	usePreloadStripe(() => shouldShow);
 </script>
 
 {#if shouldShow}

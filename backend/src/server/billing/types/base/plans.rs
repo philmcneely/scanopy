@@ -225,48 +225,64 @@ impl BillingRate {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BillingPlanFeatures {
-    pub share_views: bool,
+    // Field order follows `Feature`, the order plan cards list them.
+    // Map. The three topology views: a plan includes all three or none (`includes_topology`).
+    pub network_topology: bool,
+    pub workload_mapping: bool,
+    pub application_mapping: bool,
+    /// How many days of snapshots the plan retains before the daily sweep
+    /// deletes them. `0` means snapshots are unavailable on this plan. The
+    /// env-var override (`SCANOPY_SNAPSHOT_RETENTION_DAYS_OVERRIDE`) takes
+    /// precedence at runtime — see `BillingPlan::snapshot_retention_days`.
+    pub snapshot_retention_days: u32,
+    pub sharing: bool,
+    pub png_export: bool,
+    pub svg_export: bool,
+    pub pdf_export: bool,
+    pub html_export: bool,
+    pub mermaid_export: bool,
+    pub confluence_export: bool,
+    pub drawio_export: bool,
+    pub vsdx_export: bool,
     pub remove_created_with: bool,
-    pub audit_logs: bool,
-    pub webhooks: bool,
+    // Inventory
+    pub device_inventory: bool,
+    pub vlan_subnet_inventory: bool,
+    pub tagging: bool,
+    pub csv_export: bool,
+    // Discovery
+    pub network_discovery: bool,
+    pub scheduled_discovery: bool,
+    pub discovery_integrations: bool,
+    /// Aruba Instant On credentials can be created (existing ones keep working on any plan).
+    pub instant_on_integration: bool,
+    pub service_detection: bool,
+    // API
     pub api_access: bool,
+    pub webhooks: bool,
+    // Support
+    pub email_support: bool,
+    pub live_chat_support: bool,
+    pub priority_support: bool,
     pub onboarding_call: bool,
+    /// Signed service level agreement.
+    pub signed_sla: bool,
+    // Security
     pub custom_sso: bool,
     pub saml: bool,
+    pub audit_logs: bool,
+    // Deployment
     /// License validated fully offline (no phone-home). Deployable air-gapped.
     pub air_gapped_deployment: bool,
     pub managed_deployment: bool,
     pub whitelabeling: bool,
-    pub live_chat_support: bool,
-    pub embeds: bool,
-    pub email_support: bool,
-    pub priority_support: bool,
+    // Billing
     /// Pay by invoice against a purchase order.
     pub invoice_billing: bool,
     /// Billing schedule and payment terms negotiated per contract.
     pub custom_billing: bool,
     /// W-9 and NDAA 889 attestation supplied for vendor onboarding.
     pub procurement_documents: bool,
-    /// Signed service level agreement.
-    pub signed_sla: bool,
-    // Core features
-    pub network_mapping: bool,
-    pub png_export: bool,
-    pub svg_export: bool,
-    pub mermaid_export: bool,
-    pub confluence_export: bool,
-    pub pdf_export: bool,
-    pub html_export: bool,
-    pub drawio_export: bool,
-    pub vsdx_export: bool,
-    pub scheduled_discovery: bool,
-    pub discovery_integrations: bool,
-    pub csv_export: bool,
-    /// How many days of snapshots the plan retains before the daily sweep
-    /// deletes them. `0` means snapshots are unavailable on this plan. The
-    /// env-var override (`SCANOPY_SNAPSHOT_RETENTION_DAYS_OVERRIDE`) takes
-    /// precedence at runtime — see `BillingPlan::snapshot_retention_days`.
-    pub snapshot_retention_days: u32,
 }
 
 impl BillingPlan {
@@ -510,11 +526,13 @@ impl BillingPlan {
     /// For Free: returns all enabled features (it's the baseline).
     /// For self-hosted plans with no previous tier: returns all enabled non-universal features.
     /// For cloud plans: returns features new vs the previous tier.
-    /// Sorted, so the generated fixture is identical from run to run.
+    /// In [`Feature`] declaration order, which is the order plan cards list them.
     pub fn incremental_features(&self) -> Vec<&'static str> {
+        use strum::IntoEnumIterator;
+
         let enabled = self.enabled_feature_ids();
 
-        let mut features: Vec<&'static str> = match self.previous_tier() {
+        let added: HashSet<&'static str> = match self.previous_tier() {
             Some(prev_disc) => {
                 let prev_plan = Self::default_for_discriminant(prev_disc);
                 match prev_plan {
@@ -535,16 +553,76 @@ impl BillingPlan {
                 enabled.difference(&universal).copied().collect()
             }
         };
-        features.sort_unstable();
-        features
+        Feature::iter()
+            .map(|f| f.id())
+            .filter(|id| added.contains(id))
+            .collect()
+    }
+
+    /// The discovery integrations this plan can create a credential for, in the Integrations
+    /// page's order: each one with at least one credential type available on the plan.
+    pub fn integration_ids(&self) -> Vec<&'static str> {
+        use crate::server::credentials::r#impl::integrations::integrations_in_page_order;
+        use crate::server::credentials::r#impl::types::CredentialTypeDiscriminants;
+        use crate::server::shared::types::metadata::HasId;
+        use strum::IntoEnumIterator;
+
+        integrations_in_page_order()
+            .into_iter()
+            .filter(|integration| {
+                CredentialTypeDiscriminants::iter()
+                    .any(|t| t.integration() == *integration && t.available_on(self))
+            })
+            .map(|integration| integration.id())
+            .collect()
+    }
+
+    /// Discovery integrations this plan adds over its previous tier, the way
+    /// [`Self::incremental_features`] does for features. A plan with no previous tier lists all
+    /// of its own.
+    pub fn incremental_integration_ids(&self) -> Vec<&'static str> {
+        let own = self.integration_ids();
+        match self
+            .previous_tier()
+            .and_then(Self::default_for_discriminant)
+        {
+            Some(previous) => {
+                let inherited = previous.integration_ids();
+                own.into_iter()
+                    .filter(|id| !inherited.contains(id))
+                    .collect()
+            }
+            None => own,
+        }
+    }
+
+    /// Every feature's value on this plan, keyed by id: the plan's own fields, plus each group
+    /// feature (Exports), which is on when any feature under it is.
+    pub fn feature_values(&self) -> serde_json::Map<String, serde_json::Value> {
+        use strum::IntoEnumIterator;
+
+        let serde_json::Value::Object(mut values) = serde_json::to_value(self.features()).unwrap()
+        else {
+            unreachable!("BillingPlanFeatures serializes to an object")
+        };
+        for group in Feature::iter().filter(|f| f.is_group()) {
+            let on = Feature::iter()
+                .filter(|f| f.parent() == Some(group))
+                .any(|f| {
+                    values
+                        .get(f.id())
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                });
+            values.insert(group.id().to_string(), serde_json::Value::Bool(on));
+        }
+        values
     }
 
     /// Returns set of feature IDs where the feature is enabled on this plan.
     pub fn enabled_feature_ids(&self) -> HashSet<&'static str> {
-        let features = self.features();
-        let json = serde_json::to_value(&features).unwrap();
-        let obj = json.as_object().unwrap();
-        obj.iter()
+        self.feature_values()
+            .iter()
             .filter(|(_, v)| v.as_bool().unwrap_or(false))
             .map(|(k, _)| {
                 // Leak the key string so we get &'static str
@@ -565,9 +643,8 @@ impl BillingPlan {
     /// Boolean features → true/false directly; numeric features (e.g.
     /// `snapshot_retention_days`) are "enabled" when the value is > 0.
     pub fn has_feature(&self, feature_id: &str) -> bool {
-        let features = self.features();
-        let json = serde_json::to_value(&features).unwrap();
-        let Some(v) = json.get(feature_id) else {
+        let values = self.feature_values();
+        let Some(v) = values.get(feature_id) else {
             return false;
         };
         if let Some(b) = v.as_bool() {
@@ -645,7 +722,7 @@ impl BillingPlan {
             BillingPlan::Community { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: false,
                 webhooks: false,
                 audit_logs: false,
@@ -655,10 +732,15 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: false,
                 priority_support: false,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -667,8 +749,10 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: false,
                 vsdx_export: false,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: false,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -679,7 +763,7 @@ impl BillingPlan {
             BillingPlan::Free { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: false,
+                sharing: false,
                 onboarding_call: false,
                 webhooks: false,
                 audit_logs: false,
@@ -689,11 +773,17 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: false,
                 email_support: false,
                 priority_support: false,
-                network_mapping: true,
-                png_export: true,
+                device_inventory: true,
+                tagging: false,
+                // Diagram exports come from the topology view, which Free lacks.
+                network_topology: false,
+                workload_mapping: false,
+                application_mapping: false,
+                vlan_subnet_inventory: true,
+                service_detection: true,
+                png_export: false,
                 svg_export: false,
                 mermaid_export: false,
                 confluence_export: false,
@@ -701,8 +791,10 @@ impl BillingPlan {
                 html_export: false,
                 drawio_export: false,
                 vsdx_export: false,
+                network_discovery: true,
                 scheduled_discovery: false,
                 discovery_integrations: true,
+                instant_on_integration: false,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -713,7 +805,7 @@ impl BillingPlan {
             BillingPlan::Starter { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: false,
                 webhooks: false,
                 audit_logs: false,
@@ -723,10 +815,15 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: false,
                 email_support: true,
                 priority_support: false,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: false,
@@ -735,8 +832,10 @@ impl BillingPlan {
                 html_export: false,
                 drawio_export: false,
                 vsdx_export: false,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: false,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -747,7 +846,7 @@ impl BillingPlan {
             BillingPlan::Pro { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: false,
                 webhooks: false,
                 audit_logs: false,
@@ -757,10 +856,15 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: false,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -769,8 +873,10 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: false,
                 vsdx_export: false,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -781,7 +887,7 @@ impl BillingPlan {
             BillingPlan::Team { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: false,
                 audit_logs: false,
@@ -791,10 +897,15 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -803,8 +914,10 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -815,7 +928,7 @@ impl BillingPlan {
             BillingPlan::Business { .. } => BillingPlanFeatures {
                 saml: false,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: true,
                 audit_logs: true,
@@ -825,10 +938,15 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -837,8 +955,10 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: false,
                 custom_billing: false,
@@ -849,7 +969,7 @@ impl BillingPlan {
             BillingPlan::Enterprise { .. } => BillingPlanFeatures {
                 saml: true,
                 air_gapped_deployment: true,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: true,
                 audit_logs: true,
@@ -859,10 +979,15 @@ impl BillingPlan {
                 managed_deployment: true,
                 whitelabeling: true,
                 live_chat_support: true,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -871,8 +996,10 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: true,
                 custom_billing: true,
@@ -883,7 +1010,7 @@ impl BillingPlan {
             BillingPlan::Demo { .. } => BillingPlanFeatures {
                 saml: true,
                 air_gapped_deployment: true,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: true,
                 audit_logs: true,
@@ -893,10 +1020,15 @@ impl BillingPlan {
                 managed_deployment: true,
                 whitelabeling: true,
                 live_chat_support: true,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -905,8 +1037,10 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: true,
                 custom_billing: true,
@@ -917,7 +1051,7 @@ impl BillingPlan {
             BillingPlan::CommercialSelfHosted { .. } => BillingPlanFeatures {
                 saml: true,
                 air_gapped_deployment: true,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: true,
                 audit_logs: true,
@@ -927,10 +1061,15 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -939,8 +1078,10 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: true,
                 custom_billing: true,
@@ -951,7 +1092,7 @@ impl BillingPlan {
             BillingPlan::SelfHostedStandard { .. } => BillingPlanFeatures {
                 saml: true,
                 air_gapped_deployment: false,
-                share_views: true,
+                sharing: true,
                 onboarding_call: false,
                 webhooks: true,
                 audit_logs: true,
@@ -961,10 +1102,15 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: false,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -973,8 +1119,10 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: true,
                 custom_billing: false,
@@ -985,7 +1133,7 @@ impl BillingPlan {
             BillingPlan::SelfHostedPlus { .. } => BillingPlanFeatures {
                 saml: true,
                 air_gapped_deployment: true,
-                share_views: true,
+                sharing: true,
                 onboarding_call: true,
                 webhooks: true,
                 audit_logs: true,
@@ -995,10 +1143,15 @@ impl BillingPlan {
                 managed_deployment: false,
                 whitelabeling: true,
                 live_chat_support: false,
-                embeds: true,
                 email_support: true,
                 priority_support: true,
-                network_mapping: true,
+                device_inventory: true,
+                tagging: true,
+                network_topology: true,
+                workload_mapping: true,
+                application_mapping: true,
+                vlan_subnet_inventory: true,
+                service_detection: true,
                 png_export: true,
                 svg_export: true,
                 mermaid_export: true,
@@ -1007,8 +1160,10 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
+                instant_on_integration: true,
                 csv_export: true,
                 invoice_billing: true,
                 custom_billing: false,
@@ -1020,13 +1175,21 @@ impl BillingPlan {
     }
 }
 
+impl BillingPlanFeatures {
+    /// Whether the plan includes the topology view. Its three views are separate features on the
+    /// plan cards, but every plan includes all of them or none.
+    pub fn includes_topology(&self) -> bool {
+        self.network_topology && self.workload_mapping && self.application_mapping
+    }
+}
+
 #[allow(clippy::from_over_into)]
 impl Into<Vec<Feature>> for BillingPlanFeatures {
     fn into(self) -> Vec<Feature> {
         let mut features = vec![];
 
         let BillingPlanFeatures {
-            share_views,
+            sharing,
             onboarding_call,
             webhooks,
             audit_logs,
@@ -1038,10 +1201,15 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             whitelabeling,
             api_access,
             live_chat_support,
-            embeds,
             email_support,
             priority_support,
-            network_mapping,
+            device_inventory,
+            tagging,
+            network_topology,
+            workload_mapping,
+            application_mapping,
+            vlan_subnet_inventory,
+            service_detection,
             png_export,
             svg_export,
             mermaid_export,
@@ -1050,8 +1218,10 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             html_export,
             drawio_export,
             vsdx_export,
+            network_discovery,
             scheduled_discovery,
             discovery_integrations,
+            instant_on_integration,
             csv_export,
             invoice_billing,
             custom_billing,
@@ -1060,8 +1230,8 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             snapshot_retention_days,
         } = self;
 
-        if share_views {
-            features.push(Feature::ShareViews)
+        if sharing {
+            features.push(Feature::Sharing)
         }
 
         if custom_sso {
@@ -1082,10 +1252,6 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
 
         if managed_deployment {
             features.push(Feature::ManagedDeployment)
-        }
-
-        if embeds {
-            features.push(Feature::Embeds)
         }
 
         if whitelabeling {
@@ -1136,8 +1302,32 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             features.push(Feature::RemoveCreatedWith)
         }
 
-        if network_mapping {
-            features.push(Feature::NetworkMapping)
+        if device_inventory {
+            features.push(Feature::DeviceInventory)
+        }
+
+        if tagging {
+            features.push(Feature::Tagging)
+        }
+
+        if network_topology {
+            features.push(Feature::NetworkTopology)
+        }
+
+        if workload_mapping {
+            features.push(Feature::WorkloadMapping)
+        }
+
+        if application_mapping {
+            features.push(Feature::ApplicationMapping)
+        }
+
+        if vlan_subnet_inventory {
+            features.push(Feature::VlanSubnetInventory)
+        }
+
+        if service_detection {
+            features.push(Feature::ServiceDetection)
         }
 
         if png_export {
@@ -1172,12 +1362,20 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             features.push(Feature::VsdxExport)
         }
 
+        if network_discovery {
+            features.push(Feature::NetworkDiscovery)
+        }
+
         if scheduled_discovery {
             features.push(Feature::ScheduledDiscovery)
         }
 
         if discovery_integrations {
             features.push(Feature::DiscoveryIntegrations)
+        }
+
+        if instant_on_integration {
+            features.push(Feature::InstantOnIntegration)
         }
 
         if csv_export {
@@ -1298,7 +1496,8 @@ impl TypeMetadataProvider for BillingPlan {
             "included_instances": instance_limits.production,
             "included_non_production_instances": instance_limits.non_production,
             // Feature flags and metadata
-            "features": self.features(),
+            "features": self.feature_values(),
+            "includes_topology": self.features().includes_topology(),
             "is_commercial": self.is_commercial(),
             "is_stripe_managed": self.is_stripe_managed(),
             "is_free": self.is_free(),
@@ -1310,7 +1509,31 @@ impl TypeMetadataProvider for BillingPlan {
             "license_plan": self.license_plan(),
             // Tier relationship
             "incremental_features": self.incremental_features(),
+            // Discovery integrations, itemized on the plan cards and in the comparison table.
+            "integrations": self.integration_ids(),
+            "incremental_integrations": self.incremental_integration_ids(),
             "previous_tier": previous_tier
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use strum::IntoEnumIterator;
+
+    /// The topology gates check the three map features together (`includes_topology`), so a plan
+    /// that sets them differently would advertise a view its gates refuse, or the reverse.
+    #[test]
+    fn plans_include_every_topology_view_or_none() {
+        for plan in BillingPlan::iter() {
+            let f = plan.features();
+            assert!(
+                f.network_topology == f.workload_mapping
+                    && f.workload_mapping == f.application_mapping,
+                "{} sets the map features differently",
+                plan.id()
+            );
+        }
     }
 }

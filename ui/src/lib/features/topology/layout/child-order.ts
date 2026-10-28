@@ -68,6 +68,33 @@ export function dependencyOrder(
 }
 
 /**
+ * The connected group each of `ids` belongs to over `edges`, named by its first member in `ids`.
+ * A child no edge touches is a group of its own.
+ */
+export function connectedGroups(
+	ids: readonly string[],
+	edges: readonly { source: string; target: string }[]
+): Map<string, string> {
+	const parent = new Map(ids.map((id) => [id, id]));
+	const find = (id: string): string => {
+		let root = id;
+		while (parent.get(root) !== root) root = parent.get(root)!;
+		parent.set(id, root);
+		return root;
+	};
+	for (const { source, target } of edges) {
+		if (!parent.has(source) || !parent.has(target)) continue;
+		const a = find(source);
+		const b = find(target);
+		if (a === b) continue;
+		// The member earlier in `ids` names the group.
+		if (ids.indexOf(a) < ids.indexOf(b)) parent.set(b, a);
+		else parent.set(a, b);
+	}
+	return new Map(ids.map((id) => [id, find(id)]));
+}
+
+/**
  * Put a container's children in `rank` order and keep them there through box packing.
  *
  * ELK's box algorithm places children by `elk.priority`, highest first, and only then by size, so a

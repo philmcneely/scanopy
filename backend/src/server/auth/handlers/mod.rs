@@ -1,4 +1,3 @@
-use crate::daemon::shared::config::DEFAULT_DAEMON_NAME;
 use crate::server::{
     auth::{
         r#impl::{
@@ -19,10 +18,6 @@ use crate::server::{
         oidc::{OidcRegisterResult, OidcService},
     },
     config::{AppState, DeploymentType, get_deployment_type},
-    daemons::r#impl::{
-        api::ProvisionDaemonRequest,
-        base::{DaemonMode, DaemonOs},
-    },
     invites::handlers::process_pending_invite,
     organizations::r#impl::base::UseCase,
     shared::{
@@ -99,9 +94,9 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(resend_verification))
 }
 
-mod oidc;
+pub(crate) mod oidc;
 mod password;
-mod registration;
+pub(crate) mod registration;
 mod session;
 mod verification;
 use oidc::*;
@@ -109,44 +104,3 @@ use password::*;
 use registration::*;
 use session::*;
 use verification::*;
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_legitimate_regional_domains_not_blocked() {
-        let legitimate = [
-            "user@yahoo.co.jp",
-            "user@yahoo.co.uk",
-            "user@yahoo.ca",
-            "user@hotmail.co.uk",
-            "user@hotmail.it",
-            "user@outlook.com",
-            "user@gmail.com",
-            "user@protonmail.com",
-        ];
-        for email in legitimate {
-            assert!(
-                mailchecker::is_valid(email),
-                "{} should not be blocked as disposable",
-                email
-            );
-        }
-    }
-
-    #[test]
-    fn test_disposable_domains_blocked() {
-        let disposable = [
-            "user@mailinator.com",
-            "user@guerrillamail.com",
-            "user@yopmail.com",
-            "user@sharklasers.com",
-            "user@trashmail.com",
-        ];
-        for email in disposable {
-            assert!(
-                !mailchecker::is_valid(email),
-                "{} should be blocked as disposable",
-                email
-            );
-        }
-    }
-}

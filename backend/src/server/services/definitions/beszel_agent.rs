@@ -3,7 +3,8 @@ use crate::daemon::utils::app_probe::beszel_agent::BeszelAgentProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
+use crate::server::shared::logos::Logo;
 
 /// Beszel Agent — lightweight server monitoring agent.
 ///
@@ -30,14 +31,14 @@ impl ServiceDefinition for BeszelAgent {
     /// because an SSH server speaks first. Its banner reads `SSH-2.0-beszel_<version>`; see
     /// [`crate::daemon::utils::app_probe::beszel_agent`].
     fn discovery_pattern(&self) -> Pattern<'_> {
-        probe_pattern(&BeszelAgentProbe)
+        Pattern::ClientResponse(ClientProbe::BeszelAgent)
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(BeszelAgentProbe)]
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/beszel.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Beszel)
     }
 }
 

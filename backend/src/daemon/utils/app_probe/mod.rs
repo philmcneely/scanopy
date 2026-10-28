@@ -10,9 +10,10 @@
 //! **A probe is a method on the [`ServiceDefinition`] it belongs to.** That gives one registry
 //! rather than two and makes the invariants that matter structural: a probe cannot exist without a
 //! service definition, because a definition is the only thing that can hand one out; and the port
-//! that gets probed is the port that gets scanned, because
-//! [`probe_pattern`](crate::server::services::r#impl::patterns::probe_pattern) derives the
-//! definition's discovery pattern from [`AppProbe::port`]. What stays outside is HTTP endpoint
+//! that gets probed is the port that gets scanned, because both are read from
+//! [`ClientProbe::ports`]: the runner probes those ports, and a definition's
+//! [`Pattern::ClientResponse`](crate::server::services::r#impl::patterns::Pattern::ClientResponse)
+//! puts them in its scan. What stays outside is HTTP endpoint
 //! probing, which is already declarative, and the credentialed integrations, which have their own
 //! registry keyed on credential type — a split that means something, unlike the one this replaces.
 //!
@@ -21,6 +22,7 @@
 //! a second exchange.
 
 pub mod amqp;
+pub mod apple_lockdown;
 pub mod bacula;
 pub mod beszel_agent;
 pub mod cassandra;
@@ -31,8 +33,10 @@ pub mod docker_swarm;
 pub mod epics_ca;
 pub mod ethernet_ip;
 pub mod ftp;
+pub mod google_wifi;
 pub mod h323;
 pub mod ike;
+pub mod ipp;
 pub mod kafka;
 pub mod kerberos;
 pub mod ldap;
@@ -58,12 +62,14 @@ pub mod rtsp;
 pub mod sip;
 pub mod smb;
 pub mod snmp_engine;
+pub mod spotify_connect;
 pub mod ssh;
 pub mod telnet;
 pub mod tftp;
 pub mod tls;
 pub mod udp;
 pub mod unbound_control;
+pub mod vnc;
 pub mod zabbix;
 pub mod zmtp;
 
@@ -82,6 +88,7 @@ use crate::server::hosts::r#impl::attributes::{
     HostFirmwareRevisionAttributed, HostManufacturerAttributed, HostModelAttributed,
     HostOsAttributed, HostSerialNumberAttributed,
 };
+use crate::server::hosts::r#impl::os::recog::{RecogDatabase, RecogMatch};
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -216,9 +223,33 @@ pub struct DeviceIdentity {
     /// Boxed: an OS reading is several times the size of the other fields, and inline it makes
     /// every enum carrying an identity (`AppProbeOutcome`, `ModbusReply`) needlessly large.
     pub os: Option<Box<HostOsAttributed>>,
+    /// What a Recog fingerprint of a string the device sent names (an SSH, FTP or Telnet banner,
+    /// an RTSP `Server` header): OS, maker, model and device class, all inferred, so they combine
+    /// with every other match through [`HostData::offer_match`] rather than apply by rank.
+    /// Boxed for the reason `os` is.
+    pub matched: Option<Box<(RecogMatch, AttributeSource)>>,
 }
 
 impl DeviceIdentity {
+    /// The identity a fingerprint of `input` names, if it names anything.
+    pub fn matched(
+        database: RecogDatabase,
+        input: &str,
+        source: AttributeSource,
+    ) -> Option<DeviceIdentity> {
+        // The software alone (`OpenSSH`, `ProFTPD`) says nothing about the host: the protocol's
+        // own definition already names the service.
+        let matched = database.identify(input).filter(RecogMatch::names_host)?;
+        Some(DeviceIdentity {
+            manufacturer: None,
+            model: None,
+            serial_number: None,
+            firmware_revision: None,
+            os: None,
+            matched: Some(Box::new((matched, source))),
+        })
+    }
+
     /// Fold this identity into the host currently being scanned.
     ///
     /// Each value carries the source that produced it, so the ordering against a credentialed
@@ -233,6 +264,7 @@ impl DeviceIdentity {
             serial_number,
             firmware_revision,
             os,
+            matched,
         } = self.clone();
 
         if let Some(manufacturer) = manufacturer {
@@ -252,6 +284,10 @@ impl DeviceIdentity {
         }
         if let Some(os) = os {
             host_data.offer_os(*os);
+        }
+        if let Some(matched) = matched {
+            let (matched, source) = *matched;
+            host_data.offer_match(matched, source);
         }
     }
 }
@@ -274,27 +310,18 @@ pub fn identity_field<T: AttributeValue + From<String>>(
 /// A non-credentialed application probe.
 #[async_trait]
 pub trait AppProbe: Send + Sync {
-    /// The port this probe speaks on. Also the port the definition's discovery pattern scans, so
-    /// the two cannot disagree.
-    fn port(&self) -> PortType;
-
-    /// The evidence a successful probe contributes to service matching, for protocols whose
-    /// definition matches on [`Pattern::ClientResponse`](crate::server::services::r#impl::patterns::Pattern::ClientResponse).
-    ///
-    /// `None` for the four probes migrated off the old dispatch: their definitions match on the
-    /// port alone, exactly as they did before, and minting `ClientProbe` variants nothing consumes
-    /// would manufacture the very problem `every_client_probe_variant_has_a_producer` exists to
-    /// catch.
-    fn client_probe(&self) -> Option<ClientProbe> {
-        None
-    }
+    /// The evidence a successful probe contributes to service matching, which a definition reads
+    /// with [`Pattern::ClientResponse`](crate::server::services::r#impl::patterns::Pattern::ClientResponse).
+    /// Its [`ClientProbe::ports`] are the ports the probe runs on: [`probe_runs`] pairs the probe
+    /// with each, and `run` receives the one it is speaking on.
+    fn client_probe(&self) -> ClientProbe;
 
     /// Whether this probe applies to this target at all. DHCP overrides it.
     fn applies(&self, _ctx: &ProbeContext) -> bool {
         true
     }
 
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error>;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error>;
 }
 
 /// What one answered probe contributes back to the scan.
@@ -319,16 +346,9 @@ pub(crate) async fn read_greeting(ctx: &ProbeContext, port: PortType, buf_len: u
         return Vec::new();
     };
 
-    let mut buf = vec![0u8; buf_len];
-    match tokio::time::timeout(SCAN_TIMEOUT, stream.read(&mut buf)).await {
-        Ok(Ok(read)) => {
-            buf.truncate(read);
-            buf
-        }
-        // A listener that accepts and then says nothing is the middlebox shape, and it is why this
-        // returns empty rather than erroring: silence is a legitimate answer meaning "not this".
-        _ => Vec::new(),
-    }
+    // A listener that accepts and then says nothing is the middlebox shape, and it is why this
+    // returns empty rather than erroring: silence is a legitimate answer meaning "not this".
+    read_reply(&mut stream, buf_len, SCAN_TIMEOUT).await
 }
 
 /// Connect to `port`, send `request`, and read the reply.
@@ -352,15 +372,67 @@ pub(crate) async fn request_response(
         return Vec::new();
     }
 
-    let mut buf = vec![0u8; buf_len];
-    match tokio::time::timeout(SCAN_TIMEOUT, stream.read(&mut buf)).await {
-        Ok(Ok(read)) => {
-            buf.truncate(read);
-            buf
-        }
-        _ => Vec::new(),
+    // The connect and write bind to the tight `SCAN_TIMEOUT` (network-bound), but the peer has to
+    // compute the reply, so the first response byte is allowed `RESPONSE_READ_TIMEOUT`. A Google
+    // Nest root's `/api/v1/status` takes ~1.15s to answer where the leaf takes ~0.12s; under the
+    // old 800ms read the root's reply was lost and its identity never collected.
+    let reply = read_reply(&mut stream, buf_len, RESPONSE_READ_TIMEOUT).await;
+    if reply.is_empty() {
+        // Connect and write succeeded (a connect failure returned above), so this is a port that
+        // accepted us and then sent no first byte within the window: a slow or silent endpoint,
+        // not an absent service. Logged so slow endpoints are visible rather than silently read as
+        // "nothing here" — grep this to find probes whose `RESPONSE_READ_TIMEOUT` is too tight.
+        tracing::debug!(
+            ip = %ctx.ip,
+            port = %port.number(),
+            timeout_ms = RESPONSE_READ_TIMEOUT.as_millis(),
+            "request_response: connected and sent request but received no reply in time"
+        );
     }
+    reply
 }
+
+/// Read what the peer sends, up to `buf_len` bytes: the first segment within `first_read_timeout`,
+/// then any further segments that follow within [`REPLY_CONTINUATION`] of each other.
+///
+/// `first_read_timeout` is how long the peer may take to send its first byte. For a greeting it is
+/// the tight [`SCAN_TIMEOUT`] (a banner is pushed immediately or not at all); for a request the
+/// peer has to compute the reply, so [`request_response`] allows the longer [`RESPONSE_READ_TIMEOUT`].
+///
+/// TCP carries a stream, not messages, and one `read` returns whatever segment arrived first. A
+/// Google Nest router's DNS server writes its 2-byte length prefix and the message as two
+/// segments, and a Brother print server writes a screen clear and then its Telnet negotiation, so
+/// a single read handed DnsTcp the prefix alone and Telnet the escape codes alone.
+async fn read_reply(
+    stream: &mut (impl AsyncRead + Unpin),
+    buf_len: usize,
+    first_read_timeout: std::time::Duration,
+) -> Vec<u8> {
+    let mut buf = vec![0u8; buf_len];
+    let mut filled = match tokio::time::timeout(first_read_timeout, stream.read(&mut buf)).await {
+        Ok(Ok(read)) => read,
+        _ => return Vec::new(),
+    };
+    while filled > 0 && filled < buf_len {
+        match tokio::time::timeout(REPLY_CONTINUATION, stream.read(&mut buf[filled..])).await {
+            Ok(Ok(read)) if read > 0 => filled += read,
+            _ => break,
+        }
+    }
+    buf.truncate(filled);
+    buf
+}
+
+/// How long [`read_reply`] waits for the next segment of a reply that has started arriving.
+const REPLY_CONTINUATION: std::time::Duration = std::time::Duration::from_millis(100);
+
+/// How long [`request_response`] waits for the first byte of a reply it asked for. Longer than
+/// [`SCAN_TIMEOUT`] because that bounds the network (connect, write), while this bounds the peer's
+/// time to *compute* the reply, which varies by device: an embedded web server that aggregates
+/// state can take over a second to answer where the connect took milliseconds. Only ports that
+/// already passed the connect scan reach here, so the cost of the longer wait falls on open ports
+/// that are slow or silent, not on every probed address.
+pub(crate) const RESPONSE_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// Connect to `port`, send `request`, and read until `want` bytes have arrived.
 ///
@@ -459,21 +531,40 @@ pub fn all_app_probes() -> Vec<Box<dyn AppProbe>> {
         .collect()
 }
 
-/// The probes [`scan_app_probes`] runs against one address. Every probe passes through here, so
+/// Every probe paired with each port it runs on, from its [`ClientProbe::ports`].
+pub fn probe_runs() -> Vec<(Arc<dyn AppProbe>, PortType)> {
+    all_app_probes()
+        .into_iter()
+        .flat_map(|probe| {
+            let probe: Arc<dyn AppProbe> = Arc::from(probe);
+            probe
+                .client_probe()
+                .ports()
+                .into_iter()
+                .map(move |port| (Arc::clone(&probe), port))
+        })
+        .collect()
+}
+
+/// The probe runs [`scan_app_probes`] makes against one address. Every run passes through here, so
 /// the raw-socket gate covers each one, TCP or UDP, without the probe having to know about it.
 ///
 /// TCP probes gate on the connect scan having found the port open; UDP has no connect scan to gate
 /// on, so its probes run whenever `udp` is set — which is what `scan_udp_ports` did for the same four probes.
-fn select_probes(ctx: &ProbeContext, open_ports: &[PortType], udp: bool) -> Vec<Box<dyn AppProbe>> {
-    all_app_probes()
+fn select_probes(
+    ctx: &ProbeContext,
+    open_ports: &[PortType],
+    udp: bool,
+) -> Vec<(Arc<dyn AppProbe>, PortType)> {
+    probe_runs()
         .into_iter()
-        .filter(|p| ctx.probe_raw_socket_ports || !p.port().is_raw_socket())
-        .filter(|p| p.applies(ctx))
-        .filter(|p| {
-            if p.port().is_udp() {
+        .filter(|(_, port)| ctx.probe_raw_socket_ports || !port.is_raw_socket())
+        .filter(|(probe, _)| probe.applies(ctx))
+        .filter(|(_, port)| {
+            if port.is_udp() {
                 udp
             } else {
-                open_ports.contains(&p.port())
+                open_ports.contains(port)
             }
         })
         .collect()
@@ -504,21 +595,35 @@ pub async fn scan_app_probes(
         probe_batch_size,
         scan_rate_pps,
         ctx.cancel.clone(),
-        move |probe| {
+        move |(probe, port)| {
             let ctx = ctx.clone();
             async move {
-                let port = probe.port();
-                match probe.run(&ctx).await {
+                match probe.run(&ctx, port).await {
                     Ok(AppProbeOutcome::Answered { identity }) => {
                         tracing::trace!(ip = %ctx.ip, port = %port.number(), "Application probe answered");
                         Some(AppProbeResult {
                             port,
-                            client_probe: probe.client_probe(),
+                            client_probe: Some(probe.client_probe()),
                             identity,
                         })
                     }
-                    Ok(AppProbeOutcome::NoAnswer) => None,
+                    Ok(AppProbeOutcome::NoAnswer) => {
+                        tracing::debug!(
+                            ip = %ctx.ip,
+                            port = %port.number(),
+                            client_probe = ?probe.client_probe(),
+                            "Application probe got no answer"
+                        );
+                        None
+                    }
                     Err(e) => {
+                        tracing::debug!(
+                            ip = %ctx.ip,
+                            port = %port.number(),
+                            client_probe = ?probe.client_probe(),
+                            error = %e,
+                            "Application probe failed"
+                        );
                         if DiscoveryCriticalError::is_critical_error(e.to_string()) {
                             tracing::error!(
                                 "Critical error running application probe {}:{}: {}",
@@ -618,6 +723,106 @@ mod tests {
         assert_eq!(exact, reply);
     }
 
+    /// A peer that answers in two segments with a pause between them, as a Google Nest router's
+    /// DNS server sends its length prefix and then the message.
+    #[derive(Debug)]
+    struct SegmentedTunnel {
+        first: &'static [u8],
+        rest: &'static [u8],
+    }
+
+    #[async_trait]
+    impl ProbeTunnel for SegmentedTunnel {
+        async fn open(&self, _port: u16) -> std::io::Result<Box<dyn ProbeStream>> {
+            let (first, rest) = (self.first, self.rest);
+            let (ours, mut theirs) = tokio::io::duplex(1024);
+            tokio::spawn(async move {
+                let mut request = [0u8; 64];
+                if theirs.read(&mut request).await.is_ok() {
+                    let _ = theirs.write_all(first).await;
+                    let _ = theirs.flush().await;
+                    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                    let _ = theirs.write_all(rest).await;
+                }
+            });
+            Ok(Box::new(ours))
+        }
+    }
+
+    /// The router's reply to DnsTcp's root NS query: the prefix, then a SERVFAIL response echoing
+    /// the transaction id. A single read saw only the prefix and reported no answer.
+    #[tokio::test]
+    async fn a_reply_split_across_segments_is_read_whole() {
+        use crate::daemon::utils::app_probe::dns_tcp::DnsTcpProbe;
+
+        let ctx = ProbeContext {
+            tunnel: Some(Arc::new(SegmentedTunnel {
+                first: &[0x00, 0x11],
+                rest: &[
+                    0x5C, 0xA1, 0x80, 0x82, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x02, 0x00, 0x01,
+                ],
+            })),
+            ..tunnelled(None)
+        };
+        let reply = request_response(&ctx, PortType::DnsTcp, b"query", 1024).await;
+        assert_eq!(reply.len(), 19, "prefix and message both read");
+        assert_eq!(
+            DnsTcpProbe
+                .run(&ctx, PortType::DnsTcp)
+                .await
+                .expect("probe runs"),
+            AppProbeOutcome::Answered { identity: None }
+        );
+    }
+
+    /// A Brother HL-2270DW's Telnet greeting: a screen clear, then the option negotiation in a
+    /// second segment. A single read saw only the escape codes.
+    #[tokio::test]
+    async fn a_greeting_split_across_segments_is_read_whole() {
+        use crate::daemon::utils::app_probe::telnet::TelnetProbe;
+
+        let ctx = ProbeContext {
+            tunnel: Some(Arc::new(GreetingTunnel {
+                first: b"\x1b[2J\x1b[1;1f",
+                rest: &[0xFF, 0xFB, 0x01, 0xFF, 0xFB, 0x03, 0xFF, 0xFD, 0x03],
+            })),
+            ..tunnelled(None)
+        };
+        assert_eq!(
+            TelnetProbe
+                .run(&ctx, PortType::Telnet)
+                .await
+                .expect("probe runs"),
+            AppProbeOutcome::Answered { identity: None }
+        );
+    }
+
+    /// A server that speaks first, in two segments with a pause between.
+    #[derive(Debug)]
+    struct GreetingTunnel {
+        first: &'static [u8],
+        rest: &'static [u8],
+    }
+
+    #[async_trait]
+    impl ProbeTunnel for GreetingTunnel {
+        async fn open(&self, _port: u16) -> std::io::Result<Box<dyn ProbeStream>> {
+            let (first, rest) = (self.first, self.rest);
+            let (ours, mut theirs) = tokio::io::duplex(1024);
+            tokio::spawn(async move {
+                let _ = theirs.write_all(first).await;
+                let _ = theirs.flush().await;
+                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                let _ = theirs.write_all(rest).await;
+                // Hold the connection open, as a real server does, until the probe hangs up.
+                let mut drain = [0u8; 64];
+                let _ = theirs.read(&mut drain).await;
+            });
+            Ok(Box::new(ours))
+        }
+    }
+
     #[tokio::test]
     async fn a_tunnel_that_cannot_open_is_no_answer() {
         let ctx = tunnelled(None);
@@ -638,8 +843,15 @@ mod tests {
             !probes.is_empty(),
             "the registry should expose the migrated UDP probes at minimum"
         );
+        for probe in &probes {
+            assert!(
+                !probe.client_probe().ports().is_empty(),
+                "{:?} names no port, so its probe never runs",
+                probe.client_probe()
+            );
+        }
 
-        let mut ports: Vec<_> = probes.iter().map(|p| p.port()).collect();
+        let mut ports: Vec<_> = probe_runs().into_iter().map(|(_, port)| port).collect();
         let before = ports.len();
         ports.sort_by_key(|p| (p.number(), p.protocol()));
         ports.dedup();
@@ -652,7 +864,7 @@ mod tests {
 
     /// A gateway address with every registered probe's port open, so nothing but the raw-socket
     /// gate stands between a probe and selection.
-    fn selection_for(probe_raw_socket_ports: bool) -> Vec<Box<dyn AppProbe>> {
+    fn selection_for(probe_raw_socket_ports: bool) -> Vec<(Arc<dyn AppProbe>, PortType)> {
         let ctx = ProbeContext {
             ip: IpAddr::V4(std::net::Ipv4Addr::new(192, 168, 1, 1)),
             subnet_cidr: "192.168.1.0/24".parse().unwrap(),
@@ -663,7 +875,7 @@ mod tests {
             port_map: Default::default(),
             tunnel: None,
         };
-        let open_ports: Vec<PortType> = all_app_probes().iter().map(|p| p.port()).collect();
+        let open_ports: Vec<PortType> = probe_runs().into_iter().map(|(_, port)| port).collect();
         select_probes(&ctx, &open_ports, true)
     }
 
@@ -672,8 +884,8 @@ mod tests {
     #[test]
     fn raw_socket_probes_do_not_run_with_the_setting_off() {
         let offending: Vec<u16> = selection_for(false)
-            .iter()
-            .map(|p| p.port())
+            .into_iter()
+            .map(|(_, port)| port)
             .filter(PortType::is_raw_socket)
             .map(|p| p.number())
             .collect();
@@ -685,19 +897,18 @@ mod tests {
 
     #[test]
     fn raw_socket_probes_run_with_the_setting_on() {
-        let raw_socket_ports = |probes: &[Box<dyn AppProbe>]| -> Vec<PortType> {
-            probes
-                .iter()
-                .map(|p| p.port())
+        let raw_socket_ports = |runs: Vec<(Arc<dyn AppProbe>, PortType)>| -> Vec<PortType> {
+            runs.into_iter()
+                .map(|(_, port)| port)
                 .filter(PortType::is_raw_socket)
                 .collect()
         };
-        let registered = raw_socket_ports(&all_app_probes());
+        let registered = raw_socket_ports(probe_runs());
         assert!(
             !registered.is_empty(),
             "no registered probe targets a raw-socket port, so the gate is untested"
         );
-        assert_eq!(raw_socket_ports(&selection_for(true)), registered);
+        assert_eq!(raw_socket_ports(selection_for(true)), registered);
     }
 
     /// Devices routinely pad a fixed-width identity field with spaces or return it empty, and an

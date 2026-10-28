@@ -335,7 +335,7 @@
 			{:else}
 				<!-- Sub-step: Password -->
 				<div class="space-y-6">
-					<div class="card-static flex items-center justify-between card rounded-lg! px-4! py-3!">
+					<div class="card-static card flex items-center justify-between rounded-lg! px-4! py-3!">
 						<span class="text-sm text-secondary">{emailValue}</span>
 						<button
 							type="button"

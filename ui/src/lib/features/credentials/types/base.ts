@@ -1,5 +1,10 @@
 import type { components } from '$lib/api/schema';
-import { credentialTypes, entities } from '$lib/shared/stores/metadata';
+import {
+	billingPlans,
+	credentialTypes,
+	entities,
+	type FeatureId
+} from '$lib/shared/stores/metadata';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
 export type Credential = components['schemas']['Credential'];
@@ -43,14 +48,14 @@ import {
 
 /**
  * Create a default credential with the given organization ID.
- * Defaults to SNMPv2c type.
+ * Defaults to the SNMP community type.
  */
 export function createDefaultCredential(organization_id: string): Credential {
 	return {
 		name: '',
 		description: null,
 		credential_type: {
-			type: 'SnmpV2c',
+			type: 'SnmpCommunity',
 			community: { mode: 'Inline' as const, value: '' }
 		},
 		daemon_os: null,
@@ -78,7 +83,7 @@ export function getCredentialTypeId(credential: Credential): string {
 export function getCredentialSummary(credential: Credential): string {
 	const ct = credential.credential_type;
 	switch (ct.type) {
-		case 'SnmpV2c':
+		case 'SnmpCommunity':
 			return '161/udp';
 		case 'DockerProxy':
 		case 'PodmanProxy':
@@ -175,7 +180,8 @@ export function getStabilityTagProps(stability: CredentialStability | undefined)
 	if (stability !== 'Beta') return null;
 	return {
 		label: common_beta(),
-		color: 'Amber' as Color,
+		// Purple: amber is the paid crown's and the Host target's, so Beta stands apart from both.
+		color: 'Purple' as Color,
 		title: credentials_betaTooltip()
 	};
 }
@@ -200,6 +206,20 @@ export function getUpstreamSupportTagProps(
 		color: 'Gray' as Color,
 		title: credentials_unofficialApiTooltip()
 	};
+}
+
+/**
+ * The plan feature a new credential of `typeId` needs and an organization on `planType` lacks,
+ * or `null` when it can create one. Only creating is gated: existing credentials of the type keep
+ * working on any plan. An unknown plan gates nothing here; the server refuses the create anyway.
+ */
+export function credentialTypeUpgradeFeature(
+	typeId: string,
+	planType: string | null | undefined
+): FeatureId | null {
+	const required = credentialTypes.getMetadata(typeId)?.required_feature;
+	if (!required || !planType) return null;
+	return billingPlans.getMetadata(planType)?.features?.[required] ? null : required;
 }
 
 /**

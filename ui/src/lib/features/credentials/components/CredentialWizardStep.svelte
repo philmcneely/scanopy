@@ -9,7 +9,6 @@
 	import { slugifySiteName } from '$lib/features/daemons/utils';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
-	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import { credentialTypes, entities } from '$lib/shared/stores/metadata';
 	import type { TypedTypeMetadata, CredentialTypeMetadata } from '$lib/shared/stores/metadata';
 	import type { Credential, CredentialType } from '$lib/features/credentials/types/base';
@@ -17,8 +16,10 @@
 	import type { Host } from '$lib/features/hosts/types/base';
 	import {
 		createDefaultCredential,
+		credentialTypeUpgradeFeature,
 		isDaemonHostOnly as isDaemonHostOnlyTargets
 	} from '$lib/features/credentials/types/base';
+	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
@@ -30,10 +31,7 @@
 		credentialFieldValues,
 		defaultFieldValue
 	} from '$lib/features/credentials/utils/fieldValues';
-	import {
-		DAEMON_HOST_IP,
-		hasExplicitTarget
-	} from '$lib/features/credentials/utils/credentialTargets';
+	import { DAEMON_HOST_IP, isLockedOnly } from '$lib/features/credentials/utils/credentialTargets';
 	import { v4 as uuidv4 } from 'uuid';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import { pushError } from '$lib/shared/stores/feedback';
@@ -50,8 +48,8 @@
 		daemons_credentialWizardCreateNew,
 		daemons_credentialWizardAddExisting,
 		daemons_credentialWizardSelectExisting,
-		daemons_credentialWizardExistingDescription,
 		daemons_credentialWizardDaemonHostUnavailable,
+		daemons_credentialWizardExistingFieldsReadOnly,
 		credentials_requiresDaemonVersion
 	} from '$lib/paraglide/messages';
 
@@ -89,6 +87,8 @@
 		 *  credentials take its OS family as their `daemon_os` and hide the Daemon OS picker;
 		 *  existing credentials set up for another family are blocked. */
 		daemonOs?: DaemonOS | null;
+		/** Keep the remove action on rows with `lockedHosts`. See `CredentialsStep`. */
+		assignedRowsRemovable?: boolean;
 	}
 
 	let {
@@ -100,7 +100,8 @@
 		claimedDaemonHostIntegrations = [],
 		daemonVersion = null,
 		daemonName = null,
-		daemonOs = null
+		daemonOs = null,
+		assignedRowsRemovable = false
 	}: Props = $props();
 
 	let fixedDaemonOs = $derived(daemonOs ? osFamilyOf(daemonOs) : null);
@@ -121,17 +122,15 @@
 
 	// Local items array for ListConfigEditor display
 	let items = $derived(pendingCredentials.map((p) => p.credential));
-	/** A row listed only because the credential is assigned elsewhere — the user has not
-	 *  pointed it at anything on this discovery. It contributes no target. */
-	function isLockedOnly(p: PendingCredential): boolean {
-		return !!p.lockedHosts?.length && !hasExplicitTarget(p.scope, p.targetIps);
-	}
 
-	// A credential assigned through the junction is never removable from this list: the
-	// assignment lives on the host/credential, so the trash would either do nothing or
-	// imply it had unassigned it. Its targets *here* are removed row by row instead.
+	// Where rows are listed for their junction assignments (discovery), a credential assigned
+	// that way is never removable: the assignment lives on the host/credential, so the trash
+	// would either do nothing or imply it had unassigned it. Its targets *here* are removed row
+	// by row instead. Where the user added the row (daemon setup), removing it is theirs to do.
 	let assignedElsewhereCredIds = $derived(
-		pendingCredentials.filter((p) => p.lockedHosts?.length).map((p) => p.credential.id)
+		assignedRowsRemovable
+			? []
+			: pendingCredentials.filter((p) => p.lockedHosts?.length).map((p) => p.credential.id)
 	);
 
 	function isDaemonHostOnly(typeId: string): boolean {
@@ -147,10 +146,11 @@
 	 * Whether a pending credential claims its integration's daemon host: a daemon-host-only
 	 * type (the local socket) always does; a configurable cred does when it targets a loopback.
 	 * The daemon host is a single endpoint per `single_endpoint_per_host` integration, so only
-	 * one credential may hold it.
+	 * one credential may hold it. Existing rows count too (the seeded socket is one); a row
+	 * listed only for its assigned hosts targets nothing here, so it claims nothing.
 	 */
 	function claimsDaemonHost(p: PendingCredential): boolean {
-		if (p.isExisting) return false;
+		if (isLockedOnly(p)) return false;
 		const meta = credentialTypes.getMetadata(p.credential.credential_type.type);
 		if (!meta?.single_endpoint_per_host) return false;
 		return isDaemonHostOnlyTargets(meta.targets) || p.targetIps.some(isLoopback);
@@ -177,7 +177,7 @@
 	 *  already claimed elsewhere — used to disable the "Add daemon host" action. */
 	function daemonHostUnavailableFor(index: number): boolean {
 		const p = pendingCredentials[index];
-		if (!p || p.isExisting) return false;
+		if (!p) return false;
 		const meta = credentialTypes.getMetadata(p.credential.credential_type.type);
 		if (!meta?.single_endpoint_per_host || !meta.associated_service) return false;
 		return integrationClaimsDaemonHost(meta.associated_service, index);
@@ -228,6 +228,14 @@
 					integration: type.metadata.associated_service
 				})
 			: null;
+	}
+
+	// A new credential of a type the plan lacks sits behind an upgrade badge, as export formats do,
+	// and picking it opens the plan picker. Existing credentials of that type are not gated.
+	function handleGatedTypeClick(typeId: string) {
+		const feature = credentialTypeUpgradeFeature(typeId, organization?.plan?.type);
+		if (!feature) return;
+		triggerUpgrade({ feature, source: 'credential_type_picker', surface: 'discovery_form' });
 	}
 
 	// Available existing credentials (filter out already-added and site-level)
@@ -557,7 +565,11 @@
 				emptyMessage={daemons_credentialWizardEmpty()}
 				options={typeOptions}
 				showSearch={true}
-				getOptionContext={(option) => ({ disabledReason: dropdownDisabledReason(option) })}
+				getOptionContext={(option) => ({
+					disabledReason: dropdownDisabledReason(option),
+					upgradeFeature: credentialTypeUpgradeFeature(option.id, organization?.plan?.type)
+				})}
+				onDisabledClick={handleGatedTypeClick}
 				itemClickAction="edit"
 				allowReorder={false}
 				allowDuplicates={true}
@@ -588,21 +600,19 @@
 				<div class:hidden={selectedIndex !== index}>
 					{#if pending.isExisting}
 						<!-- Existing credential added by reference (incl. daemon-host-only sockets):
-						     read-only here (fields shown disabled). Checked before isDaemonHostOnly so an
+						     Step 2 shows a pointer to edit it on its own instead of its fields. Checked before isDaemonHostOnly so an
 						     existing socket cred renders as a reference card, not an editable new form.
 						     A credential already assigned to a host through the junction lands here too,
 						     with those assignments rendered as locked target rows — one card per
 						     credential, whether this discovery targets it, it is assigned elsewhere,
 						     or both. -->
-						<div class="mb-4">
-							<InlineInfo body={daemons_credentialWizardExistingDescription()} />
-						</div>
+
 						<CredentialForm
 							bind:this={credentialFormRefs[index]}
 							{form}
 							credential={pending.credential}
 							compact={true}
-							disabled={true}
+							fieldsNotice={daemons_credentialWizardExistingFieldsReadOnly()}
 							fieldPrefix={`credentials[${index}].`}
 							fixedCredentialType={pending.credential.credential_type.type}
 							fixedName={pending.credential.name}

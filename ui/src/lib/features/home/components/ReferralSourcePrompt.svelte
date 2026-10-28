@@ -146,7 +146,7 @@
 						</form.Field>
 					{/if}
 				</div>
-				<button type="submit" class="mt-3 btn-primary text-sm" disabled={!selectedSource}>
+				<button type="submit" class="btn-primary mt-3 text-sm" disabled={!selectedSource}>
 					{common_submit()}
 				</button>
 			</form>

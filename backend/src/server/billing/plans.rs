@@ -23,6 +23,9 @@ pub const SELF_HOSTED_NON_PRODUCTION_INSTANCES: u32 = 2;
 /// Card-less trial length for both paid self-hosted tiers.
 pub const SELF_HOSTED_TRIAL_DAYS: u32 = 14;
 
+/// Days the once-per-org self-serve trial extension adds.
+pub const TRIAL_EXTENSION_DAYS: u32 = 7;
+
 /// Returns the canonical list of purchasable cloud plans for Scanopy.
 /// This is the single source of truth for plan definitions.
 ///
@@ -83,9 +86,17 @@ pub fn get_free_plan() -> BillingPlan {
         host_cents: None,
         included_seats: Some(1),
         included_sites: Some(1),
-        included_hosts: Some(25),
+        included_hosts: None,
         included_orgs: None,
     })
+}
+
+/// Free is where a cloud organization starts and where a lapsed cloud plan
+/// lands, so it is the plan an organization has when nothing else is known.
+impl Default for BillingPlan {
+    fn default() -> Self {
+        get_free_plan()
+    }
 }
 
 pub fn get_community_plan() -> BillingPlan {

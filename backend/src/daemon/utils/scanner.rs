@@ -537,6 +537,12 @@ async fn fetch_endpoint(
                         })
                     })
                     .collect();
+                let set_cookies = response
+                    .headers()
+                    .get_all(reqwest::header::SET_COOKIE)
+                    .iter()
+                    .filter_map(|value| value.to_str().ok().map(str::to_string))
+                    .collect();
 
                 let deadline = tokio::time::Instant::now() + SCAN_TIMEOUT;
                 let body = read_response_body_until_deadline(response, deadline).await;
@@ -551,6 +557,8 @@ async fn fetch_endpoint(
                     headers,
                     body,
                     status,
+                    over_tls: url.starts_with("https://"),
+                    set_cookies,
                 };
                 if status == reqwest::StatusCode::BAD_REQUEST.as_u16()
                     && bad_request.is_none()
@@ -670,6 +678,76 @@ pub async fn scan_endpoints(
     );
 
     Ok(responses)
+}
+
+/// The largest favicon read. Real icons are a few KB; a port that streams more is not serving one.
+const FAVICON_MAX_BYTES: usize = 256 * 1024;
+
+/// The MD5 of `/favicon.ico` on each port an HTTP request already answered, in lowercase hex: the
+/// key Recog's favicon fingerprints are written against. One GET per port, over the scheme that
+/// port answered on, and only a `200` with a body counts: a login redirect or an error page hashes
+/// to something no fingerprint names.
+pub async fn fetch_favicon_hashes(
+    ip: IpAddr,
+    endpoint_responses: &[EndpointResponse],
+    accept_invalid_certs: bool,
+) -> Vec<(PortType, String)> {
+    use md5::{Digest, Md5};
+
+    let mut ports: Vec<(PortType, bool)> = endpoint_responses
+        .iter()
+        .map(|response| (response.endpoint.port_type, response.over_tls))
+        .collect();
+    ports.sort_by_key(|(port, _)| port.number());
+    ports.dedup_by_key(|(port, _)| port.number());
+    if ports.is_empty() {
+        return Vec::new();
+    }
+
+    let Ok(client) = reqwest::Client::builder()
+        .connect_timeout(SCAN_TIMEOUT)
+        .danger_accept_invalid_certs(accept_invalid_certs)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+    else {
+        return Vec::new();
+    };
+
+    let fetches = ports.into_iter().map(|(port, over_tls)| {
+        let client = client.clone();
+        async move {
+            let scheme = if over_tls { "https" } else { "http" };
+            let url = format!(
+                "{scheme}://{}/favicon.ico",
+                SocketAddr::new(ip, port.number())
+            );
+            let response = timeout(SCAN_TIMEOUT, client.get(&url).send())
+                .await
+                .ok()?
+                .ok()?;
+            if response.status() != reqwest::StatusCode::OK {
+                return None;
+            }
+            let deadline = tokio::time::Instant::now() + SCAN_TIMEOUT;
+            let mut body = Vec::new();
+            let mut stream = response.bytes_stream();
+            while let Ok(Some(Ok(chunk))) = tokio::time::timeout_at(deadline, stream.next()).await {
+                body.extend_from_slice(&chunk);
+                if body.len() > FAVICON_MAX_BYTES {
+                    return None;
+                }
+            }
+            if body.is_empty() {
+                return None;
+            }
+            Some((port, hex::encode(Md5::digest(&body))))
+        }
+    });
+    futures::future::join_all(fetches)
+        .await
+        .into_iter()
+        .flatten()
+        .collect()
 }
 
 /// Try an SNMP GET on a specific port using a credential

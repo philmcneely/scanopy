@@ -34,10 +34,6 @@ impl ServiceDefinition for AirPrintPrinter {
     fn is_generic(&self) -> bool {
         true
     }
-
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/printer.svg"
-    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(

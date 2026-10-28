@@ -2,6 +2,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{InstantOnDeviceType, Pattern};
+use crate::server::shared::logos::Logo;
 
 /// An Instant On wireless access point, as reported by the site inventory. APs return no port
 /// table, so this is usually the only structural thing known about them beyond model and address.
@@ -23,8 +24,8 @@ impl ServiceDefinition for InstantOnAccessPoint {
         Pattern::ManagedDeviceType(InstantOnDeviceType::ACCESS_POINT)
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/hpe.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Hpe)
     }
 }
 

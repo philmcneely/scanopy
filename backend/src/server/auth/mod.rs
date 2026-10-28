@@ -1,3 +1,4 @@
+pub mod disposable_email;
 pub mod email_domain;
 pub mod email_validation;
 pub mod handlers;
@@ -6,3 +7,4 @@ pub mod middleware;
 pub mod oidc;
 pub mod service;
 pub mod terms_gate;
+pub mod verification_gate;

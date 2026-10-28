@@ -29,7 +29,7 @@
 			{#each scanningSessions as session (session.session_id)}
 				{@const daemon = daemons.find((d) => d.id == session.daemon_id)}
 				<div
-					class="card-static cursor-pointer card"
+					class="card-static card cursor-pointer"
 					onclick={onNavigate}
 					onkeydown={(e) => {
 						if (e.key === 'Enter' || e.key === ' ') onNavigate();

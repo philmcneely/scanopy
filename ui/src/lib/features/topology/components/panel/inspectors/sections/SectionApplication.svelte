@@ -9,11 +9,12 @@
 	import { useTagsQuery, type EntityDiscriminants } from '$lib/features/tags/queries';
 	import { concepts } from '$lib/shared/stores/metadata';
 	import {
+		common_host,
+		common_service,
 		common_ungrouped,
 		tags_inheritedFromHost,
 		tags_inheritedOverrideHint,
-		common_overrides,
-		tags_fromHost
+		tags_serviceOverridesHostApplication
 	} from '$lib/paraglide/messages';
 	import InspectorSection from '../shared/InspectorSection.svelte';
 
@@ -83,10 +84,6 @@
 
 	let hostAppTag = $derived(hostAppTagId ? appTags.find((t) => t.id === hostAppTagId) : null);
 
-	let currentAppTag = $derived(
-		hasAppTag ? (appTags.find((t) => selectedAppTagIds.includes(t.id)) ?? null) : null
-	);
-
 	let appAvailableTags = $derived(
 		hasAppTag ? appTags.filter((t) => selectedAppTagIds.includes(t.id)) : appTags
 	);
@@ -110,33 +107,26 @@
 
 {#if entityId}
 	<InspectorSection id="Application" section="Application">
-		<div class="card-static space-y-2 card p-2">
-			{#if hasAppTag && currentAppTag}
-				<div class="flex flex-wrap items-center gap-1">
+		<div class="card-static card space-y-2 p-2">
+			<!-- Host and service rows are labelled only when the host has an application to compare. -->
+			{#if hostAppTag}
+				<div class="flex flex-wrap items-center gap-1.5">
+					<span class="w-12 text-xs text-tertiary">{common_host()}</span>
 					<Tag
-						label={currentAppTag.name}
-						color={currentAppTag.color}
+						label={hostAppTag.name}
+						color={hostAppTag.color}
 						icon={concepts.getIconComponent('Application')}
 						isShiny={true}
 					/>
-					{#if isAppInherited}
-						<span class="text-xs text-tertiary">{tags_inheritedFromHost()}</span>
-					{:else if isAppOverride && hostAppTag}
-						<span class="text-xs text-tertiary">{common_overrides()}</span>
-						<Tag
-							label={hostAppTag.name}
-							color={hostAppTag.color}
-							icon={concepts.getIconComponent('Application')}
-							isShiny={true}
-						/>
-						<span class="text-xs text-tertiary">{tags_fromHost()}</span>
-					{/if}
 				</div>
-				{#if isAppInherited}
-					<p class="text-xs text-tertiary">{tags_inheritedOverrideHint()}</p>
-				{/if}
 			{/if}
 			<div class="flex flex-wrap items-center gap-1.5">
+				{#if hostAppTag}
+					<span class="w-12 text-xs text-tertiary">{common_service()}</span>
+				{/if}
+				{#if isAppInherited}
+					<span class="text-xs text-tertiary">{tags_inheritedFromHost()}</span>
+				{/if}
 				{#if showUngroupedPseudo}
 					<Tag
 						label={common_ungrouped()}
@@ -163,6 +153,11 @@
 					hideAddButton={showUngroupedPseudo}
 				/>
 			</div>
+			{#if isAppInherited}
+				<p class="text-xs text-tertiary">{tags_inheritedOverrideHint()}</p>
+			{:else if isAppOverride}
+				<p class="text-xs text-tertiary">{tags_serviceOverridesHostApplication()}</p>
+			{/if}
 		</div>
 	</InspectorSection>
 {/if}

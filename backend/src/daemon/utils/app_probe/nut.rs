@@ -22,16 +22,12 @@ pub struct NutProbe;
 
 #[async_trait]
 impl AppProbe for NutProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(3493)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Nut
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Nut)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), VER, 256).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, VER, 256).await;
         Ok(parse_version(&reply))
     }
 }

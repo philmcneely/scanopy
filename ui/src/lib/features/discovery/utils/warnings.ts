@@ -251,7 +251,7 @@ const consequence = (id: string) =>
  * The integration's display name.
  *
  * Keyed by `CredentialQueryPayloadDiscriminants`, which is what the warning carries. Not
- * `credential-types.json`: that is keyed by `CredentialType` (SnmpV1/V2c/V3, UnifiApiKey, …), so
+ * `credential-types.json`: that is keyed by `CredentialType` (SnmpCommunity/SnmpV3, UnifiApiKey, …), so
  * `DockerProxy` resolved there by coincidence while `Snmp`, `UnifiController` and `InstantOn` fell
  * through and rendered as their raw discriminants.
  */
@@ -424,6 +424,8 @@ const WARNING_PARAMS = {
 		daemon: daemonName,
 		version: w[0].daemon_version ?? common_unknown()
 	}),
+	// Server-raised, one per credential. The run's Credentials tab names each one.
+	CredentialWithoutTarget: (w) => ({ credential: integration(w[0].integration) }),
 
 	// One per host. The integration identifies the statement, so every host running one
 	// integration shares a sentence, and `discovers` is that integration's own description.

@@ -60,7 +60,7 @@ use crate::{
             mapping::{
                 CredentialQueryPayload, CredentialQueryPayloadDiscriminants, SnmpQueryCredential,
             },
-            types::CredentialAssignment,
+            types::{CredentialAssignment, SnmpVersion},
         },
         hosts::r#impl::base::{Host, HostBase},
         interface_neighbors::r#impl::base::InterfaceNeighborEvidence,
@@ -160,6 +160,81 @@ fn probe_specificity(outcome: AttemptOutcome) -> u8 {
 /// UDP ports the probe tries, in order. The first that answers is the one the scan uses.
 pub const SNMP_PORTS: [u16; 2] = [161, 1161];
 
+/// Why a probe on one port did not answer: its outcome, and a message naming the port.
+type PortFailure = (AttemptOutcome, String);
+
+/// One liveness probe of `credential` on `port`, capped at [`SNMP_PROBE_TIMEOUT`] so a
+/// non-responder (v3's engine discovery especially) costs ~2s instead of up to 7s.
+async fn attempt_on_port(
+    ip: IpAddr,
+    credential: SnmpQueryCredential,
+    port: u16,
+) -> Result<SnmpQueryCredential, PortFailure> {
+    match timeout(
+        SNMP_PROBE_TIMEOUT,
+        try_snmp_with_credential_on_port(ip, &credential, port),
+    )
+    .await
+    {
+        Ok(SnmpProbeOutcome::Answered(_)) => Ok(credential),
+        Ok(SnmpProbeOutcome::Failed(outcome, message)) => Err((outcome, message)),
+        Err(_) => Err((
+            AttemptOutcome::TimedOut,
+            format!("no answer on port {port} within {SNMP_PROBE_TIMEOUT:?}"),
+        )),
+    }
+}
+
+/// The credential as it answered on `port`, its version settled, or why it did not.
+///
+/// A community credential is tried over v2c and v1 at once, both under the one probe cap, so a
+/// host that answers neither costs what a v2c-only probe always did. v2c is preferred for its
+/// GETBULK and 64-bit counters: its answer settles the probe and drops the v1 attempt, and a v1
+/// answer waits out the rest of the cap for v2c. A device that answers only v1 drops v2c without
+/// reply, which looks the same as an unreachable host, so racing is the only way to reach it
+/// without a second timeout.
+async fn probe_port(
+    ip: IpAddr,
+    credential: &SnmpQueryCredential,
+    port: u16,
+) -> Result<SnmpQueryCredential, PortFailure> {
+    if matches!(credential.version, SnmpVersion::V3) {
+        return attempt_on_port(ip, credential.clone(), port).await;
+    }
+    let over = |version| SnmpQueryCredential {
+        version,
+        ..credential.clone()
+    };
+    let v2c = attempt_on_port(ip, over(SnmpVersion::V2c), port);
+    let v1 = attempt_on_port(ip, over(SnmpVersion::V1), port);
+    tokio::pin!(v2c, v1);
+
+    let v1_result = tokio::select! {
+        biased;
+        v2c_result = &mut v2c => {
+            let v2c_failure = match v2c_result {
+                Ok(answered) => return Ok(answered),
+                Err(failure) => failure,
+            };
+            return v1.await.map_err(|v1_failure| more_specific(v2c_failure, v1_failure));
+        }
+        v1_result = &mut v1 => v1_result,
+    };
+    match (v2c.await, v1_result) {
+        (Ok(answered), _) | (Err(_), Ok(answered)) => Ok(answered),
+        (Err(v2c_failure), Err(v1_failure)) => Err(more_specific(v2c_failure, v1_failure)),
+    }
+}
+
+/// The more telling of the v2c and v1 failures, v2c's on a tie.
+fn more_specific(v2c: PortFailure, v1: PortFailure) -> PortFailure {
+    if probe_specificity(v1.0) > probe_specificity(v2c.0) {
+        (v1.0, format!("v1: {}", v1.1))
+    } else {
+        (v2c.0, format!("v2c: {}", v2c.1))
+    }
+}
+
 pub struct SnmpIntegration;
 
 #[async_trait]
@@ -200,33 +275,19 @@ impl DiscoveryIntegration for SnmpIntegration {
                 return Err(ProbeFailure::cancelled());
             }
 
-            // Cap the whole probe (create-session + GET) so a non-responder — v3's
-            // engine-discovery especially — costs ~2s instead of up to 7s.
-            let port_outcome = match timeout(
-                SNMP_PROBE_TIMEOUT,
-                try_snmp_with_credential_on_port(ctx.ip, snmp_cred, port),
-            )
-            .await
-            {
-                Ok(outcome) => outcome,
-                Err(_) => SnmpProbeOutcome::Failed(
-                    AttemptOutcome::TimedOut,
-                    format!("no answer on port {port} within {SNMP_PROBE_TIMEOUT:?}"),
-                ),
-            };
-
-            match port_outcome {
-                SnmpProbeOutcome::Answered(detected_port) => {
+            match probe_port(ctx.ip, snmp_cred, port).await {
+                Ok(answered) => {
+                    debug!(ip = %ctx.ip, port, version = %answered.version, "SNMP answered");
                     return Ok(ProbeSuccess {
                         client_probe: Some(ClientProbe::Snmp),
-                        ports: vec![PortType::new_udp(detected_port)],
+                        ports: vec![PortType::new_udp(port)],
                         handle: Some(Box::new(SnmpProbeHandle {
-                            credential: snmp_cred.clone(),
-                            port: detected_port,
+                            credential: answered,
+                            port,
                         })),
                     });
                 }
-                SnmpProbeOutcome::Failed(outcome, message) => {
+                Err((outcome, message)) => {
                     tracing::debug!(
                         ip = %ctx.ip,
                         port,
@@ -399,6 +460,7 @@ impl DiscoveryIntegration for SnmpIntegration {
                     collected: snmp_if_entries.len(),
                     set_complete: if_table.set_complete,
                     credential_id: ctx.credential_id,
+                    snmp_version: Some(credential.version),
                 })
                 .await;
         }
@@ -475,6 +537,7 @@ impl DiscoveryIntegration for SnmpIntegration {
                         kept,
                         reason,
                         credential_id: ctx.credential_id,
+                        snmp_version: Some(credential.version),
                     })
                     .await;
             }
@@ -545,6 +608,7 @@ impl DiscoveryIntegration for SnmpIntegration {
                         if_set_complete,
                     ),
                     credential_id: ctx.credential_id,
+                    snmp_version: Some(credential.version),
                 })
                 .await;
         }
@@ -934,15 +998,24 @@ impl DiscoveryIntegration for SnmpIntegration {
 
         // A device that answered the probe and then produced nothing gets one line naming every
         // table that failed and how, instead of a line per table and a summary beside them.
-        let (incomplete, collected_nothing) =
-            snmp_device_findings(ip, ctx.credential_id, collection_outcome);
+        let (incomplete, collected_nothing) = snmp_device_findings(
+            ip,
+            ctx.credential_id,
+            Some(credential.version),
+            collection_outcome,
+        );
         ctx.ops.record_snmp_shortfalls(incomplete).await;
 
         // Separate from the shortfalls above, and emitted alongside them rather than instead of
         // them: a shortfall says why *we* stopped reading, a contradiction says what the *device*
         // said was there. A device that misreports its own count still scans — everything read is
         // already recorded by this point, and nothing here can fail a collection.
-        let contradicted = contradicted_claims(ip, ctx.credential_id, collection_outcome);
+        let contradicted = contradicted_claims(
+            ip,
+            ctx.credential_id,
+            Some(credential.version),
+            collection_outcome,
+        );
         if !contradicted.is_empty() {
             ctx.ops.record_contradicted_claims(contradicted).await;
         }

@@ -31,7 +31,6 @@ const ENGINE_TIME_WINDOW: i64 = 150;
 pub enum AuthErrorKind {
     UnsupportedUSM,
     EngineBootsMismatch,
-    EngineBootsNotProvided,
     EngineTimeMismatch,
     NotAuthenticated,
     UsernameMismatch,
@@ -54,7 +53,6 @@ impl fmt::Display for AuthErrorKind {
             AuthErrorKind::EngineBootsMismatch => write!(f, "Engine boots counter mismatch"),
             AuthErrorKind::EngineTimeMismatch => write!(f, "Engine time counter mismatch"),
             AuthErrorKind::NotAuthenticated => write!(f, "Not authenticated"),
-            AuthErrorKind::EngineBootsNotProvided => write!(f, "Engine boots counter not provided"),
             AuthErrorKind::EngineIdMismatch => write!(f, "Engine ID mismatch"),
             AuthErrorKind::UsernameMismatch => write!(f, "Username mismatch"),
             AuthErrorKind::SignatureMismatch => write!(f, "HMAC signature mismatch"),
@@ -81,6 +79,11 @@ pub(crate) struct AuthoritativeState {
     engine_time: i64,
     engine_time_current: i64,
     start_time: Instant,
+    // SCANOPY LOCAL PATCH (GH #813): whether `engine_boots` and `engine_time` came from an
+    // authenticated message (or the caller), as RFC 3414 §3.2 step 7b requires before they can
+    // judge timeliness. Upstream read `engine_boots == 0` as "not discovered", but §2.2.1 allows
+    // 0 and MikroTik RouterOS always reports it. See vendor/snmp2/README.md.
+    time_synchronized: bool,
 }
 
 impl Default for AuthoritativeState {
@@ -93,6 +96,7 @@ impl Default for AuthoritativeState {
             engine_time: 0,
             engine_time_current: 0,
             start_time: Instant::now(),
+            time_synchronized: false,
         }
     }
 }
@@ -109,8 +113,15 @@ impl AuthoritativeState {
         self.start_time = Instant::now();
     }
 
+    /// SCANOPY LOCAL PATCH: RFC 3414's "local notion" of the authoritative engine's time: the
+    /// latest time received, advanced by the local clock since.
+    fn local_engine_time(&self) -> i64 {
+        self.engine_time + i64::try_from(self.start_time.elapsed().as_secs()).unwrap_or(i64::MAX)
+    }
+
     fn correct_engine_time(&mut self) {
-        if self.engine_boots == 0 {
+        // SCANOPY LOCAL PATCH: was `self.engine_boots == 0`, which is a valid boots value.
+        if !self.time_synchronized {
             self.engine_time_current = 0;
             return;
         }
@@ -334,6 +345,8 @@ impl Security {
         self.authoritative_state.engine_boots = engine_boots;
         self.authoritative_state
             .update_authoritative_engine_time(engine_time);
+        // SCANOPY LOCAL PATCH: values the caller supplies are known, not a discovery hint.
+        self.authoritative_state.time_synchronized = true;
         self
     }
 
@@ -346,6 +359,14 @@ impl Security {
     pub fn reset_engine_counters(&mut self) {
         self.authoritative_state.engine_boots = 0;
         self.authoritative_state.update_authoritative_engine_time(0);
+        // SCANOPY LOCAL PATCH: "not discovered" is this flag, not boots = 0.
+        self.authoritative_state.time_synchronized = false;
+    }
+
+    /// SCANOPY LOCAL PATCH: whether boots and time came from an authenticated message, so
+    /// `init` knows whether RFC 3414 §4's second discovery step is still owed.
+    pub(crate) fn is_time_synchronized(&self) -> bool {
+        self.authoritative_state.time_synchronized
     }
 
     fn calculate_hmac(&self, data: &[u8]) -> Result<Vec<u8>> {
@@ -717,11 +738,22 @@ impl Security {
         }
     }
 
-    fn decrypt_aes(&mut self, encrypted: &[u8], priv_params: &[u8], key_len: usize) -> Result<()> {
+    // SCANOPY LOCAL PATCH: the IV takes the boots and time the message carries (RFC 3826
+    // §3.1.4), not the cached ones. Upstream overwrote the cache from the message before
+    // decrypting, so the two agreed; the cache is now only written once the message passes the
+    // timeliness checks, which need the decrypted PDU.
+    fn decrypt_aes(
+        &mut self,
+        encrypted: &[u8],
+        priv_params: &[u8],
+        key_len: usize,
+        engine_boots: i64,
+        engine_time: i64,
+    ) -> Result<()> {
         let iv_len = 16;
         let mut iv = Vec::with_capacity(iv_len);
-        iv.extend_from_slice(&u32::try_from(self.engine_boots())?.to_be_bytes());
-        iv.extend_from_slice(&u32::try_from(self.engine_time())?.to_be_bytes());
+        iv.extend_from_slice(&u32::try_from(engine_boots)?.to_be_bytes());
+        iv.extend_from_slice(&u32::try_from(engine_time)?.to_be_bytes());
         iv.extend_from_slice(priv_params);
 
         if iv.len() != iv_len {
@@ -779,7 +811,13 @@ impl Security {
     }
 
     /// decrypts the data, the result is stored in `self.plain_buf`
-    fn decrypt(&mut self, encrypted: &[u8], priv_params: &[u8]) -> Result<()> {
+    fn decrypt(
+        &mut self,
+        encrypted: &[u8],
+        priv_params: &[u8],
+        engine_boots: i64,
+        engine_time: i64,
+    ) -> Result<()> {
         let Auth::AuthPriv {
             cipher: cipher_kind,
             ..
@@ -788,11 +826,12 @@ impl Security {
             return Err(Error::AuthFailure(AuthErrorKind::SecurityNotProvided));
         };
 
+        let (boots, time) = (engine_boots, engine_time);
         match cipher_kind {
             Cipher::Des => self.decrypt_des(encrypted, priv_params),
-            Cipher::Aes128 => self.decrypt_aes(encrypted, priv_params, 16),
-            Cipher::Aes192 => self.decrypt_aes(encrypted, priv_params, 24),
-            Cipher::Aes256 => self.decrypt_aes(encrypted, priv_params, 32),
+            Cipher::Aes128 => self.decrypt_aes(encrypted, priv_params, 16, boots, time),
+            Cipher::Aes192 => self.decrypt_aes(encrypted, priv_params, 24, boots, time),
+            Cipher::Aes256 => self.decrypt_aes(encrypted, priv_params, 32, boots, time),
         }
     }
 }
@@ -974,8 +1013,6 @@ impl<'a> Pdu<'a> {
         // See RFC3414 section 4 and section 3.2.7.a
         let mut is_discovery = false;
 
-        let mut prev_engine_time = security.engine_time();
-
         if flags & V3_MSG_FLAGS_AUTH == 0 {
             // Unauthenticated REPORT (discovery step)
             // Update engine_id if unknown
@@ -989,10 +1026,17 @@ impl<'a> Pdu<'a> {
             }
 
             // Many agents include boots/time in the first REPORT.
-            // If provided (non-zero), update authoritative state here.
-            if security.authoritative_state.engine_boots < engine_boots {
-                is_discovery = true;
-                prev_engine_time = engine_time;
+            //
+            // SCANOPY LOCAL PATCH (GH #813): taken as a hint, whatever its value, only until an
+            // authenticated message synchronizes the clock. Upstream took it only when boots
+            // exceeded the cached value, so an engine reporting boots = 0 never had its time
+            // adopted and the first authenticated request went out with time 0. Once
+            // synchronized, an unauthenticated message cannot move the clock (RFC 3414 §3.2 step
+            // 7 applies only to authenticated messages).
+            if !security.authoritative_state.time_synchronized {
+                if security.authoritative_state.engine_boots < engine_boots {
+                    is_discovery = true;
+                }
                 security
                     .authoritative_state
                     .update_authoritative(engine_boots, engine_time);
@@ -1009,21 +1053,11 @@ impl<'a> Pdu<'a> {
             }
         } else {
             // Authenticated path
-            if security.authoritative_state.engine_boots == 0 && engine_boots == 0 {
-                return Err(Error::AuthFailure(AuthErrorKind::EngineBootsNotProvided));
-            }
-
-            if security.authoritative_state.engine_boots < engine_boots {
-                is_discovery = true;
-                prev_engine_time = engine_time;
-                security
-                    .authoritative_state
-                    .update_authoritative(engine_boots, engine_time);
-            } else {
-                security
-                    .authoritative_state
-                    .update_authoritative_engine_time(engine_time);
-            }
+            //
+            // SCANOPY LOCAL PATCH (GH #813): upstream rejected boots = 0 here
+            // (`EngineBootsNotProvided`) and wrote the message's boots and time into the cache
+            // before checking its digest. Both moved below, after authentication and
+            // decryption, as RFC 3414 §3.2 steps 6 and 7 order them.
 
             if username != security.username {
                 return Err(Error::AuthFailure(AuthErrorKind::UsernameMismatch));
@@ -1063,15 +1097,12 @@ impl<'a> Pdu<'a> {
             }
         }
 
-        let scoped_pdu_seq = if flags & V3_MSG_FLAGS_PRIVACY == 0 {
-            if security.need_encrypt() && !is_discovery {
-                return Err(Error::AuthFailure(AuthErrorKind::ReplyNotEncrypted));
-            }
-
+        let plaintext = flags & V3_MSG_FLAGS_PRIVACY == 0;
+        let scoped_pdu_seq = if plaintext {
             rdr.read_raw(asn1::TYPE_SEQUENCE)?
         } else {
             let encrypted_pdu = rdr.read_asn_octetstring()?;
-            security.decrypt(encrypted_pdu, priv_params)?;
+            security.decrypt(encrypted_pdu, priv_params, engine_boots, engine_time)?;
             let mut rdr = AsnReader::from_bytes(&security.plain_buf);
             rdr.read_raw(asn1::TYPE_SEQUENCE)?
         };
@@ -1088,15 +1119,44 @@ impl<'a> Pdu<'a> {
 
         if message_type == MessageType::Trap {
             is_discovery = false;
-        } else {
-            if security.engine_boots() > engine_boots {
+        } else if flags & V3_MSG_FLAGS_AUTH != 0 {
+            // SCANOPY LOCAL PATCH (GH #813): RFC 3414 §3.2 step 7b, for a non-authoritative
+            // receiver. Before the first authenticated message the cache holds only a discovery
+            // hint, so there is nothing yet to judge timeliness against. See
+            // vendor/snmp2/README.md.
+            let state = &mut security.authoritative_state;
+            let was_synchronized = state.time_synchronized;
+            if engine_boots >= i64::from(i32::MAX) {
                 return Err(Error::AuthFailure(AuthErrorKind::EngineBootsMismatch));
             }
-            if security.engine_boots() == engine_boots
-                && (engine_time - prev_engine_time).abs() > ENGINE_TIME_WINDOW
-            {
-                return Err(Error::AuthFailure(AuthErrorKind::EngineTimeMismatch));
+            if was_synchronized {
+                if engine_boots < state.engine_boots {
+                    return Err(Error::AuthFailure(AuthErrorKind::EngineBootsMismatch));
+                }
+                if engine_boots == state.engine_boots
+                    && engine_time < state.local_engine_time() - ENGINE_TIME_WINDOW
+                {
+                    return Err(Error::AuthFailure(AuthErrorKind::EngineTimeMismatch));
+                }
             }
+            // The caller repeats the request when the engine rebooted, or when an unsynchronised
+            // request drew a notInTimeWindow Report.
+            if engine_boots > state.engine_boots
+                || (!was_synchronized && message_type == MessageType::Report)
+            {
+                is_discovery = true;
+            }
+            if !was_synchronized
+                || engine_boots > state.engine_boots
+                || (engine_boots == state.engine_boots && engine_time > state.engine_time)
+            {
+                state.update_authoritative(engine_boots, engine_time);
+            }
+            state.time_synchronized = true;
+        }
+
+        if plaintext && security.need_encrypt() && !is_discovery {
+            return Err(Error::AuthFailure(AuthErrorKind::ReplyNotEncrypted));
         }
 
         let mut response_pdu = AsnReader::from_bytes(scoped_pdu_rdr.read_raw(ident)?);

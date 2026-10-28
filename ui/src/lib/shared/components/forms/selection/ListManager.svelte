@@ -5,7 +5,12 @@
 	import ListSelectItem from './ListSelectItem.svelte';
 	import type { EntityDisplayComponent } from './types';
 	import type { Snippet } from 'svelte';
-	import { common_edit, common_noEntityAddedYet, common_remove } from '$lib/paraglide/messages';
+	import {
+		common_createNew,
+		common_edit,
+		common_noEntityAddedYet,
+		common_remove
+	} from '$lib/paraglide/messages';
 	import { lowercasePreservingAcronyms } from '$lib/shared/utils/formatting';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 
@@ -40,6 +45,8 @@
 		options?: V[];
 		optionDisplayComponent: EntityDisplayComponent<V, OC>;
 		getOptionContext?: (option: V, index: number) => OC;
+		/** Called with a disabled option's id when it is clicked (an upgrade badge, say); see RichSelect. */
+		onDisabledClick?: ((value: string) => void) | null;
 		showSearch?: boolean;
 		/** Server-side search and paging for the add-dropdown; see RichSelect. */
 		onSearchChange?: ((query: string) => void) | null;
@@ -107,7 +114,7 @@
 		getItemSelectionDisabledReason = () => null,
 		showSelectAll = true,
 		disableCreateNewButton = false,
-		createNewLabel = 'Create New',
+		createNewLabel = common_createNew(),
 		highlightedIndex = -1,
 		emptyMessage = '',
 		error = '',
@@ -116,6 +123,7 @@
 		options = [] as V[],
 		optionDisplayComponent,
 		getOptionContext = () => ({}) as OC,
+		onDisabledClick = null,
 		showSearch = false,
 		onSearchChange = null,
 		onLoadMore = null,
@@ -351,6 +359,7 @@
 							onSelect={handleDropdownSelectChange}
 							displayComponent={optionDisplayComponent}
 							{getOptionContext}
+							{onDisabledClick}
 							{onSearchChange}
 							{onLoadMore}
 							{hasMore}
@@ -383,7 +392,7 @@
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
 					class="
-						flex flex-wrap items-center gap-3 card rounded-lg border p-3 transition-all
+						card flex flex-wrap items-center gap-3 rounded-lg border p-3 transition-all
 						{isHighlighted
 						? 'card-focused'
 						: selectionIndicator === 'highlight' && isItemSelected(item)
@@ -415,7 +424,7 @@
 								type="checkbox"
 								checked={isItemSelected(item)}
 								onclick={() => toggleItemSelection(item)}
-								class="h-4 w-4 checkbox-card"
+								class="checkbox-card h-4 w-4"
 							/>
 						</div>
 					{/if}
@@ -527,7 +536,7 @@
 									e.stopPropagation();
 									toggleItemSelection(item);
 								}}
-								class="h-4 w-4 checkbox-card"
+								class="checkbox-card h-4 w-4"
 							/>
 						</span>
 					{/if}

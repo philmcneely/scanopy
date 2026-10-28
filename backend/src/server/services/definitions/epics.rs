@@ -3,7 +3,7 @@ use crate::daemon::utils::app_probe::epics_ca::EpicsCaProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Epics;
@@ -19,7 +19,7 @@ impl ServiceDefinition for Epics {
         ServiceCategory::Industrial
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
-        probe_pattern(&EpicsCaProbe)
+        Pattern::ClientResponse(ClientProbe::EpicsCa)
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(EpicsCaProbe)]

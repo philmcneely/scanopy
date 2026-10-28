@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import { AlertTriangle, CreditCard } from 'lucide-svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
@@ -88,6 +89,9 @@
 		{ role: 'cancel', label: billing_remindMeLater(), onClick: handleDismiss },
 		{ role: 'primary', label: billing_addPaymentMethod(), icon: CreditCard, onClick: handleCta }
 	]);
+
+	// Stripe.js is ready before anyone opens the payment dialog from here.
+	usePreloadStripe(() => isOpen);
 </script>
 
 <GenericModal

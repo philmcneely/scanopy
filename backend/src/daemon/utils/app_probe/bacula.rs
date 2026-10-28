@@ -53,16 +53,12 @@ pub struct BaculaProbe;
 
 #[async_trait]
 impl AppProbe for BaculaProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(9101)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Bacula
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Bacula)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &hello(), READ_LIMIT).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &hello(), READ_LIMIT).await;
         Ok(parse_reply(&reply))
     }
 }

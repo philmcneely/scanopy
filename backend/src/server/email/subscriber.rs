@@ -14,7 +14,10 @@ use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     billing::types::base::BillingReason,
     digest::payload::{DiscoveryDigestOperation, DiscoveryDigestOperationDiscriminants},
-    email::service::{EmailService, format_cents},
+    email::{
+        messages::{ExtendedTrialEnd, TrialExtended},
+        service::{EmailService, format_cents},
+    },
     license::types::LicenseKeyType,
     shared::{
         entities::{Entity, EntityDiscriminants},
@@ -74,6 +77,7 @@ impl Subscriber<BillingOperation> for EmailService {
             BillingOperationDiscriminants::TrialStarted,
             BillingOperationDiscriminants::TrialEnded,
             BillingOperationDiscriminants::TrialWillEnd,
+            BillingOperationDiscriminants::TrialExtended,
             BillingOperationDiscriminants::PlanChanged,
             BillingOperationDiscriminants::SubscriptionCancelled,
             BillingOperationDiscriminants::PaymentFailed,
@@ -189,6 +193,7 @@ impl Subscriber<BillingOperation> for EmailService {
                 BillingOperation::TrialWillEnd {
                     plan,
                     has_payment_method,
+                    trial_started_at,
                 } => {
                     // The cloud email recaps hosts, sites, daemons and
                     // services found during the trial. A self-hosted trial's
@@ -213,9 +218,49 @@ impl Subscriber<BillingOperation> for EmailService {
                             plan.name(),
                             has_payment_method,
                             plan.billing_period(),
+                            trial_started_at,
                         )
                         .await?;
                     }
+                }
+                BillingOperation::TrialExtended {
+                    plan,
+                    days_added,
+                    new_trial_end,
+                    source,
+                    has_payment_method,
+                    cancellation_scheduled,
+                } => {
+                    // Same reading of the end state as `TrialWillEnd`. For a
+                    // license plan the key runs to `license_paid_through`,
+                    // which applying this event already moved to the new end.
+                    let key_expires = match plan.license_plan() {
+                        Some(_) => Some(
+                            self.license_key_expires(event.scope.organization_id)
+                                .await?,
+                        ),
+                        None => None,
+                    };
+                    let end = if cancellation_scheduled {
+                        ExtendedTrialEnd::CancellationScheduled
+                    } else if has_payment_method {
+                        ExtendedTrialEnd::Converts
+                    } else {
+                        ExtendedTrialEnd::NoPaymentMethod
+                    };
+                    self.send_trial_extended_email(
+                        org_owner,
+                        &TrialExtended {
+                            source,
+                            plan_name: plan.name(),
+                            billing_period: plan.billing_period(),
+                            days_added,
+                            new_trial_end: &new_trial_end.format("%B %-d, %Y").to_string(),
+                            end,
+                            key_expires: key_expires.as_deref(),
+                        },
+                    )
+                    .await?;
                 }
                 BillingOperation::SubscriptionCancelled {
                     plan,
@@ -303,7 +348,7 @@ impl Subscriber<BillingOperation> for EmailService {
                             .organization_service
                             .get_by_id(&event.scope.organization_id)
                             .await?
-                            .and_then(|org| org.base.plan)
+                            .map(|org| org.base.plan)
                             .map(|plan| plan.name())
                             .unwrap_or("Scanopy");
                         // A downgrade credits more than it charges, so nothing
@@ -330,7 +375,7 @@ impl Subscriber<BillingOperation> for EmailService {
                         .organization_service
                         .get_by_id(&event.scope.organization_id)
                         .await?
-                        .and_then(|org| org.base.plan)
+                        .map(|org| org.base.plan)
                         .map(|plan| plan.name())
                         .unwrap_or("Scanopy");
                     self.send_invoice_finalization_failed_email(org_owner, plan_name, &reason)
@@ -344,7 +389,7 @@ impl Subscriber<BillingOperation> for EmailService {
                         .organization_service
                         .get_by_id(&event.scope.organization_id)
                         .await?
-                        .and_then(|org| org.base.plan)
+                        .map(|org| org.base.plan)
                         .map(|plan| plan.name())
                         .unwrap_or("Scanopy");
                     self.send_invoice_overdue_email(
@@ -394,11 +439,7 @@ impl Subscriber<BillingOperation> for EmailService {
                                     let current_key_expires = previous_license_paid_through
                                         .map(|at| at.format("%B %-d, %Y").to_string())
                                         .unwrap_or_else(|| "its current expiry".to_string());
-                                    let plan_name = organization
-                                        .base
-                                        .plan
-                                        .map(|plan| plan.name())
-                                        .unwrap_or("Self-Hosted");
+                                    let plan_name = organization.base.plan.name();
                                     self.send_airgap_renewal_email(
                                         org_owner,
                                         plan_name,

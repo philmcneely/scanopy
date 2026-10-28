@@ -26,16 +26,12 @@ pub struct UnboundControlProbe;
 
 #[async_trait]
 impl AppProbe for UnboundControlProbe {
-    fn port(&self) -> PortType {
-        PortType::new_tcp(8953)
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Tls
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Tls)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let handshake = capture_certificate(ctx, self.port()).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let handshake = capture_certificate(ctx, port).await;
         Ok(presence(handshake.spoke_tls()))
     }
 }

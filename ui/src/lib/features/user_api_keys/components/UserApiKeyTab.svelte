@@ -4,6 +4,8 @@
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
@@ -29,15 +31,12 @@
 		common_confirmBulkDelete,
 		common_confirmDeleteName,
 		common_create,
-		userApiKeys_apiAccessUnavailableSubtitle,
-		userApiKeys_apiAccessUnavailableTitle,
 		userApiKeys_noApiKeysSubtitle,
 		userApiKeys_noApiKeysYet,
 		userApiKeys_subtitle
 	} from '$lib/paraglide/messages';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { billingPlans } from '$lib/shared/stores/metadata';
-	import UpgradeButton from '$lib/shared/components/UpgradeButton.svelte';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
 	import type { components } from '$lib/api/schema';
 
@@ -70,6 +69,7 @@
 	let userApiKeysPagination = $derived(userApiKeysQuery.data?.pagination ?? null);
 	let sitesData = $derived(sitesQuery.data ?? []);
 	let isLoading = $derived(userApiKeysQuery.isPending && !userApiKeysQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, userApiKeysQuery));
 
 	let showModal = $state(false);
 	let editingApiKey = $state<UserApiKey | null>(null);
@@ -170,21 +170,20 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if !hasApiAccess}
-		<EmptyState
-			title={userApiKeys_apiAccessUnavailableTitle()}
-			subtitle={userApiKeys_apiAccessUnavailableSubtitle()}
-		>
-			<UpgradeButton feature="api_access" surface="api_keys_tab" />
-		</EmptyState>
-	{:else if isLoading}
+	<!-- Access comes from the organization, so a failed load of it would read as a plan without
+	     API keys. -->
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if hasApiAccess && isLoading}
 		<Loading />
-	{:else if page.isEmpty(userApiKeysQuery)}
+	{:else if !hasApiAccess || page.isEmpty(userApiKeysQuery)}
+		<!-- Without API access the plan lacks keys: the same empty state, its Create opening the plans. -->
 		<EmptyState
 			title={userApiKeys_noApiKeysYet()}
 			subtitle={userApiKeys_noApiKeysSubtitle()}
 			onClick={handleCreate}
 			cta={common_create()}
+			upgrade={hasApiAccess ? null : { feature: 'api_access', surface: 'api_keys_tab' }}
 		/>
 	{:else}
 		<DataControls

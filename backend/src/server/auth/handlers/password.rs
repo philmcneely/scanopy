@@ -4,10 +4,11 @@ use crate::server::openapi::tags as api_tags;
 use crate::server::shared::types::api::ApiJson;
 use validator::Validate;
 
+/// Update password
 #[utoipa::path(
     post,
     path = "/update",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = UpdatePasswordRequest,
     responses(
         (status = 200, description = "Password updated", body = ApiResponse<User>),
@@ -60,13 +61,14 @@ pub(crate) async fn update_password_auth(
     Ok(Json(ApiResponse::success(user)))
 }
 
+/// Request email change
 #[utoipa::path(
     post,
     path = "/request-email-change",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = RequestEmailChangeRequest,
     responses(
-        (status = 200, description = "Verification email sent to new address", body = EmptyApiResponse),
+        (status = 200, description = "Verification email sent to the new address, or the change applied at once when the server has no email transport", body = EmptyApiResponse),
         (status = 400, description = "Invalid request", body = ApiErrorResponse),
         (status = 401, description = "Not authenticated", body = ApiErrorResponse),
     )
@@ -96,10 +98,11 @@ pub(crate) async fn request_email_change(
     Ok(Json(ApiResponse::success(())))
 }
 
+/// Request password reset
 #[utoipa::path(
     post,
     path = "/forgot-password",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = ForgotPasswordRequest,
     responses(
         (status = 200, description = "Password reset email sent", body = EmptyApiResponse),
@@ -122,10 +125,11 @@ pub(crate) async fn forgot_password(
     Ok(Json(ApiResponse::success(())))
 }
 
+/// Reset password
 #[utoipa::path(
     post,
     path = "/reset-password",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = ResetPasswordRequest,
     responses(
         (status = 200, description = "Password reset successful", body = ApiResponse<User>),

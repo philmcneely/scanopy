@@ -21,7 +21,7 @@ import {
 	hosts_rescanStartedBulkToast,
 	hosts_rescanStartedToast
 } from '$lib/paraglide/messages';
-import { discoverySSEManager, upsertSessions } from '$lib/features/discovery/queries';
+import { upsertSessions } from '$lib/features/discovery/queries';
 import type { DiscoveryUpdatePayload } from '$lib/features/discovery/types/api';
 import type {
 	Host,
@@ -163,7 +163,7 @@ function toCreateHostRequest(formData: HostFormData): CreateHostRequest {
 }
 
 /** The host list endpoint's query. */
-type HostListQuery = NonNullable<operations['get_all_hosts']['parameters']['query']>;
+type HostListQuery = NonNullable<operations['list_hosts']['parameters']['query']>;
 
 /**
  * Query options for host list queries: the page, an as-of time, and the list's view as the
@@ -729,8 +729,8 @@ export function useConsolidateHostsMutation() {
 			otherHostName?: string;
 		}) => {
 			const response = unwrapData(
-				await apiClient.PUT('/api/v1/hosts/{destination_host}/consolidate/{other_host}', {
-					params: { path: { destination_host: destinationHostId, other_host: otherHostId } }
+				await apiClient.POST('/api/v1/hosts/{id}/consolidate/{other_id}', {
+					params: { path: { id: destinationHostId, other_id: otherHostId } }
 				})
 			);
 			return { response, otherHostId, otherHostName };
@@ -801,8 +801,6 @@ export function useRescanHostMutation() {
 					? old.map((s) => (s.session_id === session.session_id ? session : s))
 					: [...old, session];
 			});
-
-			discoverySSEManager.connect();
 
 			pushSuccess(hosts_rescanStartedToast({ name: name ?? '' }));
 		}
@@ -951,7 +949,6 @@ export function useBulkRescanHostsMutation() {
 		},
 		onSuccess: (sessions: DiscoveryUpdatePayload[], ids) => {
 			upsertSessions(queryClient, sessions);
-			discoverySSEManager.connect();
 			pushSuccess(hosts_rescanStartedBulkToast({ count: ids.length }));
 		}
 	}));

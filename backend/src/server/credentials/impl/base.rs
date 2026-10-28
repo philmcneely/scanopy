@@ -118,7 +118,7 @@ impl Default for CredentialBase {
             organization_id: Uuid::nil(),
             name: "New Credential".to_string(),
             description: None,
-            credential_type: CredentialType::SnmpV2c {
+            credential_type: CredentialType::SnmpCommunity {
                 community: SecretValue::Inline {
                     value: SecretString::from(String::new()),
                 },

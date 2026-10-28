@@ -11,7 +11,7 @@ use crate::server::{
     },
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::{
             attributed,
             snapshot::{DiscoveryTracked, Snapshotable},
@@ -138,6 +138,7 @@ impl Storable for Host {
                     firmware_revision,
                     software_revision,
                     os,
+                    matched_device_type,
                     credential_assignments: _, // Stored in host_credentials junction table
                 },
         } = self.clone();
@@ -165,6 +166,8 @@ impl Storable for Host {
         let [software_revision_value, software_revision_source] =
             attributed::optional_params(&software_revision);
         let [os_value, os_source] = attributed::optional_params(&os);
+        let [matched_device_type_value, matched_device_type_source] =
+            attributed::optional_params(&matched_device_type);
 
         Ok((
             vec![
@@ -209,6 +212,8 @@ impl Storable for Host {
                 "software_revision_source",
                 "os",
                 "os_source",
+                "matched_device_type",
+                "matched_device_type_source",
                 "valid_from",
                 "valid_to",
                 "lineage_id",
@@ -258,6 +263,8 @@ impl Storable for Host {
                 software_revision_source,
                 os_value,
                 os_source,
+                matched_device_type_value,
+                matched_device_type_source,
                 SqlValue::Timestamp(valid_from),
                 SqlValue::OptionTimestamp(valid_to),
                 SqlValue::OptionalUuid(lineage_id),
@@ -325,6 +332,7 @@ impl Storable for Host {
                 firmware_revision: attributed::read_optional(row)?,
                 software_revision: attributed::read_optional(row)?,
                 os: attributed::read_optional(row)?,
+                matched_device_type: attributed::read_optional(row)?,
                 credential_assignments: Vec::new(), // Hydrated from host_credentials junction table
             },
         })
@@ -357,8 +365,8 @@ impl Entity for Host {
     const ENTITY_DESCRIPTION: &'static str =
         "Network hosts (devices). Manage discovered or manually created hosts on your network.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+    fn product_area() -> ProductArea {
+        ProductArea::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

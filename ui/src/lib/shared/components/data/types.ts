@@ -38,6 +38,8 @@ export interface TagProps {
 	href?: string;
 	entityRef?: EntityRef;
 	pill?: boolean;
+	/** A paid feature's badge (`upgradeTagProps`): an amber chip around its crown, instead of `color`. */
+	upgrade?: boolean;
 	/** Hover text, or structured tooltip content. */
 	title?: string | TooltipContent;
 	/**

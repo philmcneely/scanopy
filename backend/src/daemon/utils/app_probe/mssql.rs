@@ -49,16 +49,12 @@ pub struct MsSqlProbe;
 
 #[async_trait]
 impl AppProbe for MsSqlProbe {
-    fn port(&self) -> PortType {
-        PortType::MsSql
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::MsSql
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::MsSql)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &prelogin_packet(), 512).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &prelogin_packet(), 512).await;
         Ok(parse_reply(&reply))
     }
 }

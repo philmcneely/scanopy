@@ -59,7 +59,8 @@
 	import { required, max } from '$lib/shared/components/forms/validators';
 	import type { Node, Edge } from '@xyflow/svelte';
 	import type { Color } from '$lib/shared/utils/styling';
-	import { AVAILABLE_COLORS, createColorHelper } from '$lib/shared/utils/styling';
+	import { createColorHelper } from '$lib/shared/utils/styling';
+	import { dependencyColors } from '$lib/features/dependencies/utils';
 	import { browser } from '$app/environment';
 	import { v4 as uuidv4 } from 'uuid';
 	import {
@@ -421,11 +422,11 @@
 
 	// Edge styling lives outside the TanStack form: EdgeStyleForm manages it via
 	// bindable callbacks. Seeded from editingDependency in edit mode (snapshot at
-	// open), otherwise a random palette pick.
+	// open), otherwise a random pick from the colours a dependency can take.
+	const colorChoices = dependencyColors();
 	// svelte-ignore state_referenced_locally
 	let dependencyColor: Color = $state(
-		editingDependency?.color ??
-			AVAILABLE_COLORS[Math.floor(Math.random() * AVAILABLE_COLORS.length)]
+		editingDependency?.color ?? colorChoices[Math.floor(Math.random() * colorChoices.length)]
 	);
 	// svelte-ignore state_referenced_locally
 	let dependencyEdgeStyle: EdgeStyle = $state(editingDependency?.edge_style ?? 'Bezier');
@@ -885,7 +886,7 @@
 				{@const nonAppCommon = group.commonTags.filter((id) => !appTagSet.has(id))}
 				<div class="space-y-2">
 					<span class="block text-sm font-medium text-secondary">{group.label}</span>
-					<div class="card-static space-y-2 card p-2">
+					<div class="card-static card space-y-2 p-2">
 						{#if nonAppCommon.length === 0 && group.entities.length > 1}
 							<p class="text-xs text-tertiary italic">
 								{noCommonTagsHintText(group.entityType)}
@@ -927,7 +928,7 @@
 				<!-- App-group tag picker — with cross-group and inheritance awareness -->
 				<div class="space-y-2">
 					<span class="block text-sm font-medium text-secondary">{common_application()}</span>
-					<div class="card-static space-y-2 card p-2">
+					<div class="card-static card space-y-2 p-2">
 						{#if appState.type === 'cross-group'}
 							<p class="text-xs text-tertiary">{tags_crossGroupSelectionHint()}</p>
 						{:else}
@@ -999,7 +1000,7 @@
 								>{dependencyTypes.getName(field.state.value)}</span
 							>
 							<button
-								class="ml-auto btn-secondary flex items-center gap-1 p-1.5 text-xs"
+								class="btn-secondary ml-auto flex items-center gap-1 p-1.5 text-xs"
 								onclick={togglePreview}
 								title={showPreview ? topology_hidePreview() : topology_showPreview()}
 							>

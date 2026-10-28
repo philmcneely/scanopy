@@ -3,7 +3,8 @@ use crate::daemon::utils::app_probe::docker_ping::DockerPingProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{ClientProbe, Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Docker;
@@ -24,15 +25,15 @@ impl ServiceDefinition for Docker {
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AnyOf(vec![
             Pattern::ClientResponse(ClientProbe::Docker),
-            probe_pattern(&DockerPingProbe),
+            Pattern::ClientResponse(ClientProbe::DockerPing),
         ])
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(DockerPingProbe)]
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/docker.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Docker)
     }
 }
 

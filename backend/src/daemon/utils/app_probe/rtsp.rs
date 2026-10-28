@@ -15,13 +15,15 @@
 
 use anyhow::Error;
 use async_trait::async_trait;
-use rtsp_types::{Empty, Message, Method, Request, StatusCode, Version, headers};
+use rtsp_types::{Empty, Message, Method, Request, Version, headers};
 
 use crate::daemon::utils::app_probe::{
-    AppProbe, AppProbeOutcome, ProbeContext, presence, request_response,
+    AppProbe, AppProbeOutcome, DeviceIdentity, ProbeContext, request_response,
 };
+use crate::server::hosts::r#impl::os::recog::RecogDatabase;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::r#impl::patterns::ClientProbe;
+use crate::server::shared::attribution::AttributeSource;
 
 /// `OPTIONS` with no request-URI, which serialises as `*` — the request-URI meaning "the server
 /// rather than a stream", so this needs no path and addresses no camera's media.
@@ -41,31 +43,38 @@ pub struct RtspProbe;
 
 #[async_trait]
 impl AppProbe for RtspProbe {
-    fn port(&self) -> PortType {
-        PortType::Rtsp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Rtsp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Rtsp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &options_request(), 1024).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &options_request(), 1024).await;
         Ok(parse_response(&reply))
     }
 }
 
-/// Whether these bytes are an RTSP response.
+/// Whether these bytes are an RTSP response, and what its `Server` header names.
 ///
 /// Any status code counts. A camera that needs credentials answers `401`, one that does not
 /// implement `OPTIONS` answers `501`, and both parsed an RTSP request to say so — which is the whole
 /// claim. A *request* arriving unsolicited is not an answer to ours and does not count.
 fn parse_response(bytes: &[u8]) -> AppProbeOutcome {
-    presence(status_code(bytes).is_some())
+    let Ok((Message::Response(response), _consumed)) = Message::<Vec<u8>>::parse(bytes) else {
+        return AppProbeOutcome::NoAnswer;
+    };
+    let identity = response.header(&headers::SERVER).and_then(|server| {
+        DeviceIdentity::matched(
+            RecogDatabase::RtspServer,
+            server.as_str(),
+            AttributeSource::RtspServerMatch,
+        )
+    });
+    AppProbeOutcome::Answered { identity }
 }
 
 /// The status code an RTSP server answered with, if it answered at all.
-fn status_code(bytes: &[u8]) -> Option<StatusCode> {
+#[cfg(test)]
+fn status_code(bytes: &[u8]) -> Option<rtsp_types::StatusCode> {
     match Message::<Vec<u8>>::parse(bytes) {
         Ok((Message::Response(response), _consumed)) => Some(response.status()),
         _ => None,
@@ -97,7 +106,7 @@ mod tests {
     fn the_status_code_comes_back_typed() {
         assert_eq!(
             status_code(b"RTSP/1.0 401 Unauthorized\r\nCSeq: 1\r\n\r\n"),
-            Some(StatusCode::Unauthorized)
+            Some(rtsp_types::StatusCode::Unauthorized)
         );
     }
 

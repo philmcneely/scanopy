@@ -31,14 +31,14 @@
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 	import { interfaceDisplayName } from '$lib/features/hosts/interface-display-name';
 	import InfoRow from '$lib/shared/components/data/InfoRow.svelte';
-	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import { entityRef } from '$lib/shared/components/data/types';
 	import { entities } from '$lib/shared/stores/metadata';
 	import {
 		common_ipAddress,
 		hosts_interfaces_neighbor,
-		hosts_interfaces_taggedVlans
+		hosts_interfaces_taggedVlans,
+		vlans_vlanLabel
 	} from '$lib/paraglide/messages';
 
 	/** An interface's rows that resolve other entities: its IP and subnet, tagged VLANs, neighbours. */
@@ -80,7 +80,11 @@
 	<InfoRow label={hosts_interfaces_taggedVlans()}>
 		<div class="flex flex-wrap gap-1">
 			{#each taggedVlans as vlan (vlan.id)}
-				<Tag label="VLAN {vlan.vlan_number}" color={entities.getColorHelper('Vlan').color} />
+				<EntityTag
+					entityRef={entityRef('Vlan', vlan.id, vlan)}
+					label={vlans_vlanLabel({ number: vlan.vlan_number })}
+					color={entities.getColorHelper('Vlan').color}
+				/>
 			{/each}
 		</div>
 	</InfoRow>

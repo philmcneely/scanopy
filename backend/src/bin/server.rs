@@ -11,7 +11,7 @@ use reqwest::header::{self, HeaderName};
 use scanopy::server::{
     auth::middleware::{
         demo_mode::demo_mode_middleware, logging::request_logging_middleware,
-        rate_limit::rate_limit_middleware, terms::terms_gate_middleware,
+        rate_limit::rate_limit_middleware, session_gate::session_gate_middleware,
     },
     billing::plans::get_purchasable_plans,
     config::{AppState, DeploymentType, ServerCli, ServerConfig, get_deployment_type},
@@ -177,6 +177,22 @@ async fn main() -> anyhow::Result<()> {
         loop {
             interval.tick().await;
             invite_service_cleanup.cleanup_expired().await;
+        }
+    });
+
+    // Daemon version distribution gauge. The first tick fires at once, so it is set at boot.
+    let version_gauge_service = state.services.daemon_service.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(15 * 60)); // 15 minutes
+        let mut previous = std::collections::BTreeSet::new();
+        loop {
+            interval.tick().await;
+            if let Err(e) = version_gauge_service
+                .record_daemon_versions(&mut previous)
+                .await
+            {
+                tracing::warn!(error = %e, "Failed to record daemon version gauge");
+            }
         }
     });
 
@@ -463,7 +479,7 @@ async fn main() -> anyhow::Result<()> {
             ))
             .layer(middleware::from_fn_with_state(
                 state.clone(),
-                terms_gate_middleware,
+                session_gate_middleware,
             ))
             .layer(middleware::from_fn_with_state(
                 state.clone(),

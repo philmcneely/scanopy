@@ -668,6 +668,8 @@ async fn create_node_host(
             client_responses: &client_responses,
             managed_device: &None,
             dns_sd: &None,
+            certificates: &[],
+            fingerprints: &[],
         },
         &[],
         &daemon_id,

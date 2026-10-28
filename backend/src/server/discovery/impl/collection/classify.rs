@@ -48,15 +48,29 @@ impl AttributeSource {
             | Self::LldpSysDescMatch
             | Self::LldpChassisId => C::Derived,
 
-            // An operating system read from what a service or an mDNS record says about the host.
+            // An operating system, and the device's maker, model and class, read from what a
+            // service or an mDNS record says about the host.
             Self::SshBannerMatch
             | Self::HttpServerMatch
+            | Self::X509SubjectMatch
+            | Self::X509IssuerMatch
+            | Self::HtmlTitleMatch
+            | Self::HttpWwwAuthMatch
+            | Self::HttpCookieMatch
+            | Self::FaviconMatch
+            | Self::FtpBannerMatch
+            | Self::TelnetBannerMatch
+            | Self::RtspServerMatch
             | Self::DnsSdDeviceInfoMatch
-            | Self::DnsSdAirPlayMatch => C::CredentialFree(&[OperatingSystem]),
+            | Self::DnsSdAirPlayMatch => C::CredentialFree(&[OperatingSystem, DeviceDetails]),
+            // An operating system family read from the host's network stack.
+            Self::TcpStackMatch => C::CredentialFree(&[OperatingSystem]),
 
             Self::ReverseDns | Self::DnsSdInstanceName => C::CredentialFree(&[Hostnames]),
             // An mDNS answer names the host and also proves the address is live.
             Self::DnsSdHostname => C::CredentialFree(&[Addresses, Hostnames]),
+            // A port a device advertised, which names the service listening on it.
+            Self::DnsSdServicePort => C::CredentialFree(&[PortsAndServices]),
             Self::ArpReply | Self::IcmpEcho => C::CredentialFree(&[Addresses]),
             // A port that answered, and the address of a host found only by its open ports.
             Self::PortScan => C::CredentialFree(&[Addresses, PortsAndServices]),
@@ -114,14 +128,23 @@ impl ClientProbe {
             Self::ModbusTcp | Self::EtherNetIp => {
                 C::CredentialFree(&[PortsAndServices, DeviceDetails])
             }
+            // Spotify Connect's `getInfo` names the brand and model.
+            Self::SpotifyConnect => C::CredentialFree(&[PortsAndServices, DeviceDetails]),
+            // Google Wifi's status API names the manufacturer, board and firmware.
+            Self::GoogleWifi => C::CredentialFree(&[PortsAndServices, DeviceDetails]),
             // The SMB negotiation states the Windows release.
             Self::Smb => C::CredentialFree(&[PortsAndServices, OperatingSystem]),
+            // Lockdown's `GetValue` names the product type and OS version.
+            Self::AppleLockdown => {
+                C::CredentialFree(&[PortsAndServices, DeviceDetails, OperatingSystem])
+            }
             // Presence probes: the protocol answered on the port, which identifies the service.
             Self::OpcUa
             | Self::Sip
             | Self::Ssh
             | Self::Ftp
             | Self::Telnet
+            | Self::Vnc
             | Self::Rtsp
             | Self::Nut
             | Self::EpicsCa
@@ -152,7 +175,14 @@ impl ClientProbe {
             | Self::H323
             | Self::SnmpEngine
             | Self::DockerPing
-            | Self::PodmanPing => C::CredentialFree(&[PortsAndServices]),
+            | Self::PodmanPing
+            | Self::Ipp
+            | Self::DnsUdp
+            | Self::Ntp
+            | Self::Dhcp
+            | Self::Bacnet
+            | Self::Tftp
+            | Self::Mgcp => C::CredentialFree(&[PortsAndServices]),
         }
     }
 }

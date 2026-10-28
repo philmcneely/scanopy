@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use crate::server::ports::r#impl::base::{PortType, TransportProtocol};
+
 /// What a device announced about itself over mDNS/DNS-SD.
 ///
 /// Keyed by address at the point of use, because that is the only handle the rest of discovery
@@ -29,6 +31,11 @@ pub struct DnsSdHost {
     /// vendors are inconsistent about it. Values keep their case — `model=AppleTV6,2` is matched
     /// against as the device wrote it.
     pub services: BTreeMap<String, BTreeMap<String, String>>,
+
+    /// The port each advertised service's SRV record names, keyed like [`Self::services`]. A
+    /// service advertised on port 0 has no entry: `_device-info._tcp` carries only TXT and names
+    /// no listener.
+    pub ports: BTreeMap<String, u16>,
 }
 
 impl DnsSdHost {
@@ -58,6 +65,28 @@ impl DnsSdHost {
         entries
             .get(&key.to_ascii_lowercase())
             .is_some_and(|value| value.starts_with(value_prefix))
+    }
+
+    /// The port `service_type`'s SRV record names, with the protocol its `_tcp` or `_udp` suffix
+    /// states. `None` for a service advertised on port 0, or not advertised.
+    pub fn advertised_port(&self, service_type: &str) -> Option<PortType> {
+        let (name, number) = self
+            .ports
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(service_type))?;
+        let protocol = if name.to_ascii_lowercase().ends_with("._udp") {
+            TransportProtocol::Udp
+        } else {
+            TransportProtocol::Tcp
+        };
+        Some(PortType::new(*number, protocol))
+    }
+
+    /// Every port the host advertised a service on.
+    pub fn advertised_ports(&self) -> impl Iterator<Item = PortType> + '_ {
+        self.ports
+            .keys()
+            .filter_map(|service_type| self.advertised_port(service_type))
     }
 
     /// The service types advertised, for callers that only care which are present.

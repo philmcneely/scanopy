@@ -51,6 +51,12 @@ pub struct EndpointResponse {
     pub body: String,
     pub headers: HashMap<String, String>,
     pub status: u16,
+    /// Whether the response came over HTTPS. `endpoint.protocol` is the pattern's, not the
+    /// scheme that answered, since the scanner tries both.
+    pub over_tls: bool,
+    /// Every `Set-Cookie` header the response carried, in order. Kept apart from `headers`, whose
+    /// map holds one value per name and so keeps only the last cookie a server sets.
+    pub set_cookies: Vec<String>,
 }
 
 impl EndpointResponse {

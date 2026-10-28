@@ -236,7 +236,7 @@
 							{#each dep.members.service_ids as serviceId (serviceId)}
 								{@const service = topology?.services.find((s) => s.id === serviceId)}
 								{#if service}
-									<div class="card-static ml-3 card">
+									<div class="card-static card ml-3">
 										<EntityDisplayWrapper
 											context={{ compact: true } satisfies ServiceDisplayContext}
 											item={service}
@@ -251,7 +251,7 @@
 									s.bindings.some((b) => b.id === bindingId)
 								)}
 								{#if bindingService}
-									<div class="card-static ml-3 card">
+									<div class="card-static card ml-3">
 										<EntityDisplayWrapper
 											context={{ compact: true } satisfies ServiceDisplayContext}
 											item={bindingService}

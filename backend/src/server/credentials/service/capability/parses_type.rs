@@ -8,8 +8,8 @@ use semver::Version;
 
 /// Parsing the credential type at all. Every credential relies on it.
 ///
-/// Gated on the 7-way `CredentialType` discriminant kept beside each mapping, not the collapsed
-/// wire tag, since SnmpV1 and SnmpV2c share one `Snmp` tag with different gates. Older daemons
+/// Gated on the `CredentialType` discriminant kept beside each mapping, not the collapsed wire tag,
+/// since SnmpCommunity and SnmpV3 share one `Snmp` tag with different gates. Older daemons
 /// predate `serde(other)`, so sending them a type they can't parse would fail the whole request.
 pub(crate) struct ParsesCredentialType;
 
@@ -49,16 +49,16 @@ mod tests {
     use std::collections::BTreeMap;
     use uuid::Uuid;
 
-    /// SnmpV2c and SnmpV1 share the `Snmp` wire tag with different gates, so a 0.16.2 daemon gets
-    /// the v2c credential and loses only the v1 one, with one warning naming it.
+    /// SnmpCommunity and SnmpV3 share the `Snmp` wire tag with different gates, so a 0.16.2 daemon gets
+    /// the community credential and loses only the v3 one, with one warning naming it.
     #[test]
     fn only_the_type_the_daemon_cannot_read_is_withheld() {
         let mut map = BTreeMap::new();
-        let v2c_id = Uuid::from_u128(1);
-        let v1_id = Uuid::from_u128(2);
+        let community_id = Uuid::from_u128(1);
+        let v3_id = Uuid::from_u128(2);
         for (id, disc) in [
-            (v2c_id, CredentialTypeDiscriminants::SnmpV2c),
-            (v1_id, CredentialTypeDiscriminants::SnmpV1),
+            (community_id, CredentialTypeDiscriminants::SnmpCommunity),
+            (v3_id, CredentialTypeDiscriminants::SnmpV3),
         ] {
             let ct = disc.to_credential_type();
             mapping_for(&mut map, id, &ct).default_credential = Some(ct.to_query_payload());
@@ -67,15 +67,15 @@ mod tests {
         let withheld =
             retain_capable::<ParsesCredentialType>(&(), &mut map, Some(&Version::new(0, 16, 2)));
 
-        assert!(map.contains_key(&v2c_id));
-        assert!(!map.contains_key(&v1_id));
+        assert!(map.contains_key(&community_id));
+        assert!(!map.contains_key(&v3_id));
         assert!(matches!(
             withheld.as_slice(),
             [DiscoveryWarning::CredentialNeedsNewerDaemon {
                 credential_id: Some(id),
                 gap: CapabilityGap::ParsesCredentialType,
                 ..
-            }] if *id == v1_id
+            }] if *id == v3_id
         ));
     }
 }

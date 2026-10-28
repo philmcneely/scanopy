@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{Pattern, Vendor};
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct RoborockVacuum;
@@ -25,8 +26,8 @@ impl ServiceDefinition for RoborockVacuum {
         ])
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.prod.website-files.com/6720fa7290112f642d0a83ac/674de5c03f0d05e27b16b2cf_roborock_logo.webp"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Roborock)
     }
 }
 

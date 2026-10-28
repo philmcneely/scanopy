@@ -28,8 +28,6 @@ use crate::server::{
         services::traits::CrudService,
         storage::{filter::StorableFilter, traits::Storable},
     },
-    tags::groups::service::TagGroupService,
-    topology::service::main::TopologyService,
     users::{
         r#impl::{
             base::{User, UserBase},
@@ -67,10 +65,6 @@ pub struct AuthService {
     /// plan is unused (new orgs get `plan = None` until Stripe checkout). Its
     /// `included_orgs` also drives the self-hosted org-creation cap.
     license_service: Option<Arc<LicenseService>>,
-    /// Gives a new org its system tag groups.
-    tag_group_service: Arc<TagGroupService>,
-    /// Creates the site requested at signup, with its subnets, topology and starter tags.
-    topology_service: Arc<TopologyService>,
 }
 
 impl AuthService {
@@ -93,8 +87,6 @@ impl AuthService {
         has_email_service: bool,
         event_bus: Arc<EventBus>,
         license_service: Option<Arc<LicenseService>>,
-        tag_group_service: Arc<TagGroupService>,
-        topology_service: Arc<TopologyService>,
     ) -> Self {
         Self {
             user_service,
@@ -104,8 +96,6 @@ impl AuthService {
             verification_resend_cooldown: Arc::new(RwLock::new(HashMap::new())),
             event_bus,
             license_service,
-            tag_group_service,
-            topology_service,
         }
     }
 
@@ -243,7 +233,7 @@ impl AuthService {
 
     /// Core user provisioning logic - handles both password and OIDC registration
     /// If pending_setup is provided, uses setup.org_name, marks OrgCreated and
-    /// OnboardingModalCompleted, and creates the org's tag groups and requested site
+    /// OnboardingModalCompleted, and publishes `OrgCreated`, which gives the org its setup data
     /// On a self-hosted server the new org gets the license plan
     pub async fn provision_user(&self, params: ProvisionUserParams) -> Result<User> {
         let ProvisionUserParams {
@@ -268,7 +258,9 @@ impl AuthService {
                 (org_id, permissions.unwrap_or(UserOrgPermissions::Viewer))
             }
             ProvisionOrg::New(PendingSetup {
-                use_case, org_name, ..
+                use_case,
+                org_name,
+                ref site,
             }) => {
                 // Self-hosted org count is capped by the licensed plan's
                 // `included_orgs` (Community/Standard/Plus = 1,
@@ -300,10 +292,18 @@ impl AuthService {
                     OnboardingOperationDiscriminants::OnboardingModalCompleted,
                 ];
 
-                // Cloud: no plan until user selects one via billing modal → Stripe checkout → webhook
-                // Self-hosted: assign the license-resolved plan, which `OrgCreated` below carries.
-                let self_hosted_plan = deployment_type.is_self_hosted().then_some(license_plan);
-                new_org_plan = self_hosted_plan;
+                // Self-hosted: the license-resolved plan. Cloud: Free for a signup that names a
+                // site, and Self-Hosted Standard for a license buyer (no site), whose trial the
+                // billing subscriber starts off `OrgCreated` below. `plan_status` stays empty
+                // until a subscription exists.
+                let plan = if deployment_type.is_self_hosted() {
+                    license_plan
+                } else if site.is_some() {
+                    crate::server::billing::plans::get_free_plan()
+                } else {
+                    crate::server::billing::plans::get_self_hosted_standard_plan()
+                };
+                new_org_plan = Some(plan);
 
                 // Create new organization for this user
                 let organization = self
@@ -312,7 +312,7 @@ impl AuthService {
                         Organization::new(OrganizationBase {
                             stripe_customer_id: None,
                             name: org_name,
-                            plan: self_hosted_plan,
+                            plan,
                             plan_status: None,
                             onboarding,
                             has_payment_method: false,
@@ -392,19 +392,7 @@ impl AuthService {
         {
             let authentication: AuthenticatedEntity = user.clone().into();
 
-            // Every new org gets the system tag groups, cloud or self-hosted. A requested site
-            // means a cloud signup: registration provisions the integrated daemon on it next, so
-            // it's created here. No requested site means a self-hosted license buyer; the org is
-            // set up if it later lands on a cloud plan.
-            self.tag_group_service
-                .ensure_groups(organization_id, &[], authentication.clone())
-                .await?;
-            if let Some(site) = &site {
-                self.topology_service
-                    .ensure_cloud_setup(organization_id, Some(site), authentication.clone())
-                    .await?;
-            }
-
+            // `OrgSetupService` gives the org its setup data in reaction to this event.
             self.event_bus
                 .publish(Event::new(
                     OrgScope { organization_id },
@@ -757,7 +745,11 @@ impl AuthService {
         Ok(())
     }
 
-    /// Helper to generate verification token and set on user prior to emitting event that will send a verification email
+    /// Helper to generate verification token and set on user prior to emitting event that will send a verification email.
+    ///
+    /// The returned address is the one `verify_email` applies when the token comes back: the
+    /// pending address during an email change, the current one otherwise. Mailing the token
+    /// anywhere else would let the current inbox confirm an address nobody has proved.
     pub(crate) async fn set_user_email_verification_params(
         &self,
         user: &mut User,
@@ -779,7 +771,11 @@ impl AuthService {
 
         Ok(EmailAndToken {
             token: token.into(),
-            email: user.base.email.clone(),
+            email: user
+                .base
+                .pending_email
+                .clone()
+                .unwrap_or_else(|| user.base.email.clone()),
         })
     }
 
@@ -828,30 +824,53 @@ impl AuthService {
             return Err(anyhow!("This email address is already in use"));
         }
 
+        let scope = AuthScope {
+            user_id: Some(user.id),
+            organization_id: Some(user.base.organization_id),
+            ip_address: ip,
+            user_agent,
+        };
+
+        // Without an email transport no link can reach the new address, so the change applies
+        // at once, as sign-up verifies new accounts at once on such a server.
+        if !self.has_email_service {
+            let old_email = std::mem::replace(&mut user.base.email, new_email.clone());
+            user.base.email_verified = true;
+            user.base.pending_email = None;
+            user.base.email_verification_token = None;
+            user.base.email_verification_expires = None;
+            self.user_service
+                .update(
+                    &mut user,
+                    AuthenticatedEntity::System,
+                    UpdateReason::UserEmailChanged,
+                )
+                .await?;
+            self.event_bus
+                .publish(Event::new(
+                    scope,
+                    AuthOperation::EmailChanged {
+                        old_email,
+                        new_email,
+                    },
+                    user.clone().into(),
+                ))
+                .await;
+            return Ok(());
+        }
+
         // Each request mails the new address, so it shares the resend cooldown.
         self.claim_resend_cooldown(&new_email).await?;
 
-        user.base.pending_email = Some(new_email.clone());
+        user.base.pending_email = Some(new_email);
 
-        let params = self.set_user_email_verification_params(&mut user).await?;
+        let email_and_token = self.set_user_email_verification_params(&mut user).await?;
 
-        // Publish event
         let authentication: AuthenticatedEntity = user.clone().into();
         self.event_bus
             .publish(Event::new(
-                AuthScope {
-                    user_id: Some(user.id),
-                    organization_id: Some(user.base.organization_id),
-                    ip_address: ip,
-                    user_agent,
-                },
-                AuthOperation::EmailChangeRequested {
-                    // Send verification email to new address
-                    email_and_token: EmailAndToken {
-                        email: new_email,
-                        token: params.token,
-                    },
-                },
+                scope,
+                AuthOperation::EmailChangeRequested { email_and_token },
                 authentication,
             ))
             .await;

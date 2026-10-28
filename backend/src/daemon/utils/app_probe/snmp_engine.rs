@@ -32,18 +32,12 @@ pub struct SnmpEngineProbe;
 
 #[async_trait]
 impl AppProbe for SnmpEngineProbe {
-    fn port(&self) -> PortType {
-        PortType::Snmp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::SnmpEngine
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::SnmpEngine)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        Ok(presence(
-            discovers_engine(ctx.target(self.port().number())).await,
-        ))
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        Ok(presence(discovers_engine(ctx.target(port.number())).await))
     }
 }
 
@@ -66,14 +60,14 @@ async fn discovers_engine(addr: SocketAddr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::daemon::discovery::integration::snmp::sim::{self, usm::UsmAgent};
+    use crate::daemon::discovery::integration::snmp::sim::{self, udp::UdpAgent};
     use std::net::Ipv4Addr;
     use tokio::net::UdpSocket;
 
     #[tokio::test]
     async fn an_agent_answers_engine_discovery_without_a_credential() {
         let device = sim::device("secure-switch-01");
-        let agent = UsmAgent::start(&device).await;
+        let agent = UdpAgent::start(&device).await;
 
         assert!(discovers_engine(SocketAddr::new(agent.ip(), agent.port())).await);
     }

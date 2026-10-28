@@ -52,7 +52,7 @@
 			<button
 				onclick={handleExportCsv}
 				disabled={isExporting}
-				class="flex w-full items-start gap-4 card p-4 text-left transition-colors hover:border-blue-500/50 disabled:opacity-50"
+				class="card flex w-full items-start gap-4 p-4 text-left transition-colors hover:border-blue-500/50 disabled:opacity-50"
 			>
 				<FileSpreadsheet class="h-6 w-6 shrink-0 text-tertiary" />
 				<div>
@@ -64,7 +64,7 @@
 			<button
 				onclick={handleExportZip}
 				disabled={isExporting}
-				class="flex w-full items-start gap-4 card p-4 text-left transition-colors hover:border-blue-500/50 disabled:opacity-50"
+				class="card flex w-full items-start gap-4 p-4 text-left transition-colors hover:border-blue-500/50 disabled:opacity-50"
 			>
 				<FileArchive class="h-6 w-6 shrink-0 text-tertiary" />
 				<div>

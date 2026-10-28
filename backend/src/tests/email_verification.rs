@@ -60,11 +60,21 @@ async fn state_with_email() -> (
     (state, container, dir)
 }
 
+/// On a paid plan, so the only daemon limit in play is the email one (Free has its own).
 async fn create_org(state: &AppState) -> Organization {
+    create_org_on(state, crate::server::billing::plans::get_enterprise_plan()).await
+}
+
+async fn create_org_on(
+    state: &AppState,
+    plan: crate::server::billing::types::base::BillingPlan,
+) -> Organization {
+    let mut org = organization();
+    org.base.plan = plan;
     state
         .services
         .organization_service
-        .create(organization(), AuthenticatedEntity::System)
+        .create(org, AuthenticatedEntity::System)
         .await
         .unwrap()
 }
@@ -219,6 +229,14 @@ fn provision_request(site_id: Uuid, name: &str) -> ProvisionDaemonRequest {
 /// return the second attempt's result.
 async fn provision_second_daemon(state: &AppState, owner_verified: bool) -> Result<(), ApiError> {
     let org = create_org(state).await;
+    provision_second_daemon_for(state, org, owner_verified).await
+}
+
+async fn provision_second_daemon_for(
+    state: &AppState,
+    org: Organization,
+    owner_verified: bool,
+) -> Result<(), ApiError> {
     let owner = create_user(
         state,
         org.id,
@@ -237,9 +255,10 @@ async fn provision_second_daemon(state: &AppState, owner_verified: bool) -> Resu
         .expect("the first daemon is always allowed");
     // What the create wizard reads before its first step must match what provisioning does.
     let reached = daemons
-        .unverified_daemon_limit_reached(org.id)
+        .daemon_limit_reached(org.id)
         .await
-        .unwrap();
+        .unwrap()
+        .is_some();
     let result = daemons
         .provision(&provision_request(site.id, "second"), None, auth)
         .await
@@ -561,13 +580,170 @@ async fn email_change_requests_are_limited_per_new_address() {
     ));
 }
 
+/// Register an unverified Owner at `old@example.com` with a password, then request a change to
+/// `new@example.com`.
+async fn user_with_pending_email_change(state: &AppState) -> User {
+    let auth = &state.services.auth_service;
+    let org = create_org(state).await;
+    let password = "Correct-Horse-Battery-9";
+    let registered = auth
+        .register(
+            RegisterRequest {
+                email: EmailAddress::new_unchecked("old@example.com"),
+                password: password.to_string(),
+                terms_accepted: true,
+                website: None,
+            },
+            LoginRegisterParams {
+                provision_org: ProvisionOrg::Existing(org.id),
+                permissions: Some(UserOrgPermissions::Owner),
+                ip: IP,
+                user_agent: None,
+                site_ids: vec![],
+                invited_as: None,
+            },
+            DeploymentType::Community,
+        )
+        .await
+        .unwrap();
+    auth.request_email_change(
+        registered.id,
+        Some(password.to_string()),
+        EmailAddress::new_unchecked("new@example.com"),
+        IP,
+        None,
+    )
+    .await
+    .unwrap();
+    reload_user(state, registered.id).await
+}
+
+/// The recipients of every sent email containing `needle`, waiting for the email
+/// subscriber to deliver at least one.
+async fn recipients_of_email_containing(dir: &std::path::Path, needle: &str) -> Vec<String> {
+    for _ in 0..50 {
+        let recipients: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "html"))
+            .map(|path| std::fs::read_to_string(path).unwrap())
+            .filter(|html| html.contains(needle))
+            .filter_map(|html| {
+                html.lines()
+                    .find_map(|line| line.strip_prefix("To: ").map(str::to_string))
+            })
+            .collect();
+        if !recipients.is_empty() {
+            return recipients;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    panic!("no email containing the token was sent");
+}
+
+#[tokio::test]
+async fn resend_during_an_email_change_mails_only_the_pending_address() {
+    let (state, _container, dir) = state_with_email().await;
+    let user = user_with_pending_email_change(&state).await;
+
+    state
+        .services
+        .auth_service
+        .resend_verification_email(&user.base.email, IP, None)
+        .await
+        .unwrap();
+    let token = reload_user(&state, user.id)
+        .await
+        .base
+        .email_verification_token
+        .unwrap();
+
+    // Using this token switches the account to the pending address, so only that inbox
+    // may receive it. Mailed to the current address, it would let the current inbox
+    // confirm an address nobody has proved.
+    assert_eq!(
+        recipients_of_email_containing(dir.path(), &token).await,
+        vec!["new@example.com".to_string()]
+    );
+}
+
+#[tokio::test]
+async fn email_change_applies_at_once_without_an_email_transport() {
+    let (state, _container) = test_state(None).await;
+    let user = user_with_pending_email_change(&state).await;
+
+    assert_eq!(user.base.email.as_ref(), "new@example.com");
+    assert!(user.base.email_verified);
+    assert!(user.base.pending_email.is_none());
+    assert!(user.base.email_verification_token.is_none());
+}
+
+// ============================================================================
+// License keys
+// ============================================================================
+
+/// Status and body of `POST /keys/rotate` for an Owner whose email is or isn't verified.
+async fn rotate_license_key_as_owner(state: &Arc<AppState>, verified: bool) -> (u16, String) {
+    let org = create_org(state).await;
+    let owner = create_user(
+        state,
+        org.id,
+        if verified {
+            "verified-owner@example.com"
+        } else {
+            "unverified-owner@example.com"
+        },
+        UserOrgPermissions::Owner,
+        verified,
+    )
+    .await;
+    let addr = serve_routes(
+        crate::server::license::handlers::create_router(),
+        state,
+        session_entity(&owner, vec![]),
+    )
+    .await;
+    let response = reqwest::Client::new()
+        .post(format!("http://{addr}/keys/rotate"))
+        .send()
+        .await
+        .unwrap();
+    (response.status().as_u16(), response.text().await.unwrap())
+}
+
+#[tokio::test]
+async fn license_keys_require_a_verified_owner() {
+    let (state, _container, _dir) = state_with_email().await;
+
+    let (status, body) = rotate_license_key_as_owner(&state, false).await;
+    assert_eq!(status, 403, "{body}");
+    assert!(
+        body.contains(ErrorCode::AuthEmailVerificationRequired.code()),
+        "{body}"
+    );
+
+    let (status, body) = rotate_license_key_as_owner(&state, true).await;
+    assert_eq!(status, 200, "{body}");
+}
+
+#[tokio::test]
+async fn license_key_gate_is_lifted_without_an_email_transport() {
+    let (state, _container) = test_state(None).await;
+    let (status, body) = rotate_license_key_as_owner(&state, false).await;
+    assert_eq!(status, 200, "{body}");
+}
+
 // ============================================================================
 // Emailing the install command
 // ============================================================================
 
 /// Serve the daemon routes with `entity` already authenticated, and return the address.
-async fn serve_daemon_routes(state: &Arc<AppState>, entity: AuthenticatedEntity) -> SocketAddr {
-    let (router, _) = crate::server::daemons::handlers::create_router().split_for_parts();
+async fn serve_routes(
+    router: utoipa_axum::router::OpenApiRouter<Arc<AppState>>,
+    state: &Arc<AppState>,
+    entity: AuthenticatedEntity,
+) -> SocketAddr {
+    let (router, _) = router.split_for_parts();
     let app = router
         .layer(middleware::from_fn(
             move |mut request: Request<Body>, next: Next| {
@@ -630,7 +806,12 @@ async fn emailing_the_install_command_sends_the_server_built_command() {
         .provision(&provision_request(site.id, "second"), None, auth.clone())
         .await
         .unwrap();
-    let addr = serve_daemon_routes(&state, auth).await;
+    let addr = serve_routes(
+        crate::server::daemons::handlers::create_router(),
+        &state,
+        auth,
+    )
+    .await;
 
     let request = |daemon_id: Uuid, api_key: &str, log_file: &str| {
         serde_json::json!({
@@ -683,7 +864,12 @@ async fn emailing_the_install_command_requires_a_verified_email() {
         .provision(&provision_request(site.id, "first"), None, auth.clone())
         .await
         .unwrap();
-    let addr = serve_daemon_routes(&state, auth).await;
+    let addr = serve_routes(
+        crate::server::daemons::handlers::create_router(),
+        &state,
+        auth,
+    )
+    .await;
 
     let (status, body) = post_email_command(
         addr,
@@ -697,4 +883,17 @@ async fn emailing_the_install_command_requires_a_verified_email() {
     .await;
     assert_eq!(status, 403, "{body}");
     assert!(body.contains("auth_email_verification_required"), "{body}");
+}
+
+#[tokio::test]
+async fn second_daemon_is_refused_on_free_even_once_an_owner_is_verified() {
+    let (state, _container, _dir) = state_with_email().await;
+    let org = create_org_on(&state, crate::server::billing::plans::get_free_plan()).await;
+    let refused = provision_second_daemon_for(&state, org, true)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        wire_code(&refused),
+        Some(ErrorCode::DaemonPlanRequired.code())
+    );
 }

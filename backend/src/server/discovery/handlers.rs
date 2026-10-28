@@ -262,7 +262,7 @@ impl FilterQueryExtractor for DiscoveryFilterQuery {
     }
 }
 
-/// List all discoveries
+/// List discoveries
 ///
 /// Returns discoveries the authenticated user has access to. The run history
 /// grows without bound, so this is paginated and ordered server-side rather
@@ -271,7 +271,7 @@ impl FilterQueryExtractor for DiscoveryFilterQuery {
     get,
     path = "",
     tag = Discovery::ENTITY_NAME_PLURAL,
-    operation_id = "get_all_discoveries",
+    operation_id = "list_discoveries",
     summary = "List discoveries",
     params(DiscoveryFilterQuery),
     responses(
@@ -330,7 +330,8 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .merge(super::bulk::create_router())
         // Internal daemon endpoints
         .routes(routes!(receive_discovery_update))
-        // SSE endpoint (internal - not well-supported by OpenAPI)
+        // SSE endpoint (internal - not well-supported by OpenAPI). Superseded by
+        // `/api/v1/live-updates/stream`; kept one release for API-key clients that read it.
         .route("/stream", get(discovery_stream))
 }
 
@@ -397,7 +398,7 @@ async fn bulk_delete_discoveries(
     generated::bulk_delete(state, auth, ApiJson(ids)).await
 }
 
-/// Create new Discovery
+/// Create discovery
 #[utoipa::path(
     post,
     path = "",
@@ -489,7 +490,7 @@ pub async fn create_discovery(
     create_handler::<Discovery>(State(state), auth, ApiJson(discovery)).await
 }
 
-/// Update Discovery
+/// Update discovery
 #[utoipa::path(
     put,
     path = "/{id}",
@@ -595,7 +596,7 @@ pub async fn update_discovery(
     update_handler::<Discovery>(state, auth, id, ApiJson(discovery)).await
 }
 
-/// Receive discovery progress update from daemon
+/// Receive discovery progress from daemon
 ///
 /// Internal endpoint for daemons to report discovery progress.
 #[utoipa::path(
@@ -609,7 +610,7 @@ pub async fn update_discovery(
     ),
     security(("daemon_api_key" = []))
 )]
-async fn receive_discovery_update(
+pub(crate) async fn receive_discovery_update(
     State(state): State<Arc<AppState>>,
     auth: Authorized<IsDaemon>,
     Path(_session_id): Path<Uuid>,
@@ -642,9 +643,10 @@ async fn receive_discovery_update(
     Ok(Json(ApiResponse::success(())))
 }
 
-/// Start a Discovery Session
+/// Start discovery session
 #[utoipa::path(
     post,
+    operation_id = "start_discovery_session",
     path = "/start-session",
     tag = Discovery::ENTITY_NAME_PLURAL,
     request_body = Uuid,
@@ -708,6 +710,8 @@ pub(super) async fn wake_daemon(state: &Arc<AppState>, daemon_id: Uuid) -> Resul
     Ok(())
 }
 
+/// Discovery progress only. Deprecated: the app reads `/api/v1/live-updates/stream`, which carries
+/// the same updates as `LiveUpdate::Discovery`. Remove in the next release.
 async fn discovery_stream(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Viewer>,
@@ -737,9 +741,10 @@ async fn discovery_stream(
     Sse::new(until_shutdown(stream, &state.shutdown)).keep_alive(KeepAlive::default())
 }
 
-/// Get active Discovery Sessions
+/// List active discovery sessions
 #[utoipa::path(
     get,
+    operation_id = "list_active_discovery_sessions",
     path = "/active-sessions",
     tag = Discovery::ENTITY_NAME_PLURAL,
     responses(
@@ -761,9 +766,10 @@ async fn get_active_sessions(
     Ok(Json(ApiResponse::success(sessions)))
 }
 
-/// Cancel a Discovery Session
+/// Cancel discovery session
 #[utoipa::path(
     post,
+    operation_id = "cancel_discovery_session",
     path = "/{session_id}/cancel",
     tag = Discovery::ENTITY_NAME_PLURAL,
     params(("session_id" = Uuid, Path, description = "Session ID")),

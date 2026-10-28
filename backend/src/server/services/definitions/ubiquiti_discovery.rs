@@ -3,6 +3,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{Pattern, Vendor};
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct UbiquitiDiscovery;
@@ -22,14 +23,14 @@ impl ServiceDefinition for UbiquitiDiscovery {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        // The port arm is gone: 10001/udp has no probe, so nothing ever reported it open and this
-        // definition could never match. The OUI is the evidence that remains, and it is real — a
-        // Ubiquiti MAC is read from an ARP reply on the host's own segment.
+        // The port arm is gone: 10001/udp has no probe, so the network scan never reports it and a
+        // declared container port is not evidence. The OUI is the evidence that remains, and it is
+        // real — a Ubiquiti MAC is read from an ARP reply on the host's own segment.
         Pattern::MacVendor(Vendor::UBIQUITI)
     }
 
-    fn logo_url(&self) -> &'static str {
-        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/ubiquiti.svg"
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Ubiquiti)
     }
 }
 

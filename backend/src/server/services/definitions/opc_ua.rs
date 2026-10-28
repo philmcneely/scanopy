@@ -3,7 +3,7 @@ use crate::daemon::utils::app_probe::opcua::OpcUaProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
-use crate::server::services::r#impl::patterns::{Pattern, probe_pattern};
+use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct OpcUa;
@@ -19,7 +19,7 @@ impl ServiceDefinition for OpcUa {
         ServiceCategory::Industrial
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
-        probe_pattern(&OpcUaProbe)
+        Pattern::ClientResponse(ClientProbe::OpcUa)
     }
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
         vec![Box::new(OpcUaProbe)]

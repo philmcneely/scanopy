@@ -14,6 +14,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-aruba-01",
@@ -22,9 +24,10 @@ pub fn device() -> SimDevice {
             issue: "#649",
             defect: "neighbours advertised with locally-assigned port ids (subtype 7); treating those as unresolvable stops at the host and draws no edge",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("ProCurve J9145A 2910al-24G, revision W.15.16.0007".into()),
             sys_object_id: Some("1.3.6.1.4.1.11.2.3.7.11.79".into()),

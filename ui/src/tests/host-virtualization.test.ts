@@ -9,6 +9,7 @@ const everyType: HostVirtualization[] = [
 	{ type: 'Proxmox', details: { guest_type: 'Lxc', vm_id: '102', vm_name: 'dns' } },
 	{ type: 'VCenter', details: { vm_id: 'vm-12', vm_name: 'db' } },
 	{ type: 'ESXi', details: { vm_id: '7', vm_name: 'mail' } },
+	{ type: 'Libvirt', details: { vm_id: '6f1c2a8e', vm_name: 'vault' } },
 	{ type: 'Docker', details: { container_name: 'pihole', network_type: 'MacVlan' } },
 	{ type: 'Podman', details: { container_name: 'unifi', network_type: 'IpVlan' } },
 	{ type: 'NetworkIdentity', details: {} }

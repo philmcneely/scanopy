@@ -10,8 +10,8 @@ use crate::server::{
     organizations::r#impl::base::{Organization, OrganizationBase},
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
         events::types::OnboardingOperationDiscriminants,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
 };
@@ -119,7 +119,7 @@ impl Storable for Organization {
                 SqlValue::Timestamp(updated_at),
                 SqlValue::String(name),
                 SqlValue::OptionalString(stripe_customer_id),
-                SqlValue::OptionBillingPlan(plan),
+                SqlValue::OptionBillingPlan(Some(plan)),
                 SqlValue::OptionalString(plan_status.map(|s| s.to_string())),
                 SqlValue::OnboardingOperation(onboarding),
                 SqlValue::Bool(has_payment_method),
@@ -153,10 +153,8 @@ impl Storable for Organization {
     }
 
     fn from_row(row: &PgRow) -> Result<Self, anyhow::Error> {
-        let plan: Option<BillingPlan> = row
-            .try_get::<Option<serde_json::Value>, _>("plan")
-            .unwrap_or(None)
-            .and_then(|v| serde_json::from_value(v).ok());
+        let plan: BillingPlan = serde_json::from_value(row.get::<serde_json::Value, _>("plan"))
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize plan: {}", e))?;
 
         let raw: Vec<serde_json::Value> =
             serde_json::from_value(row.get::<serde_json::Value, _>("onboarding"))
@@ -266,8 +264,8 @@ impl Entity for Organization {
     const ENTITY_NAME_PLURAL: &'static str = "Organizations";
     const ENTITY_DESCRIPTION: &'static str = "Manage organization settings.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Platform
+    fn product_area() -> ProductArea {
+        ProductArea::Platform
     }
 
     fn site_id(&self) -> Option<Uuid> {

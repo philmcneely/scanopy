@@ -45,20 +45,20 @@ pub(super) fn generate_credentials(organization_id: Uuid, now: DateTime<Utc>) ->
     };
 
     vec![
-        seeded(CredentialTypeDiscriminants::SnmpV2c),
+        seeded(CredentialTypeDiscriminants::SnmpCommunity),
         credential(
             "Network Devices",
             "Community for core and access switches, firewalls and APs. Rotated each quarter by the network team.",
             None,
-            CredentialType::SnmpV2c {
+            CredentialType::SnmpCommunity {
                 community: inline("acme-network"),
             },
         ),
         credential(
             "Legacy Printers",
-            "SNMPv1 community for the older office printers, which predate v2c support.",
+            "Community for the older office printers, which answer only SNMPv1.",
             None,
-            CredentialType::SnmpV1 {
+            CredentialType::SnmpCommunity {
                 community: inline("acme-print"),
             },
         ),
@@ -73,6 +73,23 @@ pub(super) fn generate_credentials(organization_id: Uuid, now: DateTime<Utc>) ->
                     auth_password: inline("dc-snmp-auth-2026"),
                     priv_protocol: SnmpV3PrivProtocol::Aes128,
                     priv_password: inline("dc-snmp-priv-2026"),
+                },
+                context_name: None,
+            },
+        ),
+        // Created ahead of the branch office's daemon and not yet targeted, so the demo carries
+        // the warning and home nudge for a credential no scan uses.
+        credential(
+            "Branch Office SNMPv3",
+            "SNMPv3 for the branch office switches, ready for when the branch daemon is installed.",
+            None,
+            CredentialType::SnmpV3 {
+                security_name: "scanopy-branch".to_string(),
+                security: SnmpV3Security::AuthPriv {
+                    auth_protocol: SnmpV3AuthProtocol::Sha256,
+                    auth_password: inline("branch-snmp-auth-2026"),
+                    priv_protocol: SnmpV3PrivProtocol::Aes128,
+                    priv_password: inline("branch-snmp-priv-2026"),
                 },
                 context_name: None,
             },
@@ -235,7 +252,7 @@ pub(super) fn generate_site_credential_assignments(
             .unwrap()
     };
 
-    let default_snmp = find_default(credentials, CredentialTypeDiscriminants::SnmpV2c);
+    let default_snmp = find_default(credentials, CredentialTypeDiscriminants::SnmpCommunity);
     let network_snmp = find_cred("Network Devices");
     let hq = find_site("Headquarters");
     let dc = find_site("Data Center");

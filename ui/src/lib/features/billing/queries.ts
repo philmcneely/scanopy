@@ -12,6 +12,7 @@ import { requireSuccess, unwrapData } from '$lib/api/query-helpers';
 import { useOrganizationQuery } from '$lib/features/organizations/queries';
 import { hasLicensedPlan, type Organization } from '$lib/features/organizations/types';
 import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
+import { useCurrentUserQuery } from '$lib/features/auth/queries';
 
 type PauseDuration = components['schemas']['PauseDuration'];
 type CancelSubscriptionRequest = components['schemas']['CancelSubscriptionRequest'];
@@ -77,14 +78,17 @@ export function useCustomerPortalMutation() {
  * Mutation hook to create a SetupIntent for in-app card collection.
  * Returns the client secret used to mount the Stripe Payment Element.
  */
+/** Create a SetupIntent for the payment-method form and return its client secret. */
+export async function createSetupIntent(): Promise<string> {
+	const setupIntent = unwrapData(
+		await apiClient.POST('/api/billing/payment-method-setup-intent', {})
+	);
+	return setupIntent.client_secret;
+}
+
 export function useCreateSetupIntentMutation() {
 	return createMutation(() => ({
-		mutationFn: async () => {
-			const setupIntent = unwrapData(
-				await apiClient.POST('/api/billing/payment-method-setup-intent', {})
-			);
-			return setupIntent.client_secret;
-		}
+		mutationFn: createSetupIntent
 	}));
 }
 
@@ -339,20 +343,29 @@ export function useInvoiceBillingStatusQuery(enabled: () => boolean = () => true
 	}));
 }
 
+/** The invoice-billing state, read only where the endpoint allows it: an Owner of a licensed org. */
+function useOwnerInvoiceBillingStatusQuery() {
+	const organizationQuery = useOrganizationQuery();
+	const currentUserQuery = useCurrentUserQuery();
+	return useInvoiceBillingStatusQuery(
+		() =>
+			currentUserQuery.data?.permissions === 'Owner' &&
+			organizationQuery.data != null &&
+			hasLicensedPlan(organizationQuery.data)
+	);
+}
+
 /**
  * Whether this org has a quote out that it has not yet accepted.
  *
  * The card prompts (banner, trial modal) ask an org to add a payment method
  * it is already in the middle of arranging another way, so they read this and
- * stand down. Gated on a licensed plan because the endpoint refuses others,
- * and shares its cache entry with the Billing tab's own copy, so a licensed
+ * stand down. Gated on a licensed plan and an Owner, because the endpoint refuses
+ * everyone else, and shares its cache entry with the Billing tab's own copy, so a licensed
  * org pays for one request however many callers read it.
  */
 export function useHasPendingQuote(): { current: boolean } {
-	const organizationQuery = useOrganizationQuery();
-	const query = useInvoiceBillingStatusQuery(
-		() => organizationQuery.data != null && hasLicensedPlan(organizationQuery.data)
-	);
+	const query = useOwnerInvoiceBillingStatusQuery();
 	return {
 		get current() {
 			return query.data?.pending_quote != null;
@@ -368,10 +381,7 @@ export function useHasPendingQuote(): { current: boolean } {
  * Gated and cached like {@link useHasPendingQuote}.
  */
 export function useWrittenOffInvoice(): { current: InvoiceSummary | null } {
-	const organizationQuery = useOrganizationQuery();
-	const query = useInvoiceBillingStatusQuery(
-		() => organizationQuery.data != null && hasLicensedPlan(organizationQuery.data)
-	);
+	const query = useOwnerInvoiceBillingStatusQuery();
 	return {
 		get current() {
 			return query.data?.written_off_invoice ?? null;

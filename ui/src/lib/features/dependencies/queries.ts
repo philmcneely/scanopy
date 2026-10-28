@@ -179,7 +179,7 @@ export function createEmptyDependencyFormData(defaultSiteId?: string): Dependenc
 		},
 		site_id: defaultSiteId ?? '',
 		color: entities.getColorHelper('Dependency').color as Color,
-		edge_style: 'Straight',
+		edge_style: 'Bezier',
 		tags: []
 	};
 }

@@ -1,6 +1,5 @@
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
 use crate::server::billing::types::base::BillingPlan;
-use crate::server::credentials::service::CredentialService;
 use crate::server::license::mint::MintError;
 use crate::server::license::online::InstanceUsage;
 use crate::server::license::types::LicenseKeyType;
@@ -27,7 +26,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use semver::Version;
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -37,9 +36,6 @@ pub struct OrganizationService {
     /// In-memory status of each org's background demo-populate task, polled by
     /// the frontend after the `202`. See [`super::demo_status`].
     demo_status: RwLock<HashMap<Uuid, DemoPopulateStatus>>,
-    /// Seeds each new organization's default credentials. Set after construction, since the
-    /// credential service depends on this one.
-    credential_service: OnceLock<Arc<CredentialService>>,
 }
 
 impl EventBusService<Organization> for OrganizationService {
@@ -63,26 +59,6 @@ impl CrudService<Organization> for OrganizationService {
 
     fn entity_tag_service(&self) -> Option<&Arc<EntityTagService>> {
         None
-    }
-
-    /// A new organization starts with its default credentials, before anything creates its
-    /// first site, so that site can be assigned the SNMP default.
-    async fn create(
-        &self,
-        entity: Organization,
-        authentication: AuthenticatedEntity,
-    ) -> Result<Organization, Error> {
-        let created = self.create_base(entity, authentication).await?;
-        match self.credential_service.get() {
-            Some(credentials) => {
-                credentials.seed_defaults(created.id).await?;
-            }
-            None => tracing::warn!(
-                organization_id = %created.id,
-                "Credential service not set; the organization starts without default credentials"
-            ),
-        }
-        Ok(created)
     }
 }
 
@@ -357,7 +333,7 @@ impl OrganizationService {
                 locked.org.base.license_key_issued_at = Some(issued_at);
                 let organization = locked.save_quietly().await?;
                 let issued = BillingOperation::LicenseKeyIssued {
-                    plan: organization.base.plan,
+                    plan: Some(organization.base.plan),
                     key_version: organization.base.license_key_version,
                 };
                 (issued_at, Some(issued))
@@ -517,16 +493,7 @@ impl OrganizationService {
             storage,
             event_bus,
             demo_status: RwLock::new(HashMap::new()),
-            credential_service: OnceLock::new(),
         }
-    }
-
-    /// Set the credential service dependency after construction (breaks circular dep).
-    pub fn set_credential_service(
-        &self,
-        service: Arc<CredentialService>,
-    ) -> Result<(), Arc<CredentialService>> {
-        self.credential_service.set(service)
     }
 
     /// Claim the single-flight demo-populate slot for `org_id`. Returns the
@@ -583,11 +550,7 @@ impl OrganizationService {
                 // equality is config-based (see `BillingPlan`'s `PartialEq`),
                 // so an org already on `target` is skipped regardless of how
                 // its plan was set.
-                let current = locked
-                    .org
-                    .base
-                    .plan
-                    .unwrap_or_else(crate::server::billing::plans::get_community_plan);
+                let current = locked.org.base.plan;
                 if current == target {
                     locked.release().await?;
                     return Ok(false);

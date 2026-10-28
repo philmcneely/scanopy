@@ -50,16 +50,12 @@ pub struct RdpProbe;
 
 #[async_trait]
 impl AppProbe for RdpProbe {
-    fn port(&self) -> PortType {
-        PortType::Rdp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::Rdp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::Rdp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
-        let reply = request_response(ctx, self.port(), &connection_request(), 256).await;
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
+        let reply = request_response(ctx, port, &connection_request(), 256).await;
         Ok(parse_reply(&reply))
     }
 }

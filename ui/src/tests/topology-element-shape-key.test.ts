@@ -29,7 +29,9 @@ function iconCard(overrides: Partial<ElementIconCard> = {}): ElementIconCard {
 		glyph: { type: 'device', deviceType: 'Server' },
 		badgeDefinitions: [],
 		label: 'web-01',
-		tooltip: { title: 'web-01', sections: [] },
+		sublabel: null,
+		os: null,
+		tooltip: () => ({ title: 'web-01', sections: [] }),
 		groups: [],
 		...overrides
 	};
@@ -70,7 +72,7 @@ function group(collapsed: boolean, members: number): IconCardGroup {
 			glyph: { type: 'software', definition: 'Nginx' },
 			label: `container-${i}`,
 			status: undefined,
-			tooltip: { title: `container-${i}`, sections: [] }
+			tooltip: () => ({ title: `container-${i}`, sections: [] })
 		}))
 	};
 }
@@ -90,8 +92,14 @@ describe('elementShapeKey', () => {
 		);
 	});
 
+	it('separates an address card with a hostname line from one without', () => {
+		expect(elementShapeKey(result(iconCard({ label: '192.168.1.10' })))).not.toBe(
+			elementShapeKey(result(iconCard({ label: '192.168.1.10', sublabel: 'web-01.lan' })))
+		);
+	});
+
 	it('separates a card with a staleness pill from one without', () => {
-		// The pill renders in flow, so it adds a row: on an icon card and on a port row alike.
+		// The pill renders in flow, so it adds a row: on a device card and on a port card alike.
 		expect(elementShapeKey(result(iconCard()))).not.toBe(
 			elementShapeKey(result(iconCard(), 'Host', STALE))
 		);
@@ -100,15 +108,9 @@ describe('elementShapeKey', () => {
 		);
 	});
 
-	it('gives every port row one key whatever its name, since the row truncates', () => {
-		expect(elementShapeKey(result(port('Gi1/0/1'), 'Interface'))).toBe(
+	it('separates a port name long enough to wrap from one that fits', () => {
+		expect(elementShapeKey(result(port('Gi1/0/1'), 'Interface'))).not.toBe(
 			elementShapeKey(result(port('TenGigabitEthernet1/1/48 uplink to core'), 'Interface'))
-		);
-	});
-
-	it('separates a port row from an icon card', () => {
-		expect(elementShapeKey(result(port('eth0'), 'Interface'))).not.toBe(
-			elementShapeKey(result(iconCard({ label: 'eth0' }), 'Interface'))
 		);
 	});
 

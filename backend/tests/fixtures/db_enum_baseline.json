@@ -30,7 +30,8 @@
     "Lldpd",
     "IcmpEcho",
     "PortScan",
-    "InterfaceNameMatch"
+    "InterfaceNameMatch",
+    "DnsSdServicePort"
   ],
   "AuthenticatedEntity": [
     "User",
@@ -124,7 +125,11 @@
     "SnmpEngine",
     "DockerPing",
     "PodmanPing",
-    "EpicsCa"
+    "EpicsCa",
+    "Ipp",
+    "SpotifyConnect",
+    "Vnc",
+    "AppleLockdown"
   ],
   "ContainerNetworkType": [
     "MacVlan",
@@ -145,10 +150,9 @@
     "Proxmox"
   ],
   "CredentialType": [
-    "SnmpV2c",
+    "SnmpCommunity",
     "DockerProxy",
     "DockerSocket",
-    "SnmpV1",
     "SnmpV3",
     "PodmanProxy",
     "PodmanSocket",
@@ -235,7 +239,8 @@
     "CredentialDaemonTooOld",
     "IntegrationWithoutCredential",
     "SnmpWalkFailed",
-    "CredentialNeedsNewerDaemon"
+    "CredentialNeedsNewerDaemon",
+    "CredentialWithoutTarget"
   ],
   "EdgeStyle": [
     "Straight",
@@ -281,6 +286,7 @@
     "Windows",
     "MacOs",
     "Ios",
+    "IpadOs",
     "TvOs",
     "AudioOs",
     "FreeBsd",
@@ -331,7 +337,8 @@
     "ESXi",
     "Docker",
     "Podman",
-    "NetworkIdentity"
+    "NetworkIdentity",
+    "Libvirt"
   ],
   "IntegrationTarget": [
     "DaemonHost",

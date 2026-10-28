@@ -138,6 +138,11 @@ pub enum EdgeViewConfig {
     Active {
         /// Whether ELK should use this edge for layout positioning
         affects_layout: bool,
+        /// Whether ELK should use this edge to place its endpoints next to each other inside the
+        /// container they share, without it moving any container. Implied by `affects_layout`.
+        /// Defaulted so edges persisted before the field existed still deserialize.
+        #[serde(default)]
+        affects_layout_within_container: bool,
         /// Whether the edge is shown by default or hidden behind a toggle
         default_visibility: EdgeDefaultVisibility,
         /// Visual stroke style
@@ -226,9 +231,9 @@ pub enum EdgeHandle {
 )]
 pub enum EdgeStyle {
     Straight,
-    #[default]
     #[serde(alias = "Step")]
     SmoothStep,
+    #[default]
     #[serde(alias = "SimpleBezier")]
     Bezier,
 }
@@ -668,6 +673,7 @@ mod tests {
         // Active variant
         let active = EdgeViewConfig::Active {
             affects_layout: true,
+            affects_layout_within_container: true,
             default_visibility: EdgeDefaultVisibility::Hidden,
             stroke: EdgeStroke::Dashed,
             highlight_behavior: EdgeHighlightBehavior::Always,
@@ -684,6 +690,29 @@ mod tests {
         assert_eq!(json["show_directionality"], true);
         let deserialized: EdgeViewConfig = serde_json::from_value(json).unwrap();
         assert_eq!(deserialized, active);
+    }
+
+    /// Topologies persist their edges with each view's config, so a row written before
+    /// `affects_layout_within_container` existed has to keep loading.
+    #[test]
+    fn active_view_config_persisted_without_within_container_flag_still_loads() {
+        let stored = serde_json::json!({
+            "type": "active",
+            "affects_layout": false,
+            "default_visibility": "visible",
+            "stroke": "dashed",
+            "highlight_behavior": "when_visible",
+            "will_target_container": false,
+            "show_directionality": true
+        });
+        let config: EdgeViewConfig = serde_json::from_value(stored).unwrap();
+        assert!(matches!(
+            config,
+            EdgeViewConfig::Active {
+                affects_layout_within_container: false,
+                ..
+            }
+        ));
     }
 
     #[test]

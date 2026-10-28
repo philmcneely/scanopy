@@ -219,12 +219,14 @@
 	aria-haspopup="dialog"
 >
 	<Columns3Cog class="h-3.5 w-3.5" />
-	{common_columns()}
+	<span class="max-md:sr-only">{common_columns()}</span>
 	{#if listShortcuts}
 		{@const paused = listShortcuts.isPaused()}
 		<!-- Same key hint as the other controls in the summary row (`PaginationBar`). -->
 		<span
-			class="font-normal text-tertiary transition-opacity {paused ? 'opacity-40' : ''}"
+			class="font-normal text-tertiary transition-opacity max-md:hidden {paused
+				? 'opacity-40'
+				: ''}"
 			title={paused ? common_shortcutsPausedInSearch() : undefined}>({columnsShortcut})</span
 		>
 	{/if}
@@ -347,7 +349,7 @@
 									type="checkbox"
 									checked={visibility[column.id] !== false}
 									onchange={() => onToggle(column.id)}
-									class="h-4 w-4 checkbox-card rounded-sm"
+									class="checkbox-card h-4 w-4 rounded-sm"
 								/>
 								<span class="truncate text-sm text-secondary" title={column.label}
 									>{column.label}</span

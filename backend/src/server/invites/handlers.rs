@@ -213,9 +213,10 @@ async fn create_invite(
     Ok(Json(ApiResponse::success(invite)))
 }
 
-/// Get an invite by ID
+/// Get invite by ID
 #[utoipa::path(
     get,
+    operation_id = "get_invite_by_id",
     path = "/{id}",
     tag = Invite::ENTITY_NAME_PLURAL,
     params(("id" = Uuid, Path, description = "Invite ID")),
@@ -250,9 +251,10 @@ async fn get_invite(
     Ok(Json(ApiResponse::success(invite)))
 }
 
-/// List all invites
+/// List invites
 #[utoipa::path(
     get,
+    operation_id = "list_invites",
     path = "",
     tag = Invite::ENTITY_NAME_PLURAL,
     responses(
@@ -289,10 +291,13 @@ async fn get_invites(
     Ok(Json(ApiResponse::success(invites)))
 }
 
-/// Revoke an invite
+/// Revoke invite
+///
+/// Deletes the invite, so its link stops working.
 #[utoipa::path(
     delete,
-    path = "/{id}/revoke",
+    operation_id = "delete_invite",
+    path = "/{id}",
     tag = Invite::ENTITY_NAME_PLURAL,
     params(("id" = Uuid, Path, description = "Invite ID")),
     responses(
@@ -332,11 +337,12 @@ async fn revoke_invite(
 
 /// Revoke invites
 ///
-/// Revokes each invite, as `DELETE /{id}/revoke` does for one. The request is refused, and
+/// Revokes each invite, as `DELETE /{id}` does for one. The request is refused, and
 /// nothing is revoked, if any invite is invalid or one the caller can't revoke.
 #[utoipa::path(
     post,
-    path = "/bulk-revoke",
+    operation_id = "bulk_delete_invites",
+    path = "/bulk-delete",
     tag = Invite::ENTITY_NAME_PLURAL,
     request_body(content = Vec<Uuid>, description = "IDs of the invites to revoke"),
     responses(
@@ -641,14 +647,15 @@ pub async fn process_pending_invite(
         },
     };
 
-    // Mark invite as used
-    let send_to = match state.services.invite_service.use_invite(invite_id).await {
-        Ok(invite) => invite.base.send_to,
-        Err(e) => {
-            tracing::error!("Failed to mark invite as used: {}", e);
-            None
-        }
-    };
+    // Mark invite as used. A deleted or expired invite grants nothing, so its failure is
+    // the caller's failure: no account or membership is created from it.
+    let send_to = state
+        .services
+        .invite_service
+        .use_invite(invite_id)
+        .await?
+        .base
+        .send_to;
 
     // Emit InviteAccepted telemetry event if this is the first accepted invite
     if let Ok(true) = state

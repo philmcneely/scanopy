@@ -4,6 +4,7 @@ use crate::server::hosts::r#impl::virtualization::HostVirtualizationDiscriminant
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::definitions::docker_daemon::Docker;
 use crate::server::services::definitions::esxi::Esxi;
+use crate::server::services::definitions::libvirt::Libvirt;
 use crate::server::services::definitions::network_identities::NetworkIdentities;
 use crate::server::services::definitions::podman::Podman;
 use crate::server::services::definitions::proxmox::Proxmox;
@@ -11,6 +12,7 @@ use crate::server::services::definitions::vcenter::VCenter;
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::patterns::Pattern;
 use crate::server::services::r#impl::virtualization::ServiceVirtualizationDiscriminants;
+use crate::server::shared::logos::Logo;
 use crate::server::shared::types::metadata::TypeMetadataProvider;
 use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId};
 use crate::server::shared::types::{Color, Icon};
@@ -101,19 +103,9 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
         None
     }
 
-    /// URL of icon, or static path if serving from /logos.
-    /// Examples:
-    /// Dashboard Icons: Home Assistant -> https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/home-assistant
-    /// Simple Icons: Home Assistant -> https://simpleicons.org/icons/homeassistant.svg.
-    /// Vector Logo Icons: Akamai -> https://www.vectorlogo.zone/logos/akamai/akamai-icon.svg
-    /// Static file: Scanopy -> /logos/scanopy-logo.png
-    fn logo_url(&self) -> &'static str {
-        ""
-    }
-
-    /// Use this if available logo only has dark variant / if generally it would be more legible with a white background
-    fn logo_needs_white_background(&self) -> bool {
-        false
+    /// The definition's logo (`shared/logos.rs`). None draws the category glyph.
+    fn logo(&self) -> Option<Logo> {
+        None
     }
 
     /// The device type this service implies for the host running it. Defaults to the category's;
@@ -142,8 +134,8 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
         ServiceDefinition::description(&**self)
     }
 
-    fn logo_url(&self) -> &'static str {
-        ServiceDefinition::logo_url(&**self)
+    fn logo(&self) -> Option<Logo> {
+        ServiceDefinition::logo(&**self)
     }
 
     fn category(&self) -> ServiceCategory {
@@ -156,10 +148,6 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
 
     fn is_generic(&self) -> bool {
         ServiceDefinition::is_generic(&**self)
-    }
-
-    fn logo_needs_white_background(&self) -> bool {
-        ServiceDefinition::logo_needs_white_background(&**self)
     }
 
     fn app_probes(&self) -> Vec<Box<dyn AppProbe>> {
@@ -267,7 +255,7 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
     }
 
     fn has_logo(&self) -> bool {
-        !self.logo_url().is_empty()
+        self.logo().is_some()
     }
 
     fn gated_by_raw_socket_scanning(&self) -> bool {
@@ -290,6 +278,9 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
             _ if id == Esxi.id() => Some(VirtualizationRole::Hypervisor {
                 hosts: HostVirtualizationDiscriminants::ESXi,
             }),
+            _ if id == Libvirt.id() => Some(VirtualizationRole::Hypervisor {
+                hosts: HostVirtualizationDiscriminants::Libvirt,
+            }),
             _ if id == Docker.id() => Some(VirtualizationRole::ContainerRuntime {
                 services: ServiceVirtualizationDiscriminants::Docker,
                 hosts: HostVirtualizationDiscriminants::Docker,
@@ -311,7 +302,7 @@ impl EntityMetadataProvider for Box<dyn ServiceDefinition> {
         ServiceDefinition::category(self).color()
     }
     fn icon(&self) -> Icon {
-        // Note: logo_url is available in metadata for services with custom logos
+        // A definition's logo, when it has one, reaches the UI as `logo` (`logos.json`).
         ServiceDefinition::category(self).icon()
     }
 }
@@ -327,16 +318,6 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
         ServiceDefinition::category(self).id()
     }
     fn metadata(&self) -> serde_json::Value {
-        let url = self.logo_url();
-        let logo_ext = if url.is_empty() || url.starts_with('/') {
-            ""
-        } else {
-            url.rsplit('.')
-                .next()
-                .and_then(|e| e.split('?').next())
-                .filter(|e| matches!(*e, "svg" | "png" | "webp"))
-                .unwrap_or("svg")
-        };
         let role = self.virtualization_role();
         serde_json::json!({
             "can_be_added": self.can_be_manually_added(),
@@ -345,9 +326,7 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
             "is_gateway": self.is_gateway(),
             "device_type": ServiceDefinition::device_type(&**self),
             "is_generic": ServiceDefinition::is_generic(&**self),
-            "has_logo": self.has_logo(),
-            "logo_ext": logo_ext,
-            "logo_needs_white_background": self.logo_needs_white_background(),
+            "logo": self.logo(),
             "gated_by_raw_socket_scanning": self.gated_by_raw_socket_scanning(),
             // Derived from the rationale rather than listed, so the set the `trust_port_only_
             // detections` setting governs shrinks by itself as exceptions are retired and cannot

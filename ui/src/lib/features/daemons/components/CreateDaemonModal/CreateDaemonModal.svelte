@@ -6,14 +6,15 @@
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import type { ModalTab } from '$lib/shared/components/layout/GenericModal.svelte';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
-	import { pushError, pushSuccess } from '$lib/shared/stores/feedback';
+	import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
+	import { copyText } from '$lib/shared/utils/clipboard';
+	import { common_failedToCopy } from '$lib/paraglide/messages';
 	import { trackEvent } from '$lib/shared/utils/analytics';
 	import { entities } from '$lib/shared/stores/metadata';
 	import {
 		Settings,
 		Terminal,
 		Loader2,
-		ArrowRight,
 		ArrowLeft,
 		Mail,
 		Copy,
@@ -57,7 +58,13 @@
 		type IntegrationTarget
 	} from '$lib/features/credentials/types/base';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
-	import { integrationTargetFor } from '$lib/features/credentials/utils/credentialTargets';
+	import {
+		integrationTargetFor,
+		isLockedOnly,
+		junctionHostIds,
+		junctionHostsOnSite
+	} from '$lib/features/credentials/utils/credentialTargets';
+	import { useHostsByIds } from '$lib/features/hosts/queries';
 	import { useDiscoveriesQuery, useUpdateDiscoveryMutation } from '$lib/features/discovery/queries';
 	import {
 		common_close,
@@ -82,10 +89,14 @@
 		daemons_installBackToInstall,
 		daemons_installReturnToCommands,
 		daemons_testingConnectionTo,
-		daemons_verifyEmailForMoreDaemons
+		daemons_verifyEmailForMoreDaemons,
+		daemons_planRequiredForMoreDaemons,
+		billing_lapsedBannerCta
 	} from '$lib/paraglide/messages';
 	import { credentialTypes } from '$lib/shared/stores/metadata';
 	import EmailVerificationNotice from '$lib/features/auth/components/EmailVerificationNotice.svelte';
+	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
+	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 
 	interface Props {
 		isOpen?: boolean;
@@ -145,6 +156,28 @@
 				isDaemonHostOnlyTargets(credentialTypes.getMetadata(c.credential_type.type)?.targets)
 		);
 	}
+	// Hosts on the selected site each existing credential is already assigned to through the
+	// host/credential junction, listed on its card as in the discovery modal.
+	const assignedHostsQuery = useHostsByIds(() => junctionHostIds(credentialsQuery.data ?? []));
+	let junctionHostsByCredential = $derived(
+		junctionHostsOnSite(credentialsQuery.data ?? [], assignedHostsQuery.data ?? [], selectedSiteId)
+	);
+	// Rows are added after the hosts resolve, and the site can change, so this re-applies on
+	// both. It writes only when a row's hosts differ, so it settles after one pass.
+	$effect(() => {
+		const byCredential = junctionHostsByCredential;
+		const hostKey = (hosts?: { id: string }[]) => (hosts ?? []).map((h) => h.id).join(',');
+		let changed = false;
+		const next = pendingCredentials.map((p) => {
+			if (!p.isExisting) return p;
+			const assigned = byCredential.get(p.credential.id);
+			if (hostKey(p.lockedHosts) === hostKey(assigned)) return p;
+			changed = true;
+			return { ...p, lockedHosts: assigned };
+		});
+		if (changed) pendingCredentials = next;
+	});
+
 	// Real new credentials being created. Drives the CTA count. Existing rows, the default
 	// sockets among them, are not created and not counted; this matches the creation filter (see
 	// getCredentialsForCreate / collectCredentialIds).
@@ -189,12 +222,13 @@
 	let provisionedDaemonId = $state('');
 	let isProvisioning = $state(false);
 
-	// The server refuses another daemon while no owner of the org has verified their email. It
+	// The server refuses another daemon on Free, and while no owner of the org has verified their email. It
 	// says so up front, so the wizard stops on its first step instead of after the user has
 	// configured everything.
 	const provisionEligibilityQuery = useProvisionEligibilityQuery({
 		enabled: () => isOpen && !provisionedDaemonId
 	});
+	let provisionNeedsPlan = $derived(provisionEligibilityQuery.data?.plan_required ?? false);
 	let provisionNeedsVerification = $derived(
 		provisionEligibilityQuery.data?.email_verification_required ?? false
 	);
@@ -300,7 +334,8 @@
 	let seedCredentialRefs = $derived(
 		pendingCredentials.flatMap((p): IntegrationTarget[] => {
 			// Only persisted credentials can be referenced: existing ones, and new ones once created.
-			if (!credentialIds.includes(p.credential.id)) return [];
+			// A row listed only for its assigned hosts already runs on them; nothing to seed.
+			if (!credentialIds.includes(p.credential.id) || isLockedOnly(p)) return [];
 			const target = integrationTargetFor(
 				p.credential.id,
 				credentialTypes.getMetadata(p.credential.credential_type.type)?.targets,
@@ -317,6 +352,7 @@
 			.filter(
 				(p) =>
 					credentialIds.includes(p.credential.id) &&
+					!isLockedOnly(p) &&
 					integrationTargetFor(
 						p.credential.id,
 						credentialTypes.getMetadata(p.credential.credential_type.type)?.targets,
@@ -488,7 +524,7 @@
 	async function handleNext() {
 		if (activeTab === 'configure') {
 			// Provisioning would be refused; the notice above the form says why.
-			if (provisionNeedsVerification) return;
+			if (provisionNeedsPlan || provisionNeedsVerification) return;
 			const fields = getVisibleFieldIds(formValues);
 			const isValid = await validateForm(form, fields);
 
@@ -565,12 +601,12 @@
 	async function handleCopyCommand() {
 		if (!currentInstallCommand) return;
 		try {
-			await navigator.clipboard.writeText(currentInstallCommand);
+			await copyText(currentInstallCommand);
 			hasCopied = true;
 			trackEvent('daemon_install_command_copied', { os: selectedOS, context: 'footer-cta' });
 			pushSuccess(getCopiedToastMessage());
-		} catch {
-			// Clipboard API failed — user can still use inline copy icon
+		} catch (error) {
+			pushWarning(common_failedToCopy({ error: String(error) }));
 		}
 	}
 
@@ -754,9 +790,7 @@
 							? daemons_credentialWizardReturn({ count: unsavedCredentialCount })
 							: daemons_credentialWizardReturnToInstall(),
 					onClick: handleCredentialsContinue,
-					disabled: credentialsStep?.busy || isProvisioning,
-					icon: ArrowRight,
-					iconAfter: true
+					disabled: credentialsStep?.busy || isProvisioning
 				}
 			];
 		}
@@ -781,11 +815,9 @@
 							})
 						: common_next(),
 					onClick: handleNext,
-					disabled: isTestingReachability || provisionNeedsVerification,
+					disabled: isTestingReachability || provisionNeedsPlan || provisionNeedsVerification,
 					large: true,
-					busy: isTestingReachability,
-					icon: ArrowRight,
-					iconAfter: !isTestingReachability
+					busy: isTestingReachability
 				}
 			];
 		}
@@ -858,12 +890,31 @@
 				bind:credentialIds
 				daemonOs={selectedOS}
 				daemonName={String(formValues.name ?? '')}
+				assignedRowsRemovable
 			/>
 		{:else}
 			<div class="flex-1 overflow-auto p-4 sm:p-6">
 				{#key activeTab}
 					{#if activeTab === 'configure'}
-						{#if provisionNeedsVerification}
+						{#if provisionNeedsPlan}
+							<div class="mb-4">
+								<InlineWarning title="" body={daemons_planRequiredForMoreDaemons()}>
+									<button
+										type="button"
+										class="text-sm text-link hover:underline"
+										onclick={() =>
+											triggerUpgrade({
+												source: 'create_daemon_plan_required',
+												surface: 'sidebar',
+												gate_type: 'limit_hit',
+												beforeModal: () => onClose()
+											})}
+									>
+										{billing_lapsedBannerCta()}
+									</button>
+								</InlineWarning>
+							</div>
+						{:else if provisionNeedsVerification}
 							<div class="mb-4">
 								<EmailVerificationNotice body={daemons_verifyEmailForMoreDaemons()} />
 							</div>

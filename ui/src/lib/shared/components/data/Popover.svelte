@@ -63,7 +63,10 @@
 		portalContainer.style.left = '0';
 		portalContainer.style.width = '0';
 		portalContainer.style.height = '0';
-		portalContainer.style.zIndex = '9999';
+		// A tooltip is mounted once and kept, so a dropdown opened later sits after it in the body;
+		// the higher layer keeps a tooltip on a dropdown row above the dropdown.
+		portalContainer.style.zIndex = role === 'tooltip' ? '10000' : '9999';
+		portalContainer.dataset.popoverPortal = '';
 		document.body.appendChild(portalContainer);
 
 		return () => {
@@ -125,7 +128,13 @@
 			updatePosition();
 		}
 
-		const resizeObserver = new ResizeObserver(() => updatePosition());
+		// Refit on the next frame, not inside the delivery: the fit sets the popover's width and
+		// height, which resizes the observed content and would raise the ResizeObserver loop error.
+		let frame = 0;
+		const resizeObserver = new ResizeObserver(() => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(updatePosition);
+		});
 		resizeObserver.observe(contentEl);
 		resizeObserver.observe(triggerElement);
 		window.addEventListener('scroll', handleScroll, true);
@@ -133,10 +142,27 @@
 
 		return () => {
 			resizeObserver.disconnect();
+			cancelAnimationFrame(frame);
 			window.removeEventListener('scroll', handleScroll, true);
 			window.removeEventListener('resize', updatePosition);
 		};
 	});
+
+	/**
+	 * Whether `node` sits in a popover opened from inside this one, such as a tag picker's
+	 * suggestions inside a popover holding the picker. Portalled, it is outside this popover's
+	 * element, but a click or focus there must not close this one: it would unmount the picker
+	 * before the click lands. A nested popover mounts after its parent, so its portal follows.
+	 */
+	function inNestedPopover(node: Node | null): boolean {
+		const host = node instanceof Element ? node.closest('[data-popover-portal]') : null;
+		return (
+			!!host &&
+			!!portalContainer &&
+			host !== portalContainer &&
+			!!(portalContainer.compareDocumentPosition(host) & Node.DOCUMENT_POSITION_FOLLOWING)
+		);
+	}
 
 	function handleFocusOut(e: FocusEvent) {
 		if (role !== 'dialog') return;
@@ -144,7 +170,13 @@
 		// checkbox's label text, or a focused row moved in the DOM; a click
 		// outside is handled on mousedown.
 		const next = e.relatedTarget as Node | null;
-		if (!next || popoverEl?.contains(next) || triggerElement?.contains(next)) return;
+		if (
+			!next ||
+			popoverEl?.contains(next) ||
+			triggerElement?.contains(next) ||
+			inNestedPopover(next)
+		)
+			return;
 		onClose();
 	}
 
@@ -157,7 +189,8 @@
 				popoverEl &&
 				!popoverEl.contains(e.target as Node) &&
 				triggerElement &&
-				!triggerElement.contains(e.target as Node)
+				!triggerElement.contains(e.target as Node) &&
+				!inNestedPopover(e.target as Node)
 			) {
 				onClose();
 			}
@@ -186,7 +219,8 @@
 
 {#if isOpen && portalContainer}
 	<!-- The surface clips to its radius; the inner box scrolls, so the scrollbar meets the border.
-	     A child that should scroll on its own, below controls that stay put, takes `min-h-0`. -->
+	     A child that should scroll on its own, below controls that stay put, takes `min-h-0` and
+	     `overscroll-contain`, or a scroll that reaches its end carries on into this box. -->
 	<div
 		use:portal
 		bind:this={popoverEl}
@@ -202,7 +236,7 @@
 		onmouseenter={onMouseEnter}
 		onmouseleave={onMouseLeave}
 	>
-		<div bind:this={contentEl} class="flex min-h-0 flex-col overflow-y-auto p-2">
+		<div bind:this={contentEl} class="flex min-h-0 flex-col overflow-y-auto overscroll-contain p-2">
 			{@render children()}
 		</div>
 	</div>

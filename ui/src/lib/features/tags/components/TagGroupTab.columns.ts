@@ -24,7 +24,7 @@ import {
 
 type TagGroupOrderField = components['schemas']['TagGroupOrderField'];
 /** The tag groups list endpoint's query params, which the filters are sent and linked as. */
-type TagGroupListParam = keyof NonNullable<operations['get_all_tag_groups']['parameters']['query']>;
+type TagGroupListParam = keyof NonNullable<operations['list_tag_groups']['parameters']['query']>;
 
 /** What the tag group columns read from the tab, each as a getter so values stay live. */
 export interface TagGroupColumnsContext {

@@ -114,7 +114,7 @@ pub struct OrganizationBase {
     /// The plan this organization is on.
     #[serde(default)]
     #[schema(read_only, required)]
-    pub plan: Option<BillingPlan>,
+    pub plan: BillingPlan,
     /// Current billing state of that plan.
     #[serde(default)]
     #[schema(read_only, required)]
@@ -284,22 +284,65 @@ impl Organization {
     /// middleware, the discovery scheduler and daemon work handout all read
     /// this so a lapsed org is read-only in one consistent way.
     pub fn is_lapsed(&self) -> bool {
-        self.base.plan.is_some_and(|plan| plan.is_stripe_managed())
+        self.base.plan.is_stripe_managed()
             && self.base.plan_status
                 == Some(crate::server::billing::types::base::PlanStatus::Cancelled)
+    }
+
+    /// Whether the org is inside its trial at `now`. A trial with a cancellation scheduled is
+    /// still a trial (Stripe keeps it `trialing`; we mirror `cancel_at` as `PendingCancellation`),
+    /// so a plan switch keeps it running and still owes a card for a cloud plan.
+    pub fn is_in_trial(&self, now: DateTime<Utc>) -> bool {
+        use crate::server::billing::types::base::PlanStatus;
+        matches!(
+            self.base.plan_status,
+            Some(PlanStatus::Trialing) | Some(PlanStatus::PendingCancellation)
+        ) && self.base.trial_end_date.is_some_and(|end| end > now)
+    }
+
+    /// Whether the org gets no new discovery: it is lapsed, or it is a Scanopy Cloud org on a
+    /// self-hosted license plan, whose app is closed beyond Settings and whose scans belong on
+    /// its own server. Schedules and daemons stay configured, so landing on a live cloud plan
+    /// resumes them. The discovery scheduler and daemon work handout both read this.
+    pub fn discovery_paused(&self, deployment_type: crate::server::config::DeploymentType) -> bool {
+        self.is_lapsed()
+            || (!deployment_type.is_self_hosted() && self.base.plan.license_plan().is_some())
     }
 
     /// The date an air-gapped key stays current until, when the org holds one.
     ///
     /// An air-gapped key validates offline and carries its own expiry, so
     /// while this is `Some` the organization is committed to the plan it
-    /// bought: it cannot switch back to an online key, and it cannot change
-    /// plan. Both refusals read this, so the two rules cannot drift apart.
+    /// bought: it cannot switch back to an online key, and it cannot move to
+    /// another license plan ([`Self::air_gapped_plan_change_blocked_until`]).
+    /// Both refusals read this, so the two rules cannot drift apart.
     pub fn air_gapped_key_current_until(&self) -> Option<DateTime<Utc>> {
         let paid_through = self.base.license_paid_through?;
         (self.base.license_key_type == Some(crate::server::license::types::LicenseKeyType::Offline)
             && Utc::now() < paid_through)
             .then_some(paid_through)
+    }
+
+    /// The date a move to `target` waits for, when the org's air-gapped key forbids it. The key
+    /// holds the org to its license tier, so another license plan waits for the key to run out. A
+    /// cloud plan does not: the key keeps working to the expiry it carries, and the cloud plan
+    /// bills from the switch with no credit for the license time (`change_plan`).
+    pub fn air_gapped_plan_change_blocked_until(
+        &self,
+        target: crate::server::billing::types::base::BillingPlan,
+    ) -> Option<DateTime<Utc>> {
+        self.air_gapped_key_current_until()
+            .filter(|_| target.license_plan().is_some())
+    }
+
+    /// Whether a move to `target` leaves a current air-gapped key running on the customer's
+    /// server: a move to a cloud plan. The key keeps the license term it was paid for, so the
+    /// move credits none of it.
+    pub fn keeps_air_gapped_term_on_move(
+        &self,
+        target: crate::server::billing::types::base::BillingPlan,
+    ) -> bool {
+        self.air_gapped_key_current_until().is_some() && target.license_plan().is_none()
     }
 
     /// Record a successful check-in at `at` from a server reporting
@@ -337,7 +380,7 @@ impl Organization {
         };
         if activated {
             events.push(BillingOperation::LicenseActivated {
-                plan: self.base.plan,
+                plan: Some(self.base.plan),
                 server_version: server_version.clone(),
             });
         }
@@ -372,10 +415,7 @@ impl Organization {
 
         let last_check_in_at = self.base.license_checkin_at?;
         let paid_through = self.base.license_paid_through?;
-        let licensed = self
-            .base
-            .plan
-            .is_some_and(|plan| plan.license_plan().is_some());
+        let licensed = self.base.plan.license_plan().is_some();
         let online = self.base.license_key_type.unwrap_or_default() == LicenseKeyType::Online;
         let expires_at =
             paid_through + chrono::Duration::days(PAID_THROUGH_BUFFER_DAYS + GRACE_PERIOD_DAYS);
@@ -398,12 +438,9 @@ impl Organization {
 
 impl Organization {
     /// How many production and non-production servers the org's online key
-    /// covers, from its plan. No plan is no cap.
+    /// covers, from its plan.
     pub fn license_instance_limits(&self) -> InstanceLimits {
-        self.base
-            .plan
-            .map(|plan| plan.license_instance_limits())
-            .unwrap_or_default()
+        self.base.plan.license_instance_limits()
     }
 
     /// Record the instance counts a check-in found, returning
@@ -471,7 +508,7 @@ mod tests {
 
         let with = |plan: BillingPlan, status: Option<PlanStatus>| {
             let mut org = Organization::default();
-            org.base.plan = Some(plan);
+            org.base.plan = plan;
             org.base.plan_status = status;
             org
         };
@@ -482,6 +519,30 @@ mod tests {
         assert!(!with(get_self_hosted_standard_plan(), None).is_lapsed());
         assert!(!with(get_free_plan(), Some(PlanStatus::Cancelled)).is_lapsed());
         assert!(!Organization::default().is_lapsed());
+    }
+
+    /// `change_plan`'s card requirement reads this. A cancellation scheduled mid-trial leaves the
+    /// trial running; one scheduled on a paid subscription after its trial does not.
+    #[test]
+    fn a_trial_with_a_scheduled_cancellation_is_still_a_trial() {
+        use crate::server::billing::types::base::PlanStatus;
+
+        let now = Utc::now();
+        let with = |status: Option<PlanStatus>, trial_end: Option<DateTime<Utc>>| {
+            let mut org = Organization::default();
+            org.base.plan_status = status;
+            org.base.trial_end_date = trial_end;
+            org
+        };
+        let future = Some(now + chrono::Duration::days(5));
+        let past = Some(now - chrono::Duration::days(5));
+
+        assert!(with(Some(PlanStatus::Trialing), future).is_in_trial(now));
+        assert!(with(Some(PlanStatus::PendingCancellation), future).is_in_trial(now));
+        assert!(!with(Some(PlanStatus::PendingCancellation), past).is_in_trial(now));
+        assert!(!with(Some(PlanStatus::Active), past).is_in_trial(now));
+        assert!(!with(Some(PlanStatus::Cancelled), future).is_in_trial(now));
+        assert!(!with(None, None).is_in_trial(now));
     }
 
     /// Two refusals read this: switching back to an online key, and changing
@@ -519,6 +580,72 @@ mod tests {
         );
     }
 
+    /// A current air-gapped key holds the org to its license tier, but a move to
+    /// a cloud plan goes through and keeps the license term on the customer's
+    /// server rather than crediting it.
+    #[test]
+    fn a_current_air_gapped_key_blocks_license_moves_but_not_cloud_ones() {
+        use crate::server::billing::plans::{get_purchasable_plans, get_self_hosted_plus_plan};
+
+        let until = Utc::now() + chrono::Duration::days(30);
+        let mut holder = org(Some(LicenseKeyType::Offline), Some(until));
+        holder.base.plan = get_self_hosted_plus_plan();
+
+        for target in get_purchasable_plans() {
+            let license_target = target.license_plan().is_some();
+            assert_eq!(
+                holder.air_gapped_plan_change_blocked_until(target),
+                license_target.then_some(until),
+                "{target:?}"
+            );
+            assert_eq!(
+                holder.keeps_air_gapped_term_on_move(target),
+                !license_target,
+                "{target:?}"
+            );
+        }
+
+        // An online key blocks nothing and keeps nothing.
+        let mut online = org(Some(LicenseKeyType::Online), Some(until));
+        online.base.plan = get_self_hosted_plus_plan();
+        for target in get_purchasable_plans() {
+            assert_eq!(online.air_gapped_plan_change_blocked_until(target), None);
+            assert!(!online.keeps_air_gapped_term_on_move(target));
+        }
+    }
+
+    /// A lapsed org and a cloud org on a license plan get no new discovery; a
+    /// self-hosted server's org on its license plan scans as usual.
+    #[test]
+    fn discovery_pauses_for_lapsed_orgs_and_cloud_orgs_on_a_license_plan() {
+        use crate::server::billing::plans::{get_purchasable_plans, get_self_hosted_standard_plan};
+        use crate::server::billing::types::base::PlanStatus;
+        use crate::server::config::DeploymentType;
+
+        let on = |plan: BillingPlan, status: Option<PlanStatus>| {
+            let mut org = Organization::default();
+            org.base.plan = plan;
+            org.base.plan_status = status;
+            org
+        };
+
+        for plan in get_purchasable_plans() {
+            let active = on(plan, Some(PlanStatus::Active));
+            assert_eq!(
+                active.discovery_paused(DeploymentType::Cloud),
+                plan.license_plan().is_some(),
+                "{plan:?}"
+            );
+        }
+        let licensed = on(get_self_hosted_standard_plan(), None);
+        assert!(!licensed.discovery_paused(DeploymentType::Commercial));
+        assert!(!licensed.discovery_paused(DeploymentType::Community));
+
+        let lapsed = on(get_self_hosted_standard_plan(), Some(PlanStatus::Cancelled));
+        assert!(lapsed.discovery_paused(DeploymentType::Cloud));
+        assert!(!Organization::default().discovery_paused(DeploymentType::Cloud));
+    }
+
     fn at(day: i64) -> DateTime<Utc> {
         DateTime::<Utc>::from_timestamp(1_800_000_000, 0).unwrap() + chrono::Duration::days(day)
     }
@@ -537,14 +664,14 @@ mod tests {
     #[test]
     fn a_key_activates_on_its_first_check_in_and_again_after_rotation() {
         let mut org = issued();
-        org.base.plan = Some(crate::server::billing::plans::get_commercial_self_hosted_plan());
+        org.base.plan = crate::server::billing::plans::get_commercial_self_hosted_plan();
         let v = Version::new(0, 17, 20);
 
         let first = org.record_license_check_in(at(1), Some(v.clone()));
         assert_eq!(
             first,
             vec![BillingOperation::LicenseActivated {
-                plan: org.base.plan,
+                plan: Some(org.base.plan),
                 server_version: Some(Version::new(0, 17, 20))
             }],
             "the activation carries the version, so no separate upgrade"
@@ -613,7 +740,7 @@ mod tests {
     fn checking_in() -> Organization {
         use crate::server::billing::plans::get_self_hosted_standard_plan;
         let mut org = issued();
-        org.base.plan = Some(get_self_hosted_standard_plan());
+        org.base.plan = get_self_hosted_standard_plan();
         org.base.plan_status = Some(PlanStatus::Active);
         org.base.license_paid_through = Some(at(365));
         org.record_license_check_in(at(1), Some(Version::new(0, 17, 20)));
@@ -667,7 +794,7 @@ mod tests {
         assert_eq!(expired.report_license_silence(silent_day), None);
 
         let mut not_licensed = checking_in();
-        not_licensed.base.plan = Some(get_free_plan());
+        not_licensed.base.plan = get_free_plan();
         assert_eq!(not_licensed.report_license_silence(silent_day), None);
 
         let mut never_checked_in = issued();
@@ -722,7 +849,7 @@ mod tests {
         };
 
         let mut org = Organization::default();
-        org.base.plan = Some(get_self_hosted_plus_plan());
+        org.base.plan = get_self_hosted_plus_plan();
         assert_eq!(
             org.record_license_instance_usage(usage_on(&org)),
             Some(BillingOperation::LicenseInstanceLimitExceeded {
@@ -731,7 +858,7 @@ mod tests {
             })
         );
 
-        org.base.plan = Some(get_commercial_self_hosted_plan());
+        org.base.plan = get_commercial_self_hosted_plan();
         assert_eq!(org.record_license_instance_usage(usage_on(&org)), None);
         assert!(!org.base.notifications.license_over_instance_limit);
     }

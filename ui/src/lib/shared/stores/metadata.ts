@@ -5,7 +5,7 @@ import subnetTypesJson from '$lib/data/subnet-types.json';
 import edgeTypesJson from '$lib/data/edge-types.json';
 import dependencyTypesJson from '$lib/data/dependency-types.json';
 import entitiesJson from '$lib/data/entities.json';
-import entityCategoriesJson from '$lib/data/entity-categories.json';
+import productAreasJson from '$lib/data/product-areas.json';
 import fieldGroupsJson from '$lib/data/field-groups.json';
 import entitySourcesJson from '$lib/data/entity-sources.json';
 import portsJson from '$lib/data/ports.json';
@@ -38,10 +38,10 @@ import deviceTypesJson from '$lib/data/device-types.json';
 import {
 	createColorHelper,
 	createIconComponent,
-	createLogoIconComponent,
 	createStyle,
 	type ColorStyle
 } from '../utils/styling';
+import { logoIcon } from '../utils/logos';
 import { metaName, metaDescription } from '$lib/i18n/metadata';
 import { joinList } from '$lib/i18n/list';
 import type { TagProps } from '$lib/shared/components/data/types';
@@ -100,13 +100,15 @@ export interface CredentialTypeMetadata {
 	 *  "Unofficial API" tag but stay selectable. A separate axis from `stability`: an integration
 	 *  can be fully validated and still ride an endpoint the vendor never published. */
 	upstream_support?: components['schemas']['UpstreamSupport'];
+	/** The plan feature needed to create this type, or null when every plan can. The type picker
+	 *  shows an upgrade badge when the organization's plan lacks it; existing credentials of the
+	 *  type keep working on any plan. */
+	required_feature?: FeatureId | null;
 	/** Guide for this type's integration, root-relative and trailing-slashed
 	 *  (`/docs/guides/integrations/snmp/`). Compose onto the docs origin with `docsUrl`. */
 	docs_path?: string;
-	/** Whether the associated service has a logo */
-	has_logo?: boolean;
-	/** Whether the logo needs a white background */
-	logo_needs_white_background?: boolean;
+	/** The associated service's logo id (`logos.json`). */
+	logo?: string | null;
 }
 
 export interface MetadataRegistry {
@@ -115,7 +117,7 @@ export interface MetadataRegistry {
 	edge_types: TypeMetadata[];
 	dependency_types: TypeMetadata[];
 	entities: TypeMetadata[];
-	entity_categories: TypeMetadata[];
+	product_areas: TypeMetadata[];
 	field_groups: TypeMetadata[];
 	entity_sources: TypeMetadata[];
 	ports: TypeMetadata[];
@@ -162,6 +164,8 @@ export type UpgradeFeature = FeatureId | 'seats' | 'sites' | 'hosts' | 'plan_usa
 
 export interface BillingPlanMetadata {
 	features: BillingPlanFeatures;
+	/** The plan includes the topology view (all three map features). */
+	includes_topology: boolean;
 	is_commercial: boolean;
 	is_stripe_managed: boolean;
 	is_free: boolean;
@@ -170,6 +174,10 @@ export interface BillingPlanMetadata {
 	hosting: string;
 	custom_price: string | null;
 	incremental_features: string[];
+	/** Discovery integrations the plan can create credentials for, itemized on the plan cards. */
+	integrations: components['schemas']['CredentialIntegration'][];
+	/** The integrations this plan adds over `previous_tier`. */
+	incremental_integrations: components['schemas']['CredentialIntegration'][];
 	previous_tier: string | null;
 	/** How the plan is obtained: 'stripe' (in-app checkout), 'contact' (inquiry), 'none'. */
 	purchase_flow: string;
@@ -204,9 +212,8 @@ export interface ServicedDefinitionMetadata {
 		| components['schemas']['HostVirtualization']['type']
 		| components['schemas']['ServiceVirtualization']['type']
 		| null;
-	has_logo: boolean;
-	logo_ext: string;
-	logo_needs_white_background: boolean;
+	/** The logo id (`logos.json`), or null for the category glyph. */
+	logo: string | null;
 	/** Whether `probe_raw_socket_ports` being off would stop this service being detected — it drops
 	 *  9100-9107 from the scan entirely, so it governs any definition referencing one, endpoint or
 	 *  bare port alike. */
@@ -265,6 +272,14 @@ export interface DependencyTypeMetadata {}
 export interface FeatureMetadata {
 	is_coming_soon: boolean;
 	minimum_plan: string | null;
+	/** A credential type needs this feature; plan cards list the integration instead of it. */
+	gates_integration: boolean;
+	/** Plan cards and the comparison list this feature. */
+	listed_on_plans: boolean;
+	/** The format a diagram export writes; plan cards list these under one Exports line. */
+	export_format: string | null;
+	/** The feature a sub-feature extends; plan cards list it under that feature. */
+	parent: string | null;
 }
 
 export interface PortTypeMetadata {
@@ -316,7 +331,7 @@ export const metadata = writable<MetadataRegistry>({
 	edge_types: edgeTypesJson,
 	dependency_types: dependencyTypesJson,
 	entities: entitiesJson,
-	entity_categories: entityCategoriesJson,
+	product_areas: productAreasJson,
 	field_groups: fieldGroupsJson,
 	entity_sources: entitySourcesJson,
 	ports: portsJson,
@@ -398,6 +413,13 @@ type EntityMetadataKeys = {
 	[K in keyof MetadataRegistry]: MetadataRegistry[K][number] extends EntityMetadata ? K : never;
 }[keyof MetadataRegistry];
 
+/** The logo id an entry names in `metadata.logo`, which its icon falls back from. */
+function metadataLogo(meta: unknown): string | null {
+	return meta && typeof meta === 'object' && 'logo' in meta && typeof meta.logo === 'string'
+		? meta.logo
+		: null;
+}
+
 // Full TypeMetadata helpers (includes color methods + other methods)
 function createTypeMetadataHelpers<T extends TypeMetadataKeys, M = unknown>(category: T) {
 	const sharedHelpers = createSharedHelpers(category);
@@ -408,26 +430,7 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys, M = unknown>(cate
 		getIconComponent: (id: string | null) => {
 			const $registry = get(metadata);
 			const item = ($registry?.[category] as TypeMetadata[])?.find((item) => item.id === id);
-			const iconName = item?.icon || null;
-
-			const meta = item?.metadata;
-			if (meta && typeof meta === 'object' && 'has_logo' in meta && meta.has_logo) {
-				// For credential types, the logo is named after the associated service
-				const logoId =
-					'associated_service' in meta && typeof meta.associated_service === 'string'
-						? meta.associated_service
-						: id;
-				const ext = 'logo_ext' in meta && meta.logo_ext ? meta.logo_ext : 'svg';
-				if (logoId) {
-					const logoSlug = logoId.toLowerCase().replaceAll(' ', '-');
-					const logoUrl = `/logos/services/${logoSlug}.${ext}`;
-					const useWhiteBg =
-						'logo_needs_white_background' in meta && !!meta.logo_needs_white_background;
-					return createLogoIconComponent(iconName, logoUrl, useWhiteBg);
-				}
-			}
-
-			return createIconComponent(iconName);
+			return logoIcon(metadataLogo(item?.metadata), createIconComponent(item?.icon || null));
 		},
 
 		getItems: (): TypedTypeMetadata<M>[] => {
@@ -537,10 +540,8 @@ export interface EntityTypeMetadata {
 	display_fields: string[];
 }
 export const entities = createTypeMetadataHelpers<'entities', EntityTypeMetadata>('entities');
-/** The parts of the product entities belong to, in display order: the sidebar's sections. */
-export const entityCategories = createTypeMetadataHelpers<'entity_categories', object>(
-	'entity_categories'
-);
+/** The parts of the product entities and features belong to, in display order: the sidebar's sections and the plan cards' headings. */
+export const productAreas = createTypeMetadataHelpers<'product_areas', object>('product_areas');
 /** Headings a field is listed under, in display order: the column menu's sections. */
 export const fieldGroups = createTypeMetadataHelpers<'field_groups', object>('field_groups');
 /** How an entity came to exist, keyed by `source.type`. */
@@ -627,11 +628,10 @@ export const credentialTypes = createTypeMetadataHelpers<
 export interface CredentialIntegrationMetadata {
 	/** Guide for this integration, root-relative and trailing-slashed. */
 	docs_path?: string;
-	/** Service name the logo is named after (e.g. "UniFi Controller"). */
+	/** The integration's service (e.g. "UniFi Controller"). */
 	associated_service?: string;
-	has_logo?: boolean;
-	logo_ext?: string;
-	logo_needs_white_background?: boolean;
+	/** The service's logo id (`logos.json`). */
+	logo?: string | null;
 	/** Whether a successful collection adds interfaces to the hosts it reaches. */
 	reports_interfaces?: boolean;
 }
@@ -719,6 +719,8 @@ interface StaticMetadataItem {
 export function createStaticHelpers<M>(fixtureKey: string, items: StaticMetadataItem[]) {
 	const map = new Map(items.map((i) => [i.id, i]));
 	return {
+		/** Every id, in fixture order. */
+		getIds: () => items.map((i) => i.id),
 		getMetadata: (id: string | null): M => (map.get(id ?? '')?.metadata as M) ?? ({} as M),
 		getName: (id: string | null) => metaName(fixtureKey, id, map.get(id ?? '')?.name ?? id ?? ''),
 		getDescription: (id: string | null) =>
@@ -726,7 +728,7 @@ export function createStaticHelpers<M>(fixtureKey: string, items: StaticMetadata
 		getCategory: (id: string | null) => map.get(id ?? '')?.category ?? '',
 		getIconComponent: (id: string | null) => {
 			const item = map.get(id ?? '');
-			return createIconComponent(item?.icon ?? null);
+			return logoIcon(metadataLogo(item?.metadata), createIconComponent(item?.icon ?? null));
 		},
 		getColorHelper: (id: string | null) => {
 			const item = map.get(id ?? '');

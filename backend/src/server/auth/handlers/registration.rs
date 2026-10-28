@@ -1,14 +1,16 @@
 //! Email chck, registration, onboarding setup, and pending-setup application.
 use super::*;
+use crate::server::auth::disposable_email::is_disposable_email;
 use crate::server::auth::email_domain::{DomainCheck, check_email_domain};
 use crate::server::auth::r#impl::api::CheckEmailResponse;
 use crate::server::openapi::tags as api_tags;
 use crate::server::shared::types::api::ApiJson;
 
+/// Check whether an email is available
 #[utoipa::path(
     post,
     path = "/check-email",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = CheckEmailRequest,
     responses(
         (status = 200, description = "Whether the address is available", body = ApiResponse<CheckEmailResponse>),
@@ -41,10 +43,11 @@ pub(crate) async fn check_email(
     })))
 }
 
+/// Register user
 #[utoipa::path(
     post,
     path = "/register",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = RegisterRequest,
     responses(
         (status = 200, description = "User registered successfully", body = ApiResponse<User>),
@@ -75,12 +78,7 @@ pub(crate) async fn register(
         ));
     }
 
-    if state.config.disable_registration {
-        return Err(ApiError::coded(
-            StatusCode::FORBIDDEN,
-            ErrorCode::AuthRegistrationDisabled,
-        ));
-    }
+    ensure_registration_allowed(&state, &session).await?;
 
     let deployment_type = get_deployment_type(&state.config);
 
@@ -113,7 +111,7 @@ pub(crate) async fn register(
         ));
     }
 
-    if !mailchecker::is_valid(request.email.as_str()) && deployment_type == DeploymentType::Cloud {
+    if deployment_type == DeploymentType::Cloud && is_disposable_email(&request.email) {
         return Err(ApiError::conflict(
             "Email address uses a disposable domain. Please register with a non-disposable email address.",
         ));
@@ -219,22 +217,55 @@ pub(crate) async fn register(
         .await
         .map_err(|e| ApiError::internal_error(&format!("Failed to save session: {}", e)))?;
 
-    // If this is a new org, provision the integrated daemon on the site `provision_user` created.
-    if let ProvisionOrg::New(setup) = provision_org {
-        apply_pending_setup(&state, &user, setup).await?;
+    // If this is a new org, finish its onboarding.
+    if matches!(provision_org, ProvisionOrg::New(_)) {
+        apply_pending_setup(&state, &user).await?;
 
         // Clear pending setup data from session
         clear_pending_setup(&session).await;
     }
 
+    // An invitee joining a license-plan org on a link-only invite starts gated.
+    let user = with_org_session_gates(&state, user).await?;
     Ok(Json(ApiResponse::success(user)))
 }
 
-/// Store pre-registration setup data (org name, first site) in session
+/// Refuse sign-up when registration is disabled, unless the session holds a pending invite
+/// that is still valid. Fails closed: no invite, an expired or deleted one, or an error
+/// reading either is a refusal.
+pub(crate) async fn ensure_registration_allowed(
+    state: &AppState,
+    session: &Session,
+) -> Result<(), ApiError> {
+    if !state.config.disable_registration {
+        return Ok(());
+    }
+
+    let refused = || ApiError::coded(StatusCode::FORBIDDEN, ErrorCode::AuthRegistrationDisabled);
+
+    let invite_id = session
+        .get::<Uuid>("pending_invite_id")
+        .await
+        .ok()
+        .flatten()
+        .ok_or_else(refused)?;
+
+    state
+        .services
+        .invite_service
+        .get_valid_invite(invite_id)
+        .await
+        .map(|_| ())
+        .map_err(|_| refused())
+}
+
+/// Store pre-registration setup in session
+///
+/// The organization name and first site, kept until registration completes.
 #[utoipa::path(
     post,
     path = "/setup",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = SetupRequest,
     responses(
         (status = 200, description = "Setup data stored", body = ApiResponse<SetupResponse>),
@@ -319,7 +350,7 @@ pub async fn clear_pending_setup(session: &Session) {
 #[utoipa::path(
     post,
     path = "/onboarding-step",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     request_body = OnboardingStepRequest,
     responses(
         (status = 200, description = "Step saved", body = EmptyApiResponse),
@@ -351,7 +382,7 @@ pub(crate) async fn onboarding_step(
 #[utoipa::path(
     get,
     path = "/onboarding-state",
-    tags = [api_tags::AUTH, api_tags::INTERNAL],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Onboarding state", body = ApiResponse<OnboardingStateResponse>),
     )
@@ -387,60 +418,17 @@ pub(crate) async fn onboarding_state(
     })))
 }
 
-/// Apply pending setup after user registration: provision the integrated daemon and
-/// publish `OnboardingModalCompleted`. The org, its plan, its onboarding state (this
-/// milestone included), the requested site, its subnets and topology are all created
-/// in `provision_user`, so the event is published here without a `record_milestone` guard.
+/// Apply pending setup after user registration: publish `OnboardingModalCompleted`. The org,
+/// its plan and its onboarding state (this milestone included) are created in
+/// `provision_user`, so the event is published here without a `record_milestone` guard. Its
+/// setup data, the integrated daemon included, comes from `OrgSetupService` reacting to
+/// `OrgCreated`.
 pub(crate) async fn apply_pending_setup(
     state: &Arc<AppState>,
     user: &User,
-    setup: PendingSetup,
 ) -> Result<(), ApiError> {
     let organization_id = user.base.organization_id;
     let auth_entity: AuthenticatedEntity = user.clone().into();
-
-    // Handle integrated daemon if configured.
-    //
-    // The integrated daemon is provisioned, not handed a shared site key: since 0.17.5 a
-    // daemon that reaches /register without resolving to an existing record is rejected
-    // (`daemon_not_provisioned`), so a shared key would leave it permanently unregistered.
-    // Provisioning creates its record + a 1:1 key up front; the daemon then learns its identity
-    // from that key on first contact. Legacy (< 0.17.5) daemons still self-register with their
-    // existing shared keys — those are untouched here.
-    if let (Some(integrated_daemon_url), Some(site)) =
-        (&state.config.integrated_daemon_url, &setup.site)
-    {
-        let site_id = site.site_id;
-
-        let (_daemon, plaintext) = state
-            .services
-            .daemon_service
-            .provision(
-                &ProvisionDaemonRequest {
-                    name: Some(DEFAULT_DAEMON_NAME.to_string()),
-                    site_id: Some(site_id),
-                    // The integrated daemon dials the server, so it needs no reachable url.
-                    mode: DaemonMode::DaemonPoll,
-                    url: None,
-                    seed_credential_refs: Vec::new(),
-                    daemon_id: None,
-                    // The integrated daemon ships in the Linux server image.
-                    os: Some(DaemonOs::Linux),
-                },
-                None,
-                auth_entity.clone(),
-            )
-            .await?;
-
-        state
-            .services
-            .daemon_service
-            .initialize_local_daemon(integrated_daemon_url.clone(), site_id, plaintext)
-            .await
-            .map_err(|e| {
-                ApiError::internal_error(&format!("Failed to initialize local daemon: {}", e))
-            })?;
-    }
 
     // Publish telemetry event
     state

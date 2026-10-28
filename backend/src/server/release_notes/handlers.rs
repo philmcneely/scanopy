@@ -3,6 +3,7 @@ use std::sync::Arc;
 use axum::Json;
 use axum::extract::State;
 use chrono::NaiveDate;
+use semver::Version;
 use serde::Serialize;
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -29,7 +30,8 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ReleaseNoteResponse {
     /// The release, as semver (e.g. `0.18.0`).
-    pub version: String,
+    #[schema(value_type = String, example = "0.18.0")]
+    pub version: Version,
     /// The day the release was prepared.
     pub date: NaiveDate,
     /// The release's headline.
@@ -43,7 +45,7 @@ pub struct ReleaseNoteResponse {
 impl From<&ReleaseNote> for ReleaseNoteResponse {
     fn from(note: &ReleaseNote) -> Self {
         Self {
-            version: note.version.to_string(),
+            version: note.version.clone(),
             date: note.date,
             title: note.title.clone(),
             html: note.html.clone(),
@@ -81,7 +83,7 @@ async fn current_user(state: &AppState, auth: &Authorized<IsUser>) -> ApiResult<
 #[utoipa::path(
     get,
     path = "/unseen",
-    tags = [api_tags::RELEASE_NOTES],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Unseen releases", body = ApiResponse<UnseenReleaseNotes>),
         (status = 401, description = "Not signed in", body = ApiErrorResponse),
@@ -108,7 +110,7 @@ pub async fn get_unseen_release_notes(
 #[utoipa::path(
     post,
     path = "/seen",
-    tags = [api_tags::RELEASE_NOTES],
+    tags = [api_tags::INTERNAL],
     responses(
         (status = 200, description = "Dismissed", body = EmptyApiResponse),
         (status = 401, description = "Not signed in", body = ApiErrorResponse),

@@ -55,7 +55,7 @@ async fn create_compat_test_api_key(site_id: Uuid) -> Result<String, String> {
         plaintext: None,
     });
 
-    let response: DaemonApiKeyResponse = client.post("/api/v1/auth/daemon", &api_key).await?;
+    let response: DaemonApiKeyResponse = client.post("/api/v1/daemon-api-keys", &api_key).await?;
     Ok(response.key)
 }
 
@@ -65,7 +65,7 @@ pub async fn cancel_server_discovery_sessions(client: &TestClient) -> Result<(),
     // Get active sessions from server
     // Note: TestClient.get() already unwraps ApiResponse, so we get Vec<T> directly
     let sessions: Vec<DiscoveryUpdatePayload> =
-        client.get("/api/v1/discovery/active-sessions").await?;
+        client.get("/api/v1/discoveries/active-sessions").await?;
 
     if sessions.is_empty() {
         return Ok(());
@@ -77,7 +77,7 @@ pub async fn cancel_server_discovery_sessions(client: &TestClient) -> Result<(),
     );
 
     for session in sessions {
-        let cancel_url = format!("/api/v1/discovery/{}/cancel", session.session_id);
+        let cancel_url = format!("/api/v1/discoveries/{}/cancel", session.session_id);
         // Ignore errors - session may have completed between listing and cancelling
         let _: Result<(), _> = client.post_empty(&cancel_url).await;
     }

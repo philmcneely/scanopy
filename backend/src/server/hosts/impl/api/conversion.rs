@@ -142,6 +142,8 @@ impl HostResponse {
                 os: os
                     .clone()
                     .map(|v| Attributed::new(HostOsValue(v), *os_source)),
+                // Not on the response; the daemon never writes back what it reads here.
+                matched_device_type: None,
                 credential_assignments: credential_assignments.clone(),
             },
         }
@@ -162,7 +164,7 @@ impl HostResponse {
         // The title, the rung it came from and the rungs it beat are read off one ladder, so the
         // editor's explanation of a title cannot disagree with the title.
         // The same function the topology bundle uses, so a host wears one device type on every surface.
-        let device_type = host.device_type(&services);
+        let device_type = host.device_type(&services, &ip_addresses);
         let name_ladder = host.name_ladder(ip_addresses.iter());
         let (display_name, display_name_rung) =
             match crate::server::hosts::r#impl::name_ladder::resolve_name_ladder(&name_ladder) {
@@ -227,6 +229,9 @@ impl HostResponse {
             firmware_revision,
             software_revision,
             os,
+            // A rung of the device type the response carries (`Host::device_type`), not a field
+            // of its own.
+            matched_device_type: _,
             credential_assignments,
         } = base;
 

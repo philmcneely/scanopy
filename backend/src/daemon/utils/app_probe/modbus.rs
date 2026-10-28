@@ -57,15 +57,11 @@ pub struct ModbusProbe;
 
 #[async_trait]
 impl AppProbe for ModbusProbe {
-    fn port(&self) -> PortType {
-        PortType::ModbusTcp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::ModbusTcp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::ModbusTcp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
         // Both units on one connection where the device allows it, which is the multi-round-trip
         // case the stage exists to support.
         //
@@ -83,7 +79,7 @@ impl AppProbe for ModbusProbe {
             }
 
             if stream.is_none() {
-                match ctx.connect(self.port().number()).await {
+                match ctx.connect(port.number()).await {
                     Some(fresh) => stream = Some(fresh),
                     None => break,
                 }
@@ -240,6 +236,7 @@ fn parse_identity(pdu: &[u8]) -> Option<DeviceIdentity> {
     // protocol — the strongest reading there is for these fields.
     let source = AttributeSource::Probe(ClientProbe::ModbusTcp);
     Some(DeviceIdentity {
+        matched: None,
         manufacturer: identity_field(vendor_name, source),
         model: identity_field(product_code, source),
         serial_number: None,
@@ -304,6 +301,7 @@ mod tests {
         assert_eq!(
             reply,
             ModbusReply::Identity(DeviceIdentity {
+                matched: None,
                 manufacturer: identity_field(Some("Schneider Electric".to_string()), MODBUS),
                 model: identity_field(Some("BMXP342020".to_string()), MODBUS),
                 serial_number: None,
@@ -363,6 +361,7 @@ mod tests {
         assert_eq!(
             reply,
             ModbusReply::Identity(DeviceIdentity {
+                matched: None,
                 manufacturer: identity_field(Some("Schneider Electric".to_string()), MODBUS),
                 model: None,
                 serial_number: None,

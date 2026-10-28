@@ -1,0 +1,26 @@
+use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
+use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::services::r#impl::patterns::Pattern;
+
+/// Matched by Recog's fingerprints of its web interface (`Pattern::Recog`).
+#[derive(Default, Clone, Eq, PartialEq, Hash)]
+pub struct Webmin;
+
+impl ServiceDefinition for Webmin {
+    fn name(&self) -> &'static str {
+        "Webmin"
+    }
+    fn description(&self) -> &'static str {
+        "Web-based server administration"
+    }
+    fn category(&self) -> ServiceCategory {
+        ServiceCategory::RemoteAccess
+    }
+
+    fn discovery_pattern(&self) -> Pattern<'_> {
+        Pattern::Recog(&[("Webmin", "Webmin"), ("Webmin", "Usermin")], &[10000])
+    }
+}
+
+inventory::submit!(ServiceDefinitionFactory::new(create_service::<Webmin>));

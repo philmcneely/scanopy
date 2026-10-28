@@ -290,9 +290,7 @@ fn test_all_protocol_ports_have_generic_service() {
             // via credentialed probes — they don't need Pattern::Port coverage.
             Pattern::ClientResponse(_) => true,
             // `AllOf` counts for the same reason `AnyOf` does: `Pattern::ports()` flattens both,
-            // so either shape puts the port into the light scan. The industrial protocols are
-            // `AllOf([Port(p), ClientResponse(c)])` — the port is scanned, and the service is
-            // claimed only once the probe has answered on it.
+            // so either shape puts the port into the light scan.
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => patterns
                 .iter()
                 .any(|p| pattern_matches_port_alone(p, target_port)),
@@ -430,6 +428,113 @@ async fn test_service_patterns_are_specific_enough() {
         let service_name = ServiceDefinition::name(&service);
 
         check_pattern_specificity(&pattern, &common_ports, service_name, words.clone());
+    }
+}
+
+/// Definitions allowed to match on an open UDP port with no answer behind it: (name, reason).
+const UDP_OPEN_ONLY_ALLOWED: &[(&str, &str)] = &[];
+
+/// The container scan reports every UDP port an image declares, with no probe run, so a pattern
+/// that a UDP port alone satisfies claims the service from a declaration. Generic definitions are
+/// checked too: DNS Server on a container that merely declares 53/udp is as wrong as a vendor's.
+#[test]
+fn test_no_service_matches_on_udp_openness_alone() {
+    let registry = ServiceDefinitionRegistry::all_service_definitions();
+    let names: HashSet<&str> = registry.iter().map(|s| s.name()).collect();
+
+    let mut offenders = Vec::new();
+    let mut needless_allowances = Vec::new();
+    for service in &registry {
+        let udp_only = udp_openness_alone(&service.discovery_pattern()) == Some(true);
+        let allowed = UDP_OPEN_ONLY_ALLOWED
+            .iter()
+            .any(|(name, _)| *name == service.name());
+        match (udp_only, allowed) {
+            (true, false) => offenders.push(service.name()),
+            (false, true) => needless_allowances.push(service.name()),
+            _ => {}
+        }
+    }
+    let unknown_allowances: Vec<&str> = UDP_OPEN_ONLY_ALLOWED
+        .iter()
+        .map(|(name, _)| *name)
+        .filter(|name| !names.contains(name))
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "These services match on an open UDP port alone: {offenders:?}. A container that only \
+         declares the port satisfies that. Match on the probe's `Pattern::ClientResponse`, \
+         AND the port with other evidence, or add the definition to \
+         UDP_OPEN_ONLY_ALLOWED with a reason."
+    );
+    assert!(
+        needless_allowances.is_empty() && unknown_allowances.is_empty(),
+        "Remove these from UDP_OPEN_ONLY_ALLOWED; they no longer match on UDP openness alone or no \
+         longer exist: {needless_allowances:?} {unknown_allowances:?}"
+    );
+}
+
+/// Whether the pattern can be satisfied by open UDP ports with nothing else behind them.
+///
+/// `None`: it needs evidence beyond an open UDP port. `Some(used_udp)`: it can be satisfied
+/// without such evidence, and `used_udp` says whether a UDP port took part. Context that says
+/// nothing about what listens on the port (gateway, subnet type, containerised, a negation) is
+/// free, so `AllOf([Port(udp), IsGateway])` is still UDP openness alone.
+fn udp_openness_alone(pattern: &Pattern) -> Option<bool> {
+    match pattern {
+        Pattern::Port(port) => port.is_udp().then_some(true),
+        Pattern::Not(_)
+        | Pattern::IsGateway
+        | Pattern::SubnetIsType(_)
+        | Pattern::ContainerVirtualization => Some(false),
+        Pattern::AnyOf(patterns) => {
+            let arms: Vec<Option<bool>> = patterns.iter().map(udp_openness_alone).collect();
+            if arms.contains(&Some(true)) {
+                Some(true)
+            } else if arms.contains(&Some(false)) {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        Pattern::AllOf(patterns) if !patterns.is_empty() => patterns
+            .iter()
+            .map(udp_openness_alone)
+            .try_fold(false, |used, arm| arm.map(|arm_used| used || arm_used)),
+        _ => None,
+    }
+}
+
+#[test]
+fn udp_openness_alone_needs_an_answer_or_other_evidence() {
+    use crate::server::services::r#impl::patterns::ClientProbe;
+
+    let udp = || Pattern::Port(PortType::new_udp(2427));
+    let answered = || Pattern::AllOf(vec![udp(), Pattern::ClientResponse(ClientProbe::Mgcp)]);
+
+    for satisfied_by_openness in [
+        udp(),
+        Pattern::AnyOf(vec![answered(), udp()]),
+        Pattern::AllOf(vec![udp(), Pattern::IsGateway]),
+        Pattern::AllOf(vec![udp(), Pattern::Not(Box::new(answered()))]),
+    ] {
+        assert_eq!(
+            udp_openness_alone(&satisfied_by_openness),
+            Some(true),
+            "{satisfied_by_openness}"
+        );
+    }
+    for backed in [
+        answered(),
+        Pattern::AnyOf(vec![answered(), Pattern::Port(PortType::new_tcp(2427))]),
+        Pattern::AllOf(vec![
+            udp(),
+            Pattern::Endpoint(PortType::Http, "/", "MGCP gateway", None),
+        ]),
+        Pattern::Port(PortType::new_tcp(2427)),
+    ] {
+        assert_ne!(udp_openness_alone(&backed), Some(true), "{backed}");
     }
 }
 
@@ -624,64 +729,31 @@ fn a_virtualizer_definition_is_never_generic() {
     );
 }
 
-#[test]
-fn test_service_definition_logo_urls_valid() {
-    use crate::server::services::r#impl::definitions::ServiceDefinitionExt;
-
-    let registry = ServiceDefinitionRegistry::all_service_definitions();
-
-    for service in &registry {
-        let logo_url = service.logo_url();
-
-        if logo_url.is_empty() {
-            assert!(
-                !ServiceDefinitionExt::has_logo(service),
-                "Service '{}' has has_logo=true but empty logo_url()",
-                ServiceDefinition::name(service),
-            );
-            continue;
-        }
-
-        // Local paths must start with /logos/
-        if logo_url.starts_with('/') {
-            assert!(
-                logo_url.starts_with("/logos/"),
-                "Service '{}' has local logo URL '{}' that doesn't start with /logos/",
-                ServiceDefinition::name(service),
-                logo_url
-            );
-            continue;
-        }
-
-        // External URLs must be parseable
-        assert!(
-            reqwest::Url::parse(logo_url).is_ok(),
-            "Service '{}' has invalid logo URL '{}'",
-            ServiceDefinition::name(service),
-            logo_url
-        );
-    }
-}
-
+/// Every logo URL resolves to an image. A logo `make generate-fixtures` already downloaded from the
+/// same URL has resolved, so only the rest are fetched.
 #[tokio::test]
 async fn test_service_definition_logo_urls_resolve() {
+    use crate::server::shared::fixtures::{LOGO_FETCH_USER_AGENT, logo_is_cached};
     use backon::{ExponentialBuilder, Retryable};
     use futures::stream::{self, StreamExt};
 
     let registry = ServiceDefinitionRegistry::all_service_definitions();
     let client = reqwest::Client::builder()
+        .user_agent(LOGO_FETCH_USER_AGENT)
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .expect("Failed to create HTTP client");
+    let catalog_dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui/static/logos/catalog");
 
     let services_to_check: Vec<_> = registry
         .into_iter()
         .filter_map(|service| {
-            let logo_url = service.logo_url();
-            if logo_url.is_empty() || logo_url.starts_with('/') {
-                return None;
-            }
-            Some((service.name().to_string(), logo_url.to_string()))
+            let logo = service.logo()?;
+            let logo_url = logo.url();
+            let stem: &'static str = logo.into();
+            (!logo_is_cached(&catalog_dir, stem, &logo_url))
+                .then(|| (ServiceDefinition::name(&service).to_string(), logo_url))
         })
         .collect();
 
@@ -870,6 +942,9 @@ fn test_service_definition_ids_are_stable() {
         ("Dhcp Server", "DHCP Server"),
         ("Dns Server", "DNS Server"),
         ("Hp Printer", "HP Printer"),
+        // 20261024120001_google_nest_capitalization.sql
+        ("Google Nest router", "Google Nest Router"),
+        ("Google Nest repeater", "Google Nest Repeater"),
     ]
     .into_iter()
     .collect();
@@ -1090,15 +1165,19 @@ fn every_client_probe_variant_has_a_producer() {
         ClientProbe::Proxmox,
         ClientProbe::Gnmi,
     ];
+    // Probes whose port comes from the host's mDNS advertisement, so they cannot be registry
+    // `AppProbe`s with a fixed port in `ClientProbe::ports`; run directly by the network scan.
+    let from_advertised_probes = [ClientProbe::SpotifyConnect];
 
     let from_app_probes: HashSet<ClientProbe> = all_app_probes()
         .iter()
-        .filter_map(|probe| probe.client_probe())
+        .map(|probe| probe.client_probe())
         .collect();
 
     let orphans: Vec<ClientProbe> = ClientProbe::iter()
         .filter(|c| !from_app_probes.contains(c))
         .filter(|c| !from_integrations.contains(c))
+        .filter(|c| !from_advertised_probes.contains(c))
         .collect();
 
     assert!(
@@ -1109,25 +1188,26 @@ fn every_client_probe_variant_has_a_producer() {
     );
 }
 
-/// A definition's probe and its discovery pattern have to agree about the port.
+/// A definition reads the evidence of every probe it registers.
 ///
-/// `probe_pattern` derives the pattern from the probe, so the two cannot drift where it is used —
-/// this catches a definition that hand-writes a pattern for one port while handing out a probe for
-/// another, which would scan a port nothing probes and probe a port nothing scans.
+/// The ports line up by construction: the runner probes a probe's `ClientProbe::ports`, and a
+/// `ClientResponse` of that variant scans them. What can still drift is a definition handing out a
+/// probe whose answer its pattern never reads, which runs the probe for nothing and leaves the
+/// service unmatched.
 #[test]
-fn a_definitions_probe_port_is_a_port_its_pattern_scans() {
+fn a_definitions_pattern_reads_its_probes() {
     use crate::server::services::definitions::ServiceDefinitionRegistry;
     use crate::server::services::r#impl::definitions::ServiceDefinition;
 
     for definition in ServiceDefinitionRegistry::all_service_definitions() {
-        let scanned = definition.discovery_pattern().ports();
+        let read = definition.discovery_pattern().client_probes();
         for probe in definition.app_probes() {
             assert!(
-                scanned.contains(&probe.port()),
-                "{} probes {:?} but its discovery pattern scans {:?}",
+                read.contains(&probe.client_probe()),
+                "{} registers a {:?} probe but its discovery pattern reads only {:?}",
                 ServiceDefinition::name(&definition),
-                probe.port(),
-                scanned
+                probe.client_probe(),
+                read
             );
         }
     }
@@ -1198,11 +1278,11 @@ fn connect_only_definitions_are_declared() {
 /// assignment via `Pattern::None`) has no port to check and passes.
 #[test]
 fn every_definition_can_be_matched() {
-    use crate::daemon::utils::app_probe::all_app_probes;
+    use crate::daemon::utils::app_probe::probe_runs;
     use crate::server::services::definitions::ServiceDefinitionRegistry;
     use crate::server::services::r#impl::definitions::ServiceDefinition;
 
-    let probed_ports: HashSet<_> = all_app_probes().iter().map(|p| p.port()).collect();
+    let probed_ports: HashSet<_> = probe_runs().into_iter().map(|(_, port)| port).collect();
 
     let unreachable: BTreeSet<String> = ServiceDefinitionRegistry::all_service_definitions()
         .iter()
@@ -1266,5 +1346,35 @@ fn only_a_container_placeholder_is_replaced_and_anything_specific_replaces_it() 
     assert!(
         !in_container(Box::new(PostgreSQL), "c1")
             .is_placeholder_for(&in_container(Box::new(Ssh), "c1"))
+    );
+}
+
+/// Every word of a definition's name is capitalized, so "Google Nest Router" sits beside
+/// "DNS Server" and "HP Printer". A brand's own styling passes: a word with a capital anywhere in it
+/// (iPad, myQ, pfSense) is spelled as the brand spells it. Brands styled all lowercase are listed.
+#[test]
+fn every_word_of_a_definition_name_is_capitalized() {
+    const LOWERCASE_BRANDS: &[&str] = &["libvirt", "mailcow", "mongo-express", "n8n", "ntopng"];
+
+    let offenders: Vec<&'static str> = ServiceDefinitionRegistry::all_service_definitions()
+        .iter()
+        .map(|definition| definition.name())
+        .filter(|name| {
+            name.split_whitespace().any(|word| {
+                let word = word.trim_start_matches(|c: char| !c.is_alphanumeric());
+                let Some(first) = word.chars().next() else {
+                    return false;
+                };
+                !(first.is_uppercase()
+                    || first.is_ascii_digit()
+                    || word.chars().any(char::is_uppercase)
+                    || LOWERCASE_BRANDS.contains(&word))
+            })
+        })
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "definition names with an uncapitalized word: {offenders:?}"
     );
 }

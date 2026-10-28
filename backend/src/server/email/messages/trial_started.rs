@@ -35,6 +35,9 @@ impl Email for TrialStarted<'_> {
                         self.plan_name, self.billing_period, self.trial_days
                     ))
                     .paragraph(
+                        "You can switch to another plan, or to a self-hosted license, at any time during the trial from Settings > Billing. The trial carries over.",
+                    )
+                    .paragraph(
                         "No credit card is required during the trial. To keep your features and data after it ends, add a payment method anytime from your Settings page.",
                     )
                     .paragraph(BILLING_DETAILS_TAGLINE),

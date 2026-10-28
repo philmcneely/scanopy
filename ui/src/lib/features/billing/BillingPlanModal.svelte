@@ -1,11 +1,16 @@
 <script lang="ts">
+	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import billingPlansJson from '$lib/data/billing-plans.json';
 	import featuresJson from '$lib/data/features.json';
+	import productAreasJson from '$lib/data/product-areas.json';
+	import credentialIntegrationsJson from '$lib/data/credential-integrations.json';
+	import planLimitsJson from '$lib/data/plan-limits.json';
 	import BillingPlanForm from '$lib/features/billing/BillingPlanForm.svelte';
 	import type { BillingPlan, PlanPickerHosting } from '$lib/features/billing/types';
 	import {
 		createStaticHelpers,
 		type BillingPlanMetadata,
+		type CredentialIntegrationMetadata,
 		type FeatureMetadata
 	} from '$lib/shared/stores/metadata';
 	import { useCheckoutMutation } from '$lib/features/billing/queries';
@@ -17,14 +22,13 @@
 	import { isPlanLapsed, isBillingPlanActive } from '$lib/features/organizations/types';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { isLicenseSigningAvailable, useConfigQuery } from '$lib/shared/stores/config-query';
-	import { modalState, openModal } from '$lib/shared/stores/modal-registry';
-	import { canPay } from '$lib/shared/utils/trial';
-	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
-	import { formatDate } from '$lib/shared/utils/formatting';
+	import { modalState } from '$lib/shared/stores/modal-registry';
+	import { billingOverModal, openBillingModal } from '$lib/features/billing/stores';
 	import {
-		errors_billing_air_gapped_plan_change_blocked,
-		settings_billing_changePlan
-	} from '$lib/paraglide/messages';
+		canPay,
+		isInTrial,
+		isReturningCustomer as isReturningCustomerOrg
+	} from '$lib/shared/utils/trial';
 
 	let {
 		isOpen = false,
@@ -46,6 +50,12 @@
 		billingPlansJson
 	);
 	const featureHelpers = createStaticHelpers<FeatureMetadata>('features', featuresJson);
+	const productAreaHelpers = createStaticHelpers<object>('product_areas', productAreasJson);
+	const integrationHelpers = createStaticHelpers<CredentialIntegrationMetadata>(
+		'credential_integrations',
+		credentialIntegrationsJson
+	);
+	const limitHelpers = createStaticHelpers<object>('plan_limits', planLimitsJson);
 
 	// Transform fixture data to BillingPlan[] format (exclude plans that can't be obtained
 	// in-app, deduplicate). purchase_flow 'none' is Community (GitHub) and Free; Free
@@ -98,17 +108,20 @@
 			: plansData.filter((p) => billingPlanHelpers.getMetadata(p.type)?.license_plan == null)
 	);
 
-	let isCurrentlyTrialing = $derived(organization?.plan_status === 'trialing');
+	// A trial with a cancellation scheduled still runs, and a switch keeps it.
+	let isCurrentlyTrialing = $derived(isInTrial(organization));
 
-	// Only show trial offers to orgs that have never had a non-Free paid plan and never trialed.
-	// trial_end_date is set by Stripe webhook only for subscriptions with trial periods
-	// (Free plan has trial_days=0, so it never sets trial_end_date).
-	// Trialing users are NOT returning — they should see trial-aware UI instead.
-	let isReturningCustomer = $derived(
-		!isCurrentlyTrialing &&
-			((organization?.plan != null &&
-				billingPlanHelpers.getMetadata(organization.plan.type)?.is_free !== true) ||
-				!!organization?.trial_end_date)
+	// Only orgs that have never had a paid subscription or a trial see trial offers.
+	let isReturningCustomer = $derived(isReturningCustomerOrg(organization));
+	// The plan the org holds, unless no subscription ever started on it: then
+	// its card offers the trial instead of saying "Your current plan". Free has
+	// no subscription and is still the current plan.
+	let currentPlanType = $derived(
+		organization == null ||
+			(organization.plan_status == null &&
+				billingPlanHelpers.getMetadata(organization.plan.type)?.is_stripe_managed === true)
+			? null
+			: organization.plan.type
 	);
 
 	// Mutations
@@ -130,9 +143,11 @@
 	// An opener can ask for a tab (Settings → License asks for Cloud), which wins
 	// over the current plan's.
 	let requestedHosting = $derived(
-		$modalState.name === name
-			? (($modalState.entityData?.hosting as PlanPickerHosting | undefined) ?? null)
-			: null
+		(($billingOverModal?.modal === 'billing-plan'
+			? $billingOverModal.entityData?.hosting
+			: $modalState.name === name
+				? $modalState.entityData?.hosting
+				: undefined) as PlanPickerHosting | undefined) ?? null
 	);
 	let initialHosting = $derived<PlanPickerHosting>(
 		!signingAvailable
@@ -140,23 +155,25 @@
 			: (requestedHosting ?? planHosting ?? $onboardingStore.hosting ?? 'cloud')
 	);
 
-	// `triggerUpgrade` refuses before opening this, but two routes reach it
-	// anyway: the ?modal=billing-plan deep link is whitelisted for locked orgs,
-	// and the forced picker opens non-dismissible. Offering cards in either case
-	// would strand the user in a picker where every one of them 409s.
-	let airGappedLockedUntil = $derived(organization?.air_gapped_key_current_until ?? null);
-
 	async function handlePlanSelect(plan: BillingPlan) {
 		// A paid plan with no trial left and no way to pay on file would otherwise
 		// go to Stripe Checkout. The payment-method dialog collects the card here
 		// instead (and offers invoice billing on self-hosted plans), then the
 		// backend creates the subscription. Cloud and self-hosted behave alike.
-		if (plan.base_cents > 0 && isReturningCustomer && !canPay(organization)) {
+		// Every cloud trial needs the card first too, whether it starts here or an
+		// org already trialing (a license trial needs none) switches onto a cloud
+		// plan; the switch keeps the trial running.
+		const cloudPlan = billingPlanHelpers.getMetadata(plan.type)?.license_plan == null;
+		const needsCardFirst = isCurrentlyTrialing
+			? cloudPlan
+			: isReturningCustomer || (cloudPlan && plan.trial_days > 0);
+		if (plan.base_cents > 0 && needsCardFirst && !canPay(organization)) {
 			// Closed without the plan: nothing is bought yet, so the page must not lock
 			// onto the License tab over the dialog. The lock follows the webhook.
 			onClose();
-			openModal('payment-method', {
-				entityData: { plan, source: 'plan_picker' satisfies PaymentFormSource }
+			openBillingModal('payment-method', {
+				plan,
+				source: 'plan_picker' satisfies PaymentFormSource
 			});
 			return;
 		}
@@ -223,6 +240,9 @@
 			stripeTab?.close();
 		}
 	}
+
+	// Stripe.js is ready before anyone opens the payment dialog from here.
+	usePreloadStripe(() => isOpen);
 </script>
 
 <GenericModal
@@ -238,30 +258,22 @@
 	compactPadding={true}
 >
 	<div class="flex min-h-0 flex-1 flex-col">
-		{#if airGappedLockedUntil}
-			<div class="p-6">
-				<InlineInfo
-					title={settings_billing_changePlan()}
-					body={errors_billing_air_gapped_plan_change_blocked({
-						date: formatDate(airGappedLockedUntil)
-					})}
-				/>
-			</div>
-		{:else}
-			<BillingPlanForm
-				plans={billingPlanHelpers.getMetadata(organization?.plan?.type ?? null)?.is_free
-					? pickablePlans
-					: pickablePlans.filter((p) => billingPlanHelpers.getMetadata(p.type)?.is_free !== true)}
-				{billingPlanHelpers}
-				{featureHelpers}
-				showHosting={signingAvailable}
-				{initialHosting}
-				onPlanSelect={handlePlanSelect}
-				{isReturningCustomer}
-				{isCurrentlyTrialing}
-				currentPlanType={organization?.plan?.type ?? null}
-				currentPlanLapsed={organization != null && isPlanLapsed(organization)}
-			/>
-		{/if}
+		<BillingPlanForm
+			plans={billingPlanHelpers.getMetadata(organization?.plan?.type ?? null)?.is_free
+				? pickablePlans
+				: pickablePlans.filter((p) => billingPlanHelpers.getMetadata(p.type)?.is_free !== true)}
+			{billingPlanHelpers}
+			{featureHelpers}
+			{productAreaHelpers}
+			{integrationHelpers}
+			{limitHelpers}
+			showHosting={signingAvailable}
+			{initialHosting}
+			onPlanSelect={handlePlanSelect}
+			{isReturningCustomer}
+			{isCurrentlyTrialing}
+			{currentPlanType}
+			currentPlanLapsed={organization != null && isPlanLapsed(organization)}
+		/>
 	</div>
 </GenericModal>

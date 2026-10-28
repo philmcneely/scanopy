@@ -8,27 +8,28 @@
 //! - Community, Free, CommercialSelfHosted, and Demo plans
 //! - Self-hosted instances (no stripe_secret configured)
 //!
-//! An org that has not chosen a plan yet (a new cloud sign-up) only reaches
-//! the routes the Settings modal needs; everything else returns 403.
+//! A plan without the topology view (Free) gets 402 on the topology and
+//! snapshot routes.
 //!
 //! Orgs on a self-hosted license plan (SelfHostedStandard / SelfHostedPlus)
 //! run Scanopy on their own servers, so on the cloud they only reach the
 //! routes the Settings modal needs; everything else returns 403.
 //!
-//! A lapsed org (subscription ended, no paid plan chosen since) keeps its
-//! plan and can read everything, but every mutating request outside the
-//! Settings routes returns 402 until it chooses a paid plan.
+//! A lapsed org (a license subscription ended, no paid plan chosen since)
+//! keeps its plan and can read everything, but every mutating request outside
+//! the Settings routes returns 402 until it chooses a paid plan. A lapsed cloud
+//! plan lands on Free instead.
 
 use crate::server::{
     auth::middleware::{auth::AuthenticatedEntity, cache::CachedSite},
-    billing::types::base::BillingPlan,
+    billing::types::{base::BillingPlan, features::Feature},
     config::AppState,
-    shared::types::api::ApiError,
+    shared::types::{api::ApiError, error_codes::ErrorCode, metadata::TypeMetadataProvider},
 };
 use axum::{
     body::Body,
     extract::{FromRequestParts, State},
-    http::{Method, Request},
+    http::{Method, Request, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
 };
@@ -96,21 +97,30 @@ pub async fn require_billing_for_users(
     // Reassemble request with cached entities in extensions
     let request = Request::from_parts(parts, body);
 
-    // A newly registered cloud org has no plan until it chooses one. It gets
-    // the Settings routes, so it can manage the account and pick a plan.
-    let Some(plan) = organization.base.plan else {
-        if settings_route(request.method(), request.uri().path()) {
-            return next.run(request).await;
-        }
-        return ApiError::billing_plan_required().into_response();
-    };
+    let plan = organization.base.plan;
 
-    // Check plan type - some plans are exempt from billing checks.
+    // A license plan, trialing, paid or not yet started, opens only the
+    // Settings routes on Scanopy Cloud: its app runs on the org's own server.
     if plan.license_plan().is_some() {
         if settings_route(request.method(), request.uri().path()) {
             return next.run(request).await;
         }
         return ApiError::self_hosted_plan_locked().into_response();
+    }
+    // The topology view and its snapshots need a plan that includes them. A plan
+    // without it can still read the diagram, which the app draws behind its
+    // plan prompt.
+    if topology_route(request.uri().path())
+        && !plan.features().includes_topology()
+        && !topology_preview_route(request.method(), request.uri().path())
+    {
+        return ApiError::coded(
+            StatusCode::PAYMENT_REQUIRED,
+            ErrorCode::BillingFeatureNotAvailable {
+                feature: Feature::NetworkTopology.name().to_string(),
+            },
+        )
+        .into_response();
     }
     if matches!(
         plan,
@@ -140,14 +150,39 @@ pub async fn require_billing_for_users(
     }
 }
 
-/// Billed routes the Settings modal calls, which stay open to an org with no
-/// plan, to an org on a self-hosted license plan, to a lapsed org, and to a
-/// self-hosted server
+/// The topology view's routes and the snapshots captured from it, which need
+/// the topology view on the plan.
+fn topology_route(path: &str) -> bool {
+    ["/api/v1/topologies", "/api/v1/snapshots"]
+        .iter()
+        .any(|prefix| {
+            path.strip_prefix(prefix)
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+        })
+}
+
+/// The reads that draw the topology: the list, the graph data and one
+/// topology. Open to a plan without the topology view, which sees the diagram
+/// behind its plan prompt. Saving options, exports and snapshots stay closed
+/// to it.
+fn topology_preview_route(method: &Method, path: &str) -> bool {
+    const TOPOLOGY: &str = "/api/v1/topologies";
+    *method == Method::GET
+        && (path == TOPOLOGY
+            || path
+                .strip_prefix(TOPOLOGY)
+                .and_then(|rest| rest.strip_prefix('/'))
+                .is_some_and(|rest| !rest.is_empty() && !rest.contains('/')))
+}
+
+/// Billed routes the Settings modal calls, which stay open to an org on a
+/// self-hosted license plan, to a lapsed org, and to a self-hosted server
 /// with a locked license: reading, renaming, and deleting the org, and
 /// editing the current user. Everything else Settings needs (auth, billing,
 /// licenses, config) sits outside this middleware already.
 pub(crate) fn settings_route(method: &Method, path: &str) -> bool {
     const ORGANIZATIONS: &str = "/api/v1/organizations";
+    const CURRENT_ORGANIZATION: &str = "/api/v1/organizations/current";
     const USERS: &str = "/api/v1/users";
     let single_entity = |prefix: &str| {
         path.strip_prefix(prefix)
@@ -156,7 +191,7 @@ pub(crate) fn settings_route(method: &Method, path: &str) -> bool {
     };
 
     match *method {
-        Method::GET => path == ORGANIZATIONS,
+        Method::GET => path == CURRENT_ORGANIZATION,
         Method::PUT => single_entity(ORGANIZATIONS) || single_entity(USERS),
         Method::DELETE => single_entity(ORGANIZATIONS),
         _ => false,

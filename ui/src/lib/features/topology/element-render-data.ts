@@ -40,6 +40,7 @@ import { elementMarks, entityMark, type ElementMarks, type MarkValue } from './e
 import type { Host, HostVirtualization } from '$lib/features/hosts/types/base';
 import type { ServiceVirtualization } from '$lib/features/services/types/base';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+import { hostOsLabel, type HostOs } from '$lib/features/hosts/host-os';
 import { getTopologyIndex } from './entity-index';
 import {
 	containerNetworkTypes,
@@ -79,6 +80,7 @@ import {
 	common_containers,
 	common_host,
 	common_ipAddress,
+	common_operatingSystem,
 	common_manager,
 	common_name,
 	common_services,
@@ -129,8 +131,7 @@ export interface ElementRenderResult {
 
 /**
  * An icon card: the element's glyph with a short label and the rest of the card's text on hover. A
- * device or software draws its glyph large above the label; a port draws as one row of glyph, label
- * and status dot, the same row a group member is.
+ * device, software or port draws its glyph large above the label.
  */
 export interface ElementIconCard {
 	glyph: EntityGlyph;
@@ -141,8 +142,15 @@ export interface ElementIconCard {
 	 */
 	badgeDefinitions: string[];
 	label: string;
+	/**
+	 * A second, quieter line under the label: the host's hostname on an address card, so the card names
+	 * the device as well as the address. Null when there is none or it repeats the label.
+	 */
+	sublabel: string | null;
+	/** The host's operating system, drawn as a badge on the device glyph's bottom-left corner. */
+	os: HostOs | null;
 	/** Hover content: the card's name, labelled rows for what the card no longer shows, then its services. */
-	tooltip: TooltipContent;
+	tooltip: () => TooltipContent;
 	/**
 	 * The manager groups inlined on a guest's card (a Docker engine on a VM with its containers),
 	 * each drawn under the label in a dashed box with a row per member.
@@ -170,7 +178,7 @@ export interface IconCardMember {
 	/** Its run state, from the view's Status mark; absent when the view paints none on it. */
 	status: MarkValue | undefined;
 	/** Hover content, as the card's own. */
-	tooltip: TooltipContent;
+	tooltip: () => TooltipContent;
 }
 
 export interface ElementRenderInputs {
@@ -305,6 +313,8 @@ function hostGuestRows(
 				statusRow(state, status)
 			];
 		}
+		case 'Libvirt':
+			return [manager, statusRow(virtualization.details.state, status)];
 		case 'VCenter':
 		case 'ESXi':
 			return [manager];
@@ -407,13 +417,14 @@ export function hostTooltip(
 			{ label: common_ipAddress(), value: address },
 			{ label: common_name(), value: addressName },
 			{ label: hosts_deviceType(), value: deviceType ? deviceTypes.getName(deviceType) : null },
+			{ label: common_operatingSystem(), value: host.os ? hostOsLabel(host.os) : null },
 			...hostGuestRows(host.virtualization_metadata, status)
 		],
 		services.map(serviceItem)
 	);
 }
 
-/** The interface fields a port row's tooltip lists, in order: what the one-line row has no room for. */
+/** The interface fields a port card's tooltip lists, in order: what the card has no room for. */
 const PORT_TOOLTIP_FIELDS = [
 	'oper_status',
 	'speed_bps',
@@ -549,7 +560,9 @@ function buildIconCard(
 			glyph,
 			badgeDefinitions: [],
 			label,
-			tooltip: interfaceTooltip(iface, label, marks.Status),
+			sublabel: null,
+			os: null,
+			tooltip: () => interfaceTooltip(iface, label, marks.Status),
 			groups: []
 		};
 	}
@@ -561,7 +574,9 @@ function buildIconCard(
 			glyph,
 			badgeDefinitions: [],
 			label: service.name,
-			tooltip: serviceTooltip(service, { host, status: marks.Status }),
+			sublabel: null,
+			os: null,
+			tooltip: () => serviceTooltip(service, { host, status: marks.Status }),
 			groups: []
 		};
 	}
@@ -574,10 +589,9 @@ function buildIconCard(
 	const meta = (s: Service) =>
 		serviceDefinitions.getMetadata(s.service_definition) as {
 			device_type?: string | null;
-			has_logo?: boolean;
+			logo?: string | null;
 		} | null;
-	const rank = (s: Service) =>
-		meta(s)?.device_type === deviceType ? 0 : meta(s)?.has_logo ? 1 : 2;
+	const rank = (s: Service) => (meta(s)?.device_type === deviceType ? 0 : meta(s)?.logo ? 1 : 2);
 	const badgeDefinitions = [
 		...new Set(
 			[...data.services].sort((a, b) => rank(a) - rank(b)).map((s) => s.service_definition)
@@ -591,16 +605,21 @@ function buildIconCard(
 		glyph,
 		badgeDefinitions,
 		label: address ?? hostName,
-		tooltip: hostTooltip(host, {
-			name: hostName,
-			address,
-			addressName: ipAddress?.name,
-			deviceType,
-			services: data.services,
-			status: marks.Status,
-			// On an address card, each service with the ports it listens on there.
-			serviceItem: ipAddress ? (s) => serviceWithPorts(s, ipAddress.id, inputs.topology) : undefined
-		}),
+		sublabel: address && host.hostname && host.hostname !== address ? host.hostname : null,
+		os: host.os ?? null,
+		tooltip: () =>
+			hostTooltip(host, {
+				name: hostName,
+				address,
+				addressName: ipAddress?.name,
+				deviceType,
+				services: data.services,
+				status: marks.Status,
+				// On an address card, each service with the ports it listens on there.
+				serviceItem: ipAddress
+					? (s) => serviceWithPorts(s, ipAddress.id, inputs.topology)
+					: undefined
+			}),
 		groups: data.inlineGroups.map((g) => iconCardGroup(inputs, g))
 	};
 }
@@ -618,7 +637,7 @@ function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): 
 			glyph: { type: 'software', definition: service.service_definition },
 			label: service.name,
 			status,
-			tooltip: serviceTooltip(service, { status })
+			tooltip: () => serviceTooltip(service, { status })
 		};
 	});
 	const hosts: IconCardMember[] = group.hosts.map(({ host, services: hostServices }) => {
@@ -632,11 +651,12 @@ function iconCardGroup(inputs: ElementRenderInputs, group: ElementInlineGroup): 
 			glyph,
 			label: hostDisplayName(host),
 			status,
-			tooltip: hostTooltip(host, {
-				deviceType: glyph.type === 'device' ? glyph.deviceType : null,
-				services: hostServices,
-				status
-			})
+			tooltip: () =>
+				hostTooltip(host, {
+					deviceType: glyph.type === 'device' ? glyph.deviceType : null,
+					services: hostServices,
+					status
+				})
 		};
 	});
 	return {
@@ -908,17 +928,14 @@ export function elementShapeKey(result: ElementRenderResult): string {
 	if (!d) return 'null';
 
 	const icon = result.iconCard;
-	// A port is one truncated row, with the stale pill above it when it is stale.
-	if (icon?.glyph.type === 'port') {
-		return ['row', d.elementType, result.staleTag ? 1 : 0].join('|');
-	}
-	// An icon card renders only the glyph, an optional stale pill and a label clamped to two
-	// lines of ~14 characters.
+	// An icon card renders only the glyph, an optional stale pill, a label clamped to two lines of
+	// ~14 characters and an optional one-line sublabel.
 	if (icon) {
 		return [
 			'icon',
 			d.elementType,
 			Math.min(2, Math.ceil(icon.label.length / 14)),
+			icon.sublabel ? 1 : 0,
 			result.staleTag ? 1 : 0,
 			// Each group box adds a heading, and one single-line row per member while it is open.
 			icon.groups.map((g) => (g.collapsed ? 'c' : g.members.length)).join(',')

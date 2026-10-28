@@ -63,6 +63,19 @@ pub struct DashboardSummary {
     pub plan_usage: PlanUsage,
     /// Integrations found on hosts with no credential of them, most hosts first.
     pub uncovered_integrations: Vec<UncoveredIntegration>,
+    /// Credentials no scan will send to a daemon, by name.
+    pub targetless_credentials: Vec<TargetlessCredential>,
+}
+
+/// A credential with no site or host assignment that no discovery targets, so no daemon receives it.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct TargetlessCredential {
+    /// The credential.
+    pub id: Uuid,
+    /// Its name.
+    pub name: String,
+    /// The integration it authenticates.
+    pub integration: CredentialIntegration,
 }
 
 /// An integration the latest scans found on hosts with no credential of it, still uncovered now.

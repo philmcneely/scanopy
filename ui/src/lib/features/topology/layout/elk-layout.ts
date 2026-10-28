@@ -1,6 +1,6 @@
 import type { ElkNode, ElkExtendedEdge } from 'elkjs';
 import type { TopologyNode } from '../types/base';
-import { affectsLayout, getViewConfig } from './edge-classification';
+import { affectsLayout, affectsLayoutWithinContainer, getViewConfig } from './edge-classification';
 import {
 	containerTypes,
 	getIrrelevantServiceCategories,
@@ -12,7 +12,7 @@ import { getTopologyIndex } from '../entity-index';
 import * as perf from '../perf';
 import { resolveCollapsedAncestor } from '../collapse';
 import { noteElkRun } from '../diagnostics';
-import { dependencyOrder, pinChildOrder } from './child-order';
+import { connectedGroups, dependencyOrder, pinChildOrder } from './child-order';
 import { getViewLayout, type ViewLayoutConfig } from './view-layout';
 
 /**
@@ -194,7 +194,8 @@ function buildElkGraph(
 		string,
 		{ x: number; y: number; w: number; h: number; containerW: number; containerH: number }
 	>,
-	subcontainerPositions?: Map<string, { x: number; y: number }>
+	subcontainerPositions?: Map<string, { x: number; y: number; h: number }>,
+	rootBoxes?: Map<string, { x: number; y: number; w: number; h: number }>
 ): {
 	graph: ElkNode;
 	containerIds: Set<string>;
@@ -282,11 +283,12 @@ function buildElkGraph(
 						children: [],
 						layoutOptions: {
 							...childLayoutOptions,
-							// Subcontainers: use metadata collapsed size as minimum so
-							// expanded size is driven by children, not collapsed title/tags.
-							// Root containers: use DOM-measured size since their collapsed
-							// display (subgroup summaries) can be wider than children.
-							'elk.nodeSize.minimum': `(${isSubcontainer ? meta.collapsed_size.width : collapsedWidth},${isSubcontainer ? meta.collapsed_size.height : collapsedHeight})`
+							// An open container is as wide as its children and padding: its title
+							// truncates rather than widening it, so a container holding one card is
+							// that card's width in every view. The floor is on height only —
+							// subcontainers from metadata, root containers from the DOM-measured
+							// collapsed size.
+							'elk.nodeSize.minimum': `(0,${isSubcontainer ? meta.collapsed_size.height : collapsedHeight})`
 						}
 					};
 			containers.set(node.id, elkNode);
@@ -482,9 +484,10 @@ function buildElkGraph(
 	// Build element → target root container(s) mapping for edge-aware sorting.
 	// Elements connecting to the same target should be adjacent in the grid so
 	// their ports cluster together, giving ELK meaningful crossing information.
+	// Only orders children, so an edge that places cards within a container counts too.
 	const elementTargets = new Map<string, Set<string>>();
 	for (const edge of input.edges) {
-		if (!affectsLayout(edge)) continue;
+		if (!affectsLayoutWithinContainer(edge)) continue;
 		const srcRoot = resolveRoot(edge.source);
 		const tgtRoot = resolveRoot(edge.target);
 		if (!srcRoot || !tgtRoot || srcRoot === tgtRoot) continue;
@@ -500,6 +503,34 @@ function buildElkGraph(
 			elementTargets.get(edge.target)!.add(srcRoot);
 		}
 	}
+
+	// Where in its container an element with edges to other root containers belongs, from where those
+	// containers ended up after pass 1 (`rootBoxes`): 0 top, 1 left, 2 no such edge, 3 right,
+	// 4 bottom. A container packs its children in this order, so an element ends up on the side facing
+	// what it links to and its edge leaves without crossing its siblings. Pass 1 has no positions;
+	// there every linked element ranks first, as before.
+	const rootCentre = (id: string) => {
+		const pos = rootBoxes?.get(id);
+		return pos ? { x: pos.x + pos.w / 2, y: pos.y + pos.h / 2 } : undefined;
+	};
+	const sideRank = (elemId: string): number => {
+		const targets = elementTargets.get(elemId);
+		if (!targets?.size) return 2;
+		const own = rootCentre(elementToRootContainer.get(elemId) ?? '');
+		if (!own) return 0;
+		let dx = 0;
+		let dy = 0;
+		for (const target of targets) {
+			const peer = rootCentre(target);
+			if (!peer) continue;
+			const length = Math.hypot(peer.x - own.x, peer.y - own.y) || 1;
+			dx += (peer.x - own.x) / length;
+			dy += (peer.y - own.y) / length;
+		}
+		if (dx === 0 && dy === 0) return 0;
+		if (Math.abs(dy) >= Math.abs(dx)) return dy < 0 ? 0 : 4;
+		return dx < 0 ? 1 : 3;
+	};
 
 	// Ordered by oper status: count Up ports inside each subcontainer for sorting
 	const subcontainerUpCount = new Map<string, number>();
@@ -556,26 +587,30 @@ function buildElkGraph(
 			if (aIsSub !== bIsSub) return aIsSub - bIsSub;
 			if (aIsSub && bIsSub) return a.id.localeCompare(b.id);
 
-			// Both are elements: sort by target group
+			// Both are elements: by the side of the container they link toward, unlinked ones between
+			const side = sideRank(a.id) - sideRank(b.id);
+			if (side !== 0) return side;
 			const aTargets = elementTargets.get(a.id);
 			const bTargets = elementTargets.get(b.id);
-			const aHasEdge = aTargets && aTargets.size > 0;
-			const bHasEdge = bTargets && bTargets.size > 0;
+			if (!aTargets?.size || !bTargets?.size) return a.id.localeCompare(b.id);
 
-			// Elements without edges go in the middle (sort group 1)
-			// Elements with edges go at the edges of the grid (sort group 0 or 2)
-			// — but we just need them grouped by target, so put them all before no-edge elements
-			if (aHasEdge && !bHasEdge) return -1;
-			if (!aHasEdge && bHasEdge) return 1;
-			if (!aHasEdge && !bHasEdge) return a.id.localeCompare(b.id);
-
-			// Both have edges: group by primary target (sorted target IDs as group key)
-			const aKey = Array.from(aTargets!).sort().join(',');
-			const bKey = Array.from(bTargets!).sort().join(',');
+			// Both linked the same way: group by target (sorted target IDs as group key)
+			const aKey = Array.from(aTargets).sort().join(',');
+			const bKey = Array.from(bTargets).sort().join(',');
 			if (aKey !== bKey) return aKey.localeCompare(bKey);
 
 			return a.id.localeCompare(b.id);
 		});
+
+		// Box packing places children by priority before size, so the side groups hold; within one,
+		// it still orders by size. Subcontainers rank with unlinked elements, so a container with no
+		// links out packs exactly as it did without priorities.
+		if (!orderByOperStatus && rootBoxes) {
+			for (const child of container.children) {
+				const rank = containerIds.has(child.id) ? 2 : sideRank(child.id);
+				child.layoutOptions = { ...child.layoutOptions, 'elk.priority': String(10 - rank) };
+			}
+		}
 	}
 
 	// Create port-based edges for cross-container connections.
@@ -590,6 +625,25 @@ function buildElkGraph(
 	const edges: ElkExtendedEdge[] = [];
 	const seenEdges = new Set<string>();
 	let edgeIndex = 0;
+
+	// The centre Y within its root container, from pass 1, of an edge endpoint: an element, a
+	// subcontainer, or an element hidden in a collapsed subcontainer, which stands at that
+	// subcontainer. Undefined when pass 1 placed none of them. Pass-1 positions are relative to the
+	// immediate container, so an element inside a subcontainer takes that subcontainer's offset; a
+	// root container's own position is not added.
+	const centreYInRoot = (id: string): number | undefined => {
+		const pos = elementPositions?.get(id);
+		if (pos) {
+			const imm = elementToImmediateContainer.get(id);
+			const offset =
+				imm && parentContainerMap.has(imm) ? (subcontainerPositions?.get(imm)?.y ?? 0) : 0;
+			return offset + pos.y + pos.h / 2;
+		}
+		const sub = parentContainerMap.has(id) ? subcontainerPositions?.get(id) : undefined;
+		if (sub) return sub.y + sub.h / 2;
+		const ancestor = resolveCollapsedAncestor(id, collapsed, fullParentMap);
+		return ancestor && ancestor !== id ? centreYInRoot(ancestor) : undefined;
+	};
 
 	// Build container → first child element lookup (for container-targeted edges).
 	// After edge elevation, will_target_container edges have a container ID as their
@@ -666,7 +720,7 @@ function buildElkGraph(
 			if (pos) {
 				// Pass 2: place port at the element's actual position within the container
 				const portPos = useLayeredChildren
-					? { x: pos.containerW * 0.9, y: pos.x + pos.w / 2 } // RIGHT: port on east side, y = element center
+					? { x: pos.containerW * 0.9, y: centreYInRoot(elemId)! } // RIGHT: port on east side, y = element centre
 					: { x: pos.x + pos.w / 2, y: pos.containerW * 0.7 }; // DOWN: port on south side, x = element center
 				container.ports.push({
 					id: portId,
@@ -726,15 +780,12 @@ function buildElkGraph(
 			for (const elemId of elemIds) {
 				const tgtPortId = `port-${elemId}-${tgtSide}`;
 				if (!tgtContainer.ports.some((p: { id: string }) => p.id === tgtPortId)) {
-					const elemPos = positionTargets ? elementPositions!.get(elemId) : undefined;
-					if (elemPos) {
-						// Absolute Y within the root container. Only written for an element pass 1
-						// actually placed — an element inside a collapsed container has no position,
-						// and defaulting it to zero used to put every such port on the container's
-						// top edge, which is a crossing signal that says the opposite of the truth.
-						const immContainer = elementToImmediateContainer.get(elemId);
-						const subPos = immContainer ? subcontainerPositions?.get(immContainer) : undefined;
-						const absY = (subPos?.y ?? 0) + elemPos.y + elemPos.h / 2;
+					const absY = positionTargets ? centreYInRoot(elemId) : undefined;
+					if (absY !== undefined) {
+						// Y within the root container. Only written for an element pass 1 actually
+						// placed — an element inside a collapsed container has no position, and
+						// defaulting it to zero used to put every such port on the container's top
+						// edge, which is a crossing signal that says the opposite of the truth.
 						tgtContainer.ports.push({
 							id: tgtPortId,
 							x: 0,
@@ -826,7 +877,7 @@ function buildElkGraph(
 	// box-packed and connected children are no longer pulled together.
 	const innerEdgeCandidates = preserveOrder ? [] : input.edges;
 	for (const edge of innerEdgeCandidates) {
-		if (!affectsLayout(edge)) continue;
+		if (!affectsLayoutWithinContainer(edge)) continue;
 		const srcChain = enclosingChain(edge.source);
 		const tgtChain = enclosingChain(edge.target);
 		const srcDepth = srcChain.findIndex((id) => tgtChain.includes(id));
@@ -848,9 +899,22 @@ function buildElkGraph(
 	}
 
 	// Switch containers with inner edges from box to layered, children in edge order
-	for (const [containerId, innerEdges] of innerEdgesByContainer) {
+	for (const [containerId, linkedEdges] of innerEdgesByContainer) {
 		const container = containers.get(containerId);
 		if (!container?.children) continue;
+		// The side each child links toward (see `sideRank`), once pass 1 has placed the containers; a
+		// view ordered by oper status keeps its status order instead.
+		const facing = !orderByOperStatus && rootBoxes;
+		const rankOf = (id: string) => (facing && !containerIds.has(id) ? sideRank(id) : 2);
+		// Layered puts an edge's source above its target, so an element linking out through the bottom
+		// would stay on top of its neighbours. Its edges here are laid out as pointing into it (and an
+		// element linking out through the top, out of it); they still draw as they are.
+		const innerEdges = linkedEdges.map((e) =>
+			(rankOf(e.source) === 4 && rankOf(e.target) !== 4) ||
+			(rankOf(e.target) === 0 && rankOf(e.source) !== 0)
+				? { source: e.target, target: e.source }
+				: e
+		);
 		container.edges = [
 			...(container.edges ?? []),
 			...innerEdges.map((e) => ({
@@ -861,10 +925,26 @@ function buildElkGraph(
 		];
 		if (!orderByOperStatus) {
 			const childById = new Map(container.children.map((child) => [child.id, child]));
-			container.children = dependencyOrder(
+			const ordered = dependencyOrder(
 				container.children.map((child) => child.id),
 				innerEdges
-			).map((id) => childById.get(id)!);
+			);
+			// Connected groups are packed in this order, so a group linking out through the bottom goes
+			// last and one linking out through the top first: the rank of the member furthest from the
+			// middle.
+			const groupOf = connectedGroups(ordered, innerEdges);
+			const groupRank = new Map<string, number>();
+			for (const id of ordered) {
+				const group = groupOf.get(id)!;
+				const rank = rankOf(id);
+				const current = groupRank.get(group) ?? 2;
+				groupRank.set(group, Math.abs(rank - 2) > Math.abs(current - 2) ? rank : current);
+			}
+			const rankById = new Map(ordered.map((id) => [id, groupRank.get(groupOf.get(id)!)!]));
+			container.children = ordered
+				.map((id, index) => ({ id, index }))
+				.sort((a, b) => rankById.get(a.id)! - rankById.get(b.id)! || a.index - b.index)
+				.map(({ id }) => childById.get(id)!);
 		}
 		if (container.layoutOptions) {
 			container.layoutOptions['elk.algorithm'] = 'layered';
@@ -900,11 +980,10 @@ function buildElkGraph(
 		.map(([, node]) => node);
 
 	// L2: sort root containers so hosts match their target port order inside the switch.
-	// With forceNodeModelOrder, ELK preserves this order for crossing-free layout.
-	if (useLayeredChildren && elementPositions && elementPositions.size > 0) {
-		// Map each root container to its target element's Y position inside the switch.
-		// elementPositions has positions relative to immediate parent container.
-		// For box layout with vertical stacking, x = vertical position within container.
+	// With forceNodeModelOrder, ELK preserves this order for crossing-free layout. Runs in pass 2
+	// even when pass 1 placed no element: with every port group closed, the groups are what is placed.
+	if (useLayeredChildren && elementPositions) {
+		// Each root container takes the Y of the first linked element on the other end.
 		const rootTargetY = new Map<string, number>();
 		for (const edge of input.edges) {
 			if (!affectsLayout(edge)) continue;
@@ -912,22 +991,10 @@ function buildElkGraph(
 			const tgtRoot = resolveRoot(edge.target);
 			if (!srcRoot || !tgtRoot || srcRoot === tgtRoot) continue;
 
-			// Compute absolute Y of target element within its root container.
-			// subPos = subcontainer position within root, elemPos = element within subcontainer.
-			const tgtElemPos = elementPositions.get(edge.target);
-			if (tgtElemPos && !rootTargetY.has(srcRoot)) {
-				const tgtImm = elementToImmediateContainer.get(edge.target);
-				const subPos = tgtImm ? subcontainerPositions?.get(tgtImm) : undefined;
-				const absY = (subPos?.y ?? 0) + tgtElemPos.y + tgtElemPos.h / 2;
-				rootTargetY.set(srcRoot, absY);
-			}
-			const srcElemPos = elementPositions.get(edge.source);
-			if (srcElemPos && !rootTargetY.has(tgtRoot)) {
-				const srcImm = elementToImmediateContainer.get(edge.source);
-				const subPos = srcImm ? subcontainerPositions?.get(srcImm) : undefined;
-				const absY = (subPos?.y ?? 0) + srcElemPos.y + srcElemPos.h / 2;
-				rootTargetY.set(tgtRoot, absY);
-			}
+			const tgtY = centreYInRoot(edge.target);
+			if (tgtY !== undefined && !rootTargetY.has(srcRoot)) rootTargetY.set(srcRoot, tgtY);
+			const srcY = centreYInRoot(edge.source);
+			if (srcY !== undefined && !rootTargetY.has(tgtRoot)) rootTargetY.set(tgtRoot, srcY);
 		}
 
 		rootContainers.sort((a, b) => {
@@ -935,15 +1002,6 @@ function buildElkGraph(
 			const bY = rootTargetY.get(b.id) ?? Infinity;
 			return aY - bY;
 		});
-		// Debug: show what edge targets resolve to
-		for (const edge of input.edges.slice(0, 5)) {
-			if (!affectsLayout(edge)) continue;
-			const srcRoot = resolveRoot(edge.source);
-			const tgtRoot = resolveRoot(edge.target);
-			if (!srcRoot || !tgtRoot || srcRoot === tgtRoot) continue;
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			const tgtPos = elementPositions.get(edge.target);
-		}
 	}
 
 	// Sort root containers by app-relevant workload count (descending).
@@ -1628,12 +1686,16 @@ export async function computeElkLayout(input: ElkLayoutInput): Promise<ElkLayout
 		string,
 		{ x: number; y: number; w: number; h: number; containerW: number; containerH: number }
 	>();
-	const subcontainerPositions = new Map<string, { x: number; y: number }>();
+	const subcontainerPositions = new Map<string, { x: number; y: number; h: number }>();
 	function extractPositions(children: ElkNode[]) {
 		for (const child of children) {
 			if (containerIds.has(child.id)) {
 				// Container: record its position and width, recurse into children
-				subcontainerPositions.set(child.id, { x: child.x ?? 0, y: child.y ?? 0 });
+				subcontainerPositions.set(child.id, {
+					x: child.x ?? 0,
+					y: child.y ?? 0,
+					h: child.height ?? 0
+				});
 				if (child.children) {
 					for (const elem of child.children) {
 						if (!containerIds.has(elem.id)) {
@@ -1652,11 +1714,24 @@ export async function computeElkLayout(input: ElkLayoutInput): Promise<ElkLayout
 			}
 		}
 	}
+	// Where each root container ends up after pass 1, including the shelf-packing of containers no
+	// layout edge connects: an element's side in its container is chosen against these. Pass 1's own
+	// positions for an unconnected container say nothing about where it is finally drawn.
+	const rootBoxes = new Map<string, { x: number; y: number; w: number; h: number }>();
 	if (pass1Children) {
 		const children = pass1Children;
 		extractPositions(children);
+		const placed = repackDisconnectedContainers(
+			mapElkResults({ id: 'pass1', children }, containerIds, input),
+			input
+		);
+		for (const { id } of children) {
+			const pos = placed.nodePositions.get(id);
+			const size = placed.containerSizes.get(id);
+			if (pos && size) rootBoxes.set(id, { x: pos.x, y: pos.y, w: size.width, h: size.height });
+		}
 	}
-	// Everything pass 2 needs from pass 1 now lives in the two position maps above, which hold plain
+	// Everything pass 2 needs from pass 1 now lives in the position maps above, which hold plain
 	// numbers rather than ELK nodes. Released here so the collector can reclaim the whole first
 	// graph before the second one is allocated.
 	// eslint-disable-next-line no-useless-assignment -- releases the pass-1 tree for collection
@@ -1667,7 +1742,8 @@ export async function computeElkLayout(input: ElkLayoutInput): Promise<ElkLayout
 	const { graph: graph2, containerIds: cids2 } = buildElkGraph(
 		input,
 		elementPositions,
-		subcontainerPositions
+		subcontainerPositions,
+		rootBoxes
 	);
 	build2Done();
 	const elkPass2Done = perf.stage('elk.layout.pass2');

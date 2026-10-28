@@ -2,12 +2,12 @@ import { queryClient, queryKeys } from '$lib/api/query-client';
 import { isCloud, type PublicServerConfig } from '$lib/shared/stores/config-query';
 import { trackEvent } from '$lib/shared/utils/analytics';
 import { openModal } from '$lib/shared/stores/modal-registry';
-import { reopenSettingsAfterBilling } from '$lib/features/billing/stores';
+import {
+	billingOpensOverModal,
+	openBillingModal,
+	reopenSettingsAfterBilling
+} from '$lib/features/billing/stores';
 import type { UpgradeFeature } from '$lib/shared/stores/metadata';
-import type { Organization } from '$lib/features/organizations/types';
-import { pushError } from '$lib/shared/stores/feedback';
-import { formatDate } from '$lib/shared/utils/formatting';
-import { errors_billing_air_gapped_plan_change_blocked } from '$lib/paraglide/messages';
 import type { PlanPickerHosting } from '$lib/features/billing/types';
 
 const PRICING_URL_BASE = 'https://scanopy.net/pricing';
@@ -34,9 +34,18 @@ export type PaywallSurface =
 	| 'hosts_tab'
 	| 'api_keys_tab'
 	| 'shares_modal'
-	| 'topology_tab';
+	| 'topology_tab'
+	| 'credential_form'
+	| 'app_banner';
 
 export type PaywallGateType = 'limit_hit' | 'plan_required';
+
+/** What a control the plan lacks opens the plans for: its feature, where it is, and why. */
+export interface UpgradeGate {
+	feature: UpgradeFeature;
+	surface: PaywallSurface;
+	gate_type?: PaywallGateType;
+}
 
 export interface TriggerUpgradeOptions {
 	/** Feature the upgrade CTA gates, for analytics. Null/undefined = generic upgrade. */
@@ -49,7 +58,10 @@ export interface TriggerUpgradeOptions {
 	gate_type?: PaywallGateType;
 	/** If true, reopens settings modal after billing modal closes. */
 	reopenSettings?: boolean;
-	/** Callback to run before opening the billing modal (e.g., close another modal). */
+	/**
+	 * Callback to run before opening the billing modal (e.g., close another modal). Skipped when
+	 * the plan picker opens over the open modal instead of replacing it.
+	 */
 	beforeModal?: () => void;
 	/** Hosting tab the plan picker opens on, overriding the org's current plan's. */
 	hosting?: PlanPickerHosting;
@@ -82,20 +94,11 @@ export function triggerUpgrade(options: TriggerUpgradeOptions): void {
 		return;
 	}
 
-	// An air-gapped key carries the plan it was issued for and validates offline,
-	// so the server refuses a plan change until the period paid for ends. Explain
-	// it here rather than opening a picker in which every card 409s.
-	//
-	// This is the single entry point for every upgrade CTA in the app, so one
-	// check covers all of them. `beforeModal` is deliberately not called: it
-	// closes the caller's own modal, which would be wrong when nothing opens.
-	const organization = queryClient.getQueryData<Organization>(queryKeys.organizations.current());
-	if (organization?.air_gapped_key_current_until) {
-		pushError(
-			errors_billing_air_gapped_plan_change_blocked({
-				date: formatDate(organization.air_gapped_key_current_until)
-			})
-		);
+	const entityData = options.hosting ? { hosting: options.hosting } : undefined;
+
+	// Over a form, the plan picker stacks on it and the form keeps what was entered.
+	if (billingOpensOverModal()) {
+		openBillingModal('billing-plan', entityData);
 		return;
 	}
 
@@ -105,8 +108,5 @@ export function triggerUpgrade(options: TriggerUpgradeOptions): void {
 		reopenSettingsAfterBilling.set(true);
 	}
 
-	openModal(
-		'billing-plan',
-		options.hosting ? { entityData: { hosting: options.hosting } } : undefined
-	);
+	openModal('billing-plan', entityData ? { entityData } : undefined);
 }

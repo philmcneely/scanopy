@@ -284,21 +284,6 @@ impl DaemonService {
 
         // First contact - create default discovery jobs and emit telemetry
         if is_first_contact {
-            // Determine if org is on Free plan for discovery defaults
-            let is_free_plan =
-                if let Ok(Some(site)) = self.site_service.get_by_id(&daemon.base.site_id).await {
-                    self.organization_service
-                        .get_by_id(&site.base.organization_id)
-                        .await
-                        .ok()
-                        .flatten()
-                        .and_then(|o| o.base.plan)
-                        .map(|p| p.is_free())
-                        .unwrap_or(true)
-                } else {
-                    false
-                };
-
             // Create default discovery jobs. ServerPoll first-contact carries no init-command
             // targeting (admin-provisioned via status, not the register endpoint), so targeting
             // is empty here — a future server-held daemon config would populate it.
@@ -307,7 +292,6 @@ impl DaemonService {
                     daemon.id,
                     daemon.base.site_id,
                     daemon.base.host_id,
-                    is_free_plan,
                     &[],
                 )
                 .await

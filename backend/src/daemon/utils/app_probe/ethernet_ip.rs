@@ -45,17 +45,13 @@ pub struct EtherNetIpProbe;
 
 #[async_trait]
 impl AppProbe for EtherNetIpProbe {
-    fn port(&self) -> PortType {
-        PortType::EtherNetIp
+    fn client_probe(&self) -> ClientProbe {
+        ClientProbe::EtherNetIp
     }
 
-    fn client_probe(&self) -> Option<ClientProbe> {
-        Some(ClientProbe::EtherNetIp)
-    }
-
-    async fn run(&self, ctx: &ProbeContext) -> Result<AppProbeOutcome, Error> {
+    async fn run(&self, ctx: &ProbeContext, port: PortType) -> Result<AppProbeOutcome, Error> {
         let socket = UdpSocket::bind("0.0.0.0:0").await?;
-        let target = ctx.target(self.port().number());
+        let target = ctx.target(port.number());
 
         if socket
             .send_to(&list_identity_request(), target)
@@ -167,6 +163,7 @@ fn parse_identity_item(data: &[u8]) -> Option<DeviceIdentity> {
 
     let probe = AttributeSource::Probe(ClientProbe::EtherNetIp);
     Some(DeviceIdentity {
+        matched: None,
         // The number, not a name. Recording it as an explicit CIP vendor reference is honest about
         // what it is; resolving it would need the ODVA registry, which is deliberately not shipped.
         //

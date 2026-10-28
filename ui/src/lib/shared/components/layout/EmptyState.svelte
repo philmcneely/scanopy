@@ -3,8 +3,11 @@
 	import type { Snippet } from 'svelte';
 	import type { IconComponent as IconComponentType } from '$lib/shared/utils/types';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
+	import PaidCrown from '$lib/shared/components/PaidCrown.svelte';
 	import { isOnVisiblePage } from '$lib/shared/stores/modal-registry';
 	import { isFreeKeydown, isPlainKey } from '$lib/shared/components/data/controls/listShortcuts';
+	import { triggerUpgrade, type UpgradeGate } from '$lib/features/billing/trigger-upgrade';
+	import { common_availableOnPaidPlans } from '$lib/paraglide/messages';
 
 	let {
 		IconComponent = Search,
@@ -12,6 +15,7 @@
 		subtitle = '',
 		onClick = () => {},
 		cta = '',
+		upgrade = null,
 		children
 	}: {
 		IconComponent?: IconComponentType;
@@ -19,6 +23,8 @@
 		subtitle?: string;
 		onClick?: () => void;
 		cta?: string;
+		/** The plan lacks what the CTA does: it reads the same with a crown and opens the plans. */
+		upgrade?: UpgradeGate | null;
 		children?: Snippet;
 	} = $props();
 
@@ -27,11 +33,16 @@
 	let root: HTMLDivElement | undefined = $state();
 	let hasCta = $derived(!children && cta.length > 0);
 
+	function press() {
+		if (upgrade) triggerUpgrade({ ...upgrade, source: 'empty_state' });
+		else onClick();
+	}
+
 	function handleKeydown(event: KeyboardEvent) {
 		if (!hasCta || !isPlainKey(event, SHORTCUT) || !isFreeKeydown(event)) return;
 		if (!isOnVisiblePage(root)) return;
 		event.preventDefault();
-		onClick();
+		press();
 	}
 </script>
 
@@ -44,7 +55,14 @@
 	{#if children}
 		{@render children()}
 	{:else if hasCta}
-		<button onclick={onClick} class="btn-primary gap-2">
+		<button
+			onclick={press}
+			class="btn-primary gap-2"
+			title={upgrade ? common_availableOnPaidPlans() : undefined}
+		>
+			{#if upgrade}
+				<PaidCrown onPrimary />
+			{/if}
 			{cta}
 			<KbdKey key={SHORTCUT} size="xs" tone="inherit" />
 		</button>

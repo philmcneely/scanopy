@@ -5,7 +5,8 @@
 import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
 import { queryKeys } from '$lib/api/query-client';
 import { apiClient } from '$lib/api/client';
-import { requireSuccess, unwrapData } from '$lib/api/query-helpers';
+import { requireSuccess, unwrapData, unwrapEnvelope } from '$lib/api/query-helpers';
+import { checkServerVersion } from '$lib/api/server-version';
 import { pushSuccess } from '$lib/shared/stores/feedback';
 import {
 	auth_emailVerified,
@@ -32,20 +33,28 @@ import type {
 } from './types/base';
 
 /**
+ * The signed-in user, or `null` when the server says there is none (401).
+ *
+ * Any other failure throws: a server that is down or restarting says nothing about the session,
+ * and caching `null` for it reads as a logout, which clears every query in the app.
+ */
+export async function fetchCurrentUser() {
+	const result = await apiClient.POST('/api/auth/me', {});
+	if (result.response.status === 401) {
+		return null;
+	}
+	const envelope = unwrapEnvelope(result);
+	checkServerVersion(envelope.meta.server_version);
+	return envelope.data;
+}
+
+/**
  * Query hook for fetching current authenticated user
  */
 export function useCurrentUserQuery() {
 	return createQuery(() => ({
 		queryKey: queryKeys.auth.currentUser(),
-		queryFn: async () => {
-			const { data } = await apiClient.POST('/api/auth/me', {});
-			if (!data?.success || !data.data) {
-				return null;
-			}
-			return data.data;
-		},
-		// Don't retry auth checks - if it fails, user is not authenticated
-		retry: false,
+		queryFn: fetchCurrentUser,
 		// Auth state should be checked frequently
 		staleTime: 60 * 1000,
 		// While unverified, refetch on every return to the tab, so verifying from the emailed

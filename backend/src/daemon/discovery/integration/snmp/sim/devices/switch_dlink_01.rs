@@ -14,6 +14,8 @@ use crate::server::lldp::{LldpChassisId, LldpPortId};
 
 use super::inline;
 
+use crate::daemon::discovery::integration::snmp::sim::CommunityVersions;
+
 pub fn device() -> SimDevice {
     SimDevice {
         name: "switch-dlink-01",
@@ -22,9 +24,10 @@ pub fn device() -> SimDevice {
             issue: "#668",
             defect: "four neighbour records each needing a different route to their far end, and one chassis MAC repeated across every port",
         },
-        credential: CredentialType::SnmpV2c {
+        credential: CredentialType::SnmpCommunity {
             community: inline("netdefault"),
         },
+        community_versions: CommunityVersions::Both,
         system: SystemInfo {
             sys_descr: Some("D-Link DGS-1210-48 Rev.GX/7.20.003".into()),
             sys_object_id: Some("1.3.6.1.4.1.171.10.76.28".into()),

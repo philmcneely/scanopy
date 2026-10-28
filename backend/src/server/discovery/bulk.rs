@@ -63,7 +63,7 @@ async fn load_all(
     Ok(discoveries)
 }
 
-/// Start Discovery Sessions
+/// Start discovery sessions
 ///
 /// Starts a session for each discovery, as `POST /start-session` does for one. Sessions start
 /// in turn: on a daemon running several, the first is dispatched and the rest queue behind it.
@@ -71,6 +71,7 @@ async fn load_all(
 /// already running.
 #[utoipa::path(
     post,
+    operation_id = "bulk_start_discovery_sessions",
     path = "/bulk-start-session",
     tag = Discovery::ENTITY_NAME_PLURAL,
     request_body(content = Vec<Uuid>, description = "IDs of the discoveries to start"),
@@ -115,7 +116,7 @@ async fn bulk_start_sessions(
     Ok(Json(ApiResponse::success(sessions)))
 }
 
-/// Cancel Discovery Sessions
+/// Cancel discovery sessions
 ///
 /// Cancels the running session of each discovery, given discovery IDs. Sessions still queued
 /// are cancelled before running ones, so cancelling a running session never starts a queued one
@@ -123,6 +124,7 @@ async fn bulk_start_sessions(
 /// discovery isn't running or its session is just starting on its daemon.
 #[utoipa::path(
     post,
+    operation_id = "bulk_cancel_discovery_sessions",
     path = "/bulk-cancel",
     tag = Discovery::ENTITY_NAME_PLURAL,
     request_body(content = Vec<Uuid>, description = "IDs of the discoveries whose sessions to cancel"),
@@ -173,13 +175,14 @@ pub struct BulkSetEnabledRequest {
     pub enabled: bool,
 }
 
-/// Turn Discovery Schedules On or Off
+/// Turn discovery schedules on or off
 ///
 /// Turns the schedule of each scheduled discovery on or off, and changes nothing else about
 /// them. The request is refused, and nothing changes, if any discovery has no schedule or is
 /// running.
 #[utoipa::path(
     post,
+    operation_id = "bulk_set_discoveries_enabled",
     path = "/bulk-set-enabled",
     tag = Discovery::ENTITY_NAME_PLURAL,
     request_body = BulkSetEnabledRequest,
