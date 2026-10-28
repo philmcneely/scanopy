@@ -3025,8 +3025,6 @@
 	"settings_billing_license_switchConfirm": "Switching to an Air-Gapped key ends your trial and charges ${amount} to the card on file. Your Online key is retired at once, so you will need to update your server. You cannot move to another self-hosted plan or switch back until the period you have paid for ends.",
 	"settings_billing_license_switchOnlineConfirm": "Switching to an Online key issues a new key your server has to be updated with. The Air-Gapped key already installed keeps working until it expires.",
 	"settings_billing_license_switchTitle": "Change license key type?",
-	"settings_billing_license_switchToCloudAirGappedDesc": "If you choose a cloud plan, your air-gapped key keeps working until {date} and isn't renewed. Your server goes read-only on that date.",
-	"settings_billing_license_switchToCloudDesc": "If you choose a cloud plan, your server's license key stops working at its next check-in, within a few hours, and the server goes read-only.",
 	"settings_billing_license_trialEnds": "Trial ends",
 	"settings_billing_license_useCloudInstead": "Use Scanopy Cloud instead",
 	"settings_billing_license_validThrough": "Valid through",
