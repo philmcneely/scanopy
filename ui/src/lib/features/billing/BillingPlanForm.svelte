@@ -267,7 +267,7 @@
 	let featureKeys = $derived(
 		filteredPlans.length > 0
 			? Object.keys(billingPlanHelpers.getMetadata(filteredPlans[0].type)?.features || {}).filter(
-					(key) => !isItemizedAsIntegrations(key)
+					(key) => !isItemizedAsIntegrations(key) && isListed(key)
 				)
 			: []
 	);
@@ -420,6 +420,11 @@
 			return !!prev && filteredPlans.some((q) => q.type === prev);
 		})
 	);
+
+	/** Whether the cards and the comparison list this feature (`listed_on_plans`). */
+	function isListed(featureKey: string): boolean {
+		return featureHelpers.getMetadata(featureKey)?.listed_on_plans !== false;
+	}
 
 	/** The titled line a card lists this feature under (`feature-subgroups.json`); null for none. */
 	function subgroupOf(featureKey: string): string | null {
@@ -614,7 +619,9 @@
 						...(prevTierFeatures.length > 0
 							? [...new Set([...prevTierFeatures, ...incrementalFeatures])]
 							: incrementalFeatures
-						).filter((key) => !isItemizedAsIntegrations(key) && key !== SNAPSHOT_RETENTION),
+						).filter(
+							(key) => !isItemizedAsIntegrations(key) && isListed(key) && key !== SNAPSHOT_RETENTION
+						),
 						...(listsSnapshotRetention(plan, prevTier, prevTierVisible) ? [SNAPSHOT_RETENTION] : [])
 					])}
 					{@const incrementalIntegrations = metadata?.incremental_integrations ?? []}

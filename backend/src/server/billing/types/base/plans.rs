@@ -237,7 +237,6 @@ pub struct BillingPlanFeatures {
     pub snapshot_retention_days: u32,
     pub share_views: bool,
     pub embeds: bool,
-    pub remove_created_with: bool,
     pub png_export: bool,
     pub svg_export: bool,
     pub pdf_export: bool,
@@ -246,18 +245,20 @@ pub struct BillingPlanFeatures {
     pub confluence_export: bool,
     pub drawio_export: bool,
     pub vsdx_export: bool,
+    pub remove_created_with: bool,
     // Inventory
     pub device_inventory: bool,
     pub vlan_subnet_inventory: bool,
     pub tagging: bool,
     pub csv_export: bool,
     // Discovery
+    pub network_discovery: bool,
     pub scheduled_discovery: bool,
     pub discovery_integrations: bool,
     /// Aruba Instant On credentials can be created (existing ones keep working on any plan).
     pub instant_on_integration: bool,
     pub service_detection: bool,
-    // API & Automation
+    // API
     pub api_access: bool,
     pub webhooks: bool,
     // Support
@@ -730,6 +731,7 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: false,
                 vsdx_export: false,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: false,
@@ -772,6 +774,7 @@ impl BillingPlan {
                 html_export: false,
                 drawio_export: false,
                 vsdx_export: false,
+                network_discovery: true,
                 scheduled_discovery: false,
                 discovery_integrations: true,
                 instant_on_integration: false,
@@ -813,6 +816,7 @@ impl BillingPlan {
                 html_export: false,
                 drawio_export: false,
                 vsdx_export: false,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: false,
@@ -854,6 +858,7 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: false,
                 vsdx_export: false,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -895,6 +900,7 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -936,6 +942,7 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -977,6 +984,7 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1018,6 +1026,7 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1059,6 +1068,7 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1100,6 +1110,7 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1141,6 +1152,7 @@ impl BillingPlan {
                 html_export: true,
                 drawio_export: true,
                 vsdx_export: true,
+                network_discovery: true,
                 scheduled_discovery: true,
                 discovery_integrations: true,
                 instant_on_integration: true,
@@ -1199,6 +1211,7 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             html_export,
             drawio_export,
             vsdx_export,
+            network_discovery,
             scheduled_discovery,
             discovery_integrations,
             instant_on_integration,
@@ -1344,6 +1357,10 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
 
         if vsdx_export {
             features.push(Feature::VsdxExport)
+        }
+
+        if network_discovery {
+            features.push(Feature::NetworkDiscovery)
         }
 
         if scheduled_discovery {

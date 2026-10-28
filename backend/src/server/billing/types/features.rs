@@ -30,7 +30,7 @@ pub enum FeatureCategory {
     Map,
     Inventory,
     Discovery,
-    ApiAndAutomation,
+    Api,
     Support,
     Security,
     Deployment,
@@ -53,7 +53,7 @@ impl EntityMetadataProvider for FeatureCategory {
             Self::Discovery => Icon::Radar,
             Self::Map => Icon::Map,
             Self::Inventory => Icon::Server,
-            Self::ApiAndAutomation => Icon::Code,
+            Self::Api => Icon::Code,
             Self::Support => Icon::Headset,
             Self::Security => Icon::ShieldCheck,
             Self::Deployment => Icon::Rocket,
@@ -68,7 +68,7 @@ impl TypeMetadataProvider for FeatureCategory {
             Self::Discovery => "Discovery",
             Self::Map => "Map",
             Self::Inventory => "Inventory",
-            Self::ApiAndAutomation => "API & automation",
+            Self::Api => "API",
             Self::Support => "Support",
             Self::Security => "Security",
             Self::Deployment => "Deployment",
@@ -85,7 +85,7 @@ impl TypeMetadataProvider for FeatureCategory {
             Self::Inventory => {
                 "Searchable records of every host, VLAN and subnet discovery finds, and CSV export of them"
             }
-            Self::ApiAndAutomation => "Programmatic access to your Scanopy data",
+            Self::Api => "Programmatic access to your Scanopy data",
             Self::Support => "Ways to reach the Scanopy team",
             Self::Security => "Sign-in and audit controls for your organization",
             Self::Deployment => "Ways to run Scanopy in your own environment",
@@ -146,7 +146,9 @@ impl TypeMetadataProvider for FeatureSubgroup {
     fn description(&self) -> &'static str {
         match self {
             Self::Sharing => "Ways to share live diagrams with people outside Scanopy",
-            Self::Exports => "File formats diagrams export to",
+            Self::Exports => {
+                "File formats diagrams export to, and the watermark on exported images"
+            }
         }
     }
 }
@@ -163,7 +165,6 @@ pub enum Feature {
     #[default]
     ShareViews,
     Embeds,
-    RemoveCreatedWith,
     PngExport,
     SvgExport,
     PdfExport,
@@ -172,17 +173,19 @@ pub enum Feature {
     ConfluenceExport,
     DrawioExport,
     VsdxExport,
+    RemoveCreatedWith,
     // Inventory
     DeviceInventory,
     VlanSubnetInventory,
     Tagging,
     CsvExport,
     // Discovery
+    NetworkDiscovery,
     ScheduledDiscovery,
     DiscoveryIntegrations,
     InstantOnIntegration,
     ServiceDetection,
-    // API & Automation
+    // API
     ApiAccess,
     Webhooks,
     // Support
@@ -238,6 +241,7 @@ impl HasId for Feature {
             Feature::HtmlExport => "html_export",
             Feature::DrawioExport => "drawio_export",
             Feature::VsdxExport => "vsdx_export",
+            Feature::NetworkDiscovery => "network_discovery",
             Feature::ScheduledDiscovery => "scheduled_discovery",
             Feature::DiscoveryIntegrations => "discovery_integrations",
             Feature::InstantOnIntegration => "instant_on_integration",
@@ -254,7 +258,8 @@ impl HasId for Feature {
 impl Feature {
     pub fn category(&self) -> FeatureCategory {
         match self {
-            Feature::ScheduledDiscovery
+            Feature::NetworkDiscovery
+            | Feature::ScheduledDiscovery
             | Feature::DiscoveryIntegrations
             | Feature::InstantOnIntegration
             | Feature::ServiceDetection => FeatureCategory::Discovery,
@@ -280,7 +285,7 @@ impl Feature {
             | Feature::Tagging
             | Feature::CsvExport => FeatureCategory::Inventory,
 
-            Feature::ApiAccess | Feature::Webhooks => FeatureCategory::ApiAndAutomation,
+            Feature::ApiAccess | Feature::Webhooks => FeatureCategory::Api,
 
             Feature::EmailSupport
             | Feature::LiveChatSupport
@@ -298,6 +303,13 @@ impl Feature {
                 FeatureCategory::Billing
             }
         }
+    }
+
+    /// Whether plan cards and the comparison list this feature. Remove Watermark is left off: every
+    /// plan the pricing page shows either includes it or has no diagram exports to watermark (Free);
+    /// only Community, which the page doesn't list, exports with the watermark.
+    pub fn is_listed_on_plans(&self) -> bool {
+        !matches!(self, Feature::RemoveCreatedWith)
     }
 
     /// The titled line plan cards list this feature under, if any.
@@ -387,7 +399,7 @@ impl TypeMetadataProvider for Feature {
         match self {
             Feature::AuditLogs => "Audit Logs",
             Feature::Webhooks => "Webhooks",
-            Feature::ShareViews => "Shareable Diagrams",
+            Feature::ShareViews => "Direct Links",
             Feature::OnboardingCall => "Onboarding Call",
             Feature::RemoveCreatedWith => "Remove Watermark",
             Feature::CustomSso => "Custom SSO",
@@ -396,7 +408,7 @@ impl TypeMetadataProvider for Feature {
             Feature::ManagedDeployment => "Managed Deployment",
             Feature::Whitelabeling => "White Labeling",
             Feature::LiveChatSupport => "Live Chat Support",
-            Feature::Embeds => "Embeddable Diagrams",
+            Feature::Embeds => "Embeds",
             Feature::ApiAccess => "API Access",
             Feature::EmailSupport => "Email Support",
             Feature::PrioritySupport => "Priority Support",
@@ -415,6 +427,7 @@ impl TypeMetadataProvider for Feature {
             Feature::HtmlExport => "HTML Export",
             Feature::DrawioExport => "draw.io Export",
             Feature::VsdxExport => "Visio Export",
+            Feature::NetworkDiscovery => "Network Discovery",
             Feature::ScheduledDiscovery => "Scheduled Discovery",
             Feature::DiscoveryIntegrations => "Discovery Integrations",
             Feature::InstantOnIntegration => "Aruba Instant On",
@@ -499,6 +512,9 @@ impl TypeMetadataProvider for Feature {
             Feature::VsdxExport => {
                 "Export network diagrams as editable Visio (VSDX) files with shapes, groups and connectors"
             }
+            Feature::NetworkDiscovery => {
+                "Scan your subnets for hosts, open ports and running services, on demand"
+            }
             Feature::ScheduledDiscovery => "Schedule automatic network discovery scans",
             Feature::DiscoveryIntegrations => {
                 "Add credentials so discovery also collects from network devices, controllers, hypervisors, container runtimes and hosts"
@@ -531,6 +547,7 @@ impl TypeMetadataProvider for Feature {
             "minimum_plan": self.minimum_plan(),
             // Plan cards list the integrations themselves, so they skip this feature's line.
             "gates_integration": self.gates_integration(),
+            "listed_on_plans": self.is_listed_on_plans(),
             // Plan cards list a subgroup's features under its title (`feature-subgroups.json`),
             // an export by its format and any other by its name.
             "subgroup": self.subgroup().map(|s| s.id()),
