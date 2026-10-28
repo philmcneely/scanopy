@@ -85,8 +85,8 @@
 		/** Feature names and metadata; `getIds` gives the backend's declaration order. */
 		featureHelpers: MetadataHelpers<FeatureMetadata> & { getIds: () => string[] };
 		/** Names and icons of the category headings features are grouped under, in display order
-		 * (`feature-categories.json`). */
-		featureCategoryHelpers: MetadataHelpers<object> & { getIds: () => string[] };
+		 * (`product-areas.json`). */
+		productAreaHelpers: MetadataHelpers<object> & { getIds: () => string[] };
 		/** Names the discovery integrations itemized on each card (`credential-integrations.json`). */
 		integrationHelpers: MetadataHelpers<CredentialIntegrationMetadata>;
 		/** Explains each counted limit on the cards (`plan-limits.json`). */
@@ -117,7 +117,7 @@
 		plans,
 		billingPlanHelpers,
 		featureHelpers,
-		featureCategoryHelpers,
+		productAreaHelpers,
 		integrationHelpers,
 		limitHelpers,
 		onPlanSelect,
@@ -216,7 +216,7 @@
 	const DISCOVERY_INTEGRATIONS = 'discovery_integrations';
 
 	/** Feature categories in display order; unknown ones sort last. */
-	let categoryOrder = $derived(featureCategoryHelpers.getIds());
+	let categoryOrder = $derived(productAreaHelpers.getIds());
 
 	/** The category the integrations sit under, on the cards and in the comparison. */
 	let discoveryCategory = $derived(featureHelpers.getCategory(DISCOVERY_INTEGRATIONS));
@@ -595,12 +595,12 @@
 
 <!-- A feature category's heading on a card: its icon and name. -->
 {#snippet categoryHeading(category: string)}
-	{@const CategoryIcon = featureCategoryHelpers.getIconComponent(category)}
+	{@const CategoryIcon = productAreaHelpers.getIconComponent(category)}
 	<div
 		class="flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-tertiary uppercase"
 	>
 		<CategoryIcon class="h-3 w-3 shrink-0" />
-		{featureCategoryHelpers.getName(category)}
+		{productAreaHelpers.getName(category)}
 	</div>
 {/snippet}
 
@@ -964,14 +964,14 @@
 				</div>
 
 				{#each [...groupedFeatures.entries()] as [category, categoryFeatures] (category)}
-					{@const CategoryIcon = featureCategoryHelpers.getIconComponent(category)}
+					{@const CategoryIcon = productAreaHelpers.getIconComponent(category)}
 					<!-- Category Header -->
 					<div class="comparison-category-row">
 						<span
 							class="flex items-center gap-2 p-2 text-xs font-semibold tracking-wide text-secondary uppercase lg:p-3 lg:text-sm"
 						>
 							<CategoryIcon class="h-4 w-4 shrink-0" />
-							{featureCategoryHelpers.getName(category)}
+							{productAreaHelpers.getName(category)}
 						</span>
 					</div>
 

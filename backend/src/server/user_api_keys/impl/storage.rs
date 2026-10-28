@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::server::{
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
     user_api_keys::r#impl::base::{UserApiKey, UserApiKeyBase},
@@ -141,8 +141,8 @@ impl Entity for UserApiKey {
     const ENTITY_NAME_PLURAL: &'static str = "User API Keys";
     const ENTITY_DESCRIPTION: &'static str = "User API keys for programmatic access. Create and manage personal API keys with scoped permissions.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Platform
+    fn product_area() -> ProductArea {
+        ProductArea::Platform
     }
 
     fn site_id(&self) -> Option<Uuid> {

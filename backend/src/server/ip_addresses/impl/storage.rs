@@ -12,7 +12,7 @@ use crate::server::{
     ip_addresses::r#impl::base::{IPAddress, IPAddressBase},
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::{
             child::ChildStorableEntity,
             snapshot::{DiscoveryTracked, FkMaps, Snapshotable},
@@ -184,8 +184,8 @@ impl Entity for IPAddress {
     const ENTITY_NAME_PLURAL: &'static str = "IP Addresses";
     const ENTITY_DESCRIPTION: &'static str = "IP addresses assigned to hosts. Each address belongs to a host and a subnet, optionally has a MAC address, and represents an observed or configured address on the network.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Inventory
+    fn product_area() -> ProductArea {
+        ProductArea::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

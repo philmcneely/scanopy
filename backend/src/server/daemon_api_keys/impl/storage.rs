@@ -8,7 +8,7 @@ use crate::server::{
     daemon_api_keys::r#impl::base::{DaemonApiKey, DaemonApiKeyBase},
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
 };
@@ -144,8 +144,8 @@ impl Entity for DaemonApiKey {
     const ENTITY_NAME_PLURAL: &'static str = "Daemon API Keys";
     const ENTITY_DESCRIPTION: &'static str = "API keys for daemon authentication. Create and manage keys that allow daemons to communicate with the server.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Discover
+    fn product_area() -> ProductArea {
+        ProductArea::Discovery
     }
 
     fn site_id(&self) -> Option<Uuid> {

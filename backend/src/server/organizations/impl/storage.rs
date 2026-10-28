@@ -10,8 +10,8 @@ use crate::server::{
     organizations::r#impl::base::{Organization, OrganizationBase},
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
         events::types::OnboardingOperationDiscriminants,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
 };
@@ -264,8 +264,8 @@ impl Entity for Organization {
     const ENTITY_NAME_PLURAL: &'static str = "Organizations";
     const ENTITY_DESCRIPTION: &'static str = "Manage organization settings.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Platform
+    fn product_area() -> ProductArea {
+        ProductArea::Platform
     }
 
     fn site_id(&self) -> Option<Uuid> {

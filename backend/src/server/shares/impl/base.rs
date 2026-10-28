@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::server::credentials::r#impl::types::REDACTED_SECRET_SENTINEL;
 use crate::server::shared::{
     entities::{ChangeTriggersTopologyStaleness, EntityDiscriminants},
-    entity_metadata::EntityCategory,
+    product_area::ProductArea,
     storage::traits::{Entity, SqlValue, Storable},
 };
 use crate::server::topology::types::views::TopologyView;
@@ -341,8 +341,8 @@ impl Entity for Share {
     const ENTITY_DESCRIPTION: &'static str =
         "Shared network views. Create read-only shareable links to your network topology.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Visualization
+    fn product_area() -> ProductArea {
+        ProductArea::Topology
     }
 
     fn site_id(&self) -> Option<Uuid> {

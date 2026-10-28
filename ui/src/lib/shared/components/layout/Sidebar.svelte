@@ -4,7 +4,7 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { isBillingPlanActive, isPlanLapsed } from '$lib/features/organizations/types';
 	import SettingsModal from '$lib/features/settings/SettingsModal.svelte';
-	import { billingPlans, entities, entityCategories } from '$lib/shared/stores/metadata';
+	import { billingPlans, entities, productAreas } from '$lib/shared/stores/metadata';
 	import { useActiveSessionsQuery } from '$lib/features/discovery/queries';
 	import { useApiKeysQuery } from '$lib/features/daemon_api_keys/queries';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
@@ -271,10 +271,17 @@
 	// Base navigation config (before filtering)
 	/**
 	 * The sidebar item each entity type gets inside its section. Which section it sits in, and where,
-	 * comes from the entity metadata (`category` and declaration order), the same order the global
+	 * comes from the entity metadata (its product area in `category`, and declaration order), the same order the global
 	 * search lists its groups in. An entity with no item here (a host's ports, say) has no tab.
 	 */
 	const entityNavItems: Partial<Record<EntityDiscriminants, NavItem>> = {
+		Topology: {
+			id: entityUIConfig.Topology!.tabId,
+			label: TAB_LABELS[entityUIConfig.Topology!.tabId],
+			icon: entities.getIconComponent('Topology'),
+			entityType: 'Topology',
+			component: TopologyTab
+		},
 		Site: {
 			id: entityUIConfig.Site!.tabId,
 			label: TAB_LABELS[entityUIConfig.Site!.tabId],
@@ -398,16 +405,20 @@
 		}
 	};
 
-	/** One section per entity category that has items, in category order, items in entity order. */
-	const entitySections: NavSection[] = entityCategories.getItems().flatMap((category) => {
-		const items = entities
-			.getItems()
-			.filter((entity) => entity.category === category.id)
-			.flatMap((entity) => entityNavItems[entity.id as EntityDiscriminants] ?? []);
-		return items.length > 0
-			? [{ id: category.id, label: entityCategories.getName(category.id), items }]
-			: [];
-	});
+	/**
+	 * One section per product area that has items, in area order, items in entity order. An area
+	 * with a single item (Topology) shows that item at the top level instead of a one-row section.
+	 */
+	const entitySections: NavConfig = productAreas
+		.getItems()
+		.flatMap<NavSection | NavItem>((area) => {
+			const items = entities
+				.getItems()
+				.filter((entity) => entity.category === area.id)
+				.flatMap((entity) => entityNavItems[entity.id as EntityDiscriminants] ?? []);
+			if (items.length === 1) return items;
+			return items.length > 0 ? [{ id: area.id, label: productAreas.getName(area.id), items }] : [];
+		});
 
 	const baseNavConfig: NavConfig = [
 		{
@@ -415,13 +426,6 @@
 			label: TAB_LABELS['home'],
 			icon: Home as IconComponent,
 			component: HomeTab
-		},
-		{
-			id: entityUIConfig.Topology!.tabId,
-			label: TAB_LABELS[entityUIConfig.Topology!.tabId],
-			icon: entities.getIconComponent('Topology'),
-			entityType: 'Topology',
-			component: TopologyTab
 		},
 		...entitySections,
 		{

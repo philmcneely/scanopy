@@ -16,8 +16,8 @@ use crate::server::services::r#impl::base::Service;
 use crate::server::services::r#impl::patterns::ClientProbe;
 use crate::server::shared::attribution::{AttributeSource, AttributeSourceDiscriminants};
 use crate::server::shared::entities::EntityDiscriminants;
-use crate::server::shared::entity_metadata::EntityCategory;
 use crate::server::shared::events::types::{BillingOperation, OnboardingOperationDiscriminants};
+use crate::server::shared::product_area::ProductArea;
 use crate::server::shares::r#impl::base::ShareOptions;
 use crate::server::subnets::r#impl::base::Subnet;
 use crate::server::tags::r#impl::base::Tag;
@@ -288,8 +288,8 @@ pub trait Entity: Storable + crate::server::shared::events::log::EntityLog {
     /// Should be 1-3 sentences explaining the entity's purpose.
     const ENTITY_DESCRIPTION: &'static str;
 
-    /// Category for documentation grouping.
-    fn entity_category() -> EntityCategory;
+    /// The part of the product this entity belongs to: its sidebar section and search group.
+    fn product_area() -> ProductArea;
 
     /// Singular name for error messages (e.g., "host")
     fn entity_name_singular() -> &'static str {

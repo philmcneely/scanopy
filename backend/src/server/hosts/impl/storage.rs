@@ -11,7 +11,7 @@ use crate::server::{
     },
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::{
             attributed,
             snapshot::{DiscoveryTracked, Snapshotable},
@@ -357,8 +357,8 @@ impl Entity for Host {
     const ENTITY_DESCRIPTION: &'static str =
         "Network hosts (devices). Manage discovered or manually created hosts on your network.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Inventory
+    fn product_area() -> ProductArea {
+        ProductArea::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {
