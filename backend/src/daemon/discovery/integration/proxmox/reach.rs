@@ -63,10 +63,14 @@ pub fn unreached(
     node: &str,
 ) -> Option<UnreachedGuest> {
     let first = addresses.first()?;
-    if addresses
-        .iter()
-        .any(|a| scanned.iter().any(|s| s.base.cidr.contains(&a.ip)))
-    {
+    // A container bridge is a network inside the daemon's own host. A guest address in its range
+    // overlaps it by coincidence, and the sweep of that bridge never reaches the guest.
+    if addresses.iter().any(|a| {
+        scanned
+            .iter()
+            .filter(|s| !s.is_container_bridge_subnet())
+            .any(|s| s.base.cidr.contains(&a.ip))
+    }) {
         return None;
     }
     // The bridge of the NIC its first address sits on, else of its only NIC.
@@ -111,7 +115,10 @@ mod tests {
     };
     use crate::server::shared::attribution::AttributeSource;
     use crate::server::shared::storage::traits::Storable;
-    use crate::server::subnets::r#impl::base::{SubnetBase, SubnetCidr, SubnetCidrValue};
+    use crate::server::subnets::r#impl::base::{
+        SubnetBase, SubnetCidr, SubnetCidrValue, SubnetTypeAttributed,
+    };
+    use crate::server::subnets::r#impl::types::SubnetType;
 
     // Recorded from the `pve` lab node (PVE 8.4.21) with the discovery token.
     const NODE_NETWORK: &str = include_str!("../../../../tests/proxmox/pve84_node_network.json");
@@ -209,6 +216,29 @@ mod tests {
                 "pve"
             ),
             None
+        );
+    }
+
+    /// The lab daemon's host runs a Docker network `cc-snmp-lab` on 10.77.0.0/28, and the scan
+    /// sweeps it. A guest on an isolated bridge at 10.77.0.10 is still out of reach.
+    #[test]
+    fn a_daemon_side_container_bridge_overlapping_the_guest_does_not_reach_it() {
+        let (nics, addresses) = snmp_test(Some(("vmbr2", "10.77.0.10")));
+        let mut docker_bridge = subnet("10.77.0.0/28");
+        docker_bridge.base.subnet_type =
+            SubnetTypeAttributed::unattributed(SubnetType::DockerBridge);
+        let found = unreached(
+            &nics,
+            &addresses,
+            &bridges(),
+            &[subnet("192.168.4.0/22"), docker_bridge],
+            "pve",
+        );
+        assert_eq!(
+            found.map(|f| f.reason),
+            Some(UnreachedGuestReason::Isolated {
+                bridge: "vmbr2".to_string()
+            })
         );
     }
 
