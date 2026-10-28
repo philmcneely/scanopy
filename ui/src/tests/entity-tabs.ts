@@ -339,6 +339,8 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				credential_assignments: 'credentials',
 				description: 'description',
 				device_type: 'device_type',
+				// The Device type tag's hover text.
+				device_type_source: 'device_type',
 				firmware_revision: 'firmware_revision',
 				hidden: excluded(
 					'Always false, kept for older daemons; the Visibility tag group hides a host'
