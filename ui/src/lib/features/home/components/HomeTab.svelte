@@ -22,7 +22,7 @@
 	import { homeDaemonPrompt } from '$lib/shared/onboarding/checklist';
 	import type { TabProps } from '$lib/shared/types';
 	import type { components } from '$lib/api/schema';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { openModal } from '$lib/shared/stores/modal-registry';
 	import { useConfigQuery, isCloud } from '$lib/shared/stores/config-query';
 	import {
@@ -64,10 +64,14 @@
 		localStorage.setItem('home-demo-topology-dismissed', 'true');
 	}
 
+	// Refetch when the tab opens. Untracked: reading `refetch` off a query subscribes to every
+	// change of its result, and each refetch changes it, so the effect would refetch in a loop.
 	$effect(() => {
 		if (isActive) {
-			organizationQuery.refetch();
-			dashboardQuery.refetch();
+			untrack(() => {
+				organizationQuery.refetch();
+				dashboardQuery.refetch();
+			});
 		}
 	});
 
