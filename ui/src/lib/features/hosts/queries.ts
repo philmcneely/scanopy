@@ -21,7 +21,7 @@ import {
 	hosts_rescanStartedBulkToast,
 	hosts_rescanStartedToast
 } from '$lib/paraglide/messages';
-import { discoverySSEManager, upsertSessions } from '$lib/features/discovery/queries';
+import { upsertSessions } from '$lib/features/discovery/queries';
 import type { DiscoveryUpdatePayload } from '$lib/features/discovery/types/api';
 import type {
 	Host,
@@ -802,8 +802,6 @@ export function useRescanHostMutation() {
 					: [...old, session];
 			});
 
-			discoverySSEManager.connect();
-
 			pushSuccess(hosts_rescanStartedToast({ name: name ?? '' }));
 		}
 	}));
@@ -951,7 +949,6 @@ export function useBulkRescanHostsMutation() {
 		},
 		onSuccess: (sessions: DiscoveryUpdatePayload[], ids) => {
 			upsertSessions(queryClient, sessions);
-			discoverySSEManager.connect();
 			pushSuccess(hosts_rescanStartedBulkToast({ count: ids.length }));
 		}
 	}));

@@ -5,6 +5,7 @@ use scanopy::server::daemons::r#impl::api::DiscoveryUpdatePayload;
 use scanopy::server::dependencies::r#impl::base::{Dependency, DependencyBase};
 use scanopy::server::discovery::r#impl::base::{Discovery, DiscoveryBase};
 use scanopy::server::discovery::r#impl::types::{DiscoveryType, HostNamingFallback, RunType};
+use scanopy::server::live_updates::types::LiveUpdate;
 use scanopy::server::services::definitions::home_assistant::HomeAssistant;
 use scanopy::server::services::r#impl::base::Service;
 use scanopy::server::shared::entities::EntityDiscriminants;
@@ -72,7 +73,7 @@ pub async fn run_discovery(client: &TestClient, session_id: Option<Uuid>) -> Res
 
     let mut event_source = client
         .client
-        .get(format!("{}/api/v1/discoveries/stream", BASE_URL))
+        .get(format!("{}/api/v1/live-updates/stream", BASE_URL))
         .send()
         .await
         .map_err(|e| format!("Failed to connect to SSE: {}", e))?;
@@ -95,7 +96,7 @@ pub async fn run_discovery(client: &TestClient, session_id: Option<Uuid>) -> Res
 
                         for line in text.lines() {
                             if let Some(data) = line.strip_prefix("data: ")
-                                && let Ok(update) = serde_json::from_str::<DiscoveryUpdatePayload>(data)
+                                && let Ok(LiveUpdate::Discovery(update)) = serde_json::from_str::<LiveUpdate>(data)
                             {
                                 // If filtering by session_id, skip other sessions
                                 if let Some(expected_sid) = session_id {

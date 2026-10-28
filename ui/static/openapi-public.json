@@ -6963,7 +6963,7 @@
           "Hosts"
         ],
         "summary": "Rescan host",
-        "description": "Starts a one-shot scan of this host's addresses and nothing else, answering\n\"is this host still there, and is its data current?\" without sweeping the\nwhole subnet.\n\nThe scan runs on the daemon that last discovered this host, which is evidence\nit can reach the address. Where the daemon has an interface with a MAC on the\naddress's subnet it ARPs the target, which sees a live host even when every\nport is firewalled. Every other address, on a MAC-less interface (a\npoint-to-point tunnel) or on a subnet the daemon reaches through a router, is\nprobed by TCP. An address that doesn't answer comes back as not found. A\nloopback address is reached locally and is excluded from the target set.\n\nDaemons at or below `last_without_routed_rescan` only rescan addresses on\nsubnets they have an interface on, and the request is refused when the host\nhas none.\n\nReturns the session, which streams progress over `/api/v1/discoveries/stream`\nlike any other scan. A `Queued` phase means the daemon is busy; it will start\nwhen the running scan finishes.",
+        "description": "Starts a one-shot scan of this host's addresses and nothing else, answering\n\"is this host still there, and is its data current?\" without sweeping the\nwhole subnet.\n\nThe scan runs on the daemon that last discovered this host, which is evidence\nit can reach the address. Where the daemon has an interface with a MAC on the\naddress's subnet it ARPs the target, which sees a live host even when every\nport is firewalled. Every other address, on a MAC-less interface (a\npoint-to-point tunnel) or on a subnet the daemon reaches through a router, is\nprobed by TCP. An address that doesn't answer comes back as not found. A\nloopback address is reached locally and is excluded from the target set.\n\nDaemons at or below `last_without_routed_rescan` only rescan addresses on\nsubnets they have an interface on, and the request is refused when the host\nhas none.\n\nReturns the session, which streams progress over `/api/v1/live-updates/stream`\nlike any other scan. A `Queued` phase means the daemon is busy; it will start\nwhen the running scan finishes.",
         "operationId": "rescan_host",
         "parameters": [
           {
@@ -33066,6 +33066,65 @@
           "invalid",
           "pending"
         ]
+      },
+      "LiveTopologyUpdate": {
+        "type": "object",
+        "description": "A site whose live topology changed.",
+        "required": [
+          "site_id"
+        ],
+        "properties": {
+          "site_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The site whose live entities changed."
+          }
+        }
+      },
+      "LiveUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Progress or an end state of a discovery session.",
+            "required": [
+              "data",
+              "type"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/DiscoveryUpdatePayload",
+                "description": "Progress or an end state of a discovery session."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Discovery"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A site's live entity set changed, so its topology needs refetching.",
+            "required": [
+              "data",
+              "type"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/LiveTopologyUpdate",
+                "description": "A site's live entity set changed, so its topology needs refetching."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Topology"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "An event on the live-update stream (`GET /api/v1/live-updates/stream`)."
       },
       "LldpChassisId": {
         "oneOf": [

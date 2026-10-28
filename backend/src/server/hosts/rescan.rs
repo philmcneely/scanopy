@@ -56,7 +56,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 /// subnets they have an interface on, and the request is refused when the host
 /// has none.
 ///
-/// Returns the session, which streams progress over `/api/v1/discoveries/stream`
+/// Returns the session, which streams progress over `/api/v1/live-updates/stream`
 /// like any other scan. A `Queued` phase means the daemon is busy; it will start
 /// when the running scan finishes.
 #[utoipa::path(
