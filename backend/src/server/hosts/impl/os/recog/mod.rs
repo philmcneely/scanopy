@@ -209,12 +209,23 @@ impl RecogMatch {
                 .map(str::to_string)
         };
         let hardware = certain("hw.certainty");
-        let device_type = value("hw.device").and_then(|d| match classify_device(&d) {
-            RecogDevice::Type(device_type) => Some(device_type),
-            RecogDevice::Generic | RecogDevice::Unlisted => None,
-        });
+        let os = os_from_params(params);
+        // A class given with only a software name is that software's role, not the host's: Apple's
+        // AirTunes ("Media Server") answers on every Mac and Sonos, and OpenVPN Access Server
+        // ("VPN") installs on any Linux box. A realm that reads "DVR" names no software, so it
+        // still classifies the device.
+        let names_only_software = value("service.product").is_some()
+            && value("hw.vendor").is_none()
+            && value("hw.product").is_none()
+            && os.is_none();
+        let device_type = value("hw.device")
+            .filter(|_| !names_only_software)
+            .and_then(|d| match classify_device(&d) {
+                RecogDevice::Type(device_type) => Some(device_type),
+                RecogDevice::Generic | RecogDevice::Unlisted => None,
+            });
         RecogMatch {
-            os: os_from_params(params),
+            os,
             manufacturer: value("hw.vendor").filter(|_| hardware),
             model: value("hw.product").filter(|_| hardware),
             device_type: device_type.filter(|_| hardware),
@@ -563,6 +574,20 @@ mod tests {
             ("hw.certainty".to_string(), "0.25".to_string()),
         ]);
         assert!(RecogMatch::from_params(&params).is_empty());
+    }
+
+    #[test]
+    fn a_class_given_only_with_software_does_not_classify_the_host() {
+        let airplay = RecogDatabase::HttpServer
+            .identify("AirTunes/860.7.1")
+            .expect("AirTunes is fingerprinted");
+        assert_eq!(airplay.device_type, None);
+        assert!(airplay.software.is_some());
+
+        let dvr = RecogDatabase::HttpWwwAuth
+            .identify("Basic realm=\"DVR\"")
+            .expect("a DVR realm is fingerprinted");
+        assert_eq!(dvr.device_type, Some(DeviceType::Dvr));
     }
 
     #[test]
