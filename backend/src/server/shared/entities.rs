@@ -68,7 +68,7 @@ pub trait ChangeTriggersTopologyStaleness<T> {
 // category in the order the sidebar and the global search list them. A test holds the grouping.
 #[allow(clippy::large_enum_variant)]
 pub enum Entity {
-    // EntityCategory::Assets
+    // EntityCategory::Inventory
     Site(Site),
     Vlan(Vlan),
     Subnet(Subnet),

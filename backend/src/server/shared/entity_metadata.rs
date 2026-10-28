@@ -31,7 +31,7 @@ use crate::server::shared::types::{
 #[strum(serialize_all = "snake_case")]
 pub enum EntityCategory {
     /// What is on the network: sites, VLANs, subnets, hosts and what runs on them.
-    Assets,
+    Inventory,
     /// What finds it: discovery runs and the daemons that perform them.
     Discover,
     /// What runs Scanopy across the organization: tags, users, keys and credentials.
@@ -53,7 +53,7 @@ impl EntityMetadataProvider for EntityCategory {
 
     fn icon(&self) -> Icon {
         match self {
-            Self::Assets => Icon::Server,
+            Self::Inventory => Icon::Server,
             Self::Discover => Icon::Radar,
             Self::Platform => Icon::Settings,
             Self::Visualization => Icon::Network,
@@ -64,7 +64,7 @@ impl EntityMetadataProvider for EntityCategory {
 impl TypeMetadataProvider for EntityCategory {
     fn name(&self) -> &'static str {
         match self {
-            Self::Assets => "Assets",
+            Self::Inventory => "Inventory",
             Self::Discover => "Discover",
             Self::Platform => "Platform",
             Self::Visualization => "Visualization",
