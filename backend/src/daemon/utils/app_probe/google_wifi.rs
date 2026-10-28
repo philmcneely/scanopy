@@ -129,6 +129,7 @@ fn parse_reply(bytes: &[u8]) -> Option<DeviceIdentity> {
 
     let probe = AttributeSource::Probe(ClientProbe::GoogleWifi);
     Some(DeviceIdentity {
+        matched: None,
         // Not read off a field — the document never says "Google". Answering Google's own status
         // API is the evidence, so it carries the probe's own source, not a lower inference rung.
         manufacturer: identity_field(Some("Google".to_string()), probe),

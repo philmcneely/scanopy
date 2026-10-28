@@ -88,6 +88,7 @@ use crate::server::hosts::r#impl::attributes::{
     HostFirmwareRevisionAttributed, HostManufacturerAttributed, HostModelAttributed,
     HostOsAttributed, HostSerialNumberAttributed,
 };
+use crate::server::hosts::r#impl::os::recog::{RecogDatabase, RecogMatch};
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -222,9 +223,33 @@ pub struct DeviceIdentity {
     /// Boxed: an OS reading is several times the size of the other fields, and inline it makes
     /// every enum carrying an identity (`AppProbeOutcome`, `ModbusReply`) needlessly large.
     pub os: Option<Box<HostOsAttributed>>,
+    /// What a Recog fingerprint of a string the device sent names (an SSH, FTP or Telnet banner,
+    /// an RTSP `Server` header): OS, maker, model and device class, all inferred, so they combine
+    /// with every other match through [`HostData::offer_match`] rather than apply by rank.
+    /// Boxed for the reason `os` is.
+    pub matched: Option<Box<(RecogMatch, AttributeSource)>>,
 }
 
 impl DeviceIdentity {
+    /// The identity a fingerprint of `input` names, if it names anything.
+    pub fn matched(
+        database: RecogDatabase,
+        input: &str,
+        source: AttributeSource,
+    ) -> Option<DeviceIdentity> {
+        // The software alone (`OpenSSH`, `ProFTPD`) says nothing about the host: the protocol's
+        // own definition already names the service.
+        let matched = database.identify(input).filter(RecogMatch::names_host)?;
+        Some(DeviceIdentity {
+            manufacturer: None,
+            model: None,
+            serial_number: None,
+            firmware_revision: None,
+            os: None,
+            matched: Some(Box::new((matched, source))),
+        })
+    }
+
     /// Fold this identity into the host currently being scanned.
     ///
     /// Each value carries the source that produced it, so the ordering against a credentialed
@@ -239,6 +264,7 @@ impl DeviceIdentity {
             serial_number,
             firmware_revision,
             os,
+            matched,
         } = self.clone();
 
         if let Some(manufacturer) = manufacturer {
@@ -258,6 +284,10 @@ impl DeviceIdentity {
         }
         if let Some(os) = os {
             host_data.offer_os(*os);
+        }
+        if let Some(matched) = matched {
+            let (matched, source) = *matched;
+            host_data.offer_match(matched, source);
         }
     }
 }

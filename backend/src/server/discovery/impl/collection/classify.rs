@@ -48,11 +48,23 @@ impl AttributeSource {
             | Self::LldpSysDescMatch
             | Self::LldpChassisId => C::Derived,
 
-            // An operating system read from what a service or an mDNS record says about the host.
+            // An operating system, and the device's maker, model and class, read from what a
+            // service or an mDNS record says about the host.
             Self::SshBannerMatch
             | Self::HttpServerMatch
+            | Self::X509SubjectMatch
+            | Self::X509IssuerMatch
+            | Self::HtmlTitleMatch
+            | Self::HttpWwwAuthMatch
+            | Self::HttpCookieMatch
+            | Self::FaviconMatch
+            | Self::FtpBannerMatch
+            | Self::TelnetBannerMatch
+            | Self::RtspServerMatch
             | Self::DnsSdDeviceInfoMatch
-            | Self::DnsSdAirPlayMatch => C::CredentialFree(&[OperatingSystem]),
+            | Self::DnsSdAirPlayMatch => C::CredentialFree(&[OperatingSystem, DeviceDetails]),
+            // An operating system family read from the host's network stack.
+            Self::TcpStackMatch => C::CredentialFree(&[OperatingSystem]),
 
             Self::ReverseDns | Self::DnsSdInstanceName => C::CredentialFree(&[Hostnames]),
             // An mDNS answer names the host and also proves the address is live.

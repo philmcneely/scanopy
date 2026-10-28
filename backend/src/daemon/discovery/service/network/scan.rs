@@ -32,9 +32,10 @@ use crate::server::shared::types::entities::EntitySource;
 use crate::server::{
     hosts::r#impl::{
         api::{DiscoveryHostRequest, HostResponse},
-        attributes::HostHostnameValue,
+        attributes::{HostHostnameValue, HostOsValue},
         base::{Host, HostBase},
         name::host_name_from_parts,
+        os::HostOs,
     },
     subnets::r#impl::base::Subnet,
 };
@@ -258,6 +259,15 @@ impl NetworkScan {
         // predictably low fd rather than at a scheduling-dependent one. Only the *result*, not
         // the channel open, crosses back into async code — via a oneshot that the thread fills
         // once its whole sweep (every interface) is done.
+        // SYN-ACK capture for the TCP/IP stack heuristic (see `tcp_stack`). Started here, on its
+        // own threads, for the low-fd reason DCP gives above, and stopped when the last deep scan
+        // holding it finishes.
+        let tcp_stack = Arc::new(super::tcp_stack::TcpStackCapture::start(
+            filtered_own_nics(&interface_filter)
+                .into_iter()
+                .filter(|nic| !nic.is_loopback())
+                .collect(),
+        ));
         let dcp_capable_interfaces: Vec<_> = filtered_own_nics(&interface_filter)
             .into_iter()
             .filter(dcp::is_dcp_capable)
@@ -955,6 +965,7 @@ impl NetworkScan {
                                 let site_subnets_ref = site_subnets.clone();
 
                                 let mdns_hosts_ref = mdns_hosts.clone();
+                                let tcp_stack_ref = tcp_stack.clone();
                                 let early_host_handle = early_reported_hosts.remove(&ip);
                                 pending_scans.push(Box::pin(async move {
                                     let early_host_id = match early_host_handle {
@@ -986,6 +997,7 @@ impl NetworkScan {
                                             light_scan_ports: &light_scan_ports,
 
                                             mdns_hosts: mdns_hosts_ref,
+                                            tcp_stack: tcp_stack_ref,
                                             credential_mappings: &self.credential_mappings,
                                             known_subnets: site_subnets_ref,
                                         }, ops, utils)
@@ -1070,6 +1082,7 @@ impl NetworkScan {
                         let site_subnets_ref = site_subnets.clone();
 
                         let mdns_hosts_ref = mdns_hosts.clone();
+                        let tcp_stack_ref = tcp_stack.clone();
                         let early_host_handle = early_reported_hosts.remove(&ip);
 
                         pending_scans.push(Box::pin(async move {
@@ -1102,6 +1115,7 @@ impl NetworkScan {
                                     light_scan_ports: &light_scan_ports,
 
                                     mdns_hosts: mdns_hosts_ref,
+                                    tcp_stack: tcp_stack_ref,
                                     credential_mappings: &self.credential_mappings,
                                     known_subnets: site_subnets_ref,
                                 }, ops, utils)
@@ -1500,6 +1514,7 @@ impl NetworkScan {
             known_subnets,
 
             mdns_hosts,
+            tcp_stack,
         } = params;
 
         if cancel.is_cancelled() {
@@ -1782,6 +1797,17 @@ impl NetworkScan {
             scan_rate_pps,
         )
         .await;
+        // One more GET per port that already answered HTTP, for Recog's favicon fingerprints.
+        let favicons = crate::daemon::utils::scanner::fetch_favicon_hashes(
+            ip,
+            &endpoint_responses,
+            accept_invalid_certs,
+        )
+        .await;
+        // Every string the ports emitted, read against Recog once: service matching reads it for
+        // `Pattern::Recog`, and the host is offered what it names below.
+        let fingerprints =
+            super::emitted_os::port_fingerprints(&endpoint_responses, &certificates, &favicons);
 
         // An address nothing answered for has to show evidence beyond the bare connect that got it
         // this far. Everything is in hand by now: the probes have spoken, the endpoints have
@@ -1922,6 +1948,7 @@ impl NetworkScan {
                     // host is.
                     dns_sd: &dns_sd,
                     certificates: &certificates,
+                    fingerprints: &fingerprints,
                 },
                 hostname,
                 self.host_naming_fallback,
@@ -1965,13 +1992,18 @@ impl NetworkScan {
                 }
             }
 
-            // What the host sent unasked: its web servers' `Server` headers and its mDNS
-            // device-info record. Combined with the banner's match above.
-            super::emitted_os::offer_emitted_os(
-                &mut host_data,
-                &endpoint_responses,
-                dns_sd.as_ref(),
-            );
+            // What the host sent unasked: its ports' headers, titles, cookies, favicons and
+            // certificates, and its mDNS device-info record. Combined with the banners' matches
+            // above.
+            super::emitted_os::offer_emitted(&mut host_data, &fingerprints, dns_sd.as_ref());
+            // Last and weakest: the family the host's TCP/IP stack implies, for a host nothing
+            // above named an OS for.
+            if let Some(family) = tcp_stack.os_family(ip) {
+                host_data.offer_fallback_os(Attributed::new(
+                    HostOsValue(HostOs::family_only(family)),
+                    AttributeSource::TcpStackMatch,
+                ));
+            }
 
             ops.record_equal_reach_integrations(ip, &host_data).await;
 

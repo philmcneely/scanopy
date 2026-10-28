@@ -1,3 +1,4 @@
+use crate::server::hosts::r#impl::os::recog::RecogDatabase;
 use crate::server::shared::attribution::AttributeMethod;
 use crate::server::shared::oui;
 use crate::server::{
@@ -660,6 +661,17 @@ pub enum Pattern<'a> {
     /// not listed still matches when a full scan finds it.
     CertificateIssuer(&'a str, &'static [u16]),
 
+    /// Whether a Recog fingerprint of something one of the host's ports emitted (a page title, a
+    /// cookie, a login challenge, a favicon, a certificate) names one of these `service.vendor` and
+    /// `service.product` pairs, exactly as Recog writes them (the vendor empty where Recog gives none).
+    ///
+    /// Detection is Recog's: the definition names products and never copies a regex or a hash, so
+    /// a Recog refresh updates it. Binds the unbound ports a fingerprint matched on.
+    ///
+    /// The ports are where the product's web interface is known to listen. They are scanned and
+    /// requested at `/`, so a light scan reaches them, and are not evidence: the fingerprint is.
+    Recog(&'static [(&'static str, &'static str)], &'static [u16]),
+
     /// Whether a management controller reported this device as the given device class.
     /// Takes a vendor-specific class string (see [`UnifiDeviceType`]), mirroring how
     /// [`Pattern::MacVendor`] takes a vendor string. Only matches when the host was
@@ -735,6 +747,9 @@ impl PartialEq for Pattern<'_> {
             (Pattern::ManagedDeviceType(a), Pattern::ManagedDeviceType(b)) => a == b,
             (Pattern::DnsSd(a, a_txt), Pattern::DnsSd(b, b_txt)) => a == b && a_txt == b_txt,
             (Pattern::CertificateIssuer(a, a_ports), Pattern::CertificateIssuer(b, b_ports)) => {
+                a == b && a_ports == b_ports
+            }
+            (Pattern::Recog(a, a_ports), Pattern::Recog(b, b_ports)) => {
                 a == b && a_ports == b_ports
             }
             (Pattern::None, Pattern::None) => true,
@@ -828,9 +843,29 @@ impl Display for Pattern<'_> {
                     issuer
                 )
             }
+            Pattern::Recog(products, _) => {
+                write!(
+                    f,
+                    "A fingerprint of the host's web interface names {}",
+                    recog_product_names(products)
+                )
+            }
             Pattern::None => write!(f, "No match pattern provided"),
         }
     }
+}
+/// The software a `Pattern::Recog` names, as a reader would: "Citrix NetScaler or F5 BIG-IP LTM".
+fn recog_product_names(products: &[(&str, &str)]) -> String {
+    products
+        .iter()
+        .map(|(vendor, product)| {
+            if vendor.is_empty() || product.contains(vendor) {
+                product.to_string()
+            } else {
+                format!("{vendor} {product}")
+            }
+        })
+        .join(" or ")
 }
 
 /// Whether an address can be a gateway at all: a router another host reaches. A loopback, unspecified
@@ -865,6 +900,7 @@ impl Pattern<'_> {
             managed_device,
             dns_sd,
             certificates,
+            fingerprints,
             ..
         } = baseline_params;
 
@@ -1504,6 +1540,60 @@ impl Pattern<'_> {
                 })
             }
 
+            // A title, cookie or certificate naming the product is the product's own wording, so
+            // `High`. A favicon alone is `Medium`: forks and rebrands keep the icon they started
+            // from, which is why Recog grades every favicon match 0.5.
+            Pattern::Recog(products, _) => {
+                let matching: Vec<_> = fingerprints
+                    .iter()
+                    .filter(|fp| {
+                        fp.matched.software.as_ref().is_some_and(|software| {
+                            products
+                                .contains(&(software.vendor.as_str(), software.product.as_str()))
+                        })
+                    })
+                    .collect();
+                let Some(first) = matching.first() else {
+                    return Err(anyhow!(
+                        "No fingerprint on the host names {}",
+                        recog_product_names(products)
+                    ));
+                };
+                let confidence = if matching
+                    .iter()
+                    .any(|fp| fp.database != RecogDatabase::Favicon)
+                {
+                    MatchConfidence::High
+                } else {
+                    MatchConfidence::Medium
+                };
+                let mut ports: Vec<PortType> = matching
+                    .iter()
+                    .map(|fp| fp.port)
+                    .filter(|port| unbound_ports.contains(port))
+                    .collect();
+                ports.dedup();
+                Ok(MatchResult {
+                    ports,
+                    endpoint: None,
+                    mac_vendor: None,
+                    details: MatchDetails {
+                        reason: MatchReason::Reason(format!(
+                            "{} on {} names {}",
+                            first.source(),
+                            first.port,
+                            first
+                                .matched
+                                .software
+                                .as_ref()
+                                .map(|s| s.product.as_str())
+                                .unwrap_or_default()
+                        )),
+                        confidence,
+                    },
+                })
+            }
+
             Pattern::None => Err(anyhow!("No match pattern provided")),
         }
     }
@@ -1518,7 +1608,7 @@ impl Pattern<'_> {
                 patterns.iter().flat_map(|p| p.ports().to_vec()).collect()
             }
             Pattern::ClientResponse(probe) => probe.ports(),
-            Pattern::CertificateIssuer(_, ports) => {
+            Pattern::CertificateIssuer(_, ports) | Pattern::Recog(_, ports) => {
                 ports.iter().map(|port| PortType::new_tcp(*port)).collect()
             }
             _ => vec![],
@@ -1558,6 +1648,11 @@ impl Pattern<'_> {
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => patterns
                 .iter()
                 .flat_map(|p| p.endpoints().to_vec())
+                .collect(),
+            // The page whose title, cookies and challenge the fingerprints read.
+            Pattern::Recog(_, ports) => ports
+                .iter()
+                .map(|port| Endpoint::for_pattern(PortType::new_tcp(*port), "/"))
                 .collect(),
             _ => vec![],
         }

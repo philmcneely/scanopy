@@ -189,6 +189,13 @@ pub struct ServiceMatchBaselineParams<'a> {
     /// [`Pattern::CertificateIssuer`]. Empty on every path that did not scan the host's ports
     /// itself.
     pub certificates: &'a [crate::daemon::utils::app_probe::tls::PortCertificate],
+    /// What Recog read in each string the host's ports emitted: headers, titles, cookies,
+    /// favicons, certificates. Read by [`Pattern::Recog`]. Empty on every path that did not scan
+    /// the host's ports itself.
+    ///
+    /// [`Pattern::Recog`]: crate::server::services::r#impl::patterns::Pattern::Recog
+    pub fingerprints:
+        &'a [crate::daemon::discovery::service::network::emitted_os::PortFingerprint],
 }
 
 #[derive(Debug, Clone)]

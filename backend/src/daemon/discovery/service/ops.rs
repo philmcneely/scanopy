@@ -49,13 +49,14 @@ use crate::{
             attributes::{
                 HostAssetTagValue, HostChassisIdValue, HostFirmwareRevisionValue,
                 HostHostnameAttributed, HostHostnameValue, HostManagementUrlValue,
-                HostManufacturerValue, HostModelValue, HostOsAttributed, HostOsValue,
-                HostSerialNumberValue, HostSoftwareRevisionValue, HostSysContactValue,
-                HostSysDescrValue, HostSysLocationValue, HostSysNameValue, HostSysObjectIdValue,
+                HostManufacturerValue, HostMatchedDeviceTypeValue, HostModelValue,
+                HostOsAttributed, HostOsValue, HostSerialNumberValue, HostSoftwareRevisionValue,
+                HostSysContactValue, HostSysDescrValue, HostSysLocationValue, HostSysNameValue,
+                HostSysObjectIdValue,
             },
             base::{Host, HostBase},
             name::{HostName, HostNameSources},
-            os::HostOs,
+            os::{HostOs, recog::RecogMatch},
             virtualization::{HostVirtualization, undeclared_virtualization},
         },
         interfaces::{
@@ -254,6 +255,41 @@ pub struct HostData {
     /// Set once two OS matches for this host named different families. Not sent to the server:
     /// it keeps a later match from writing an OS the earlier ones already contradicted.
     matched_os_conflict: bool,
+    /// The same, for the hardware fields a fingerprint match names: set once two matches named a
+    /// different manufacturer, model or device class.
+    matched_hardware_conflict: MatchedHardwareConflict,
+}
+
+/// Which hardware fields two fingerprint matches disagreed on, so a third cannot write one back.
+#[derive(Clone, Copy, Default)]
+struct MatchedHardwareConflict {
+    manufacturer: bool,
+    model: bool,
+    device_type: bool,
+}
+
+/// Offer an inferred value to `slot`, combining matches the way [`HostData::offer_os`] does: two
+/// inferred values that differ mean at least one is wrong, so the slot empties and stays empty for
+/// the rest of the scan. A value read off the host outranks every match and is never displaced.
+fn offer_inferred<T>(
+    slot: &mut Option<Attributed<T>>,
+    candidate: Attributed<T>,
+    conflict: &mut bool,
+) where
+    T: crate::server::shared::attribution::AttributeValue + Clone,
+{
+    if *conflict {
+        return;
+    }
+    if let Some(held) = slot.as_ref()
+        && held.source().method() == AttributeMethod::Inferred
+        && held.value() != candidate.value()
+    {
+        *slot = None;
+        *conflict = true;
+        return;
+    }
+    Attributed::apply(slot, candidate);
 }
 
 /// One integration's interface set, as offered.
@@ -286,6 +322,7 @@ impl HostData {
             contributions: Vec::new(),
             equal_reach_integrations: None,
             matched_os_conflict: false,
+            matched_hardware_conflict: MatchedHardwareConflict::default(),
         }
     }
 
@@ -424,6 +461,49 @@ impl HostData {
             return self;
         }
         Attributed::apply(&mut self.host.base.os, os);
+        self
+    }
+
+    /// Offer everything a fingerprint match names: its OS through [`Self::offer_os`], and its
+    /// manufacturer, model and device class by the same rule, each field on its own, so a camera's
+    /// title and its certificate naming the same maker agree while naming different models empties
+    /// only the model.
+    pub fn offer_match(&mut self, matched: RecogMatch, source: AttributeSource) -> &mut Self {
+        if let Some(os) = matched.os {
+            self.offer_os(Attributed::new(HostOsValue(os), source));
+        }
+        let conflict = &mut self.matched_hardware_conflict;
+        if let Some(manufacturer) = matched.manufacturer {
+            offer_inferred(
+                &mut self.host.base.manufacturer,
+                Attributed::new(HostManufacturerValue(manufacturer), source),
+                &mut conflict.manufacturer,
+            );
+        }
+        if let Some(model) = matched.model {
+            offer_inferred(
+                &mut self.host.base.model,
+                Attributed::new(HostModelValue(model), source),
+                &mut conflict.model,
+            );
+        }
+        if let Some(device_type) = matched.device_type {
+            offer_inferred(
+                &mut self.host.base.matched_device_type,
+                Attributed::new(HostMatchedDeviceTypeValue(device_type), source),
+                &mut conflict.device_type,
+            );
+        }
+        self
+    }
+
+    /// Offer the weakest OS reading there is, one only a host nothing else names an OS for takes:
+    /// a family guessed from the TCP/IP stack. Applied after every other offer, so it never
+    /// contradicts a banner and never revives an OS two matches already contradicted.
+    pub fn offer_fallback_os(&mut self, os: HostOsAttributed) -> &mut Self {
+        if self.host.base.os.is_none() && !self.matched_os_conflict {
+            self.host.base.os = Some(os);
+        }
         self
     }
 
@@ -1957,6 +2037,7 @@ impl DiscoveryOps {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: vec![],
         });
 

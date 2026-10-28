@@ -163,6 +163,7 @@ fn parse_identity_item(data: &[u8]) -> Option<DeviceIdentity> {
 
     let probe = AttributeSource::Probe(ClientProbe::EtherNetIp);
     Some(DeviceIdentity {
+        matched: None,
         // The number, not a name. Recording it as an explicit CIP vendor reference is honest about
         // what it is; resolving it would need the ODVA registry, which is deliberately not shipped.
         //

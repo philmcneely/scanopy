@@ -20,7 +20,18 @@ pub(super) fn os(database: RecogDatabase, input: &str) -> Option<HostOs> {
             .or_else(|| pfsense_sys_descr(input)),
         RecogDatabase::HttpServer => iis_ten_server_header(input),
         RecogDatabase::MdnsDeviceInfo => mac_model_identifier(input),
-        RecogDatabase::SnmpSysObjectId | RecogDatabase::SshBanner | RecogDatabase::ApacheOs => None,
+        RecogDatabase::SnmpSysObjectId
+        | RecogDatabase::SshBanner
+        | RecogDatabase::ApacheOs
+        | RecogDatabase::X509Subject
+        | RecogDatabase::X509Issuer
+        | RecogDatabase::HtmlTitle
+        | RecogDatabase::HttpWwwAuth
+        | RecogDatabase::HttpCookie
+        | RecogDatabase::Favicon
+        | RecogDatabase::FtpBanner
+        | RecogDatabase::TelnetBanner
+        | RecogDatabase::RtspServer => None,
     }
 }
 

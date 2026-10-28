@@ -70,6 +70,7 @@ pub async fn probe_advertised(ctx: &ProbeContext, dns_sd: &DnsSdHost) -> Option<
         port,
         client_probe: Some(ClientProbe::SpotifyConnect),
         identity: Some(DeviceIdentity {
+            matched: None,
             manufacturer: identity_field(info.brand_display_name, source),
             model: identity_field(info.model_display_name, source),
             serial_number: None,

@@ -361,6 +361,7 @@ impl DiscoveryRunner {
             // A bridge is not the daemon's broadcast domain.
             dns_sd: &None,
             certificates: &[],
+            fingerprints: &[],
         };
         let Some(mut found) = ops
             .build_host_from_scan(

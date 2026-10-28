@@ -465,6 +465,7 @@ impl ContainerScanner<'_> {
                 // The daemon reaches it over the LAN, but no mDNS browse ran for it.
                 dns_sd: &None,
                 certificates: &[],
+                fingerprints: &[],
             },
             &[],
             daemon_id,

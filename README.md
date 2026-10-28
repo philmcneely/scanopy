@@ -57,7 +57,7 @@ Scanopy replaces manual network diagrams with a continuously maintained model of
 
 **Inventory**
 - **[Device inventory](https://scanopy.net/product/device-inventory?utm_source=github&utm_medium=readme&utm_campaign=features)**: Every host with its IP and MAC addresses, interfaces, open ports, services, and SNMP hardware facts. Search everything with `/`, filter by site or tag, and export to CSV or read it through the REST API.
-- **[<!-- generated:service-count -->300+<!-- /generated --> service definitions](https://scanopy.net/services?utm_source=github&utm_medium=readme&utm_campaign=features)**: Identifies databases, web servers, printers, cameras, and industrial devices (Modbus TCP, EtherNet/IP, OPC UA, BACnet) by open ports, service responses, and MAC vendor.
+- **[<!-- generated:service-count -->400+<!-- /generated --> service definitions](https://scanopy.net/services?utm_source=github&utm_medium=readme&utm_campaign=features)**: Identifies databases, web servers, printers, cameras, and industrial devices (Modbus TCP, EtherNet/IP, OPC UA, BACnet) by open ports, service responses, and MAC vendor.
 - **[VLANs & subnets](https://scanopy.net/product/vlan-mapping?utm_source=github&utm_medium=readme&utm_campaign=features)**: Reads VLAN tables from your switches over SNMP, shows native and tagged VLANs per port, and links each VLAN to its subnets.
 
 **Track & share**

@@ -161,6 +161,7 @@ pub fn host() -> Host {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: vec![],
         },
     }

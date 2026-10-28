@@ -1354,7 +1354,7 @@ fn only_a_container_placeholder_is_replaced_and_anything_specific_replaces_it() 
 /// (iPad, myQ, pfSense) is spelled as the brand spells it. Brands styled all lowercase are listed.
 #[test]
 fn every_word_of_a_definition_name_is_capitalized() {
-    const LOWERCASE_BRANDS: &[&str] = &["libvirt", "mailcow", "n8n"];
+    const LOWERCASE_BRANDS: &[&str] = &["libvirt", "mailcow", "mongo-express", "n8n", "ntopng"];
 
     let offenders: Vec<&'static str> = ServiceDefinitionRegistry::all_service_definitions()
         .iter()

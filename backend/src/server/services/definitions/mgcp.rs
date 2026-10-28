@@ -1,5 +1,6 @@
 use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::mgcp::MgcpProbe;
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
@@ -17,6 +18,9 @@ impl ServiceDefinition for Mgcp {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Telephony
+    }
+    fn device_type(&self) -> Option<DeviceType> {
+        Some(DeviceType::VoipGateway)
     }
 
     /// Either end of the protocol. A gateway listens on 2427 and a call agent on 2727; finding
