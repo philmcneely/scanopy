@@ -294,6 +294,9 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				email_settings: excluded("The user's own email preferences, not an account fact"),
 				terms_acceptance_required: excluded(
 					"Set only on the signed-in user's own record, false in every list"
+				),
+				email_verification_required: excluded(
+					"Set only on the signed-in user's own record, false in every list"
 				)
 			}),
 			decide('Invite', {

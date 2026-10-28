@@ -7,3 +7,4 @@ pub mod middleware;
 pub mod oidc;
 pub mod service;
 pub mod terms_gate;
+pub mod verification_gate;

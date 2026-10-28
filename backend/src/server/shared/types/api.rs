@@ -489,6 +489,14 @@ impl ApiError {
         )
     }
 
+    /// Forbidden (403) - the user has to verify their email first
+    pub fn email_verification_required() -> Self {
+        Self::coded(
+            StatusCode::FORBIDDEN,
+            ErrorCode::AuthEmailVerificationRequired,
+        )
+    }
+
     /// Forbidden (403) - the user has to accept the current terms before the
     /// API serves their session
     pub fn terms_acceptance_required() -> Self {
