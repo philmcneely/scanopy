@@ -7,10 +7,9 @@
 	import Sidebar from '$lib/shared/components/layout/Sidebar.svelte';
 	import GlobalSearch from '$lib/shared/components/layout/GlobalSearch.svelte';
 	import { onDestroy, onMount } from 'svelte';
-	import { discoverySSEManager } from '$lib/features/discovery/queries';
+	import { liveUpdatesSSEManager } from '$lib/shared/live-updates';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 
-	import { topologySSEManager } from '$lib/features/topology/queries';
 	import { attachUrlState, setActiveTab } from '$lib/shared/stores/url-state';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
@@ -305,21 +304,23 @@
 		}
 	});
 
-	// Real-time streams are main-app routes: connect only once the org is known
-	// to be unlocked, and drop them if the org moves onto a licensed plan. The
-	// topology stream also needs the topology view on the plan (Free lacks it).
+	// The live-update stream is a main-app route: connect only once the org is known
+	// to be unlocked, and drop it if the org moves onto a licensed plan. The server
+	// reads topology access from the plan at connect, so a change to it reconnects.
+	let streamTopologyAccess: boolean | null = null;
 	$effect(() => {
 		if (!appInitialized) return;
-		if (mainAppAvailable && hasTopologyAccess(organization)) {
-			topologySSEManager.connect();
-		} else {
-			topologySSEManager.disconnect();
+		if (!mainAppAvailable) {
+			liveUpdatesSSEManager.disconnect();
+			streamTopologyAccess = null;
+			return;
 		}
-		if (mainAppAvailable) {
-			discoverySSEManager.connect();
-		} else {
-			discoverySSEManager.disconnect();
+		const topologyAccess = hasTopologyAccess(organization);
+		if (streamTopologyAccess !== null && streamTopologyAccess !== topologyAccess) {
+			liveUpdatesSSEManager.disconnect();
 		}
+		streamTopologyAccess = topologyAccess;
+		liveUpdatesSSEManager.connect();
 	});
 
 	// App-load modals show at most one per page load, in this order: the billing
@@ -449,8 +450,7 @@
 	});
 
 	onDestroy(() => {
-		topologySSEManager.disconnect();
-		discoverySSEManager.disconnect();
+		liveUpdatesSSEManager.disconnect();
 
 		if (typeof window !== 'undefined') {
 			window.removeEventListener('hashchange', handleHashChange);

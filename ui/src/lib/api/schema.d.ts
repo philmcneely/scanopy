@@ -2147,7 +2147,7 @@ export interface paths {
          *     subnets they have an interface on, and the request is refused when the host
          *     has none.
          *
-         *     Returns the session, which streams progress over `/api/v1/discoveries/stream`
+         *     Returns the session, which streams progress over `/api/v1/live-updates/stream`
          *     like any other scan. A `Queued` phase means the daemon is busy; it will start
          *     when the running scan finishes.
          */
@@ -12289,6 +12289,26 @@ export interface components {
          * @enum {string}
          */
         LicenseStatusDiscriminants: "valid" | "expired" | "invalid" | "pending";
+        /** @description A site whose live topology changed. */
+        LiveTopologyUpdate: {
+            /**
+             * Format: uuid
+             * @description The site whose live entities changed.
+             */
+            site_id: string;
+        };
+        /** @description An event on the live-update stream (`GET /api/v1/live-updates/stream`). */
+        LiveUpdate: {
+            /** @description Progress or an end state of a discovery session. */
+            data: components["schemas"]["DiscoveryUpdatePayload"];
+            /** @enum {string} */
+            type: "Discovery";
+        } | {
+            /** @description A site's live entity set changed, so its topology needs refetching. */
+            data: components["schemas"]["LiveTopologyUpdate"];
+            /** @enum {string} */
+            type: "Topology";
+        };
         /**
          * @description LLDP Chassis ID subtypes per IEEE 802.1AB.
          *

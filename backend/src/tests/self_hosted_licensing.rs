@@ -592,7 +592,6 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
             get(|| async { "ok" }).post(|| async { "ok" }),
         )
         .route("/api/v1/topologies/data", get(|| async { "ok" }))
-        .route("/api/v1/topologies/stream", get(|| async { "ok" }))
         .route("/api/v1/topologies/export/csv", get(|| async { "ok" }))
         .route("/api/v1/snapshots", get(|| async { "ok" }))
         .layer(middleware::from_fn_with_state(
@@ -622,11 +621,7 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
     );
     // The diagram the app draws behind its plan prompt.
     assert_eq!(get_status(addr, "/api/v1/topologies/data").await.0, 200);
-    for path in [
-        "/api/v1/topologies/stream",
-        "/api/v1/topologies/export/csv",
-        "/api/v1/snapshots",
-    ] {
+    for path in ["/api/v1/topologies/export/csv", "/api/v1/snapshots"] {
         let (status, body) = get_status(addr, path).await;
         assert_eq!(status, 402, "{path}");
         assert!(body.contains("billing_feature_not_available"), "{body}");
@@ -635,7 +630,10 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
     // A plan with the topology view opens the rest.
     set_plan(&state, org.id, pro_plan()).await;
     set_plan_status(&state, org.id, Some(PlanStatus::Trialing)).await;
-    assert_eq!(get_status(addr, "/api/v1/topologies/stream").await.0, 200);
+    assert_eq!(
+        get_status(addr, "/api/v1/topologies/export/csv").await.0,
+        200
+    );
 }
 
 #[tokio::test]

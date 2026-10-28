@@ -16,14 +16,15 @@ use crate::server::{
     discovery::handlers as discovery_handlers, email::handlers as email_handlers,
     hosts::handlers as host_handlers, interfaces::handlers as interface_handlers,
     invites::handlers as invite_handlers, ip_addresses::handlers as ip_address_handlers,
-    license::handlers as license_handlers, metrics::handlers as metrics_handlers,
-    organizations::handlers as organization_handlers, ports::handlers as port_handlers,
-    release_notes::handlers as release_notes_handlers, search::handlers as search_handlers,
-    services::handlers as service_handlers, shares::handlers as share_handlers,
-    sites::handlers as site_handlers, snapshots::handlers as snapshot_handlers,
-    subnets::handlers as subnet_handlers, tags::handlers as tag_handlers,
-    topology::handlers as topology_handlers, user_api_keys::handlers as user_api_key_handlers,
-    users::handlers as user_handlers, vlans::handlers as vlan_handlers,
+    license::handlers as license_handlers, live_updates::handlers as live_update_handlers,
+    metrics::handlers as metrics_handlers, organizations::handlers as organization_handlers,
+    ports::handlers as port_handlers, release_notes::handlers as release_notes_handlers,
+    search::handlers as search_handlers, services::handlers as service_handlers,
+    shares::handlers as share_handlers, sites::handlers as site_handlers,
+    snapshots::handlers as snapshot_handlers, subnets::handlers as subnet_handlers,
+    tags::handlers as tag_handlers, topology::handlers as topology_handlers,
+    user_api_keys::handlers as user_api_key_handlers, users::handlers as user_handlers,
+    vlans::handlers as vlan_handlers,
 };
 use axum::Json;
 use axum::Router;
@@ -85,6 +86,10 @@ fn create_billed_openapi_routes() -> OpenApiRouter<Arc<AppState>> {
         .nest("/api/v1/dashboard", dashboard_handlers::create_router())
         .nest("/api/v1/search", search_handlers::create_router())
         .nest("/api/v1/discoveries", discovery_handlers::create_router())
+        .nest(
+            "/api/v1/live-updates",
+            live_update_handlers::create_router(),
+        )
         // Daemons before v0.19.2 post discovery progress to the collection's old name. Left out of
         // the spec; remove once those daemons are sunset.
         .route(
