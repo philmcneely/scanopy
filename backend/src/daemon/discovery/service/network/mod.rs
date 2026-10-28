@@ -529,6 +529,8 @@ pub(super) struct DeepScanParams<'a> {
         crate::server::credentials::r#impl::mapping::CredentialQueryPayload,
     >],
     known_subnets: Vec<Subnet>,
+    /// The subnets this scan sweeps.
+    scanned_subnets: Vec<Subnet>,
 }
 
 #[cfg(test)]

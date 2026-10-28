@@ -963,6 +963,7 @@ impl NetworkScan {
                                 let probe_raw_socket_ports = self.scan_settings.probe_raw_socket_ports;
                                 let light_scan_ports = self.light_scan_ports.clone();
                                 let site_subnets_ref = site_subnets.clone();
+                                let scanned_subnets_ref = scanned_subnets.clone();
 
                                 let mdns_hosts_ref = mdns_hosts.clone();
                                 let tcp_stack_ref = tcp_stack.clone();
@@ -1000,6 +1001,7 @@ impl NetworkScan {
                                             tcp_stack: tcp_stack_ref,
                                             credential_mappings: &self.credential_mappings,
                                             known_subnets: site_subnets_ref,
+                                            scanned_subnets: scanned_subnets_ref,
                                         }, ops, utils)
                                         .await;
 
@@ -1080,6 +1082,7 @@ impl NetworkScan {
                         let probe_raw_socket_ports = self.scan_settings.probe_raw_socket_ports;
                         let light_scan_ports = self.light_scan_ports.clone();
                         let site_subnets_ref = site_subnets.clone();
+                        let scanned_subnets_ref = scanned_subnets.clone();
 
                         let mdns_hosts_ref = mdns_hosts.clone();
                         let tcp_stack_ref = tcp_stack.clone();
@@ -1118,6 +1121,7 @@ impl NetworkScan {
                                     tcp_stack: tcp_stack_ref,
                                     credential_mappings: &self.credential_mappings,
                                     known_subnets: site_subnets_ref,
+                                    scanned_subnets: scanned_subnets_ref,
                                 }, ops, utils)
                                 .await;
 
@@ -1512,6 +1516,7 @@ impl NetworkScan {
             light_scan_ports,
             credential_mappings,
             known_subnets,
+            scanned_subnets,
 
             mdns_hosts,
             tcp_stack,
@@ -1971,6 +1976,7 @@ impl NetworkScan {
                 host_id: early_host_id,
                 host_naming_fallback: self.host_naming_fallback,
                 known_subnets: &known_subnets,
+                scanned_subnets: &scanned_subnets,
                 scanning_subnet: Some(subnet),
                 ip_address_id: Some(ip_address.id),
             };

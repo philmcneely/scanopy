@@ -205,14 +205,16 @@ pub fn config_nics(config: &GuestConfig) -> Vec<ConfigNic> {
                 key: format!("net{index}"),
                 name: None,
                 mac: None,
+                bridge: None,
                 static_ips: vec![],
             };
             for (k, v) in pairs(value?) {
                 match k.as_str() {
                     "name" => nic.name = Some(v),
+                    "bridge" => nic.bridge = Some(v),
                     "ip" | "ip6" => nic.static_ips.extend(static_ip(&k, &v)),
-                    "bridge" | "tag" | "firewall" | "rate" | "mtu" | "queues" | "trunks" | "gw"
-                    | "gw6" | "type" | "link_down" => {}
+                    "tag" | "firewall" | "rate" | "mtu" | "queues" | "trunks" | "gw" | "gw6"
+                    | "type" | "link_down" => {}
                     // `hwaddr` (LXC), `macaddr`, or the QEMU model key carrying the MAC.
                     _ => {
                         if nic.mac.is_none() {
@@ -244,6 +246,8 @@ pub struct ConfigNic {
     /// The interface name inside an LXC container (`eth0`). QEMU configs carry none.
     pub name: Option<String>,
     pub mac: Option<String>,
+    /// The node bridge or SDN vnet it is attached to (`vmbr0`).
+    pub bridge: Option<String>,
     pub static_ips: Vec<IpAddr>,
 }
 
@@ -502,6 +506,7 @@ pub fn node_addresses(entries: &[NodeNetworkEntry]) -> Vec<NodeAddress> {
 pub struct NodeReading {
     pub os: Option<HostOs>,
     pub addresses: Vec<NodeAddress>,
+    pub bridges: Vec<super::reach::NodeBridge>,
 }
 
 /// A node's host: named by the node name, which is its hostname, and carrying its OS and every
@@ -1274,6 +1279,7 @@ mod tests {
         let reading = NodeReading {
             os: Some(node_os(&data(NODE_STATUS))),
             addresses,
+            ..Default::default()
         };
 
         let lan = lan();

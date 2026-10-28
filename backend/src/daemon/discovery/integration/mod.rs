@@ -434,6 +434,11 @@ pub struct IntegrationContext<'a> {
     /// that cannot be placed in a subnet is dropped rather than deduplicated — which made a
     /// controller rescan silently enrich nothing.
     pub known_subnets: &'a [Subnet],
+    /// The subnets this discovery sweeps, which is what its network scan reaches: an address
+    /// outside every one of them gets no ports or services from the scan, whatever an
+    /// integration records for it. The daemon-host phase runs before the sweep and passes the
+    /// subnets it created from the daemon's own interfaces.
+    pub scanned_subnets: &'a [Subnet],
     pub accept_invalid_certs: bool,
     pub trusted_ca: Option<&'a TrustedCaBundle>,
     /// The subnet currently being scanned (needed by SNMP for remote subnet discovery).
