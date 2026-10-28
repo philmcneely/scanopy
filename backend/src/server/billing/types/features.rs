@@ -94,75 +94,32 @@ impl TypeMetadataProvider for FeatureCategory {
     }
 }
 
-/// Features plan cards list together under one titled line, one item per row, inside their
-/// category. Variant order is display order.
+/// Declaration order is display order: grouped by [`category`](Feature::category), and within a
+/// category in the order plan cards list them (`BillingPlan::incremental_features`).
 #[derive(
     Debug,
     Clone,
     Copy,
     PartialEq,
     Eq,
-    Hash,
     Serialize,
     Deserialize,
-    Display,
     EnumIter,
     IntoStaticStr,
+    Display,
+    Default,
 )]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum FeatureSubgroup {
-    Sharing,
-    Exports,
-}
-
-impl HasId for FeatureSubgroup {
-    fn id(&self) -> &'static str {
-        self.into()
-    }
-}
-
-impl EntityMetadataProvider for FeatureSubgroup {
-    fn color(&self) -> Color {
-        Color::Gray
-    }
-
-    fn icon(&self) -> Icon {
-        match self {
-            Self::Sharing => Icon::Share2,
-            Self::Exports => Icon::FileOutput,
-        }
-    }
-}
-
-impl TypeMetadataProvider for FeatureSubgroup {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::Sharing => "Sharing",
-            Self::Exports => "Exports",
-        }
-    }
-
-    fn description(&self) -> &'static str {
-        match self {
-            Self::Sharing => "Share live diagrams by link or embed",
-            Self::Exports => "Export diagrams to image, document and diagram files",
-        }
-    }
-}
-
-/// Declaration order is display order: grouped by [`category`](Feature::category), and within a
-/// category in the order plan cards list them (`BillingPlan::incremental_features`).
-#[derive(Debug, Clone, Serialize, Deserialize, EnumIter, IntoStaticStr, Display, Default)]
 pub enum Feature {
     // Map: the diagrams, their snapshots, and ways to share and export them
     NetworkTopology,
     WorkloadMapping,
     ApplicationMapping,
     SnapshotRetentionDays,
+    Sharing,
     #[default]
     ShareViews,
     Embeds,
+    Exports,
     PngExport,
     SvgExport,
     PdfExport,
@@ -247,6 +204,8 @@ impl HasId for Feature {
             Feature::InstantOnIntegration => "instant_on_integration",
             Feature::CsvExport => "csv_export",
             Feature::SnapshotRetentionDays => "snapshot_retention_days",
+            Feature::Sharing => "sharing",
+            Feature::Exports => "exports",
             Feature::InvoiceBilling => "invoice_billing",
             Feature::CustomBilling => "custom_billing",
             Feature::ProcurementDocuments => "procurement_documents",
@@ -269,8 +228,10 @@ impl Feature {
             | Feature::WorkloadMapping
             | Feature::ApplicationMapping
             | Feature::SnapshotRetentionDays
+            | Feature::Sharing
             | Feature::ShareViews
             | Feature::Embeds
+            | Feature::Exports
             | Feature::RemoveCreatedWith
             | Feature::PngExport
             | Feature::SvgExport
@@ -313,26 +274,26 @@ impl Feature {
         !matches!(self, Feature::RemoveCreatedWith)
     }
 
-    /// The feature this one extends, which plan cards list it under and the Product menu shows in
-    /// its place. A sub-feature sits in its parent's category, after it.
+    /// The feature this one nests under. Plan cards list it indented under its parent, and the
+    /// Product menu shows only the parent.
     pub fn parent(&self) -> Option<Feature> {
+        if self.export_format().is_some() {
+            return Some(Feature::Exports);
+        }
         match self {
-            Feature::ScheduledDiscovery => Some(Feature::NetworkDiscovery),
+            Feature::ShareViews | Feature::Embeds => Some(Feature::Sharing),
+            Feature::ScheduledDiscovery | Feature::ScanDigests => Some(Feature::NetworkDiscovery),
+            Feature::CsvExport => Some(Feature::DeviceInventory),
             // A feature that unlocks one integration is part of Discovery Integrations.
             _ if self.gates_integration() => Some(Feature::DiscoveryIntegrations),
             _ => None,
         }
     }
 
-    /// The titled line plan cards list this feature under, if any.
-    pub fn subgroup(&self) -> Option<FeatureSubgroup> {
-        if self.export_format().is_some() {
-            return Some(FeatureSubgroup::Exports);
-        }
-        match self {
-            Feature::ShareViews | Feature::Embeds => Some(FeatureSubgroup::Sharing),
-            _ => None,
-        }
+    /// A feature no plan sets on its own: it groups the features under it (Sharing, Exports) and is
+    /// on for a plan when any of them is (`BillingPlan::feature_values`).
+    pub fn is_group(&self) -> bool {
+        matches!(self, Feature::Sharing | Feature::Exports)
     }
 
     /// The format a diagram export writes, which names its row under Exports; `None` for any
@@ -446,6 +407,8 @@ impl TypeMetadataProvider for Feature {
             Feature::InstantOnIntegration => "Aruba Instant On",
             Feature::CsvExport => "CSV Export",
             Feature::SnapshotRetentionDays => "Snapshots",
+            Feature::Sharing => "Sharing",
+            Feature::Exports => "Exports",
             Feature::InvoiceBilling => "Invoice & PO Billing",
             Feature::CustomBilling => "Custom Billing",
             Feature::ProcurementDocuments => "Procurement Documents",
@@ -489,7 +452,9 @@ impl TypeMetadataProvider for Feature {
             Feature::DeviceInventory => {
                 "A searchable inventory of every host discovery finds, with its addresses, services, ports and interfaces"
             }
-            Feature::Tagging => "Tag hosts, services, subnets and VLANs to group and filter them",
+            Feature::Tagging => {
+                "Tag anything in Scanopy, from hosts and VLANs to credentials and API keys, to group and filter it"
+            }
             Feature::VlanSubnetInventory => {
                 "VLANs read from your switches, linked to the subnets behind them"
             }
@@ -542,6 +507,8 @@ impl TypeMetadataProvider for Feature {
             Feature::SnapshotRetentionDays => {
                 "Point-in-time copies of your network map, kept for your plan's retention window"
             }
+            Feature::Sharing => "Share live diagrams by link or embed",
+            Feature::Exports => "Export diagrams to image, document and diagram files",
             Feature::InvoiceBilling => "Pay by invoice against a purchase order instead of by card",
             Feature::CustomBilling => {
                 "Billing schedule and payment terms negotiated to fit your procurement process"
@@ -562,9 +529,8 @@ impl TypeMetadataProvider for Feature {
             // Plan cards list the integrations themselves, so they skip this feature's line.
             "gates_integration": self.gates_integration(),
             "listed_on_plans": self.is_listed_on_plans(),
-            // Plan cards list a subgroup's features under its title (`feature-subgroups.json`),
-            // an export by its format and any other by its name.
-            "subgroup": self.subgroup().map(|s| s.id()),
+            // Plan cards list a feature under its parent, an export by its format and any other
+            // feature by its name.
             "parent": self.parent().map(|p| p.id()),
             "export_format": self.export_format()
         })
@@ -581,7 +547,11 @@ mod tests {
     #[test]
     fn test_feature_ids_match_billing_plan_features_fields() {
         // Get all Feature IDs
-        let feature_ids: HashSet<&str> = Feature::iter().map(|f| f.id()).collect();
+        // Group features (Sharing, Exports) have no field: their value derives from their members.
+        let feature_ids: HashSet<&str> = Feature::iter()
+            .filter(|f| !f.is_group())
+            .map(|f| f.id())
+            .collect();
 
         // Get all keys from BillingPlanFeatures by serializing an instance
         let features = get_community_plan().features();
@@ -621,11 +591,18 @@ mod tests {
         );
     }
 
-    /// A sub-feature lists under its parent, so the parent has to be a listed, top-line feature of
-    /// the same category, declared before it.
+    /// A feature lists under its parent, so the parent has to be a listed, top-line feature of the
+    /// same category, declared before it. A group feature has to group something.
     #[test]
     fn sub_features_follow_a_top_line_parent_in_their_category() {
         let order: Vec<&str> = Feature::iter().map(|f| f.id()).collect();
+        for group in Feature::iter().filter(|f| f.is_group()) {
+            assert!(
+                Feature::iter().any(|f| f.parent() == Some(group)),
+                "{} groups no feature",
+                group.id()
+            );
+        }
         for feature in Feature::iter() {
             let Some(parent) = feature.parent() else {
                 continue;

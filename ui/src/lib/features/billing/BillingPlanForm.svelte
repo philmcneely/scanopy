@@ -82,12 +82,11 @@
 	interface Props {
 		plans: BillingPlan[];
 		billingPlanHelpers: MetadataHelpers<BillingPlanMetadata>;
-		featureHelpers: MetadataHelpers<FeatureMetadata>;
+		/** Feature names and metadata; `getIds` gives the backend's declaration order. */
+		featureHelpers: MetadataHelpers<FeatureMetadata> & { getIds: () => string[] };
 		/** Names and icons of the category headings features are grouped under, in display order
 		 * (`feature-categories.json`). */
 		featureCategoryHelpers: MetadataHelpers<object> & { getIds: () => string[] };
-		/** Titles of the lines some features are listed under on the cards (`feature-subgroups.json`). */
-		featureSubgroupHelpers: MetadataHelpers<object>;
 		/** Names the discovery integrations itemized on each card (`credential-integrations.json`). */
 		integrationHelpers: MetadataHelpers<CredentialIntegrationMetadata>;
 		/** Explains each counted limit on the cards (`plan-limits.json`). */
@@ -119,7 +118,6 @@
 		billingPlanHelpers,
 		featureHelpers,
 		featureCategoryHelpers,
-		featureSubgroupHelpers,
 		integrationHelpers,
 		limitHelpers,
 		onPlanSelect,
@@ -264,10 +262,16 @@
 		);
 	}
 
+	/** Every feature in the backend's declaration order (`features.json` order). */
+	let featureOrder = $derived(featureHelpers.getIds());
+
 	let featureKeys = $derived(
 		filteredPlans.length > 0
-			? Object.keys(billingPlanHelpers.getMetadata(filteredPlans[0].type)?.features || {}).filter(
-					(key) => !isItemizedAsIntegrations(key) && isListed(key)
+			? featureOrder.filter(
+					(key) =>
+						key in (billingPlanHelpers.getMetadata(filteredPlans[0].type)?.features ?? {}) &&
+						!isItemizedAsIntegrations(key) &&
+						isListed(key)
 				)
 			: []
 	);
@@ -426,11 +430,6 @@
 		return featureHelpers.getMetadata(featureKey)?.listed_on_plans !== false;
 	}
 
-	/** The titled line a card lists this feature under (`feature-subgroups.json`); null for none. */
-	function subgroupOf(featureKey: string): string | null {
-		return featureHelpers.getMetadata(featureKey)?.subgroup ?? null;
-	}
-
 	/** The format a diagram export writes; null for any other feature, CSV export included. */
 	function exportFormat(featureKey: string): string | null {
 		return featureHelpers.getMetadata(featureKey)?.export_format ?? null;
@@ -442,51 +441,33 @@
 		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
 	}
 
-	/** The feature a sub-feature extends (`parent` in features.json); null for a top-line feature. */
+	/** The feature this one nests under (`parent` in features.json); null for a top-line feature. */
 	function parentOf(featureKey: string): string | null {
 		return featureHelpers.getMetadata(featureKey)?.parent ?? null;
 	}
 
 	type CardEntry =
-		| { type: 'feature'; key: string }
-		| { type: 'group'; key: string; title: string; tooltip: string; members: string[] };
+		{ type: 'feature'; key: string } | { type: 'group'; key: string; members: string[] };
 
 	/**
-	 * One category's features on a card, in order: a feature on its own, or a titled group with
-	 * its members indented under it. A group is a subgroup (Sharing, Exports), or a parent feature
-	 * with the sub-features the card lists, and sits where its first feature would.
+	 * One category's features on a card, in order: a feature on its own, or a parent with the
+	 * features under it that the card lists, indented. A group sits where its first feature would.
 	 */
 	function cardEntries(features: string[]): CardEntry[] {
 		const entries: CardEntry[] = [];
 		const groups: Record<string, Extract<CardEntry, { type: 'group' }>> = {};
 		const parents = new Set(features.map(parentOf).filter((p) => p !== null));
 		for (const key of features) {
-			const subgroup = subgroupOf(key);
 			const parent = parentOf(key) ?? (parents.has(key) ? key : null);
-			if (!subgroup && !parent) {
+			if (!parent) {
 				entries.push({ type: 'feature', key });
 				continue;
 			}
-			const groupKey = subgroup ? `subgroup:${subgroup}` : `feature:${parent}`;
-			if (!groups[groupKey]) {
-				groups[groupKey] = subgroup
-					? {
-							type: 'group',
-							key: groupKey,
-							title: featureSubgroupHelpers.getName(subgroup),
-							tooltip: featureSubgroupHelpers.getDescription(subgroup),
-							members: []
-						}
-					: {
-							type: 'group',
-							key: groupKey,
-							title: featureHelpers.getName(parent),
-							tooltip: featureHelpers.getDescription(parent),
-							members: []
-						};
-				entries.push(groups[groupKey]);
+			if (!groups[parent]) {
+				groups[parent] = { type: 'group', key: parent, members: [] };
+				entries.push(groups[parent]);
 			}
-			if (key !== parent) groups[groupKey].members.push(key);
+			if (key !== parent) groups[parent].members.push(key);
 		}
 		return entries;
 	}
@@ -517,13 +498,6 @@
 		}
 		return groups;
 	}
-
-	/** Every feature in the backend's declaration order: the field order of a plan's features. */
-	let featureOrder = $derived(
-		Object.keys(
-			plans.length > 0 ? (billingPlanHelpers.getMetadata(plans[0].type)?.features ?? {}) : {}
-		)
-	);
 
 	function sortFeaturesByCategory(features: string[]): string[] {
 		const order: string[] = categoryOrder;
@@ -588,15 +562,17 @@
 	</li>
 {/snippet}
 
-<!-- A titled group of a card's features (a subgroup, or a parent feature and its sub-features), one
+<!-- A parent feature with the features under it that a card lists, one
      member per row, laid out like the integrations.
      An export reads as its format, any other feature as its name. -->
-{#snippet subRows(title: string, hint: string, features: string[])}
+{#snippet subRows(parent: string, features: string[])}
 	<li class="flex items-start gap-2 text-sm">
 		<Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />
 		<div class="flex flex-col gap-1">
-			<span class="explainer self-start text-secondary" data-tooltip={hint} use:tooltip
-				>{title}</span
+			<span
+				class="explainer self-start text-secondary"
+				data-tooltip={featureHelpers.getDescription(parent)}
+				use:tooltip>{featureHelpers.getName(parent)}</span
 			>
 			<ul class="space-y-1">
 				{#each features as featureKey (featureKey)}
@@ -913,7 +889,7 @@
 										<ul class="space-y-1.5">
 											{#each cardEntries(group.features) as entry (entry.key)}
 												{#if entry.type === 'group'}
-													{@render subRows(entry.title, entry.tooltip, entry.members)}
+													{@render subRows(entry.key, entry.members)}
 												{:else}
 													{@const featureKey = entry.key}
 													{@const comingSoon = isComingSoon(featureKey)}

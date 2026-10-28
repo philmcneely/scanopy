@@ -53,8 +53,6 @@ export const COVERED_FIXTURES = [
 	{ file: 'features.json', key: 'features', kind: 'typeMetadata' },
 	// The headings plan cards group features under.
 	{ file: 'feature-categories.json', key: 'feature_categories', kind: 'typeMetadata' },
-	// The titled lines plan cards list some features under (Sharing, Exports).
-	{ file: 'feature-subgroups.json', key: 'feature_subgroups', kind: 'typeMetadata' },
 	{ file: 'discovery-types.json', key: 'discovery_types', kind: 'typeMetadata' },
 	// Why a scan ended. The description is the sentence a customer reads on a failed or stalled
 	// run and pastes into a support request, so it has to be translatable.

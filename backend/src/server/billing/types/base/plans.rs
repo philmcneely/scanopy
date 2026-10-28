@@ -599,12 +599,33 @@ impl BillingPlan {
         }
     }
 
+    /// Every feature's value on this plan, keyed by id: the plan's own fields, plus each group
+    /// feature (Sharing, Exports), which is on when any feature under it is.
+    pub fn feature_values(&self) -> serde_json::Map<String, serde_json::Value> {
+        use strum::IntoEnumIterator;
+
+        let serde_json::Value::Object(mut values) = serde_json::to_value(self.features()).unwrap()
+        else {
+            unreachable!("BillingPlanFeatures serializes to an object")
+        };
+        for group in Feature::iter().filter(|f| f.is_group()) {
+            let on = Feature::iter()
+                .filter(|f| f.parent() == Some(group))
+                .any(|f| {
+                    values
+                        .get(f.id())
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                });
+            values.insert(group.id().to_string(), serde_json::Value::Bool(on));
+        }
+        values
+    }
+
     /// Returns set of feature IDs where the feature is enabled on this plan.
     pub fn enabled_feature_ids(&self) -> HashSet<&'static str> {
-        let features = self.features();
-        let json = serde_json::to_value(&features).unwrap();
-        let obj = json.as_object().unwrap();
-        obj.iter()
+        self.feature_values()
+            .iter()
             .filter(|(_, v)| v.as_bool().unwrap_or(false))
             .map(|(k, _)| {
                 // Leak the key string so we get &'static str
@@ -625,9 +646,8 @@ impl BillingPlan {
     /// Boolean features → true/false directly; numeric features (e.g.
     /// `snapshot_retention_days`) are "enabled" when the value is > 0.
     pub fn has_feature(&self, feature_id: &str) -> bool {
-        let features = self.features();
-        let json = serde_json::to_value(&features).unwrap();
-        let Some(v) = json.get(feature_id) else {
+        let values = self.feature_values();
+        let Some(v) = values.get(feature_id) else {
             return false;
         };
         if let Some(b) = v.as_bool() {
@@ -1511,7 +1531,7 @@ impl TypeMetadataProvider for BillingPlan {
             "included_instances": instance_limits.production,
             "included_non_production_instances": instance_limits.non_production,
             // Feature flags and metadata
-            "features": self.features(),
+            "features": self.feature_values(),
             "includes_topology": self.features().includes_topology(),
             "is_commercial": self.is_commercial(),
             "is_stripe_managed": self.is_stripe_managed(),

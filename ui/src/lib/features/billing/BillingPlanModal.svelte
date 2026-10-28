@@ -3,7 +3,6 @@
 	import billingPlansJson from '$lib/data/billing-plans.json';
 	import featuresJson from '$lib/data/features.json';
 	import featureCategoriesJson from '$lib/data/feature-categories.json';
-	import featureSubgroupsJson from '$lib/data/feature-subgroups.json';
 	import credentialIntegrationsJson from '$lib/data/credential-integrations.json';
 	import planLimitsJson from '$lib/data/plan-limits.json';
 	import BillingPlanForm from '$lib/features/billing/BillingPlanForm.svelte';
@@ -54,10 +53,6 @@
 	const featureCategoryHelpers = createStaticHelpers<object>(
 		'feature_categories',
 		featureCategoriesJson
-	);
-	const featureSubgroupHelpers = createStaticHelpers<object>(
-		'feature_subgroups',
-		featureSubgroupsJson
 	);
 	const integrationHelpers = createStaticHelpers<CredentialIntegrationMetadata>(
 		'credential_integrations',
@@ -273,7 +268,6 @@
 			{billingPlanHelpers}
 			{featureHelpers}
 			{featureCategoryHelpers}
-			{featureSubgroupHelpers}
 			{integrationHelpers}
 			{limitHelpers}
 			showHosting={signingAvailable}

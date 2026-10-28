@@ -278,8 +278,6 @@ export interface FeatureMetadata {
 	listed_on_plans: boolean;
 	/** The format a diagram export writes; plan cards list these under one Exports line. */
 	export_format: string | null;
-	/** The titled line plan cards list this feature under (`feature-subgroups.json`); null for none. */
-	subgroup: string | null;
 	/** The feature a sub-feature extends; plan cards list it under that feature. */
 	parent: string | null;
 }
