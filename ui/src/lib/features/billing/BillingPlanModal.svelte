@@ -21,6 +21,7 @@
 	import type { PaymentFormSource } from '$lib/shared/billing/setup-payment';
 	import { isPlanLapsed, isBillingPlanActive } from '$lib/features/organizations/types';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
+	import SwitchToCloudKeyBanner from './SwitchToCloudKeyBanner.svelte';
 	import { isLicenseSigningAvailable, useConfigQuery } from '$lib/shared/stores/config-query';
 	import { modalState } from '$lib/shared/stores/modal-registry';
 	import { billingOverModal, openBillingModal } from '$lib/features/billing/stores';
@@ -245,10 +246,15 @@
 	usePreloadStripe(() => isOpen);
 </script>
 
+{#snippet keyBanner()}
+	<SwitchToCloudKeyBanner />
+{/snippet}
+
 <GenericModal
 	{isOpen}
 	title=""
 	{name}
+	banners={keyBanner}
 	onClose={dismissible ? () => onClose() : null}
 	size="max"
 	preventCloseOnClickOutside={!dismissible}
