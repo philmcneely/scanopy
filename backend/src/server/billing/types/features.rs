@@ -31,10 +31,8 @@ pub enum Feature {
     WorkloadMapping,
     ApplicationMapping,
     SnapshotRetentionDays,
-    Sharing,
     #[default]
-    ShareViews,
-    Embeds,
+    Sharing,
     Exports,
     PngExport,
     SvgExport,
@@ -52,7 +50,6 @@ pub enum Feature {
     CsvExport,
     // Discovery
     NetworkDiscovery,
-    ScanDigests,
     ScheduledDiscovery,
     DiscoveryIntegrations,
     InstantOnIntegration,
@@ -85,7 +82,6 @@ impl HasId for Feature {
         match self {
             Feature::Webhooks => "webhooks",
             Feature::AuditLogs => "audit_logs",
-            Feature::ShareViews => "share_views",
             Feature::OnboardingCall => "onboarding_call",
             Feature::RemoveCreatedWith => "remove_created_with",
             Feature::CustomSso => "custom_sso",
@@ -94,7 +90,6 @@ impl HasId for Feature {
             Feature::ManagedDeployment => "managed_deployment",
             Feature::Whitelabeling => "whitelabeling",
             Feature::LiveChatSupport => "live_chat_support",
-            Feature::Embeds => "embeds",
             Feature::EmailSupport => "email_support",
             Feature::PrioritySupport => "priority_support",
             Feature::ApiAccess => "api_access",
@@ -114,7 +109,6 @@ impl HasId for Feature {
             Feature::DrawioExport => "drawio_export",
             Feature::VsdxExport => "vsdx_export",
             Feature::NetworkDiscovery => "network_discovery",
-            Feature::ScanDigests => "scan_digests",
             Feature::ScheduledDiscovery => "scheduled_discovery",
             Feature::DiscoveryIntegrations => "discovery_integrations",
             Feature::InstantOnIntegration => "instant_on_integration",
@@ -134,7 +128,6 @@ impl Feature {
     pub fn area(&self) -> ProductArea {
         match self {
             Feature::NetworkDiscovery
-            | Feature::ScanDigests
             | Feature::ScheduledDiscovery
             | Feature::DiscoveryIntegrations
             | Feature::InstantOnIntegration
@@ -145,8 +138,6 @@ impl Feature {
             | Feature::ApplicationMapping
             | Feature::SnapshotRetentionDays
             | Feature::Sharing
-            | Feature::ShareViews
-            | Feature::Embeds
             | Feature::Exports
             | Feature::RemoveCreatedWith
             | Feature::PngExport
@@ -190,26 +181,34 @@ impl Feature {
         !matches!(self, Feature::RemoveCreatedWith)
     }
 
+    /// Whether the website's Product menu gives this feature an entry; the website reads nothing
+    /// else to decide. Off for a feature the plans don't list, for a sub-feature (it shows under its
+    /// parent), and for a top-line feature the product pages present in sections with no entry of
+    /// its own: CSV Export applies to every inventory entity, and Scheduled Discovery comes with
+    /// discovery.
+    pub fn is_listed_in_product_menu(&self) -> bool {
+        self.is_listed_on_plans()
+            && self.parent().is_none()
+            && !matches!(self, Feature::CsvExport | Feature::ScheduledDiscovery)
+    }
+
     /// The feature this one nests under. Plan cards list it indented under its parent, and the
     /// Product menu shows only the parent.
     pub fn parent(&self) -> Option<Feature> {
         if self.export_format().is_some() {
-            return Some(Feature::Exports);
-        }
-        match self {
-            Feature::ShareViews | Feature::Embeds => Some(Feature::Sharing),
-            Feature::ScheduledDiscovery | Feature::ScanDigests => Some(Feature::NetworkDiscovery),
-            Feature::CsvExport => Some(Feature::DeviceInventory),
+            Some(Feature::Exports)
+        } else if self.gates_integration() {
             // A feature that unlocks one integration is part of Discovery Integrations.
-            _ if self.gates_integration() => Some(Feature::DiscoveryIntegrations),
-            _ => None,
+            Some(Feature::DiscoveryIntegrations)
+        } else {
+            None
         }
     }
 
-    /// A feature no plan sets on its own: it groups the features under it (Sharing, Exports) and is
-    /// on for a plan when any of them is (`BillingPlan::feature_values`).
+    /// A feature no plan sets on its own: it groups the features under it (Exports) and is on for a
+    /// plan when any of them is (`BillingPlan::feature_values`).
     pub fn is_group(&self) -> bool {
-        matches!(self, Feature::Sharing | Feature::Exports)
+        matches!(self, Feature::Exports)
     }
 
     /// The format a diagram export writes, which names its row under Exports; `None` for any
@@ -288,7 +287,6 @@ impl TypeMetadataProvider for Feature {
         match self {
             Feature::AuditLogs => "Audit Logs",
             Feature::Webhooks => "Webhooks",
-            Feature::ShareViews => "Direct Links",
             Feature::OnboardingCall => "Onboarding Call",
             Feature::RemoveCreatedWith => "Remove Watermark",
             Feature::CustomSso => "Custom SSO",
@@ -297,7 +295,6 @@ impl TypeMetadataProvider for Feature {
             Feature::ManagedDeployment => "Managed Deployment",
             Feature::Whitelabeling => "White Labeling",
             Feature::LiveChatSupport => "Live Chat Support",
-            Feature::Embeds => "Embeds",
             Feature::ApiAccess => "API Access",
             Feature::EmailSupport => "Email Support",
             Feature::PrioritySupport => "Priority Support",
@@ -317,7 +314,6 @@ impl TypeMetadataProvider for Feature {
             Feature::DrawioExport => "draw.io Export",
             Feature::VsdxExport => "Visio Export",
             Feature::NetworkDiscovery => "Network Discovery",
-            Feature::ScanDigests => "Scan Digests",
             Feature::ScheduledDiscovery => "Scheduled Discovery",
             Feature::DiscoveryIntegrations => "Discovery Integrations",
             Feature::InstantOnIntegration => "Aruba Instant On",
@@ -340,7 +336,6 @@ impl TypeMetadataProvider for Feature {
             Feature::Webhooks => {
                 "Push real-time events to external systems when hosts, services, or topology changes"
             }
-            Feature::ShareViews => "Share live network diagrams with others",
             Feature::OnboardingCall => {
                 "A call with the Scanopy team to get Scanopy set up, deployed and mapping your first network"
             }
@@ -349,7 +344,6 @@ impl TypeMetadataProvider for Feature {
             }
             Feature::ApiAccess => "Programmatic access to your data in Scanopy via API",
             Feature::PrioritySupport => "Prioritized email support with faster response times",
-            Feature::Embeds => "Embed live network diagrams in wikis, dashboards, or documentation",
             Feature::CustomSso => {
                 "Use your own identity provider (Okta, Azure AD, etc.) for single sign-on"
             }
@@ -407,9 +401,6 @@ impl TypeMetadataProvider for Feature {
             Feature::NetworkDiscovery => {
                 "Scan your subnets for hosts, open ports and running services"
             }
-            Feature::ScanDigests => {
-                "An email after each completed scan listing new, stale and changed hosts, services and VLANs"
-            }
             Feature::ScheduledDiscovery => "Schedule automatic network discovery scans",
             Feature::DiscoveryIntegrations => {
                 "Credentials that let discovery read switches, controllers, hypervisors, container runtimes and hosts"
@@ -445,6 +436,7 @@ impl TypeMetadataProvider for Feature {
             // Plan cards list the integrations themselves, so they skip this feature's line.
             "gates_integration": self.gates_integration(),
             "listed_on_plans": self.is_listed_on_plans(),
+            "listed_in_product_menu": self.is_listed_in_product_menu(),
             // Plan cards list a feature under its parent, an export by its format and any other
             // feature by its name.
             "parent": self.parent().map(|p| p.id()),
@@ -463,7 +455,7 @@ mod tests {
     #[test]
     fn test_feature_ids_match_billing_plan_features_fields() {
         // Get all Feature IDs
-        // Group features (Sharing, Exports) have no field: their value derives from their members.
+        // Group features (Exports) have no field: their value derives from their members.
         let feature_ids: HashSet<&str> = Feature::iter()
             .filter(|f| !f.is_group())
             .map(|f| f.id())

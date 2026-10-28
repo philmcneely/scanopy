@@ -83,8 +83,8 @@
 
 	let shareTheme = $state<'default' | 'light' | 'dark'>('default');
 
-	let hasEmbedsFeature = $derived(
-		organization?.plan ? billingPlans.getMetadata(organization.plan.type).features.embeds : true
+	let hasSharingFeature = $derived(
+		organization?.plan ? billingPlans.getMetadata(organization.plan.type).features.sharing : true
 	);
 
 	// Field names for this share in the form array
@@ -199,18 +199,18 @@
 			<div class="space-y-2">
 				<span class="mb-1 flex items-center gap-2 text-sm font-medium text-secondary">
 					{shares_embedCode()}
-					{#if !hasEmbedsFeature}
+					{#if !hasSharingFeature}
 						<Tag {...upgradeTagProps()} />
 					{/if}
 				</span>
-				{#if !hasEmbedsFeature}
+				{#if !hasSharingFeature}
 					<!-- The plan lacks embeds: the action reads as usual and opens the plans. -->
 					<button
 						type="button"
 						class="btn-primary flex items-center gap-2"
 						title={common_availableOnPaidPlans()}
 						onclick={() =>
-							triggerUpgrade({ feature: 'embeds', source: 'share_panel', surface: 'share_panel' })}
+							triggerUpgrade({ feature: 'sharing', source: 'share_panel', surface: 'share_panel' })}
 					>
 						<PaidCrown onPrimary />
 						{shares_getEmbedCode()}
