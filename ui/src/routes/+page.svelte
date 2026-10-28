@@ -21,6 +21,9 @@
 	import DaemonPromptModal from '$lib/features/daemons/components/DaemonPromptModal.svelte';
 	import ReleaseNotesModal from '$lib/features/release-notes/ReleaseNotesModal.svelte';
 	import TermsAcceptanceModal from '$lib/features/auth/components/TermsAcceptanceModal.svelte';
+	import EmailVerificationGate from '$lib/features/auth/components/EmailVerificationGate.svelte';
+	import { useQueryClient } from '@tanstack/svelte-query';
+	import { queryKeys } from '$lib/api/query-client';
 	import {
 		useUnseenReleaseNotesQuery,
 		useMarkReleaseNotesSeenMutation
@@ -65,6 +68,9 @@
 	// The server refuses this user's main-app requests until they accept the
 	// current terms, so the app stays unmounted behind the acceptance screen.
 	let termsGated = $derived(currentUserQuery.data?.terms_acceptance_required === true);
+	// The same for a user of an org on a license plan who hasn't verified their
+	// email: the server decides, and the step replaces the app until they do.
+	let verificationGated = $derived(currentUserQuery.data?.email_verification_required === true);
 
 	// Billing modal: show when billing is enabled but user has no active plan
 	const configQuery = useConfigQuery();
@@ -85,6 +91,19 @@
 	// waitForOrgUpdate invalidates and refetches at once, so a seeded plan reverts
 	// within milliseconds and the License tab flickers out of the tab list.
 	let licensedPlanJustPicked = $state(false);
+	// The server sets email_verification_required from the org's plan, so a plan
+	// change (a license trial landing after sign-up, or a later switch) refetches
+	// the current user to pick it up.
+	const queryClient = useQueryClient();
+	let lastPlanType: string | null | undefined = undefined;
+	$effect(() => {
+		const planType = organization?.plan?.type;
+		if (planType === undefined) return;
+		if (lastPlanType !== undefined && planType !== lastPlanType) {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.auth.currentUser() });
+		}
+		lastPlanType = planType;
+	});
 	let isSelfHostedPlanLocked = $derived(
 		(isCloudDeployment && licensedPlanJustPicked) ||
 			isSelfHostedPlanLockedFor(organization, isCloudDeployment)
@@ -104,7 +123,11 @@
 	let isMainAppLocked = $derived(isSelfHostedPlanLocked || planUnchosen);
 	// Main-app data (SSE streams, daemons) waits until the lock state is known.
 	let mainAppAvailable = $derived(
-		configQuery.data != null && organization != null && !isMainAppLocked && !termsGated
+		configQuery.data != null &&
+			organization != null &&
+			!isMainAppLocked &&
+			!termsGated &&
+			!verificationGated
 	);
 
 	// TanStack Query for daemons - used to determine default tab
@@ -438,6 +461,8 @@
 
 {#if appInitialized && termsGated}
 	<TermsAcceptanceModal isOpen={true} />
+{:else if appInitialized && verificationGated}
+	<EmailVerificationGate isOpen={true} />
 {:else if appInitialized}
 	<div class="flex h-dvh">
 		<!-- Sidebar -->

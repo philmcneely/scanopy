@@ -7,4 +7,4 @@ pub mod fixture_capture;
 pub mod logging;
 pub mod permissions;
 pub mod rate_limit;
-pub mod terms;
+pub mod session_gate;

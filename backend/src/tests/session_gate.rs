@@ -1,5 +1,6 @@
-//! The terms re-acceptance gate against a real database: which requests a
-//! user who has to accept the terms is refused, and that accepting lets them in.
+//! The session gates against a real database: which requests a user who has
+//! to accept the terms, or to verify their email on a license plan, is
+//! refused, and that doing so lets them in.
 
 use std::sync::{Arc, Mutex};
 
@@ -11,14 +12,16 @@ use axum::routing::{get, post};
 use chrono::{Duration, Utc};
 use uuid::Uuid;
 
-use super::self_hosted_licensing::{cloud_test_state, create_org, test_state_with_email_dir};
+use super::self_hosted_licensing::{
+    cloud_test_state, create_org, test_state_from, test_state_with_email_dir,
+};
 use super::user;
 use crate::server::auth::middleware::auth::AuthenticatedEntity;
-use crate::server::auth::middleware::terms::terms_gate_middleware;
+use crate::server::auth::middleware::session_gate::session_gate_middleware;
 use crate::server::auth::terms_gate::{TERMS_ACCEPTANCE_EFFECTIVE, acceptance_required};
-use crate::server::billing::plans::get_enterprise_plan;
+use crate::server::billing::plans::{get_enterprise_plan, get_self_hosted_standard_plan};
 use crate::server::billing::types::base::{BillingPlan, PlanConfig};
-use crate::server::config::{AppState, DeploymentType};
+use crate::server::config::{AppState, DeploymentType, ServerConfig};
 use crate::server::shared::services::traits::CrudService;
 use crate::server::users::r#impl::base::User;
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
@@ -57,7 +60,7 @@ async fn stale_user(state: &AppState, organization_id: &Uuid) -> User {
         .unwrap()
 }
 
-/// Serve a few routes behind the terms gate. Whoever `current` holds is the
+/// Serve a few routes behind the session gates. Whoever `current` holds is the
 /// authenticated caller of every request.
 async fn serve_gated(
     state: &Arc<AppState>,
@@ -69,9 +72,12 @@ async fn serve_gated(
         .route("/api/v1/organizations/current", get(|| async { "ok" }))
         .route("/api/auth/me", post(|| async { "ok" }))
         .route("/api/billing/checkout", post(|| async { "ok" }))
+        .route("/api/v1/licenses/keys/current", get(|| async { "ok" }))
+        .route("/api/auth/resend-verification", post(|| async { "ok" }))
+        .route("/api/auth/request-email-change", post(|| async { "ok" }))
         .layer(middleware::from_fn_with_state(
             state.clone(),
-            terms_gate_middleware,
+            session_gate_middleware,
         ))
         .layer(middleware::from_fn(
             move |mut request: Request<Body>, next: Next| {
@@ -176,6 +182,122 @@ async fn a_self_hosted_server_enforcing_plan_limits_never_gates() {
     let addr = serve_gated(&state, Arc::new(Mutex::new(session(&stale)))).await;
     assert_eq!(
         status(addr, reqwest::Method::GET, "/api/v1/hosts").await.0,
+        200
+    );
+}
+
+/// A Scanopy Cloud server whose email transport writes into `dir`.
+async fn cloud_state_with_email(
+    dir: &tempfile::TempDir,
+) -> (
+    Arc<AppState>,
+    testcontainers::ContainerAsync<testcontainers::GenericImage>,
+) {
+    test_state_from(ServerConfig {
+        stripe_secret: Some("sk_test_unused".to_string()),
+        email_log_dir: Some(dir.path().to_path_buf()),
+        ..ServerConfig::default()
+    })
+    .await
+}
+
+/// `user`'s session before they have verified their email.
+fn unverified_session(user: &User) -> AuthenticatedEntity {
+    let mut entity = session(user);
+    if let AuthenticatedEntity::User { email_verified, .. } = &mut entity {
+        *email_verified = false;
+    }
+    entity
+}
+
+#[tokio::test]
+async fn an_unverified_license_plan_user_is_refused_outside_the_verification_routes() {
+    let dir = tempfile::tempdir().unwrap();
+    let (state, _container) = cloud_state_with_email(&dir).await;
+    assert!(state.services.email_service.is_some());
+    let org = create_org(&state, get_self_hosted_standard_plan(), None).await;
+    let buyer = user(&org.id);
+
+    let current = Arc::new(Mutex::new(unverified_session(&buyer)));
+    let addr = serve_gated(&state, current.clone()).await;
+
+    for (method, path) in [
+        (reqwest::Method::POST, "/api/billing/checkout"),
+        (reqwest::Method::GET, "/api/v1/licenses/keys/current"),
+        (reqwest::Method::GET, "/api/v1/hosts"),
+    ] {
+        let (code, body) = status(addr, method, path).await;
+        assert_eq!(code, 403, "{path}");
+        assert!(body.contains("auth_email_verification_required"), "{path}");
+    }
+    for path in [
+        "/api/auth/me",
+        "/api/auth/resend-verification",
+        "/api/auth/request-email-change",
+    ] {
+        assert_eq!(
+            status(addr, reqwest::Method::POST, path).await.0,
+            200,
+            "{path}"
+        );
+    }
+    assert_eq!(
+        status(addr, reqwest::Method::GET, "/api/v1/organizations/current")
+            .await
+            .0,
+        200
+    );
+
+    // Verified, the same user reaches the License routes.
+    *current.lock().unwrap() = session(&buyer);
+    assert_eq!(
+        status(addr, reqwest::Method::GET, "/api/v1/licenses/keys/current")
+            .await
+            .0,
+        200
+    );
+}
+
+#[tokio::test]
+async fn an_unverified_cloud_plan_user_is_not_gated() {
+    let dir = tempfile::tempdir().unwrap();
+    let (state, _container) = cloud_state_with_email(&dir).await;
+    let org = create_org(&state, get_enterprise_plan(), None).await;
+
+    let addr = serve_gated(
+        &state,
+        Arc::new(Mutex::new(unverified_session(&user(&org.id)))),
+    )
+    .await;
+    assert_eq!(
+        status(addr, reqwest::Method::GET, "/api/v1/hosts").await.0,
+        200
+    );
+    assert_eq!(
+        status(addr, reqwest::Method::POST, "/api/billing/checkout")
+            .await
+            .0,
+        200
+    );
+}
+
+/// No email transport means no link can arrive, so a license-plan user is
+/// never held for one.
+#[tokio::test]
+async fn a_server_with_no_email_transport_does_not_gate_verification() {
+    let (state, _container) = cloud_test_state().await;
+    assert!(state.services.email_service.is_none());
+    let org = create_org(&state, get_self_hosted_standard_plan(), None).await;
+
+    let addr = serve_gated(
+        &state,
+        Arc::new(Mutex::new(unverified_session(&user(&org.id)))),
+    )
+    .await;
+    assert_eq!(
+        status(addr, reqwest::Method::GET, "/api/v1/licenses/keys/current")
+            .await
+            .0,
         200
     );
 }

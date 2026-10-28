@@ -225,6 +225,8 @@ pub(crate) async fn register(
         clear_pending_setup(&session).await;
     }
 
+    // An invitee joining a license-plan org on a link-only invite starts gated.
+    let user = with_org_session_gates(&state, user).await?;
     Ok(Json(ApiResponse::success(user)))
 }
 

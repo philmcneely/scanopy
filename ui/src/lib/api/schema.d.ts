@@ -16307,6 +16307,12 @@ export interface components {
             email: string;
             /** @description Per-user email preferences */
             email_settings?: components["schemas"]["EmailSettings"];
+            /**
+             * @description Whether the user must verify their email before the API serves their
+             *     session (an org on a license plan, see `auth::verification_gate`).
+             *     Computed and set like `terms_acceptance_required`.
+             */
+            readonly email_verification_required?: boolean;
             /** @description Whether the user has verified their email address */
             email_verified?: boolean;
             /** @description Whether the user has a password set — computed from password_hash, never stored in DB */

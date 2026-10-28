@@ -49261,6 +49261,11 @@
             "$ref": "#/components/schemas/EmailSettings",
             "description": "Per-user email preferences"
           },
+          "email_verification_required": {
+            "type": "boolean",
+            "description": "Whether the user must verify their email before the API serves their\nsession (an org on a license plan, see `auth::verification_gate`).\nComputed and set like `terms_acceptance_required`.",
+            "readOnly": true
+          },
           "email_verified": {
             "type": "boolean",
             "description": "Whether the user has verified their email address"
