@@ -4184,19 +4184,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-28T00:42:41.755884Z",
+             *       "created_at": "2026-10-29T00:47:12.834954Z",
              *       "first_discovery_id": null,
-             *       "id": "bcc539d7-970d-4d4d-9284-c9e82aa4b5a8",
+             *       "id": "a01a3c0d-4f57-4430-a023-5b5efbadad34",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-28T00:42:41.755884Z",
+             *       "last_seen_at": "2026-10-29T00:47:12.834954Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-28T00:42:41.755884Z",
-             *       "valid_from": "2026-10-28T00:42:41.755884Z",
+             *       "updated_at": "2026-10-29T00:47:12.834954Z",
+             *       "valid_from": "2026-10-29T00:47:12.834954Z",
              *       "valid_to": null
              *     }
              */
@@ -4950,6 +4950,11 @@ export interface components {
              *       "credential_assignments": [],
              *       "description": "Primary web server",
              *       "device_type": "Server",
+             *       "device_type_source": {
+             *         "service_id": "550e8400-e29b-41d4-a716-446655440007",
+             *         "service_name": "nginx",
+             *         "type": "Service"
+             *       },
              *       "display_name": "web-server-01",
              *       "display_name_rung": "Name",
              *       "firmware_revision": null,
@@ -5074,19 +5079,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-28T00:42:41.723827Z",
+             *               "created_at": "2026-10-29T00:47:12.802662Z",
              *               "first_discovery_id": null,
-             *               "id": "910ece85-79d2-4187-b76c-e040cde0ef0a",
+             *               "id": "fd1564f8-c075-433b-9769-91a6f2a9af3b",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-28T00:42:41.723827Z",
+             *               "last_seen_at": "2026-10-29T00:47:12.802662Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-28T00:42:41.723827Z",
-             *               "valid_from": "2026-10-28T00:42:41.723827Z",
+             *               "updated_at": "2026-10-29T00:47:12.802662Z",
+             *               "valid_from": "2026-10-29T00:47:12.802662Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5099,7 +5104,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Wizarr",
+             *           "service_definition": "Ntfy",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -5156,10 +5161,16 @@ export interface components {
                 description?: string | null;
                 /**
                  * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
-                 *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
+                 *     by [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC
+                 *     vendor, as the topology computes it.
                  *     Read-only.
                  */
                 readonly device_type?: components["schemas"]["DeviceType"];
+                /**
+                 * @description Which rung of the ladder decided `device_type`, and its evidence: a service, the stored
+                 *     fingerprint match with its source, or a field the type is derived from. Read-only.
+                 */
+                readonly device_type_source?: components["schemas"]["HostDeviceTypeSource"];
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -6103,19 +6114,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-28T00:42:41.750643Z",
+             *           "created_at": "2026-10-29T00:47:12.829717Z",
              *           "first_discovery_id": null,
-             *           "id": "135ebc02-c051-41c2-995f-e39d4bc92d66",
+             *           "id": "42aad322-889d-410b-909e-1091fd63dfbd",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-28T00:42:41.750643Z",
+             *           "last_seen_at": "2026-10-29T00:47:12.829717Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-28T00:42:41.750643Z",
-             *           "valid_from": "2026-10-28T00:42:41.750643Z",
+             *           "updated_at": "2026-10-29T00:47:12.829717Z",
+             *           "valid_from": "2026-10-29T00:47:12.829717Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6128,7 +6139,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Wizarr",
+             *       "service_definition": "Ntfy",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7570,19 +7581,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-28T00:42:41.724415Z",
+         *       "created_at": "2026-10-29T00:47:12.803281Z",
          *       "first_discovery_id": null,
-         *       "id": "ec36645c-68f7-4259-b8cb-05917d767366",
+         *       "id": "625dba3d-c23d-4477-aa4c-b0fc9b5e2fa5",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-28T00:42:41.724415Z",
+         *       "last_seen_at": "2026-10-29T00:47:12.803281Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-28T00:42:41.724415Z",
-         *       "valid_from": "2026-10-28T00:42:41.724415Z",
+         *       "updated_at": "2026-10-29T00:47:12.803281Z",
+         *       "valid_from": "2026-10-29T00:47:12.803281Z",
          *       "valid_to": null
          *     }
          */
@@ -7972,7 +7983,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Wizarr",
+         *           "service_definition": "Ntfy",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -9745,6 +9756,33 @@ export interface components {
             /** @description The integration that would read it. */
             integration: components["schemas"]["CredentialIntegration"];
         } | {
+            /** @description The guest's first address. */
+            address: string;
+            /** @enum {string} */
+            code: "ProxmoxGuestOutsideScan";
+            /** @description Its Proxmox VE name, else its VMID. */
+            guest: string;
+        } | {
+            /** @description The guest's first address. */
+            address: string;
+            /** @description The bridge its NIC is on. */
+            bridge: string;
+            /** @enum {string} */
+            code: "ProxmoxGuestBehindNode";
+            /** @description Its Proxmox VE name, else its VMID. */
+            guest: string;
+            /** @description The node it runs on. */
+            node: string;
+        } | {
+            /** @description The guest's first address. */
+            address: string;
+            /** @description The bridge its NIC is on. */
+            bridge: string;
+            /** @enum {string} */
+            code: "ProxmoxGuestIsolated";
+            /** @description Its Proxmox VE name, else its VMID. */
+            guest: string;
+        } | {
             /** @description The subnet the addresses are in. */
             cidr: string;
             /** @enum {string} */
@@ -10291,7 +10329,7 @@ export interface components {
             instances?: components["schemas"]["InstanceUsage"] | null;
         };
         /** @enum {string} */
-        EntityDiscriminants: "Site" | "Vlan" | "Subnet" | "Host" | "Service" | "IPAddress" | "Interface" | "Port" | "Binding" | "Discovery" | "Daemon" | "DaemonApiKey" | "Tag" | "TagGroup" | "User" | "UserApiKey" | "Credential" | "Organization" | "Invite" | "Topology" | "Snapshot" | "Share" | "Dependency";
+        EntityDiscriminants: "Topology" | "Snapshot" | "Share" | "Dependency" | "Site" | "Vlan" | "Subnet" | "Host" | "Service" | "IPAddress" | "Interface" | "Port" | "Binding" | "Discovery" | "Daemon" | "DaemonApiKey" | "Credential" | "Tag" | "TagGroup" | "User" | "UserApiKey" | "Organization" | "Invite";
         /** @description One fact that describes an entity, possibly read from a related entity. */
         EntityField: {
             /**
@@ -10747,6 +10785,42 @@ export interface components {
             chassis_id?: string;
             chassis_id_source?: components["schemas"]["AttributeSource"];
         };
+        /**
+         * @description Which rung of [`Host::device_type`] decided a host's device type, and the evidence on it.
+         *
+         *     Only `Matched` is a stored value with a source of its own. Every other rung is derived from
+         *     other fields each time the host is read, so the UI says which ones instead of naming a source.
+         */
+        HostDeviceTypeSource: {
+            /** Format: uuid */
+            service_id: string;
+            service_name: string;
+            /** @enum {string} */
+            type: "Service";
+        } | {
+            source: components["schemas"]["AttributeSource"];
+            /** @enum {string} */
+            type: "Matched";
+        } | {
+            source: components["schemas"]["AttributeSource"];
+            /** @enum {string} */
+            type: "OperatingSystem";
+        } | {
+            /** @enum {string} */
+            type: "Hostname";
+        } | {
+            /** @enum {string} */
+            type: "Name";
+        } | {
+            /** @enum {string} */
+            type: "MacVendor";
+        } | {
+            /** @enum {string} */
+            type: "Containers";
+        } | {
+            /** @enum {string} */
+            type: "NoEvidence";
+        };
         HostFirmwareRevision: {
             /** @description ENTITY-MIB entPhysicalFirmwareRev - firmware revision of the device as a whole */
             firmware_revision?: string;
@@ -10873,6 +10947,11 @@ export interface components {
          *       "credential_assignments": [],
          *       "description": "Primary web server",
          *       "device_type": "Server",
+         *       "device_type_source": {
+         *         "service_id": "550e8400-e29b-41d4-a716-446655440007",
+         *         "service_name": "nginx",
+         *         "type": "Service"
+         *       },
          *       "display_name": "web-server-01",
          *       "display_name_rung": "Name",
          *       "firmware_revision": null,
@@ -10997,19 +11076,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-28T00:42:41.723110Z",
+         *               "created_at": "2026-10-29T00:47:12.801921Z",
          *               "first_discovery_id": null,
-         *               "id": "823365da-8a61-4f9b-b70b-64fd375c67f2",
+         *               "id": "80e6579b-ed7f-418b-89cc-04ecb3964e28",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-28T00:42:41.723110Z",
+         *               "last_seen_at": "2026-10-29T00:47:12.801921Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-28T00:42:41.723110Z",
-         *               "valid_from": "2026-10-28T00:42:41.723110Z",
+         *               "updated_at": "2026-10-29T00:47:12.801921Z",
+         *               "valid_from": "2026-10-29T00:47:12.801921Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -11022,7 +11101,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Wizarr",
+         *           "service_definition": "Ntfy",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -11079,10 +11158,16 @@ export interface components {
             description?: string | null;
             /**
              * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
-             *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
+             *     by [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC
+             *     vendor, as the topology computes it.
              *     Read-only.
              */
             readonly device_type?: components["schemas"]["DeviceType"];
+            /**
+             * @description Which rung of the ladder decided `device_type`, and its evidence: a service, the stored
+             *     fingerprint match with its source, or a field the type is derived from. Read-only.
+             */
+            readonly device_type_source?: components["schemas"]["HostDeviceTypeSource"];
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.
@@ -13067,10 +13152,16 @@ export interface components {
                 description?: string | null;
                 /**
                  * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
-                 *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
+                 *     by [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC
+                 *     vendor, as the topology computes it.
                  *     Read-only.
                  */
                 readonly device_type?: components["schemas"]["DeviceType"];
+                /**
+                 * @description Which rung of the ladder decided `device_type`, and its evidence: a service, the stored
+                 *     fingerprint match with its source, or a field the type is derived from. Read-only.
+                 */
+                readonly device_type_source?: components["schemas"]["HostDeviceTypeSource"];
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -14619,19 +14710,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-28T00:42:41.724236Z",
+         *           "created_at": "2026-10-29T00:47:12.803076Z",
          *           "first_discovery_id": null,
-         *           "id": "476f6de7-bedf-45a1-b9ef-1e26dc9fc06a",
+         *           "id": "c31044f7-598d-4af3-9e4f-18e8260edd7c",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-28T00:42:41.724236Z",
+         *           "last_seen_at": "2026-10-29T00:47:12.803076Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-28T00:42:41.724236Z",
-         *           "valid_from": "2026-10-28T00:42:41.724236Z",
+         *           "updated_at": "2026-10-29T00:47:12.803076Z",
+         *           "valid_from": "2026-10-29T00:47:12.803076Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14644,7 +14735,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Wizarr",
+         *       "service_definition": "Ntfy",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15824,7 +15915,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "d2c1b8e6-617c-4394-ba94-9925cd66f1a7",
+             *           "id": "df96f4f3-7096-44be-b3d0-5f1c4173ffcd",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15834,23 +15925,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "d50dff9d-2c19-4de4-a729-75554774034e",
+             *           "id": "d360e90b-4e00-47f9-a5d9-d9d49d3138cd",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "e196df25-8f05-4ece-aeea-c185a767912c",
+             *           "id": "7e5c4a0a-702a-413c-87b1-c8166db55393",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "94b26af4-62f0-4b56-b4e5-6b0b7b3510c1",
+             *           "id": "4d25df00-aa2b-4328-8759-8eada9550c4e",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "d50dff9d-2c19-4de4-a729-75554774034e",
+             *           "id": "d360e90b-4e00-47f9-a5d9-d9d49d3138cd",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15864,19 +15955,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "346948de-0cc6-4193-a77a-9514db9da76e",
+             *         "id": "0926321a-e327-4167-bc01-6838ac881b71",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "3726f09e-ee90-4c46-a70a-6f3eac3b244c",
+             *         "id": "17d388fe-2933-48ea-bcbe-f5b4eff95f99",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "ab52c561-77f2-40ea-8f86-7513b6c36909",
+             *         "id": "69a7a354-27af-4d17-a444-008306602826",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "4713a672-2f56-45d4-b829-0573a95587cc",
+             *         "id": "abf47a5e-cc20-403c-ae21-c80aac1b286b",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15897,7 +15988,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "51845e1f-8f38-492d-acc7-520ad802d88f",
+             *         "id": "abbcf394-7f25-4153-8cce-da6030da4d6a",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15906,19 +15997,19 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "59e78070-26d1-473d-ae22-a6eefceb97cd",
+             *         "id": "7c3073be-53ae-46cb-a88e-d4e888388a2b",
              *         "rule": "ByDeviceType"
              *       },
              *       {
-             *         "id": "cf02629e-0d91-4edf-ae61-2b2a724e31d5",
+             *         "id": "17ba93c0-18cd-4062-9ede-20dff6e3d1bf",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "e70f437d-2fff-4493-bf7a-64e591977c13",
+             *         "id": "29e4f20a-b460-496c-9f04-1c243713661d",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "321c9a9c-0a33-407c-b520-1363c5196435",
+             *         "id": "fecc6bbe-5721-44a6-97b2-bc825cff9322",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -22629,7 +22720,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse_LicenseKeyResponse"];
                 };
             };
-            /** @description Not an owner, or the plan does not include this key type */
+            /** @description Not an owner, the plan has no license key, or the plan does not include this key type */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -22658,7 +22749,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse_LicenseKeyResponse"];
                 };
             };
-            /** @description Not an owner, or the organization has no license */
+            /** @description Not an owner, or the plan has no license key */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -22687,7 +22778,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse"];
                 };
             };
-            /** @description Not an owner */
+            /** @description Not an owner, or the plan has no license key */
             403: {
                 headers: {
                     [name: string]: unknown;

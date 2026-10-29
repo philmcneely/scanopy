@@ -15691,19 +15691,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-28T00:42:41.837192Z",
+              "created_at": "2026-10-29T00:47:12.917925Z",
               "first_discovery_id": null,
-              "id": "ed0836da-ef76-4574-b038-0ce5093ed5b8",
+              "id": "9042c729-1376-49c2-88a3-cc42de0ee98b",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-28T00:42:41.837192Z",
+              "last_seen_at": "2026-10-29T00:47:12.917925Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-28T00:42:41.837192Z",
-              "valid_from": "2026-10-28T00:42:41.837192Z",
+              "updated_at": "2026-10-29T00:47:12.917925Z",
+              "valid_from": "2026-10-29T00:47:12.917925Z",
               "valid_to": null
             }
           },
@@ -17007,7 +17007,12 @@
               },
               "device_type": {
                 "$ref": "#/components/schemas/DeviceType",
-                "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only.",
+                "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC\nvendor, as the topology computes it.\nRead-only.",
+                "readOnly": true
+              },
+              "device_type_source": {
+                "$ref": "#/components/schemas/HostDeviceTypeSource",
+                "description": "Which rung of the ladder decided `device_type`, and its evidence: a service, the stored\nfingerprint match with its source, or a field the type is derived from. Read-only.",
                 "readOnly": true
               },
               "display_name": {
@@ -17360,6 +17365,11 @@
               "credential_assignments": [],
               "description": "Primary web server",
               "device_type": "Server",
+              "device_type_source": {
+                "service_id": "550e8400-e29b-41d4-a716-446655440007",
+                "service_name": "nginx",
+                "type": "Service"
+              },
               "display_name": "web-server-01",
               "display_name_rung": "Name",
               "firmware_revision": null,
@@ -17484,19 +17494,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-28T00:42:41.809069Z",
+                      "created_at": "2026-10-29T00:47:12.889561Z",
                       "first_discovery_id": null,
-                      "id": "97c0cc2d-d134-48ab-945a-df944f2db316",
+                      "id": "8ce1cada-2e40-4831-a3fe-b9e484898001",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-28T00:42:41.809069Z",
+                      "last_seen_at": "2026-10-29T00:47:12.889561Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-28T00:42:41.809069Z",
-                      "valid_from": "2026-10-28T00:42:41.809069Z",
+                      "updated_at": "2026-10-29T00:47:12.889561Z",
+                      "valid_from": "2026-10-29T00:47:12.889561Z",
                       "valid_to": null
                     }
                   ],
@@ -17509,7 +17519,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Wizarr",
+                  "service_definition": "Ntfy",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -19001,19 +19011,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-28T00:42:41.832514Z",
+                  "created_at": "2026-10-29T00:47:12.913229Z",
                   "first_discovery_id": null,
-                  "id": "7be11d8e-1bf6-4496-aa25-a36f61bbbbd7",
+                  "id": "8ae9c6f3-f4d8-4b96-baf3-e5bc83bf5014",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-28T00:42:41.832514Z",
+                  "last_seen_at": "2026-10-29T00:47:12.913229Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-28T00:42:41.832514Z",
-                  "valid_from": "2026-10-28T00:42:41.832514Z",
+                  "updated_at": "2026-10-29T00:47:12.913229Z",
+                  "valid_from": "2026-10-29T00:47:12.913229Z",
                   "valid_to": null
                 }
               ],
@@ -19026,7 +19036,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Wizarr",
+              "service_definition": "Ntfy",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -20074,6 +20084,10 @@
                 "propertyNames": {
                   "type": "string",
                   "enum": [
+                    "Topology",
+                    "Snapshot",
+                    "Share",
+                    "Dependency",
                     "Site",
                     "Vlan",
                     "Subnet",
@@ -20086,17 +20100,13 @@
                     "Discovery",
                     "Daemon",
                     "DaemonApiKey",
+                    "Credential",
                     "Tag",
                     "TagGroup",
                     "User",
                     "UserApiKey",
-                    "Credential",
                     "Organization",
-                    "Invite",
-                    "Topology",
-                    "Snapshot",
-                    "Share",
-                    "Dependency"
+                    "Invite"
                   ]
                 }
               },
@@ -22223,19 +22233,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-28T00:42:41.809646Z",
+          "created_at": "2026-10-29T00:47:12.890173Z",
           "first_discovery_id": null,
-          "id": "a74dd367-e850-4e69-8b8e-64c5fecef9da",
+          "id": "1753f86a-561b-4344-83c8-f0c9f5c8c4e0",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-28T00:42:41.809646Z",
+          "last_seen_at": "2026-10-29T00:47:12.890173Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-28T00:42:41.809646Z",
-          "valid_from": "2026-10-28T00:42:41.809646Z",
+          "updated_at": "2026-10-29T00:47:12.890173Z",
+          "valid_from": "2026-10-29T00:47:12.890173Z",
           "valid_to": null
         }
       },
@@ -23143,7 +23153,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Wizarr",
+              "service_definition": "Ntfy",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -27535,6 +27545,99 @@
           },
           {
             "type": "object",
+            "title": "ProxmoxGuestOutsideScan",
+            "description": "A running guest at addresses no subnet this scan covers, on a shared network or one the\nnode's config doesn't list, so it was recorded without ports or services.",
+            "required": [
+              "address",
+              "guest",
+              "code"
+            ],
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "The guest's first address."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "ProxmoxGuestOutsideScan"
+                ]
+              },
+              "guest": {
+                "type": "string",
+                "description": "Its Proxmox VE name, else its VMID."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ProxmoxGuestBehindNode",
+            "description": "A running guest on a bridge with no uplink that only its node holds an address on (a NAT'd\n`vmbr1`), so only a daemon on that node reaches it.",
+            "required": [
+              "address",
+              "guest",
+              "node",
+              "bridge",
+              "code"
+            ],
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "The guest's first address."
+              },
+              "bridge": {
+                "type": "string",
+                "description": "The bridge its NIC is on."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "ProxmoxGuestBehindNode"
+                ]
+              },
+              "guest": {
+                "type": "string",
+                "description": "Its Proxmox VE name, else its VMID."
+              },
+              "node": {
+                "type": "string",
+                "description": "The node it runs on."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ProxmoxGuestIsolated",
+            "description": "A running guest on a bridge with no uplink and no node address, so only a daemon on a guest\nattached to that bridge reaches it.",
+            "required": [
+              "address",
+              "guest",
+              "bridge",
+              "code"
+            ],
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "The guest's first address."
+              },
+              "bridge": {
+                "type": "string",
+                "description": "The bridge its NIC is on."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "ProxmoxGuestIsolated"
+                ]
+              },
+              "guest": {
+                "type": "string",
+                "description": "Its Proxmox VE name, else its VMID."
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "ConnectionsWithoutProtocolResponse",
             "description": "Addresses on a routed subnet completed a TCP handshake and then answered nothing, so no\nhost was recorded at any of them.\n\nThe shape a middlebox in the path produces: a firewall session helper, a load balancer or a\nscrubbing appliance answering on behalf of addresses with nothing behind them. One warning\nper subnet rather than per address — the case that raises it raises it for every address in\nthe range, and 254 copies of a sentence is not 254 findings.",
             "required": [
@@ -28810,6 +28913,10 @@
       "EntityDiscriminants": {
         "type": "string",
         "enum": [
+          "Topology",
+          "Snapshot",
+          "Share",
+          "Dependency",
           "Site",
           "Vlan",
           "Subnet",
@@ -28822,17 +28929,13 @@
           "Discovery",
           "Daemon",
           "DaemonApiKey",
+          "Credential",
           "Tag",
           "TagGroup",
           "User",
           "UserApiKey",
-          "Credential",
           "Organization",
-          "Invite",
-          "Topology",
-          "Snapshot",
-          "Share",
-          "Dependency"
+          "Invite"
         ]
       },
       "EntityField": {
@@ -30003,6 +30106,148 @@
           }
         }
       },
+      "HostDeviceTypeSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "A service on the host declares the device type, or implies `Server`.",
+            "required": [
+              "service_id",
+              "service_name",
+              "type"
+            ],
+            "properties": {
+              "service_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "service_name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Service"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A fingerprint of something the host emitted, stored in `matched_device_type`.",
+            "required": [
+              "source",
+              "type"
+            ],
+            "properties": {
+              "source": {
+                "$ref": "#/components/schemas/AttributeSource"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Matched"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The host's OS implies it. `source` is where the OS came from.",
+            "required": [
+              "source",
+              "type"
+            ],
+            "properties": {
+              "source": {
+                "$ref": "#/components/schemas/AttributeSource"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "OperatingSystem"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The host's hostname names a product.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Hostname"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The host's name names a product.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The maker of one of the host's network adapters makes only this type of device.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "MacVendor"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The host runs containers.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Containers"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Nothing on the host names what it is. Also what a reader makes of a rung it does not know.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "NoEvidence"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Which rung of [`Host::device_type`] decided a host's device type, and the evidence on it.\n\nOnly `Matched` is a stored value with a source of its own. Every other rung is derived from\nother fields each time the host is read, so the UI says which ones instead of naming a source."
+      },
       "HostFirmwareRevision": {
         "type": "object",
         "properties": {
@@ -30477,7 +30722,12 @@
           },
           "device_type": {
             "$ref": "#/components/schemas/DeviceType",
-            "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only.",
+            "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC\nvendor, as the topology computes it.\nRead-only.",
+            "readOnly": true
+          },
+          "device_type_source": {
+            "$ref": "#/components/schemas/HostDeviceTypeSource",
+            "description": "Which rung of the ladder decided `device_type`, and its evidence: a service, the stored\nfingerprint match with its source, or a field the type is derived from. Read-only.",
             "readOnly": true
           },
           "display_name": {
@@ -30830,6 +31080,11 @@
           "credential_assignments": [],
           "description": "Primary web server",
           "device_type": "Server",
+          "device_type_source": {
+            "service_id": "550e8400-e29b-41d4-a716-446655440007",
+            "service_name": "nginx",
+            "type": "Service"
+          },
           "display_name": "web-server-01",
           "display_name_rung": "Name",
           "firmware_revision": null,
@@ -30954,19 +31209,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-28T00:42:41.808377Z",
+                  "created_at": "2026-10-29T00:47:12.888817Z",
                   "first_discovery_id": null,
-                  "id": "2a922cca-72f0-4d65-89f3-1bd746ec29b0",
+                  "id": "c05bee11-a31e-4e84-858a-3c243a1d0427",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-28T00:42:41.808377Z",
+                  "last_seen_at": "2026-10-29T00:47:12.888817Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-28T00:42:41.808377Z",
-                  "valid_from": "2026-10-28T00:42:41.808377Z",
+                  "updated_at": "2026-10-29T00:47:12.888817Z",
+                  "valid_from": "2026-10-29T00:47:12.888817Z",
                   "valid_to": null
                 }
               ],
@@ -30979,7 +31234,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Wizarr",
+              "service_definition": "Ntfy",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -34869,7 +35124,12 @@
                 },
                 "device_type": {
                   "$ref": "#/components/schemas/DeviceType",
-                  "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only.",
+                  "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC\nvendor, as the topology computes it.\nRead-only.",
+                  "readOnly": true
+                },
+                "device_type_source": {
+                  "$ref": "#/components/schemas/HostDeviceTypeSource",
+                  "description": "Which rung of the ladder decided `device_type`, and its evidence: a service, the stored\nfingerprint match with its source, or a field the type is derived from. Read-only.",
                   "readOnly": true
                 },
                 "display_name": {
@@ -35222,6 +35482,11 @@
                 "credential_assignments": [],
                 "description": "Primary web server",
                 "device_type": "Server",
+                "device_type_source": {
+                  "service_id": "550e8400-e29b-41d4-a716-446655440007",
+                  "service_name": "nginx",
+                  "type": "Service"
+                },
                 "display_name": "web-server-01",
                 "display_name_rung": "Name",
                 "firmware_revision": null,
@@ -35346,19 +35611,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-28T00:42:41.798660Z",
+                        "created_at": "2026-10-29T00:47:12.878587Z",
                         "first_discovery_id": null,
-                        "id": "ef176c2d-3c25-4019-84d1-b4ccf35c5d71",
+                        "id": "85028eae-7d53-43f2-8eb0-df4107cd7816",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-28T00:42:41.798660Z",
+                        "last_seen_at": "2026-10-29T00:47:12.878587Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-28T00:42:41.798660Z",
-                        "valid_from": "2026-10-28T00:42:41.798660Z",
+                        "updated_at": "2026-10-29T00:47:12.878587Z",
+                        "valid_from": "2026-10-29T00:47:12.878587Z",
                         "valid_to": null
                       }
                     ],
@@ -35371,7 +35636,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Wizarr",
+                    "service_definition": "Ntfy",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -35618,19 +35883,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-28T00:42:41.831772Z",
+                    "created_at": "2026-10-29T00:47:12.912490Z",
                     "first_discovery_id": null,
-                    "id": "f17316da-227a-4f30-a3fa-7686714bbc01",
+                    "id": "0923cce4-7993-4266-b28d-9db3c780ba37",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-28T00:42:41.831772Z",
+                    "last_seen_at": "2026-10-29T00:47:12.912490Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-28T00:42:41.831772Z",
-                    "valid_from": "2026-10-28T00:42:41.831772Z",
+                    "updated_at": "2026-10-29T00:47:12.912490Z",
+                    "valid_from": "2026-10-29T00:47:12.912490Z",
                     "valid_to": null
                   }
                 ],
@@ -35643,7 +35908,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Wizarr",
+                "service_definition": "Ntfy",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -38340,19 +38605,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-28T00:42:41.809472Z",
+              "created_at": "2026-10-29T00:47:12.889967Z",
               "first_discovery_id": null,
-              "id": "b0a5078e-76ff-41fe-b1a5-b52e914e63e4",
+              "id": "4f262b25-8f18-4593-8295-f26f4a89f222",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-28T00:42:41.809472Z",
+              "last_seen_at": "2026-10-29T00:47:12.889967Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-28T00:42:41.809472Z",
-              "valid_from": "2026-10-28T00:42:41.809472Z",
+              "updated_at": "2026-10-29T00:47:12.889967Z",
+              "valid_from": "2026-10-29T00:47:12.889967Z",
               "valid_to": null
             }
           ],
@@ -38365,7 +38630,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Wizarr",
+          "service_definition": "Ntfy",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -40403,6 +40668,10 @@
             "propertyNames": {
               "type": "string",
               "enum": [
+                "Topology",
+                "Snapshot",
+                "Share",
+                "Dependency",
                 "Site",
                 "Vlan",
                 "Subnet",
@@ -40415,17 +40684,13 @@
                 "Discovery",
                 "Daemon",
                 "DaemonApiKey",
+                "Credential",
                 "Tag",
                 "TagGroup",
                 "User",
                 "UserApiKey",
-                "Credential",
                 "Organization",
-                "Invite",
-                "Topology",
-                "Snapshot",
-                "Share",
-                "Dependency"
+                "Invite"
               ]
             }
           },
@@ -40712,7 +40977,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "3ae5c1e9-5932-403a-b79f-48ceeb04674e",
+                  "id": "367059e8-79fe-4251-b532-219abb1cb1cf",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -40722,23 +40987,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "1fe4cd1a-eb0d-491d-a282-fa07258897d6",
+                  "id": "152f71e9-f245-4bf7-b669-5a5e1ec08d3e",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "3889c0e5-9078-4cd2-a587-9e2c9ac058d3",
+                  "id": "bc18a7d7-5f62-4816-af93-f84f04c8ed3c",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "03d6fcf7-905e-4641-9d4b-8906e8e9cd83",
+                  "id": "835fa838-0d5c-4941-a893-71ab52094dbc",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "1fe4cd1a-eb0d-491d-a282-fa07258897d6",
+                  "id": "152f71e9-f245-4bf7-b669-5a5e1ec08d3e",
                   "rule": "ByHost"
                 }
               ]
@@ -40768,19 +41033,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "e0c94d8d-eccc-4669-afed-18b500506b27",
+                "id": "c3c0303c-1e37-4582-89d1-7747caec3e72",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "408b1c60-6036-4dc7-a366-d502bae6acde",
+                "id": "7cb8665b-fb44-415b-a0f7-26511c8370e5",
                 "rule": "ByVLAN"
               },
               {
-                "id": "3119e225-49ca-4e51-86fd-4d3243b53ebb",
+                "id": "293fc4e1-8c28-468e-952c-eaa2ed969688",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "14048922-7bed-498b-94b9-2d436815cf3d",
+                "id": "18111524-efce-4801-a9ff-27dc05b19ce7",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -40801,7 +41066,7 @@
                 }
               },
               {
-                "id": "3195c14c-0b5f-422d-b888-29cd5542bf50",
+                "id": "58ced91d-161d-4c97-8260-33ecaecc1ad8",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -40810,19 +41075,19 @@
                 }
               },
               {
-                "id": "fb6d43b1-97c1-481d-9383-380b2f8016ee",
+                "id": "d3e0ba67-d9ed-4ff5-ac9a-b80e13914d01",
                 "rule": "ByDeviceType"
               },
               {
-                "id": "91575c9a-2414-4e41-871f-74073d8b2a44",
+                "id": "c35d77cf-6d57-4ed7-9fae-99a62085839a",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "8946ba01-751e-44df-a791-c99d470c488e",
+                "id": "d506c86a-a7a6-4008-8453-5e07c8874db7",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "5e2a25ca-3a9d-47c3-970e-88c81269dbb7",
+                "id": "03a3a7d6-a313-49e9-80e4-f2832de67023",
                 "rule": "ByStack"
               }
             ]
@@ -40930,6 +41195,10 @@
               "propertyNames": {
                 "type": "string",
                 "enum": [
+                  "Topology",
+                  "Snapshot",
+                  "Share",
+                  "Dependency",
                   "Site",
                   "Vlan",
                   "Subnet",
@@ -40942,17 +41211,13 @@
                   "Discovery",
                   "Daemon",
                   "DaemonApiKey",
+                  "Credential",
                   "Tag",
                   "TagGroup",
                   "User",
                   "UserApiKey",
-                  "Credential",
                   "Organization",
-                  "Invite",
-                  "Topology",
-                  "Snapshot",
-                  "Share",
-                  "Dependency"
+                  "Invite"
                 ]
               }
             },
@@ -41027,6 +41292,10 @@
             "propertyNames": {
               "type": "string",
               "enum": [
+                "Topology",
+                "Snapshot",
+                "Share",
+                "Dependency",
                 "Site",
                 "Vlan",
                 "Subnet",
@@ -41039,17 +41308,13 @@
                 "Discovery",
                 "Daemon",
                 "DaemonApiKey",
+                "Credential",
                 "Tag",
                 "TagGroup",
                 "User",
                 "UserApiKey",
-                "Credential",
                 "Organization",
-                "Invite",
-                "Topology",
-                "Snapshot",
-                "Share",
-                "Dependency"
+                "Invite"
               ]
             }
           }
@@ -41884,6 +42149,10 @@
             "propertyNames": {
               "type": "string",
               "enum": [
+                "Topology",
+                "Snapshot",
+                "Share",
+                "Dependency",
                 "Site",
                 "Vlan",
                 "Subnet",
@@ -41896,17 +42165,13 @@
                 "Discovery",
                 "Daemon",
                 "DaemonApiKey",
+                "Credential",
                 "Tag",
                 "TagGroup",
                 "User",
                 "UserApiKey",
-                "Credential",
                 "Organization",
-                "Invite",
-                "Topology",
-                "Snapshot",
-                "Share",
-                "Dependency"
+                "Invite"
               ]
             }
           },
