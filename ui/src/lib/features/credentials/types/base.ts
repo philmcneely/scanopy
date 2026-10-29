@@ -13,10 +13,8 @@ export type CredentialType = components['schemas']['CredentialType'];
 export type CredentialOrderField = components['schemas']['CredentialOrderField'];
 /** Which integrations run on a daemon, and against which hosts. */
 export type IntegrationTarget = components['schemas']['IntegrationTarget'];
-/** Release maturity of a credential type's integration. Derived from the backend enum. */
-export type CredentialStability = components['schemas']['CredentialStability'];
 /** Whether the vendor publishes the API this credential type talks to. Derived from the backend
- *  enum, and independent of `CredentialStability` — an integration can be stable and still ride
+ *  enum, and independent of `Stability` — an integration can be stable and still ride
  *  an endpoint the vendor never documented. */
 export type UpstreamSupport = components['schemas']['UpstreamSupport'];
 
@@ -28,10 +26,8 @@ export type IfOperStatus = components['schemas']['IfOperStatus'];
 import type { Color } from '$lib/shared/utils/styling';
 import type { TagProps } from '$lib/shared/components/data/types';
 import {
-	common_beta,
 	common_testing,
 	common_unknown,
-	credentials_betaTooltip,
 	credentials_unofficialApi,
 	credentials_unofficialApiTooltip,
 	credentials_targetSiteTooltip,
@@ -165,24 +161,6 @@ export function getTargetTagProps(target: string): TagProps {
 		color: entities.getColorHelper('Host').color,
 		icon: entities.getIconComponent('Host'),
 		title: credentials_targetHostTooltip()
-	};
-}
-
-/**
- * Tag marking a credential type whose integration is still in beta, or `null` for stable
- * types. Beta is presentation only — the type stays selectable and usable; it is flagged so
- * users know the integration is unvalidated and its fields may still change.
- *
- * Lives here rather than in the template so the i18n lookup sits next to `getTargetTagProps`,
- * the other producer of credential-type tags.
- */
-export function getStabilityTagProps(stability: CredentialStability | undefined): TagProps | null {
-	if (stability !== 'Beta') return null;
-	return {
-		label: common_beta(),
-		// Purple: amber is the paid crown's and the Host target's, so Beta stands apart from both.
-		color: 'Purple' as Color,
-		title: credentials_betaTooltip()
 	};
 }
 

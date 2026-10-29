@@ -11,7 +11,7 @@ use crate::server::{
     daemons::r#impl::version::last_without_credential_wire,
     services::r#impl::definitions::ServiceDefinition,
     shared::types::{
-        Color, Icon,
+        Color, Icon, Stability,
         metadata::{EntityMetadataProvider, HasId, MetadataProvider, TypeMetadata},
     },
 };
@@ -43,38 +43,9 @@ pub enum CredentialCategory {
     HostManagement,
 }
 
-/// Release maturity of a credential type's integration.
-///
-/// Additive and exhaustive: a new credential variant will not compile until it declares its
-/// stability, and every existing type is `Stable` by explicit arm rather than by wildcard, so
-/// promoting an integration is a one-line reviewable change rather than a deletion nobody
-/// notices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —
-/// it is never stored on a credential row, so it carries no deploy-coexistence obligation.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, IntoStaticStr, ToSchema, PartialEq, Eq)]
-pub enum CredentialStability {
-    /// Generally available.
-    Stable,
-    /// Shipped for validation. Data collection may be incomplete and the credential's field
-    /// shape may change in a future release. Usable, but clearly marked in the UI.
-    Beta,
-}
-
-/// `Beta < Stable`. Not derived: declaration order puts `Stable` first, which would order
-/// these the other way round.
-impl PartialOrd for CredentialStability {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        use std::cmp::Ordering;
-        Some(match (self, other) {
-            (Self::Beta, Self::Stable) => Ordering::Less,
-            (Self::Stable, Self::Beta) => Ordering::Greater,
-            (Self::Beta, Self::Beta) | (Self::Stable, Self::Stable) => Ordering::Equal,
-        })
-    }
-}
-
 /// Whether the vendor publishes and supports the API a credential type talks to.
 ///
-/// Deliberately *not* folded into [`CredentialStability`], because the two describe different
+/// Deliberately *not* folded into [`Stability`], because the two describe different
 /// things and change independently. Stability is about our own maturity and is meant to be retired
 /// by promotion to `Stable`; an undocumented upstream is a permanent property of the vendor's API
 /// that our promotion does not change. Collapsing them would force an integration built on a
@@ -405,11 +376,11 @@ impl CredentialTypeDiscriminants {
         }
     }
 
-    /// Release maturity of this credential type's integration. See [`CredentialStability`].
+    /// Release maturity of this credential type's integration. See [`Stability`].
     ///
     /// Exhaustive with no wildcard: adding a credential type forces an explicit maturity
     /// declaration rather than defaulting a brand-new, unvalidated integration to `Stable`.
-    pub fn stability(&self) -> CredentialStability {
+    pub fn stability(&self) -> Stability {
         match self {
             Self::SnmpCommunity
             | Self::SnmpV3
@@ -418,19 +389,19 @@ impl CredentialTypeDiscriminants {
             | Self::PodmanProxy
             | Self::PodmanSocket
             | Self::UnifiApiKey
-            | Self::UnifiLocalAdmin => CredentialStability::Stable,
+            | Self::UnifiLocalAdmin => Stability::Stable,
             // New; validated against ArcOS and DNOS over plaintext only. TLS is wired but not
             // yet exercised against a TLS-enabled device, and `skip_verify` is not yet
             // supported, so the field shape may still move.
-            Self::Gnmi => CredentialStability::Beta,
+            Self::Gnmi => Stability::Beta,
             // New and validated against one operator's 1960s only; the field shape may still move
             // once other Instant On models' payloads are seen.
-            Self::InstantOnAccount => CredentialStability::Beta,
+            Self::InstantOnAccount => Stability::Beta,
             // New; the script contract and host-key handling may still move.
-            Self::SshPassword | Self::SshKey | Self::WakeOnLan => CredentialStability::Beta,
+            Self::SshPassword | Self::SshKey | Self::WakeOnLan => Stability::Beta,
             // New; validated against one single-node PVE 8.4 lab. Multi-node clusters and PVE 9
             // are covered by the API's documented shape, not yet by a live cluster.
-            Self::ProxmoxApiToken => CredentialStability::Beta,
+            Self::ProxmoxApiToken => Stability::Beta,
         }
     }
 

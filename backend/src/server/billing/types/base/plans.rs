@@ -260,6 +260,8 @@ pub struct BillingPlanFeatures {
     // API
     pub api_access: bool,
     pub webhooks: bool,
+    /// Off where `api_access` is off: the MCP server reads the same data the API does.
+    pub mcp_server: bool,
     // Support
     pub email_support: bool,
     pub live_chat_support: bool,
@@ -728,6 +730,7 @@ impl BillingPlan {
                 audit_logs: false,
                 remove_created_with: false,
                 api_access: true,
+                mcp_server: true,
                 custom_sso: true,
                 managed_deployment: false,
                 whitelabeling: false,
@@ -770,6 +773,7 @@ impl BillingPlan {
                 remove_created_with: false,
                 custom_sso: false,
                 api_access: false,
+                mcp_server: false,
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
@@ -812,6 +816,7 @@ impl BillingPlan {
                 remove_created_with: true,
                 custom_sso: false,
                 api_access: false,
+                mcp_server: false,
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
@@ -852,6 +857,7 @@ impl BillingPlan {
                 audit_logs: false,
                 remove_created_with: true,
                 api_access: true,
+                mcp_server: true,
                 custom_sso: false,
                 managed_deployment: false,
                 whitelabeling: false,
@@ -894,6 +900,7 @@ impl BillingPlan {
                 remove_created_with: true,
                 custom_sso: false,
                 api_access: true,
+                mcp_server: true,
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
@@ -935,6 +942,7 @@ impl BillingPlan {
                 remove_created_with: true,
                 custom_sso: false,
                 api_access: true,
+                mcp_server: true,
                 managed_deployment: false,
                 whitelabeling: false,
                 live_chat_support: false,
@@ -976,6 +984,7 @@ impl BillingPlan {
                 remove_created_with: true,
                 custom_sso: true,
                 api_access: true,
+                mcp_server: true,
                 managed_deployment: true,
                 whitelabeling: true,
                 live_chat_support: true,
@@ -1017,6 +1026,7 @@ impl BillingPlan {
                 remove_created_with: true,
                 custom_sso: true,
                 api_access: true,
+                mcp_server: true,
                 managed_deployment: true,
                 whitelabeling: true,
                 live_chat_support: true,
@@ -1057,6 +1067,7 @@ impl BillingPlan {
                 audit_logs: true,
                 remove_created_with: true,
                 api_access: true,
+                mcp_server: true,
                 custom_sso: true,
                 managed_deployment: false,
                 whitelabeling: false,
@@ -1098,6 +1109,7 @@ impl BillingPlan {
                 audit_logs: true,
                 remove_created_with: true,
                 api_access: true,
+                mcp_server: true,
                 custom_sso: true,
                 managed_deployment: false,
                 whitelabeling: false,
@@ -1139,6 +1151,7 @@ impl BillingPlan {
                 audit_logs: true,
                 remove_created_with: true,
                 api_access: true,
+                mcp_server: true,
                 custom_sso: true,
                 managed_deployment: false,
                 whitelabeling: true,
@@ -1192,6 +1205,7 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
             sharing,
             onboarding_call,
             webhooks,
+            mcp_server,
             audit_logs,
             remove_created_with,
             custom_sso,
@@ -1248,6 +1262,10 @@ impl Into<Vec<Feature>> for BillingPlanFeatures {
 
         if api_access {
             features.push(Feature::ApiAccess)
+        }
+
+        if mcp_server {
+            features.push(Feature::McpServer)
         }
 
         if managed_deployment {
@@ -1532,6 +1550,20 @@ mod tests {
                 f.network_topology == f.workload_mapping
                     && f.workload_mapping == f.application_mapping,
                 "{} sets the map features differently",
+                plan.id()
+            );
+        }
+    }
+
+    /// The MCP server authenticates with user API keys, which the API gate refuses without
+    /// `api_access`, so a plan offering it alone would advertise a feature nobody on it can use.
+    #[test]
+    fn mcp_server_comes_with_api_access() {
+        for plan in BillingPlan::iter() {
+            let f = plan.features();
+            assert!(
+                !f.mcp_server || f.api_access,
+                "{} offers the MCP server without API access",
                 plan.id()
             );
         }

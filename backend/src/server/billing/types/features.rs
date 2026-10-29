@@ -3,7 +3,7 @@ use crate::server::shared::product_area::ProductArea;
 use crate::server::shared::types::metadata::EntityMetadataProvider;
 use crate::server::shared::types::metadata::HasId;
 use crate::server::shared::types::metadata::TypeMetadataProvider;
-use crate::server::shared::types::{Color, Icon};
+use crate::server::shared::types::{Color, Icon, Stability};
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -57,6 +57,7 @@ pub enum Feature {
     // API
     ApiAccess,
     Webhooks,
+    McpServer,
     // Support
     EmailSupport,
     LiveChatSupport,
@@ -81,6 +82,7 @@ impl HasId for Feature {
     fn id(&self) -> &'static str {
         match self {
             Feature::Webhooks => "webhooks",
+            Feature::McpServer => "mcp_server",
             Feature::AuditLogs => "audit_logs",
             Feature::OnboardingCall => "onboarding_call",
             Feature::RemoveCreatedWith => "remove_created_with",
@@ -154,7 +156,7 @@ impl Feature {
             | Feature::Tagging
             | Feature::CsvExport => ProductArea::Inventory,
 
-            Feature::ApiAccess | Feature::Webhooks => ProductArea::Api,
+            Feature::ApiAccess | Feature::Webhooks | Feature::McpServer => ProductArea::Api,
 
             Feature::EmailSupport
             | Feature::LiveChatSupport
@@ -227,6 +229,15 @@ impl Feature {
         }
     }
 
+    /// Release maturity. A beta feature is open to beta program members first, so its Beta tag
+    /// links to the beta program sign-up wherever the feature is listed.
+    pub fn stability(&self) -> Stability {
+        match self {
+            Feature::McpServer => Stability::Beta,
+            _ => Stability::Stable,
+        }
+    }
+
     pub fn is_coming_soon(&self) -> bool {
         matches!(
             self,
@@ -287,6 +298,7 @@ impl TypeMetadataProvider for Feature {
         match self {
             Feature::AuditLogs => "Audit Logs",
             Feature::Webhooks => "Webhooks",
+            Feature::McpServer => "MCP Server",
             Feature::OnboardingCall => "Onboarding Call",
             Feature::RemoveCreatedWith => "Remove Watermark",
             Feature::CustomSso => "Custom SSO",
@@ -335,6 +347,9 @@ impl TypeMetadataProvider for Feature {
             }
             Feature::Webhooks => {
                 "Push real-time events to external systems when hosts, services, or topology changes"
+            }
+            Feature::McpServer => {
+                "Connect AI assistants to your network data in Scanopy through the Model Context Protocol"
             }
             Feature::OnboardingCall => {
                 "A call with the Scanopy team to get Scanopy set up, deployed and mapping your first network"
@@ -432,6 +447,7 @@ impl TypeMetadataProvider for Feature {
     fn metadata(&self) -> serde_json::Value {
         serde_json::json!({
             "is_coming_soon": self.is_coming_soon(),
+            "stability": self.stability(),
             "minimum_plan": self.minimum_plan(),
             // Plan cards list the integrations themselves, so they skip this feature's line.
             "gates_integration": self.gates_integration(),
