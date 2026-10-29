@@ -193,6 +193,10 @@ pub enum ErrorCode {
     /// IP address is not within subnet range
     IpAddressOutOfRange { ip: String, subnet: String },
 
+    // === Subnet ===
+    /// Internet and Remote Network ranges are seeded for every site and can't be created
+    SubnetTypeSeededPerSite { subnet_type: String },
+
     // === Daemon ===
     /// Cannot send updates for a different site
     DaemonSiteMismatch,
@@ -401,6 +405,11 @@ impl ErrorCode {
                 "IP address '{ip}' is not within subnet '{subnet}' range"
             }
 
+            // Subnet
+            Self::SubnetTypeSeededPerSite { .. } => {
+                "Every site already has its own {subnet_type} subnet, so a new one can't be created"
+            }
+
             // Daemon
             Self::DaemonSiteMismatch => "Cannot send updates for a different site",
             Self::DaemonIdentityMismatch => "Cannot send updates for a different daemon",
@@ -577,6 +586,9 @@ impl ErrorCode {
             Self::DiscoverySessionNotFound { id } => Some(json_map! {"id" => id}),
             Self::IpAddressOutOfRange { ip, subnet } => {
                 Some(json_map! { "ip" => ip, "subnet" => subnet })
+            }
+            Self::SubnetTypeSeededPerSite { subnet_type } => {
+                Some(json_map! { "subnet_type" => subnet_type })
             }
             Self::DaemonVersionTooOld {
                 daemon_version,

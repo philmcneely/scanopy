@@ -245,6 +245,8 @@ export interface SubnetTypeMetadata {
 	 * Use `isUserManagedSubnet` rather than reading this directly.
 	 */
 	is_synthetic_category: boolean;
+	/** Internet and Remote: every site is seeded with one, so users can't create another. */
+	is_seeded_per_site: boolean;
 }
 
 /**

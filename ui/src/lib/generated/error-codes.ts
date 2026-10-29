@@ -80,6 +80,8 @@ export const ERROR_CODES = {
 	discovery_subnet_site_mismatch: "Subnet '{subnet}' is on a different site",
 	discovery_session_not_found: "Discovery session '{id}' not found",
 	ip_address_out_of_range: "IP address '{ip}' is not within subnet '{subnet}' range",
+	subnet_type_seeded_per_site:
+		"Every site already has its own {subnet_type} subnet, so a new one can't be created",
 	daemon_site_mismatch: 'Cannot send updates for a different site',
 	daemon_identity_mismatch: 'Cannot send updates for a different daemon',
 	daemon_standby:
@@ -185,6 +187,7 @@ export interface ErrorParams {
 	discovery_subnet_site_mismatch: { subnet: string | number };
 	discovery_session_not_found: { id: string | number };
 	ip_address_out_of_range: { ip: string | number; subnet: string | number };
+	subnet_type_seeded_per_site: { subnet_type: string | number };
 	daemon_site_mismatch: Record<string, never>;
 	daemon_identity_mismatch: Record<string, never>;
 	daemon_standby: Record<string, never>;

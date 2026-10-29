@@ -20,23 +20,51 @@ impl<T: Storable> StorableFilter<T> {
     /// The category list itself is not restated here: it is bound from
     /// [`SubnetType::synthetic_categories`].
     pub fn user_managed(mut self) -> Self {
+        let condition = self.user_managed_condition();
+        self.conditions.push(condition);
+        self
+    }
+
+    /// [`Self::user_managed`], plus `shared_site`'s seeded Internet and Remote ranges
+    /// ([`SubnetType::seeded_per_site`]). Every site holds its own copy of each, so the list shows
+    /// one site's copy, once, instead of one per site. With no site, the user-managed rows alone.
+    pub fn user_managed_with_shared(mut self, shared_site: Option<Uuid>) -> Self {
+        let Some(site_id) = shared_site else {
+            return self.user_managed();
+        };
+        let user_managed = self.user_managed_condition();
+        let site_col = self.qualify_column("site_id");
         let source_col = self.qualify_column("source");
         let type_col = self.qualify_column("subnet_type");
 
-        let placeholders: Vec<String> = SubnetType::synthetic_categories()
-            .iter()
-            .map(|subnet_type| {
-                let idx = self.values.len() + 1;
-                self.values
-                    .push(SqlValue::String(subnet_type.id().to_string()));
-                format!("${idx}")
-            })
-            .collect();
+        self.values.push(SqlValue::Uuid(site_id));
+        let site_idx = self.values.len();
+        let placeholders = self.bind_types(SubnetType::seeded_per_site());
 
         self.conditions.push(format!(
-            "({source_col}->>'type' = 'Manual' OR {type_col} NOT IN ({}))",
-            placeholders.join(", ")
+            "({user_managed} OR ({site_col} = ${site_idx} AND {source_col}->>'type' = 'System' \
+             AND {type_col} IN ({placeholders})))"
         ));
         self
+    }
+
+    fn user_managed_condition(&mut self) -> String {
+        let source_col = self.qualify_column("source");
+        let type_col = self.qualify_column("subnet_type");
+        let placeholders = self.bind_types(SubnetType::synthetic_categories());
+        format!("({source_col}->>'type' = 'Manual' OR {type_col} NOT IN ({placeholders}))")
+    }
+
+    /// Binds each type's id and returns the placeholders, comma-separated.
+    fn bind_types(&mut self, types: &[SubnetType]) -> String {
+        types
+            .iter()
+            .map(|subnet_type| {
+                self.values
+                    .push(SqlValue::String(subnet_type.id().to_string()));
+                format!("${}", self.values.len())
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 }

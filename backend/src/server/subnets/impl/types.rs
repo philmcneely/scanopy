@@ -251,6 +251,20 @@ impl SubnetType {
         Self::synthetic_categories().contains(self)
     }
 
+    /// The categories of the `0.0.0.0/0` ranges `seed_data` gives every site, one row of each per
+    /// site. The subnets list shows one site's copy of each as a range every site shares, and
+    /// users can't create new ones.
+    ///
+    /// One definition, shared by site seeding, `StorableFilter::<Subnet>::user_managed_with_shared`
+    /// and the subnet create and update checks.
+    pub fn seeded_per_site() -> &'static [SubnetType] {
+        &[SubnetType::Internet, SubnetType::Remote]
+    }
+
+    pub fn is_seeded_per_site(&self) -> bool {
+        Self::seeded_per_site().contains(self)
+    }
+
     pub fn show_label(&self) -> bool {
         !matches!(self, SubnetType::Unknown | SubnetType::Loopback)
     }
@@ -391,7 +405,8 @@ impl TypeMetadataProvider for SubnetType {
             "is_for_containers": is_for_containers,
             "is_container_bridge": self.is_container_bridge(),
             "show_label": self.show_label(),
-            "is_synthetic_category": self.is_synthetic_category()
+            "is_synthetic_category": self.is_synthetic_category(),
+            "is_seeded_per_site": self.is_seeded_per_site()
         })
     }
 }
