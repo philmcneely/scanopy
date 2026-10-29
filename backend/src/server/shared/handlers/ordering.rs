@@ -62,8 +62,15 @@ pub trait OrderField: Clone + Copy + Default + Send + Sync + 'static {
         })
     }
 
-    /// The field's ORDER BY term in the given direction.
-    fn order_term(&self, dir: &str) -> String {
+    /// An expression a sort by this field leads with, ascending in either direction: rows it puts
+    /// first stay first whichever way the field sorts. Not part of the grouping, where it would
+    /// split a group.
+    fn leading_sql(&self) -> Option<String> {
+        None
+    }
+
+    /// The field's own ORDER BY term in the given direction.
+    fn field_term(&self, dir: &str) -> String {
         if self.sorts_by_site_name() {
             format!("{SITE_ALIAS}.name {dir}, {} {dir}", self.to_sql())
         } else if self.nulls_last() {
@@ -73,13 +80,17 @@ pub trait OrderField: Clone + Copy + Default + Send + Sync + 'static {
         }
     }
 
+    /// The field's ORDER BY term in the given direction.
+    fn order_term(&self, dir: &str) -> String {
+        match self.leading_sql() {
+            Some(leading) => format!("{leading} ASC, {}", self.field_term(dir)),
+            None => self.field_term(dir),
+        }
+    }
+
     /// The ORDER BY term that keeps this field's groups together.
     fn group_term(&self) -> String {
-        if self.sorts_by_site_name() || !self.nulls_last() {
-            self.order_term("ASC")
-        } else {
-            format!("{} ASC NULLS LAST", self.to_sql())
-        }
+        self.field_term("ASC")
     }
 }
 
