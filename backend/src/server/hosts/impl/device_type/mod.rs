@@ -566,25 +566,35 @@ impl Host {
 #[serde(tag = "type")]
 pub enum HostDeviceTypeSource {
     /// A service on the host declares the device type, or implies `Server`.
+    #[schema(title = "Service")]
     Service {
+        /// The service whose definition declares or implies the device type.
         service_id: uuid::Uuid,
+        /// That service's name, for display.
         service_name: String,
     },
     /// A fingerprint of something the host emitted, stored in `matched_device_type`.
+    #[schema(title = "Matched")]
     Matched { source: AttributeSource },
     /// The host's OS implies it. `source` is where the OS came from.
+    #[schema(title = "OperatingSystem")]
     OperatingSystem { source: AttributeSource },
     /// The host's hostname names a product.
+    #[schema(title = "Hostname")]
     Hostname,
     /// The host's name names a product.
+    #[schema(title = "Name")]
     Name,
     /// The maker of one of the host's network adapters makes only this type of device.
+    #[schema(title = "MacVendor")]
     MacVendor,
     /// The host runs containers.
+    #[schema(title = "Containers")]
     Containers,
     /// Nothing on the host names what it is. Also what a reader makes of a rung it does not know.
     #[default]
     #[serde(other)]
+    #[schema(title = "NoEvidence")]
     NoEvidence,
 }
 

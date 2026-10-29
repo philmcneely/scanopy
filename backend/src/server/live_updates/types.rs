@@ -8,8 +8,10 @@ use uuid::Uuid;
 #[serde(tag = "type", content = "data")]
 pub enum LiveUpdate {
     /// Progress or an end state of a discovery session.
+    #[schema(title = "Discovery")]
     Discovery(Box<DiscoveryUpdatePayload>),
     /// A site's live entity set changed, so its topology needs refetching.
+    #[schema(title = "Topology")]
     Topology(LiveTopologyUpdate),
 }
 

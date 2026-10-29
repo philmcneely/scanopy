@@ -77,7 +77,12 @@ jobs:
 
       - name: Clippy server
         run: cargo clippy --bin server --all-features -- -D warnings
-      
+
+      # The OpenAPI documentation gate, ahead of the full test run so a gap fails in seconds
+      # rather than after every other test. The full run below reuses this build.
+      - name: Lint OpenAPI spec
+        run: cargo test --lib openapi::lint
+
       - name: Test server binary
         run: cargo test --lib
 

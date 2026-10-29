@@ -387,6 +387,10 @@ lint:
 	@# missed test code, which is how a broken tests/integration reached dev. `generate-fixtures`
 	@# compiles the release workflow's fixture target, which a stale enum match broke unnoticed.
 	cd backend && cargo fmt -- --check && $(SCANOPY_BUILD_WRAPPER) cargo clippy --workspace --all-targets --features generate-fixtures -- -D warnings
+	@echo "Linting the OpenAPI spec..."
+	@# Every documented field, union variant title and response body in the public spec. As a
+	@# lib test it otherwise only ran inside the full `cargo test --lib`, so gaps reached CI.
+	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo test --lib openapi::lint
 	@echo "Generating paraglide i18n..."
 	cd ui && npx paraglide-js compile --outdir ./src/lib/paraglide --silent
 	@echo "Linting UI..."
