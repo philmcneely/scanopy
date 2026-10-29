@@ -2934,7 +2934,7 @@
 	"releaseNotes_title": "What's new in Scanopy",
 	"search_navigateHint": "↑↓ to move, Enter to open, Esc to close",
 	"serverUnreachable_body": "Can't reach the Scanopy server. Scanopy reconnects by itself once the server answers again.",
-	"serverUpdated_body": "Scanopy was updated. Reload to use the new version.",
+	"serverUpdated_body": "Scanopy was updated and reloads when you close this window. Reloading discards unsaved changes.",
 	"services_bindingCount": "{count} binding(s)",
 	"services_matchConfidence": "Match Confidence",
 	"services_notContainerized": "Not Containerized",
