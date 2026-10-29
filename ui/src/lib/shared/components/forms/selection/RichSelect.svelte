@@ -390,7 +390,10 @@
 							{@const isLastInGroup = optionIndex === group.options.length - 1}
 							{@const isLastGroup = groupIndex === groupedOptions.length - 1}
 							{@const isDisabled = displayComponent.getDisabled?.(option, context) ?? false}
-							{@const isClickableDisabled = isDisabled && onDisabledClick != null}
+							{@const isClickableDisabled =
+								isDisabled &&
+								onDisabledClick != null &&
+								(displayComponent.getDisabledClickable?.(option, context) ?? true)}
 							{@const disabledReason = isDisabled
 								? (displayComponent.getDisabledReason?.(option, context) ?? null)
 								: null}
@@ -401,6 +404,7 @@
 								onclick={(e) => {
 									e.preventDefault();
 									e.stopPropagation();
+									if (isDisabled && !isClickableDisabled) return;
 									if (isDisabled) {
 										isOpen = false;
 										resetFilter();

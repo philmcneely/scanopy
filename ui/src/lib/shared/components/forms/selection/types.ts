@@ -31,6 +31,10 @@ export interface EntityDisplayComponent<T, C> {
 	getCategory?(item: T, context: C): string | null;
 	getDisabled?(item: T, context: C): boolean;
 	getDisabledReason?(item: T, context: C): string | null;
+	/** Whether a disabled option still takes clicks, for the picker's `onDisabledClick` (an
+	 *  upgrade badge, say). Defaults to true. An option disabled for any other reason returns
+	 *  false, so it renders dimmed and ignores the click. */
+	getDisabledClickable?(item: T, context: C): boolean;
 
 	// Inline tag picker support
 	getTagPickerProps?(
