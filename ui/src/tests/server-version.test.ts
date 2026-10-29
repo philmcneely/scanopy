@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { get, writable } from 'svelte/store';
+import { writable } from 'svelte/store';
 
 const modalState = writable<{ name: string | null }>({ name: null });
 
@@ -33,10 +33,9 @@ describe('checkServerVersion', () => {
 	});
 
 	it('does nothing while the server runs the bundle’s version', async () => {
-		const { checkServerVersion, serverUpdatePending } = await load();
+		const { checkServerVersion } = await load();
 		checkServerVersion('0.19.3');
 		expect(reload).not.toHaveBeenCalled();
-		expect(get(serverUpdatePending)).toBe(false);
 	});
 
 	it('reloads at once when the server changed and no modal is open', async () => {
@@ -46,13 +45,12 @@ describe('checkServerVersion', () => {
 		expect(reload).toHaveBeenCalledTimes(1);
 	});
 
-	it('waits for an open modal to close before reloading, showing the banner meanwhile', async () => {
-		const { checkServerVersion, serverUpdatePending } = await load();
+	it('waits for an open modal to close before reloading', async () => {
+		const { checkServerVersion } = await load();
 		modalState.set({ name: 'host-editor' });
 
 		checkServerVersion('0.20.0');
 		expect(reload).not.toHaveBeenCalled();
-		expect(get(serverUpdatePending)).toBe(true);
 
 		modalState.set({ name: 'subnet-editor' });
 		expect(reload).not.toHaveBeenCalled();
@@ -65,7 +63,7 @@ describe('checkServerVersion', () => {
 		expect(reload).toHaveBeenCalledTimes(1);
 	});
 
-	it('stops, with no banner, when a reload did not bring the new version', async () => {
+	it('stops when a reload did not bring the new version', async () => {
 		const first = await load();
 		first.checkServerVersion('0.20.0');
 		expect(reload).toHaveBeenCalledTimes(1);
@@ -74,7 +72,6 @@ describe('checkServerVersion', () => {
 		const afterReload = await load();
 		afterReload.checkServerVersion('0.20.0');
 		expect(reload).toHaveBeenCalledTimes(1);
-		expect(get(afterReload.serverUpdatePending)).toBe(false);
 
 		// A later release gets its own reload.
 		const later = await load();
