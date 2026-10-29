@@ -8277,17 +8277,6 @@ export interface components {
             outcome: components["schemas"]["CredentialRunOutcome"];
         };
         /**
-         * @description Release maturity of a credential type's integration.
-         *
-         *     Additive and exhaustive: a new credential variant will not compile until it declares its
-         *     stability, and every existing type is `Stable` by explicit arm rather than by wildcard, so
-         *     promoting an integration is a one-line reviewable change rather than a deletion nobody
-         *     notices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —
-         *     it is never stored on a credential row, so it carries no deploy-coexistence obligation.
-         * @enum {string}
-         */
-        CredentialStability: "Stable" | "Beta";
-        /**
          * @description Universal credential type — tagged enum stored as JSONB.
          *     Each variant represents a different credential protocol/method.
          */
@@ -15332,6 +15321,17 @@ export interface components {
             rejected_keys?: string[];
         };
         /**
+         * @description Release maturity of something Scanopy ships: a credential type's integration, or a plan
+         *     feature.
+         *
+         *     Each owner declares it in an exhaustive match, so promoting one to `Stable` is a one-line
+         *     reviewable change. This is presentation metadata about the *code*, like
+         *     `last_unsupported_daemon_version`. It is never stored on a row, so it carries no
+         *     deploy-coexistence obligation.
+         * @enum {string}
+         */
+        Stability: "Stable" | "Beta";
+        /**
          * @example {
          *       "cidr": "192.168.1.0/24",
          *       "cidr_source": "DaemonSelfReport",
@@ -16324,7 +16324,7 @@ export interface components {
         /**
          * @description Whether the vendor publishes and supports the API a credential type talks to.
          *
-         *     Deliberately *not* folded into [`CredentialStability`], because the two describe different
+         *     Deliberately *not* folded into [`Stability`], because the two describe different
          *     things and change independently. Stability is about our own maturity and is meant to be retired
          *     by promotion to `Stable`; an undocumented upstream is a permanent property of the vendor's API
          *     that our promotion does not change. Collapsing them would force an integration built on a
